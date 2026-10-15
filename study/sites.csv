@@ -1,0 +1,24 @@
+app,file,line,call,wildcard,dependence_class,transitive,notes
+# First pass, 2026-09-05, by reading the code (no taint pass yet). Revisit each row with the LLVM taint pass in WP1.
+# dependence_class: none | metadata | payload-count | payload-sentinel | payload-data
+# transitive: yes if the dependence reaches an MPI call argument or a branch guarding an MPI call through data flow
+# wildcard: ANY_SOURCE | ANY_TAG | both | waitany | probe | get_count | none
+AMG,parcsr_mv/par_csr_assumed_part.c,274,hypre_MPI_Recv,ANY_SOURCE,payload-count,yes,"loop `while rows_found != locate_row_count` accumulates tmp_range from the payload: the NUMBER of receives depends on payload, but the multiset of incoming messages is fixed so the count is invariant under re-matching; status.MPI_SOURCE stored in proc_list and used for later contacts (metadata, transitive)"
+AMG,utilities/exchange_data.c,315,hypre_MPI_Iprobe,ANY_SOURCE,metadata,yes,"probe-driven loop: proc = status.MPI_SOURCE decides the Recv source and the response Send destination; contact_size from Get_count sizes the Recv; the loop count depends on Iprobe flag timing (a nondeterminism atom beyond matching)"
+AMG,utilities/exchange_data.c,402,hypre_MPI_Iprobe,ANY_SOURCE,metadata,yes,"same loop as line 315 (re-probe after responding)"
+AMG,parcsr_mv/par_vector.c,647,hypre_MPI_Probe,probe,metadata,yes,"Probe(0, tag1) + Get_count sizes the following Recv: source fixed, count from metadata; not a matching site"
+AMG,parcsr_mv/par_csr_matrix.c,1625,hypre_MPI_Probe,probe,metadata,yes,"same pattern as par_vector.c:647"
+AMG,utilities/exchange_data.c,414,hypre_MPI_Testall,none,metadata,yes,"termination protocol driven by Testall/Iprobe flags (timing), no wildcard"
+MACSio,src-stuff/memfile.c,190,MPI_Recv,ANY_SOURCE,metadata,no,"aggregator loop with fixed count size-1; real_len from Get_count and MPI_SOURCE only name an HDF5 group; no effect on the communication pattern; file lives in src-stuff (check whether it is built)"
+Nekbone,src/comm_mpi.f,199,mpi_recv (crecv wrapper),ANY_SOURCE,none,no,"wrapper: source ANY, tag = mtype; all callers use a tag protocol that makes the sender unique (see call sites below)"
+Nekbone,src/comm_mpi.f,220,mpi_recv (crecv3 wrapper),ANY_SOURCE,metadata,no,"as crecv plus Get_count returned to the caller; no caller uses it in Nekbone"
+Nekbone,src/comm_mpi.f,348,mpi_irecv (irecv wrapper),ANY_SOURCE,none,no,"wrapper: source ANY, tag = msgtag; callers are the timing tests"
+Nekbone,src/comm_mpi.f,701,irecv,ANY_SOURCE,none,no,"pingpong timing test between nodea and nodeb, tag = itest: unique sender"
+Nekbone,src/comm_mpi.f,707,mpi_irecv,ANY_SOURCE,none,no,"pingpong loop, tag = i, peer fixed"
+Nekbone,src/comm_mpi.f,729,crecv,ANY_SOURCE,none,no,"pingpong synchronisation"
+Nekbone,src/comm_mpi.f,777,irecv,ANY_SOURCE,none,no,"pingpong timing variant"
+Nekbone,src/comm_mpi.f,783,irecv,ANY_SOURCE,none,no,"pingpong timing variant"
+Nekbone,src/comm_mpi.f,793,crecv,ANY_SOURCE,none,no,"pingpong timing variant"
+Nekbone,src/comm_mpi.f,798,crecv,ANY_SOURCE,none,no,"pingpong timing variant"
+Nekbone,src/comm_mpi.f,994,crecv,ANY_SOURCE,none,no,"gp2 binary-tree global op: at every level a child sends with the SAME tag `type`, so the wildcard can take the children in either order; the call pattern is fixed, but the floating-point accumulation order depends on the match: benign for control flow, a source of run-to-run numerical nondeterminism (class 1f with a numerical consequence)"
+Nekbone,src/comm_mpi.f,1029,crecv,ANY_SOURCE,none,no,"gp2 broadcast phase: exactly one parent sends tag `typer` to this node; wildcard is syntactic only"
