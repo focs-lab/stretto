@@ -1,0 +1,35 @@
+# build outputs
+*.o
+*.so
+*.a
+idioms/*/bin/
+idioms/**/*.out
+build/
+# traces and replay logs
+traces/
+# fetched applications for the WP0a study
+study/apps/
+# python
+__pycache__/
+*.pyc
+.pytest_cache/
+# editors
+.vscode/
+.idea/
+*.swp
+study/sites.txt
+third_party/must/
+third_party/mpi-bugbench/
+third_party/venv/
+papers/
+third_party/apps/
+# experiment artefacts: per-program directories (binaries, traces, logs) and run logs;
+# only the result tables (*.csv) and generated documents are committed
+experiments/results/*/*/
+experiments/results/*.log
+experiments/results/e4/*.log
+experiments/results/e4/*.err
+experiments/results/e4/*.report.txt
+experiments/results/amg/
+third_party/*.log
+experiments/results/*/must.csv
