@@ -53,7 +53,7 @@ HIDDEN void rematch_pin_init(int rank) {
             }
         }
         free(copy);
-        if (g_npins && getenv("REMATCH_VERBOSE"))
+        if (g_npins)
             fprintf(stderr, "[rematch-pin] rank %d: %d pin(s) active\n", rank, g_npins);
     }
     const char *pspec = getenv("REMATCH_PIN_PROBE");
@@ -87,7 +87,22 @@ HIDDEN void rematch_pin_init(int rank) {
     }
 }
 
-HIDDEN int rematch_pin_recv(int *src, int *tag, int *widx) {
+/* The sender's world rank as a rank of comm (the remote group of an intercommunicator);
+   MPI_UNDEFINED if it is not a member. */
+static int to_comm_rank(MPI_Comm comm, int world_rank) {
+    int np = 0; PMPI_Comm_size(MPI_COMM_WORLD, &np);
+    if (world_rank < 0 || world_rank >= np) return MPI_UNDEFINED;
+    if (comm == MPI_COMM_WORLD) return world_rank;
+    MPI_Group g, w; int inter = 0, r = MPI_UNDEFINED;
+    PMPI_Comm_test_inter(comm, &inter);
+    if (inter) PMPI_Comm_remote_group(comm, &g); else PMPI_Comm_group(comm, &g);
+    PMPI_Comm_group(MPI_COMM_WORLD, &w);
+    PMPI_Group_translate_ranks(w, 1, &world_rank, g, &r);
+    PMPI_Group_free(&g); PMPI_Group_free(&w);
+    return r;
+}
+
+HIDDEN int rematch_pin_recv(int *src, int *tag, MPI_Comm comm, int *widx) {
     *widx = -1;
     if (*src != MPI_ANY_SOURCE && *tag != MPI_ANY_TAG) return 0;
     pthread_mutex_lock(&g_pmu);
@@ -96,17 +111,25 @@ HIDDEN int rematch_pin_recv(int *src, int *tag, int *widx) {
     *widx = idx;
     for (int i = 0; i < g_npins; i++) {
         if (g_pins[i].idx == idx) {
-            if (*src == MPI_ANY_SOURCE) *src = g_pins[i].src;
+            if (*src == MPI_ANY_SOURCE) {
+                int cr = to_comm_rank(comm, g_pins[i].src);
+                if (cr == MPI_UNDEFINED) {
+                    fprintf(stderr, "[rematch-pin] rank %d: pin widx=%d names world rank %d, not a member of the communicator: not applied\n", g_rank, idx, g_pins[i].src);
+                    return 0;
+                }
+                *src = cr;
+            }
             if (*tag == MPI_ANY_TAG && g_pins[i].tag != MPI_ANY_TAG) *tag = g_pins[i].tag;
-            if (getenv("REMATCH_VERBOSE"))
-                fprintf(stderr, "[rematch-pin] rank %d: wildcard #%d pinned to src=%d tag=%d\n", g_rank, idx, *src, *tag);
+            fprintf(stderr, "[rematch-pin] rank %d: applied widx=%d src=%d (world %d) tag=%d\n", g_rank, idx, *src, g_pins[i].src, *tag);
             return 1;
         }
     }
     return 0;
 }
 
-HIDDEN int rematch_pin_probe(int *src, int *tag, int *pidx) {
+static int g_pinned_probe = -1;   /* the pidx whose pin was applied by the last peek */
+
+HIDDEN int rematch_pin_probe(int *src, int *tag, MPI_Comm comm, int *pidx) {
     /* Peek only: the ordinal advances in rematch_pin_probe_commit(), called when the probe
        found a message. Failed polls (Iprobe/Improbe with flag 0) do not count, so the
        ordinal is the same in a traced run and in a pinned replay however long each busy
@@ -119,13 +142,16 @@ HIDDEN int rematch_pin_probe(int *src, int *tag, int *pidx) {
     *pidx = idx;
     for (int i = 0; i < g_nppins; i++) {
         if (g_ppins[i].idx == idx) {
-            if (*src == MPI_ANY_SOURCE) *src = g_ppins[i].src;
-            if (*tag == MPI_ANY_TAG && g_ppins[i].tag != MPI_ANY_TAG) *tag = g_ppins[i].tag;
-            static int last_reported = -1;
-            if (getenv("REMATCH_VERBOSE") && last_reported != idx) {
-                last_reported = idx;
-                fprintf(stderr, "[rematch-pin] rank %d: probe #%d pinned to src=%d tag=%d\n", g_rank, idx, *src, *tag);
+            if (*src == MPI_ANY_SOURCE) {
+                int cr = to_comm_rank(comm, g_ppins[i].src);
+                if (cr == MPI_UNDEFINED) {
+                    fprintf(stderr, "[rematch-pin] rank %d: probe pin pidx=%d names world rank %d, not a member of the communicator: not applied\n", g_rank, idx, g_ppins[i].src);
+                    return 0;
+                }
+                *src = cr;
             }
+            if (*tag == MPI_ANY_TAG && g_ppins[i].tag != MPI_ANY_TAG) *tag = g_ppins[i].tag;
+            pthread_mutex_lock(&g_pmu); g_pinned_probe = idx; pthread_mutex_unlock(&g_pmu);
             return 1;
         }
     }
@@ -135,8 +161,23 @@ HIDDEN int rematch_pin_probe(int *src, int *tag, int *pidx) {
 HIDDEN void rematch_pin_probe_commit(int pidx) {
     if (pidx < 0) return;
     pthread_mutex_lock(&g_pmu);
-    if (g_nprobe == pidx) g_nprobe++;
+    if (g_nprobe == pidx) {
+        g_nprobe++;
+        if (g_pinned_probe == pidx) {
+            fprintf(stderr, "[rematch-pin] rank %d: applied probe pidx=%d\n", g_rank, pidx);
+            g_pinned_probe = -1;
+        }
+    }
     pthread_mutex_unlock(&g_pmu);
+}
+
+HIDDEN void rematch_pin_finalize(void) {
+    for (int i = 0; i < g_npins; i++)
+        if (g_pins[i].idx >= g_nwild)
+            fprintf(stderr, "[rematch-pin] rank %d: pin widx=%d unused: the run posted %d wildcard receive(s)\n", g_rank, g_pins[i].idx, g_nwild);
+    for (int i = 0; i < g_nppins; i++)
+        if (g_ppins[i].idx >= g_nprobe)
+            fprintf(stderr, "[rematch-pin] rank %d: probe pin pidx=%d unused: %d wildcard probe(s) found a message\n", g_rank, g_ppins[i].idx, g_nprobe);
 }
 
 static void delay_at(int is_send, int k) {

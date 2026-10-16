@@ -1,6 +1,7 @@
 MPI ?= openmpi
 MPICC := /usr/bin/mpicc.$(MPI)
-CFLAGS ?= -O1 -g -Wall -Wextra -fPIC
+CFLAGS ?= -O1 -g -Wall -Wextra
+CFLAGS += -fPIC   # a shared object whatever CFLAGS the environment sets
 OUT := bin/$(MPI)
 
 all: $(OUT)/librematch-trace.so

@@ -15,12 +15,18 @@
    REMATCH_DELAY_AT="rank:send|recv:k:ms,..."  sleep only before the k-th send/receive. */
 #ifndef REMATCH_PIN_H
 #define REMATCH_PIN_H
+#include <mpi.h>
 void rematch_pin_init(int rank);
 /* Counts the wildcard receive (writes its ordinal to *widx, -1 if not a wildcard) and
-   returns 1 if src/tag were substituted. */
-int  rematch_pin_recv(int *src, int *tag, int *widx);
-int  rematch_pin_probe(int *src, int *tag, int *pidx);   /* peek; ordinal counts successful probes only */
+   returns 1 if src/tag were substituted. The pin names the sender's world rank; it is
+   translated into comm (the remote group of an intercommunicator). Every applied pin is
+   reported on stderr as "[rematch-pin] rank R: applied widx=W ...", a pin that names a
+   rank outside the communicator is reported and not applied. */
+int  rematch_pin_recv(int *src, int *tag, MPI_Comm comm, int *widx);
+int  rematch_pin_probe(int *src, int *tag, MPI_Comm comm, int *pidx);   /* peek; ordinal counts successful probes only */
 void rematch_pin_probe_commit(int pidx);
+/* At MPI_Finalize: report every pin whose ordinal the run never reached ("unused"). */
+void rematch_pin_finalize(void);
 void rematch_pin_before_send(void);
 void rematch_pin_before_recv(void);
 #endif
