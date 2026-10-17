@@ -13,8 +13,20 @@ def _B(s: str):
     return None if s in ("inf", "none", "None") else int(s)
 
 
+class LoadError(Exception):
+    """The trace directory cannot be loaded (exit status 2); an error anywhere else is a
+    bug and propagates with its traceback instead of masquerading as a load failure."""
+
+
+def _load(tracedir: str):
+    try:
+        return trace.load(tracedir)
+    except (FileNotFoundError, NotADirectoryError, ValueError, KeyError) as e:
+        raise LoadError(f"cannot load {tracedir}: {e!r}") from e
+
+
 def cmd_show(args):
-    t = trace.load(args.tracedir)
+    t = _load(args.tracedir)
     for rank in sorted(t.ranks):
         print(f"rank {rank}:")
         objs = {x.idx: x for x in list(t.sends_of(rank)) + list(t.recvs_of(rank))}
@@ -40,7 +52,7 @@ def cmd_show(args):
 
 
 def _analyze(args):
-    t = trace.load(args.tracedir)
+    t = _load(args.tracedir)
     return t, report.analyze(t, with_sp=not args.no_sp, sp_max_events=args.sp_max_events,
                              max_states=args.max_states, generic=args.generic, full_profile=args.full_profile,
                              changes=args.changes)
@@ -56,7 +68,7 @@ def cmd_analyze(args):
 
 
 def cmd_candidates(args):
-    t = trace.load(args.tracedir)
+    t = _load(args.tracedir)
     alts, pruned = candidates_full(t)
     for alt in alts:
         v0 = check(t, alt.M, alt.changed, 0, args.mode)
@@ -68,7 +80,7 @@ def cmd_candidates(args):
 
 
 def cmd_oracle(args):
-    t = trace.load(args.tracedir)
+    t = _load(args.tracedir)
     prog = dsl.program_from_trace(t)
     for B in [_B(b) for b in args.B]:
         res = explore.explore(prog, B, comms=t.comm_members)
@@ -124,6 +136,6 @@ def main(argv=None) -> int:
     args = p.parse_args(argv)
     try:
         return args.fn(args)
-    except (FileNotFoundError, NotADirectoryError, ValueError, KeyError) as e:
-        print(f"rematch: cannot load {getattr(args, 'tracedir', '')}: {e!r}", file=sys.stderr)
+    except LoadError as e:
+        print(f"rematch: {e}", file=sys.stderr)
         return 2

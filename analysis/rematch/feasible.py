@@ -84,10 +84,11 @@ def breakpoints(t: Trace) -> List[int]:
 
 def feasible_profile(t: Trace, M: Dict[Key, Key], changed, mode: str = "L1", full: bool = True, **kw) -> Dict[Optional[int], bool]:
     """Feasibility at the breakpoints {0} U message sizes U {inf}: Verdict.ok, so in SP mode
-    a threshold at which a rank hangs counts as infeasible. Every breakpoint is checked
-    (docs/model.md: monotonicity in B is a claim to be tested, not assumed).
-    full=False checks the two ends and bisects between them, which is right only if
-    feasibility is monotone in B; the tests compare the two on every traced idiom."""
+    a threshold at which a rank hangs counts as infeasible. The default judges every
+    breakpoint: this is the generic checker's profile, which the E2 harness and the tests
+    use as the evidence for theorem T2 (docs/model.md) and as the reference for the
+    bisected profile of report._profiles_fast. full=False checks the two ends and bisects
+    between them, exact when feasibility is monotone in B (T2)."""
     bps = breakpoints(t)
     prof: Dict[Optional[int], bool] = {}
     if full or len(bps) <= 3:

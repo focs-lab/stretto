@@ -260,7 +260,7 @@ class Overlay(Mapping):
                 yield k
 
     def __len__(self) -> int:
-        return len(self.base) - len(self.removed) + sum(1 for k in self.changed if k not in self.base)
+        return len(self.base) - sum(1 for k in self.removed if k in self.base) + sum(1 for k in self.changed if k not in self.base)
 
     def with_(self, changed: Dict[Key, Key] = None, removed: Iterable[Key] = ()) -> "Overlay":
         """A copy with more changes or removals; the later edit wins on a key in both."""
@@ -294,6 +294,31 @@ def candidates(t: Trace) -> List[Alternative]:
     return candidates_full(t)[0]
 
 
+class _ConsumedBefore:
+    """The sends consumed by the receives of a rank posted before a given index, for queries
+    in non-decreasing posting order per rank: one pass over each rank's receives in all,
+    instead of one pass per wildcard receive or probe (quadratic on a rank with hundreds of
+    thousands of receives, which Nekbone's communication suite has)."""
+
+    def __init__(self, t: Trace):
+        self.t = t
+        self.pos: Dict[int, int] = {}
+        self.taken: Dict[int, Set[Key]] = {}
+        self.last: Dict[int, int] = {}
+
+    def before(self, rank: int, idx: int) -> Set[Key]:
+        assert self.last.get(rank, -1) <= idx, "queries must come in posting order per rank"
+        self.last[rank] = idx
+        recvs, i, taken = self.t.recvs_of(rank), self.pos.get(rank, 0), self.taken.setdefault(rank, set())
+        while i < len(recvs) and recvs[i].idx < idx:
+            sk = self.t.observed.get(recvs[i].key)
+            if sk is not None:
+                taken.add(sk)
+            i += 1
+        self.pos[rank] = i
+        return taken
+
+
 def candidates_full(t: Trace, hb=None) -> Tuple[List[Alternative], List[Tuple[str, str]]]:
     """Single-change alternatives at wildcard receives (completed or not), by the
     non-overtaking kernel: for a receive r and a source, only the earliest send that r
@@ -305,12 +330,13 @@ def candidates_full(t: Trace, hb=None) -> Tuple[List[Alternative], List[Tuple[st
     sender_of: Dict[Key, Key] = {sk: rk for rk, sk in t.observed.items()}
     out: List[Alternative] = []
     pruned: List[Tuple[str, str]] = []
+    consumed = _ConsumedBefore(t)
     for r in sorted(t.recvs.values(), key=lambda r: r.key):
         if not r.wildcard:
             continue
         s_obs = t.observed_send(r)
         rc = r.complete_node()
-        consumed_before = {t.observed[x.key] for x in t.recvs_of(r.rank) if x.idx < r.idx and x.key in t.observed}
+        consumed_before = consumed.before(r.rank, r.idx)
         for src in t.sources_to(r.rank, r.comm):
             if r.src != ANY and src != r.src:
                 continue
@@ -378,10 +404,11 @@ def probe_candidates(t: Trace, hb=None) -> List[Tuple[Probe, Send]]:
     (non-overtaking), and not causally after the probe."""
     hb = hb or observed_hb(t)
     out = []
+    consumed = _ConsumedBefore(t)
     for p in sorted(t.probes.values(), key=lambda p: p.key):
         if not p.wildcard or not p.flag or p.seen is None:
             continue
-        consumed_before = {t.observed[r.key] for r in t.recvs_of(p.rank) if r.idx < p.idx and r.key in t.observed}
+        consumed_before = consumed.before(p.rank, p.idx)
         seen_src = t.sends[p.seen].rank
         for src in sorted({s.rank for s in t.sends.values()}):
             if src == seen_src:

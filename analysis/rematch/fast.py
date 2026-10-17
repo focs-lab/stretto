@@ -74,6 +74,9 @@ class Indexes:
                 self.unmatched.setdefault(r.rank, []).append(r)
         self.unmatched_completed = [r for v in self.unmatched.values() for r in v if r.completed]
         self.orphans = [s for s in t.sends.values() if s.key not in self.recv_of0 and s.completed]
+        # posting indexes of every receive of a rank, so that a scan of the receives posted
+        # after a given one starts by bisection and not from the rank's first receive
+        self.recv_idx: Dict[int, List[int]] = {rank: [r.idx for r in t.recvs_of(rank)] for rank in t.ranks}
 
     def _build_sends(self) -> None:
         """Sends of R to Q in issue order, with the rule-2 (receiver completion) and rule-5
@@ -498,9 +501,9 @@ class Observed:
         if r2 is not None and not r2.cancelled:
             # r2 is posted after r (else rejected above) and has no message: a kept receive
             # posted after it must not take a message r2 accepts
-            for x in t.recvs_of(d):
-                if x.idx <= r2.idx:
-                    continue
+            recvs = t.recvs_of(d)
+            for i in range(bisect_right(self.ix.recv_idx[d], r2.idx), len(recvs)):
+                x = recvs[i]
                 if x.idx >= cut[d]:
                     break
                 sk = t.observed.get(x.key)

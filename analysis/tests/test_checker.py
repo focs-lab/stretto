@@ -90,6 +90,13 @@ class C_Overlay(unittest.TestCase):
         o2 = o.with_(changed={(2, 1): (1, 7)}, removed=[(3, 1)])
         self.assertEqual(dict(o2), {(0, 1): (2, 5), (2, 1): (1, 7)})
         self.assertEqual(dict(o), d)                                              # with_ copies
+        # a removed key that the base lacks, and an overlay over an overlay: len agrees with iteration
+        o3 = Overlay(base, {(9, 9): (1, 1)}, [(0, 2), (7, 7)])
+        self.assertEqual(len(o3), len(list(o3)))
+        self.assertEqual(len(o3), 3)
+        o4 = Overlay(o3, {(0, 1): (5, 5)}, [(9, 9), (8, 8)])
+        self.assertEqual(len(o4), len(list(o4)))
+        self.assertEqual(dict(o4), {(0, 1): (5, 5), (2, 1): (1, 3)})
 
 
 class C1_PostingIndex(unittest.TestCase):

@@ -215,12 +215,53 @@ class PollingIdiom(unittest.TestCase):
 
     def test_11_bounded_trace_and_probe_alternative(self):
         d = need_trace(self, 11)
-        lines = sum(1 for f in os.listdir(d) if f.startswith("rank-") for _ in open(os.path.join(d, f)))
+        lines = 0
+        for f in os.listdir(d):
+            if f.startswith("rank-"):
+                with open(os.path.join(d, f)) as fh:
+                    lines += sum(1 for _ in fh)
         self.assertLess(lines, 100)
         rep = analyze(trace.load(d), with_sp=False)
         alts = rep.by_class("probe-alt")
         self.assertEqual(len(alts), 1)
         self.assertEqual(alts[0].pin, "REMATCH_PIN_PROBE=0:0:2")
+
+
+class Cli(unittest.TestCase):
+    """The command line as the harness uses it: exit status 1 on an error-class finding, 0
+    otherwise, 2 when the directory cannot be loaded; --json carries the whole text report."""
+
+    def _run(self, *argv):
+        import contextlib
+        import io
+        from rematch import cli
+        out, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            rc = cli.main(list(argv))
+        return rc, out.getvalue(), err.getvalue()
+
+    def test_exit_status_follows_the_findings(self):
+        rc, out, _ = self._run("analyze", "--no-sp", need_trace(self, 3))     # idiom 03 deadlocks: an error
+        self.assertEqual(rc, 1)
+        self.assertIn("[", out)
+        rc, out, _ = self._run("analyze", "--no-sp", need_trace(self, 11))    # a probe alternative, informational
+        self.assertEqual(rc, 0)
+        rc, _, err = self._run("analyze", os.path.join(TRACES, "no_such_idiom"))
+        self.assertEqual(rc, 2)
+        self.assertIn("cannot load", err)
+
+    def test_json_carries_the_text_report(self):
+        import json
+        from rematch import report as R
+        d = need_trace(self, 3)
+        rc, out, _ = self._run("analyze", "--no-sp", "--json", d)
+        j = json.loads(out)
+        self.assertEqual(set(j), {"summary", "notes", "findings", "infeasible"})
+        rep = analyze(trace.load(d), with_sp=False)
+        self.assertEqual([f["cls"] for f in j["findings"]], [f.cls for f in rep.findings])
+        self.assertEqual(j["summary"], R.summary(trace.load(d)))
+        self.assertEqual(len(j["infeasible"]), len(rep.infeasible))
+        self.assertEqual([f["pin"] for f in j["findings"]], [f.pin for f in rep.findings])
 
 
 if __name__ == "__main__":

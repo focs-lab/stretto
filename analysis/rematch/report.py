@@ -1,7 +1,7 @@
 """Classify feasible alternatives. See docs/analysis.md section B for the taxonomy."""
 from __future__ import annotations
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 
 from . import dsl, explore
 from . import fast
@@ -121,7 +121,8 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
             r = next((x for x in t.recvs.values() if x.rank == rec.rank and x.idx == rec.idx), None)
             if r is not None:
                 what = f"rank {rec.rank} blocked in {r}"
-                cands = [s for s in t.sends.values() if r.accepts(s) and s.key not in t.observed.values()]
+                taken = set(t.observed.values())
+                cands = [s for s in t.sends.values() if r.accepts(s) and s.key not in taken]
                 if cands:
                     detail.append("compatible unconsumed send(s) exist: " + ", ".join(str(s) for s in cands[:3])
                                   + "; the run ended before they were delivered (ordering, buffering or a kill)")
@@ -187,6 +188,7 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
     probes = probe_candidates(t, hb)
     waits = _completion_alternatives(t, hb)
     pr = _profiles_generic(t, alts, probes, waits) if generic else _profiles_fast(t, alts, probes, waits, full_profile)
+    rep.notes.extend(pr.notes)
 
     # ---- family 2: is the observed run itself buffering-dependent?
     prof_obs = pr.obs
@@ -210,6 +212,7 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
 
     # ---- family 1: alternatives at wildcard receives
     sp_targets: List[Tuple[Key, Key, Finding]] = []
+    sp_pairs: Set[Tuple[Key, Key]] = set()
     for i, alt in enumerate(alts):
         prof = {B: ok for B, ok in pr.alt[i].items() if B in realisable}
         minB, at_inf, brange = profile_summary(prof)
@@ -231,8 +234,9 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
         f = Finding("1", cls, "L1", alt.describe(t), details, B=brange, recv=alt.recv, send=alt.send,
                     pin=pin_spec(r, s))
         rep.findings.append(f)
-        if alt.kind == "steal" or not any(x[0] == alt.recv and x[1] == alt.send for x in sp_targets):
+        if alt.kind == "steal" or (alt.recv, alt.send) not in sp_pairs:
             sp_targets.append((alt.recv, alt.send, f))
+            sp_pairs.add((alt.recv, alt.send))
 
     # ---- single-path consequences via the explorer (MOPPER's setting)
     if with_sp and sp_targets:
@@ -436,6 +440,7 @@ class _Profiles:
     probe_reason: List[str]
     wait: List[Dict[Optional[int], bool]]
     wait_reason: List[str]
+    notes: List[str] = field(default_factory=list)  # profiles that had to be judged in full
 
 
 def _profiles_fast(t: Trace, alts, probes, waits, full: bool = False) -> _Profiles:
@@ -455,9 +460,11 @@ def _profiles_fast(t: Trace, alts, probes, waits, full: bool = False) -> _Profil
             ob = obs[B] = fast.Observed(t, B, ix)
         return ob
 
-    def profile(prof: Dict[Optional[int], bool], verdict, value) -> Dict[Optional[int], Verdict]:
+    def profile(prof: Dict[Optional[int], bool], verdict, value, what: str = "") -> Dict[Optional[int], Verdict]:
         """Fill prof over bps from verdict(B); value(Verdict) is the bool profiled. Returns
-        the verdicts actually computed, by threshold."""
+        the verdicts actually computed, by threshold. Feasible at B = 0 and infeasible at
+        B = inf contradicts T2; the item is then judged at every breakpoint (the exact
+        profile) and the report says so, since the bisection would be wrong."""
         seen: Dict[Optional[int], Verdict] = {}
 
         def judge(B: Optional[int]) -> bool:
@@ -475,6 +482,11 @@ def _profiles_fast(t: Trace, alts, probes, waits, full: bool = False) -> _Profil
             for B in sizes:
                 prof[B] = lo
             return seen
+        if lo and not hi:
+            pr.notes.append(f"profile of {what} is not monotone in B (feasible at 0, infeasible at inf), judged at every breakpoint; theorem T2 does not cover it")
+            for B in sizes:
+                judge(B)
+            return seen
         a, b, first = 0, len(sizes) - 1, len(sizes)     # the smallest feasible breakpoint
         while a <= b:
             m = (a + b) // 2
@@ -488,17 +500,18 @@ def _profiles_fast(t: Trace, alts, probes, waits, full: bool = False) -> _Profil
 
     pr = _Profiles({}, None, [dict() for _ in alts], [""] * len(alts), [dict() for _ in probes], [""] * len(probes),
                    [dict() for _ in waits], [""] * len(waits))
-    pr.obs0 = profile(pr.obs, lambda B: at(B).observed_verdict(), lambda v: v.ok)[0]
+    pr.obs0 = profile(pr.obs, lambda B: at(B).observed_verdict(), lambda v: v.ok, "the observed run")[0]
     for i, a in enumerate(alts):
         def alt_at(B, a=a):
             fv = at(B).check_alternative(a)
             return fv if fv is not None else check(t, a.M, a.changed, B, "L1")   # a swap: the generic check judges it
-        pr.alt_reason[i] = profile(pr.alt[i], alt_at, lambda v: v.feasible)[None].reason
+        pr.alt_reason[i] = profile(pr.alt[i], alt_at, lambda v: v.feasible, a.describe(t))[None].reason
     for j, (p, s) in enumerate(probes):
-        pr.probe_reason[j] = profile(pr.probe[j], lambda B, p=p, s=s: at(B).check_probe(p, s), lambda v: v.feasible)[None].reason
+        pr.probe_reason[j] = profile(pr.probe[j], lambda B, p=p, s=s: at(B).check_probe(p, s), lambda v: v.feasible,
+                                     f"{p} sees {s}")[None].reason
     for k, (rec, j, r_j, s_j) in enumerate(waits):
         pr.wait_reason[k] = profile(pr.wait[k], lambda B, rec=rec, s_j=s_j: at(B).check_event(rec.rank, rec.idx, s_j),
-                                    lambda v: v.feasible)[None].reason
+                                    lambda v: v.feasible, f"completion order of rank {rec.rank} #{rec.idx} index {j}")[None].reason
     return pr
 
 
