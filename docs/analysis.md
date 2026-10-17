@@ -113,7 +113,8 @@ classification first (`study/sites.csv`), an LLVM taint pass later. NEKbone is F
 Buffer races need memory-access events; PMPI sees none. Options: TSan annotations (MUST's route) or
 an LLVM pass instrumenting accesses to buffers of live requests. The "no recompilation" claim holds
 for families ① and ② only. The pass route is realistic (out-of-tree against system LLVM 18) and
-belongs to WP2. Idiom 07 is traced but not analysed in WP0.
+belongs to WP2. Idiom 07 is traced and analysed (E3): the report is empty, as it must be for a
+family ③ bug that leaves no trace in the message events.
 
 ## H. Placement of MOPPER in the ladder
 

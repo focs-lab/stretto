@@ -19,7 +19,7 @@ analysis/   Python package `rematch` (stdlib only) + tests
 replay/     pin library: force wildcard sources, inject delays
 study/      WP0a measurement: proxy-app wildcard sites and their dependence class
 scripts/    run_idiom.sh, run_all.sh, replay_idiom.sh, must_run.sh, heavy.sh
-experiments/ corpus harness (MBI, MPI-BugBench), E2-E6 scripts, container, results
+experiments/ corpus harness (MBI, MPI-BugBench), E2-E7 scripts, the applications, container, results
 ```
 
 ## Requirements
@@ -39,7 +39,7 @@ PYTHONPATH=analysis python3 -m rematch analyze -v traces/openmpi/09_two_wildcard
 PYTHONPATH=analysis python3 -m rematch confirm traces/openmpi/05_count_mismatch idioms/05_count_mismatch/bin/openmpi/main
 PYTHONPATH=analysis python3 -m rematch oracle traces/openmpi/04_orphan_send
 make -C tracer && make -C replay                                # the tracer and the replay library (system MPI)
-cd analysis && python3 -m unittest discover -s tests          # 150 tests incl. the differential tests (REMATCH_REQUIRE_TRACES=1 after run_all.sh)
+cd analysis && python3 -m unittest discover -s tests          # the suite incl. the differential tests (REMATCH_REQUIRE_TRACES=1 after run_all.sh)
 ```
 
 Experiments (see `docs/results.md`, `docs/gate.md`, `docs/mvp.md`; the two-machine procedure
@@ -70,6 +70,7 @@ Pin syntax: `REMATCH_PIN="rank:idx:src[:tag],..."` pins the idx-th wildcard rece
 | 1c | a send is left unmatched | L1+SP (single-path assumption) |
 | 1c | a send was never received in the observed run | observed |
 | 1d | deadlock under the alternative | L1+SP |
+| 1e | the twin's continuation diverges from the trace, or the twin aborts on the program's own check | L2 (hand-written twin) |
 | 1f | same shape as observed; benign unless the continuation depends on it | L1 |
 | 2-buffering | the observed run itself deadlocks below an eager threshold | observed |
 | waitany-order | another request could have completed first | L1 |

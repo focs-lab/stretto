@@ -42,3 +42,5 @@ third_party/*.log
 experiments/results/*/must.csv
 experiments/results/*/must.log
 experiments/results/must.done
+experiments/results/nekbone/*
+!experiments/results/nekbone/summary8.txt

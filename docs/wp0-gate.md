@@ -51,7 +51,7 @@ proxy apps that use `MPI_ANY_SOURCE` (by reading the code; no taint pass yet):
 |---|---|---|---|
 | AMG (hypre) | 3 (1 `Recv`, 2 `Iprobe`) + 2 `Probe(0)` + 1 `Testall` loop | 5 | 1 (`par_csr_assumed_part.c:274`: loop bound accumulated from payload, but invariant under re-matching) |
 | MACSio | 1 (`memfile.c:190`, in `src-stuff`) | 1 | 0 |
-| Nekbone | 3 wrappers, 10 call sites, all with a tag protocol that makes the sender unique | 13 | 0 |
+| Nekbone | 3 wrappers, 10 call sites; 9 with a tag protocol that makes the sender unique, the gp2 tree reduction (`comm_mpi.f:994`) with one tag for all children (10 000 benign alternatives when traced: `gate.md`, E5b) | 13 | 0 |
 
 Reading:
 

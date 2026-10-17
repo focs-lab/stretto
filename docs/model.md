@@ -53,8 +53,9 @@ Buffering threshold `B ∈ ℕ ∪ {∞}`: a send with bytes > B completes only 
 Matching-order obligations (2, 3, 3') are evaluated for every receive *posted* inside `H`,
 whatever its completion index: MPI decides matching at posting time. Operations that never
 completed in the observed run (blocked calls, unwaited requests) contribute program-order nodes
-only. Conditions 1–4 are checked over all breakpoints {0} ∪ message sizes ∪ {∞}: the report
-prints the feasibility profile rather than assuming monotonicity in B.
+only. Conditions 1–4 are evaluated at the breakpoints {0} ∪ message sizes ∪ {∞}: the report
+prints the feasibility profile, bisected between the two ends by theorem T2 (§2b) and judged
+at every breakpoint on request (`--full-profile`, the differential).
 
 Cost. The generic check (`feasible.check`) builds the closure and the graph from scratch,
 O(n + m) per alternative and threshold; it is the reference. The fast checks
@@ -139,6 +140,20 @@ differential: equal on all 516 traces). Whether the statement extends to arbitra
 (an operation newly kept on a rank where M' differs from M₀ could carry a new obligation), so
 two-change alternatives are profiled at every breakpoint.
 
+**Corollary T2' (the other profiled items).** The report also bisects three profiles that are
+not receive alternatives, and the same argument covers them. The observed run itself (M' = M₀,
+no changed receive: the cut and the order obligations are those of σ at every B, and only
+rendezvous edges disappear as B grows). A probe alternative (§3): the one edge
+`issue(s) → complete(p)` replaces `issue(seen) → complete(p)`; neither mentions B, and a send
+issued inside H(B) is issued inside H(B') ⊇ H(B). A completion-order alternative (§3): the cut
+after the wait record is rule 1, independent of B, and the added edge does not mention B. Each
+profile is therefore monotone in B and its bisection exact. Evidence: the bisect-versus-full
+differential on the 516 traces and on AMG (3 263 probe alternatives, identical findings);
+E2's full profiles cover the observed run and receive alternatives, not probes, so for probes
+and completion order the differential is the only measurement. Should a profile ever come out
+feasible at B = 0 and infeasible at B = ∞, `report._profiles_fast` judges it at every
+breakpoint and the report says so in a note, so a counterexample cannot pass as an interval.
+
 **Proposition T3 (deadlock predictions are not monotone).** The set of thresholds at which the
 observed run deadlocks is not an interval in general: idiom 03 (head-to-head exchange)
 deadlocks below 400 bytes and not above; the loop races of MBI deadlock under the stolen
@@ -160,8 +175,11 @@ of changed receives is the number of alternatives, and the choice of which recei
 is the problem that is NP-complete in general (MOPPER's), which this work does not solve.
 *Sketch.* By construction of `rematch.fast` (§2, Cost); the measured scaling is in E4 and in the
 tests `C_FastEqualsGeneric`. Evidence: a synthetic master-worker trace with 256 wildcard
-receives takes 0.2 s; AMG at 8 ranks (87 000 events, 53 wildcard receives, 7 387 probes, about
-260 message sizes) takes 160 s and 0.5 GB on the development host.
+receives takes 0.2 s; AMG at 8 ranks (39 643 sends, 53 wildcard receives, 10 978 probes,
+3 263 probe alternatives, about 260 message sizes) takes 13.2 s and 0.55 GB on the idle second
+machine, 300 s and 1.2 GB with `--full-profile`; Nekbone's communication suite at 8 ranks
+(10.4 million records, 18 759 alternatives) 95 min and 32.5 GB, about 0.3 s per alternative,
+the linear check at that trace size (`results.md`, E5 and E5b).
 
 **Lemma T5 (the single-path assumption is unsound on metadata-dependent code).** There are two
 programs consistent with the same trace σ on the whole trace, one of which deadlocks under an

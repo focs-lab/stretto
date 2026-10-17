@@ -10,7 +10,7 @@ AMG,parcsr_mv/par_vector.c,647,hypre_MPI_Probe,probe,metadata,yes,"Probe(0, tag1
 AMG,parcsr_mv/par_csr_matrix.c,1625,hypre_MPI_Probe,probe,metadata,yes,"same pattern as par_vector.c:647"
 AMG,utilities/exchange_data.c,414,hypre_MPI_Testall,none,metadata,yes,"termination protocol driven by Testall/Iprobe flags (timing), no wildcard"
 MACSio,src-stuff/memfile.c,190,MPI_Recv,ANY_SOURCE,metadata,no,"aggregator loop with fixed count size-1; real_len from Get_count and MPI_SOURCE only name an HDF5 group; no effect on the communication pattern; file lives in src-stuff (check whether it is built)"
-Nekbone,src/comm_mpi.f,199,mpi_recv (crecv wrapper),ANY_SOURCE,none,no,"wrapper: source ANY, tag = mtype; all callers use a tag protocol that makes the sender unique (see call sites below)"
+Nekbone,src/comm_mpi.f,199,mpi_recv (crecv wrapper),ANY_SOURCE,none,no,"wrapper: source ANY, tag = mtype; every caller but gp2 (line 994) uses a tag protocol that makes the sender unique; gp2's children share one tag (see call sites below)"
 Nekbone,src/comm_mpi.f,220,mpi_recv (crecv3 wrapper),ANY_SOURCE,metadata,no,"as crecv plus Get_count returned to the caller; no caller uses it in Nekbone"
 Nekbone,src/comm_mpi.f,348,mpi_irecv (irecv wrapper),ANY_SOURCE,none,no,"wrapper: source ANY, tag = msgtag; callers are the timing tests"
 Nekbone,src/comm_mpi.f,701,irecv,ANY_SOURCE,none,no,"pingpong timing test between nodea and nodeb, tag = itest: unique sender"

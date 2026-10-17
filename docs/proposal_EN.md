@@ -803,8 +803,9 @@ What is settled (`model.md` T4): with the matching given, the check is linear pe
                   from the non-overtaking kernel, acyclicity as one
                   reachability query on the observed graph (vector clocks
                   computed once per threshold, the buffering profile
-                  bisected by the monotonicity theorem); 9 s and 0.55 GB
-                  for AMG at 8 ranks (3 263 probe alternatives)
+                  bisected by the monotonicity theorem); 13 s and 0.55 GB
+                  for AMG at 8 ranks (3 263 probe alternatives) on the
+                  idle second machine
 
   L2 skeleton     hand-written twin programs so far (the idioms, MBI's
                   payload races); the Clang pass that would extract
@@ -821,8 +822,10 @@ What is settled (`model.md` T4): with the matching given, the check is linear pe
                   C interposition; Fortran codes are traced through MPICH
                   (NPB) or need a Fortran shim
 
-  scalability     measured up to 16 ranks and 3 million events (lu.A: 40 s,
-                  4.6 GB); the claim is stated for that range
+  scalability     measured up to 16 ranks and 3 million events (lu.A: 50 s)
+                  and, with alternatives, to 10 million records and 18 759
+                  alternatives (Nekbone: 95 min, 32.5 GB); the claim is
+                  stated for that range
 ```
 
 ---
@@ -1254,8 +1257,9 @@ Do not start by "building a theory of prediction for message passing" — that i
       PARCOACH is static and collective-only; PDMPI and the ASE'20 tool
       are not available to run.
 
-  (d) OVERHEAD  (E4, E5)
-      NPB 3.4.3 classes S and A at 4 and 16 ranks, AMG at 8 ranks, one node:
+  (d) OVERHEAD  (E4, E5, E5b)
+      NPB 3.4.3 classes S and A at 4 and 16 ranks, AMG and Nekbone's
+      communication suite at 8 ranks, one node:
       traced/plain time and analysis time, stated for that range; a cluster
       sweep is not part of this work.
 
@@ -1328,7 +1332,8 @@ The confirming-replay component in (a) is not optional. Without it the primary c
      confirmed by replay with the pin applied; and on a real application
      a prediction confirmed realisable by replay, with an open statement
      that no harmful alternative was found there (AMG: 3 263 probe
-     alternatives, all benign)
+     alternatives; Nekbone: 10 000 receive alternatives at one reduction
+     tree; all benign)
 
    TARGET
    ──────

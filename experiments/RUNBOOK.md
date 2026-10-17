@@ -97,6 +97,19 @@ in between, and anything that did run is written into `experiments/results/timin
 next to the rows it may have touched (which are then rerun inside the window). `MACHINE=<name>`
 on `container/run.sh` sets the host name the summaries print.
 
+## Second application: Nekbone
+
+`experiments/nekbone/run.sh [build|trace|analyse|summary|all]` builds Nekbone's
+communication suite (`test/nek_comm`, `PPLIST=NEKCOMM`, the build that reaches the
+`MPI_ANY_SOURCE` wrappers of `comm_mpi.f`) with the MPICH wrappers, traces it at 8 ranks and
+analyses the trace; `experiments/results/nekbone/summary8.txt` is committed. The trace is
+10 million records (1.1 GB) and the analysis needs about 33 GB and 95 minutes in one process:
+run it in a container with a memory cap of at least 40 GB (`--memory 48g`). A `docker run
+--rm` container killed by its cap leaves empty outputs and exit code 137 with nothing in
+`docker events` beyond create and start; sample `docker stats` into a file to see the peak.
+MACSio's one wildcard site lies in `src-stuff/`, outside the built program, so MACSio is not
+traced.
+
 ## Shared-host protocol on the development host
 
 Jobs that may exceed 20 GiB or use 8 sustained cores run one at a time through

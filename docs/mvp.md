@@ -102,6 +102,10 @@ interposition: use the MPICH build, as the NPB experiment does), memory accesses
   sends, probes × other senders) times the thresholds the bisection visits, plus the trace
   size: 8-rank AMG (53 wildcard receives, 10 978 probes, 3263 probe alternatives) takes
   13 s and 0.55 GB on the second machine, idle (300 s with `--full-profile`); lu.A at 16
-  ranks (3 million events, no wildcards) 50 s (`docs/results.md`, E4 and E5).
+  ranks (3 million events, no wildcards) 50 s; Nekbone's communication suite at 8 ranks
+  (10 million records, 35 714 wildcard receives, 18 759 alternatives) 95 min and 32.5 GB in
+  one process, about 3 KB per record and 0.3 s per alternative (`docs/results.md`, E4, E5
+  and E5b). Memory is the loaded trace and its graph; time is one check per alternative over
+  the whole trace.
 - `1f` and `probe-alt` are reported for every feasible alternative sender; on master–worker
   and probe-driven code that is one finding per competing sender.

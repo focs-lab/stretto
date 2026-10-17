@@ -295,6 +295,24 @@ MUST 1.9.2 on the same AMG build and arguments (`experiments/amg/must.sh`, 1800 
 | distributed | `MUST:RE:Expecting value: line 1 column 1 (char 0)` |
 | central | `MUST:ERROR:There are 120 requests that are not freed when MPI_Finalize was issued, a qualit; There are 124 requests that are not freed when MPI_Finalize was iss` |
 
+## E5b: real application (Nekbone)
+
+Nekbone (test/nek_comm, `PPLIST=NEKCOMM`), 8 ranks, MPICH build, the program whose ping-pong,
+message-volume and tree-reduction tests reach the `MPI_ANY_SOURCE` wrappers of `comm_mpi.f`
+(`experiments/nekbone/run.sh`, analysis with `--no-sp`, one process, run on the second machine
+while another lane's jobs ran on the host, so the time is an upper bound). Every finding is a
+1f at the binary-tree global operation (`gop`, `comm_mpi.f` line 994, `study/sites.csv`): the
+inner nodes 0 and 4 receive their children's contributions with one tag and `MPI_ANY_SOURCE`, so
+the children can arrive in either order; the ping-pong tests, whose tags make the sender unique,
+produce no finding. Rejected alternatives are the candidate senders the checker refuses.
+
+```
+trace: 8 ranks, 2060218 sends, 2060218 receives, 35714 wildcard receives, 0 probes, 56248 collective records, 11 communicators
+findings by class: 1f 10000
+rejected alternatives: 8759
+host: a-p13, one process; analysis 5687.84 s, 32530920 KB
+```
+
 ## E6: polynomial checker vs exhaustive explorer
 
 The checker in L1 mode (the claim the report makes) against exhaustive exploration of the trace as a
