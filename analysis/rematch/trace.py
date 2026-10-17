@@ -33,12 +33,12 @@ WORLD = 0
 Key = Tuple[int, int]  # (rank, ordinal)
 
 
-@dataclass
+@dataclass(slots=True)
 class Rec:
     rank: int
     idx: int
     op: str
-    raw: dict
+    raw: Optional[dict]   # the record's fields; None once the loader has taken what it needs
 
     @property
     def issue(self):
@@ -49,7 +49,7 @@ class Rec:
         return (self.rank, self.idx, "c")
 
 
-@dataclass
+@dataclass(slots=True)
 class Send:
     key: Key
     rank: int
@@ -65,10 +65,18 @@ class Send:
     complete_idx: Optional[int] = None
     completed: bool = True
     tsig: Optional[str] = None
+    cancelled: bool = False          # a cancel record named its request: the message is withdrawn
+    reserved_idx: Optional[int] = None   # idx of the Mprobe/Improbe at dst that removed it from the queue
 
     @property
     def bytes(self) -> int:
         return self.count * self.tsize
+
+    def available_to(self, r: "Recv") -> bool:
+        """Can r take s: s accepted, not cancelled, and not already removed from the queue by
+        a matched probe that precedes r on r's rank."""
+        return (r.accepts(self) and not self.cancelled
+                and (self.reserved_idx is None or self.reserved_idx >= r.idx))
 
     @property
     def rendezvous_always(self) -> bool:
@@ -94,7 +102,7 @@ class Send:
         return f"send{self.key}->{self.dst} tag={self.tag} {self.bytes}B"
 
 
-@dataclass
+@dataclass(slots=True)
 class Recv:
     key: Key
     rank: int
@@ -110,11 +118,12 @@ class Recv:
     msrc: Optional[int] = None  # observed matched source (world rank), None if never completed
     mtag: Optional[int] = None
     mcount: Optional[int] = None
-    pinned: Optional[dict] = None
     widx: Optional[int] = None
     completed: bool = True
     tsig: Optional[str] = None
     cancelled: bool = False
+    mrecv: bool = False              # Mrecv/Imrecv: takes the message its Mprobe removed from the queue
+    freed: bool = False              # MPI_Request_free'd while pending: completes unobserved
 
     @property
     def capacity(self) -> int:
@@ -143,7 +152,7 @@ class Recv:
         return f"recv{self.key} src={src} tag={tag} cap={self.capacity}B"
 
 
-@dataclass
+@dataclass(slots=True)
 class Probe:
     """A probe is a non-consuming receive: it observes a message without taking it."""
     key: Key
@@ -181,7 +190,7 @@ class Probe:
         return f"{self.kind}{self.key} src={src} tag={tag}"
 
 
-@dataclass
+@dataclass(slots=True)
 class Coll:
     rank: int
     idx: int
@@ -210,21 +219,19 @@ class Trace:
     probes: Dict[Key, Probe] = field(default_factory=dict)
     colls: List[Coll] = field(default_factory=list)
     observed: Dict[Key, Key] = field(default_factory=dict)  # recv key -> send key
-    waitany: List[Rec] = field(default_factory=list)
+    waitany: List[Rec] = field(default_factory=list)   # Waitany/Testany/Waitsome/Testsome records
     np: int = 0
-    comm_ranks: Dict[int, List[int]] = field(default_factory=dict)   # global comm id -> world ranks
+    thread_level: int = 0                               # MPI_THREAD_* level the run was given (3 = MULTIPLE)
+    threads: Dict[int, int] = field(default_factory=dict)   # rank -> number of threads that made MPI calls
+    comm_ranks: Dict[int, List[int]] = field(default_factory=dict)   # global comm id -> world ranks, in comm-rank order (the remote group of an intercommunicator)
+    comm_members: Dict[int, List[int]] = field(default_factory=dict) # global comm id -> every rank that takes part in its collectives
+    comm_ranks_by_rank: Dict[Tuple[int, int], List[int]] = field(default_factory=dict)  # (rank, comm id) -> peer ranks of an intercommunicator seen from that rank
     truncated: List[int] = field(default_factory=list)   # ranks without a finalize record
     missing: List[int] = field(default_factory=list)     # ranks without a trace file
     bad_lines: int = 0
     warnings: List[str] = field(default_factory=list)
 
     # ---------------------------------------------------------------- helpers
-    def rank_len(self, rank: int) -> int:
-        return len(self.ranks[rank])
-
-    def send_by_req(self, rank: int, req: int) -> Optional[Send]:
-        return self._by_req.get(("s", rank, req))
-
     def recv_by_req(self, rank: int, req: int) -> Optional[Recv]:
         return self._by_req.get(("r", rank, req))
 
@@ -242,6 +249,10 @@ class Trace:
     def sends_to(self, src: int, dst: int, comm: int) -> List[Send]:
         """The (src -> dst, comm) queue in issue order."""
         return self._queues.get((src, dst, comm), [])
+
+    def sources_to(self, dst: int, comm: int) -> List[int]:
+        """Ranks with at least one send to dst on comm, ascending."""
+        return self._sources_to.get((dst, comm), [])
 
     def rs_edges_observed(self, rk: Key):
         """Receiver-side ordering edges for an observed pair (cached)."""
@@ -279,7 +290,15 @@ class Trace:
     def blocked_calls(self) -> List[Rec]:
         return [rec for recs in self.ranks.values() for rec in recs if rec.op == "blocked"]
 
+    def fast_indexes(self):
+        """Threshold-independent indexes for the fast checks (rematch.fast), built once."""
+        if getattr(self, "_fast", None) is None:
+            from .fast import Indexes
+            self._fast = Indexes(self)
+        return self._fast
+
     def index(self) -> None:
+        self._fast = None
         self._by_req = {}
         for s in self.sends.values():
             if s.req is not None:
@@ -298,6 +317,9 @@ class Trace:
         for s in sorted(self.sends.values(), key=lambda s: s.idx):
             self._sends_of.setdefault(s.rank, []).append(s)
             self._queues.setdefault((s.rank, s.dst, s.comm), []).append(s)
+        self._sources_to = {}
+        for src, dst, comm in sorted(self._queues):
+            self._sources_to.setdefault((dst, comm), []).append(src)
         self._rs_cache = {}
 
 
@@ -330,31 +352,30 @@ def load(tracedir: str) -> Trace:
     return t
 
 
-BLOCKING_CALLS = {"recv", "wait", "probe", "coll", "send"}
-
-
 def _fold_begins(raw: List[dict]) -> List[dict]:
-    """Drop `begin` records that are followed by their completing record; an unpaired
-    `begin` (the rank was killed inside the call) becomes an `op: blocked` record.
-    `pollrepeat` records (a failed poll repeated n times) carry no event of their own and
-    are dropped: the failed poll they repeat is already in the trace once."""
+    """Drop `begin` records that are followed by their completing record, the next record
+    of the same thread when records carry `tid`; an unpaired `begin` (the rank was killed
+    inside the call) becomes an `op: blocked` record. `pollrepeat` records (a failed poll
+    repeated n times) carry no event of their own and are dropped: the failed poll they
+    repeat is already in the trace once."""
     raw = [r for r in raw if r.get("op") != "pollrepeat"]
+    # the next record of each thread, found in one backward pass (a scan per begin is quadratic)
+    following: List[Optional[dict]] = [None] * len(raw)
+    last: Dict[Optional[int], dict] = {}
+    for i in range(len(raw) - 1, -1, -1):
+        following[i] = last.get(raw[i].get("tid"))
+        last[raw[i].get("tid")] = raw[i]
     out = []
-    i = 0
-    while i < len(raw):
-        r = raw[i]
-        if r.get("op") == "begin":
-            nxt = raw[i + 1] if i + 1 < len(raw) else None
-            if nxt is not None and nxt.get("op") == r.get("call") and nxt.get("op") != "begin":
-                i += 1
-                continue
-            b = dict(r)
-            b["op"] = "blocked"
-            out.append(b)
-            i += 1
+    for i, r in enumerate(raw):
+        if r.get("op") != "begin":
+            out.append(r)
             continue
-        out.append(r)
-        i += 1
+        nxt = following[i]
+        if nxt is not None and nxt.get("op") == r.get("call") and nxt.get("op") != "begin":
+            continue
+        b = dict(r)
+        b["op"] = "blocked"
+        out.append(b)
     return out
 
 
@@ -363,9 +384,13 @@ def _build(t: Trace, raw_ranks: Dict[int, List[dict]]) -> None:
     folded = {rank: _fold_begins(recs) for rank, recs in raw_ranks.items()}
     for rank, recs in folded.items():
         t.ranks[rank] = [Rec(rank, i, r["op"], r) for i, r in enumerate(recs)]
+        t.threads[rank] = len({r.get("tid") for r in recs} - {None}) or 1
         for r in recs:
             if r["op"] == "init":
                 t.np = max(t.np, r.get("np", 0))
+                t.thread_level = max(t.thread_level, r.get("thread", 0))
+            elif r["op"] == "overflow":
+                t.warnings.append(f"rank {rank}: the tracer's {r.get('what')} overflowed; later records of that kind may be incomplete")
         if not any(r["op"] == "finalize" for r in recs):
             t.truncated.append(rank)
     if t.np:
@@ -378,17 +403,20 @@ def _build(t: Trace, raw_ranks: Dict[int, List[dict]]) -> None:
     def gid(rank: int, local: int) -> int:
         return comm_map.get((rank, local), local)
 
-    def worldg(comm_gid: int, r: Optional[int]) -> Optional[int]:
-        """Translate a comm-local rank to a world rank."""
+    def worldg(comm_gid: int, r: Optional[int], rank: Optional[int] = None) -> Optional[int]:
+        """Translate a comm-local rank to a world rank (on an intercommunicator the peer
+        ranks name the remote group, which differs per side)."""
         if r is None or r < 0:
             return r
-        members = t.comm_ranks.get(comm_gid)
+        members = t.comm_ranks_by_rank.get((rank, comm_gid)) if rank is not None else None
+        if members is None:
+            members = t.comm_ranks.get(comm_gid)
         if members is None or r >= len(members):
             return r
         return members[r]
 
     def world(rank: int, comm_local_id: int, r: Optional[int]) -> Optional[int]:
-        return worldg(gid(rank, comm_local_id), r)
+        return worldg(gid(rank, comm_local_id), r, rank)
 
     def src_of(raw: dict) -> int:
         if raw.get("anysrc"):
@@ -432,8 +460,8 @@ def _build(t: Trace, raw_ranks: Dict[int, List[dict]]) -> None:
                 nb = call == "irecv"
                 comm = gid(rank, raw["comm"])
                 r = Recv((rank, nrecv), rank, rec.idx, world(rank, raw["comm"], src_of(raw)), tag_of(raw), comm,
-                         raw["count"], raw["tsize"], not nb, raw.get("req"), pinned=raw.get("pinned"),
-                         widx=raw.get("widx"), tsig=raw.get("tsig"))
+                         raw["count"], raw["tsize"], not nb, raw.get("req"),
+                         widx=raw.get("widx"), tsig=raw.get("tsig"), mrecv=bool(raw.get("mrecv")))
                 nrecv += 1
                 if blocked:
                     r.completed = False
@@ -449,7 +477,9 @@ def _build(t: Trace, raw_ranks: Dict[int, List[dict]]) -> None:
                         pending_req[raw["req"]] = r
                 t.recvs[r.key] = r
             elif call == "wait":
-                if raw.get("kind") in ("waitany", "testany"):
+                if raw.get("kind") == "getstatus":
+                    continue                       # MPI_Request_get_status completes nothing
+                if raw.get("kind") in ("waitany", "testany", "waitsome", "testsome"):
                     t.waitany.append(rec)
                 if blocked:
                     continue
@@ -462,12 +492,22 @@ def _build(t: Trace, raw_ranks: Dict[int, List[dict]]) -> None:
                         continue
                     obj.complete_idx = rec.idx
                     obj.completed = True
+                    if isinstance(obj, Send) and "cancelled" in d:
+                        obj.cancelled = bool(d["cancelled"])       # the completion status is authoritative
                     if isinstance(obj, Recv):
-                        obj.msrc = worldg(obj.comm, d.get("msrc"))
+                        obj.msrc = worldg(obj.comm, d.get("msrc"), rank)
                         obj.mtag, obj.mcount = d.get("mtag"), d.get("mcount")
                         obj.cancelled = bool(d.get("cancelled"))
                         if obj.msrc is None or obj.cancelled:
                             obj.completed = False
+            elif call == "cancel":
+                obj = pending_req.get(raw.get("req"))
+                if isinstance(obj, Send):
+                    obj.cancelled = True     # provisional; the completion status (if any) decides
+            elif call == "reqfree":
+                obj = pending_req.pop(raw.get("req"), None)
+                if isinstance(obj, Recv):
+                    obj.freed = True         # the receive completes unobserved: its message is not an orphan
             elif call == "probe":
                 comm = gid(rank, raw["comm"])
                 p = Probe((rank, nprobe), rank, rec.idx, world(rank, raw["comm"], src_of(raw)), tag_of(raw), comm,
@@ -492,6 +532,13 @@ def _build(t: Trace, raw_ranks: Dict[int, List[dict]]) -> None:
                 t.colls.append(c)
     t.index()
     _reconstruct_observed(t)
+    # the bulk of a trace is point-to-point and collective records whose fields now live in
+    # Send/Recv/Coll objects: drop their dictionaries (a third of the memory on large traces).
+    # Blocked calls, waits, probes and the rest keep theirs; the report reads them.
+    for recs in t.ranks.values():
+        for rec in recs:
+            if rec.op in ("send", "recv", "irecv", "coll"):
+                rec.raw = None
 
 
 def _comm_ids(t: Trace, folded: Dict[int, List[dict]], all_ranks: List[int]) -> Dict[Tuple[int, int], int]:
@@ -500,6 +547,7 @@ def _comm_ids(t: Trace, folded: Dict[int, List[dict]], all_ranks: List[int]) -> 
     world_key = (tuple(all_ranks), 0)
     keys[world_key] = WORLD
     t.comm_ranks[WORLD] = list(all_ranks)
+    t.comm_members[WORLD] = list(all_ranks)
     mapping: Dict[Tuple[int, int], int] = {}
     for rank in t.ranks:
         mapping[(rank, 0)] = WORLD
@@ -507,6 +555,7 @@ def _comm_ids(t: Trace, folded: Dict[int, List[dict]], all_ranks: List[int]) -> 
         if self_key not in keys:
             keys[self_key] = len(keys)
             t.comm_ranks[keys[self_key]] = [rank]
+            t.comm_members[keys[self_key]] = [rank]
         mapping[(rank, 1)] = keys[self_key]
     for rank, recs in folded.items():
         for r in recs:
@@ -515,14 +564,22 @@ def _comm_ids(t: Trace, folded: Dict[int, List[dict]], all_ranks: List[int]) -> 
             if r.get("name") == "free":
                 continue
             if "ranks" in r:
-                key = (tuple(r["ranks"]), r.get("gord", 0))
+                members = r.get("members", r["ranks"])   # an intercommunicator: both groups
+                key = (tuple(members), r.get("gord", 0))
                 if key not in keys:
                     keys[key] = len(keys)
-                    t.comm_ranks[keys[key]] = list(r["ranks"])
-                mapping[(rank, r["id"])] = keys[key]
+                    t.comm_members[keys[key]] = list(members)
+                g = keys[key]
+                if g not in t.comm_ranks or not r.get("inter"):
+                    t.comm_ranks[g] = list(r["ranks"])
+                if r.get("inter"):
+                    # src/dst on this rank's side name the remote group: per-rank translation
+                    t.comm_ranks_by_rank[(rank, g)] = list(r["ranks"])
+                mapping[(rank, r["id"])] = g
             else:
                 mapping[(rank, r["id"])] = r["id"]   # old traces: keep the local id
                 t.comm_ranks.setdefault(r["id"], list(all_ranks))
+                t.comm_members.setdefault(r["id"], list(all_ranks))
     return mapping
 
 
@@ -538,18 +595,27 @@ def _reconstruct_observed(t: Trace) -> None:
     for rank in sorted(t.ranks):
         events = sorted(list(t.recvs_of(rank)) + [p for p in t.probes.values() if p.rank == rank],
                         key=lambda x: x.idx)
+        reserved: Dict[Tuple[int, int, int, int], List[Send]] = {}   # removed by Mprobe, awaiting Mrecv
         for e in events:
             if isinstance(e, Probe):
                 if not e.flag or e.msrc is None:
                     continue
-                q = queues.get((e.msrc, rank, e.comm, e.mtag))
-                i = ptr.get((e.msrc, rank, e.comm, e.mtag), 0)
+                key = (e.msrc, rank, e.comm, e.mtag)
+                q = queues.get(key)
+                i = ptr.get(key, 0)
                 if q and i < len(q):
                     e.seen = q[i].key
+                    if e.kind in ("mprobe", "improbe"):   # consuming: the message leaves the queue here
+                        q[i].reserved_idx = e.idx
+                        reserved.setdefault(key, []).append(q[i])
+                        ptr[key] = i + 1
                 continue
             if not e.completed or e.msrc is None:
                 continue
             key = (e.msrc, rank, e.comm, e.mtag)
+            if e.mrecv and reserved.get(key):
+                t.observed[e.key] = reserved[key].pop(0).key
+                continue
             q = queues.get(key)
             i = ptr.get(key, 0)
             if not q or i >= len(q):

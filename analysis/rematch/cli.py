@@ -17,9 +17,14 @@ def cmd_show(args):
     t = trace.load(args.tracedir)
     for rank in sorted(t.ranks):
         print(f"rank {rank}:")
+        objs = {x.idx: x for x in list(t.sends_of(rank)) + list(t.recvs_of(rank))}
+        objs.update({c.idx: c for c in t.colls if c.rank == rank})
         for rec in t.ranks[rank]:
-            raw = {k: v for k, v in rec.raw.items() if k not in ("r", "seq", "op")}
-            print(f"  #{rec.idx:<3} {rec.op:<8} {raw}")
+            if rec.raw is not None:
+                raw = {k: v for k, v in rec.raw.items() if k not in ("r", "seq", "op")}
+                print(f"  #{rec.idx:<3} {rec.op:<8} {raw}")
+            else:
+                print(f"  #{rec.idx:<3} {rec.op:<8} {objs.get(rec.idx, '')}")
     print("communicators: " + ", ".join(f"{k}={v}" for k, v in sorted(t.comm_ranks.items())))
     print("observed matching:")
     for rk, sk in sorted(t.observed.items()):
@@ -34,14 +39,20 @@ def cmd_show(args):
     return 0
 
 
-def cmd_analyze(args):
+def _analyze(args):
     t = trace.load(args.tracedir)
-    rep = report.analyze(t, with_sp=not args.no_sp)
+    return t, report.analyze(t, with_sp=not args.no_sp, sp_max_events=args.sp_max_events,
+                             max_states=args.max_states, generic=args.generic, full_profile=args.full_profile,
+                             changes=args.changes)
+
+
+def cmd_analyze(args):
+    t, rep = _analyze(args)
     if args.json:
-        print(json.dumps([f.__dict__ for f in rep.findings], default=str, indent=1))
+        print(json.dumps(report.to_json(t, rep), default=str, indent=1))
     else:
         print(report.format_report(t, rep, show_infeasible=args.verbose))
-    return 0
+    return 1 if rep.has_error() else 0
 
 
 def cmd_candidates(args):
@@ -60,7 +71,7 @@ def cmd_oracle(args):
     t = trace.load(args.tracedir)
     prog = dsl.program_from_trace(t)
     for B in [_B(b) for b in args.B]:
-        res = explore.explore(prog, B, comms=t.comm_ranks)
+        res = explore.explore(prog, B, comms=t.comm_members)
         print(f"B={'inf' if B is None else B}: {res.states} states, {len(res.outcomes)} distinct outcomes")
         for o in res.outcomes:
             print("  " + str(o))
@@ -68,28 +79,38 @@ def cmd_oracle(args):
 
 
 def cmd_confirm(args):
-    t = trace.load(args.tracedir)
-    rep = report.analyze(t, with_sp=not args.no_sp)
+    t, rep = _analyze(args)
     res = confirm_mod.confirm(rep, args.np or t.np, args.exe, args.args, timeout=args.timeout, mpi=args.mpi,
                               only_errors=not args.all)
     if args.json:
         print(json.dumps([{"cls": c.finding.cls, "level": c.finding.level, "title": c.finding.title, "pin": c.pin,
-                           "result": c.result, "verdict": c.verdict} for c in res], indent=1))
+                           "result": c.result, "pin_applied": c.pin_applied, "verdict": c.verdict} for c in res], indent=1))
     else:
         for c in res:
-            print(f"[{c.finding.cls:>12}] {c.finding.level:<6} {c.pin:<28} -> {c.result:<28} {c.verdict}")
+            print(f"[{c.finding.cls:>12}] {c.finding.level:<6} {c.pin:<28} -> {c.result:<14} {'pin applied' if c.pin_applied else 'pin NOT applied':<16} {c.verdict}")
         n = sum(1 for c in res if c.verdict == "confirmed")
         m = sum(1 for c in res if c.verdict == "not-confirmed")
         print(f"confirmed {n}, not confirmed {m}, informational {len(res) - n - m}")
     return 0
 
 
+def _analysis_options(a):
+    a.add_argument("--no-sp", action="store_true", help="skip the single-path explorer")
+    a.add_argument("--sp-max-events", type=int, default=2000, help="skip the explorer on traces with more events")
+    a.add_argument("--max-states", type=int, default=300_000, help="explorer state cap per forced alternative")
+    a.add_argument("--full-profile", action="store_true",
+                   help="judge every message-size breakpoint instead of the two ends and a bisection (equal by theorem T2; for differential testing)")
+    a.add_argument("--generic", action="store_true",
+                   help="judge alternatives with the generic checker instead of the indexed one (slow; for differential testing)")
+    a.add_argument("--changes", type=int, default=1, choices=[1, 2], help="also report alternatives that re-match two receives on different ranks")
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(prog="rematch", description="sound prediction of alternative MPI matchings")
     sub = p.add_subparsers(dest="cmd", required=True)
     a = sub.add_parser("show", help="print events and the observed matching"); a.add_argument("tracedir"); a.set_defaults(fn=cmd_show)
-    a = sub.add_parser("analyze", help="predict alternatives and classify them"); a.add_argument("tracedir")
-    a.add_argument("--no-sp", action="store_true", help="skip the single-path explorer"); a.add_argument("--json", action="store_true")
+    a = sub.add_parser("analyze", help="predict alternatives and classify them; exit status 1 if an error class is found")
+    a.add_argument("tracedir"); _analysis_options(a); a.add_argument("--json", action="store_true")
     a.add_argument("-v", "--verbose", action="store_true", help="also list rejected alternatives"); a.set_defaults(fn=cmd_analyze)
     a = sub.add_parser("candidates", help="list every candidate alternative with its verdict"); a.add_argument("tracedir")
     a.add_argument("--mode", default="L1", choices=["L1", "SP"]); a.set_defaults(fn=cmd_candidates)
@@ -97,8 +118,12 @@ def main(argv=None) -> int:
     a.add_argument("tracedir"); a.add_argument("exe"); a.add_argument("args", nargs="*")
     a.add_argument("--np", type=int, default=0); a.add_argument("--timeout", type=int, default=20)
     a.add_argument("--mpi", default="openmpi"); a.add_argument("--all", action="store_true", help="also replay informational findings")
-    a.add_argument("--no-sp", action="store_true"); a.add_argument("--json", action="store_true"); a.set_defaults(fn=cmd_confirm)
+    _analysis_options(a); a.add_argument("--json", action="store_true"); a.set_defaults(fn=cmd_confirm)
     a = sub.add_parser("oracle", help="exhaustively explore the trace as a single-path program"); a.add_argument("tracedir")
     a.add_argument("--B", nargs="*", default=["0", "inf"]); a.set_defaults(fn=cmd_oracle)
     args = p.parse_args(argv)
-    return args.fn(args)
+    try:
+        return args.fn(args)
+    except (FileNotFoundError, NotADirectoryError, ValueError, KeyError) as e:
+        print(f"rematch: cannot load {getattr(args, 'tracedir', '')}: {e!r}", file=sys.stderr)
+        return 2

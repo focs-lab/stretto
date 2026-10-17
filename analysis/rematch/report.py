@@ -4,9 +4,16 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
 from . import dsl, explore
-from .feasible import check, feasible_profile, observed_feasible_at, profile_summary
-from .matching import Alternative, candidates_full, coll_shape, observed_hb, probe_candidates
+from . import fast
+from .feasible import Verdict, breakpoints, check, feasible_profile, observed_feasible_at, profile_summary
+from .matching import candidates_full, observed_hb, probe_candidates
 from .trace import ANY, Key, Probe, Recv, Send, Trace
+from . import types
+
+
+# classes that make a program's verdict ERROR (the warnings 1b, 1f, probe-alt and
+# waitany-order do not); experiments/mbi/score.py uses the same set
+ERROR_CLASSES = frozenset({"1a", "1c", "1d", "2-buffering", "2-collective", "2-blocked"})
 
 
 @dataclass
@@ -20,6 +27,7 @@ class Finding:
     recv: Optional[Key] = None
     send: Optional[Key] = None
     pin: Optional[str] = None   # ready-to-use REMATCH_PIN spec for replay
+    certainty: str = ""         # L1+SP: 'all' (every execution with the pair) or 'some'
 
     def __str__(self):
         b = f" [{self.B}]" if self.B else ""
@@ -31,7 +39,6 @@ class Finding:
 class Report:
     findings: List[Finding] = field(default_factory=list)
     infeasible: List[Tuple[str, str]] = field(default_factory=list)  # (alt description, reason)
-    sp_explored: bool = True
     notes: List[str] = field(default_factory=list)
 
     def by_class(self, cls: str) -> List[Finding]:
@@ -44,25 +51,41 @@ class Report:
         """Classes qualified by the level that established them, e.g. 'L1:1f', 'observed:1c'."""
         return sorted({f"{f.level}:{f.cls}" for f in self.findings})
 
+    def has_error(self) -> bool:
+        return any(f.cls in ERROR_CLASSES for f in self.findings)
+
 
 def _fmt_B(B: Optional[int]) -> str:
     return "inf" if B is None else str(B)
 
 
-def pin_spec(r: Recv, s: Send) -> Optional[str]:
+def _pin_token(r: Recv, s: Send) -> Optional[str]:
     if r.widx is None:
         return None
     spec = f"{r.rank}:{r.widx}:{s.rank}"
     if r.tag == ANY:
         spec += f":{s.tag}"
-    return "REMATCH_PIN=" + spec
+    return spec
+
+
+def pin_spec(r: Recv, s: Send) -> Optional[str]:
+    tok = _pin_token(r, s)
+    return None if tok is None else "REMATCH_PIN=" + tok
+
+
+def pin_from_execution(t: Trace, o: explore.Outcome) -> Optional[str]:
+    """Pins for every wildcard receive of one explorer execution, so that a replay realises
+    that execution and not only its first changed pair."""
+    toks = [_pin_token(t.recvs[rk], t.sends[sk]) for rk, sk in o.order if rk in t.recvs and t.recvs[rk].wildcard]
+    toks = [x for x in toks if x is not None]
+    return "REMATCH_PIN=" + ",".join(toks) if toks else None
 
 
 def classify(r: Recv, s: Send, s_obs: Optional[Send]) -> Tuple[str, str]:
     if s.bytes > r.capacity:
         return "1a", f"count mismatch: {s.bytes}B into a {r.capacity}B receive (MPI_ERR_TRUNCATE)"
-    if s.tsig is not None and r.tsig is not None and s.tsig != r.tsig:
-        return "1a", f"type signature mismatch: send {s.tsig} vs receive {r.tsig}"
+    if types.compatible(s.tsig, s.count, r.tsig, r.count) is False:
+        return "1a", f"type signature mismatch: send {s.count} x {s.tsig} vs receive {r.count} x {r.tsig}"
     if s_obs is not None and r.tag == ANY and s.tag != s_obs.tag:
         return "1b", f"cross-purpose: tag {s.tag} instead of observed tag {s_obs.tag} (another logical channel)"
     if s_obs is not None and s.rank != s_obs.rank:
@@ -70,7 +93,16 @@ def classify(r: Recv, s: Send, s_obs: Optional[Send]) -> Tuple[str, str]:
     return "1f", "same shape as the observed message"
 
 
-def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_events: int = 2000) -> Report:
+def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_events: int = 2000,
+            generic: bool = False, full_profile: bool = False, twin=None, changes: int = 1) -> Report:
+    """Alternatives are judged by the indexed checker (rematch.fast), each profiled at the
+    two ends of the B range and bisected between them (exact by theorem T2); full_profile=True
+    judges every breakpoint, generic=True uses the generic checker (feasible.check) instead
+    of the indexed one. Both exist for differential testing and are slower. twin: a DSL
+    program (level L2) that encodes the program's metadata dependencies; its exploration under
+    each L1 alternative yields the L2 findings (1e, abort, deadlock). changes=2 also enumerates
+    alternatives that re-match two wildcard receives on different ranks, judged by the generic
+    checker at every breakpoint."""
     rep = Report()
     rep.notes.extend(t.warnings)
     if t.truncated:
@@ -108,7 +140,7 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
         recs = t.ranks.get(rank, [])
         if not recs:
             continue
-        last = recs[-1].raw
+        last = recs[-1].raw or {}            # point-to-point records drop their dictionary after loading
         if last.get("op") in ("probe", "wait") and last.get("flag") == 0:
             what = f"{last.get('kind')} src={last.get('src')} tag={last.get('tag')}" if last.get("op") == "probe" else f"{last.get('kind')} on requests {last.get('reqs')}"
             rep.findings.append(Finding("2", "2-blocked", "observed",
@@ -116,11 +148,13 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
                                         ["a polling loop whose condition never became true: the run cannot finish"]))
 
     # ---- observed: messages sent but never received (pending at MPI_Finalize is erroneous)
-    cancelled = {(rec.rank, rec.raw.get("req")) for recs in t.ranks.values() for rec in recs if rec.op == "cancel"}
     received = set(t.observed.values())
+    freed = [r for r in t.recvs.values() if r.freed]
     for s in sorted(t.sends.values(), key=lambda s: s.key):
-        if s.key in received or s.dst in t.missing or (s.req is not None and (s.rank, s.req) in cancelled):
+        if s.key in received or s.dst in t.missing or s.cancelled:
             continue
+        if any(r.accepts(s) for r in freed):
+            continue                         # a freed receive takes it, unobserved
         if s.dst not in t.ranks:
             continue
         rep.findings.append(Finding("1", "1c", "observed", f"{s} was never received in the observed run",
@@ -129,7 +163,7 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
     # ---- family 2: observed collective ordering
     for cs in t.coll_sets():
         names = sorted({c.name for c in cs})
-        members = t.comm_ranks.get(cs[0].comm, [])
+        members = t.comm_members.get(cs[0].comm, [])
         if len(names) > 1:
             rep.findings.append(Finding("2", "2-collective", "observed",
                                         f"collective #{cs[0].ordinal} on comm {cs[0].comm}: ranks disagree {names}"))
@@ -137,14 +171,36 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
             rep.findings.append(Finding("2", "2-collective", "observed",
                                         f"collective {cs[0].name} #{cs[0].ordinal} on comm {cs[0].comm}: only {len(cs)} of {len(members)} ranks issued it"))
 
+    # ---- under MPI_THREAD_MULTIPLE a rank's records come from several threads, so its
+    # program order is not total and no alternative can be certified from it
+    multi = [rank for rank, n in t.threads.items() if n > 1]
+    if t.thread_level >= 3 and multi:
+        rep.notes.append(f"MPI_THREAD_MULTIPLE with several calling threads on ranks {multi}: per-rank program order is not total, alternatives are not predicted (observed findings only)")
+        return rep
+
+    # ---- profiles over the breakpoints: the observed run and every alternative (receive,
+    # probe, completion order) judged at each threshold, threshold-major so that one
+    # Observed(t, B) serves every check at B (rematch.fast), or the generic checker on request
+    hb = fast.Observed(t, None).reaches if not generic else observed_hb(t)
+    alts, pruned = candidates_full(t, hb)
+    rep.infeasible.extend((d, why) for d, why in pruned)
+    probes = probe_candidates(t, hb)
+    waits = _completion_alternatives(t, hb)
+    pr = _profiles_generic(t, alts, probes, waits) if generic else _profiles_fast(t, alts, probes, waits, full_profile)
+
     # ---- family 2: is the observed run itself buffering-dependent?
-    prof_obs = feasible_profile(t, t.observed, set(), mode="SP", strong_only=True)
+    prof_obs = pr.obs
     minB_obs, at_inf, _ = profile_summary(prof_obs)
+    # thresholds at which the observed run is realisable: an alternative's interval is stated
+    # over these, so that a deadlock of unrelated ranks at small B (which the whole-prefix
+    # acyclicity check sees) is not mistaken for a property of the alternative
+    realisable = {B for B, ok in prof_obs.items() if ok} or set(prof_obs)
+    unrealisable = sorted((B for B in prof_obs if B not in realisable), key=lambda B: (B is None, B))
     if not at_inf:
         rep.findings.append(Finding("2", "2-buffering", "observed",
                                     "observed matching infeasible even with infinite buffering (trace inconsistent or unsupported operations)"))
     elif minB_obs is None or minB_obs > 0:
-        v = observed_feasible_at(t, 0)
+        v = pr.obs0
         cyc = " -> ".join(f"r{n[0]}#{n[1]}{n[2]}" for n in (v.cycle or []))
         bound = minB_obs if minB_obs is not None else "the largest message"
         rep.findings.append(Finding("2", "2-buffering", "observed",
@@ -153,21 +209,21 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
                                     B=f"B < {bound}"))
 
     # ---- family 1: alternatives at wildcard receives
-    alts, pruned = candidates_full(t)
-    rep.infeasible.extend((d, why) for d, why in pruned)
     sp_targets: List[Tuple[Key, Key, Finding]] = []
-    for alt in alts:
-        prof = feasible_profile(t, alt.M, alt.changed, mode="L1")
+    for i, alt in enumerate(alts):
+        prof = {B: ok for B, ok in pr.alt[i].items() if B in realisable}
         minB, at_inf, brange = profile_summary(prof)
         if minB is None and not at_inf:
-            v = check(t, alt.M, alt.changed, None, "L1")
-            rep.infeasible.append((alt.describe(t) + f" [{alt.kind}]", v.reason))
+            rep.infeasible.append((alt.describe(t) + f" [{alt.kind}]", pr.alt_reason[i]))
             continue
         r, s = t.recvs[alt.recv], t.sends[alt.send]
         s_obs = t.observed_send(r)
         cls, why = classify(r, s, s_obs)
         details = [why,
                    f"L1: the continuation of rank {r.rank} after {r} is undetermined by the trace (horizon)"]
+        if unrealisable:
+            details.append("thresholds at which the observed run itself deadlocks are left out: B in "
+                           + ",".join(_fmt_B(B) for B in unrealisable) + " (see 2-buffering)")
         if alt.kind == "swap":
             details.append(f"swap variant: {t.recvs[alt.stolen_from]} then takes {s_obs}; certified at L1 only up to the first changed receive")
         elif alt.stolen_from is not None:
@@ -182,16 +238,25 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
     if with_sp and sp_targets:
         nevents = sum(len(recs) for recs in t.ranks.values())
         if nevents > sp_max_events:
-            rep.sp_explored = False
             rep.notes.append(f"L1+SP explorer skipped: {nevents} events > {sp_max_events}")
         else:
             prog = dsl.program_from_trace(t)
+            # baseline: what the straight-line program does without the forced match. A
+            # deadlock or an orphan that every baseline execution has is the observed run's
+            # own (a hang, a rendezvous below B, a send nobody receives), not the alternative's.
+            base: Dict[Optional[int], Optional[explore.Result]] = {}
+            for B in (0, None):
+                try:
+                    base[B] = explore.explore(prog, B, max_states=max_states, comms=t.comm_members)
+                except (RuntimeError, explore.ExploreError) as e:
+                    base[B] = None
+                    rep.notes.append(f"L1+SP baseline at B={_fmt_B(B)} not explored ({e}): consequences are not compared with the observed run")
             for rk, sk, f in sp_targets:
                 for B in (0, None):
                     try:
-                        res = explore.explore(prog, B, force={rk: sk}, max_states=max_states, comms=t.comm_ranks)
+                        res = explore.explore(prog, B, force={rk: sk}, max_states=max_states, comms=t.comm_members)
                     except RuntimeError:
-                        rep.sp_explored = False
+                        rep.notes.append(f"L1+SP explorer hit the state cap ({max_states}) for {t.recvs[rk]} <- {t.sends[sk]} at B={_fmt_B(B)}")
                         f.detail.append(f"L1+SP at B={_fmt_B(B)}: state space too large, not explored")
                         continue
                     except explore.ExploreError as e:
@@ -208,45 +273,148 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
                     if orphans:
                         msg += f"; orphan sends {['s%d.%d' % k for k in orphans]}"
                     f.detail.append(msg)
-                    tail = f"after {t.recvs[rk]} <- {t.sends[sk]} (single-path assumption, at B={_fmt_B(B)})"
-                    if "deadlock" in kinds:
-                        rep.findings.append(Finding("1", "1d", "L1+SP", f"deadlock {tail}", B=f"B={_fmt_B(B)}", recv=rk, send=sk))
-                    if orphans:
-                        rep.findings.append(Finding("1", "1c", "L1+SP", f"orphan send(s) {['s%d.%d' % k for k in orphans]} {tail}", B=f"B={_fmt_B(B)}", recv=rk, send=sk))
-                    if "truncate" in kinds:
-                        rep.findings.append(Finding("1", "1a", "L1+SP", f"truncation error {tail}", B=f"B={_fmt_B(B)}", recv=rk, send=sk))
-            uniq, out = set(), []
+                    tail = f"after {t.recvs[rk]} <- {t.sends[sk]} (single-path assumption)"
+                    b = base.get(B)
+                    base_outs = b.outcomes if b is not None else []
+                    base_deadlock = bool(base_outs) and all(o.kind == "deadlock" for o in base_outs)
+                    base_orphans = set.intersection(*(set(o.orphans) for o in base_outs)) if base_outs else set()
+
+                    def certainty(pred) -> str:
+                        return "all" if all(pred(o) for o in outs) else "some"
+
+                    def witness(pred) -> Optional[str]:
+                        return next((pin_from_execution(t, o) for o in outs if pred(o)), None)
+
+                    dead = [o for o in outs if o.kind == "deadlock"]
+                    if dead and base_deadlock:
+                        f.detail.append(f"L1+SP at B={_fmt_B(B)}: the deadlock is the observed run's own (every execution without the change deadlocks too), not attributed")
+                    elif dead:
+                        c = certainty(lambda o: o.kind == "deadlock")
+                        rep.findings.append(Finding("1", "1d", "L1+SP", f"deadlock in {'every execution' if c == 'all' else 'some executions'} {tail}",
+                                                    B=f"B={_fmt_B(B)}", recv=rk, send=sk, pin=witness(lambda o: o.kind == "deadlock"), certainty=c))
+                    new_orphans = [k for k in orphans if k not in base_orphans]
+                    if orphans and not new_orphans:
+                        f.detail.append(f"L1+SP at B={_fmt_B(B)}: the orphan sends are the observed run's own, not attributed")
+                    elif new_orphans:
+                        oset = set(new_orphans)
+                        c = certainty(lambda o: oset <= set(o.orphans))
+                        rep.findings.append(Finding("1", "1c", "L1+SP", f"orphan send(s) {['s%d.%d' % k for k in new_orphans]} in {'every execution' if c == 'all' else 'some executions'} {tail}",
+                                                    B=f"B={_fmt_B(B)}", recv=rk, send=sk, pin=witness(lambda o: oset & set(o.orphans)), certainty=c))
+                    for err, what in (("truncate", "truncation error"), ("rsend-no-receive", "ready-mode send with no posted receive")):
+                        if err in kinds and not (base_outs and all(err in o.error_kinds for o in base_outs)):
+                            c = certainty(lambda o, err=err: err in o.error_kinds)
+                            rep.findings.append(Finding("1", "1a", "L1+SP", f"{what} in {'every execution' if c == 'all' else 'some executions'} {tail}",
+                                                        B=f"B={_fmt_B(B)}", recv=rk, send=sk, pin=witness(lambda o, err=err: err in o.error_kinds), certainty=c))
+            # one finding per consequence, with the thresholds it holds at merged into its B
+            uniq, out = {}, []
             for f in rep.findings:
                 sig = (f.cls, f.level, f.title.split(" (single-path")[0])
                 if sig in uniq:
+                    g = uniq[sig]
+                    if f.B and f.B not in g.B.split(","):
+                        g.B = g.B + "," + f.B.replace("B=", "")
                     continue
-                uniq.add(sig)
+                uniq[sig] = f
                 out.append(f)
             rep.findings = out
 
+    # ---- two-change alternatives (steals on two ranks), the next rung of the ladder
+    if changes >= 2:
+        from .matching import candidates_k
+        for alt in candidates_k(t, 2, hb):
+            # every breakpoint: T2 is proved for single-change alternatives only
+            prof = {B: ok for B, ok in feasible_profile(t, alt.M, alt.changed, mode="L1", full=True).items() if B in realisable}
+            minB, at_inf, brange = profile_summary(prof)
+            if minB is None and not at_inf:
+                rep.infeasible.append((alt.describe(t) + " [k2]", check(t, alt.M, alt.changed, None, "L1").reason))
+                continue
+            pairs = " and ".join(f"{t.recvs[rk]} <- {t.sends[alt.M[rk]]}" for rk in sorted(alt.changed))
+            rep.findings.append(Finding("1", "1f", "L1", f"two changes: {pairs}",
+                                        ["two wildcard receives on different ranks re-matched together; each is a kernel head of its source",
+                                         f"L1: the continuation of ranks {sorted(rk[0] for rk in alt.changed)} after the changed receives is undetermined"],
+                                        B=brange, recv=alt.recv, send=alt.send))
+
+    # ---- level L2: the twin program (metadata dependencies encoded) under each alternative
+    if twin is not None and sp_targets:
+        for rk, sk, f in sp_targets:
+            for B in (0, None):
+                try:
+                    res = explore.explore(twin, B, force={rk: sk}, max_states=max_states, comms=t.comm_members)
+                except (RuntimeError, explore.ExploreError) as e:
+                    f.detail.append(f"L2 at B={_fmt_B(B)}: twin not explored ({e})")
+                    continue
+                outs = res.outcomes_with(rk, sk)
+                if not outs:
+                    f.detail.append(f"L2 at B={_fmt_B(B)}: the twin never realises this match")
+                    continue
+                kinds = sorted({o.kind for o in outs} | {k for o in outs for k in o.error_kinds})
+                f.detail.append(f"L2 at B={_fmt_B(B)}: twin outcomes {kinds}")
+                tail = f"after {t.recvs[rk]} <- {t.sends[sk]} (L2 twin)"
+                every = lambda pred: "every execution" if all(pred(o) for o in outs) else "some executions"
+                div = [d for o in outs for d in skeleton_divergence(t, o)]
+                if div:
+                    rep.findings.append(Finding("1", "1e", "L2", f"the continuation diverges from the trace in {every(lambda o: bool(skeleton_divergence(t, o)))} {tail}",
+                                                sorted(set(div))[:6], B=f"B={_fmt_B(B)}", recv=rk, send=sk))
+                if any(o.kind == "abort" for o in outs):
+                    rep.findings.append(Finding("1", "1e", "L2", f"the program aborts on its own check in {every(lambda o: o.kind == 'abort')} {tail}",
+                                                B=f"B={_fmt_B(B)}", recv=rk, send=sk))
+                if any(o.kind == "deadlock" for o in outs):
+                    rep.findings.append(Finding("1", "1d", "L2", f"deadlock in {every(lambda o: o.kind == 'deadlock')} {tail}",
+                                                B=f"B={_fmt_B(B)}", recv=rk, send=sk, pin=pin_from_execution(t, next(o for o in outs if o.kind == "deadlock"))))
+        uniq, out = {}, []
+        for f in rep.findings:
+            sig = (f.cls, f.level, f.title.split(" (L2 twin")[0]) if f.level == "L2" else id(f)
+            if sig in uniq:
+                g = uniq[sig]
+                if f.B and f.B not in g.B.split(","):
+                    g.B = g.B + "," + f.B.replace("B=", "")
+                continue
+            uniq[sig] = f
+            out.append(f)
+        rep.findings = out
+
     # ---- probe alternatives
-    for p, s in probe_candidates(t):
-        v = check(t, t.observed, set(), None, "L1", changed_probes={p.key})
-        if not v.feasible:
-            rep.infeasible.append((f"{p} sees {s}", v.reason))
+    for j, (p, s) in enumerate(probes):
+        prof = {B: ok for B, ok in pr.probe[j].items() if B in realisable}
+        minB, at_inf, brange = profile_summary(prof)
+        if minB is None and not at_inf:
+            rep.infeasible.append((f"{p} sees {s}", pr.probe_reason[j]))
             continue
         seen = t.sends[p.seen]
         cls, why = classify_probe(p, s, seen)
         pin = f"REMATCH_PIN_PROBE={p.rank}:{p.pidx}:{s.rank}" + (f":{s.tag}" if p.tag == ANY else "") if p.pidx is not None else None
         rep.findings.append(Finding("probe", cls, "L1", f"{p} could observe {s} instead of {seen}",
                                     [why, f"L1: a receive whose source or count is taken from this probe's status changes with it; continuation of rank {p.rank} undetermined"],
-                                    B="any B", pin=pin))
+                                    B=brange, pin=pin))
 
-    # ---- Waitany completion-order alternatives
-    hb = observed_hb(t)
+    # ---- completion-order alternatives (Waitany/Testany/Waitsome/Testsome): another request
+    # completes first; the record's outcome changes, so the horizon cuts after it
+    for k, (rec, j, r_j, s_j) in enumerate(waits):
+        prof = {B: ok for B, ok in pr.wait[k].items() if B in realisable}
+        minB, at_inf, brange = profile_summary(prof)
+        kind = rec.raw.get("kind")
+        if minB is None and not at_inf:
+            rep.infeasible.append((f"{kind} rank {rec.rank} #{rec.idx} index {j}", pr.wait_reason[k]))
+            continue
+        rep.findings.append(Finding("waitany", "waitany-order", "L1",
+                                    f"{kind} at rank {rec.rank} #{rec.idx} could complete index {j} ({r_j} <- {s_j}) first",
+                                    [f"L1: continuation of rank {rec.rank} is undetermined if it depends on the index",
+                                     "no replay mechanism for completion order: not confirmable by pin"], B=brange))
+    return rep
+
+
+def _completion_alternatives(t: Trace, hb) -> List[Tuple]:
+    """(record, index, receive, send) for every request a Waitany-like record could have
+    completed instead of the one(s) it did."""
+    out = []
     for rec in t.waitany:
         raw = rec.raw
         reqs = raw.get("reqs", [])
-        done = raw.get("done", [])
+        done = {d.get("req") for d in raw.get("done", [])}
         if not done or len([q for q in reqs if q is not None and q >= 0]) < 2:
             continue
         for j, q in enumerate(reqs):
-            if q is None or q < 0 or j == raw.get("idx"):
+            if q is None or q < 0 or q in done:
                 continue
             r_j = t.recv_by_req(rec.rank, q)
             if r_j is None or not r_j.completed:
@@ -254,14 +422,123 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
             s_j = t.observed_send(r_j)
             if s_j is None or hb(rec.complete, s_j.issue_node()):
                 continue
-            v = check(t, t.observed, set(), None, "SP", extra_edges=[(s_j.issue_node(), rec.complete)])
-            if not v.feasible:
-                rep.infeasible.append((f"Waitany rank {rec.rank} #{rec.idx} index {j}", v.reason))
-                continue
-            rep.findings.append(Finding("waitany", "waitany-order", "L1",
-                                        f"Waitany at rank {rec.rank} #{rec.idx} could complete index {j} ({r_j} <- {s_j}) instead of {raw.get('idx')}",
-                                        [f"L1: continuation of rank {rec.rank} is undetermined if it depends on the index"], B="any B"))
-    return rep
+            out.append((rec, j, r_j, s_j))
+    return out
+
+
+@dataclass
+class _Profiles:
+    obs: Dict[Optional[int], bool]
+    obs0: object                                   # Verdict of the observed run at B = 0
+    alt: List[Dict[Optional[int], bool]]
+    alt_reason: List[str]                          # why rejected at B = inf
+    probe: List[Dict[Optional[int], bool]]
+    probe_reason: List[str]
+    wait: List[Dict[Optional[int], bool]]
+    wait_reason: List[str]
+
+
+def _profiles_fast(t: Trace, alts, probes, waits, full: bool = False) -> _Profiles:
+    """The indexed checker (rematch.fast). Each item is judged at the two ends of the B range
+    and, when the verdicts differ, bisected over the breakpoints between them: theorem T2
+    (docs/model.md) makes the feasibility of a single-change alternative monotone in B, so
+    the profile is an interval and the bisection exact. full=True judges every breakpoint
+    instead; the tests and the E2 harness compare the two. Observed(t, B) is built on the
+    first check at B and serves every later one at that threshold."""
+    bps = breakpoints(t) + [None]
+    ix = t.fast_indexes()
+    obs: Dict[Optional[int], fast.Observed] = {}
+
+    def at(B: Optional[int]) -> fast.Observed:
+        ob = obs.get(B)
+        if ob is None:
+            ob = obs[B] = fast.Observed(t, B, ix)
+        return ob
+
+    def profile(prof: Dict[Optional[int], bool], verdict, value) -> Dict[Optional[int], Verdict]:
+        """Fill prof over bps from verdict(B); value(Verdict) is the bool profiled. Returns
+        the verdicts actually computed, by threshold."""
+        seen: Dict[Optional[int], Verdict] = {}
+
+        def judge(B: Optional[int]) -> bool:
+            v = seen[B] = verdict(B)
+            prof[B] = value(v)
+            return prof[B]
+
+        if full:
+            for B in bps:
+                judge(B)
+            return seen
+        lo, hi = judge(bps[0]), judge(None)
+        sizes = bps[1:-1]
+        if lo == hi:
+            for B in sizes:
+                prof[B] = lo
+            return seen
+        a, b, first = 0, len(sizes) - 1, len(sizes)     # the smallest feasible breakpoint
+        while a <= b:
+            m = (a + b) // 2
+            if judge(sizes[m]):
+                first, b = m, m - 1
+            else:
+                a = m + 1
+        for i, B in enumerate(sizes):
+            prof.setdefault(B, i >= first)
+        return seen
+
+    pr = _Profiles({}, None, [dict() for _ in alts], [""] * len(alts), [dict() for _ in probes], [""] * len(probes),
+                   [dict() for _ in waits], [""] * len(waits))
+    pr.obs0 = profile(pr.obs, lambda B: at(B).observed_verdict(), lambda v: v.ok)[0]
+    for i, a in enumerate(alts):
+        def alt_at(B, a=a):
+            fv = at(B).check_alternative(a)
+            return fv if fv is not None else check(t, a.M, a.changed, B, "L1")   # a swap: the generic check judges it
+        pr.alt_reason[i] = profile(pr.alt[i], alt_at, lambda v: v.feasible)[None].reason
+    for j, (p, s) in enumerate(probes):
+        pr.probe_reason[j] = profile(pr.probe[j], lambda B, p=p, s=s: at(B).check_probe(p, s), lambda v: v.feasible)[None].reason
+    for k, (rec, j, r_j, s_j) in enumerate(waits):
+        pr.wait_reason[k] = profile(pr.wait[k], lambda B, rec=rec, s_j=s_j: at(B).check_event(rec.rank, rec.idx, s_j),
+                                    lambda v: v.feasible)[None].reason
+    return pr
+
+
+def _profiles_generic(t: Trace, alts, probes, waits) -> _Profiles:
+    """The generic checker (feasible.check), profiling each item at the two ends of the range
+    and bisecting between them."""
+    pr = _Profiles(feasible_profile(t, t.observed, set(), mode="SP", full=False, strong_only=True),
+                   observed_feasible_at(t, 0), [], [], [], [], [], [])
+    for a in alts:
+        pr.alt.append(feasible_profile(t, a.M, a.changed, mode="L1", full=False))
+        pr.alt_reason.append(check(t, a.M, a.changed, None, "L1").reason)
+    for p, s in probes:
+        kw = dict(changed_probes={p.key}, probe_alt={p.key: s.key})
+        pr.probe.append(feasible_profile(t, t.observed, set(), mode="L1", full=False, **kw))
+        pr.probe_reason.append(check(t, t.observed, set(), None, "L1", **kw).reason)
+    for rec, j, r_j, s_j in waits:
+        kw = dict(extra_edges=[(s_j.issue_node(), rec.complete)], changed_events={(rec.rank, rec.idx)}, must_issue=[s_j.key])
+        pr.wait.append(feasible_profile(t, t.observed, set(), mode="L1", full=False, **kw))
+        pr.wait_reason.append(check(t, t.observed, set(), None, "L1", **kw).reason)
+    return pr
+
+
+def skeleton_divergence(t: Trace, o: explore.Outcome) -> List[str]:
+    """How an execution of the twin departs from the trace's call sequence: a send to another
+    destination or with another tag at the same position, or a different number of
+    collectives on a rank. Empty when the single-path assumption holds on this execution."""
+    out = []
+    for key, dst, tag, comm in o.sent:
+        s = t.sends.get(key)
+        if s is None:
+            out.append(f"rank {key[0]} issues an extra send #{key[1]} to {dst} tag {tag}")
+        elif (s.dst, s.tag) != (dst, tag):
+            out.append(f"rank {key[0]}'s send #{key[1]} goes to {dst} tag {tag} instead of {s.dst} tag {s.tag}")
+    per_rank = {}
+    for c in t.colls:
+        per_rank[c.rank] = per_rank.get(c.rank, 0) + 1
+    for rank, n in o.ncoll:
+        if n != per_rank.get(rank, 0):
+            out.append(f"rank {rank} issues {n} collective(s) instead of {per_rank.get(rank, 0)}")
+    return out
 
 
 def classify_probe(p: Probe, s: Send, seen: Send) -> Tuple[str, str]:
@@ -272,10 +549,21 @@ def classify_probe(p: Probe, s: Send, seen: Send) -> Tuple[str, str]:
     return "probe-alt", f"same shape, from rank {s.rank} instead of {seen.rank}"
 
 
+def summary(t: Trace) -> str:
+    return (f"trace: {t.np} ranks, {len(t.sends)} sends, {len(t.recvs)} receives, "
+            f"{sum(1 for r in t.recvs.values() if r.wildcard)} wildcard receives, {len(t.probes)} probes, "
+            f"{len(t.colls)} collective records, {len(t.comm_ranks)} communicators")
+
+
+def to_json(t: Trace, rep: Report) -> dict:
+    """Everything the text report shows: the summary line, notes, findings and the
+    rejected alternatives with their reasons."""
+    return {"summary": summary(t), "notes": rep.notes, "findings": [f.__dict__ for f in rep.findings],
+            "infeasible": [{"alternative": d, "reason": why} for d, why in rep.infeasible]}
+
+
 def format_report(t: Trace, rep: Report, show_infeasible: bool = False) -> str:
-    lines = [f"trace: {t.np} ranks, {len(t.sends)} sends, {len(t.recvs)} receives, "
-             f"{sum(1 for r in t.recvs.values() if r.wildcard)} wildcard receives, {len(t.probes)} probes, "
-             f"{len(t.colls)} collective records, {len(t.comm_ranks)} communicators"]
+    lines = [summary(t)]
     for n in rep.notes:
         lines.append(f"note: {n}")
     if not rep.findings:

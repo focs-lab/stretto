@@ -2,6 +2,12 @@
 
 T10 is the differential test: the reduced explorer must produce exactly the outcome set
 of the unreduced one over the idiom twins, T1-T9 and random programs."""
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 import random
 import unittest
 
@@ -204,39 +210,7 @@ class T14_Leaks(unittest.TestCase):
 
 # ---------------------------------------------------------------- T10 differential
 
-def random_program(rng: random.Random, nranks: int):
-    prog = {}
-    for r in range(nranks):
-        ops = []
-        n = rng.randint(1, 5)
-        pending_reqs = []
-        for k in range(n):
-            kind = rng.choice(["send", "send", "recv", "recv", "irecv", "isend", "coll"])
-            others = [x for x in range(nranks) if x != r]
-            if kind == "send":
-                ops.append(Send(rng.choice(others), rng.choice([1, 2]), rng.choice([4, 64])))
-            elif kind == "isend":
-                name = f"s{k}"
-                ops.append(Isend(rng.choice(others), rng.choice([1, 2]), rng.choice([4, 64]), req=name))
-                pending_reqs.append(name)
-            elif kind == "recv":
-                ops.append(Recv(rng.choice(others + [ANY]), rng.choice([1, 2, ANY]), 64))
-            elif kind == "irecv":
-                name = f"r{k}"
-                ops.append(Irecv(rng.choice(others + [ANY]), rng.choice([1, 2, ANY]), 64, req=name))
-                pending_reqs.append(name)
-            else:
-                ops.append(Coll(rng.choice(["barrier", "bcast"])))
-            if pending_reqs and rng.random() < 0.5:
-                if len(pending_reqs) >= 2 and rng.random() < 0.5:
-                    ops.append(Waitany(tuple(pending_reqs)))
-                    pending_reqs.pop(rng.randrange(len(pending_reqs)))
-                else:
-                    ops.append(Wait(pending_reqs.pop()))
-        for name in pending_reqs:
-            ops.append(Wait(name))
-        prog[r] = ops
-    return prog
+from rematch.dsl import random_program  # noqa: E402
 
 
 class T10_Differential(unittest.TestCase):
@@ -247,11 +221,10 @@ class T10_Differential(unittest.TestCase):
 
     def test_twins(self):
         for n, mk in sorted(ALL.items()):
-            twin = mk()
             if n == 10:
-                continue  # 4 ranks x 3 iterations: too large for the unreduced explorer
+                continue  # 4 ranks of nonblocking halo exchange: too large for the unreduced explorer even at one iteration
             for B in (0, None):
-                self._same(twin, B)
+                self._same(mk(), B)
 
     def test_fixed(self):
         for cls in (T1_RendezvousNonblocking, T3_TruncateKeepsSiblings, T4_WaitanyOverSends,
@@ -267,12 +240,45 @@ class T10_Differential(unittest.TestCase):
     def test_random(self):
         rng = random.Random(20260905)
         for i in range(200):
-            prog = random_program(rng, rng.choice([2, 3]))
+            prog, comms = random_program(rng, rng.choice([2, 3]))
             for B in BS:
                 try:
-                    self._same(prog, B)
+                    self._same(prog, B, comms=comms)
                 except RuntimeError:
                     pass  # state-space cap on the unreduced side
+
+
+class T11_CollectiveShapes(unittest.TestCase):
+    """A collective completes for a member when the members its shape requires have issued."""
+
+    def test_bcast_root_returns_before_the_others_issue(self):
+        prog = {0: [Coll("bcast", root=0), Send(1, 1)], 1: [Recv(0, 1), Coll("bcast", root=0)]}
+        self.assertEqual(kinds(prog, None), {"done"})
+
+    def test_reduce_root_waits_for_the_others(self):
+        prog = {0: [Coll("reduce", root=0), Send(1, 1)], 1: [Recv(0, 1), Coll("reduce", root=0)]}
+        self.assertEqual(kinds(prog, None), {"deadlock"})
+
+    def test_reduce_non_root_returns_at_once(self):
+        prog = {0: [Recv(1, 1), Coll("reduce", root=0)], 1: [Coll("reduce", root=0), Send(0, 1)]}
+        self.assertEqual(kinds(prog, None), {"done"})
+
+    def test_unknown_root_synchronises_everyone(self):
+        prog = {0: [Coll("bcast"), Send(1, 1)], 1: [Recv(0, 1), Coll("bcast")]}
+        self.assertEqual(kinds(prog, None), {"deadlock"})
+
+    def test_mismatch_still_reported(self):
+        prog = {0: [Coll("bcast", root=0)], 1: [Coll("reduce", root=0)]}
+        self.assertIn("collective-mismatch", kinds(prog, None))
+
+
+class T12_ReadyMode(unittest.TestCase):
+    def test_rsend_before_the_receive_is_an_error_on_the_path(self):
+        prog = {0: [Send(1, 1, mode="rsend")], 1: [Recv(0, 1)]}
+        res = explore(prog, None)
+        self.assertEqual({o.kind for o in res.outcomes}, {"done"})
+        self.assertIn("rsend-no-receive", res.kinds())
+        self.assertTrue(any(not o.errors for o in res.outcomes), "the receive-first order is fine")
 
 
 if __name__ == "__main__":

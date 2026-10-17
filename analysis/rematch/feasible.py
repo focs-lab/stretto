@@ -1,24 +1,34 @@
 """Feasibility of an alternative matching: horizon closure + matching-order checks +
 acyclicity of the constraint graph over the kept prefix."""
 from __future__ import annotations
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Dict, Iterable, List, Optional, Set, Tuple
 
 from .horizon import compute_cut, witness_kept
-from .matching import Alternative, affected_ranks, build_graph, matching_order_ok
+from .matching import affected_ranks, build_graph, matching_order_ok
 from .trace import Key, Trace
 
 
 @dataclass
 class Verdict:
-    feasible: bool
+    feasible: bool                 # the matching is realisable over the kept prefix
     reason: str
     cut: Optional[Dict[int, int]] = None
     cycle: Optional[list] = None
+    hangs: Dict[int, str] = field(default_factory=dict)   # SP mode: ranks that never complete an operation
+
+    @property
+    def ok(self) -> bool:
+        """Realisable and, under the single-path assumption, every rank completes."""
+        return self.feasible and not self.hangs
 
 
 def check(t: Trace, M: Dict[Key, Key], changed, B: Optional[int], mode: str = "L1",
-          extra_edges: Iterable = (), changed_probes: Set[Key] = frozenset(), strong_only: bool = False) -> Verdict:
+          extra_edges: Iterable = (), changed_probes: Set[Key] = frozenset(), strong_only: bool = False,
+          probe_alt: Optional[Dict[Key, Key]] = None, changed_events: Set[Tuple[int, int]] = frozenset(),
+          must_issue: Iterable[Key] = ()) -> Verdict:
+    """must_issue: sends the alternative needs issued inside the kept prefix besides those
+    of M (the message a Waitany alternative completes with)."""
     seen = {}
     for rk, sk in M.items():
         if rk not in t.recvs or sk not in t.sends:
@@ -28,8 +38,22 @@ def check(t: Trace, M: Dict[Key, Key], changed, B: Optional[int], mode: str = "L
         if sk in seen:
             return Verdict(False, f"send {t.sends[sk]} consumed twice")
         seen[sk] = rk
-    cut = compute_cut(t, M, set(changed), B, mode, changed_probes)
-    if not witness_kept(t, cut, changed, changed_probes):
+    hangs: Dict[int, str] = {}
+    issued: Dict[int, int] = {}
+    cut = compute_cut(t, M, set(changed), B, mode, changed_probes, hangs, changed_events, issued)
+    # SP mode only: the continuation is fixed, so a cut operation is one its rank never completes.
+    # The matching may still be realisable (the run then deadlocks): feasible says the former,
+    # hangs the latter, ok both.
+    hang_text = "hang under the single-path assumption: " + "; ".join(hangs[r] for r in sorted(hangs)) if hangs else ""
+    for pk, sk in (probe_alt or {}).items():
+        s = t.sends[sk]
+        if s.idx >= cut[s.rank] and issued.get(s.rank) != s.idx:
+            return Verdict(False, "the message the probe would observe is never issued within the horizon", cut)
+    for sk in must_issue:
+        s = t.sends[sk]
+        if s.idx >= cut[s.rank] and issued.get(s.rank) != s.idx:
+            return Verdict(False, "the message that would complete first is never issued within the horizon", cut)
+    if not witness_kept(t, cut, changed, changed_probes, changed_events, M, issued):
         # in L1 the horizon cut it; in SP a receive that can never complete precedes it
         return Verdict(False, "witness cut by the horizon closure" if mode == "L1" else
                        "witness unreachable: an earlier receive on its rank can never complete", cut)
@@ -41,15 +65,11 @@ def check(t: Trace, M: Dict[Key, Key], changed, B: Optional[int], mode: str = "L
     why = matching_order_ok(t, M, kept_recv, affected_ranks(t, M, changed) if changed or M != t.observed else set())
     if why:
         return Verdict(False, why, cut)
-    g = build_graph(t, M, cut, B, extra_edges, strong_only)
+    g = build_graph(t, M, cut, B, extra_edges, strong_only, probe_alt, issued)
     cyc = g.find_cycle()
     if cyc:
-        return Verdict(False, "constraint cycle", cut, cyc)
-    return Verdict(True, "ok", cut)
-
-
-def check_alternative(t: Trace, alt: Alternative, B: Optional[int], mode: str = "L1") -> Verdict:
-    return check(t, alt.M, alt.changed, B, mode)
+        return Verdict(False, "constraint cycle", cut, cyc, hangs)
+    return Verdict(True, hang_text or "ok", cut, None, hangs)
 
 
 def observed_feasible_at(t: Trace, B: Optional[int], strong_only: bool = True) -> Verdict:
@@ -62,20 +82,21 @@ def breakpoints(t: Trace) -> List[int]:
     return [0] + t.message_sizes()
 
 
-def feasible_profile(t: Trace, M: Dict[Key, Key], changed, mode: str = "L1", full: bool = False, **kw) -> Dict[Optional[int], bool]:
-    """Feasibility at the breakpoints {0} U message sizes U {inf}. By default the ends are
-    checked and, if they differ, the sizes are bisected (feasibility is monotone in B for
-    the constraint graph; the horizon closure only grows with B); full=True checks every
-    breakpoint, which is what the monotonicity tests use."""
+def feasible_profile(t: Trace, M: Dict[Key, Key], changed, mode: str = "L1", full: bool = True, **kw) -> Dict[Optional[int], bool]:
+    """Feasibility at the breakpoints {0} U message sizes U {inf}: Verdict.ok, so in SP mode
+    a threshold at which a rank hangs counts as infeasible. Every breakpoint is checked
+    (docs/model.md: monotonicity in B is a claim to be tested, not assumed).
+    full=False checks the two ends and bisects between them, which is right only if
+    feasibility is monotone in B; the tests compare the two on every traced idiom."""
     bps = breakpoints(t)
     prof: Dict[Optional[int], bool] = {}
     if full or len(bps) <= 3:
         for B in bps + [None]:
-            prof[B] = check(t, M, changed, B, mode, **kw).feasible
+            prof[B] = check(t, M, changed, B, mode, **kw).ok
         return prof
     lo, hi = bps[0], None
-    prof[lo] = check(t, M, changed, lo, mode, **kw).feasible
-    prof[hi] = check(t, M, changed, hi, mode, **kw).feasible
+    prof[lo] = check(t, M, changed, lo, mode, **kw).ok
+    prof[hi] = check(t, M, changed, hi, mode, **kw).ok
     if prof[lo] == prof[hi]:
         for B in bps[1:]:
             prof[B] = prof[lo]
@@ -86,7 +107,7 @@ def feasible_profile(t: Trace, M: Dict[Key, Key], changed, mode: str = "L1", ful
     first = len(sizes)
     while a <= b:
         m = (a + b) // 2
-        ok = check(t, M, changed, sizes[m], mode, **kw).feasible
+        ok = check(t, M, changed, sizes[m], mode, **kw).ok
         prof[sizes[m]] = ok
         if ok:
             first = m
@@ -96,16 +117,6 @@ def feasible_profile(t: Trace, M: Dict[Key, Key], changed, mode: str = "L1", ful
     for i, B in enumerate(sizes):
         prof.setdefault(B, i >= first)
     return prof
-
-
-def min_feasible_B(t: Trace, M: Dict[Key, Key], changed, mode: str = "L1", **kw) -> Optional[int]:
-    """Smallest threshold at which M is feasible; None if never. Uses the full profile
-    rather than assuming monotonicity (see docs/model.md)."""
-    prof = feasible_profile(t, M, changed, mode, **kw)
-    for B in breakpoints(t):
-        if prof[B]:
-            return B
-    return None
 
 
 def profile_summary(prof: Dict[Optional[int], bool]) -> Tuple[Optional[int], bool, str]:
@@ -118,8 +129,8 @@ def profile_summary(prof: Dict[Optional[int], bool]) -> Tuple[Optional[int], boo
     if minB is None:
         return None, True, "only with infinite buffering"
     later = [B for B in sorted(keys) if B > minB and not prof[B]]
-    if minB == 0 and not later and at_inf:
-        return 0, True, "any B"
+    if not later and at_inf and all(prof[k] for k in keys):
+        return minB, True, "any B"
     if not later and at_inf:
         return minB, True, f"B >= {minB}"
     return minB, at_inf, "B in " + ",".join(("inf" if B is None else str(B)) for B, ok in prof.items() if ok)

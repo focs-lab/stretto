@@ -1,11 +1,21 @@
 """Checker regression tests for the A.1 audit findings. Traces are built in memory from
 raw records in the tracer's JSON format (new encoding: anysrc/anytag/procnull flags)."""
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 import unittest
 
-from rematch import trace as T
+from rematch import dsl, explore, fast, trace as T, types
+from rematch.feasible import breakpoints
+from rematch.matching import Overlay, probe_candidates
+from rematch.report import _completion_alternatives
 from rematch.feasible import check, feasible_profile, observed_feasible_at, profile_summary
 from rematch.matching import candidates_full
 from rematch.report import analyze
+import reference
 
 
 def mk(raw_ranks, np=None):
@@ -24,13 +34,15 @@ def send(dst, tag, count=1, mode="std", req=None, comm=0):
     return d
 
 
-def recv(src, tag, msrc, mtag, count=1, comm=0):
+def recv(src, tag, msrc, mtag, count=1, comm=0, widx=None):
     d = {"op": "recv", "src": 0 if src == T.ANY else src, "tag": 0 if tag == T.ANY else tag, "comm": comm,
          "count": count, "tsize": 4, "msrc": msrc, "mtag": mtag, "mcount": count}
     if src == T.ANY:
         d["anysrc"] = 1
     if tag == T.ANY:
         d["anytag"] = 1
+    if widx is not None:
+        d["widx"] = widx
     return d
 
 
@@ -44,8 +56,9 @@ def irecv(src, tag, req, count=1, comm=0):
     return d
 
 
-def wait(*done, kind="wait"):
-    return {"op": "wait", "kind": kind, "done": [{"req": q, "msrc": s, "mtag": tg, "mcount": 1} for q, s, tg in done]}
+def wait(*done, kind="wait", reqs=None):
+    return {"op": "wait", "kind": kind, "reqs": list(reqs) if reqs is not None else [q for q, _, _ in done],
+            "done": [{"req": q, "msrc": s, "mtag": tg, "mcount": 1} for q, s, tg in done]}
 
 
 def coll(name, root=-1, comm=0, req=None):
@@ -53,6 +66,30 @@ def coll(name, root=-1, comm=0, req=None):
     if req is not None:
         d["req"] = req
     return d
+
+
+class C_Overlay(unittest.TestCase):
+    def test_overlay_behaves_as_the_edited_dict(self):
+        """An alternative's M' is the observed matching plus a few changes and removals; it must
+        read exactly like the dict copy it replaces (candidates once copied the whole matching
+        per alternative, quadratic memory on a trace with a million wildcard receives)."""
+        base = {(0, 1): (1, 1), (0, 2): (1, 2), (2, 1): (1, 3)}
+        o = Overlay(base, {(0, 1): (2, 5), (3, 1): (1, 9)}, [(0, 2)])
+        d = dict(base); d[(0, 1)] = (2, 5); d[(3, 1)] = (1, 9); del d[(0, 2)]
+        self.assertEqual(dict(o), d)
+        self.assertEqual(o, d)
+        self.assertEqual(len(o), len(d))
+        self.assertEqual(set(o), set(d))
+        self.assertEqual(o[(0, 1)], (2, 5))
+        self.assertEqual(o.get((0, 2)), None)
+        self.assertNotIn((0, 2), o)
+        self.assertIn((3, 1), o)
+        with self.assertRaises(KeyError):
+            o[(0, 2)]
+        self.assertEqual(base, {(0, 1): (1, 1), (0, 2): (1, 2), (2, 1): (1, 3)})   # the base is untouched
+        o2 = o.with_(changed={(2, 1): (1, 7)}, removed=[(3, 1)])
+        self.assertEqual(dict(o2), {(0, 1): (2, 5), (2, 1): (1, 7)})
+        self.assertEqual(dict(o), d)                                              # with_ copies
 
 
 class C1_PostingIndex(unittest.TestCase):
@@ -207,10 +244,6 @@ class C_Blocked(unittest.TestCase):
         self.assertTrue(any("blocked in recv" in n for n in rep.notes))
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class C_BlockedFinding(unittest.TestCase):
     def test_blocked_receive_reported(self):
         t = T.Trace()
@@ -262,9 +295,485 @@ class C_ObservedOrphanAndSpin(unittest.TestCase):
         self.assertEqual(t.observed[(0, 0)], (1, 0))
         self.assertEqual(analyze(t, with_sp=False).by_class("1c"), [])
 
+    def test_killed_rank_whose_last_record_is_a_send(self):
+        t = T.Trace()
+        T._build(t, {0: [{"op": "init", "np": 2}, send(1, 1)], 1: [{"op": "init", "np": 2}, {"op": "finalize"}]})
+        rep = analyze(t, with_sp=False)
+        self.assertEqual(t.truncated, [0])
+        self.assertFalse(rep.by_class("2-blocked"))
+
     def test_spinning_rank_is_reported(self):
         t = T.Trace()
         p = {"op": "probe", "kind": "iprobe", "src": 1, "tag": 0, "comm": 0, "flag": 0}
         T._build(t, {0: [{"op": "init", "np": 2}, p], 1: [{"op": "init", "np": 2}, {"op": "finalize"}]})
         rep = analyze(t, with_sp=False)
         self.assertTrue(any("spinning" in f.title for f in rep.by_class("2-blocked")))
+
+
+class C_ProgramFromTrace(unittest.TestCase):
+    """The single-path program is built from the loaded objects: world ranks, global
+    communicator ids, the same ordinals as the trace, PROC_NULL operations skipped."""
+
+    def _split(self):
+        # comm 2 = world ranks {1, 2}; on it rank 2 (comm rank 1) sends to comm rank 0 (= world
+        # rank 1), rank 1 receives from ANY; both then barrier on it. Rank 0 sends to PROC_NULL.
+        c = {"op": "comm", "name": "split", "parent": 0, "id": 2, "ranks": [1, 2], "gord": 0}
+        return mk({0: [dict(c, id=2, ranks=[0]), {**send(-2, 1), "procnull": 1}, send(1, 5)],
+                   1: [c, {**recv(0, 1, 1, 1, comm=2), "anysrc": 1}, coll("barrier", comm=2), recv(0, 5, 0, 5)],
+                   2: [c, send(0, 1, comm=2), coll("barrier", comm=2)]})
+
+    def test_world_ranks_and_global_comms(self):
+        t = self._split()
+        prog = dsl.program_from_trace(t)
+        self.assertEqual(len(prog[0]), 1)                       # the PROC_NULL send is not an operation
+        s = prog[2][0]
+        self.assertEqual((s.dst, s.comm), (1, t.sends[(2, 0)].comm))
+        r = prog[1][0]
+        self.assertEqual((r.src, r.comm), (dsl.ANY, t.recvs[(1, 0)].comm))
+        res = explore.explore(prog, None, comms=t.comm_members)
+        self.assertEqual(res.kinds(), {"done"})
+        for rk, sk in t.observed.items():                       # every observed pair is a key of the program
+            self.assertTrue(res.outcomes_with(rk, sk), (rk, sk))
+
+    def test_correct_program_has_no_sp_consequence(self):
+        rep = analyze(self._split())
+        self.assertFalse({"1c", "1d", "2-blocked"} & set(rep.classes()), rep.classes())
+
+    def test_blocked_wait_is_in_the_program(self):
+        # rank 0 posts a receive nobody serves and is killed inside the wait
+        t = mk({0: [irecv(1, 1, 0), {"op": "begin", "call": "wait", "kind": "wait", "reqs": [0]}],
+                1: []})
+        prog = dsl.program_from_trace(t)
+        self.assertEqual(prog[0][-1], dsl.Wait("q0"))
+        self.assertEqual(explore.explore(prog, None).kinds(), {"deadlock"})
+
+
+class C_HorizonRules(unittest.TestCase):
+    def test_rendezvous_send_completes_on_a_posted_receive(self):
+        # rank 0 posts an Irecv for rank 1's 4000B message, takes a tag-1 message from ANY,
+        # then waits. Rank 1 sends the 4000B message and a tag-1 message. The alternative
+        # (the wildcard takes rank 1's tag-1 send instead of rank 2's) needs rank 1's first
+        # send to complete at B=0: it does, the receive is posted, although its wait lies
+        # beyond the horizon.
+        t = mk({0: [irecv(1, 2, 0, count=1000), recv(T.ANY, 1, 2, 1), wait((0, 1, 2))],
+                1: [send(0, 2, count=1000), send(0, 1)],
+                2: [send(0, 1)]})
+        alt = next(a for a in candidates_full(t)[0] if a.recv == (0, 1) and a.send == (1, 1))
+        self.assertTrue(check(t, alt.M, alt.changed, 0, "L1").feasible)
+
+    def test_probe_whose_message_is_never_issued_is_cut(self):
+        # rank 1's wildcard takes rank 3's message instead of rank 2's; everything after it on
+        # rank 1 is beyond the horizon, including the tag-3 send that rank 0's probe observed.
+        t = mk({0: [{"op": "probe", "kind": "probe", "src": 1, "tag": 3, "comm": 0, "flag": 1, "msrc": 1, "mtag": 3}, recv(1, 3, 1, 3)],
+                1: [recv(T.ANY, 1, 2, 1), send(0, 3)],
+                2: [send(1, 1)], 3: [send(1, 1)]})
+        alt = next(a for a in candidates_full(t)[0] if a.recv == (1, 0) and a.send == (3, 0))
+        v = check(t, alt.M, alt.changed, None, "L1")
+        self.assertTrue(v.feasible)
+        self.assertEqual(v.cut[0], t.probes[(0, 0)].idx, "the probe and what follows it are undetermined")
+
+    def test_pending_receive_takes_the_later_receives_message(self):
+        # rank 0 posts an Irecv from ANY/ANY, then receives rank 2's tag-1 message with a
+        # specific receive, then waits for rank 1's tag-2 message. Rank 1's wildcard takes
+        # rank 4's message instead of rank 3's (stealing it from the specific receive that
+        # follows), which cuts rank 1 before its send to rank 0: rank 0's Irecv is then
+        # pending through the prefix and would take rank 2's message itself (the standard's
+        # second non-overtaking clause), so the prefix ends at the specific receive, not at
+        # the wait. The alternative stays feasible; the pair recv(0, 1) <- send(2, 0) is just
+        # no longer certified.
+        t = mk({0: [irecv(T.ANY, T.ANY, 0), recv(2, 1, 2, 1), wait((0, 1, 2))],
+                1: [recv(T.ANY, 5, 3, 5, widx=0), recv(4, 5, 4, 5), send(0, 2)],
+                2: [send(0, 1)], 3: [send(1, 5)], 4: [send(1, 5)]})
+        alt = next(a for a in candidates_full(t)[0] if a.recv == (1, 0) and a.send == (4, 0))
+        v = check(t, alt.M, alt.changed, None, "L1")
+        self.assertTrue(v.feasible)
+        self.assertEqual(v.cut[0], t.recvs[(0, 1)].idx, "the specific receive cannot get its message past the pending Irecv")
+        self.assertEqual(v.cut[1], t.recvs[(1, 0)].idx + 1)
+        fast_equals_generic(self, t)
+        # the explorer agrees (rank 1 hangs on the stolen receive, so its send never comes and the
+        # Irecv takes rank 2's message): no execution gives that message to the specific receive
+        prog = dsl.program_from_trace(t)
+        res = explore.explore(prog, None, force={(1, 0): (4, 0)}, max_states=20000, comms=t.comm_members)
+        self.assertTrue(res.outcomes)
+        self.assertFalse(any(dict(o.matching).get((0, 1)) == (2, 0) for o in res.outcomes))
+        # with the Irecv completed before the specific receive, nothing is pending and the pair is certified
+        t2 = mk({0: [irecv(T.ANY, T.ANY, 0), wait((0, 1, 2)), recv(2, 1, 2, 1)],
+                 1: [recv(T.ANY, 5, 3, 5, widx=0), recv(4, 5, 4, 5), send(0, 2)],
+                 2: [send(0, 1)], 3: [send(1, 5)], 4: [send(1, 5)]})
+        alt2 = next(a for a in candidates_full(t2)[0] if a.recv == (1, 0) and a.send == (4, 0))
+        v2 = check(t2, alt2.M, alt2.changed, None, "L1")
+        self.assertTrue(v2.feasible)
+        self.assertEqual(v2.cut[0], t2.recvs[(0, 0)].complete_idx, "rank 0 stops where the Irecv's message is missing")
+        fast_equals_generic(self, t2)
+
+    def test_unreceived_rendezvous_send_hangs_under_single_path(self):
+        # a 4000B blocking send nobody receives completed in the run (eager); below 4000 bytes
+        # it would wait for a match forever
+        t = mk({0: [send(1, 1, count=1000)], 1: []})
+        v = observed_feasible_at(t, 0)
+        self.assertTrue(v.feasible, "the matching itself is realisable")
+        self.assertEqual(list(v.hangs), [0])
+        self.assertFalse(v.ok)
+        self.assertTrue(observed_feasible_at(t, None).ok)
+        rep = analyze(t, with_sp=False)
+        f = rep.by_class("2-buffering")
+        self.assertEqual(len(f), 1)
+        self.assertEqual(f[0].B, "B < 4000")
+
+
+class C_UnrelatedCycle(unittest.TestCase):
+    def test_interval_is_stated_over_realisable_thresholds(self):
+        # ranks 0 and 1 exchange 400B messages head to head (a deadlock below 400 bytes);
+        # rank 2's wildcard race with ranks 3 and 4 has nothing to do with it
+        t = mk({0: [send(1, 1, count=100), recv(1, 1, 1, 1, count=100)],
+                1: [send(0, 1, count=100), recv(0, 1, 0, 1, count=100)],
+                2: [recv(T.ANY, 7, 3, 7), recv(T.ANY, 7, 4, 7)],
+                3: [send(2, 7)], 4: [send(2, 7)]})
+        rep = analyze(t, with_sp=False)
+        self.assertEqual([f.B for f in rep.by_class("2-buffering")], ["B < 400"])
+        race = [f for f in rep.findings if f.cls == "1f" and f.recv == (2, 0)]
+        self.assertEqual(len(race), 1)
+        self.assertEqual(race[0].B, "any B")
+        self.assertTrue(any("left out: B in 0" in d for d in race[0].detail), race[0].detail)
+
+
+class C_SinglePathBaseline(unittest.TestCase):
+    """L1+SP consequences are compared with what the straight-line program does without
+    the change; a deadlock or an orphan the observed run has anyway is not the
+    alternative's. Each finding says whether every execution with the pair has the
+    consequence or only some, and its pin realises a whole witness execution."""
+
+    def test_observed_orphan_is_not_attributed(self):
+        # rank 3's tag-9 message is never received; the race on rank 0 has nothing to do with it
+        t = mk({0: [recv(T.ANY, 1, 1, 1, widx=0), recv(T.ANY, 1, 2, 1, widx=1)],
+                1: [send(0, 1)], 2: [send(0, 1)], 3: [send(0, 9)]})
+        rep = analyze(t)
+        self.assertEqual([f.level for f in rep.by_class("1c")], ["observed"])
+        self.assertFalse(rep.by_class("1d"))
+
+    def test_head_to_head_deadlock_is_not_attributed(self):
+        t = mk({0: [send(1, 1, count=100), recv(1, 1, 1, 1, count=100)],
+                1: [send(0, 1, count=100), recv(0, 1, 0, 1, count=100)],
+                2: [recv(T.ANY, 7, 3, 7, widx=0), recv(T.ANY, 7, 4, 7, widx=1)],
+                3: [send(2, 7)], 4: [send(2, 7)]})
+        rep = analyze(t)
+        self.assertEqual(set(rep.classes()), {"1f", "2-buffering"})
+
+    def test_certain_deadlock_with_its_pin(self):
+        # rank 0 takes ANY then specifically rank 2: if ANY takes rank 2's message, the
+        # second receive can never complete, in every execution
+        t = mk({0: [recv(T.ANY, 1, 1, 1, widx=0), recv(2, 1, 2, 1)], 1: [send(0, 1)], 2: [send(0, 1)]})
+        rep = analyze(t)
+        d = rep.by_class("1d")
+        self.assertEqual([f.certainty for f in d], ["all"])
+        self.assertEqual(d[0].pin, "REMATCH_PIN=0:0:2")
+        c = rep.by_class("1c")
+        self.assertEqual([(f.level, f.certainty) for f in c], [("L1+SP", "all")])
+
+    def test_deadlock_in_some_executions_pins_the_witness(self):
+        # after ANY takes rank 2's first message, the second ANY may take rank 1's (done) or
+        # rank 2's second (then the specific receive from rank 2 starves)
+        t = mk({0: [recv(T.ANY, 1, 1, 1, widx=0), recv(T.ANY, 1, 2, 1, widx=1), recv(2, 1, 2, 1)],
+                1: [send(0, 1)], 2: [send(0, 1), send(0, 1)]})
+        rep = analyze(t)
+        d = rep.by_class("1d")
+        self.assertEqual([f.certainty for f in d], ["some"])
+        self.assertEqual(d[0].pin, "REMATCH_PIN=0:0:2,0:1:2")
+
+
+class C_ProbeAndCompletionOrder(unittest.TestCase):
+    def _probe(self, src, tag, msrc, mtag, pidx=None):
+        d = {"op": "probe", "kind": "probe", "src": 0 if src == T.ANY else src, "tag": tag, "comm": 0, "flag": 1,
+             "msrc": msrc, "mtag": mtag}
+        if src == T.ANY:
+            d["anysrc"] = 1
+        if pidx is not None:
+            d["pidx"] = pidx
+        return d
+
+    def test_probed_message_must_be_issued_within_the_horizon(self):
+        # rank 2 sends the alternative message only after it receives what rank 0 sends after
+        # the probe; that send is beyond the horizon, so rank 2's receive never completes
+        # within it and the message is never issued: the probe cannot have seen it
+        t = mk({0: [self._probe(T.ANY, 1, 1, 1), send(2, 5), recv(T.ANY, 1, 1, 1), recv(2, 1, 2, 1)],
+                1: [send(0, 1)], 2: [recv(0, 5, 0, 5), send(0, 1)]})
+        p = t.probes[(0, 0)]
+        v = check(t, t.observed, set(), None, "L1", changed_probes={p.key}, probe_alt={p.key: (2, 0)})
+        self.assertFalse(v.feasible)
+        self.assertIn("never issued within the horizon", v.reason)
+
+    def test_probe_alternative_carries_its_threshold(self):
+        # rank 2's tag-1 message follows a 4000B send that rank 0 receives only after the
+        # probe: below 4000 bytes rank 2 is stuck in that send while rank 0 probes
+        t = mk({0: [self._probe(T.ANY, 1, 1, 1, pidx=0), recv(2, 9, 2, 9, count=1000), recv(T.ANY, 1, 1, 1, widx=0), recv(2, 1, 2, 1)],
+                1: [send(0, 1)], 2: [send(0, 9, count=1000), send(0, 1)]})
+        rep = analyze(t, with_sp=False)
+        alts = [f for f in rep.by_class("probe-alt") if "send(2, 1)" in f.title]
+        self.assertEqual(len(alts), 1)
+        self.assertEqual(alts[0].B, "B >= 4000")
+        self.assertEqual(alts[0].pin, "REMATCH_PIN_PROBE=0:0:2")
+
+    def test_waitsome_order_alternative(self):
+        t = mk({0: [irecv(1, 1, 0), irecv(2, 1, 1), wait((0, 1, 1), kind="waitsome", reqs=[0, 1]), wait((1, 2, 1))],
+                1: [send(0, 1)], 2: [send(0, 1)]})
+        rep = analyze(t, with_sp=False)
+        w = rep.by_class("waitany-order")
+        self.assertEqual(len(w), 1)
+        self.assertTrue(w[0].title.startswith("waitsome at rank 0"))
+        self.assertEqual((w[0].B, w[0].pin, w[0].level), ("any B", None, "L1"))
+
+
+class C_CancelAndMprobe(unittest.TestCase):
+    def test_cancelled_send_is_not_a_candidate(self):
+        # rank 2 cancels its send: the message is withdrawn, so the wildcard cannot take it
+        t = mk({0: [recv(T.ANY, 1, 1, 1, widx=0)], 1: [send(0, 1)],
+                2: [send(0, 1, mode="isend", req=0), {"op": "cancel", "req": 0}, wait((0, None, None))]})
+        self.assertTrue(t.sends[(2, 0)].cancelled)
+        self.assertEqual(candidates_full(t)[0], [])
+        self.assertFalse(analyze(mk({0: [recv(T.ANY, 1, 1, 1)], 1: [send(0, 1)],
+                                     2: [send(0, 1, mode="isend", req=0), {"op": "cancel", "req": 0}, wait((0, None, None))]}),
+                                 with_sp=False).by_class("1c"))
+
+    def test_cancelled_send_does_not_block_fifo(self):
+        # rank 1's first send is cancelled; the wildcard's alternative is rank 1's second send
+        t = mk({0: [recv(T.ANY, 1, 2, 1, widx=0), recv(1, 1, 1, 1)],
+                1: [send(0, 1, mode="isend", req=0), {"op": "cancel", "req": 0}, wait((0, None, None)), send(0, 1)],
+                2: [send(0, 1)]})
+        alts = [(a.recv, a.send) for a in candidates_full(t)[0]]
+        self.assertIn(((0, 0), (1, 1)), alts)
+        alt = next(a for a in candidates_full(t)[0] if a.send == (1, 1))
+        self.assertTrue(check(t, alt.M, alt.changed, None, "L1").feasible)
+
+    def test_mprobe_removes_the_message_from_the_queue(self):
+        # rank 0 mprobes rank 1's message, then posts a wildcard that rank 2 serves, then
+        # mrecvs the probed message: the wildcard could not have taken rank 1's message
+        mp = {"op": "probe", "kind": "mprobe", "src": 1, "tag": 1, "comm": 0, "flag": 1, "msrc": 1, "mtag": 1}
+        t = mk({0: [mp, recv(T.ANY, 1, 2, 1, widx=0), {**recv(1, 1, 1, 1), "mrecv": 1}],
+                1: [send(0, 1)], 2: [send(0, 1)]})
+        self.assertEqual(t.observed, {(0, 0): (2, 0), (0, 1): (1, 0)})
+        self.assertEqual(t.sends[(1, 0)].reserved_idx, t.probes[(0, 0)].idx)
+        self.assertEqual(candidates_full(t)[0], [])
+
+
+class C_TypeSignatures(unittest.TestCase):
+    def test_contiguous_equals_repeated_basic(self):
+        self.assertTrue(types.compatible("MPI_INT*4", 1, "MPI_INT", 4))
+        self.assertTrue(types.compatible("MPI_INT", 2, "MPI_INT", 4))          # a shorter message fits
+        self.assertTrue(types.compatible("MPI_INT*2,MPI_DOUBLE", 1, "MPI_INT,MPI_INT,MPI_DOUBLE*3", 1))
+
+    def test_mismatch_and_unknown(self):
+        self.assertFalse(types.compatible("MPI_INT*4", 1, "MPI_DOUBLE", 4))
+        self.assertFalse(types.compatible("MPI_INT,MPI_DOUBLE", 1, "MPI_INT", 2))
+        self.assertIsNone(types.compatible("derived:c3/s16/e16/lb0", 1, "MPI_INT", 4))
+        self.assertIsNone(types.compatible(None, 1, "MPI_INT", 1))
+
+    def test_classify_uses_signature_compatibility(self):
+        # a contiguous(4, INT) sent as one element into four INTs is the same signature
+        t = mk({0: [recv(T.ANY, 1, 1, 1, count=4, widx=0)], 1: [send(0, 1, count=4)],
+                2: [{**send(0, 1, count=1), "tsize": 16, "tsig": "MPI_INT*4"}]})
+        t.recvs[(0, 0)].tsig = "MPI_INT"; t.sends[(1, 0)].tsig = "MPI_INT"
+        rep = analyze(t, with_sp=False)
+        self.assertEqual([f.cls for f in rep.findings if f.send == (2, 0)], ["1f"])
+        t.sends[(2, 0)].tsig = "MPI_DOUBLE*2"
+        rep = analyze(t, with_sp=False)
+        self.assertEqual([f.cls for f in rep.findings if f.send == (2, 0)], ["1a"])
+
+
+class C_Kernel(unittest.TestCase):
+    """The non-overtaking kernel enumerates exactly the alternatives the full enumerator
+    would have accepted at some threshold."""
+
+    def _accepted(self, t, enum):
+        alts, _ = enum(t)
+        out = set()
+        for a in alts:
+            for B in [0] + t.message_sizes() + [None]:
+                if check(t, a.M, a.changed, B, "L1").feasible:
+                    out.add((a.recv, a.send, a.kind))
+                    break
+        return out
+
+    def _same(self, t):
+        self.assertEqual(self._accepted(t, candidates_full), self._accepted(t, reference.candidates_full_slow))
+
+    def test_master_worker_rounds(self):
+        # two rounds from each of three workers: only the head of each queue is a candidate
+        rounds = [(1, 2, 3), (2, 3, 1)]
+        ops = []
+        for rnd in rounds:
+            for src in rnd:
+                ops.append(recv(T.ANY, 1, src, 1, widx=len(ops)))
+        t = mk({0: ops, 1: [send(0, 1), send(0, 1)], 2: [send(0, 1), send(0, 1)], 3: [send(0, 1), send(0, 1)]})
+        self._same(t)
+        self.assertLess(len(candidates_full(t)[0]), len(reference.candidates_full_slow(t)[0]))
+
+    def test_tags_and_consumed_heads(self):
+        t = mk({0: [recv(1, 1, 1, 1), recv(T.ANY, T.ANY, 2, 5, widx=0), recv(1, 2, 1, 2)],
+                1: [send(0, 1), send(0, 2)], 2: [send(0, 5)]})
+        self._same(t)
+
+
+def fast_equals_generic(tc, t):
+    """Every alternative of t judged by the fast checks and by the generic checker alike, at
+    every threshold: the same verdict, the same cut when feasible, the same reason when not."""
+    ix = t.fast_indexes()
+    hb = fast.Observed(t, None, ix).reaches
+    alts, _ = candidates_full(t, hb)
+    probes = probe_candidates(t, hb)
+    waits = _completion_alternatives(t, hb)
+    for B in breakpoints(t) + [None]:
+        ob = fast.Observed(t, B, ix)
+        g, f = check(t, t.observed, set(), B, "SP", strong_only=True), ob.observed_verdict()
+        tc.assertEqual((g.ok, g.feasible, g.cut, set(g.hangs)), (f.ok, f.feasible, f.cut, set(f.hangs)), f"observed at B={B}")
+        for a in alts:
+            f = ob.check_alternative(a)
+            if f is None:
+                continue
+            g = check(t, a.M, a.changed, B, "L1")
+            tc.assertEqual(g.feasible, f.feasible, f"{a.describe(t)} at B={B}: {g} vs {f}")
+            tc.assertEqual(g.cut if g.feasible else g.reason, f.cut if f.feasible else f.reason, f"{a.describe(t)} at B={B}")
+        for p, s in probes:
+            g = check(t, t.observed, set(), B, "L1", changed_probes={p.key}, probe_alt={p.key: s.key})
+            f = ob.check_probe(p, s)
+            tc.assertEqual((g.feasible, g.cut if g.feasible else None), (f.feasible, f.cut if f.feasible else None), f"{p} sees {s} at B={B}")
+        for rec, j, r_j, s_j in waits:
+            g = check(t, t.observed, set(), B, "L1", extra_edges=[(s_j.issue_node(), rec.complete)],
+                      changed_events={(rec.rank, rec.idx)}, must_issue=[s_j.key])
+            f = ob.check_event(rec.rank, rec.idx, s_j)
+            tc.assertEqual((g.feasible, g.cut if g.feasible else None), (f.feasible, f.cut if f.feasible else None), f"wait {rec.idx} at B={B}")
+
+
+class C_FastEqualsGeneric(unittest.TestCase):
+    def test_traces_of_this_module(self):
+        # every in-memory trace the other tests build, re-created here
+        mp = {"op": "probe", "kind": "mprobe", "src": 1, "tag": 1, "comm": 0, "flag": 1, "msrc": 1, "mtag": 1}
+        pr = {"op": "probe", "kind": "probe", "src": 0, "anysrc": 1, "tag": 1, "comm": 0, "flag": 1, "msrc": 1, "mtag": 1}
+        traces = [
+            mk({0: [irecv(1, 2, 0, count=1000), recv(T.ANY, 1, 2, 1), wait((0, 1, 2))], 1: [send(0, 2, count=1000), send(0, 1)], 2: [send(0, 1)]}),
+            mk({0: [send(1, 1, count=100), recv(1, 1, 1, 1, count=100)], 1: [send(0, 1, count=100), recv(0, 1, 0, 1, count=100)],
+                2: [recv(T.ANY, 7, 3, 7, widx=0), recv(T.ANY, 7, 4, 7, widx=1)], 3: [send(2, 7)], 4: [send(2, 7)]}),
+            mk({0: [recv(T.ANY, 1, 1, 1, widx=0), recv(T.ANY, 1, 2, 1, widx=1), recv(2, 1, 2, 1)], 1: [send(0, 1)], 2: [send(0, 1), send(0, 1)]}),
+            mk({0: [recv(T.ANY, 1, 1, 1, widx=0), recv(2, 1, 2, 1)], 1: [send(0, 1)], 2: [send(0, 1)], 3: [send(0, 9)]}),
+            mk({0: [pr, recv(2, 9, 2, 9, count=1000), recv(T.ANY, 1, 1, 1, widx=0), recv(2, 1, 2, 1)], 1: [send(0, 1)], 2: [send(0, 9, count=1000), send(0, 1)]}),
+            mk({0: [irecv(1, 1, 0), irecv(2, 1, 1), wait((0, 1, 1), kind="waitany", reqs=[0, 1]), wait((1, 2, 1))], 1: [send(0, 1)], 2: [send(0, 1)]}),
+            mk({0: [mp, recv(T.ANY, 1, 2, 1, widx=0), {**recv(1, 1, 1, 1), "mrecv": 1}], 1: [send(0, 1)], 2: [send(0, 1)]}),
+            mk({0: [send(1, 1, count=1000)], 1: []}),
+            mk({0: [recv(T.ANY, 1, 1, 1, widx=0), coll("barrier"), recv(2, 1, 2, 1)], 1: [send(0, 1), coll("barrier")], 2: [coll("barrier"), send(0, 1)]}),
+            mk({0: [recv(T.ANY, 1, 1, 1, widx=0), coll("bcast", root=0), recv(T.ANY, 1, 2, 1, widx=1)], 1: [send(0, 1), coll("bcast", root=0)], 2: [coll("bcast", root=0), send(0, 1)]}),
+            mk({0: [recv(T.ANY, 1, 1, 1, widx=0), recv(T.ANY, 1, 2, 1, widx=1), recv(T.ANY, 1, 1, 1, widx=2)],
+                1: [send(0, 1), send(0, 1, mode="ssend")], 2: [send(0, 1, count=2000)]}),
+        ]
+        for i, t in enumerate(traces):
+            with self.subTest(trace=i):
+                fast_equals_generic(self, t)
+
+
+class C_TracerRecords(unittest.TestCase):
+    """Loader behaviour for the records the tracer writes besides point-to-point."""
+
+    def test_begin_pairs_with_the_same_thread(self):
+        # thread 1 is inside a blocking receive while thread 2 sends: the begin is not blocked
+        t = mk({0: [{"op": "begin", "call": "recv", "src": 1, "tag": 1, "comm": 0, "count": 1, "tsize": 4, "tid": 1},
+                    {**send(2, 9), "tid": 2}, {**recv(1, 1, 1, 1), "tid": 1}],
+                1: [send(0, 1)], 2: [recv(0, 9, 0, 9)]})
+        self.assertEqual(t.blocked_calls(), [])
+        self.assertEqual(t.threads[0], 2)
+
+    def test_thread_multiple_gives_observed_findings_only(self):
+        t = mk({0: [{"op": "init", "np": 3, "thread": 3}, {**recv(T.ANY, 1, 1, 1, widx=0), "tid": 1}, {**recv(T.ANY, 1, 2, 1, widx=1), "tid": 2}],
+                1: [send(0, 1)], 2: [send(0, 1)]})
+        rep = analyze(t)
+        self.assertFalse(rep.by_class("1f"))
+        self.assertTrue(any("THREAD_MULTIPLE" in n for n in rep.notes))
+
+    def test_freed_receive_takes_its_message_unobserved(self):
+        t = mk({0: [irecv(1, 1, 0), {"op": "reqfree", "req": 0}], 1: [send(0, 1)]})
+        self.assertTrue(t.recvs[(0, 0)].freed)
+        self.assertFalse(analyze(t, with_sp=False).by_class("1c"))
+
+    def test_cancelled_send_status_is_authoritative(self):
+        t = mk({0: [send(1, 1, mode="isend", req=0), {"op": "cancel", "req": 0}, {"op": "wait", "kind": "wait", "reqs": [0], "done": [{"req": 0, "cancelled": 1}]}],
+                1: []})
+        self.assertTrue(t.sends[(0, 0)].cancelled)
+        t = mk({0: [send(1, 1, mode="isend", req=0), {"op": "cancel", "req": 0}, {"op": "wait", "kind": "wait", "reqs": [0], "done": [{"req": 0, "cancelled": 0}]}],
+                1: [recv(0, 1, 0, 1)]})
+        self.assertFalse(t.sends[(0, 0)].cancelled, "the cancel failed: the message was delivered")
+        t = mk({0: [send(1, 1, mode="isend", req=0), {"op": "cancel", "req": 0}, {"op": "wait", "kind": "wait", "reqs": [0], "done": [{"req": 0}]}],
+                1: []})
+        self.assertTrue(t.sends[(0, 0)].cancelled, "an older trace without the flag: the cancel record stands")
+
+    def test_intercommunicator_peers_are_the_remote_group(self):
+        # ranks {0,1} and {2,3} joined by an intercommunicator: rank 0 sends to remote rank 1 (= world 3)
+        left = {"op": "comm", "name": "intercomm", "parent": 0, "id": 2, "inter": 1, "ranks": [2, 3], "local": [0, 1], "members": [0, 1, 2, 3], "gord": 0}
+        right = {"op": "comm", "name": "intercomm", "parent": 0, "id": 2, "inter": 1, "ranks": [0, 1], "local": [2, 3], "members": [0, 1, 2, 3], "gord": 0}
+        t = mk({0: [left, send(1, 1, comm=2)], 1: [left], 2: [right], 3: [right, recv(0, 1, 0, 1, comm=2)]})
+        s = t.sends[(0, 0)]
+        self.assertEqual(s.dst, 3)
+        self.assertEqual(t.observed, {(3, 0): (0, 0)})
+        self.assertEqual(t.comm_members[s.comm], [0, 1, 2, 3])
+
+    def test_overflow_and_getstatus(self):
+        t = mk({0: [{"op": "overflow", "what": "message table"}, irecv(1, 1, 0),
+                    {"op": "wait", "kind": "getstatus", "flag": 1, "reqs": [0], "done": []}, wait((0, 1, 1))],
+                1: [send(0, 1)]})
+        self.assertTrue(any("overflowed" in w for w in t.warnings))
+        self.assertEqual(t.observed, {(0, 0): (1, 0)})
+
+
+class C_TraceFromExecution(unittest.TestCase):
+    def test_round_trip_keeps_the_matching(self):
+        rng = __import__("random").Random(7)
+        n = 0
+        for i in range(150):
+            prog, comms = dsl.random_program(rng, rng.choice([2, 3]), branches=False, waitany=False)
+            res = explore.explore(prog, None, comms=comms, max_states=200_000)
+            done = [o for o in res.outcomes if o.kind == "done" and not o.leaked]
+            if not done:
+                continue
+            o = done[0]
+            raw = dsl.trace_from_execution(prog, dict(o.matching), comms)
+            t = T.Trace()
+            T._build(t, raw)
+            self.assertEqual(t.observed, dict(o.matching), f"program {i}")
+            self.assertEqual(len(dsl.program_from_trace(t)), len(prog))
+            n += 1
+        self.assertGreaterEqual(n, 5)   # most random programs deadlock or leak a receive
+
+
+class C_HorizonCollectiveShapes(unittest.TestCase):
+    def test_bcast_root_sends_after_the_bcast(self):
+        # rank 0 broadcasts (root) and then sends; rank 1's wildcard takes rank 2's message
+        # in the run and rank 0's in the alternative, which cuts rank 1 before its bcast: the
+        # root returns from a bcast regardless, so rank 0's later send is issued and the
+        # alternative is feasible; with a barrier instead it is not
+        def mk_t(name):
+            return mk({0: [coll(name, root=0), send(1, 1)],
+                       1: [recv(T.ANY, 1, 2, 1, widx=0), coll(name, root=0), recv(0, 1, 0, 1)],
+                       2: [send(1, 1), coll(name, root=0)]})
+        t = mk_t("bcast")
+        alt = next(a for a in candidates_full(t)[0] if a.recv == (1, 0) and a.send == (0, 0))
+        self.assertTrue(check(t, alt.M, alt.changed, None, "L1").feasible)
+        fast_equals_generic(self, t)
+        t = mk_t("barrier")
+        alts, pruned = candidates_full(t)
+        self.assertFalse([a for a in alts if a.send == (0, 0)], "rank 0's send follows the barrier, which follows the receive")
+        self.assertTrue(any("causally follows" in why for _, why in pruned))
+
+
+class C_TwoChanges(unittest.TestCase):
+    def test_two_ranks_two_steals(self):
+        # ranks 0 and 1 each receive from ANY twice; each has one steal alternative; the pair of
+        # steals is a two-change alternative, feasible at every B
+        t = mk({0: [recv(T.ANY, 1, 2, 1, widx=0), recv(T.ANY, 1, 3, 1, widx=1)],
+                1: [recv(T.ANY, 2, 2, 2, widx=0), recv(T.ANY, 2, 3, 2, widx=1)],
+                2: [send(0, 1), send(1, 2)], 3: [send(0, 1), send(1, 2)]})
+        from rematch.matching import candidates_k
+        ks = candidates_k(t, 2)
+        self.assertEqual(len(ks), 1)
+        self.assertTrue(check(t, ks[0].M, ks[0].changed, None, "L1").feasible)
+        rep = analyze(t, with_sp=False, changes=2)
+        self.assertTrue([f for f in rep.findings if f.title.startswith("two changes")])
+
+
+if __name__ == "__main__":
+    unittest.main()

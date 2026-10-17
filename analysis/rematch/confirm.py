@@ -1,10 +1,13 @@
 """Confirming replay: rerun the program with each finding's REMATCH_PIN and classify the
-outcome (hang / MPI error / finished). Prediction stays single-run; this only separates
-true predictions from model or tool divergence."""
+outcome (hang / MPI error / finished). A finding is confirmed only if the replay library
+reported every pin applied and the outcome is the predicted one; a hang with a pin that
+never took effect confirms nothing. Prediction stays single-run; this only separates true
+predictions from model or tool divergence."""
 from __future__ import annotations
 import os
 import re
 import subprocess
+import time
 from dataclasses import dataclass
 from typing import List, Optional
 
@@ -17,34 +20,55 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 class Confirmation:
     finding: Finding
     pin: str
-    result: str          # FINISHED | TIMEOUT | MPI-ERROR:<name> | SIGNAL:<n> | APP-ERROR:<rc> | NO-PIN
+    result: str          # FINISHED | TIMEOUT | KILLED | MPI-ERROR:<name> | SIGNAL:<n> | APP-ERROR:<rc> | NO-PIN
     verdict: str         # confirmed | not-confirmed | n/a
     stderr_tail: str = ""
+    pin_applied: bool = False   # every pin of the spec reported itself applied in the rerun
 
 
-def classify_rc(rc: int, stderr: str) -> str:
+def classify_rc(rc: int, stderr: str, elapsed: Optional[float] = None, timeout: Optional[int] = None) -> str:
+    """124 is timeout's own exit status. 137 (SIGKILL) after the timeout has elapsed is
+    timeout's own -k kill of a job that ignored SIGTERM (Open MPI's launcher does when its
+    ranks are deadlocked), so it is a hang too; before that it is anything from a memory cap
+    to a kill, and not a hang."""
     if rc == 0:
         return "FINISHED"
-    if rc in (124, 137):
+    if rc == 124:
         return "TIMEOUT"
+    if rc == 137 or rc == -9:
+        if elapsed is not None and timeout and elapsed >= timeout:
+            return "TIMEOUT"
+        return "KILLED"
     m = re.search(r"MPI_ERR_[A-Z_]+", stderr)
     if m:
         return "MPI-ERROR:" + m.group(0)
-    if re.search(r"truncat", stderr, re.I):
-        return "MPI-ERROR:MPI_ERR_TRUNCATE"
     if rc >= 128:
         return f"SIGNAL:{rc - 128}"
     return f"APP-ERROR:{rc}"
 
 
+def pins_applied(pin: str, stderr: str) -> bool:
+    """Did the replay library report every pin of the spec as applied? The library prints
+    '[rematch-pin] rank R: applied widx=W ...' (or 'applied probe pidx=P') for each."""
+    name, _, spec = pin.partition("=")
+    probe = name == "REMATCH_PIN_PROBE"
+    for tok in spec.split(","):
+        parts = tok.split(":")
+        if len(parts) < 3:
+            return False
+        rank, idx = parts[0], parts[1]
+        pat = rf"\[rematch-pin\] rank {rank}: applied {'probe pidx' if probe else 'widx'}={idx}\b"
+        if not re.search(pat, stderr):
+            return False
+    return True
+
+
 def expected_outcomes(f: Finding) -> set:
-    """Which replay results confirm a finding of this class. An MPI error raised on the way
-    to a predicted deadlock or orphan (e.g. a truncation on the same re-matched receive)
-    also confirms that the alternative matching was reached."""
+    """Which replay results confirm a finding of this class, provided its pins were applied."""
     if f.cls in ("1a",):
         return {"MPI-ERROR:MPI_ERR_TRUNCATE", "MPI-ERROR:MPI_ERR_TYPE"}
     if f.cls in ("1c", "1d", "2-buffering"):
-        return {"TIMEOUT", "MPI-ERROR:*"}
+        return {"TIMEOUT"}
     return set()   # 1b, 1f, probe-alt, waitany-order: any outcome is consistent (info only)
 
 
@@ -56,10 +80,14 @@ def run_pinned(np: int, exe: str, args: List[str], pin: Optional[str], timeout: 
         env_args += ["-x", pin]   # "REMATCH_PIN=..."
     for k, v in (extra_env or {}).items():
         env_args += ["-x", f"{k}={v}"]
-    cmd = ["timeout", "--foreground", "-k", "5", str(timeout), "/usr/bin/mpirun.openmpi", "-np", str(np),
+    # no --foreground: timeout then signals the whole process group, so the ranks go with mpirun
+    cmd = ["/usr/bin/timeout", "-k", "5", str(timeout), "/usr/bin/mpirun.openmpi", "-np", str(np),
            *(mpirun_args or []), *env_args, exe, *args]
-    return subprocess.run(cmd, capture_output=True, text=True, stdin=subprocess.DEVNULL,
-                          env={**os.environ, "OMPI_MCA_rmaps_base_oversubscribe": "1"})
+    t0 = time.monotonic()
+    r = subprocess.run(cmd, capture_output=True, text=True, stdin=subprocess.DEVNULL,
+                       env={**os.environ, "OMPI_MCA_rmaps_base_oversubscribe": "1"})
+    r.elapsed = time.monotonic() - t0   # for classify_rc: a SIGKILL past the timeout is the timeout's
+    return r
 
 
 def confirm(rep: Report, np: int, exe: str, args: List[str] = (), timeout: int = 20, mpi: str = "openmpi",
@@ -84,9 +112,9 @@ def confirm(rep: Report, np: int, exe: str, args: List[str] = (), timeout: int =
             continue
         seen.add(key)
         r = run_pinned(np, exe, list(args), pin, timeout, mpi)
-        res = classify_rc(r.returncode, r.stderr)
+        res = classify_rc(r.returncode, r.stderr, r.elapsed, timeout)
+        applied = pins_applied(pin, r.stderr)
         want = expected_outcomes(f)
-        hit = res in want or ("MPI-ERROR:*" in want and res.startswith("MPI-ERROR:"))
-        verdict = "n/a" if not want else ("confirmed" if hit else "not-confirmed")
-        out.append(Confirmation(f, pin, res, verdict, r.stderr[-300:]))
+        verdict = "n/a" if not want else ("confirmed" if res in want and applied else "not-confirmed")
+        out.append(Confirmation(f, pin, res, verdict, r.stderr[-300:], applied))
     return out

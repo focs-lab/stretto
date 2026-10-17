@@ -13,10 +13,17 @@ Semantics (parameter B = eager threshold in bytes; None = infinite):
     that r accepts, and no earlier-posted unmatched receive at r's rank accepts s;
   * Wait completes a request that is complete; Waitany completes any not-yet-consumed
     request that is complete (nondeterministic) and binds the index;
-  * a collective fires when every member of the communicator has issued its k-th
-    collective on that communicator (blocking members are parked at it, nonblocking
-    members have moved on); different names => 'collective-mismatch';
-  * count overflow at match time => 'truncate'.
+  * a collective completes for a member once the members its shape requires have issued
+    their k-th collective on that communicator (matching.coll_shape: barrier-like ones need
+    everyone, bcast-like ones the root, reduce-like ones everyone for the root and nobody for
+    the others, scan the members before it); blocking members are parked at it, nonblocking
+    members have moved on. A collective whose root is unknown synchronises everyone.
+    Different names once everyone has issued => 'collective-mismatch';
+  * count overflow at match time => 'truncate'; a ready-mode send issued while no
+    matching receive is posted => 'rsend-no-receive' (both errors on the path); an Abort op
+    ends its rank and makes the outcome 'abort' (the program's own check failed). A program
+    with a ready-mode send is explored without the reduction, since receive posting then no
+    longer commutes with the sender's steps.
 
 Exploration is exhaustive over interleavings with memoisation. With reduce=True a
 persistent-set reduction is applied: branch evaluation, send issue, receive posting,
@@ -25,15 +32,18 @@ non-overtaking) commute with every other enabled transition and are taken alone;
 wildcard-source matches and Waitany choices branch. reduce=False enumerates every
 enabled transition and is used as the reference in the differential test.
 
-Outcomes: done | deadlock | force-blocked | truncate | collective-mismatch, each with the
-matching, the orphan sends (issued, never matched) and leaked receives (posted, never
-matched).
+Outcomes: done | deadlock | abort | force-blocked, with the errors hit on the path
+(truncate, collective-mismatch, rsend-no-receive), the matching in match order (one witness
+execution), the orphan sends (issued, never matched), the leaked receives (posted, never
+matched), every send issued with its destination and tag, and the collectives issued per
+rank, which is what a skeleton comparison needs.
 """
 from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict, FrozenSet, List, Optional, Set, Tuple, Union
 
-from .dsl import ANY, Coll, If, Meta, Op, Program, Recv, Send, Wait, Waitany
+from .dsl import ANY, Abort, Coll, If, Meta, Op, Program, Recv, Send, Wait, Waitany
+from .matching import coll_shape
 
 Key = Tuple[int, int]
 
@@ -67,6 +77,7 @@ class CollIssue:
     ordinal: int
     name: str
     req: Optional[str]      # None: blocking, the process is parked at it
+    root: Optional[int] = None
 
 
 @dataclass(frozen=True)
@@ -92,9 +103,11 @@ class GState:
     meta: Tuple[Tuple[Key, str, Meta], ...]        # (recv key, var, metadata) matched, not yet completed
     completed_recv: FrozenSet[Key]
     completed_send: FrozenSet[Key]                 # send *requests* that completed
-    colls: Tuple[CollIssue, ...]                   # issued collectives not yet fired
-    completed_coll: FrozenSet[Tuple[int, int, int]]   # (rank, comm, ordinal) fired nonblocking
+    colls: Tuple[CollIssue, ...]                   # issued collectives of groups not yet complete
+    completed_coll: FrozenSet[Tuple[int, int, int]]   # (rank, comm, ordinal) completed for that member
     errors: Tuple[str, ...] = ()                   # MPI errors hit on this path (sorted, unique)
+    sent: Tuple[Tuple[Key, int, int, int], ...] = ()   # every send issued: (key, dst, tag, comm)
+    aborted: Tuple[int, ...] = ()                  # ranks that aborted
 
 
 @dataclass
@@ -105,6 +118,9 @@ class Outcome:
     detail: str = ""
     leaked: FrozenSet[Key] = frozenset()
     errors: Tuple[str, ...] = ()        # e.g. ('truncate: 32B into 16B at r(0, 0)',)
+    order: Tuple[Tuple[Key, Key], ...] = ()   # the matching in match order: one witness execution
+    sent: Tuple[Tuple[Key, int, int, int], ...] = ()   # sends issued on this execution: (key, dst, tag, comm)
+    ncoll: Tuple[Tuple[int, int], ...] = ()   # (rank, collectives issued) per rank
 
     def sig(self):
         return (self.kind, self.matching, self.orphans, self.leaked, self.errors)
@@ -207,6 +223,11 @@ def explore(prog: Program, B: Optional[int] = None, force: Optional[Dict[Key, Ke
     ranks = sorted(prog)
     comms = dict(comms or {})
     comms.setdefault(0, list(ranks))
+    if reduce and _has_rsend(prog):
+        # whether a ready-mode send finds its receive posted depends on the order of the
+        # receiver's posting and the sender's issue, so posting no longer commutes with
+        # every other step and the persistent-set reduction is unsound: explore unreduced
+        reduce = False
     ctx = _Ctx(prog, B, force, ranks, comms, reduce)
     init = GState(tuple(PState(0, (), (), 0, 0) for r in ranks),
                   (), (), (), (), frozenset(), frozenset(), (), frozenset())
@@ -236,6 +257,17 @@ def explore(prog: Program, B: Optional[int] = None, force: Optional[Dict[Key, Ke
     return res
 
 
+def _has_rsend(prog: Program) -> bool:
+    def walk(ops) -> bool:
+        for op in ops:
+            if isinstance(op, Send) and op.mode == "rsend":
+                return True
+            if isinstance(op, If) and (walk(op.then) or walk(op.els)):
+                return True
+        return False
+    return any(walk(ops) for ops in prog.values())
+
+
 class _Ctx:
     def __init__(self, prog, B, force, ranks, comms, reduce):
         self.prog, self.B, self.force, self.ranks, self.comms, self.reduce = prog, B, force, ranks, comms, reduce
@@ -260,11 +292,12 @@ class _Ctx:
         """Classify a state with no successors."""
         done = all(self.done_p(i, p) and p.blocked_send is None and p.blocked_recv is None and p.blocked_coll is None
                    for i, p in enumerate(st.procs))
-        kind = "done" if done else "deadlock"
-        if not done and self.force and self._force_starved(st):
+        kind = "abort" if st.aborted else "done" if done else "deadlock"
+        if kind == "deadlock" and self.force and self._force_starved(st):
             kind = "force-blocked"
+        ncoll = tuple((self.ranks[i], sum(n for _, n in p.ncoll)) for i, p in enumerate(st.procs))
         return Outcome(kind, frozenset(st.matched), frozenset(m.key for m in st.pending), "; ".join(st.errors),
-                       frozenset(r.key for r in st.posted), st.errors)
+                       frozenset(r.key for r in st.posted), st.errors, st.matched, st.sent, ncoll)
 
     def _force_starved(self, st: GState) -> bool:
         """Some posted forced receive could match a pending send if the force were lifted."""
@@ -324,35 +357,55 @@ class _Ctx:
 
     # ---- collectives
     def coll_ready(self, st: GState):
-        """(comm, ordinal) whose every member has issued; None if none."""
-        issued: Dict[Tuple[int, int], List[CollIssue]] = {}
+        """(comm, ordinal, members that can complete now); None if none. A member completes
+        once the members its shape requires have issued (see the module docstring)."""
+        groups: Dict[Tuple[int, int], List[CollIssue]] = {}
         for c in st.colls:
-            issued.setdefault((c.comm, c.ordinal), []).append(c)
-        for (comm, k), members in sorted(issued.items()):
-            need = set(self.comms.get(comm, []))
+            groups.setdefault((c.comm, c.ordinal), []).append(c)
+        for (comm, k), members in sorted(groups.items()):
+            need = self.comms.get(comm, [])
             if not need:
                 raise ExploreError(f"unknown communicator {comm}: pass comms=")
-            if {c.rank for c in members} == need:
-                return (comm, k, members)
+            issued = {c.rank for c in members}
+            pos = {r: i for i, r in enumerate(need)}
+            ready = []
+            for c in members:
+                if (c.rank, comm, k) in st.completed_coll:
+                    continue
+                shape, _ = coll_shape(c.name)
+                if c.root is None and shape != "prefix":
+                    shape = "all"
+                ok = (issued == set(need) if shape == "all" else
+                      c.rank == c.root or c.root in issued if shape == "root-out" else
+                      c.rank != c.root or issued == set(need) if shape == "root-in" else
+                      all(r in issued for r in need if pos.get(r, 0) < pos.get(c.rank, 0)))
+                if ok:
+                    ready.append(c)
+            if ready:
+                return (comm, k, ready)
         return None
 
-    def coll_fire(self, st: GState, comm: int, k: int, members: List[CollIssue]) -> GState:
-        """Fire collective k on comm. A name mismatch is recorded as an error and the
-        collective still completes (same commutativity argument as for truncation)."""
-        names = {c.name for c in members}
-        if len(names) > 1:
-            st = _gs(st, errors=_add_error(st.errors, f"collective-mismatch: comm {comm} #{k}: {sorted(names)}"))
+    def coll_fire(self, st: GState, comm: int, k: int, ready: List[CollIssue]) -> GState:
+        """Complete the given members of collective k on comm. Once every member has issued,
+        a name mismatch is recorded as an error (the collective still completes: same
+        commutativity argument as for truncation) and the group leaves the state."""
+        group = [c for c in st.colls if c.comm == comm and c.ordinal == k]
         procs = list(st.procs)
         ccoll = st.completed_coll
-        for c in members:
+        for c in ready:
             i = self.ranks.index(c.rank)
-            p = procs[i]
             if c.req is None:
-                procs[i] = self.advance(p, blocked_coll=None)
-            else:
-                ccoll = ccoll | {(c.rank, comm, k)}
-        return _gs(st, procs=tuple(procs), colls=tuple(c for c in st.colls if not (c.comm == comm and c.ordinal == k)),
-                   completed_coll=ccoll)
+                procs[i] = self.advance(procs[i], blocked_coll=None)
+            ccoll = ccoll | {(c.rank, comm, k)}
+        errors = st.errors
+        colls = st.colls
+        if {c.rank for c in group} == set(self.comms.get(comm, [])):
+            names = {c.name for c in group}
+            if len(names) > 1:
+                errors = _add_error(errors, f"collective-mismatch: comm {comm} #{k}: {sorted(names)}")
+            if all((c.rank, comm, k) in ccoll for c in group):
+                colls = tuple(c for c in st.colls if not (c.comm == comm and c.ordinal == k))
+        return _gs(st, procs=tuple(procs), colls=colls, completed_coll=ccoll, errors=errors)
 
     # ---- process steps
     def _req_complete(self, st: GState, p: PState, kind: str, key) -> bool:
@@ -376,6 +429,11 @@ class _Ctx:
             branch = op.then if op.cond(_env(p)) else op.els
             q = self.advance(p)
             return _gs(st, procs=_procs(st, i, _with(q, inj=tuple(branch) + q.inj)))
+        if isinstance(op, Abort):
+            # the rank stops here; the state is terminal for it (others may still run)
+            np_ = _with(p, pos=len(self.progs[i]), inj=(), blocked_send=None, blocked_recv=None, blocked_coll=None)
+            return _gs(st, procs=_procs(st, i, np_), aborted=tuple(sorted(set(st.aborted) | {rank})),
+                       errors=_add_error(st.errors, f"abort: rank {rank} ({op.why})"))
         if isinstance(op, Send):
             key = (rank, p.nsend)
             dst = op.dst
@@ -391,7 +449,11 @@ class _Ctx:
             blocked = key if (op.req is None and rendez) else None
             csend = st.completed_send if rendez else st.completed_send | {key}
             np_ = self.advance(p, nsend=p.nsend + 1, blocked_send=blocked, reqs=reqs)
-            return _gs(st, procs=_procs(st, i, np_), pending=st.pending + (m,), completed_send=csend)
+            errors = st.errors
+            if mode == "rsend" and not any(_accepts(r, m) for r in st.posted):
+                errors = _add_error(errors, f"rsend-no-receive: s{key} issued before a receive for it was posted at rank {dst}")
+            return _gs(st, procs=_procs(st, i, np_), pending=st.pending + (m,), completed_send=csend, errors=errors,
+                       sent=st.sent + ((key, dst, op.tag, op.comm),))
         if isinstance(op, Recv):
             key = (rank, p.nrecv)
             post = Post(key, rank, op.src, op.tag, op.cap, op.comm, op.req is None, op.into)
@@ -409,7 +471,7 @@ class _Ctx:
         if isinstance(op, Coll):
             comm = op.comm
             k = _ncoll(p, comm)
-            c = CollIssue(rank, comm, k, op.name, op.req)
+            c = CollIssue(rank, comm, k, op.name, op.req, op.root)
             if op.req is None:
                 np_ = _with(p, ncoll=_bump_ncoll(p, comm), blocked_coll=(comm, k))
             else:

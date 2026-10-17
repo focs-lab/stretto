@@ -6,6 +6,7 @@ them. Payload never exists in this model: that is the L2 skeleton by constructio
 Sends and receives are identified by (rank, ordinal) exactly as in trace.py.
 """
 from __future__ import annotations
+import random
 from dataclasses import dataclass, field
 from typing import Callable, Dict, List, Optional, Sequence, Tuple, Union
 
@@ -48,6 +49,7 @@ class Coll:
     name: str
     comm: int = 0
     req: Optional[str] = None       # set => nonblocking collective, completed by Wait/Waitany
+    root: Optional[int] = None      # root rank of bcast/scatter/reduce/gather; None: synchronise all
 
 
 @dataclass(frozen=True)
@@ -58,6 +60,12 @@ class If:
 
 
 @dataclass(frozen=True)
+class Abort:
+    """The program aborts (MPI_Abort, abort(), exit on its own check): a terminal error."""
+    why: str = "abort"
+
+
+@dataclass(frozen=True)
 class Meta:
     """Metadata of a completed receive."""
     src: int
@@ -65,7 +73,7 @@ class Meta:
     bytes: int
 
 
-Op = Union[Send, Recv, Wait, Waitany, Coll, If]
+Op = Union[Send, Recv, Wait, Waitany, Coll, If, Abort]
 Program = Dict[int, List[Op]]
 
 
@@ -77,27 +85,44 @@ def Irecv(src, tag, cap=4, req="r", comm=0, into=None):
     return Recv(src, tag, cap, comm, req, into)
 
 
+_MODE = {"ssend": "ssend", "issend": "ssend", "bsend": "bsend", "ibsend": "bsend", "rsend": "rsend", "irsend": "rsend"}
+
+
 def program_from_trace(t) -> Program:
-    """Straight-line DSL program from a trace (single-path assumption)."""
-    from . import trace as T
+    """Straight-line DSL program from a trace (single-path assumption), built from the
+    loaded Send/Recv/Coll objects: ranks are world ranks, communicator ids are the global
+    ones (explore(..., comms=t.comm_members)), ANY is the loaded ANY, and the ordinals are
+    trace.py's by construction, since both skip MPI_PROC_NULL operations. A call the rank
+    was blocked in when the run ended is part of the program: the explorer finds the hang."""
     prog: Program = {}
+    colls = {}
+    for c in t.colls:
+        colls[(c.rank, c.idx)] = c
     for rank, recs in t.ranks.items():
+        sends = {s.idx: s for s in t.sends_of(rank)}
+        recvs = {r.idx: r for r in t.recvs_of(rank)}
         ops: List[Op] = []
         for rec in recs:
             raw = rec.raw
-            if rec.op == "send":
-                nb = raw["mode"] in ("isend", "issend", "ibsend", "irsend")
-                mode = {"ssend": "ssend", "issend": "ssend", "bsend": "bsend", "ibsend": "bsend",
-                        "rsend": "rsend", "irsend": "rsend"}.get(raw["mode"], "std")
-                ops.append(Send(raw["dst"], raw["tag"], raw["count"] * raw["tsize"], raw["comm"],
-                                f"q{raw['req']}" if nb else None, mode))
-            elif rec.op == "recv":
-                ops.append(Recv(raw["src"], raw["tag"], raw["count"] * raw["tsize"], raw["comm"]))
-            elif rec.op == "irecv":
-                ops.append(Recv(raw["src"], raw["tag"], raw["count"] * raw["tsize"], raw["comm"], f"q{raw['req']}"))
-            elif rec.op == "wait":
+            call = raw.get("call") if rec.op == "blocked" else rec.op
+            if call == "send":
+                s = sends.get(rec.idx)
+                if s is not None:          # None: a send to MPI_PROC_NULL
+                    ops.append(Send(s.dst, s.tag, s.bytes, s.comm, None if s.blocking else f"q{s.req}",
+                                    _MODE.get(s.mode, "std")))
+            elif call in ("recv", "irecv"):
+                r = recvs.get(rec.idx)
+                if r is not None:
+                    ops.append(Recv(r.src, r.tag, r.capacity, r.comm, None if r.blocking else f"q{r.req}"))
+            elif call == "wait":
                 kind = raw.get("kind")
-                if kind in ("waitany", "testany"):
+                if rec.op == "blocked":
+                    reqs = tuple(f"q{q}" for q in raw.get("reqs", []) if q is not None and q >= 0)
+                    if kind in ("waitany", "testany"):
+                        ops.append(Waitany(reqs))
+                    else:
+                        ops.extend(Wait(q) for q in reqs)
+                elif kind in ("waitany", "testany"):
                     # A Test* that succeeded is modelled as a wait: in the observed run it was
                     # complete at this point; an alternative where it is not is a metadata-
                     # dependent (flag) continuation, i.e. beyond L1.
@@ -107,7 +132,204 @@ def program_from_trace(t) -> Program:
                     for d in raw.get("done", []):
                         if d.get("req") is not None and d["req"] >= 0:
                             ops.append(Wait(f"q{d['req']}"))
-            elif rec.op == "coll":
-                ops.append(Coll(raw["name"], raw["comm"], f"q{raw['req']}" if raw.get("req") is not None else None))
+            elif call == "coll":
+                c = colls[(rank, rec.idx)]
+                ops.append(Coll(c.name, c.comm, f"q{c.req}" if c.req is not None else None, c.root))
         prog[rank] = ops
     return prog
+
+
+# ------------------------------------------------------------ random programs
+
+COLLS = ["barrier", "allreduce", "bcast", "scatter", "reduce", "gather", "scan"]
+
+
+def random_program(rng: random.Random, nranks: int, branches: bool = True, waitany: bool = True,
+                   ops_per_rank: Tuple[int, int] = (1, 5)) -> Tuple[Program, Dict[int, List[int]]]:
+    """A random program over comm 0 (everyone) and comm 1 (the first two ranks): every send
+    mode, wildcard receives, nonblocking operations with Wait/Waitany, collectives of every
+    shape with a root, and a branch on the source of a received message. branches=False
+    and waitany=False give a straight-line program whose executions can be written back as
+    traces (trace_from_execution). Returns (program, comms)."""
+    prog: Program = {}
+    comms = {0: list(range(nranks)), 1: [0, 1]}
+    kinds = ["send", "send", "recv", "recv", "irecv", "isend", "coll"] + (["if"] if branches else [])
+    for r in range(nranks):
+        ops: List[Op] = []
+        n = rng.randint(*ops_per_rank)
+        pending_reqs: List[str] = []
+        bound = None
+        for k in range(n):
+            kind = rng.choice(kinds)
+            comm = 1 if r in comms[1] and rng.random() < 0.3 else 0
+            others = [x for x in comms[comm] if x != r]
+            if not others:
+                comm, others = 0, [x for x in range(nranks) if x != r]
+            if kind == "send":
+                ops.append(Send(rng.choice(others), rng.choice([1, 2]), rng.choice([4, 64]), comm,
+                                mode=rng.choice(["std", "std", "ssend", "bsend", "rsend"])))
+            elif kind == "isend":
+                name = f"s{k}"
+                ops.append(Isend(rng.choice(others), rng.choice([1, 2]), rng.choice([4, 64]), req=name, comm=comm))
+                pending_reqs.append(name)
+            elif kind == "recv":
+                into = f"m{k}" if branches and rng.random() < 0.5 else None
+                ops.append(Recv(rng.choice(others + [ANY]), rng.choice([1, 2, ANY]), 64, comm, into=into))
+                bound = into or bound
+            elif kind == "irecv":
+                name = f"r{k}"
+                ops.append(Irecv(rng.choice(others + [ANY]), rng.choice([1, 2, ANY]), 64, req=name, comm=comm))
+                pending_reqs.append(name)
+            elif kind == "if" and bound is not None:
+                dst = rng.choice(others)
+                ops.append(If(lambda e, v=bound: v in e and e[v].src == 0, (Send(dst, 3, 4, comm),), (Send(dst, 4, 4, comm),)))
+            else:
+                ops.append(Coll(rng.choice(COLLS), comm, root=rng.choice(comms[comm])))
+            if pending_reqs and rng.random() < 0.5:
+                if waitany and len(pending_reqs) >= 2 and rng.random() < 0.5:
+                    ops.append(Waitany(tuple(pending_reqs)))
+                    pending_reqs.pop(rng.randrange(len(pending_reqs)))
+                else:
+                    ops.append(Wait(pending_reqs.pop()))
+        for name in pending_reqs:
+            ops.append(Wait(name))
+        prog[r] = ops
+    return prog, comms
+
+
+_RAW_MODE = {"std": ("send", "std"), "ssend": ("send", "ssend"), "bsend": ("send", "bsend"), "rsend": ("send", "rsend")}
+_RAW_IMODE = {"std": "isend", "ssend": "issend", "bsend": "ibsend", "rsend": "irsend"}
+
+
+def trace_from_execution(prog: Program, matching: Dict[Tuple[int, int], Tuple[int, int]],
+                         comms: Dict[int, List[int]]) -> Dict[int, List[dict]]:
+    """Raw tracer records ({rank: [record]}) of a run of a straight-line program (no If, no
+    Waitany) whose receives matched as `matching` (recv key -> send key, every receive
+    matched). trace._build loads the result like a real trace: ranks are written comm-local,
+    requests get ids, wildcard receives their ordinal."""
+    sends_by_key = {}
+    for r, ops in prog.items():
+        n = 0
+        for op in ops:
+            if isinstance(op, Send):
+                sends_by_key[(r, n)] = op
+                n += 1
+    out: Dict[int, List[dict]] = {}
+    for r, ops in prog.items():
+        recs: List[dict] = [{"op": "init", "np": len(prog)}]
+        for cid, members in comms.items():
+            if cid != 0 and r in members:
+                recs.append({"op": "comm", "name": "split", "parent": 0, "id": cid, "ranks": list(members), "gord": 0})
+        reqid: Dict[str, int] = {}
+        reqkind: Dict[str, Tuple[str, Tuple[int, int]]] = {}
+        nreq = nsend = nrecv = widx = 0
+
+        def local(comm: int, world: int) -> int:
+            return comms[comm].index(world)
+
+        for op in ops:
+            if isinstance(op, Send):
+                rec = {"op": "send", "mode": _RAW_IMODE[op.mode] if op.req else op.mode, "dst": local(op.comm, op.dst) if isinstance(op.dst, int) else -1,
+                       "tag": op.tag, "comm": op.comm, "count": op.bytes // 4, "tsize": 4, "tsig": "MPI_INT"}
+                if op.req:
+                    rec["req"] = reqid[op.req] = nreq
+                    reqkind[op.req] = ("send", (r, nsend))
+                    nreq += 1
+                recs.append(rec)
+                nsend += 1
+            elif isinstance(op, Recv):
+                key = (r, nrecv)
+                sk = matching.get(key)
+                rec = {"op": "irecv" if op.req else "recv", "src": -1 if op.src == ANY else local(op.comm, op.src), "tag": op.tag,
+                       "comm": op.comm, "count": op.cap // 4, "tsize": 4, "tsig": "MPI_INT"}
+                if op.src == ANY:
+                    rec["anysrc"] = 1
+                if op.tag == ANY:
+                    rec["anytag"] = 1
+                if op.src == ANY or op.tag == ANY:
+                    rec["widx"] = widx
+                    widx += 1
+                st = {"msrc": None, "mtag": None, "mcount": None}
+                if sk is not None:
+                    s = sends_by_key[sk]
+                    st = {"msrc": local(op.comm, sk[0]), "mtag": s.tag, "mcount": s.bytes // 4}
+                if op.req:
+                    rec["req"] = reqid[op.req] = nreq
+                    reqkind[op.req] = ("recv", st)
+                    nreq += 1
+                else:
+                    rec.update(st)
+                recs.append(rec)
+                nrecv += 1
+            elif isinstance(op, Wait):
+                q = reqid.get(op.req)
+                done = {"req": q}
+                kind = reqkind.get(op.req)
+                if kind and kind[0] == "recv":
+                    done.update(kind[1])
+                recs.append({"op": "wait", "kind": "wait", "reqs": [q], "done": [done]})
+            elif isinstance(op, Coll):
+                rec = {"op": "coll", "name": op.name, "comm": op.comm, "root": local(op.comm, op.root) if op.root is not None else -1,
+                       "count": 1, "tsize": 4, "tsig": "MPI_INT"}
+                if op.req:
+                    rec["req"] = reqid[op.req] = nreq
+                    reqkind[op.req] = ("coll", ())
+                    nreq += 1
+                recs.append(rec)
+            else:
+                raise ValueError(f"trace_from_execution: {type(op).__name__} is not straight-line")
+        recs.append({"op": "finalize"})
+        out[r] = recs
+    return out
+
+
+def random_matched_program(rng: random.Random, nranks: int, rounds: Tuple[int, int] = (2, 4),
+                           msgs_per_round: Tuple[int, int] = (2, 5), wildcard: float = 0.6) -> Tuple[Program, Dict[int, List[int]]]:
+    """A straight-line program that completes under infinite buffering, with races: in every
+    round each rank first issues its sends (standard or buffered, blocking or not), then posts
+    its receives (blocking, or nonblocking waited at the end of the round), one per message
+    addressed to it, most of them wildcards; a round may end with a collective of some shape on
+    comm 0 or on comm 1 (the first two ranks). Every message has a receiver, so an execution
+    that ends with every receive matched exists, and the explorer finds one."""
+    prog: Program = {r: [] for r in range(nranks)}
+    comms = {0: list(range(nranks)), 1: [0, 1]}
+    nreq = 0
+    for _ in range(rng.randint(*rounds)):
+        msgs = []
+        for _ in range(rng.randint(*msgs_per_round)):
+            comm = 1 if nranks > 2 and rng.random() < 0.25 else 0
+            src, dst = rng.sample(comms[comm], 2)
+            msgs.append((src, dst, rng.choice([1, 1, 2]), rng.choice([4, 64, 4096]), comm))
+        waits: Dict[int, List[str]] = {r: [] for r in range(nranks)}
+        for src, dst, tag, size, comm in msgs:
+            mode = rng.choice(["std", "bsend", "isend", "isend"])
+            if mode == "isend":
+                name = f"q{nreq}"; nreq += 1
+                prog[src].append(Isend(dst, tag, size, req=name, comm=comm))
+                waits[src].append(name)
+            else:
+                prog[src].append(Send(dst, tag, size, comm, mode=mode))
+        by_dst: Dict[int, List] = {}
+        for m in msgs:
+            by_dst.setdefault(m[1], []).append(m)
+        for dst, lst in by_dst.items():
+            rng.shuffle(lst)
+            for src, _, tag, size, comm in lst:
+                wsrc = ANY if rng.random() < wildcard else src
+                wtag = ANY if rng.random() < wildcard / 3 else tag
+                if rng.random() < 0.4:
+                    name = f"q{nreq}"; nreq += 1
+                    prog[dst].append(Irecv(wsrc, wtag, 4096, req=name, comm=comm))
+                    waits[dst].append(name)
+                else:
+                    prog[dst].append(Recv(wsrc, wtag, 4096, comm))
+        for r in range(nranks):
+            for name in waits[r]:
+                prog[r].append(Wait(name))
+        if rng.random() < 0.5:
+            comm = 1 if nranks > 2 and rng.random() < 0.3 else 0
+            name = rng.choice(COLLS)
+            root = rng.choice(comms[comm])
+            for r in comms[comm]:
+                prog[r].append(Coll(name, comm, root=root))
+    return prog, comms
