@@ -1,0 +1,3 @@
+setting,mpirun_args,eager_max_bytes,rendezvous_min_bytes
+openmpi-default,,4040,4041
+openmpi-forced-rendezvous,"--mca btl self,vader --mca btl_vader_eager_limit 64 --mca btl_self_eager_limit 64 --mca btl_vader_fbox_max 0",256,257

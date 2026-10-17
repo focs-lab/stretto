@@ -1,0 +1,3 @@
+trace: 8 ranks, 39643 sends, 39643 receives, 53 wildcard receives, 10978 probes, 1180 collective records, 10 communicators
+findings by class: 1f 5, probe-alt 3263
+host: a-p13, one process; analysis 13.16 s, 549928 KB

@@ -1,0 +1,81 @@
+[MUST] MUST configuration ... distributed checks without application crash handling
+[MUST] Using prebuilt infrastructure at /MBB-builds/MUST192/modules/prebuilds/50ca59ec8595b10cb503504dceb5ac47
+[MUST] Weaver ... success
+[MUST] Generating P^nMPI configuration ... success
+[MUST] Infrastructure in "/MBB-builds/MUST192/modules/prebuilds/50ca59ec8595b10cb503504dceb5ac47" is present and used.
+[MUST] Search for linked P^nMPI ... not found ... using LD_PRELOAD to load P^nMPI ... success
+[MUST] Executing application:
+Running with these driver parameters:
+  solver ID    = 1
+
+  Laplacian_27pt:
+    (Nx, Ny, Nz) = (32, 32, 32)
+    (Px, Py, Pz) = (2, 2, 2)
+
+=============================================
+Generate Matrix:
+=============================================
+Spatial Operator:
+  wall clock time = 0.020940 seconds
+  wall MFLOPS     = 0.000000
+  cpu clock time  = 0.020941 seconds
+  cpu MFLOPS      = 0.000000
+
+  RHS vector has unit components
+  Initial guess is 0
+=============================================
+IJ Vector Setup:
+=============================================
+RHS and Initial Guess:
+  wall clock time = 0.003400 seconds
+  wall MFLOPS     = 0.000000
+  cpu clock time  = 0.003400 seconds
+  cpu MFLOPS      = 0.000000
+
+=============================================
+Problem 1: AMG Setup Time:
+=============================================
+PCG Setup:
+  wall clock time = 0.283429 seconds
+  wall MFLOPS     = 0.000000
+  cpu clock time  = 0.283413 seconds
+  cpu MFLOPS      = 0.000000
+
+
+FOM_Setup: nnz_AP / Setup Phase Time: 3.190768e+06
+
+rank 0 (of 1), pid 1733 caught signal nr 11
+/MBB-builds/MUST192/modules//libcStratPRecvUp.so(+0x23118)[0x7f49b2756118]
+/MBB-builds/MUST192/modules//libcStratPRecvUp.so(_Z15mySignalHandleri+0x12b)[0x7f49b275625b]
+/lib/x86_64-linux-gnu/libc.so.6(+0x3c050)[0x7f49b34c5050]
+/MBB-builds/MUST192/modules//libdWaitState.so(_ZN4must10DWaitState26getNonBlockingOpForRequestEmm+0xbd)[0x7f49b25df61d]
+/MBB-builds/MUST192/modules//libdWaitState.so(_ZN4must13QOpCompletionC1EPNS_10DWaitStateEmmmiPmbb+0xc5)[0x7f49b25f5555]
+/MBB-builds/MUST192/modules//libdWaitState.so(_ZN4must10DWaitState7waitAllEmmPmii+0xe7)[0x7f49b25e1d97]
+/MBB-builds/MUST192/modules/prebuilds/50ca59ec8595b10cb503504dceb5ac47/modules//libweaver-receival-gen-output-1.so(_ZN3gti43GenReceivalweaver_receival_gen_output_1_cpp13ReceiveRecordEPvmS1_PFNS_10GTI_RETURNES1_mS1_EPmPNS_11I_ChannelIdEPbPNSt7__cxx114listIS7_SaIS7_EEE+0x5171)[0x7f49b262f721]
+/MBB-builds/MUST192/modules//libthreadedMpiPlace.so(_ZN3gti16ThreadedMPIPlace3runEv+0x2da)[0x7f49b26e10aa]
+/MBB-builds/MUST192/modules//libthreadedMpiPlace.so(_Z18handlePlaceStartupv+0xbe)[0x7f49b26e2aae]
+/MBB-builds/MUST192/modules//libthreadedMpiPlace.so(MPI_Init+0x21)[0x7f49b26df721]
+/MBB-builds/MUST192/lib/libpnmpi.so(NQJ_Init+0x182)[0x7f49b5f9ea12]
+/MBB-builds/MUST192/lib/libpnmpi.so(XMPI_Init_NewStack+0x3d)[0x7f49b603ffcd]
+/MBB-builds/MUST192/modules//libcProtMpiSplitComm.so(MPI_Init+0x1220)[0x7f49b2f9df90]
+/MBB-builds/MUST192/lib/libpnmpi.so(NQJ_Init+0x182)[0x7f49b5f9ea12]
+/MBB-builds/MUST192/lib/libpnmpi.so(XMPI_Init+0x2c)[0x7f49b603209c]
+/MBB-builds/MUST192/lib/libpnmpi.so(NQJ_Init+0x182)[0x7f49b5f9ea12]
+/MBB-builds/MUST192/lib/libpnmpi.so(MPI_Init+0xe1)[0x7f49b5f9e7c1]
+/w/AMG/test/./amg(+0x90656)[0x55cfba19a656]
+/w/AMG/test/./amg(+0x2651)[0x55cfba10c651]
+/lib/x86_64-linux-gnu/libc.so.6(+0x2724a)[0x7f49b34b024a]
+Waiting up to 30 seconds for analyses to be finished.
+rank 7 (of 8), pid 1732 caught MPI error nr 68806159
+
+===================================================================================
+=   BAD TERMINATION OF ONE OF YOUR APPLICATION PROCESSES
+=   PID 1725 RUNNING AT 9f0067b4b8ea
+=   EXIT CODE: 9
+=   CLEANING UP REMAINING PROCESSES
+=   YOU CAN IGNORE THE BELOW CLEANUP MESSAGES
+===================================================================================
+YOUR APPLICATION TERMINATED WITH THE EXIT STRING: Killed (signal 9)
+This typically refers to a problem with your application.
+Please see the FAQ page for debugging suggestions
+[MUST] Execution finished.

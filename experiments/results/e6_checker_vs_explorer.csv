@@ -1,0 +1,835 @@
+trace,events,alt,B,checker,checker_reason,explorer_prefix,explorer_kept_exact,explorer_exact,note,t_checker_ms,t_explorer_ms,kind
+experiments/results/mbb/P2P__CallOrdering-ANY_SOURCE-001/trace,18,"(0, 0)<-(1, 0) [steal]",0,True,ok,True,False,False,,0.1,0.28,agree
+experiments/results/mbb/P2P__CallOrdering-ANY_SOURCE-001/trace,18,"(0, 0)<-(1, 0) [steal]",inf,True,ok,True,False,False,,0.07,0.19,agree
+experiments/results/mbi/MessageRace_Allgather_Isend_Irecv_nok/trace,27,"(1, 0)<-(2, 0) [steal]",0,True,ok,True,False,False,,0.1,0.32,agree
+experiments/results/mbi/MessageRace_Allgather_Isend_Irecv_nok/trace,27,"(1, 0)<-(2, 0) [steal]",inf,True,ok,True,False,False,,0.09,0.26,agree
+experiments/results/mbi/MessageRace_Allgather_Isend_Irecv_ok/trace,28,"(1, 0)<-(2, 0) [swap]",0,True,ok,True,True,True,,0.08,0.27,agree
+experiments/results/mbi/MessageRace_Allgather_Isend_Irecv_ok/trace,28,"(1, 0)<-(2, 0) [swap]",inf,True,ok,True,True,True,,0.08,0.26,agree
+experiments/results/mbi/MessageRace_Allgather_Isend_Irecv_ok/trace,28,"(1, 0)<-(2, 0) [steal]",0,True,ok,True,False,False,,0.09,0.27,agree
+experiments/results/mbi/MessageRace_Allgather_Isend_Irecv_ok/trace,28,"(1, 0)<-(2, 0) [steal]",inf,True,ok,True,False,False,,0.07,0.24,agree
+experiments/results/mbi/MessageRace_Allgather_Isend_Irecv_ok/trace,28,"(1, 1)<-(0, 0) [swap]",0,True,ok,True,True,True,,0.08,0.29,agree
+experiments/results/mbi/MessageRace_Allgather_Isend_Irecv_ok/trace,28,"(1, 1)<-(0, 0) [swap]",inf,True,ok,True,True,True,,0.11,0.33,agree
+experiments/results/mbi/MessageRace_Allgather_Send_Irecv_nok/trace,26,"(1, 0)<-(0, 0) [steal]",0,True,ok,True,True,True,,0.09,0.24,agree
+experiments/results/mbi/MessageRace_Allgather_Send_Irecv_nok/trace,26,"(1, 0)<-(0, 0) [steal]",inf,True,ok,True,True,True,,0.08,0.26,agree
+experiments/results/mbi/MessageRace_Allgather_Send_Irecv_ok/trace,26,"(1, 0)<-(2, 0) [swap]",0,True,ok,True,True,True,,0.08,0.25,agree
+experiments/results/mbi/MessageRace_Allgather_Send_Irecv_ok/trace,26,"(1, 0)<-(2, 0) [swap]",inf,True,ok,True,True,True,,0.08,0.22,agree
+experiments/results/mbi/MessageRace_Allgather_Send_Irecv_ok/trace,26,"(1, 0)<-(2, 0) [steal]",0,True,ok,True,False,False,,0.08,0.22,agree
+experiments/results/mbi/MessageRace_Allgather_Send_Irecv_ok/trace,26,"(1, 0)<-(2, 0) [steal]",inf,True,ok,True,False,False,,0.07,0.21,agree
+experiments/results/mbi/MessageRace_Allgather_Send_Irecv_ok/trace,26,"(1, 1)<-(0, 0) [swap]",0,True,ok,True,True,True,,0.08,0.27,agree
+experiments/results/mbi/MessageRace_Allgather_Send_Irecv_ok/trace,26,"(1, 1)<-(0, 0) [swap]",inf,True,ok,True,True,True,,0.08,0.25,agree
+experiments/results/mbi/MessageRace_Allgatherv_Isend_Irecv_nok/trace,27,"(1, 0)<-(2, 0) [steal]",0,True,ok,True,False,False,,0.08,0.29,agree
+experiments/results/mbi/MessageRace_Allgatherv_Isend_Irecv_nok/trace,27,"(1, 0)<-(2, 0) [steal]",inf,True,ok,True,False,False,,0.08,0.25,agree
+experiments/results/mbi/MessageRace_Allgatherv_Isend_Irecv_ok/trace,28,"(1, 0)<-(2, 0) [swap]",0,True,ok,True,True,True,,0.09,0.28,agree
+experiments/results/mbi/MessageRace_Allgatherv_Isend_Irecv_ok/trace,28,"(1, 0)<-(2, 0) [swap]",inf,True,ok,True,True,True,,0.09,0.28,agree
+experiments/results/mbi/MessageRace_Allgatherv_Isend_Irecv_ok/trace,28,"(1, 0)<-(2, 0) [steal]",0,True,ok,True,False,False,,0.09,0.28,agree
+experiments/results/mbi/MessageRace_Allgatherv_Isend_Irecv_ok/trace,28,"(1, 0)<-(2, 0) [steal]",inf,True,ok,True,False,False,,0.08,0.26,agree
+experiments/results/mbi/MessageRace_Allgatherv_Isend_Irecv_ok/trace,28,"(1, 1)<-(0, 0) [swap]",0,True,ok,True,True,True,,0.09,0.32,agree
+experiments/results/mbi/MessageRace_Allgatherv_Isend_Irecv_ok/trace,28,"(1, 1)<-(0, 0) [swap]",inf,True,ok,True,True,True,,0.09,0.32,agree
+experiments/results/mbi/MessageRace_Allgatherv_Send_Irecv_nok/trace,25,"(1, 0)<-(2, 0) [steal]",0,True,ok,True,False,False,,0.08,0.25,agree
+experiments/results/mbi/MessageRace_Allgatherv_Send_Irecv_nok/trace,25,"(1, 0)<-(2, 0) [steal]",inf,True,ok,True,False,False,,0.08,0.26,agree
+experiments/results/mbi/MessageRace_Allgatherv_Send_Irecv_ok/trace,26,"(1, 0)<-(2, 0) [swap]",0,True,ok,True,True,True,,0.08,0.25,agree
+experiments/results/mbi/MessageRace_Allgatherv_Send_Irecv_ok/trace,26,"(1, 0)<-(2, 0) [swap]",inf,True,ok,True,True,True,,0.08,0.25,agree
+experiments/results/mbi/MessageRace_Allgatherv_Send_Irecv_ok/trace,26,"(1, 0)<-(2, 0) [steal]",0,True,ok,True,False,False,,0.08,0.22,agree
+experiments/results/mbi/MessageRace_Allgatherv_Send_Irecv_ok/trace,26,"(1, 0)<-(2, 0) [steal]",inf,True,ok,True,False,False,,0.07,0.21,agree
+experiments/results/mbi/MessageRace_Allgatherv_Send_Irecv_ok/trace,26,"(1, 1)<-(0, 0) [swap]",0,True,ok,True,True,True,,0.08,0.27,agree
+experiments/results/mbi/MessageRace_Allgatherv_Send_Irecv_ok/trace,26,"(1, 1)<-(0, 0) [swap]",inf,True,ok,True,True,True,,0.09,0.26,agree
+experiments/results/mbi/MessageRace_Allreduce_Isend_Irecv_nok/trace,27,"(1, 0)<-(2, 0) [steal]",0,True,ok,True,False,False,,0.08,0.28,agree
+experiments/results/mbi/MessageRace_Allreduce_Isend_Irecv_nok/trace,27,"(1, 0)<-(2, 0) [steal]",inf,True,ok,True,False,False,,0.08,0.24,agree
+experiments/results/mbi/MessageRace_Allreduce_Isend_Irecv_ok/trace,28,"(1, 0)<-(0, 0) [swap]",0,True,ok,True,True,True,,0.08,0.28,agree
+experiments/results/mbi/MessageRace_Allreduce_Isend_Irecv_ok/trace,28,"(1, 0)<-(0, 0) [swap]",inf,True,ok,True,True,True,,0.08,0.25,agree
+experiments/results/mbi/MessageRace_Allreduce_Isend_Irecv_ok/trace,28,"(1, 0)<-(0, 0) [steal]",0,True,ok,True,False,False,,0.08,0.25,agree
+experiments/results/mbi/MessageRace_Allreduce_Isend_Irecv_ok/trace,28,"(1, 0)<-(0, 0) [steal]",inf,True,ok,True,False,False,,0.08,0.32,agree
+experiments/results/mbi/MessageRace_Allreduce_Isend_Irecv_ok/trace,28,"(1, 1)<-(2, 0) [swap]",0,True,ok,True,True,True,,0.09,0.33,agree
+experiments/results/mbi/MessageRace_Allreduce_Isend_Irecv_ok/trace,28,"(1, 1)<-(2, 0) [swap]",inf,True,ok,True,True,True,,0.09,0.3,agree
+experiments/results/mbi/MessageRace_Allreduce_Send_Irecv_nok/trace,25,"(1, 0)<-(2, 0) [steal]",0,True,ok,True,False,False,,0.08,0.25,agree
+experiments/results/mbi/MessageRace_Allreduce_Send_Irecv_nok/trace,25,"(1, 0)<-(2, 0) [steal]",inf,True,ok,True,False,False,,0.08,0.21,agree
+experiments/results/mbi/MessageRace_Allreduce_Send_Irecv_ok/trace,26,"(1, 0)<-(2, 0) [swap]",0,True,ok,True,True,True,,0.08,0.25,agree
+experiments/results/mbi/MessageRace_Allreduce_Send_Irecv_ok/trace,26,"(1, 0)<-(2, 0) [swap]",inf,True,ok,True,True,True,,0.08,0.22,agree
+experiments/results/mbi/MessageRace_Allreduce_Send_Irecv_ok/trace,26,"(1, 0)<-(2, 0) [steal]",0,True,ok,True,False,False,,0.09,0.25,agree
+experiments/results/mbi/MessageRace_Allreduce_Send_Irecv_ok/trace,26,"(1, 0)<-(2, 0) [steal]",inf,True,ok,True,False,False,,0.07,0.22,agree
+experiments/results/mbi/MessageRace_Allreduce_Send_Irecv_ok/trace,26,"(1, 1)<-(0, 0) [swap]",0,True,ok,True,True,True,,0.08,0.26,agree
+experiments/results/mbi/MessageRace_Allreduce_Send_Irecv_ok/trace,26,"(1, 1)<-(0, 0) [swap]",inf,True,ok,True,True,True,,0.07,0.3,agree
+experiments/results/mbi/MessageRace_Alltoall_Isend_Irecv_nok/trace,28,"(1, 0)<-(0, 0) [steal]",0,True,ok,True,True,True,,0.09,0.24,agree
+experiments/results/mbi/MessageRace_Alltoall_Isend_Irecv_nok/trace,28,"(1, 0)<-(0, 0) [steal]",inf,True,ok,True,True,True,,0.08,0.23,agree
+experiments/results/mbi/MessageRace_Alltoall_Isend_Irecv_ok/trace,28,"(1, 0)<-(2, 0) [swap]",0,True,ok,True,True,True,,0.08,0.27,agree
+experiments/results/mbi/MessageRace_Alltoall_Isend_Irecv_ok/trace,28,"(1, 0)<-(2, 0) [swap]",inf,True,ok,True,True,True,,0.08,0.26,agree
+experiments/results/mbi/MessageRace_Alltoall_Isend_Irecv_ok/trace,28,"(1, 0)<-(2, 0) [steal]",0,True,ok,True,False,False,,0.09,0.24,agree
+experiments/results/mbi/MessageRace_Alltoall_Isend_Irecv_ok/trace,28,"(1, 0)<-(2, 0) [steal]",inf,True,ok,True,False,False,,0.08,0.24,agree
+experiments/results/mbi/MessageRace_Alltoall_Isend_Irecv_ok/trace,28,"(1, 1)<-(0, 0) [swap]",0,True,ok,True,True,True,,0.08,0.29,agree
+experiments/results/mbi/MessageRace_Alltoall_Isend_Irecv_ok/trace,28,"(1, 1)<-(0, 0) [swap]",inf,True,ok,True,True,True,,0.08,0.27,agree
+experiments/results/mbi/MessageRace_Alltoall_Send_Irecv_nok/trace,25,"(1, 0)<-(2, 0) [steal]",0,True,ok,True,False,False,,0.08,0.29,agree
+experiments/results/mbi/MessageRace_Alltoall_Send_Irecv_nok/trace,25,"(1, 0)<-(2, 0) [steal]",inf,True,ok,True,False,False,,0.07,0.22,agree
+experiments/results/mbi/MessageRace_Alltoall_Send_Irecv_ok/trace,26,"(1, 0)<-(0, 0) [swap]",0,True,ok,True,True,True,,0.08,0.26,agree
+experiments/results/mbi/MessageRace_Alltoall_Send_Irecv_ok/trace,26,"(1, 0)<-(0, 0) [swap]",inf,True,ok,True,True,True,,0.08,0.23,agree
+experiments/results/mbi/MessageRace_Alltoall_Send_Irecv_ok/trace,26,"(1, 0)<-(0, 0) [steal]",0,True,ok,True,False,False,,0.08,0.23,agree
+experiments/results/mbi/MessageRace_Alltoall_Send_Irecv_ok/trace,26,"(1, 0)<-(0, 0) [steal]",inf,True,ok,True,False,False,,0.08,0.24,agree
+experiments/results/mbi/MessageRace_Alltoall_Send_Irecv_ok/trace,26,"(1, 1)<-(2, 0) [swap]",0,True,ok,True,True,True,,0.08,0.26,agree
+experiments/results/mbi/MessageRace_Alltoall_Send_Irecv_ok/trace,26,"(1, 1)<-(2, 0) [swap]",inf,True,ok,True,True,True,,0.08,0.25,agree
+experiments/results/mbi/MessageRace_Alltoallv_Isend_Irecv_nok/trace,27,"(1, 0)<-(2, 0) [steal]",0,True,ok,True,False,False,,0.08,0.27,agree
+experiments/results/mbi/MessageRace_Alltoallv_Isend_Irecv_nok/trace,27,"(1, 0)<-(2, 0) [steal]",inf,True,ok,True,False,False,,0.08,0.26,agree
+experiments/results/mbi/MessageRace_Alltoallv_Isend_Irecv_ok/trace,28,"(1, 0)<-(0, 0) [swap]",0,True,ok,True,True,True,,0.08,0.28,agree
+experiments/results/mbi/MessageRace_Alltoallv_Isend_Irecv_ok/trace,28,"(1, 0)<-(0, 0) [swap]",inf,True,ok,True,True,True,,0.09,0.3,agree
+experiments/results/mbi/MessageRace_Alltoallv_Isend_Irecv_ok/trace,28,"(1, 0)<-(0, 0) [steal]",0,True,ok,True,False,False,,0.09,0.27,agree
+experiments/results/mbi/MessageRace_Alltoallv_Isend_Irecv_ok/trace,28,"(1, 0)<-(0, 0) [steal]",inf,True,ok,True,False,False,,0.08,0.25,agree
+experiments/results/mbi/MessageRace_Alltoallv_Isend_Irecv_ok/trace,28,"(1, 1)<-(2, 0) [swap]",0,True,ok,True,True,True,,0.08,0.3,agree
+experiments/results/mbi/MessageRace_Alltoallv_Isend_Irecv_ok/trace,28,"(1, 1)<-(2, 0) [swap]",inf,True,ok,True,True,True,,0.11,0.31,agree
+experiments/results/mbi/MessageRace_Alltoallv_Send_Irecv_nok/trace,25,"(1, 0)<-(2, 0) [steal]",0,True,ok,True,False,False,,0.08,0.24,agree
+experiments/results/mbi/MessageRace_Alltoallv_Send_Irecv_nok/trace,25,"(1, 0)<-(2, 0) [steal]",inf,True,ok,True,False,False,,0.07,0.22,agree
+experiments/results/mbi/MessageRace_Alltoallv_Send_Irecv_ok/trace,26,"(1, 0)<-(0, 0) [swap]",0,True,ok,True,True,True,,0.08,0.25,agree
+experiments/results/mbi/MessageRace_Alltoallv_Send_Irecv_ok/trace,26,"(1, 0)<-(0, 0) [swap]",inf,True,ok,True,True,True,,0.09,0.24,agree
+experiments/results/mbi/MessageRace_Alltoallv_Send_Irecv_ok/trace,26,"(1, 0)<-(0, 0) [steal]",0,True,ok,True,False,False,,0.08,0.23,agree
+experiments/results/mbi/MessageRace_Alltoallv_Send_Irecv_ok/trace,26,"(1, 0)<-(0, 0) [steal]",inf,True,ok,True,False,False,,0.07,0.23,agree
+experiments/results/mbi/MessageRace_Alltoallv_Send_Irecv_ok/trace,26,"(1, 1)<-(2, 0) [swap]",0,True,ok,True,True,True,,0.11,0.4,agree
+experiments/results/mbi/MessageRace_Alltoallv_Send_Irecv_ok/trace,26,"(1, 1)<-(2, 0) [swap]",inf,True,ok,True,True,True,,0.08,0.26,agree
+experiments/results/mbi/MessageRace_Barrier_Isend_Irecv_nok/trace,27,"(1, 0)<-(2, 0) [steal]",0,True,ok,True,False,False,,0.09,0.26,agree
+experiments/results/mbi/MessageRace_Barrier_Isend_Irecv_nok/trace,27,"(1, 0)<-(2, 0) [steal]",inf,True,ok,True,False,False,,0.08,0.25,agree
+experiments/results/mbi/MessageRace_Barrier_Isend_Irecv_ok/trace,28,"(1, 0)<-(2, 0) [swap]",0,True,ok,True,True,True,,0.09,0.27,agree
+experiments/results/mbi/MessageRace_Barrier_Isend_Irecv_ok/trace,28,"(1, 0)<-(2, 0) [swap]",inf,True,ok,True,True,True,,0.08,0.25,agree
+experiments/results/mbi/MessageRace_Barrier_Isend_Irecv_ok/trace,28,"(1, 0)<-(2, 0) [steal]",0,True,ok,True,False,False,,0.09,0.28,agree
+experiments/results/mbi/MessageRace_Barrier_Isend_Irecv_ok/trace,28,"(1, 0)<-(2, 0) [steal]",inf,True,ok,True,False,False,,0.08,0.25,agree
+experiments/results/mbi/MessageRace_Barrier_Isend_Irecv_ok/trace,28,"(1, 1)<-(0, 0) [swap]",0,True,ok,True,True,True,,0.08,0.31,agree
+experiments/results/mbi/MessageRace_Barrier_Isend_Irecv_ok/trace,28,"(1, 1)<-(0, 0) [swap]",inf,True,ok,True,True,True,,0.08,0.3,agree
+experiments/results/mbi/MessageRace_Barrier_Send_Irecv_nok/trace,25,"(1, 0)<-(2, 0) [steal]",0,True,ok,True,False,False,,0.08,0.26,agree
+experiments/results/mbi/MessageRace_Barrier_Send_Irecv_nok/trace,25,"(1, 0)<-(2, 0) [steal]",inf,True,ok,True,False,False,,0.09,0.22,agree
+experiments/results/mbi/MessageRace_Barrier_Send_Irecv_ok/trace,26,"(1, 0)<-(0, 0) [swap]",0,True,ok,True,True,True,,0.08,0.25,agree
+experiments/results/mbi/MessageRace_Barrier_Send_Irecv_ok/trace,26,"(1, 0)<-(0, 0) [swap]",inf,True,ok,True,True,True,,0.08,0.26,agree
+experiments/results/mbi/MessageRace_Barrier_Send_Irecv_ok/trace,26,"(1, 0)<-(0, 0) [steal]",0,True,ok,True,False,False,,0.08,0.22,agree
+experiments/results/mbi/MessageRace_Barrier_Send_Irecv_ok/trace,26,"(1, 0)<-(0, 0) [steal]",inf,True,ok,True,False,False,,0.07,0.21,agree
+experiments/results/mbi/MessageRace_Barrier_Send_Irecv_ok/trace,26,"(1, 1)<-(2, 0) [swap]",0,True,ok,True,True,True,,0.08,0.34,agree
+experiments/results/mbi/MessageRace_Barrier_Send_Irecv_ok/trace,26,"(1, 1)<-(2, 0) [swap]",inf,True,ok,True,True,True,,0.09,0.29,agree
+experiments/results/mbi/MessageRace_Bcast_Isend_Irecv_nok/trace,27,"(1, 0)<-(2, 0) [steal]",0,True,ok,True,False,False,,0.1,0.35,agree
+experiments/results/mbi/MessageRace_Bcast_Isend_Irecv_nok/trace,27,"(1, 0)<-(2, 0) [steal]",inf,True,ok,True,False,False,,0.09,0.33,agree
+experiments/results/mbi/MessageRace_Bcast_Isend_Irecv_ok/trace,28,"(1, 0)<-(2, 0) [swap]",0,True,ok,True,True,True,,0.09,0.36,agree
+experiments/results/mbi/MessageRace_Bcast_Isend_Irecv_ok/trace,28,"(1, 0)<-(2, 0) [swap]",inf,True,ok,True,True,True,,0.09,0.38,agree
+experiments/results/mbi/MessageRace_Bcast_Isend_Irecv_ok/trace,28,"(1, 0)<-(2, 0) [steal]",0,True,ok,True,False,False,,0.09,0.33,agree
+experiments/results/mbi/MessageRace_Bcast_Isend_Irecv_ok/trace,28,"(1, 0)<-(2, 0) [steal]",inf,True,ok,True,False,False,,0.09,0.33,agree
+experiments/results/mbi/MessageRace_Bcast_Isend_Irecv_ok/trace,28,"(1, 1)<-(0, 0) [swap]",0,True,ok,True,True,True,,0.11,0.39,agree
+experiments/results/mbi/MessageRace_Bcast_Isend_Irecv_ok/trace,28,"(1, 1)<-(0, 0) [swap]",inf,True,ok,True,True,True,,0.09,0.38,agree
+experiments/results/mbi/MessageRace_Bcast_Send_Irecv_nok/trace,25,"(1, 0)<-(2, 0) [steal]",0,True,ok,True,False,False,,0.09,0.31,agree
+experiments/results/mbi/MessageRace_Bcast_Send_Irecv_nok/trace,25,"(1, 0)<-(2, 0) [steal]",inf,True,ok,True,False,False,,0.07,0.3,agree
+experiments/results/mbi/MessageRace_Bcast_Send_Irecv_ok/trace,26,"(1, 0)<-(0, 0) [swap]",0,True,ok,True,True,True,,0.08,0.29,agree
+experiments/results/mbi/MessageRace_Bcast_Send_Irecv_ok/trace,26,"(1, 0)<-(0, 0) [swap]",inf,True,ok,True,True,True,,0.08,0.32,agree
+experiments/results/mbi/MessageRace_Bcast_Send_Irecv_ok/trace,26,"(1, 0)<-(0, 0) [steal]",0,True,ok,True,False,False,,0.09,0.29,agree
+experiments/results/mbi/MessageRace_Bcast_Send_Irecv_ok/trace,26,"(1, 0)<-(0, 0) [steal]",inf,True,ok,True,False,False,,0.07,0.29,agree
+experiments/results/mbi/MessageRace_Bcast_Send_Irecv_ok/trace,26,"(1, 1)<-(2, 0) [swap]",0,True,ok,True,True,True,,0.08,0.32,agree
+experiments/results/mbi/MessageRace_Bcast_Send_Irecv_ok/trace,26,"(1, 1)<-(2, 0) [swap]",inf,True,ok,True,True,True,,0.07,0.31,agree
+experiments/results/mbi/MessageRace_Exscan_Isend_Irecv_nok/trace,27,"(1, 0)<-(2, 0) [steal]",0,True,ok,True,False,False,,0.1,0.33,agree
+experiments/results/mbi/MessageRace_Exscan_Isend_Irecv_nok/trace,27,"(1, 0)<-(2, 0) [steal]",inf,True,ok,True,False,False,,0.09,0.31,agree
+experiments/results/mbi/MessageRace_Exscan_Isend_Irecv_ok/trace,28,"(1, 0)<-(2, 0) [swap]",0,True,ok,True,True,True,,0.09,0.32,agree
+experiments/results/mbi/MessageRace_Exscan_Isend_Irecv_ok/trace,28,"(1, 0)<-(2, 0) [swap]",inf,True,ok,True,True,True,,0.09,0.32,agree
+experiments/results/mbi/MessageRace_Exscan_Isend_Irecv_ok/trace,28,"(1, 0)<-(2, 0) [steal]",0,True,ok,True,False,False,,0.12,0.31,agree
+experiments/results/mbi/MessageRace_Exscan_Isend_Irecv_ok/trace,28,"(1, 0)<-(2, 0) [steal]",inf,True,ok,True,False,False,,0.08,0.3,agree
+experiments/results/mbi/MessageRace_Exscan_Isend_Irecv_ok/trace,28,"(1, 1)<-(0, 0) [swap]",0,True,ok,True,True,True,,0.09,0.37,agree
+experiments/results/mbi/MessageRace_Exscan_Isend_Irecv_ok/trace,28,"(1, 1)<-(0, 0) [swap]",inf,True,ok,True,True,True,,0.09,0.34,agree
+experiments/results/mbi/MessageRace_Exscan_Send_Irecv_nok/trace,25,"(1, 0)<-(2, 0) [steal]",0,True,ok,True,False,False,,0.09,0.27,agree
+experiments/results/mbi/MessageRace_Exscan_Send_Irecv_nok/trace,25,"(1, 0)<-(2, 0) [steal]",inf,True,ok,True,False,False,,0.07,0.25,agree
+experiments/results/mbi/MessageRace_Exscan_Send_Irecv_ok/trace,26,"(1, 0)<-(2, 0) [swap]",0,True,ok,True,True,True,,0.1,0.29,agree
+experiments/results/mbi/MessageRace_Exscan_Send_Irecv_ok/trace,26,"(1, 0)<-(2, 0) [swap]",inf,True,ok,True,True,True,,0.08,0.26,agree
+experiments/results/mbi/MessageRace_Exscan_Send_Irecv_ok/trace,26,"(1, 0)<-(2, 0) [steal]",0,True,ok,True,False,False,,0.08,0.3,agree
+experiments/results/mbi/MessageRace_Exscan_Send_Irecv_ok/trace,26,"(1, 0)<-(2, 0) [steal]",inf,True,ok,True,False,False,,0.08,0.25,agree
+experiments/results/mbi/MessageRace_Exscan_Send_Irecv_ok/trace,26,"(1, 1)<-(0, 0) [swap]",0,True,ok,True,True,True,,0.08,0.29,agree
+experiments/results/mbi/MessageRace_Exscan_Send_Irecv_ok/trace,26,"(1, 1)<-(0, 0) [swap]",inf,True,ok,True,True,True,,0.07,0.31,agree
+experiments/results/mbi/MessageRace_Gather_Isend_Irecv_nok/trace,27,"(1, 0)<-(2, 0) [steal]",0,True,ok,True,False,False,,0.08,0.26,agree
+experiments/results/mbi/MessageRace_Gather_Isend_Irecv_nok/trace,27,"(1, 0)<-(2, 0) [steal]",inf,True,ok,True,False,False,,0.07,0.27,agree
+experiments/results/mbi/MessageRace_Gather_Isend_Irecv_ok/trace,28,"(1, 0)<-(0, 0) [swap]",0,True,ok,True,True,True,,0.08,0.28,agree
+experiments/results/mbi/MessageRace_Gather_Isend_Irecv_ok/trace,28,"(1, 0)<-(0, 0) [swap]",inf,True,ok,True,True,True,,0.09,0.35,agree
+experiments/results/mbi/MessageRace_Gather_Isend_Irecv_ok/trace,28,"(1, 0)<-(0, 0) [steal]",0,True,ok,True,False,False,,0.08,0.29,agree
+experiments/results/mbi/MessageRace_Gather_Isend_Irecv_ok/trace,28,"(1, 0)<-(0, 0) [steal]",inf,True,ok,True,False,False,,0.07,0.29,agree
+experiments/results/mbi/MessageRace_Gather_Isend_Irecv_ok/trace,28,"(1, 1)<-(2, 0) [swap]",0,True,ok,True,True,True,,0.09,0.35,agree
+experiments/results/mbi/MessageRace_Gather_Isend_Irecv_ok/trace,28,"(1, 1)<-(2, 0) [swap]",inf,True,ok,True,True,True,,0.08,0.33,agree
+experiments/results/mbi/MessageRace_Gather_Send_Irecv_nok/trace,26,"(1, 0)<-(0, 0) [steal]",0,True,ok,True,True,True,,0.09,0.27,agree
+experiments/results/mbi/MessageRace_Gather_Send_Irecv_nok/trace,26,"(1, 0)<-(0, 0) [steal]",inf,True,ok,True,True,True,,0.07,0.24,agree
+experiments/results/mbi/MessageRace_Gather_Send_Irecv_ok/trace,26,"(1, 0)<-(0, 0) [swap]",0,True,ok,True,True,True,,0.08,0.28,agree
+experiments/results/mbi/MessageRace_Gather_Send_Irecv_ok/trace,26,"(1, 0)<-(0, 0) [swap]",inf,True,ok,True,True,True,,0.08,0.26,agree
+experiments/results/mbi/MessageRace_Gather_Send_Irecv_ok/trace,26,"(1, 0)<-(0, 0) [steal]",0,True,ok,True,False,False,,0.08,0.29,agree
+experiments/results/mbi/MessageRace_Gather_Send_Irecv_ok/trace,26,"(1, 0)<-(0, 0) [steal]",inf,True,ok,True,False,False,,0.07,0.25,agree
+experiments/results/mbi/MessageRace_Gather_Send_Irecv_ok/trace,26,"(1, 1)<-(2, 0) [swap]",0,True,ok,True,True,True,,0.08,0.3,agree
+experiments/results/mbi/MessageRace_Gather_Send_Irecv_ok/trace,26,"(1, 1)<-(2, 0) [swap]",inf,True,ok,True,True,True,,0.08,0.29,agree
+experiments/results/mbi/MessageRace_Irecv_Isend_nok/trace,27,"(0, 0)<-(2, 0) [steal]",0,True,ok,True,False,False,,0.07,0.34,agree
+experiments/results/mbi/MessageRace_Irecv_Isend_nok/trace,27,"(0, 0)<-(2, 0) [steal]",inf,True,ok,True,False,False,,0.07,0.29,agree
+experiments/results/mbi/MessageRace_Irecv_Isend_nok/trace,27,"(0, 0)<-(3, 0) [steal]",0,True,ok,True,False,False,,0.07,0.34,agree
+experiments/results/mbi/MessageRace_Irecv_Isend_nok/trace,27,"(0, 0)<-(3, 0) [steal]",inf,True,ok,True,False,False,,0.07,0.32,agree
+experiments/results/mbi/MessageRace_Irecv_Isend_nok/trace,27,"(0, 1)<-(2, 0) [steal]",0,True,ok,True,False,False,,0.08,0.44,agree
+experiments/results/mbi/MessageRace_Irecv_Isend_nok/trace,27,"(0, 1)<-(2, 0) [steal]",inf,True,ok,True,False,False,,0.07,0.4,agree
+experiments/results/mbi/MessageRace_Irecv_Send_nok/trace,25,"(0, 0)<-(2, 0) [steal]",0,True,ok,True,False,False,,0.07,0.28,agree
+experiments/results/mbi/MessageRace_Irecv_Send_nok/trace,25,"(0, 0)<-(2, 0) [steal]",inf,True,ok,True,False,False,,0.06,0.27,agree
+experiments/results/mbi/MessageRace_Irecv_Send_nok/trace,25,"(0, 0)<-(3, 0) [steal]",0,True,ok,True,False,False,,0.06,0.25,agree
+experiments/results/mbi/MessageRace_Irecv_Send_nok/trace,25,"(0, 0)<-(3, 0) [steal]",inf,True,ok,True,False,False,,0.07,0.33,agree
+experiments/results/mbi/MessageRace_Irecv_Send_nok/trace,25,"(0, 1)<-(3, 0) [steal]",0,True,ok,True,False,False,,0.1,0.39,agree
+experiments/results/mbi/MessageRace_Irecv_Send_nok/trace,25,"(0, 1)<-(3, 0) [steal]",inf,True,ok,True,False,False,,0.07,0.32,agree
+experiments/results/mbi/MessageRace_Loop_Isend_Irecv_nok/trace,48,"(0, 0)<-(1, 0) [steal]",0,True,ok,True,False,False,,0.1,1.71,agree
+experiments/results/mbi/MessageRace_Loop_Isend_Irecv_nok/trace,48,"(0, 0)<-(1, 0) [steal]",inf,True,ok,True,False,False,,0.11,2.14,agree
+experiments/results/mbi/MessageRace_Loop_Isend_Irecv_nok/trace,48,"(0, 0)<-(3, 0) [steal]",0,False,witness cut by the horizon closure,False,False,False,,0.05,0.11,agree
+experiments/results/mbi/MessageRace_Loop_Isend_Irecv_nok/trace,48,"(0, 0)<-(3, 0) [steal]",inf,True,ok,True,True,False,,0.11,1.82,agree
+experiments/results/mbi/MessageRace_Loop_Isend_Irecv_nok/trace,48,"(0, 1)<-(1, 0) [steal]",0,True,ok,True,False,False,,0.14,1.06,agree
+experiments/results/mbi/MessageRace_Loop_Isend_Irecv_nok/trace,48,"(0, 1)<-(1, 0) [steal]",inf,True,ok,True,False,False,,0.12,1.77,agree
+experiments/results/mbi/MessageRace_Loop_Isend_Irecv_nok/trace,48,"(0, 1)<-(3, 0) [steal]",0,False,witness cut by the horizon closure,False,False,False,,0.05,0.28,agree
+experiments/results/mbi/MessageRace_Loop_Isend_Irecv_nok/trace,48,"(0, 1)<-(3, 0) [steal]",inf,True,ok,True,True,False,,0.15,1.69,agree
+experiments/results/mbi/MessageRace_Loop_Isend_Irecv_nok/trace,48,"(0, 2)<-(3, 0) [steal]",0,False,witness cut by the horizon closure,False,False,False,,0.05,0.81,agree
+experiments/results/mbi/MessageRace_Loop_Isend_Irecv_nok/trace,48,"(0, 2)<-(3, 0) [steal]",inf,True,ok,True,True,False,,0.13,1.94,agree
+experiments/results/mbi/MessageRace_Loop_Isend_Irecv_nok/trace,48,"(0, 3)<-(3, 0) [steal]",0,False,witness cut by the horizon closure,False,False,False,,0.06,1.54,agree
+experiments/results/mbi/MessageRace_Loop_Isend_Irecv_nok/trace,48,"(0, 3)<-(3, 0) [steal]",inf,True,ok,True,False,False,,0.14,2.62,agree
+experiments/results/mbi/MessageRace_Loop_Isend_Irecv_ok/trace,48,"(0, 0)<-(2, 0) [steal]",0,True,ok,True,False,False,,0.09,1.29,agree
+experiments/results/mbi/MessageRace_Loop_Isend_Irecv_ok/trace,48,"(0, 0)<-(2, 0) [steal]",inf,True,ok,True,False,False,,0.12,0.83,agree
+experiments/results/mbi/MessageRace_Loop_Isend_Irecv_ok/trace,48,"(0, 1)<-(2, 0) [steal]",0,True,ok,True,False,False,,0.12,0.92,agree
+experiments/results/mbi/MessageRace_Loop_Isend_Irecv_ok/trace,48,"(0, 1)<-(2, 0) [steal]",inf,True,ok,True,False,False,,0.11,0.83,agree
+experiments/results/mbi/MessageRace_Loop_Isend_Recv_nok/trace,40,"(0, 0)<-(2, 0) [steal]",0,True,ok,True,False,False,,0.09,1.18,agree
+experiments/results/mbi/MessageRace_Loop_Isend_Recv_nok/trace,40,"(0, 0)<-(2, 0) [steal]",inf,True,ok,True,False,False,,0.11,1.71,agree
+experiments/results/mbi/MessageRace_Loop_Isend_Recv_nok/trace,40,"(0, 0)<-(3, 0) [steal]",0,False,witness cut by the horizon closure,False,False,False,,0.04,0.11,agree
+experiments/results/mbi/MessageRace_Loop_Isend_Recv_nok/trace,40,"(0, 0)<-(3, 0) [steal]",inf,True,ok,True,True,False,,0.1,1.27,agree
+experiments/results/mbi/MessageRace_Loop_Isend_Recv_nok/trace,40,"(0, 1)<-(1, 1) [steal]",0,True,ok,True,False,False,,0.12,0.69,agree
+experiments/results/mbi/MessageRace_Loop_Isend_Recv_nok/trace,40,"(0, 1)<-(1, 1) [steal]",inf,True,ok,True,False,False,,0.1,0.76,agree
+experiments/results/mbi/MessageRace_Loop_Isend_Recv_nok/trace,40,"(0, 1)<-(3, 0) [steal]",0,False,witness cut by the horizon closure,False,False,False,,0.04,0.23,agree
+experiments/results/mbi/MessageRace_Loop_Isend_Recv_nok/trace,40,"(0, 1)<-(3, 0) [steal]",inf,True,ok,True,True,False,,0.12,1.32,agree
+experiments/results/mbi/MessageRace_Loop_Isend_Recv_nok/trace,40,"(0, 2)<-(2, 1) [steal]",0,True,ok,True,False,False,,0.12,1.16,agree
+experiments/results/mbi/MessageRace_Loop_Isend_Recv_nok/trace,40,"(0, 2)<-(2, 1) [steal]",inf,True,ok,True,False,False,,0.12,1.42,agree
+experiments/results/mbi/MessageRace_Loop_Isend_Recv_nok/trace,40,"(0, 2)<-(3, 0) [steal]",0,False,witness cut by the horizon closure,False,False,False,,0.05,0.65,agree
+experiments/results/mbi/MessageRace_Loop_Isend_Recv_nok/trace,40,"(0, 2)<-(3, 0) [steal]",inf,True,ok,True,True,False,,0.13,1.34,agree
+experiments/results/mbi/MessageRace_Loop_Isend_Recv_nok/trace,40,"(0, 3)<-(3, 0) [steal]",0,True,ok,True,True,False,,0.14,1.18,agree
+experiments/results/mbi/MessageRace_Loop_Isend_Recv_nok/trace,40,"(0, 3)<-(3, 0) [steal]",inf,True,ok,True,False,False,,0.13,1.99,agree
+experiments/results/mbi/MessageRace_Loop_Isend_Recv_ok/trace,40,"(0, 0)<-(2, 0) [steal]",0,True,ok,True,False,False,,0.1,1.15,agree
+experiments/results/mbi/MessageRace_Loop_Isend_Recv_ok/trace,40,"(0, 0)<-(2, 0) [steal]",inf,True,ok,True,False,False,,0.11,0.73,agree
+experiments/results/mbi/MessageRace_Loop_Isend_Recv_ok/trace,40,"(0, 1)<-(2, 0) [steal]",0,True,ok,True,False,False,,0.11,0.79,agree
+experiments/results/mbi/MessageRace_Loop_Isend_Recv_ok/trace,40,"(0, 1)<-(2, 0) [steal]",inf,True,ok,True,False,False,,0.11,0.67,agree
+experiments/results/mbi/MessageRace_Loop_Send_Irecv_nok/trace,40,"(0, 0)<-(1, 0) [steal]",0,True,ok,True,False,False,,0.1,1.46,agree
+experiments/results/mbi/MessageRace_Loop_Send_Irecv_nok/trace,40,"(0, 0)<-(1, 0) [steal]",inf,True,ok,True,False,False,,0.1,2.27,agree
+experiments/results/mbi/MessageRace_Loop_Send_Irecv_nok/trace,40,"(0, 0)<-(3, 0) [steal]",0,False,witness cut by the horizon closure,False,False,False,,0.05,0.11,agree
+experiments/results/mbi/MessageRace_Loop_Send_Irecv_nok/trace,40,"(0, 0)<-(3, 0) [steal]",inf,True,ok,True,True,False,,0.09,1.64,agree
+experiments/results/mbi/MessageRace_Loop_Send_Irecv_nok/trace,40,"(0, 1)<-(2, 1) [steal]",0,True,ok,True,False,False,,0.1,0.67,agree
+experiments/results/mbi/MessageRace_Loop_Send_Irecv_nok/trace,40,"(0, 1)<-(2, 1) [steal]",inf,True,ok,True,False,False,,0.16,0.87,agree
+experiments/results/mbi/MessageRace_Loop_Send_Irecv_nok/trace,40,"(0, 1)<-(3, 0) [steal]",0,False,witness cut by the horizon closure,False,False,False,,0.05,0.22,agree
+experiments/results/mbi/MessageRace_Loop_Send_Irecv_nok/trace,40,"(0, 1)<-(3, 0) [steal]",inf,True,ok,True,True,False,,0.11,1.63,agree
+experiments/results/mbi/MessageRace_Loop_Send_Irecv_nok/trace,40,"(0, 2)<-(1, 1) [steal]",0,True,ok,True,False,False,,0.12,1.29,agree
+experiments/results/mbi/MessageRace_Loop_Send_Irecv_nok/trace,40,"(0, 2)<-(1, 1) [steal]",inf,True,ok,True,False,False,,0.12,1.74,agree
+experiments/results/mbi/MessageRace_Loop_Send_Irecv_nok/trace,40,"(0, 2)<-(3, 0) [steal]",0,False,witness cut by the horizon closure,False,False,False,,0.05,0.71,agree
+experiments/results/mbi/MessageRace_Loop_Send_Irecv_nok/trace,40,"(0, 2)<-(3, 0) [steal]",inf,True,ok,True,True,False,,0.12,1.75,agree
+experiments/results/mbi/MessageRace_Loop_Send_Irecv_nok/trace,40,"(0, 3)<-(3, 0) [steal]",0,False,witness cut by the horizon closure,False,False,False,,0.05,1.24,agree
+experiments/results/mbi/MessageRace_Loop_Send_Irecv_nok/trace,40,"(0, 3)<-(3, 0) [steal]",inf,True,ok,True,False,False,,0.12,2.59,agree
+experiments/results/mbi/MessageRace_Loop_Send_Irecv_ok/trace,40,"(0, 0)<-(2, 0) [steal]",0,True,ok,True,False,False,,0.1,1.2,agree
+experiments/results/mbi/MessageRace_Loop_Send_Irecv_ok/trace,40,"(0, 0)<-(2, 0) [steal]",inf,True,ok,True,False,False,,0.1,0.88,agree
+experiments/results/mbi/MessageRace_Loop_Send_Irecv_ok/trace,40,"(0, 1)<-(2, 0) [steal]",0,True,ok,True,False,False,,0.11,0.85,agree
+experiments/results/mbi/MessageRace_Loop_Send_Irecv_ok/trace,40,"(0, 1)<-(2, 0) [steal]",inf,True,ok,True,False,False,,0.1,0.71,agree
+experiments/results/mbi/MessageRace_Loop_Send_Recv_nok/trace,32,"(0, 0)<-(2, 0) [steal]",0,True,ok,True,False,False,,0.1,0.86,agree
+experiments/results/mbi/MessageRace_Loop_Send_Recv_nok/trace,32,"(0, 0)<-(2, 0) [steal]",inf,True,ok,True,False,False,,0.09,1.79,agree
+experiments/results/mbi/MessageRace_Loop_Send_Recv_nok/trace,32,"(0, 0)<-(3, 0) [steal]",0,False,witness cut by the horizon closure,False,False,False,,0.05,0.11,agree
+experiments/results/mbi/MessageRace_Loop_Send_Recv_nok/trace,32,"(0, 0)<-(3, 0) [steal]",inf,True,ok,True,True,False,,0.1,1.46,agree
+experiments/results/mbi/MessageRace_Loop_Send_Recv_nok/trace,32,"(0, 1)<-(2, 0) [steal]",0,True,ok,True,False,False,,0.11,0.99,agree
+experiments/results/mbi/MessageRace_Loop_Send_Recv_nok/trace,32,"(0, 1)<-(2, 0) [steal]",inf,True,ok,True,False,False,,0.18,1.68,agree
+experiments/results/mbi/MessageRace_Loop_Send_Recv_nok/trace,32,"(0, 1)<-(3, 0) [steal]",0,False,witness cut by the horizon closure,False,False,False,,0.08,0.21,agree
+experiments/results/mbi/MessageRace_Loop_Send_Recv_nok/trace,32,"(0, 1)<-(3, 0) [steal]",inf,True,ok,True,True,False,,0.1,1.07,agree
+experiments/results/mbi/MessageRace_Loop_Send_Recv_nok/trace,32,"(0, 2)<-(3, 0) [steal]",0,True,ok,True,True,False,,0.11,0.47,agree
+experiments/results/mbi/MessageRace_Loop_Send_Recv_nok/trace,32,"(0, 2)<-(3, 0) [steal]",inf,True,ok,True,True,False,,0.09,1.18,agree
+experiments/results/mbi/MessageRace_Loop_Send_Recv_nok/trace,32,"(0, 3)<-(3, 0) [steal]",0,True,ok,True,True,False,,0.11,0.9,agree
+experiments/results/mbi/MessageRace_Loop_Send_Recv_nok/trace,32,"(0, 3)<-(3, 0) [steal]",inf,True,ok,True,False,False,,0.1,2.52,agree
+experiments/results/mbi/MessageRace_Loop_Send_Recv_ok/trace,32,"(0, 0)<-(2, 0) [steal]",0,True,ok,True,False,False,,0.08,0.73,agree
+experiments/results/mbi/MessageRace_Loop_Send_Recv_ok/trace,32,"(0, 0)<-(2, 0) [steal]",inf,True,ok,True,False,False,,0.09,0.55,agree
+experiments/results/mbi/MessageRace_Loop_Send_Recv_ok/trace,32,"(0, 1)<-(2, 0) [steal]",0,True,ok,True,False,False,,0.09,0.6,agree
+experiments/results/mbi/MessageRace_Loop_Send_Recv_ok/trace,32,"(0, 1)<-(2, 0) [steal]",inf,True,ok,True,False,False,,0.1,0.66,agree
+experiments/results/mbi/MessageRace_Recv_Isend_nok/trace,24,"(0, 0)<-(1, 0) [steal]",0,True,ok,True,False,False,,0.09,0.37,agree
+experiments/results/mbi/MessageRace_Recv_Isend_nok/trace,24,"(0, 0)<-(1, 0) [steal]",inf,True,ok,True,False,False,,0.08,0.31,agree
+experiments/results/mbi/MessageRace_Recv_Isend_nok/trace,24,"(0, 0)<-(2, 0) [steal]",0,True,ok,True,False,False,,0.09,0.33,agree
+experiments/results/mbi/MessageRace_Recv_Isend_nok/trace,24,"(0, 0)<-(2, 0) [steal]",inf,True,ok,True,False,False,,0.12,0.3,agree
+experiments/results/mbi/MessageRace_Recv_Isend_nok/trace,24,"(0, 1)<-(2, 0) [steal]",0,True,ok,True,False,False,,0.09,0.45,agree
+experiments/results/mbi/MessageRace_Recv_Isend_nok/trace,24,"(0, 1)<-(2, 0) [steal]",inf,True,ok,True,False,False,,0.11,0.36,agree
+experiments/results/mbi/MessageRace_Recv_Send_nok/trace,22,"(0, 0)<-(1, 0) [steal]",0,True,ok,True,False,False,,0.13,0.31,agree
+experiments/results/mbi/MessageRace_Recv_Send_nok/trace,22,"(0, 0)<-(1, 0) [steal]",inf,True,ok,True,False,False,,0.08,0.26,agree
+experiments/results/mbi/MessageRace_Recv_Send_nok/trace,22,"(0, 0)<-(3, 0) [steal]",0,True,ok,True,False,False,,0.23,0.31,agree
+experiments/results/mbi/MessageRace_Recv_Send_nok/trace,22,"(0, 0)<-(3, 0) [steal]",inf,True,ok,True,False,False,,0.08,0.25,agree
+experiments/results/mbi/MessageRace_Recv_Send_nok/trace,22,"(0, 1)<-(3, 0) [steal]",0,True,ok,True,False,False,,0.09,0.44,agree
+experiments/results/mbi/MessageRace_Recv_Send_nok/trace,22,"(0, 1)<-(3, 0) [steal]",inf,True,ok,True,False,False,,0.08,0.32,agree
+experiments/results/mbi/MessageRace_Reduce_Isend_Irecv_nok/trace,28,"(1, 0)<-(0, 0) [steal]",0,True,ok,True,True,True,,0.11,0.36,agree
+experiments/results/mbi/MessageRace_Reduce_Isend_Irecv_nok/trace,28,"(1, 0)<-(0, 0) [steal]",inf,True,ok,True,True,True,,0.1,0.38,agree
+experiments/results/mbi/MessageRace_Reduce_Isend_Irecv_ok/trace,28,"(1, 0)<-(0, 0) [swap]",0,True,ok,True,True,True,,0.11,0.44,agree
+experiments/results/mbi/MessageRace_Reduce_Isend_Irecv_ok/trace,28,"(1, 0)<-(0, 0) [swap]",inf,True,ok,True,True,True,,0.11,0.38,agree
+experiments/results/mbi/MessageRace_Reduce_Isend_Irecv_ok/trace,28,"(1, 0)<-(0, 0) [steal]",0,True,ok,True,False,False,,0.11,0.43,agree
+experiments/results/mbi/MessageRace_Reduce_Isend_Irecv_ok/trace,28,"(1, 0)<-(0, 0) [steal]",inf,True,ok,True,False,False,,0.1,0.37,agree
+experiments/results/mbi/MessageRace_Reduce_Isend_Irecv_ok/trace,28,"(1, 1)<-(2, 0) [swap]",0,True,ok,True,True,True,,0.11,0.46,agree
+experiments/results/mbi/MessageRace_Reduce_Isend_Irecv_ok/trace,28,"(1, 1)<-(2, 0) [swap]",inf,True,ok,True,True,True,,0.1,0.59,agree
+experiments/results/mbi/MessageRace_Reduce_Send_Irecv_nok/trace,26,"(1, 0)<-(0, 0) [steal]",0,True,ok,True,True,True,,0.11,0.31,agree
+experiments/results/mbi/MessageRace_Reduce_Send_Irecv_nok/trace,26,"(1, 0)<-(0, 0) [steal]",inf,True,ok,True,True,True,,0.11,0.31,agree
+experiments/results/mbi/MessageRace_Reduce_Send_Irecv_ok/trace,26,"(1, 0)<-(0, 0) [swap]",0,True,ok,True,True,True,,0.1,0.36,agree
+experiments/results/mbi/MessageRace_Reduce_Send_Irecv_ok/trace,26,"(1, 0)<-(0, 0) [swap]",inf,True,ok,True,True,True,,0.1,0.35,agree
+experiments/results/mbi/MessageRace_Reduce_Send_Irecv_ok/trace,26,"(1, 0)<-(0, 0) [steal]",0,True,ok,True,False,False,,0.11,0.39,agree
+experiments/results/mbi/MessageRace_Reduce_Send_Irecv_ok/trace,26,"(1, 0)<-(0, 0) [steal]",inf,True,ok,True,False,False,,0.09,0.33,agree
+experiments/results/mbi/MessageRace_Reduce_Send_Irecv_ok/trace,26,"(1, 1)<-(2, 0) [swap]",0,True,ok,True,True,True,,0.1,0.42,agree
+experiments/results/mbi/MessageRace_Reduce_Send_Irecv_ok/trace,26,"(1, 1)<-(2, 0) [swap]",inf,True,ok,True,True,True,,0.1,0.39,agree
+experiments/results/mbi/MessageRace_Scan_Isend_Irecv_nok/trace,27,"(1, 0)<-(2, 0) [steal]",0,True,ok,True,False,False,,0.12,0.43,agree
+experiments/results/mbi/MessageRace_Scan_Isend_Irecv_nok/trace,27,"(1, 0)<-(2, 0) [steal]",inf,True,ok,True,False,False,,0.11,0.41,agree
+experiments/results/mbi/MessageRace_Scan_Isend_Irecv_ok/trace,28,"(1, 0)<-(2, 0) [swap]",0,True,ok,True,True,True,,0.12,0.5,agree
+experiments/results/mbi/MessageRace_Scan_Isend_Irecv_ok/trace,28,"(1, 0)<-(2, 0) [swap]",inf,True,ok,True,True,True,,0.11,0.41,agree
+experiments/results/mbi/MessageRace_Scan_Isend_Irecv_ok/trace,28,"(1, 0)<-(2, 0) [steal]",0,True,ok,True,False,False,,0.12,0.39,agree
+experiments/results/mbi/MessageRace_Scan_Isend_Irecv_ok/trace,28,"(1, 0)<-(2, 0) [steal]",inf,True,ok,True,False,False,,0.12,0.38,agree
+experiments/results/mbi/MessageRace_Scan_Isend_Irecv_ok/trace,28,"(1, 1)<-(0, 0) [swap]",0,True,ok,True,True,True,,0.11,0.45,agree
+experiments/results/mbi/MessageRace_Scan_Isend_Irecv_ok/trace,28,"(1, 1)<-(0, 0) [swap]",inf,True,ok,True,True,True,,0.1,0.43,agree
+experiments/results/mbi/MessageRace_Scan_Send_Irecv_nok/trace,25,"(1, 0)<-(2, 0) [steal]",0,True,ok,True,False,False,,0.11,0.37,agree
+experiments/results/mbi/MessageRace_Scan_Send_Irecv_nok/trace,25,"(1, 0)<-(2, 0) [steal]",inf,True,ok,True,False,False,,0.1,0.34,agree
+experiments/results/mbi/MessageRace_Scan_Send_Irecv_ok/trace,26,"(1, 0)<-(2, 0) [swap]",0,True,ok,True,True,True,,0.11,0.37,agree
+experiments/results/mbi/MessageRace_Scan_Send_Irecv_ok/trace,26,"(1, 0)<-(2, 0) [swap]",inf,True,ok,True,True,True,,0.11,0.35,agree
+experiments/results/mbi/MessageRace_Scan_Send_Irecv_ok/trace,26,"(1, 0)<-(2, 0) [steal]",0,True,ok,True,False,False,,0.11,0.35,agree
+experiments/results/mbi/MessageRace_Scan_Send_Irecv_ok/trace,26,"(1, 0)<-(2, 0) [steal]",inf,True,ok,True,False,False,,0.12,0.39,agree
+experiments/results/mbi/MessageRace_Scan_Send_Irecv_ok/trace,26,"(1, 1)<-(0, 0) [swap]",0,True,ok,True,True,True,,0.11,0.4,agree
+experiments/results/mbi/MessageRace_Scan_Send_Irecv_ok/trace,26,"(1, 1)<-(0, 0) [swap]",inf,True,ok,True,True,True,,0.12,0.39,agree
+experiments/results/mbi/MessageRace_Scatter_Isend_Irecv_nok/trace,27,"(1, 0)<-(2, 0) [steal]",0,True,ok,True,False,False,,0.11,0.43,agree
+experiments/results/mbi/MessageRace_Scatter_Isend_Irecv_nok/trace,27,"(1, 0)<-(2, 0) [steal]",inf,True,ok,True,False,False,,0.1,0.34,agree
+experiments/results/mbi/MessageRace_Scatter_Isend_Irecv_ok/trace,28,"(1, 0)<-(2, 0) [swap]",0,True,ok,True,True,True,,0.09,0.33,agree
+experiments/results/mbi/MessageRace_Scatter_Isend_Irecv_ok/trace,28,"(1, 0)<-(2, 0) [swap]",inf,True,ok,True,True,True,,0.08,0.37,agree
+experiments/results/mbi/MessageRace_Scatter_Isend_Irecv_ok/trace,28,"(1, 0)<-(2, 0) [steal]",0,True,ok,True,False,False,,0.11,0.32,agree
+experiments/results/mbi/MessageRace_Scatter_Isend_Irecv_ok/trace,28,"(1, 0)<-(2, 0) [steal]",inf,True,ok,True,False,False,,0.08,0.3,agree
+experiments/results/mbi/MessageRace_Scatter_Isend_Irecv_ok/trace,28,"(1, 1)<-(0, 0) [swap]",0,True,ok,True,True,True,,0.08,0.39,agree
+experiments/results/mbi/MessageRace_Scatter_Isend_Irecv_ok/trace,28,"(1, 1)<-(0, 0) [swap]",inf,True,ok,True,True,True,,0.09,0.38,agree
+experiments/results/mbi/MessageRace_Scatter_Send_Irecv_nok/trace,25,"(1, 0)<-(2, 0) [steal]",0,True,ok,True,False,False,,0.09,0.3,agree
+experiments/results/mbi/MessageRace_Scatter_Send_Irecv_nok/trace,25,"(1, 0)<-(2, 0) [steal]",inf,True,ok,True,False,False,,0.07,0.28,agree
+experiments/results/mbi/MessageRace_Scatter_Send_Irecv_ok/trace,26,"(1, 0)<-(2, 0) [swap]",0,True,ok,True,True,True,,0.08,0.29,agree
+experiments/results/mbi/MessageRace_Scatter_Send_Irecv_ok/trace,26,"(1, 0)<-(2, 0) [swap]",inf,True,ok,True,True,True,,0.08,0.29,agree
+experiments/results/mbi/MessageRace_Scatter_Send_Irecv_ok/trace,26,"(1, 0)<-(2, 0) [steal]",0,True,ok,True,False,False,,0.12,0.28,agree
+experiments/results/mbi/MessageRace_Scatter_Send_Irecv_ok/trace,26,"(1, 0)<-(2, 0) [steal]",inf,True,ok,True,False,False,,0.07,0.27,agree
+experiments/results/mbi/MessageRace_Scatter_Send_Irecv_ok/trace,26,"(1, 1)<-(0, 0) [swap]",0,True,ok,True,True,True,,0.07,0.32,agree
+experiments/results/mbi/MessageRace_Scatter_Send_Irecv_ok/trace,26,"(1, 1)<-(0, 0) [swap]",inf,True,ok,True,True,True,,0.08,0.34,agree
+experiments/results/mbi/MessageRace_tag_ANY_TAG_1_Send_Recv_nok/trace,16,"(1, 0)<-(0, 0) [steal]",0,True,ok,True,True,True,,0.06,0.13,agree
+experiments/results/mbi/MessageRace_tag_ANY_TAG_1_Send_Recv_nok/trace,16,"(1, 0)<-(0, 0) [steal]",inf,True,ok,True,True,True,,0.06,0.11,agree
+experiments/results/mbi/MessageRace_tag_ANY_TAG_ANY_TAG_Send_Recv_ok/trace,16,"(1, 0)<-(0, 0) [steal]",0,True,ok,True,False,False,,0.06,0.15,agree
+experiments/results/mbi/MessageRace_tag_ANY_TAG_ANY_TAG_Send_Recv_ok/trace,16,"(1, 0)<-(0, 0) [steal]",inf,True,ok,True,False,False,,0.06,0.12,agree
+traces/openmpi/01_master_worker_anysource,20,"(0, 0)<-(2, 0) [steal]",0,True,ok,True,True,False,,0.07,0.14,agree
+traces/openmpi/01_master_worker_anysource,20,"(0, 0)<-(2, 0) [steal]",inf,True,ok,True,False,False,,0.06,0.19,agree
+traces/openmpi/04_orphan_send,16,"(0, 0)<-(2, 0) [steal]",0,True,ok,True,True,True,,0.06,0.11,agree
+traces/openmpi/04_orphan_send,16,"(0, 0)<-(2, 0) [steal]",inf,True,ok,True,True,True,,0.05,0.1,agree
+traces/openmpi/05_count_mismatch,16,"(0, 0)<-(2, 0) [steal]",0,True,ok,True,True,True,,0.07,0.13,agree
+traces/openmpi/05_count_mismatch,16,"(0, 0)<-(2, 0) [steal]",inf,True,ok,True,True,True,,0.05,0.1,agree
+traces/openmpi/06_collective_after_anysource,19,"(0, 0)<-(2, 0) [steal]",0,True,ok,True,True,True,,0.07,0.12,agree
+traces/openmpi/06_collective_after_anysource,19,"(0, 0)<-(2, 0) [steal]",inf,True,ok,True,True,True,,0.06,0.13,agree
+traces/openmpi/08_anytag_cross_purpose,16,"(0, 0)<-(2, 0) [steal]",0,True,ok,True,True,True,,0.05,0.1,agree
+traces/openmpi/08_anytag_cross_purpose,16,"(0, 0)<-(2, 0) [steal]",inf,True,ok,True,True,True,,0.05,0.09,agree
+traces/openmpi/09_two_wildcards_chain,18,"(0, 1)<-(1, 1) [steal]",0,True,ok,True,True,True,,0.06,0.15,agree
+traces/openmpi/09_two_wildcards_chain,18,"(0, 1)<-(1, 1) [steal]",inf,True,ok,True,True,True,,0.06,0.13,agree
+traces/openmpi/12_split_comm_pin,30,"(1, 0)<-(3, 0) [steal]",0,True,ok,True,True,False,,0.08,0.14,agree
+traces/openmpi/12_split_comm_pin,30,"(1, 0)<-(3, 0) [steal]",inf,True,ok,True,False,False,,0.07,0.2,agree
+traces/openmpi/13_derived_type_signature,22,"(0, 0)<-(2, 0) [steal]",0,True,ok,True,True,False,,0.06,0.12,agree
+traces/openmpi/13_derived_type_signature,22,"(0, 0)<-(2, 0) [steal]",inf,True,ok,True,True,False,,0.06,0.11,agree
+synthetic/002,59,"(0, 0)<-(2, 0) [swap]",0,True,ok,True,True,True,,0.16,61.9,agree
+synthetic/002,59,"(0, 0)<-(2, 0) [swap]",inf,True,ok,True,True,True,,0.24,1222.02,agree
+synthetic/002,59,"(0, 0)<-(2, 0) [steal]",0,True,ok,True,False,False,,0.21,64.31,agree
+synthetic/002,59,"(0, 0)<-(2, 0) [steal]",inf,True,ok,True,False,False,,0.18,1194.19,agree
+synthetic/002,59,"(0, 1)<-(1, 2) [swap]",0,True,ok,True,True,True,,0.22,23.56,agree
+synthetic/002,59,"(0, 1)<-(1, 2) [swap]",inf,True,ok,True,True,True,,0.17,492.87,agree
+synthetic/002,59,"(2, 2)<-(0, 2) [steal]",0,True,ok,True,False,False,,0.3,67.1,agree
+synthetic/002,59,"(2, 2)<-(0, 2) [steal]",inf,True,ok,True,False,False,,0.16,891.76,agree
+synthetic/002,59,"(2, 5)<-(1, 3) [swap]",0,False,"non-overtaking: send(1, 3)->2 tag=1 64B would reach recv(2, 4) src=ANY tag=1 cap=4096B before send(1, 5)->2 tag=1 4B",False,False,False,,0.08,14.39,agree
+synthetic/002,59,"(2, 5)<-(1, 3) [swap]",inf,False,"non-overtaking: send(1, 3)->2 tag=1 64B would reach recv(2, 4) src=ANY tag=1 cap=4096B before send(1, 5)->2 tag=1 4B",False,False,False,,0.06,579.14,agree
+synthetic/005,32,"(1, 0)<-(2, 0) [swap]",0,True,ok,True,True,True,,0.1,0.66,agree
+synthetic/005,32,"(1, 0)<-(2, 0) [swap]",inf,True,ok,True,True,True,,0.09,0.66,agree
+synthetic/005,32,"(1, 0)<-(2, 0) [steal]",0,True,ok,True,False,False,,0.08,0.64,agree
+synthetic/005,32,"(1, 0)<-(2, 0) [steal]",inf,True,ok,True,False,False,,0.08,0.64,agree
+synthetic/005,32,"(1, 1)<-(0, 0) [swap]",0,True,ok,True,True,True,,0.09,0.49,agree
+synthetic/005,32,"(1, 1)<-(0, 0) [swap]",inf,True,ok,True,True,True,,0.08,0.53,agree
+synthetic/007,46,"(1, 0)<-(0, 0) [steal]",0,True,ok,True,True,False,,0.13,1.05,agree
+synthetic/007,46,"(1, 0)<-(0, 0) [steal]",inf,True,ok,True,False,False,,0.13,5.43,agree
+synthetic/009,45,"(1, 2)<-(4, 2) [steal]",0,True,ok,True,True,True,,0.17,2.63,agree
+synthetic/009,45,"(1, 2)<-(4, 2) [steal]",inf,True,ok,True,True,True,,0.16,5.08,agree
+synthetic/011,46,"(0, 0)<-(3, 0) [steal]",0,True,ok,True,False,False,,0.14,2.92,agree
+synthetic/011,46,"(0, 0)<-(3, 0) [steal]",inf,True,ok,True,False,False,,0.12,4.36,agree
+synthetic/013,56,"(0, 3)<-(1, 3) [steal]",0,True,ok,True,True,True,,0.21,4.29,agree
+synthetic/013,56,"(0, 3)<-(1, 3) [steal]",inf,True,ok,True,True,True,,0.19,9.82,agree
+synthetic/013,56,"(1, 2)<-(2, 1) [steal]",0,True,ok,True,True,False,,0.17,1.55,agree
+synthetic/013,56,"(1, 2)<-(2, 1) [steal]",inf,True,ok,True,True,False,,0.16,2.69,agree
+synthetic/014,26,"(1, 0)<-(0, 0) [steal]",0,True,ok,True,True,False,,0.1,0.22,agree
+synthetic/014,26,"(1, 0)<-(0, 0) [steal]",inf,True,ok,True,True,False,,0.1,0.36,agree
+synthetic/015,35,"(0, 0)<-(2, 0) [steal]",0,True,ok,True,False,False,,0.1,1.55,agree
+synthetic/015,35,"(0, 0)<-(2, 0) [steal]",inf,True,ok,True,False,False,,0.1,4.68,agree
+synthetic/017,55,"(2, 2)<-(0, 0) [steal]",0,True,ok,True,False,False,,0.19,2.5,agree
+synthetic/017,55,"(2, 2)<-(0, 0) [steal]",inf,True,ok,True,False,False,,0.2,8.41,agree
+synthetic/018,60,"(2, 2)<-(1, 1) [steal]",0,True,ok,True,False,False,,0.17,6.98,agree
+synthetic/018,60,"(2, 2)<-(1, 1) [steal]",inf,True,ok,True,False,False,,0.15,9.38,agree
+synthetic/020,30,"(1, 1)<-(0, 1) [steal]",0,True,ok,True,True,True,,0.1,1.0,agree
+synthetic/020,30,"(1, 1)<-(0, 1) [steal]",inf,True,ok,True,True,True,,0.1,1.46,agree
+synthetic/023,50,"(0, 1)<-(3, 3) [steal]",0,False,witness cut by the horizon closure,False,False,False,,0.08,0.3,agree
+synthetic/023,50,"(0, 1)<-(3, 3) [steal]",inf,True,ok,True,False,False,,0.14,3.86,agree
+synthetic/023,50,"(3, 0)<-(0, 1) [steal]",0,True,ok,True,True,False,,0.16,0.7,agree
+synthetic/023,50,"(3, 0)<-(0, 1) [steal]",inf,True,ok,True,False,False,,0.15,2.43,agree
+synthetic/023,50,"(3, 0)<-(1, 1) [steal]",0,True,ok,True,True,False,,0.16,0.71,agree
+synthetic/023,50,"(3, 0)<-(1, 1) [steal]",inf,True,ok,True,False,False,,0.14,1.64,agree
+synthetic/024,61,"(1, 2)<-(3, 2) [steal]",0,True,ok,True,True,True,,0.2,5.28,agree
+synthetic/024,61,"(1, 2)<-(3, 2) [steal]",inf,True,ok,True,True,True,,0.21,109.74,agree
+synthetic/024,61,"(2, 3)<-(1, 4) [swap]",0,False,"non-overtaking: send(1, 4)->2 tag=1 4B would reach recv(2, 2) src=ANY tag=1 cap=4096B before send(1, 5)->2 tag=1 4096B",False,False,False,,0.07,4.78,agree
+synthetic/024,61,"(2, 3)<-(1, 4) [swap]",inf,False,"non-overtaking: send(1, 4)->2 tag=1 4B would reach recv(2, 2) src=ANY tag=1 cap=4096B before send(1, 5)->2 tag=1 4096B",False,False,False,,0.06,115.3,agree
+synthetic/026,30,"(0, 0)<-(2, 0) [steal]",0,True,ok,True,False,False,,0.11,0.96,agree
+synthetic/026,30,"(0, 0)<-(2, 0) [steal]",inf,True,ok,True,False,False,,0.09,1.52,agree
+synthetic/027,39,"(2, 2)<-(3, 1) [steal]",0,True,ok,True,True,False,,0.13,0.73,agree
+synthetic/027,39,"(2, 2)<-(3, 1) [steal]",inf,True,ok,True,True,True,,0.12,1.1,agree
+synthetic/028,38,"(0, 2)<-(1, 1) [swap]",0,False,"non-overtaking: send(1, 1)->0 tag=1 4B would reach recv(0, 1) src=ANY tag=ANY cap=4096B before send(1, 2)->0 tag=1 4B",False,False,False,,0.06,0.14,agree
+synthetic/028,38,"(0, 2)<-(1, 1) [swap]",inf,False,"non-overtaking: send(1, 1)->0 tag=1 4B would reach recv(0, 1) src=ANY tag=ANY cap=4096B before send(1, 2)->0 tag=1 4B",False,False,False,,0.05,1.67,agree
+synthetic/030,28,"(1, 0)<-(3, 0) [steal]",0,True,ok,True,False,False,,0.11,0.51,agree
+synthetic/030,28,"(1, 0)<-(3, 0) [steal]",inf,True,ok,True,False,False,,0.11,0.99,agree
+synthetic/032,58,"(0, 0)<-(2, 2) [steal]",0,True,ok,True,False,False,,0.13,2.28,agree
+synthetic/032,58,"(0, 0)<-(2, 2) [steal]",inf,True,ok,True,False,False,,0.15,5.26,agree
+synthetic/032,58,"(0, 0)<-(3, 1) [steal]",0,False,witness cut by the horizon closure,False,False,False,,0.07,0.19,agree
+synthetic/032,58,"(0, 0)<-(3, 1) [steal]",inf,True,ok,True,True,False,,0.15,2.86,agree
+synthetic/032,58,"(0, 1)<-(1, 1) [steal]",0,True,ok,True,True,False,,0.15,0.38,agree
+synthetic/032,58,"(0, 1)<-(1, 1) [steal]",inf,True,ok,True,True,False,,0.15,0.85,agree
+synthetic/032,58,"(0, 1)<-(3, 1) [steal]",0,False,witness cut by the horizon closure,False,False,False,,0.07,0.31,agree
+synthetic/032,58,"(0, 1)<-(3, 1) [steal]",inf,True,ok,True,True,False,,0.15,3.1,agree
+synthetic/032,58,"(0, 4)<-(3, 1) [steal]",0,True,ok,True,True,True,,0.19,2.84,agree
+synthetic/032,58,"(0, 4)<-(3, 1) [steal]",inf,True,ok,True,True,True,,0.18,5.03,agree
+synthetic/033,50,"(1, 3)<-(0, 4) [steal]",0,False,witness cut by the horizon closure,True,True,False,,0.06,0.85,incomplete
+synthetic/033,50,"(1, 3)<-(0, 4) [steal]",inf,True,ok,True,True,True,,0.16,8.39,agree
+synthetic/033,50,"(1, 3)<-(2, 0) [steal]",0,False,witness cut by the horizon closure,True,True,False,,0.06,0.83,incomplete
+synthetic/033,50,"(1, 3)<-(2, 0) [steal]",inf,True,ok,True,True,False,,0.15,8.91,agree
+synthetic/033,50,"(2, 0)<-(0, 0) [steal]",0,True,ok,True,False,False,,0.23,4.23,agree
+synthetic/033,50,"(2, 0)<-(0, 0) [steal]",inf,True,ok,True,False,False,,0.21,13.79,agree
+synthetic/033,50,"(2, 0)<-(1, 2) [steal]",0,True,ok,True,True,False,,0.14,0.53,agree
+synthetic/033,50,"(2, 0)<-(1, 2) [steal]",inf,True,ok,True,True,False,,0.14,2.62,agree
+synthetic/034,50,"(1, 1)<-(0, 2) [steal]",0,False,constraint cycle,False,False,False,,0.17,2.94,agree
+synthetic/034,50,"(1, 1)<-(0, 2) [steal]",inf,True,ok,True,False,False,,0.16,34.35,agree
+synthetic/034,50,"(1, 2)<-(2, 1) [steal]",0,False,constraint cycle,False,False,False,,0.19,2.51,agree
+synthetic/034,50,"(1, 2)<-(2, 1) [steal]",inf,True,ok,True,True,True,,0.2,35.85,agree
+synthetic/034,50,"(2, 0)<-(0, 0) [steal]",0,True,ok,True,False,False,,0.2,5.35,agree
+synthetic/034,50,"(2, 0)<-(0, 0) [steal]",inf,True,ok,True,False,False,,0.21,37.88,agree
+synthetic/034,50,"(2, 2)<-(0, 3) [steal]",0,False,witness cut by the horizon closure,False,False,False,,0.08,0.83,agree
+synthetic/034,50,"(2, 2)<-(0, 3) [steal]",inf,True,ok,True,True,True,,0.16,10.62,agree
+synthetic/035,62,"(1, 0)<-(2, 1) [steal]",0,True,ok,True,False,False,,0.13,3.42,agree
+synthetic/035,62,"(1, 0)<-(2, 1) [steal]",inf,True,ok,True,False,False,,0.14,6.19,agree
+synthetic/035,62,"(1, 1)<-(0, 1) [steal]",0,True,ok,True,False,False,,0.13,4.5,agree
+synthetic/035,62,"(1, 1)<-(0, 1) [steal]",inf,True,ok,True,False,False,,0.15,6.95,agree
+synthetic/037,48,"(0, 6)<-(1, 4) [swap]",0,False,"non-overtaking: send(1, 4)->0 tag=1 4096B would reach recv(0, 4) src=ANY tag=1 cap=4096B before send(1, 6)->0 tag=1 4B",False,False,False,,0.05,3.64,agree
+synthetic/037,48,"(0, 6)<-(1, 4) [swap]",inf,False,"non-overtaking: send(1, 4)->0 tag=1 4096B would reach recv(0, 4) src=ANY tag=1 cap=4096B before send(1, 6)->0 tag=1 4B",False,False,False,,0.05,13.67,agree
+synthetic/038,67,"(0, 1)<-(3, 2) [steal]",0,False,"non-overtaking: send(4, 2)->0 tag=1 4096B would reach recv(0, 3) src=4 tag=1 cap=4096B before send(4, 3)->0 tag=1 4B",False,False,False,,0.07,2.91,agree
+synthetic/038,67,"(0, 1)<-(3, 2) [steal]",inf,False,"non-overtaking: send(4, 2)->0 tag=1 4096B would reach recv(0, 3) src=4 tag=1 cap=4096B before send(4, 3)->0 tag=1 4B",False,False,False,,0.08,8.41,agree
+synthetic/038,67,"(1, 6)<-(0, 5) [swap]",0,False,"non-overtaking: send(0, 5)->1 tag=1 4B would reach recv(1, 4) src=ANY tag=1 cap=4096B before send(0, 7)->1 tag=1 4B",False,False,False,,0.07,3.57,agree
+synthetic/038,67,"(1, 6)<-(0, 5) [swap]",inf,False,"non-overtaking: send(0, 5)->1 tag=1 4B would reach recv(1, 4) src=ANY tag=1 cap=4096B before send(0, 7)->1 tag=1 4B",False,False,False,,0.06,10.09,agree
+synthetic/041,49,"(2, 1)<-(0, 2) [steal]",0,True,ok,True,False,False,,0.15,1.39,agree
+synthetic/041,49,"(2, 1)<-(0, 2) [steal]",inf,True,ok,True,False,False,,0.15,4.29,agree
+synthetic/042,55,"(0, 1)<-(2, 0) [swap]",0,False,"non-overtaking: send(2, 0)->0 tag=1 4096B would reach recv(0, 0) src=ANY tag=1 cap=4096B before send(2, 1)->0 tag=1 4B",False,False,False,,0.07,0.27,agree
+synthetic/042,55,"(0, 1)<-(2, 0) [swap]",inf,False,"non-overtaking: send(2, 0)->0 tag=1 4096B would reach recv(0, 0) src=ANY tag=1 cap=4096B before send(2, 1)->0 tag=1 4B",False,False,False,,0.05,0.42,agree
+synthetic/042,55,"(0, 3)<-(2, 2) [steal]",0,True,ok,True,False,False,,0.17,153.17,agree
+synthetic/042,55,"(0, 3)<-(2, 2) [steal]",inf,True,ok,True,False,False,,0.19,728.31,agree
+synthetic/042,55,"(0, 5)<-(1, 4) [steal]",0,True,ok,True,True,False,,0.24,113.84,agree
+synthetic/042,55,"(0, 5)<-(1, 4) [steal]",inf,True,ok,True,True,False,,0.22,1206.41,agree
+synthetic/042,55,"(2, 0)<-(0, 0) [steal]",0,True,ok,True,False,False,,0.22,42.7,agree
+synthetic/042,55,"(2, 0)<-(0, 0) [steal]",inf,True,ok,True,False,False,,0.18,623.59,agree
+synthetic/042,55,"(2, 2)<-(0, 1) [steal]",0,True,ok,True,False,False,,0.19,119.97,agree
+synthetic/042,55,"(2, 2)<-(0, 1) [steal]",inf,True,ok,True,False,False,,0.19,949.1,agree
+synthetic/043,38,"(0, 0)<-(3, 1) [steal]",0,True,ok,True,True,False,,0.14,0.7,agree
+synthetic/043,38,"(0, 0)<-(3, 1) [steal]",inf,True,ok,True,True,True,,0.16,1.75,agree
+synthetic/043,38,"(1, 0)<-(2, 1) [steal]",0,True,ok,True,False,False,,0.11,2.57,agree
+synthetic/043,38,"(1, 0)<-(2, 1) [steal]",inf,True,ok,True,False,False,,0.1,2.68,agree
+synthetic/044,48,"(1, 1)<-(3, 1) [steal]",0,False,witness cut by the horizon closure,False,False,False,,0.06,0.59,agree
+synthetic/044,48,"(1, 1)<-(3, 1) [steal]",inf,True,ok,True,True,False,,0.14,8.1,agree
+synthetic/044,48,"(3, 1)<-(1, 3) [steal]",0,False,constraint cycle,False,False,False,,0.14,0.31,agree
+synthetic/044,48,"(3, 1)<-(1, 3) [steal]",inf,True,ok,True,False,False,,0.14,6.23,agree
+synthetic/044,48,"(3, 2)<-(2, 1) [steal]",0,False,constraint cycle,False,False,False,,0.14,0.57,agree
+synthetic/044,48,"(3, 2)<-(2, 1) [steal]",inf,True,ok,True,True,True,,0.15,31.19,agree
+synthetic/046,38,"(1, 2)<-(4, 0) [steal]",0,True,ok,True,False,False,,0.13,0.87,agree
+synthetic/046,38,"(1, 2)<-(4, 0) [steal]",inf,True,ok,True,False,False,,0.13,0.84,agree
+synthetic/046,38,"(2, 0)<-(0, 1) [swap]",0,True,ok,True,True,True,,0.1,0.65,agree
+synthetic/046,38,"(2, 0)<-(0, 1) [swap]",inf,True,ok,True,True,True,,0.09,0.63,agree
+synthetic/046,38,"(2, 0)<-(0, 1) [steal]",0,True,ok,True,False,False,,0.1,0.64,agree
+synthetic/046,38,"(2, 0)<-(0, 1) [steal]",inf,True,ok,True,False,False,,0.09,0.6,agree
+synthetic/046,38,"(2, 1)<-(3, 0) [swap]",0,True,ok,True,True,True,,0.1,0.7,agree
+synthetic/046,38,"(2, 1)<-(3, 0) [swap]",inf,True,ok,True,True,True,,0.09,0.65,agree
+synthetic/047,72,"(0, 2)<-(2, 0) [steal]",0,True,ok,True,True,False,,0.23,1.3,agree
+synthetic/047,72,"(0, 2)<-(2, 0) [steal]",inf,True,ok,True,True,False,,0.21,1.14,agree
+synthetic/048,33,"(0, 1)<-(2, 1) [steal]",0,False,witness cut by the horizon closure,False,False,False,,0.05,0.14,agree
+synthetic/048,33,"(0, 1)<-(2, 1) [steal]",inf,True,ok,True,False,False,,0.1,2.01,agree
+synthetic/051,38,"(2, 0)<-(1, 0) [steal]",0,True,ok,True,True,False,,0.12,1.35,agree
+synthetic/051,38,"(2, 0)<-(1, 0) [steal]",inf,True,ok,True,True,False,,0.11,1.94,agree
+synthetic/052,27,"(0, 0)<-(1, 2) [steal]",0,False,"non-overtaking: send(2, 0)->0 tag=1 4B would reach recv(0, 1) src=ANY tag=ANY cap=4096B before send(2, 1)->0 tag=1 64B",False,False,False,,0.04,0.7,agree
+synthetic/052,27,"(0, 0)<-(1, 2) [steal]",inf,False,"non-overtaking: send(2, 0)->0 tag=1 4B would reach recv(0, 1) src=ANY tag=ANY cap=4096B before send(2, 1)->0 tag=1 64B",False,False,False,,0.04,1.36,agree
+synthetic/052,27,"(0, 1)<-(1, 2) [steal]",0,True,ok,True,True,False,,0.1,0.78,agree
+synthetic/052,27,"(0, 1)<-(1, 2) [steal]",inf,True,ok,True,True,True,,0.09,1.17,agree
+synthetic/053,48,"(0, 0)<-(3, 0) [steal]",0,True,ok,True,True,False,,0.12,0.18,agree
+synthetic/053,48,"(0, 0)<-(3, 0) [steal]",inf,True,ok,True,True,False,,0.12,3.03,agree
+synthetic/055,51,"(2, 0)<-(1, 0) [steal]",0,True,ok,True,False,False,,0.12,9.44,agree
+synthetic/055,51,"(2, 0)<-(1, 0) [steal]",inf,True,ok,True,False,False,,0.12,9.48,agree
+synthetic/055,51,"(2, 2)<-(1, 0) [swap]",0,False,"non-overtaking: send(1, 0)->2 tag=1 64B would reach recv(2, 1) src=ANY tag=1 cap=4096B before send(1, 2)->2 tag=1 4B",False,False,False,,0.08,1.15,agree
+synthetic/055,51,"(2, 2)<-(1, 0) [swap]",inf,False,"non-overtaking: send(1, 0)->2 tag=1 64B would reach recv(2, 1) src=ANY tag=1 cap=4096B before send(1, 2)->2 tag=1 4B",False,False,False,,0.06,0.97,agree
+synthetic/056,61,"(0, 1)<-(2, 1) [steal]",0,True,ok,True,False,False,,0.21,25.16,agree
+synthetic/056,61,"(0, 1)<-(2, 1) [steal]",inf,True,ok,True,False,False,,0.24,96.2,agree
+synthetic/056,61,"(0, 2)<-(1, 4) [steal]",0,True,ok,True,True,False,,0.27,13.17,agree
+synthetic/056,61,"(0, 2)<-(1, 4) [steal]",inf,True,ok,True,True,True,,0.21,80.61,agree
+synthetic/056,61,"(2, 0)<-(0, 0) [steal]",0,True,ok,True,False,False,,0.16,15.99,agree
+synthetic/056,61,"(2, 0)<-(0, 0) [steal]",inf,True,ok,True,False,False,,0.14,105.09,agree
+synthetic/056,61,"(2, 2)<-(0, 4) [steal]",0,True,ok,True,False,False,,0.23,25.9,agree
+synthetic/056,61,"(2, 2)<-(0, 4) [steal]",inf,True,ok,True,False,False,,0.24,155.46,agree
+synthetic/057,60,"(3, 0)<-(2, 0) [steal]",0,True,ok,True,False,False,,0.17,12.38,agree
+synthetic/057,60,"(3, 0)<-(2, 0) [steal]",inf,True,ok,True,False,False,,0.18,180.75,agree
+synthetic/058,34,"(2, 0)<-(1, 0) [swap]",0,False,"non-overtaking: send(0, 0)->2 tag=1 64B would reach recv(2, 1) src=ANY tag=1 cap=4096B before send(0, 1)->2 tag=1 4096B",False,False,False,,0.06,2.6,agree
+synthetic/058,34,"(2, 0)<-(1, 0) [swap]",inf,False,"non-overtaking: send(0, 0)->2 tag=1 64B would reach recv(2, 1) src=ANY tag=1 cap=4096B before send(0, 1)->2 tag=1 4096B",False,False,False,,0.05,4.74,agree
+synthetic/058,34,"(2, 0)<-(1, 0) [steal]",0,True,ok,True,False,False,,0.1,2.93,agree
+synthetic/058,34,"(2, 0)<-(1, 0) [steal]",inf,False,"non-overtaking: send(0, 0)->2 tag=1 64B would reach recv(2, 1) src=ANY tag=1 cap=4096B before send(0, 1)->2 tag=1 4096B",False,False,False,,0.05,4.73,agree
+synthetic/058,34,"(2, 1)<-(1, 0) [steal]",0,True,ok,True,False,False,,0.09,2.87,agree
+synthetic/058,34,"(2, 1)<-(1, 0) [steal]",inf,True,ok,True,False,False,,0.1,3.47,agree
+synthetic/058,34,"(2, 2)<-(1, 0) [steal]",0,True,ok,True,False,False,,0.1,2.29,agree
+synthetic/058,34,"(2, 2)<-(1, 0) [steal]",inf,True,ok,True,False,False,,0.1,3.0,agree
+synthetic/058,34,"(2, 3)<-(0, 0) [swap]",0,False,"non-overtaking: send(0, 0)->2 tag=1 64B would reach recv(2, 1) src=ANY tag=1 cap=4096B before send(0, 1)->2 tag=1 4096B",False,False,False,,0.05,2.07,agree
+synthetic/058,34,"(2, 3)<-(0, 0) [swap]",inf,False,"non-overtaking: send(0, 0)->2 tag=1 64B would reach recv(2, 1) src=ANY tag=1 cap=4096B before send(0, 1)->2 tag=1 4096B",False,False,False,,0.04,3.46,agree
+synthetic/058,34,"(2, 3)<-(0, 3) [steal]",0,True,ok,True,True,False,,0.11,2.42,agree
+synthetic/058,34,"(2, 3)<-(0, 3) [steal]",inf,True,ok,True,True,False,,0.11,4.02,agree
+synthetic/059,35,"(1, 0)<-(0, 0) [steal]",0,True,ok,True,True,False,,0.1,0.79,agree
+synthetic/059,35,"(1, 0)<-(0, 0) [steal]",inf,True,ok,True,True,False,,0.1,0.87,agree
+synthetic/060,39,"(2, 1)<-(0, 2) [steal]",0,True,ok,True,True,False,,0.14,1.02,agree
+synthetic/060,39,"(2, 1)<-(0, 2) [steal]",inf,True,ok,True,True,True,,0.14,1.56,agree
+synthetic/063,59,"(0, 0)<-(1, 1) [steal]",0,False,witness cut by the horizon closure,False,False,False,,0.08,0.26,agree
+synthetic/063,59,"(0, 0)<-(1, 1) [steal]",inf,True,ok,True,True,False,,0.15,1.9,agree
+synthetic/063,59,"(0, 0)<-(3, 0) [steal]",0,True,ok,True,False,False,,0.12,53.98,agree
+synthetic/063,59,"(0, 0)<-(3, 0) [steal]",inf,True,ok,True,False,False,,0.19,84.22,agree
+synthetic/063,59,"(2, 3)<-(1, 4) [swap]",0,False,constraint cycle,False,False,False,,0.23,26.27,agree
+synthetic/063,59,"(2, 3)<-(1, 4) [swap]",inf,True,ok,True,True,True,,0.24,85.09,agree
+synthetic/063,59,"(2, 3)<-(1, 4) [steal]",0,False,constraint cycle,False,False,False,,0.19,30.77,agree
+synthetic/063,59,"(2, 3)<-(1, 4) [steal]",inf,True,ok,True,False,False,,0.2,82.67,agree
+synthetic/063,59,"(2, 4)<-(0, 4) [swap]",0,False,constraint cycle,False,False,False,,0.21,35.08,agree
+synthetic/063,59,"(2, 4)<-(0, 4) [swap]",inf,True,ok,True,True,True,,0.21,133.04,agree
+synthetic/064,45,"(1, 0)<-(0, 1) [steal]",0,True,ok,True,True,False,,0.12,0.88,agree
+synthetic/064,45,"(1, 0)<-(0, 1) [steal]",inf,True,ok,True,True,False,,0.13,29.65,agree
+synthetic/064,45,"(1, 1)<-(0, 1) [steal]",0,True,ok,True,True,False,,0.15,1.01,agree
+synthetic/064,45,"(1, 1)<-(0, 1) [steal]",inf,True,ok,True,False,False,,0.13,28.36,agree
+synthetic/064,45,"(2, 0)<-(0, 0) [swap]",0,True,ok,True,True,True,,0.13,1.05,agree
+synthetic/064,45,"(2, 0)<-(0, 0) [swap]",inf,True,ok,True,True,True,,0.13,45.31,agree
+synthetic/064,45,"(2, 0)<-(0, 0) [steal]",0,True,ok,True,False,False,,0.13,1.04,agree
+synthetic/064,45,"(2, 0)<-(0, 0) [steal]",inf,True,ok,True,False,False,,0.12,44.09,agree
+synthetic/064,45,"(2, 1)<-(1, 0) [swap]",0,True,ok,True,True,True,,0.13,1.3,agree
+synthetic/064,45,"(2, 1)<-(1, 0) [swap]",inf,True,ok,True,True,True,,0.13,27.71,agree
+synthetic/067,61,"(2, 0)<-(1, 3) [steal]",0,True,ok,True,False,False,,0.15,27.08,agree
+synthetic/067,61,"(2, 0)<-(1, 3) [steal]",inf,True,ok,True,False,False,,0.18,88.57,agree
+synthetic/068,50,"(1, 1)<-(3, 0) [steal]",0,True,ok,True,True,False,,0.16,1.08,agree
+synthetic/068,50,"(1, 1)<-(3, 0) [steal]",inf,True,ok,True,True,True,,0.14,2.46,agree
+synthetic/068,50,"(3, 1)<-(1, 3) [steal]",0,False,constraint cycle,False,False,False,,0.15,1.42,agree
+synthetic/068,50,"(3, 1)<-(1, 3) [steal]",inf,True,ok,True,False,False,,0.15,2.47,agree
+synthetic/069,52,"(2, 0)<-(1, 1) [steal]",0,True,ok,True,True,False,,0.14,0.58,agree
+synthetic/069,52,"(2, 0)<-(1, 1) [steal]",inf,True,ok,True,True,False,,0.14,1.71,agree
+synthetic/070,33,"(1, 0)<-(3, 0) [steal]",0,True,ok,True,True,False,,0.1,0.35,agree
+synthetic/070,33,"(1, 0)<-(3, 0) [steal]",inf,True,ok,True,True,False,,0.1,0.65,agree
+synthetic/071,59,"(0, 1)<-(4, 2) [steal]",0,False,constraint cycle,False,False,False,,0.17,12.75,agree
+synthetic/071,59,"(0, 1)<-(4, 2) [steal]",inf,True,ok,True,True,True,,0.2,18.69,agree
+synthetic/071,59,"(1, 0)<-(3, 0) [steal]",0,True,ok,True,True,False,,0.16,2.28,agree
+synthetic/071,59,"(1, 0)<-(3, 0) [steal]",inf,True,ok,True,True,False,,0.16,3.99,agree
+synthetic/071,59,"(1, 0)<-(4, 0) [steal]",0,True,ok,True,False,False,,0.17,26.64,agree
+synthetic/071,59,"(1, 0)<-(4, 0) [steal]",inf,True,ok,True,False,False,,0.17,39.73,agree
+synthetic/075,27,"(3, 1)<-(1, 1) [steal]",0,True,ok,True,False,False,,0.1,0.8,agree
+synthetic/075,27,"(3, 1)<-(1, 1) [steal]",inf,True,ok,True,False,False,,0.08,0.69,agree
+synthetic/076,42,"(1, 0)<-(2, 0) [swap]",0,True,ok,True,True,True,,0.13,1.29,agree
+synthetic/076,42,"(1, 0)<-(2, 0) [swap]",inf,True,ok,True,True,True,,0.13,1.4,agree
+synthetic/076,42,"(1, 0)<-(2, 0) [steal]",0,True,ok,True,False,False,,0.12,1.5,agree
+synthetic/076,42,"(1, 0)<-(2, 0) [steal]",inf,True,ok,True,False,False,,0.13,1.33,agree
+synthetic/076,42,"(1, 1)<-(0, 0) [swap]",0,True,ok,True,True,True,,0.14,1.4,agree
+synthetic/076,42,"(1, 1)<-(0, 0) [swap]",inf,True,ok,True,True,True,,0.12,1.36,agree
+synthetic/076,42,"(1, 1)<-(0, 1) [steal]",0,True,ok,True,True,False,,0.13,0.46,agree
+synthetic/076,42,"(1, 1)<-(0, 1) [steal]",inf,True,ok,True,True,False,,0.12,0.46,agree
+synthetic/077,57,"(0, 0)<-(2, 1) [steal]",0,True,ok,True,False,False,,0.15,5.72,agree
+synthetic/077,57,"(0, 0)<-(2, 1) [steal]",inf,True,ok,True,False,False,,0.15,21.56,agree
+synthetic/079,43,"(2, 0)<-(0, 2) [steal]",0,True,ok,True,True,False,,0.13,0.62,agree
+synthetic/079,43,"(2, 0)<-(0, 2) [steal]",inf,True,ok,True,True,False,,0.13,2.4,agree
+synthetic/079,43,"(4, 2)<-(2, 1) [steal]",0,True,ok,True,False,False,,0.17,2.79,agree
+synthetic/079,43,"(4, 2)<-(2, 1) [steal]",inf,True,ok,True,False,False,,0.14,2.76,agree
+synthetic/081,49,"(2, 1)<-(4, 0) [steal]",0,True,ok,True,False,False,,0.16,78.09,agree
+synthetic/081,49,"(2, 1)<-(4, 0) [steal]",inf,True,ok,True,False,False,,0.16,1308.22,agree
+synthetic/081,49,"(4, 1)<-(3, 1) [steal]",0,False,witness cut by the horizon closure,False,False,False,,0.08,26.23,agree
+synthetic/081,49,"(4, 1)<-(3, 1) [steal]",inf,True,ok,True,True,True,,0.19,1233.35,agree
+synthetic/082,63,"(0, 2)<-(1, 6) [steal]",0,False,witness cut by the horizon closure,False,False,False,,0.11,2.83,agree
+synthetic/082,63,"(0, 2)<-(1, 6) [steal]",inf,True,ok,True,True,False,,0.2,7.44,agree
+synthetic/082,63,"(2, 0)<-(1, 1) [steal]",0,True,ok,True,False,False,,0.14,4.7,agree
+synthetic/082,63,"(2, 0)<-(1, 1) [steal]",inf,True,ok,True,False,False,,0.14,32.67,agree
+synthetic/083,46,"(0, 0)<-(3, 0) [steal]",0,False,constraint cycle,False,False,False,,0.13,0.25,agree
+synthetic/083,46,"(0, 0)<-(3, 0) [steal]",inf,True,ok,True,False,False,,0.12,3.36,agree
+synthetic/083,46,"(0, 1)<-(3, 0) [steal]",0,False,constraint cycle,False,False,False,,0.16,0.25,agree
+synthetic/083,46,"(0, 1)<-(3, 0) [steal]",inf,True,ok,True,False,False,,0.14,3.68,agree
+synthetic/084,28,"(2, 0)<-(1, 1) [steal]",0,True,ok,True,True,False,,0.1,0.53,agree
+synthetic/084,28,"(2, 0)<-(1, 1) [steal]",inf,True,ok,True,True,False,,0.08,0.75,agree
+synthetic/085,50,"(1, 0)<-(2, 0) [steal]",0,True,ok,True,False,False,,0.12,8.81,agree
+synthetic/085,50,"(1, 0)<-(2, 0) [steal]",inf,True,ok,True,False,False,,0.13,22.55,agree
+synthetic/086,29,"(1, 0)<-(2, 0) [steal]",0,True,ok,True,True,True,,0.15,0.85,agree
+synthetic/086,29,"(1, 0)<-(2, 0) [steal]",inf,True,ok,True,True,True,,0.11,1.27,agree
+synthetic/087,43,"(1, 0)<-(0, 1) [steal]",0,True,ok,True,False,False,,0.14,7.94,agree
+synthetic/087,43,"(1, 0)<-(0, 1) [steal]",inf,True,ok,True,False,False,,0.13,101.72,agree
+synthetic/087,43,"(1, 3)<-(3, 2) [steal]",0,False,witness cut by the horizon closure,False,False,False,,0.09,2.77,agree
+synthetic/087,43,"(1, 3)<-(3, 2) [steal]",inf,True,ok,True,True,True,,0.17,137.45,agree
+synthetic/087,43,"(2, 1)<-(3, 0) [steal]",0,True,ok,True,True,False,,0.14,0.59,agree
+synthetic/087,43,"(2, 1)<-(3, 0) [steal]",inf,True,ok,True,True,True,,0.13,42.12,agree
+synthetic/087,43,"(2, 2)<-(3, 0) [steal]",0,False,constraint cycle,False,False,False,,0.13,6.97,agree
+synthetic/087,43,"(2, 2)<-(3, 0) [steal]",inf,True,ok,True,False,False,,0.14,132.35,agree
+synthetic/087,43,"(3, 0)<-(2, 0) [steal]",0,False,constraint cycle,False,False,False,,0.16,5.68,agree
+synthetic/087,43,"(3, 0)<-(2, 0) [steal]",inf,True,ok,True,True,True,,0.16,88.62,agree
+synthetic/088,46,"(2, 0)<-(0, 2) [steal]",0,True,ok,True,False,False,,0.16,16.78,agree
+synthetic/088,46,"(2, 0)<-(0, 2) [steal]",inf,True,ok,True,False,False,,0.17,12.85,agree
+synthetic/088,46,"(2, 0)<-(3, 0) [steal]",0,True,ok,True,True,True,,0.17,18.74,agree
+synthetic/088,46,"(2, 0)<-(3, 0) [steal]",inf,True,ok,True,True,True,,0.19,14.13,agree
+synthetic/089,44,"(1, 2)<-(0, 0) [swap]",0,False,"non-overtaking: send(0, 0)->1 tag=1 64B would reach recv(1, 1) src=ANY tag=1 cap=4096B before send(0, 1)->1 tag=1 64B",False,False,False,,0.07,4.84,agree
+synthetic/089,44,"(1, 2)<-(0, 0) [swap]",inf,False,"non-overtaking: send(0, 0)->1 tag=1 64B would reach recv(1, 1) src=ANY tag=1 cap=4096B before send(0, 1)->1 tag=1 64B",False,False,False,,0.06,10.18,agree
+synthetic/091,57,"(2, 0)<-(1, 0) [steal]",0,False,"non-overtaking: send(0, 0)->2 tag=1 4B would reach recv(2, 1) src=ANY tag=1 cap=4096B before send(0, 1)->2 tag=1 64B",True,False,False,,0.08,3.32,agree
+synthetic/091,57,"(2, 0)<-(1, 0) [steal]",inf,False,"non-overtaking: send(0, 0)->2 tag=1 4B would reach recv(2, 1) src=ANY tag=1 cap=4096B before send(0, 1)->2 tag=1 64B",False,False,False,,0.07,16.56,agree
+synthetic/091,57,"(2, 1)<-(0, 0) [swap]",0,False,witness cut by the horizon closure,False,False,False,,0.08,3.04,agree
+synthetic/091,57,"(2, 1)<-(0, 0) [swap]",inf,False,"non-overtaking: send(0, 0)->2 tag=1 4B would reach recv(2, 0) src=ANY tag=1 cap=4096B before send(0, 1)->2 tag=1 64B",False,False,False,,0.07,13.02,agree
+synthetic/091,57,"(2, 1)<-(1, 0) [steal]",0,True,ok,True,False,False,,0.14,3.07,agree
+synthetic/091,57,"(2, 1)<-(1, 0) [steal]",inf,True,ok,True,False,False,,0.14,13.43,agree
+synthetic/094,32,"(2, 0)<-(1, 0) [steal]",0,True,ok,True,True,False,,0.11,0.28,agree
+synthetic/094,32,"(2, 0)<-(1, 0) [steal]",inf,True,ok,True,True,True,,0.09,0.4,agree
+synthetic/095,42,"(2, 0)<-(0, 3) [steal]",0,False,witness cut by the horizon closure,False,False,False,,0.08,0.29,agree
+synthetic/095,42,"(2, 0)<-(0, 3) [steal]",inf,True,ok,True,False,False,,0.14,21.52,agree
+synthetic/096,40,"(2, 0)<-(1, 1) [steal]",0,True,ok,True,False,False,,0.11,0.87,agree
+synthetic/096,40,"(2, 0)<-(1, 1) [steal]",inf,True,ok,True,False,False,,0.09,1.01,agree
+synthetic/098,55,"(1, 3)<-(2, 3) [steal]",0,True,ok,True,True,True,,0.22,101.75,agree
+synthetic/098,55,"(1, 3)<-(2, 3) [steal]",inf,True,ok,True,True,True,,0.21,361.71,agree
+synthetic/098,55,"(3, 0)<-(2, 2) [steal]",0,True,ok,True,False,False,,0.21,76.51,agree
+synthetic/098,55,"(3, 0)<-(2, 2) [steal]",inf,True,ok,True,False,False,,0.2,306.99,agree
+synthetic/099,54,"(0, 3)<-(2, 1) [steal]",0,True,ok,True,False,False,,0.19,3.36,agree
+synthetic/099,54,"(0, 3)<-(2, 1) [steal]",inf,True,ok,True,False,False,,0.17,18.74,agree
+synthetic/099,54,"(1, 0)<-(2, 2) [steal]",0,True,ok,True,True,False,,0.19,0.86,agree
+synthetic/099,54,"(1, 0)<-(2, 2) [steal]",inf,True,ok,True,True,False,,0.16,8.36,agree
+synthetic/100,38,"(1, 0)<-(2, 0) [steal]",0,True,ok,True,False,False,,0.11,1.88,agree
+synthetic/100,38,"(1, 0)<-(2, 0) [steal]",inf,True,ok,True,False,False,,0.11,1.63,agree
+synthetic/101,54,"(0, 0)<-(1, 0) [steal]",0,False,constraint cycle,False,False,False,,0.13,73.61,agree
+synthetic/101,54,"(0, 0)<-(1, 0) [steal]",inf,True,ok,True,False,False,,0.17,822.37,agree
+synthetic/101,54,"(1, 0)<-(2, 0) [steal]",0,True,ok,True,False,False,,0.2,119.48,agree
+synthetic/101,54,"(1, 0)<-(2, 0) [steal]",inf,True,ok,True,False,False,,0.14,1099.65,agree
+synthetic/101,54,"(1, 1)<-(0, 1) [steal]",0,False,witness cut by the horizon closure,False,False,False,,0.12,5.37,agree
+synthetic/101,54,"(1, 1)<-(0, 1) [steal]",inf,True,ok,True,True,False,,0.16,19.84,agree
+synthetic/101,54,"(3, 1)<-(1, 3) [steal]",0,False,constraint cycle,False,False,False,,0.21,87.8,agree
+synthetic/101,54,"(3, 1)<-(1, 3) [steal]",inf,True,ok,True,False,False,,0.2,1405.53,agree
+synthetic/103,52,"(0, 0)<-(2, 1) [steal]",0,False,witness cut by the horizon closure,False,False,False,,0.09,0.31,agree
+synthetic/103,52,"(0, 0)<-(2, 1) [steal]",inf,True,ok,True,False,False,,0.15,1.77,agree
+synthetic/106,41,"(3, 0)<-(1, 1) [steal]",0,True,ok,True,True,False,,0.11,0.4,agree
+synthetic/106,41,"(3, 0)<-(1, 1) [steal]",inf,True,ok,True,True,False,,0.09,0.36,agree
+synthetic/106,41,"(3, 2)<-(2, 2) [swap]",0,True,ok,True,True,True,,0.14,1.93,agree
+synthetic/106,41,"(3, 2)<-(2, 2) [swap]",inf,True,ok,True,True,True,,0.14,2.48,agree
+synthetic/106,41,"(3, 2)<-(2, 2) [steal]",0,True,ok,True,False,False,,0.15,1.81,agree
+synthetic/106,41,"(3, 2)<-(2, 2) [steal]",inf,True,ok,True,False,False,,0.15,2.43,agree
+synthetic/106,41,"(3, 3)<-(1, 2) [swap]",0,True,ok,True,True,True,,0.13,2.32,agree
+synthetic/106,41,"(3, 3)<-(1, 2) [swap]",inf,True,ok,True,True,True,,0.15,2.84,agree
+synthetic/106,41,"(3, 3)<-(1, 3) [swap]",0,True,ok,True,True,True,,0.15,3.19,agree
+synthetic/106,41,"(3, 3)<-(1, 3) [swap]",inf,True,ok,True,True,True,,0.14,2.79,agree
+synthetic/106,41,"(3, 3)<-(1, 3) [steal]",0,True,ok,True,False,False,,0.16,3.07,agree
+synthetic/106,41,"(3, 3)<-(1, 3) [steal]",inf,True,ok,True,False,False,,0.14,2.79,agree
+synthetic/106,41,"(3, 4)<-(1, 2) [swap]",0,False,"non-overtaking: send(1, 2)->3 tag=1 64B would reach recv(3, 2) src=ANY tag=ANY cap=4096B before send(1, 3)->3 tag=1 64B",False,False,False,,0.05,3.15,agree
+synthetic/106,41,"(3, 4)<-(1, 2) [swap]",inf,False,"non-overtaking: send(1, 2)->3 tag=1 64B would reach recv(3, 2) src=ANY tag=ANY cap=4096B before send(1, 3)->3 tag=1 64B",False,False,False,,0.04,3.57,agree
+synthetic/106,41,"(3, 4)<-(2, 2) [swap]",0,True,ok,True,True,True,,0.17,3.61,agree
+synthetic/106,41,"(3, 4)<-(2, 2) [swap]",inf,True,ok,True,True,True,,0.14,3.54,agree
+synthetic/109,34,"(2, 0)<-(4, 0) [steal]",0,True,ok,True,False,False,,0.1,0.57,agree
+synthetic/109,34,"(2, 0)<-(4, 0) [steal]",inf,True,ok,True,False,False,,0.1,0.54,agree
+synthetic/110,34,"(2, 0)<-(3, 1) [steal]",0,False,witness cut by the horizon closure,False,False,False,,0.05,0.18,agree
+synthetic/110,34,"(2, 0)<-(3, 1) [steal]",inf,True,ok,True,False,False,,0.1,0.69,agree
+synthetic/111,28,"(2, 0)<-(0, 1) [steal]",0,True,ok,True,False,False,,0.08,0.8,agree
+synthetic/111,28,"(2, 0)<-(0, 1) [steal]",inf,True,ok,True,False,False,,0.07,2.14,agree
+synthetic/113,39,"(1, 1)<-(0, 1) [steal]",0,True,ok,True,False,False,,0.11,1.11,agree
+synthetic/113,39,"(1, 1)<-(0, 1) [steal]",inf,True,ok,True,False,False,,0.11,1.8,agree
+synthetic/114,33,"(2, 0)<-(3, 0) [steal]",0,True,ok,True,True,False,,0.1,0.26,agree
+synthetic/114,33,"(2, 0)<-(3, 0) [steal]",inf,True,ok,True,True,False,,0.09,0.27,agree
+synthetic/115,54,"(2, 0)<-(0, 1) [steal]",0,True,ok,True,False,False,,0.16,18.5,agree
+synthetic/115,54,"(2, 0)<-(0, 1) [steal]",inf,True,ok,True,False,False,,0.16,118.57,agree
+synthetic/116,29,"(1, 0)<-(2, 0) [steal]",0,True,ok,True,True,False,,0.09,0.23,agree
+synthetic/116,29,"(1, 0)<-(2, 0) [steal]",inf,True,ok,True,False,False,,0.09,0.51,agree
+synthetic/118,27,"(1, 0)<-(2, 0) [steal]",0,True,ok,True,False,False,,0.08,0.53,agree
+synthetic/118,27,"(1, 0)<-(2, 0) [steal]",inf,True,ok,True,False,False,,0.07,0.51,agree
+synthetic/119,62,"(3, 0)<-(0, 4) [steal]",0,True,ok,True,True,True,,0.23,15.1,agree
+synthetic/119,62,"(3, 0)<-(0, 4) [steal]",inf,True,ok,True,True,True,,0.24,20.98,agree
+synthetic/121,37,"(1, 1)<-(3, 2) [steal]",0,False,witness cut by the horizon closure,False,False,False,,0.05,0.22,agree
+synthetic/121,37,"(1, 1)<-(3, 2) [steal]",inf,True,ok,True,True,True,,0.12,0.57,agree
+synthetic/122,58,"(0, 1)<-(2, 1) [steal]",0,True,ok,True,False,False,,0.2,6.12,agree
+synthetic/122,58,"(0, 1)<-(2, 1) [steal]",inf,True,ok,True,False,False,,0.19,9.29,agree
+synthetic/122,58,"(3, 1)<-(2, 4) [steal]",0,True,ok,True,True,True,,0.25,10.47,agree
+synthetic/122,58,"(3, 1)<-(2, 4) [steal]",inf,True,ok,True,True,True,,0.24,14.49,agree
+synthetic/123,43,"(0, 1)<-(1, 0) [swap]",0,False,"non-overtaking: send(1, 0)->0 tag=2 4096B would reach recv(0, 0) src=ANY tag=2 cap=4096B before send(1, 1)->0 tag=2 4B",False,False,False,,0.07,0.39,agree
+synthetic/123,43,"(0, 1)<-(1, 0) [swap]",inf,False,"non-overtaking: send(1, 0)->0 tag=2 4096B would reach recv(0, 0) src=ANY tag=2 cap=4096B before send(1, 1)->0 tag=2 4B",False,False,False,,0.06,0.49,agree
+synthetic/125,49,"(1, 0)<-(0, 0) [steal]",0,True,ok,True,False,False,,0.12,11.5,agree
+synthetic/125,49,"(1, 0)<-(0, 0) [steal]",inf,True,ok,True,False,False,,0.13,43.8,agree
+synthetic/125,49,"(1, 1)<-(2, 1) [steal]",0,True,ok,True,False,False,,0.14,12.21,agree
+synthetic/125,49,"(1, 1)<-(2, 1) [steal]",inf,True,ok,True,False,False,,0.14,51.85,agree
+synthetic/125,49,"(2, 1)<-(1, 1) [steal]",0,False,witness cut by the horizon closure,False,False,False,,0.07,0.78,agree
+synthetic/125,49,"(2, 1)<-(1, 1) [steal]",inf,True,ok,True,False,False,,0.18,12.31,agree
+synthetic/125,49,"(2, 3)<-(0, 4) [steal]",0,True,ok,True,False,False,,0.19,23.25,agree
+synthetic/125,49,"(2, 3)<-(0, 4) [steal]",inf,True,ok,True,False,False,,0.18,93.05,agree
+synthetic/125,49,"(2, 5)<-(1, 1) [swap]",0,False,"non-overtaking: send(0, 4)->2 tag=2 64B would reach recv(2, 3) src=ANY tag=2 cap=4096B before send(0, 5)->2 tag=2 4096B",False,False,False,,0.07,26.3,agree
+synthetic/125,49,"(2, 5)<-(1, 1) [swap]",inf,False,"non-overtaking: send(0, 4)->2 tag=2 64B would reach recv(2, 3) src=ANY tag=2 cap=4096B before send(0, 5)->2 tag=2 4096B",False,False,False,,0.06,111.46,agree
+synthetic/126,65,"(3, 1)<-(0, 2) [steal]",0,True,ok,True,True,False,,0.16,3.49,agree
+synthetic/126,65,"(3, 1)<-(0, 2) [steal]",inf,True,ok,True,True,False,,0.15,12.27,agree
+synthetic/128,52,"(2, 0)<-(0, 2) [steal]",0,True,ok,True,True,False,,0.17,0.87,agree
+synthetic/128,52,"(2, 0)<-(0, 2) [steal]",inf,True,ok,True,True,False,,0.15,4.52,agree
+synthetic/128,52,"(2, 0)<-(3, 0) [steal]",0,True,ok,True,False,False,,0.19,4.11,agree
+synthetic/128,52,"(2, 0)<-(3, 0) [steal]",inf,True,ok,True,False,False,,0.16,6.54,agree
+synthetic/129,36,"(0, 0)<-(1, 0) [steal]",0,True,ok,True,False,False,,0.13,1.1,agree
+synthetic/129,36,"(0, 0)<-(1, 0) [steal]",inf,True,ok,True,False,False,,0.11,1.02,agree
+synthetic/129,36,"(0, 0)<-(2, 0) [steal]",0,True,ok,True,True,False,,0.12,0.38,agree
+synthetic/129,36,"(0, 0)<-(2, 0) [steal]",inf,True,ok,True,False,False,,0.1,0.98,agree
+synthetic/129,36,"(0, 2)<-(1, 0) [steal]",0,False,constraint cycle,False,False,False,,0.11,1.0,agree
+synthetic/129,36,"(0, 2)<-(1, 0) [steal]",inf,True,ok,True,False,False,,0.12,2.06,agree
+synthetic/132,59,"(1, 3)<-(0, 3) [steal]",0,True,ok,True,False,False,,0.22,2.24,agree
+synthetic/132,59,"(1, 3)<-(0, 3) [steal]",inf,True,ok,True,False,False,,0.19,3.31,agree
+synthetic/133,33,"(2, 0)<-(0, 0) [steal]",0,True,ok,True,False,False,,0.11,1.32,agree
+synthetic/133,33,"(2, 0)<-(0, 0) [steal]",inf,True,ok,True,False,False,,0.1,2.41,agree
+synthetic/136,56,"(0, 0)<-(1, 1) [steal]",0,False,witness cut by the horizon closure,False,False,False,,0.07,0.22,agree
+synthetic/136,56,"(0, 0)<-(1, 1) [steal]",inf,True,ok,True,False,False,,0.13,7.11,agree
+synthetic/136,56,"(0, 4)<-(4, 2) [steal]",0,True,ok,True,True,True,,0.2,6.96,agree
+synthetic/136,56,"(0, 4)<-(4, 2) [steal]",inf,True,ok,True,True,True,,0.18,11.97,agree
+synthetic/136,56,"(3, 0)<-(0, 1) [steal]",0,True,ok,True,False,False,,0.23,9.0,agree
+synthetic/136,56,"(3, 0)<-(0, 1) [steal]",inf,True,ok,True,False,False,,0.21,12.24,agree
+synthetic/138,33,"(1, 2)<-(0, 2) [steal]",0,True,ok,True,True,True,,0.11,0.43,agree
+synthetic/138,33,"(1, 2)<-(0, 2) [steal]",inf,True,ok,True,True,True,,0.1,0.49,agree
+synthetic/139,63,"(0, 0)<-(2, 0) [steal]",0,True,ok,True,False,False,,0.16,12.86,agree
+synthetic/139,63,"(0, 0)<-(2, 0) [steal]",inf,True,ok,True,False,False,,0.15,1064.95,agree
+synthetic/139,63,"(1, 0)<-(2, 2) [steal]",0,False,witness cut by the horizon closure,False,False,False,,0.13,0.93,agree
+synthetic/139,63,"(1, 0)<-(2, 2) [steal]",inf,True,ok,True,True,True,,0.21,55.74,agree
+synthetic/139,63,"(1, 0)<-(3, 1) [steal]",0,False,witness cut by the horizon closure,False,False,False,,0.09,0.86,agree
+synthetic/139,63,"(1, 0)<-(3, 1) [steal]",inf,True,ok,True,False,False,,0.19,341.37,agree
+synthetic/139,63,"(1, 2)<-(2, 2) [steal]",0,False,"non-overtaking: send(3, 1)->1 tag=1 4096B would reach recv(1, 3) src=3 tag=1 cap=4096B before send(3, 2)->1 tag=1 4B",False,False,False,,0.12,16.01,agree
+synthetic/139,63,"(1, 2)<-(2, 2) [steal]",inf,False,"non-overtaking: send(3, 1)->1 tag=1 4096B would reach recv(1, 3) src=3 tag=1 cap=4096B before send(3, 2)->1 tag=1 4B",False,False,False,,0.07,1001.74,agree
+synthetic/140,47,"(0, 2)<-(2, 1) [steal]",0,False,constraint cycle,False,False,False,,0.13,2.46,agree
+synthetic/140,47,"(0, 2)<-(2, 1) [steal]",inf,True,ok,True,False,False,,0.13,31.61,agree
+synthetic/144,42,"(0, 1)<-(1, 0) [steal]",0,True,ok,True,True,False,,0.15,2.27,agree
+synthetic/144,42,"(0, 1)<-(1, 0) [steal]",inf,True,ok,True,True,True,,0.13,8.08,agree
+synthetic/144,42,"(1, 0)<-(0, 0) [steal]",0,True,ok,True,False,False,,0.14,1.97,agree
+synthetic/144,42,"(1, 0)<-(0, 0) [steal]",inf,True,ok,True,False,False,,0.11,6.38,agree
+synthetic/144,42,"(1, 0)<-(3, 0) [steal]",0,True,ok,True,True,False,,0.12,1.46,agree
+synthetic/144,42,"(1, 0)<-(3, 0) [steal]",inf,True,ok,True,True,False,,0.12,4.82,agree
+synthetic/144,42,"(1, 1)<-(3, 0) [steal]",0,True,ok,True,True,False,,0.14,1.88,agree
+synthetic/144,42,"(1, 1)<-(3, 0) [steal]",inf,True,ok,True,True,True,,0.12,5.11,agree
+synthetic/146,58,"(1, 2)<-(3, 0) [steal]",0,True,ok,True,False,False,,0.18,28.75,agree
+synthetic/146,58,"(1, 2)<-(3, 0) [steal]",inf,True,ok,True,False,False,,0.21,55.71,agree
+synthetic/148,50,"(1, 0)<-(2, 0) [steal]",0,True,ok,True,False,False,,0.12,3.31,agree
+synthetic/148,50,"(1, 0)<-(2, 0) [steal]",inf,True,ok,True,False,False,,0.13,3.34,agree
+synthetic/148,50,"(1, 0)<-(4, 0) [steal]",0,True,ok,True,False,False,,0.12,3.21,agree
+synthetic/148,50,"(1, 0)<-(4, 0) [steal]",inf,True,ok,True,False,False,,0.13,3.36,agree
+synthetic/148,50,"(1, 1)<-(2, 0) [steal]",0,True,ok,True,False,False,,0.14,3.4,agree
+synthetic/148,50,"(1, 1)<-(2, 0) [steal]",inf,True,ok,True,False,False,,0.13,3.46,agree
+synthetic/148,50,"(1, 4)<-(4, 2) [steal]",0,True,ok,True,True,False,,0.18,6.1,agree
+synthetic/148,50,"(1, 4)<-(4, 2) [steal]",inf,True,ok,True,False,False,,0.18,6.94,agree
+synthetic/149,37,"(0, 0)<-(2, 0) [steal]",0,True,ok,True,True,False,,0.11,0.43,agree
+synthetic/149,37,"(0, 0)<-(2, 0) [steal]",inf,True,ok,True,True,True,,0.11,0.8,agree
+synthetic/149,37,"(0, 1)<-(2, 0) [steal]",0,True,ok,True,True,True,,0.14,1.03,agree
+synthetic/149,37,"(0, 1)<-(2, 0) [steal]",inf,True,ok,True,True,True,,0.14,2.58,agree
+synthetic/149,37,"(1, 1)<-(0, 0) [swap]",0,False,"non-overtaking: send(0, 0)->1 tag=1 64B would reach recv(1, 0) src=0 tag=ANY cap=4096B before send(0, 1)->1 tag=1 64B",False,False,False,,0.07,0.85,agree
+synthetic/149,37,"(1, 1)<-(0, 0) [swap]",inf,False,"non-overtaking: send(0, 0)->1 tag=1 64B would reach recv(1, 0) src=0 tag=ANY cap=4096B before send(0, 1)->1 tag=1 64B",False,False,False,,0.06,1.53,agree
+synthetic/149,37,"(1, 1)<-(3, 3) [steal]",0,True,ok,True,True,True,,0.15,1.04,agree
+synthetic/149,37,"(1, 1)<-(3, 3) [steal]",inf,True,ok,True,True,True,,0.13,1.68,agree
+synthetic/150,41,"(1, 3)<-(2, 2) [steal]",0,True,ok,True,True,False,,0.13,0.63,agree
+synthetic/150,41,"(1, 3)<-(2, 2) [steal]",inf,True,ok,True,True,True,,0.12,4.68,agree
+synthetic/151,33,"(1, 0)<-(0, 2) [steal]",0,True,ok,True,True,False,,0.1,1.87,agree
+synthetic/151,33,"(1, 0)<-(0, 2) [steal]",inf,True,ok,True,True,False,,0.1,9.27,agree
+synthetic/155,52,"(0, 0)<-(1, 2) [swap]",0,True,ok,True,True,False,,0.15,1.41,agree
+synthetic/155,52,"(0, 0)<-(1, 2) [swap]",inf,True,ok,True,True,True,,0.14,34.38,agree
+synthetic/155,52,"(0, 0)<-(1, 2) [steal]",0,True,ok,True,False,False,,0.18,1.29,agree
+synthetic/155,52,"(0, 0)<-(1, 2) [steal]",inf,True,ok,True,False,False,,0.14,29.89,agree
+synthetic/155,52,"(0, 1)<-(2, 0) [swap]",0,True,ok,True,True,False,,0.18,1.68,agree
+synthetic/155,52,"(0, 1)<-(2, 0) [swap]",inf,True,ok,True,True,True,,0.15,40.21,agree
+synthetic/155,52,"(1, 1)<-(2, 1) [steal]",0,False,witness cut by the horizon closure,False,False,False,,0.06,2.32,agree
+synthetic/155,52,"(1, 1)<-(2, 1) [steal]",inf,True,ok,True,True,False,,0.17,39.76,agree
+synthetic/157,40,"(0, 3)<-(1, 2) [swap]",0,False,"non-overtaking: send(1, 2)->0 tag=1 64B would reach recv(0, 2) src=ANY tag=ANY cap=4096B before send(1, 3)->0 tag=1 4096B",False,False,False,,0.06,0.65,agree
+synthetic/157,40,"(0, 3)<-(1, 2) [swap]",inf,False,"non-overtaking: send(1, 2)->0 tag=1 64B would reach recv(0, 2) src=ANY tag=ANY cap=4096B before send(1, 3)->0 tag=1 4096B",False,False,False,,0.05,0.8,agree
+synthetic/158,56,"(2, 2)<-(0, 1) [steal]",0,True,ok,True,False,False,,0.22,4.31,agree
+synthetic/158,56,"(2, 2)<-(0, 1) [steal]",inf,True,ok,True,False,False,,0.2,63.47,agree
+synthetic/158,56,"(2, 2)<-(3, 1) [steal]",0,True,ok,True,True,False,,0.19,0.63,agree
+synthetic/158,56,"(2, 2)<-(3, 1) [steal]",inf,True,ok,True,True,False,,0.19,12.6,agree
+synthetic/158,56,"(3, 0)<-(1, 3) [steal]",0,False,witness cut by the horizon closure,False,False,False,,0.1,0.32,agree
+synthetic/158,56,"(3, 0)<-(1, 3) [steal]",inf,True,ok,True,False,False,,0.2,19.09,agree
+synthetic/158,56,"(3, 2)<-(1, 6) [steal]",0,False,constraint cycle,False,False,False,,0.22,3.63,agree
+synthetic/158,56,"(3, 2)<-(1, 6) [steal]",inf,True,ok,True,False,False,,0.21,107.78,agree
+synthetic/159,68,"(0, 3)<-(2, 3) [steal]",0,False,constraint cycle,False,False,False,,0.17,2.17,agree
+synthetic/159,68,"(0, 3)<-(2, 3) [steal]",inf,True,ok,True,True,False,,0.2,23.77,agree
+synthetic/159,68,"(3, 1)<-(1, 3) [steal]",0,False,constraint cycle,False,False,False,,0.19,2.07,agree
+synthetic/159,68,"(3, 1)<-(1, 3) [steal]",inf,True,ok,True,False,False,,0.21,30.68,agree
+synthetic/160,39,"(2, 0)<-(0, 2) [steal]",0,True,ok,True,False,False,,0.13,0.84,agree
+synthetic/160,39,"(2, 0)<-(0, 2) [steal]",inf,True,ok,True,False,False,,0.12,0.83,agree
+synthetic/161,38,"(3, 0)<-(1, 2) [steal]",0,True,ok,True,True,False,,0.13,1.55,agree
+synthetic/161,38,"(3, 0)<-(1, 2) [steal]",inf,True,ok,True,True,False,,0.12,3.26,agree
+synthetic/162,43,"(2, 1)<-(0, 0) [steal]",0,True,ok,True,False,False,,0.11,1.56,agree
+synthetic/162,43,"(2, 1)<-(0, 0) [steal]",inf,True,ok,True,False,False,,0.12,15.97,agree
+synthetic/162,43,"(2, 2)<-(0, 0) [steal]",0,True,ok,True,False,False,,0.15,0.96,agree
+synthetic/162,43,"(2, 2)<-(0, 0) [steal]",inf,True,ok,True,False,False,,0.13,17.55,agree
+synthetic/164,50,"(0, 0)<-(2, 1) [steal]",0,True,ok,True,False,False,,0.14,2.71,agree
+synthetic/164,50,"(0, 0)<-(2, 1) [steal]",inf,True,ok,True,False,False,,0.13,25.27,agree
+synthetic/164,50,"(0, 1)<-(3, 2) [steal]",0,True,ok,True,True,False,,0.19,3.83,agree
+synthetic/164,50,"(0, 1)<-(3, 2) [steal]",inf,True,ok,True,False,False,,0.15,20.56,agree
+synthetic/164,50,"(3, 0)<-(1, 1) [steal]",0,True,ok,True,True,False,,0.2,5.5,agree
+synthetic/164,50,"(3, 0)<-(1, 1) [steal]",inf,True,ok,True,True,True,,0.17,6.63,agree
+synthetic/166,57,"(0, 0)<-(2, 1) [steal]",0,True,ok,True,False,False,,0.13,26.13,agree
+synthetic/166,57,"(0, 0)<-(2, 1) [steal]",inf,True,ok,True,False,False,,0.15,97.33,agree
+synthetic/166,57,"(0, 0)<-(3, 0) [steal]",0,True,ok,True,True,False,,0.18,1.34,agree
+synthetic/166,57,"(0, 0)<-(3, 0) [steal]",inf,True,ok,True,True,False,,0.15,3.21,agree
+synthetic/166,57,"(0, 1)<-(3, 0) [steal]",0,True,ok,True,True,False,,0.15,1.78,agree
+synthetic/166,57,"(0, 1)<-(3, 0) [steal]",inf,True,ok,True,True,False,,0.15,4.26,agree
+synthetic/166,57,"(3, 0)<-(0, 3) [steal]",0,True,ok,True,True,False,,0.21,11.25,agree
+synthetic/166,57,"(3, 0)<-(0, 3) [steal]",inf,True,ok,True,True,False,,0.18,67.52,agree
+synthetic/166,57,"(3, 0)<-(1, 1) [steal]",0,True,ok,True,False,False,,0.19,8.53,agree
+synthetic/166,57,"(3, 0)<-(1, 1) [steal]",inf,True,ok,True,False,False,,0.19,26.98,agree
+synthetic/167,46,"(1, 1)<-(2, 0) [steal]",0,True,ok,True,False,False,,0.14,3.33,agree
+synthetic/167,46,"(1, 1)<-(2, 0) [steal]",inf,True,ok,True,False,False,,0.14,3.84,agree
+synthetic/167,46,"(1, 1)<-(3, 1) [steal]",0,True,ok,True,True,False,,0.13,0.67,agree
+synthetic/167,46,"(1, 1)<-(3, 1) [steal]",inf,True,ok,True,True,False,,0.13,0.96,agree
+synthetic/169,44,"(0, 2)<-(1, 1) [steal]",0,True,ok,True,True,False,,0.13,0.53,agree
+synthetic/169,44,"(0, 2)<-(1, 1) [steal]",inf,True,ok,True,True,False,,0.13,0.58,agree
+synthetic/170,45,"(1, 0)<-(0, 2) [swap]",0,True,ok,True,True,True,,0.13,0.75,agree
+synthetic/170,45,"(1, 0)<-(0, 2) [swap]",inf,True,ok,True,True,True,,0.14,7.04,agree
+synthetic/170,45,"(1, 0)<-(0, 2) [steal]",0,True,ok,True,False,False,,0.12,0.8,agree
+synthetic/170,45,"(1, 0)<-(0, 2) [steal]",inf,True,ok,True,False,False,,0.14,7.76,agree
+synthetic/170,45,"(1, 1)<-(2, 0) [swap]",0,True,ok,True,True,True,,0.15,1.31,agree
+synthetic/170,45,"(1, 1)<-(2, 0) [swap]",inf,True,ok,True,True,True,,0.14,8.33,agree
+synthetic/170,45,"(1, 1)<-(2, 1) [steal]",0,True,ok,True,True,False,,0.13,0.92,agree
+synthetic/170,45,"(1, 1)<-(2, 1) [steal]",inf,True,ok,True,True,False,,0.13,2.75,agree
+synthetic/170,45,"(2, 1)<-(0, 0) [swap]",0,False,"non-overtaking: send(0, 0)->2 tag=2 64B would reach recv(2, 0) src=ANY tag=2 cap=4096B before send(0, 1)->2 tag=2 4096B",False,False,False,,0.07,0.35,agree
+synthetic/170,45,"(2, 1)<-(0, 0) [swap]",inf,False,"non-overtaking: send(0, 0)->2 tag=2 64B would reach recv(2, 0) src=ANY tag=2 cap=4096B before send(0, 1)->2 tag=2 4096B",False,False,False,,0.05,1.38,agree
+synthetic/173,47,"(0, 0)<-(4, 0) [swap]",0,False,constraint cycle,False,False,False,,0.14,0.13,agree
+synthetic/173,47,"(0, 0)<-(4, 0) [swap]",inf,True,ok,True,True,True,,0.15,10.14,agree
+synthetic/173,47,"(0, 0)<-(4, 0) [steal]",0,False,constraint cycle,False,False,False,,0.19,0.15,agree
+synthetic/173,47,"(0, 0)<-(4, 0) [steal]",inf,True,ok,True,False,False,,0.17,10.85,agree
+synthetic/173,47,"(0, 1)<-(2, 3) [swap]",0,False,constraint cycle,False,False,False,,0.17,0.14,agree
+synthetic/173,47,"(0, 1)<-(2, 3) [swap]",inf,True,ok,True,True,True,,0.16,13.98,agree
+synthetic/173,47,"(2, 2)<-(1, 0) [steal]",0,False,constraint cycle,False,False,False,,0.17,0.13,agree
+synthetic/173,47,"(2, 2)<-(1, 0) [steal]",inf,True,ok,True,False,False,,0.14,6.72,agree
+synthetic/174,56,"(0, 0)<-(4, 0) [steal]",0,True,ok,True,True,False,,0.13,0.48,agree
+synthetic/174,56,"(0, 0)<-(4, 0) [steal]",inf,True,ok,True,True,False,,0.13,0.43,agree
+synthetic/174,56,"(1, 1)<-(2, 0) [steal]",0,True,ok,True,False,False,,0.2,13.31,agree
+synthetic/174,56,"(1, 1)<-(2, 0) [steal]",inf,True,ok,True,False,False,,0.22,12.02,agree
+synthetic/174,56,"(2, 1)<-(3, 1) [steal]",0,True,ok,True,False,False,,0.2,13.54,agree
+synthetic/174,56,"(2, 1)<-(3, 1) [steal]",inf,True,ok,True,False,False,,0.19,15.05,agree
+synthetic/176,62,"(0, 0)<-(1, 0) [steal]",0,True,ok,True,False,False,,0.14,3.6,agree
+synthetic/176,62,"(0, 0)<-(1, 0) [steal]",inf,True,ok,True,False,False,,0.13,24.08,agree
+synthetic/176,62,"(0, 1)<-(3, 1) [steal]",0,True,ok,True,True,False,,0.15,0.32,agree
+synthetic/176,62,"(0, 1)<-(3, 1) [steal]",inf,True,ok,True,False,False,,0.12,13.9,agree
+synthetic/176,62,"(0, 2)<-(1, 2) [steal]",0,False,witness cut by the horizon closure,False,False,False,,0.08,3.67,agree
+synthetic/176,62,"(0, 2)<-(1, 2) [steal]",inf,True,ok,True,True,False,,0.15,14.12,agree
+synthetic/177,53,"(1, 3)<-(2, 1) [steal]",0,True,ok,True,False,False,,0.14,2.32,agree
+synthetic/177,53,"(1, 3)<-(2, 1) [steal]",inf,True,ok,True,False,False,,0.13,6.62,agree
+synthetic/177,53,"(2, 0)<-(3, 3) [steal]",0,True,ok,True,False,False,,0.2,3.74,agree
+synthetic/177,53,"(2, 0)<-(3, 3) [steal]",inf,True,ok,True,False,False,,0.19,12.02,agree
+synthetic/178,45,"(0, 0)<-(1, 0) [steal]",0,False,witness cut by the horizon closure,False,False,False,,0.05,0.16,agree
+synthetic/178,45,"(0, 0)<-(1, 0) [steal]",inf,True,ok,True,False,False,,0.1,48.9,agree
+synthetic/178,45,"(2, 0)<-(0, 0) [steal]",0,True,ok,True,True,False,,0.11,0.17,agree
+synthetic/178,45,"(2, 0)<-(0, 0) [steal]",inf,True,ok,True,True,False,,0.09,2.33,agree
+synthetic/178,45,"(2, 0)<-(1, 1) [steal]",0,False,witness cut by the horizon closure,False,False,False,,0.04,0.1,agree
+synthetic/178,45,"(2, 0)<-(1, 1) [steal]",inf,True,ok,True,False,False,,0.09,26.04,agree
+synthetic/179,29,"(2, 0)<-(0, 1) [steal]",0,True,ok,True,True,False,,0.09,0.21,agree
+synthetic/179,29,"(2, 0)<-(0, 1) [steal]",inf,True,ok,True,True,True,,0.08,1.29,agree
+synthetic/182,28,"(3, 0)<-(1, 0) [steal]",0,True,ok,True,False,False,,0.1,1.01,agree
+synthetic/182,28,"(3, 0)<-(1, 0) [steal]",inf,True,ok,True,False,False,,0.09,1.07,agree
+synthetic/184,35,"(0, 0)<-(1, 0) [steal]",0,False,constraint cycle,False,False,False,,0.11,0.15,agree
+synthetic/184,35,"(0, 0)<-(1, 0) [steal]",inf,True,ok,True,True,False,,0.11,0.45,agree
+synthetic/186,48,"(1, 2)<-(3, 1) [steal]",0,True,ok,True,False,False,,0.14,0.81,agree
+synthetic/186,48,"(1, 2)<-(3, 1) [steal]",inf,True,ok,True,False,False,,0.14,1.7,agree
+synthetic/187,52,"(0, 1)<-(1, 1) [steal]",0,False,witness cut by the horizon closure,True,True,False,,0.07,1.41,incomplete
+synthetic/187,52,"(0, 1)<-(1, 1) [steal]",inf,True,ok,True,True,False,,0.15,87.72,agree
+synthetic/187,52,"(0, 2)<-(1, 1) [steal]",0,False,constraint cycle,False,False,False,,0.2,6.26,agree
+synthetic/187,52,"(0, 2)<-(1, 1) [steal]",inf,True,ok,True,True,True,,0.16,105.78,agree
+synthetic/187,52,"(4, 1)<-(0, 0) [steal]",0,True,ok,True,False,False,,0.17,16.39,agree
+synthetic/187,52,"(4, 1)<-(0, 0) [steal]",inf,True,ok,True,False,False,,0.17,147.15,agree
+synthetic/188,54,"(2, 0)<-(3, 0) [steal]",0,False,"non-overtaking: send(1, 0)->2 tag=1 4B would reach recv(2, 2) src=ANY tag=1 cap=4096B before send(1, 1)->2 tag=1 64B",False,False,False,,0.08,1.35,agree
+synthetic/188,54,"(2, 0)<-(3, 0) [steal]",inf,False,"non-overtaking: send(1, 0)->2 tag=1 4B would reach recv(2, 2) src=ANY tag=1 cap=4096B before send(1, 1)->2 tag=1 64B",False,False,False,,0.07,6.62,agree
+synthetic/188,54,"(2, 0)<-(4, 1) [steal]",0,False,"non-overtaking: send(1, 0)->2 tag=1 4B would reach recv(2, 2) src=ANY tag=1 cap=4096B before send(1, 1)->2 tag=1 64B",False,False,False,,0.07,0.84,agree
+synthetic/188,54,"(2, 0)<-(4, 1) [steal]",inf,False,"non-overtaking: send(1, 0)->2 tag=1 4B would reach recv(2, 2) src=ANY tag=1 cap=4096B before send(1, 1)->2 tag=1 64B",False,False,False,,0.07,8.24,agree
+synthetic/188,54,"(2, 2)<-(1, 0) [swap]",0,False,"non-overtaking: send(1, 0)->2 tag=1 4B would reach recv(2, 0) src=ANY tag=ANY cap=4096B before send(1, 1)->2 tag=1 64B",False,False,False,,0.08,1.91,agree
+synthetic/188,54,"(2, 2)<-(1, 0) [swap]",inf,False,"non-overtaking: send(1, 0)->2 tag=1 4B would reach recv(2, 0) src=ANY tag=ANY cap=4096B before send(1, 1)->2 tag=1 64B",False,False,False,,0.07,13.33,agree
+synthetic/188,54,"(2, 2)<-(4, 1) [steal]",0,True,ok,True,True,False,,0.15,2.21,agree
+synthetic/188,54,"(2, 2)<-(4, 1) [steal]",inf,True,ok,True,True,False,,0.15,12.96,agree
+synthetic/189,55,"(0, 3)<-(3, 2) [steal]",0,True,ok,True,True,True,,0.2,4.53,agree
+synthetic/189,55,"(0, 3)<-(3, 2) [steal]",inf,True,ok,True,True,True,,0.19,19.0,agree
+synthetic/189,55,"(2, 0)<-(3, 1) [steal]",0,True,ok,True,False,False,,0.17,1.97,agree
+synthetic/189,55,"(2, 0)<-(3, 1) [steal]",inf,True,ok,True,False,False,,0.13,11.83,agree
+synthetic/190,51,"(0, 1)<-(1, 1) [steal]",0,True,ok,True,False,False,,0.14,3.21,agree
+synthetic/190,51,"(0, 1)<-(1, 1) [steal]",inf,True,ok,True,False,False,,0.12,14.04,agree
+synthetic/191,58,"(0, 3)<-(2, 1) [steal]",0,True,ok,True,True,False,,0.17,18.07,agree
+synthetic/191,58,"(0, 3)<-(2, 1) [steal]",inf,True,ok,True,True,False,,0.21,57.64,agree
+synthetic/191,58,"(2, 1)<-(0, 2) [steal]",0,False,witness cut by the horizon closure,False,False,False,,0.09,27.48,agree
+synthetic/191,58,"(2, 1)<-(0, 2) [steal]",inf,True,ok,True,True,True,,0.21,42.39,agree
+synthetic/192,47,"(3, 1)<-(1, 0) [steal]",0,True,ok,True,True,True,,0.16,1.06,agree
+synthetic/192,47,"(3, 1)<-(1, 0) [steal]",inf,True,ok,True,True,True,,0.14,1.0,agree
+synthetic/193,41,"(0, 0)<-(2, 1) [steal]",0,True,ok,True,True,False,,0.1,0.26,agree
+synthetic/193,41,"(0, 0)<-(2, 1) [steal]",inf,True,ok,True,True,False,,0.09,0.4,agree
+synthetic/195,61,"(1, 2)<-(0, 4) [steal]",0,True,ok,True,False,False,,0.21,9.97,agree
+synthetic/195,61,"(1, 2)<-(0, 4) [steal]",inf,True,ok,True,False,False,,0.24,9.7,agree
+synthetic/198,46,"(0, 5)<-(1, 4) [swap]",0,False,"non-overtaking: send(1, 4)->0 tag=2 64B would reach recv(0, 3) src=ANY tag=ANY cap=4096B before send(1, 7)->0 tag=2 4096B",False,False,False,,0.07,0.34,agree
+synthetic/198,46,"(0, 5)<-(1, 4) [swap]",inf,False,"non-overtaking: send(1, 4)->0 tag=2 64B would reach recv(0, 3) src=ANY tag=ANY cap=4096B before send(1, 7)->0 tag=2 4096B",False,False,False,,0.05,0.65,agree

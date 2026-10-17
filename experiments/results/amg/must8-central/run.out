@@ -1,0 +1,78 @@
+[MUST] MUST configuration ... centralized checks with fall-back application crash handling (very slow)
+[MUST] Using prebuilt infrastructure at /MBB-builds/MUST192/modules/prebuilds/c45dbfd896fd9699d791c013f6a6d303
+[MUST] Weaver ... success
+[MUST] Generating P^nMPI configuration ... success
+[MUST] Infrastructure in "/MBB-builds/MUST192/modules/prebuilds/c45dbfd896fd9699d791c013f6a6d303" is present and used.
+[MUST] Search for linked P^nMPI ... not found ... using LD_PRELOAD to load P^nMPI ... success
+[MUST] Executing application:
+Running with these driver parameters:
+  solver ID    = 1
+
+  Laplacian_27pt:
+    (Nx, Ny, Nz) = (32, 32, 32)
+    (Px, Py, Pz) = (2, 2, 2)
+
+=============================================
+Generate Matrix:
+=============================================
+Spatial Operator:
+  wall clock time = 0.006813 seconds
+  wall MFLOPS     = 0.000000
+  cpu clock time  = 0.006813 seconds
+  cpu MFLOPS      = 0.000000
+
+  RHS vector has unit components
+  Initial guess is 0
+=============================================
+IJ Vector Setup:
+=============================================
+RHS and Initial Guess:
+  wall clock time = 0.003459 seconds
+  wall MFLOPS     = 0.000000
+  cpu clock time  = 0.003459 seconds
+  cpu MFLOPS      = 0.000000
+
+=============================================
+Problem 1: AMG Setup Time:
+=============================================
+PCG Setup:
+  wall clock time = 0.345459 seconds
+  wall MFLOPS     = 0.000000
+  cpu clock time  = 0.345399 seconds
+  cpu MFLOPS      = 0.000000
+
+
+FOM_Setup: nnz_AP / Setup Phase Time: 2.617836e+06
+
+=============================================
+Problem 1: AMG-PCG Solve Time:
+=============================================
+PCG Solve:
+  wall clock time = 0.416169 seconds
+  wall MFLOPS     = 0.000000
+  cpu clock time  = 0.416170 seconds
+  cpu MFLOPS      = 0.000000
+
+
+Iterations = 19
+Final Relative Residual Norm = 3.948392e-09
+
+
+FOM_Solve: nnz_AP * Iterations / Solve Phase Time: 4.128795e+07
+
+
+
+Figure of Merit (FOM_1): 3.162042e+07
+
+
+===================================================================================
+=   BAD TERMINATION OF ONE OF YOUR APPLICATION PROCESSES
+=   PID 1705 RUNNING AT 8ae54cc69e13
+=   EXIT CODE: 9
+=   CLEANING UP REMAINING PROCESSES
+=   YOU CAN IGNORE THE BELOW CLEANUP MESSAGES
+===================================================================================
+YOUR APPLICATION TERMINATED WITH THE EXIT STRING: Killed (signal 9)
+This typically refers to a problem with your application.
+Please see the FAQ page for debugging suggestions
+[MUST] Execution finished.
