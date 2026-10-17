@@ -12,26 +12,31 @@ TIMEOUT="${TIMEOUT:-15}"
 
 # mpi_run <np> <NAME=VALUE ...> -- <exe> [args]
 # Environment goes to the ranks only (mpirun -x NAME=VALUE), never to this shell.
-# stdin is /dev/null; the whole process group is killed on timeout.
+# stdin is /dev/null. timeout without --foreground signals the whole process group on
+# expiry, so the ranks go with mpirun instead of spinning on as orphans.
 mpi_run() {
     local np="$1"; shift
     local xargs=()
     while [ "$1" != "--" ]; do xargs+=(-x "$1"); shift; done; shift
-    timeout --foreground -k 5 "$TIMEOUT" "$MPIRUN" -np "$np" "${xargs[@]}" "$@" < /dev/null
+    /usr/bin/timeout -k 5 "$TIMEOUT" "$MPIRUN" -np "$np" "${xargs[@]}" "$@" < /dev/null
 }
 
-# classify_rc <rc> [stderr-file] -> FINISHED | TIMEOUT | MPI-ERROR:<name> | SIGNAL:<n> | APP-ERROR:<rc>
+# classify_rc <rc> [stderr-file] -> FINISHED | TIMEOUT | KILLED | MPI-ERROR:<name> | SIGNAL:<n> | APP-ERROR:<rc>
+# 124 is timeout's own status; 137 (SIGKILL) can be a memory cap or a kill, not a hang.
+# Only the launcher's stderr is read, and only for MPI error names.
 classify_rc() {
     local rc="$1" log="${2:-/dev/null}"
     case "$rc" in
         0) echo FINISHED;;
-        124|137) echo TIMEOUT;;
+        124) echo TIMEOUT;;
+        137) echo KILLED;;
         *)  if grep -qoE 'MPI_ERR_[A-Z_]+' "$log" 2>/dev/null; then echo "MPI-ERROR:$(grep -oE 'MPI_ERR_[A-Z_]+' "$log" | head -1)";
-            elif grep -qiE 'message truncated|truncat' "$log" 2>/dev/null; then echo "MPI-ERROR:MPI_ERR_TRUNCATE";
             elif [ "$rc" -ge 128 ]; then echo "SIGNAL:$((rc-128))";
             else echo "APP-ERROR:$rc"; fi;;
     esac
 }
 
+need_lib() { [ -f "$1" ] || { echo "missing $1: build it with make -C $2 MPI=$MPI" >&2; exit 1; }; }
+
 idiom_dir() { ls -d "$ROOT"/idioms/"$1"_* 2>/dev/null | head -1; }
-idiom_np()  { case "$1" in 03|07) echo 2;; 10) echo 4;; *) echo 3;; esac; }
+idiom_np()  { case "$1" in 03|07) echo 2;; 10|12|13) echo 4;; *) echo 3;; esac; }

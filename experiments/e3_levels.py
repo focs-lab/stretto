@@ -22,7 +22,8 @@ def main() -> int:
     programs = collections.defaultdict(set)
     for f in glob.glob(os.path.join(ROOT, "experiments", "results", "*", "*", "report.json")):
         corpus = f.split("/")[-3]
-        for fd in json.load(open(f)):
+        doc = json.load(open(f))
+        for fd in doc["findings"] if isinstance(doc, dict) else doc:   # older files hold the list only
             counts[(corpus, fd["level"], fd["cls"])] += 1
             programs[(corpus, fd["level"], fd["cls"])].add(f)
     print("| corpus | level | class | findings | programs |\n|---|---|---|---|---|")
@@ -34,27 +35,29 @@ def main() -> int:
         import idioms_dsl
     except ImportError:
         return 0
-    print("\n| idiom | L1 classes | L1+SP classes | L2 twin outcomes (forced) | SP spurious? |\n|---|---|---|---|---|")
-    for n, mk in sorted(idioms_dsl.ALL.items()):
-        d = os.path.join(ROOT, "traces", "openmpi", f"{n:02d}_*")
-        dirs = glob.glob(d)
-        if not dirs:
-            continue
-        t = trace.load(dirs[0])
-        rep = report.analyze(t)
+    print("\n| idiom | L1 classes | L1+SP classes | L2 classes (twin) | L2 twin outcomes | SP spurious? |\n|---|---|---|---|---|---|")
+    for d in sorted(glob.glob(os.path.join(ROOT, "traces", "openmpi", "[0-9][0-9]_*"))):
+        n = int(os.path.basename(d)[:2])
+        t = trace.load(d)
+        mk = idioms_dsl.ALL.get(n)
+        rep = report.analyze(t, twin=mk() if mk else None)
         l1 = sorted({f.cls for f in rep.findings if f.level == "L1"})
         sp = sorted({f.cls for f in rep.findings if f.level == "L1+SP"})
+        l2 = sorted({f.cls for f in rep.findings if f.level == "L2"})
+        if mk is None:                           # no hand-written twin: the single-path column stands alone
+            print(f"| {n:02d} | {' '.join(l1)} | {' '.join(sp)} | (no twin) | | - |")
+            continue
         twin = mk()
         kinds = set()
         for f in rep.findings:
             if f.level == "L1" and f.recv is not None:
                 try:
-                    res = explore.explore(twin, 0, force={f.recv: f.send}, comms=t.comm_ranks)
+                    res = explore.explore(twin, 0, force={f.recv: f.send}, comms=t.comm_members)
                     kinds |= res.kinds()
                 except Exception as e:  # noqa: BLE001
                     kinds.add(f"err:{e}")
         spurious = "yes" if ("1d" in sp and "deadlock" not in kinds) else ("no" if sp else "-")
-        print(f"| {n:02d} | {' '.join(l1)} | {' '.join(sp)} | {' '.join(sorted(kinds))} | {spurious} |")
+        print(f"| {n:02d} | {' '.join(l1)} | {' '.join(sp)} | {' '.join(l2)} | {' '.join(sorted(kinds))} | {spurious} |")
     return 0
 
 

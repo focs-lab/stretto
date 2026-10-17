@@ -8,16 +8,20 @@ np="$(idiom_np "$n")"
 if [ $# -gt 0 ] && [[ "$1" =~ ^[0-9]+$ ]]; then np="$1"; shift; fi
 margs=(); while [ $# -gt 0 ] && [ "$1" != "--" ]; do margs+=("$1"); shift; done
 [ "${1:-}" = "--" ] && shift
-dir="$(idiom_dir "$n")"
-log="$(mktemp)"
+dir="$(idiom_dir "$n")"; [ -n "$dir" ] || { echo "no idiom $n" >&2; exit 1; }
+need_lib "$PINLIB" replay
+out="$(mktemp)"; err="$(mktemp)"
 echo "== replay $(basename "$dir") with REMATCH_PIN=$pin (timeout ${TIMEOUT}s)"
-mpi_run "$np" "REMATCH_PIN=$pin" "REMATCH_VERBOSE=1" "LD_PRELOAD=$PINLIB" -- "${margs[@]}" "$dir/bin/$MPI/main" "$@" > "$log" 2>&1
+mpi_run "$np" "REMATCH_PIN=$pin" "LD_PRELOAD=$PINLIB" -- "${margs[@]}" "$dir/bin/$MPI/main" "$@" > "$out" 2> "$err"
 rc=$?
-grep -v '^\[rematch-pin\]' "$log" | head -5
-res="$(classify_rc $rc "$log")"
+head -5 "$out"
+grep '^\[rematch-pin\]' "$err"        # which pins were applied, or left unused
+res="$(classify_rc $rc "$err")"
+applied=$(grep -c '^\[rematch-pin\] rank [0-9]*: applied' "$err")
 case "$res" in
-  FINISHED)   echo "   result: FINISHED (prediction not confirmed as a hang)";;
-  TIMEOUT)    echo "   result: HANG (deadlock confirmed by replay)";;
-  *)          echo "   result: $res";;
+  FINISHED)   echo "   result: FINISHED with $applied pin(s) applied (no hang under this matching)";;
+  TIMEOUT)    if [ "$applied" -gt 0 ]; then echo "   result: HANG with $applied pin(s) applied (deadlock confirmed by replay)";
+              else echo "   result: HANG but no pin was applied (not a confirmation)"; fi;;
+  *)          echo "   result: $res ($applied pin(s) applied)";;
 esac
-rm -f "$log"
+rm -f "$out" "$err"

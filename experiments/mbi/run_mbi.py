@@ -3,11 +3,19 @@
 
 For every selected generated program: parse the MBI header (run command, np, expected
 outcome and detail), build it with the system mpicc, run it once under the Rematch tracer
-with the header's np, analyse the trace, and record the Rematch classes. Optionally run
-MUST on the same source (scripts/must_run.sh: its own MPICH build and run) and record its
-verdict. Output: one CSV row per program plus per-program logs under results/mbi/<name>/.
+with the header's np, analyse the trace, and record the Rematch classes, qualified by the
+level that established them. With --confirm every error finding is replayed with its pin
+and the outcome of each replay goes to replays.csv next to the table (one row per finding:
+class, level, certainty, pin, result, whether the pin was applied, verdict). With --must,
+MUST runs on the same source (scripts/must_run.sh: its own MPICH build and run) with the
+same timeout as the traced run, and its verdict is recorded. Output: one CSV row per
+program plus per-program logs under results/<corpus>/<name>/. With --replay-only the
+selected programs are neither rebuilt nor rerun: their kept trace is analysed again and only
+the replays are redone, so a replay fix does not cost a new corpus run; the other rows of the
+table and of replays.csv are kept.
 
-usage: run_mbi.py [--select REGEX] [--limit N] [--must] [--timeout S] [--jobs J]
+usage: run_mbi.py [--corpus mbi|mbb] [--select REGEX] [--limit N] [--confirm] [--must] [--timeout S] [--jobs J]
+       run_mbi.py --replay-only [--select REGEX] [--timeout S] ...   (implies --confirm)
 """
 from __future__ import annotations
 import argparse
@@ -18,6 +26,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -32,6 +41,7 @@ MPIRUN = "/usr/bin/mpirun.openmpi"
 TRACER = os.path.join(ROOT, "tracer", "bin", "openmpi", "librematch-trace.so")
 sys.path.insert(0, os.path.join(ROOT, "analysis"))
 from rematch import confirm as confirm_mod, report, trace  # noqa: E402
+from rematch.confirm import classify_rc  # noqa: E402
 
 
 def parse_header(path: str) -> dict:
@@ -87,21 +97,6 @@ def pin_label(pin: str) -> str:
     return ("probe " if name.endswith("PROBE") else "") + spec.replace(":", "/")
 
 
-def classify_rc(rc: int, stderr: str) -> str:
-    if rc == 0:
-        return "FINISHED"
-    if rc in (124, 137):
-        return "TIMEOUT"
-    m = re.search(r"MPI_ERR_[A-Z_]+", stderr)
-    if m:
-        return "MPI-ERROR:" + m.group(0)
-    if re.search(r"truncat", stderr, re.I):
-        return "MPI-ERROR:MPI_ERR_TRUNCATE"
-    if rc >= 128:
-        return f"SIGNAL:{rc - 128}"
-    return f"APP-ERROR:{rc}"
-
-
 def run_one(name: str, args) -> dict:
     src = os.path.join(args.gencodes, name)
     out = os.path.join(args.results, name[:-2].replace("/", "__"))
@@ -117,38 +112,86 @@ def run_one(name: str, args) -> dict:
     shutil.rmtree(tracedir, ignore_errors=True)
     os.makedirs(tracedir)
     env = ["-x", f"REMATCH_TRACE_DIR={tracedir}", "-x", f"LD_PRELOAD={TRACER}"]
-    cmd = ["timeout", "--foreground", "-k", "5", str(args.timeout), MPIRUN, "-np", str(row["np"]), *env, exe]
+    cmd = ["/usr/bin/timeout", "-k", "5", str(args.timeout), MPIRUN, "-np", str(row["np"]), *env, exe]
+    t0 = time.monotonic()
     r = subprocess.run(cmd, capture_output=True, text=True, stdin=subprocess.DEVNULL,
                        env={**os.environ, "OMPI_MCA_rmaps_base_oversubscribe": "1"})
     open(os.path.join(out, "run.stdout"), "w").write(r.stdout)
     open(os.path.join(out, "run.stderr"), "w").write(r.stderr)
-    row["run"] = classify_rc(r.returncode, r.stderr)
+    row["run"] = classify_rc(r.returncode, r.stderr, time.monotonic() - t0, args.timeout)
+    analyse(row, out, exe, tracedir, args)
+    if args.must:
+        m = subprocess.run([os.path.join(ROOT, "scripts", "must_run.sh"), str(row["np"]), exe, str(args.timeout)],
+                           capture_output=True, text=True, cwd=out, stdin=subprocess.DEVNULL)
+        row["must"] = m.stdout.strip().splitlines()[-1] if m.stdout.strip() else f"rc={m.returncode}"
+    return row
+
+
+def replay_one(row: dict, args) -> dict:
+    """--replay-only: analyse the kept trace again and redo the replays; the run and MUST
+    columns of the row stay."""
+    out = os.path.join(args.results, row["name"])
+    analyse(row, out, os.path.join(out, "main"), os.path.join(out, "trace"), args)
+    return row
+
+
+def analyse(row: dict, out: str, exe: str, tracedir: str, args) -> None:
+    """Analyse the trace under out/, fill the Rematch columns of row and, with --confirm,
+    replay every error finding with its pin."""
     try:
         t = trace.load(tracedir)
         rep = report.analyze(t, with_sp=not args.no_sp, sp_max_events=args.sp_max_events, max_states=args.max_states)
         row["classes"] = " ".join(rep.classes())
         row["levels"] = " ".join(rep.levels())
         row["findings"] = len(rep.findings)
+        row["l1_alternatives"] = sum(1 for f in rep.findings if f.level == "L1" and f.family == "1")
         row["wildcard_recvs"] = sum(1 for x in t.recvs.values() if x.wildcard)
         row["events"] = sum(len(v) for v in t.ranks.values())
         row["notes"] = "; ".join(rep.notes)[:300]
         with open(os.path.join(out, "report.txt"), "w") as fh:
             fh.write(report.format_report(t, rep, show_infeasible=True))
         with open(os.path.join(out, "report.json"), "w") as fh:
-            json.dump([f.__dict__ for f in rep.findings], fh, default=str, indent=1)
+            json.dump(report.to_json(t, rep), fh, default=str, indent=1)
         if args.confirm:
             res = confirm_mod.confirm(rep, row["np"], exe, timeout=args.timeout)
             row["confirmed"] = sum(1 for c in res if c.verdict == "confirmed")
             row["not_confirmed"] = sum(1 for c in res if c.verdict == "not-confirmed")
             # pins written with "/" separators: "1d 1/0/0/0 -> TIMEOUT" (colon runs read as IPv6 literals)
             row["replays"] = "; ".join(f"{c.finding.cls} {pin_label(c.pin)} -> {c.result}" for c in res)[:300]
+            row["_replays"] = [{"program": row["name"], "cls": c.finding.cls, "level": c.finding.level,
+                                "certainty": c.finding.certainty, "pin": pin_label(c.pin), "result": c.result,
+                                "pin_applied": c.pin_applied, "verdict": c.verdict,
+                                "stderr_tail": " ".join(c.stderr_tail.split())[-200:]} for c in res]
     except Exception as e:  # noqa: BLE001
         row.update(classes="", findings=0, notes=f"analysis failed: {e}"[:300])
-    if args.must:
-        m = subprocess.run([os.path.join(ROOT, "scripts", "must_run.sh"), str(row["np"]), exe],
-                           capture_output=True, text=True, cwd=out, stdin=subprocess.DEVNULL)
-        row["must"] = m.stdout.strip().splitlines()[-1] if m.stdout.strip() else f"rc={m.returncode}"
-    return row
+
+
+REPLAY_KEYS = ["program", "cls", "level", "certainty", "pin", "result", "pin_applied", "verdict", "stderr_tail"]
+
+
+def replay_only(args) -> int:
+    rp = os.path.join(os.path.dirname(args.out), "replays.csv")
+    rows = list(csv.DictReader(open(args.out)))
+    keys = list(rows[0].keys())
+    replays = list(csv.DictReader(open(rp))) if os.path.exists(rp) else []
+    todo = [r for r in rows if r["build"] == "ok" and re.search(args.select, r["name"])]
+    with ThreadPoolExecutor(max_workers=args.jobs) as ex:
+        for i, f in enumerate(as_completed([ex.submit(replay_one, r, args) for r in todo]), 1):
+            row = f.result()
+            print(f"[{i}/{len(todo)}] {row['name']:<50} {row.get('replays', '')}", flush=True)
+    done = {r["name"] for r in todo}
+    with open(args.out, "w", newline="") as fh:
+        w = csv.DictWriter(fh, fieldnames=keys, extrasaction="ignore", lineterminator="\n")
+        w.writeheader()
+        for r in rows:
+            w.writerow({k: r.get(k, "") for k in keys})
+    with open(rp, "w", newline="") as fh:
+        w = csv.DictWriter(fh, fieldnames=REPLAY_KEYS, lineterminator="\n")
+        w.writeheader()
+        for r in rows:
+            w.writerows(r.get("_replays", []) if r["name"] in done else [x for x in replays if x["program"] == r["name"]])
+    print(f"wrote {args.out} and {rp} ({len(todo)} programs replayed again)")
+    return 0
 
 
 def main() -> int:
@@ -164,10 +207,14 @@ def main() -> int:
     ap.add_argument("--max-states", type=int, default=30000, help="explorer state cap per forced alternative")
     ap.add_argument("--corpus", default="mbi", choices=sorted(CORPORA))
     ap.add_argument("--out", default=None)
+    ap.add_argument("--replay-only", action="store_true", help="redo the replays of the selected programs from their kept traces")
     args = ap.parse_args()
     args.gencodes = CORPORA[args.corpus]
     args.results = os.path.join(ROOT, "experiments", "results", args.corpus)
     args.out = args.out or os.path.join(args.results, f"{args.corpus}.csv")
+    if args.replay_only:
+        args.confirm = True
+        return replay_only(args)
     names = []
     for dp, _, fs in os.walk(args.gencodes):
         for f in fs:
@@ -187,13 +234,21 @@ def main() -> int:
             print(f"[{i}/{len(names)}] {row['name']:<50} {row.get('run', ''):<22} {row.get('classes', '')}", flush=True)
     rows.sort(key=lambda r: r["name"])
     keys = ["name", "category", "expect", "detail", "can_deadlock", "np", "anysrc", "anytag", "probe", "persistent", "waitany",
-            "build", "run", "wildcard_recvs", "events", "findings", "classes", "levels", "confirmed", "not_confirmed", "replays", "must", "notes"]
+            "build", "run", "wildcard_recvs", "events", "findings", "l1_alternatives", "classes", "levels", "confirmed", "not_confirmed", "replays", "must", "notes"]
     with open(args.out, "w", newline="") as fh:
         w = csv.DictWriter(fh, fieldnames=keys, extrasaction="ignore", lineterminator="\n")
         w.writeheader()
         for r in rows:
             w.writerow({k: r.get(k, "") for k in keys})
     print(f"wrote {args.out} ({len(rows)} rows)")
+    if args.confirm:
+        rp = os.path.join(os.path.dirname(args.out), "replays.csv")
+        with open(rp, "w", newline="") as fh:
+            w = csv.DictWriter(fh, fieldnames=REPLAY_KEYS, lineterminator="\n")
+            w.writeheader()
+            for r in rows:
+                w.writerows(r.get("_replays", []))
+        print(f"wrote {rp}")
     return 0
 
 

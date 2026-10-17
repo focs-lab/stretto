@@ -27,9 +27,18 @@ third_party/apps/
 # only the result tables (*.csv) and generated documents are committed
 experiments/results/*/*/
 experiments/results/*.log
+!experiments/results/timing-leg.log
 experiments/results/e4/*.log
 experiments/results/e4/*.err
 experiments/results/e4/*.report.txt
-experiments/results/amg/
+experiments/results/amg/*
+!experiments/results/amg/summary8.txt
+!experiments/results/amg/confirm8.txt
+!experiments/results/amg/must8-*/
+experiments/results/amg/must8-*/*
+!experiments/results/amg/must8-*/verdict.txt
+!experiments/results/amg/must8-*/run.out
 third_party/*.log
 experiments/results/*/must.csv
+experiments/results/*/must.log
+experiments/results/must.done

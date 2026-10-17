@@ -10,6 +10,7 @@ dir="$(idiom_dir "$n")"; [ -n "$dir" ] || { echo "no idiom $n"; exit 1; }
 make -s -C "$ROOT/idioms" MPI="$MPI" >/dev/null || { echo "build failed"; exit 1; }
 make -s -C "$ROOT/tracer" MPI="$MPI" >/dev/null || exit 1
 make -s -C "$ROOT/replay" MPI="$MPI" >/dev/null || exit 1
+need_lib "$TRACER" tracer
 out="$ROOT/traces/$MPI/$(basename "$dir")"
 rm -rf "$out"; mkdir -p "$out"
 echo "== $(basename "$dir") (np=$np, $MPI)"

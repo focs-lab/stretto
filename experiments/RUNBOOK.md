@@ -1,5 +1,46 @@
 # Experiment runbook
 
+## Inputs
+
+`third_party/fetch.sh all` clones MBI, MPI-BugBench, AMG, MACSio and Nekbone at the commits
+the results refer to, generates the MBI programs and the MPI-BugBench level-2 programs, builds
+AMG with the system Open MPI wrapper, downloads NPB 3.4.3 and builds its kernels twice (Open
+MPI for the plain reference, MPICH for the traced run, since Open MPI's Fortran bindings bypass
+C interposition), and builds the MUST container image from MPI-BugBench's Dockerfile. Each part
+can be fetched alone (`corpora`, `apps`, `npb`, `must`). Everything it writes is git-ignored.
+
+## Steps
+
+`experiments/run_remaining.sh [step ...]` runs, inside the container, `build tests mbi mbb e2 e6
+amg e4 e3`: the tracer and replay libraries for both MPI implementations and the idioms; the
+unit tests with `REMATCH_REQUIRE_TRACES=1` after tracing the idioms; the two corpora with
+replays (`experiments/mbi/run_mbi.py --confirm`, one row per finding in `replays.csv`); the
+eager-threshold measurement and the buffering ablation with its forced-rendezvous replays
+(`experiments/b_impl.py`, `experiments/e2_buffering.py --replay`); the checker-versus-explorer
+comparison on the corpus traces and on synthetic ones (`experiments/e6_checker_vs_explorer.py
+--synthetic`); AMG traced, analysed and replayed (`experiments/amg/run.sh`); the E4 analysis
+times; the level table. MUST runs on the host, where docker is: `experiments/mbi/run_must.py
+<corpus>.csv --timeout <same as the run>` for the corpora and `experiments/amg/must.sh` for
+AMG. `experiments/tables.py` then writes `docs/results.md`.
+
+Variables the scripts read (all optional):
+
+| variable | script | meaning (default) |
+|---|---|---|
+| `JOBS`, `TIMEOUT` | `run_remaining.sh` | parallel programs (6); seconds per run, replay and MUST run (60) |
+| `MPI` | `scripts/*.sh`, Makefiles | `openmpi` or `mpich`: which wrapper, library and idiom binaries |
+| `TIMEOUT` | `scripts/env.sh` | seconds for `mpi_run` (15) |
+| `REMATCH_TRACE_DIR` | tracer | where the ranks write `rank-N.jsonl` (`./traces`) |
+| `REMATCH_PIN`, `REMATCH_PIN_PROBE` | replay library | `rank:ordinal:world-src[:tag],...` for wildcard receives and probes (`replay/pin.h`) |
+| `REMATCH_SEND_DELAY_MS`, `REMATCH_RECV_DELAY_MS`, `REMATCH_DELAY_AT` | replay library | sleeps before sends/receives, per rank or at the k-th one (`replay/pin.h`) |
+| `REMATCH_REQUIRE_TRACES` | tests | `1`: idiom tests fail instead of skipping without traces |
+| `MUST_IMAGE`, `MUST_CPUS`, `MUST_KEEP` | `scripts/must_run.sh`, `experiments/amg/must.sh` | image (`mbb-must:latest`), cpuset, keep the work directory |
+| `MUST_ARGS` | `experiments/amg/must.sh` | MUST layout (default `--must:distributed`; empty for the centralised one) |
+| `REMATCH_MACHINE_LOCK`, `REMATCH_CPUS` | `scripts/heavy.sh` | the shared-host lock file and the processors a heavy job may use |
+| `IMAGE`, `CPUS`, `MEMORY`, `NAME` | `experiments/container/run.sh` | container image, cpuset (`0-11,40-51`), memory (`24g`), name |
+| `BENCHMARKS`, `CLASSES`, `CSV` | `experiments/e4_overhead.sh` | which NPB rows to measure and which table to write |
+| `DOCKER_BUILD_ARGS` | `third_party/fetch.sh must` | e.g. `--cgroup-parent=docker.slice` on the development host |
+
 ## Where experiments run
 
 The development host is shared and reserved for another project's benchmark legs, so the
@@ -9,32 +50,52 @@ Open MPI 4.1.6, MPICH 4.2.0, gcc 13, Python 3.12). Traces, replays and analysis 
 comparable across the two. The second machine is shared as well: use it for runs and
 analysis, not for timing claims.
 
+The copy goes to `$DIR` on the second machine, a directory on disk. A tmpfs such as
+`/dev/shm` is faster but not durable there: logind's `RemoveIPC=yes` (the default) deletes
+the files a user owns in `/dev/shm` when that user's last login session ends, so a copy made
+over ssh on a freshly booted machine is gone before the next ssh command.
+
 ```bash
-# on the development host: copy the repository and the inputs to the second machine's tmpfs
+# on the development host: copy the repository and the inputs to $DIR on the second machine
+# (a relative DIR, for example rematch, is taken from the remote home directory)
 git ls-files > /tmp/files.txt
-rsync -a --files-from=/tmp/files.txt . $REMOTE:/dev/shm/rematch/
-rsync -a --relative --exclude bin/ traces third_party/mpi-bugbench/scripts/gencodes $REMOTE:/dev/shm/rematch/
-rsync -a --relative --exclude main experiments/results/mbi experiments/results/amg/trace8 \
-      experiments/results/e4/e4.csv experiments/results/e4/trace.* $REMOTE:/dev/shm/rematch/
+rsync -a --files-from=/tmp/files.txt . $REMOTE:$DIR/
+rsync -a --relative --exclude bin/ study/apps/MBI/gencodes third_party/mpi-bugbench/scripts/gencodes $REMOTE:$DIR/
+rsync -a --relative study/apps/AMG/test/amg third_party/apps/NPB-mpich/bin tracer/bin replay/bin $REMOTE:$DIR/
+rsync -a --relative experiments/results/e4/e4.csv experiments/results/e4/trace.* $REMOTE:$DIR/
 
 # on the second machine: build, test, then every remaining step, detached
-cd /dev/shm/rematch
+cd $DIR
 IMAGE=rematch-exp:24.04 experiments/container/run.sh bash -c \
   "experiments/run_remaining.sh > experiments/results/run-remaining.log 2>&1"
 
-# MUST baseline, on the second machine's host (its own container, MUST 1.9.2 + MPICH)
-MUST_CPUS=0-11,40-51 python3 experiments/mbi/run_must.py experiments/results/mbb/mbb.csv --jobs 3 --timeout 240
+# MUST baseline, on the second machine's host (its own container, MUST 1.9.2 + MPICH), the
+# run's timeout; and MUST on AMG
+for c in mbi mbb; do MUST_CPUS=0-11,40-51 python3 experiments/mbi/run_must.py experiments/results/$c/$c.csv --jobs 3 --timeout 60; done
+MUST_CPUS=0-11,40-51 experiments/amg/must.sh 1800
+# MUST's distributed layout (the default, as on the corpora) crashed inside its wait-state
+# module on AMG; MUST_ARGS= (empty) runs the centralised layout instead
+MUST_ARGS= MUST_CPUS=0-11,40-51 experiments/amg/must.sh 1800
 
 # back on the development host: fetch the tables and regenerate docs/results.md
-rsync -a $REMOTE:/dev/shm/rematch/experiments/results/ experiments/results/
+rsync -a $REMOTE:$DIR/experiments/results/ experiments/results/
 python3 experiments/tables.py
 ```
 
-`run_remaining.sh` steps: `build tests mbb e2 e6 amg e4 e3`; any subset can be given.
-The MUST image is MPI-BugBench's (`third_party/mpi-bugbench/Dockerfile.must`); it can be
-copied between machines with `docker save mbb-must:latest | gzip -1 | ssh $REMOTE 'gunzip |
-docker load'`. Any `docker build` on the development host needs
-`--cgroup-parent=docker.slice`.
+The MUST image is MPI-BugBench's (`third_party/mpi-bugbench/Dockerfile.must`, built by
+`third_party/fetch.sh must`); it can be copied between machines with `docker save
+mbb-must:latest | gzip -1 | ssh $REMOTE 'gunzip | docker load'`. Any `docker build` on the
+development host needs `--cgroup-parent=docker.slice` (`DOCKER_BUILD_ARGS`).
+
+## Timed leg
+
+`experiments/timing_leg.sh`, inside the container on the second machine, measures the E4
+plain, traced and analysis times (`e4_overhead.sh`) and the AMG analysis (`amg/run.sh
+analyse`), then repeats the analyses once for the log. The whole host is idle for it: the
+leg is announced to the other lanes with a START and an END message, nothing of theirs runs
+in between, and anything that did run is written into `experiments/results/timing-leg.log`
+next to the rows it may have touched (which are then rerun inside the window). `MACHINE=<name>`
+on `container/run.sh` sets the host name the summaries print.
 
 ## Shared-host protocol on the development host
 
