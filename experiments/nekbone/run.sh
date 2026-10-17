@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Second real application: Nekbone's communication suite (study/apps/Nekbone/test/nek_comm,
 # PPLIST=NEKCOMM), the build in which the wildcard-source wrappers of src/comm_mpi.f (crecv,
-# irecv: MPI_ANY_SOURCE with the tag as the only selector) are reached, by the ping-pong,
-# message-volume and tree-reduction tests whose tag protocol makes every sender unique. Built
+# irecv: MPI_ANY_SOURCE with the tag as the only selector) are reached: by the ping-pong and
+# message-volume tests, whose tags make the sender unique, and by the binary-tree global
+# operation (gop), whose children share one tag and can arrive in either order. Built
 # with the MPICH wrappers, since Open MPI's Fortran bindings bypass C interposition, traced at
 # 8 ranks and analysed. Writes experiments/results/nekbone/{trace8,report8.txt,analyze8.err,
 # summary8.txt,run8.log}; summary8.txt is committed.
@@ -14,7 +15,7 @@ D=experiments/results/nekbone; mkdir -p "$D"
 SRC=study/apps/Nekbone; CASE=$SRC/test/nek_comm; EXE=$CASE/nekbone
 export OMP_NUM_THREADS=1 OMPI_MCA_hwloc_base_binding_policy=none
 step_build() {
-    [ -d "$SRC/src" ] || { echo "$SRC missing: study/fetch.sh" >&2; return 1; }
+    [ -d "$SRC/src" ] || { echo "$SRC missing: third_party/fetch.sh apps" >&2; return 1; }
     # makenek fixes the compilers and the source path inside the script: a local copy sets them
     sed -e "s|^SOURCE_ROOT=.*|SOURCE_ROOT=\"$R/$SRC/src\"|" -e 's|^F77=.*|F77="mpif77.mpich"|' -e 's|^CC=.*|CC="mpicc.mpich"|' \
         "$CASE/makenek" > "$CASE/makenek.local"

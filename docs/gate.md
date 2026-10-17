@@ -192,15 +192,17 @@ can arrive in either order (7 500 alternatives on rank 0 with three children, 2 
 with two). `study/sites.csv` predicted exactly this site and consequence before the run:
 benign for control flow, a source of floating-point accumulation order differences. The
 ping-pong and message-volume tests, whose tags make the sender unique, produce no finding,
-and no 1a, 1c or 1d is reported. Cost: 5 688 s and 32.5 GB in one process with `--no-sp`, on
-the second machine while another lane's jobs ran on the host (an upper bound, not a timing
-claim). The memory is the loaded trace and its graph (about 3 KB per record, against 1.5 KB
-per record on the NPB traces, which have no alternatives to check) and the time is the
-18 759 alternatives, each checked over the whole 10-million-record graph: about 0.3 s per
-alternative, the per-alternative linear cost of T4 at this trace size. Before `Overlay`
-(commit "Share the observed matching between alternatives") the same analysis was killed at
-4, 24 and 64 GB: one dictionary copy of the observed matching per alternative. MACSio was
-not traced: its only wildcard site lies in `src-stuff/`, outside the built program.
+and no 1a, 1c or 1d is reported. Cost: 3 779 s and 32.5 GB in one process with `--no-sp`, on
+the second machine while another lane's jobs ran on the same socket (an upper bound, not a
+timing claim; a first run with per-item scans over a rank's receives, since removed, took
+5 688 s and produced the byte-identical report). The memory is the loaded trace and its
+graph (about 3 KB per record, against 1.5 KB per record on the NPB traces, which have no
+alternatives to check) and the time is the 18 759 alternatives, each checked over the whole
+10-million-record graph: about 0.2 s per alternative, the per-alternative linear cost of T4
+at this trace size. Before `Overlay` (commit "Share the observed matching between
+alternatives") the same analysis was killed at 4, 24 and 64 GB: one dictionary copy of the
+observed matching per alternative. MACSio was not traced: its only wildcard site lies in
+`src-stuff/`, outside the built program.
 
 ## WP0a (payload-obliviousness) on the full corpus
 

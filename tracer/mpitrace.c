@@ -25,7 +25,8 @@
      cancel    req
      reqfree   req (MPI_Request_free: the operation completes unobserved)
      probe     kind(probe|iprobe|mprobe|improbe), src, tag, comm, [anysrc], [anytag], flag,
-               [msrc, mtag, mbytes]
+               [msrc, mtag, mbytes], [pidx] (the probe's ordinal among the rank's wildcard
+               probes, what REMATCH_PIN_PROBE counts)
      coll      name, comm, root(-1 if none), count, tsize, [req]
      comm      name, parent(local id), id(local id), ranks:[world ranks in comm-rank order],
                gord (creation ordinal of that group); an intercommunicator carries

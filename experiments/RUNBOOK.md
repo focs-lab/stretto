@@ -27,9 +27,9 @@ Variables the scripts read (all optional):
 
 | variable | script | meaning (default) |
 |---|---|---|
-| `JOBS`, `TIMEOUT` | `run_remaining.sh` | parallel programs (6); seconds per run, replay and MUST run (60) |
+| `JOBS` | `run_remaining.sh` | parallel programs (6) |
+| `TIMEOUT` | `run_remaining.sh`; `scripts/env.sh` | seconds per run, replay and MUST run (60 in the corpus harness; 15 for a bare `mpi_run`) |
 | `MPI` | `scripts/*.sh`, Makefiles | `openmpi` or `mpich`: which wrapper, library and idiom binaries |
-| `TIMEOUT` | `scripts/env.sh` | seconds for `mpi_run` (15) |
 | `REMATCH_TRACE_DIR` | tracer | where the ranks write `rank-N.jsonl` (`./traces`) |
 | `REMATCH_PIN`, `REMATCH_PIN_PROBE` | replay library | `rank:ordinal:world-src[:tag],...` for wildcard receives and probes (`replay/pin.h`) |
 | `REMATCH_SEND_DELAY_MS`, `REMATCH_RECV_DELAY_MS`, `REMATCH_DELAY_AT` | replay library | sleeps before sends/receives, per rank or at the k-th one (`replay/pin.h`) |
@@ -37,7 +37,7 @@ Variables the scripts read (all optional):
 | `MUST_IMAGE`, `MUST_CPUS`, `MUST_KEEP` | `scripts/must_run.sh`, `experiments/amg/must.sh` | image (`mbb-must:latest`), cpuset, keep the work directory |
 | `MUST_ARGS` | `experiments/amg/must.sh` | MUST layout (default `--must:distributed`; empty for the centralised one) |
 | `REMATCH_MACHINE_LOCK`, `REMATCH_CPUS` | `scripts/heavy.sh` | the shared-host lock file and the processors a heavy job may use |
-| `IMAGE`, `CPUS`, `MEMORY`, `NAME` | `experiments/container/run.sh` | container image, cpuset (`0-11,40-51`), memory (`24g`), name |
+| `IMAGE`, `CPUS`, `MEMORY`, `NAME`, `MACHINE` | `experiments/container/run.sh` | container image, cpuset (`0-11,40-51`), memory (`24g`), name, the host name the summaries print (the host's) |
 | `BENCHMARKS`, `CLASSES`, `CSV` | `experiments/e4_overhead.sh` | which NPB rows to measure and which table to write |
 | `DOCKER_BUILD_ARGS` | `third_party/fetch.sh must` | e.g. `--cgroup-parent=docker.slice` on the development host |
 
@@ -48,7 +48,7 @@ experiments that execute MPI programs at scale run on a second machine inside a 
 with the development host's userland (`experiments/container/Dockerfile`: Ubuntu 24.04,
 Open MPI 4.1.6, MPICH 4.2.0, gcc 13, Python 3.12). Traces, replays and analysis are therefore
 comparable across the two. The second machine is shared as well: use it for runs and
-analysis, not for timing claims.
+analysis, and for timing claims only inside an announced timed leg (below).
 
 The copy goes to `$DIR` on the second machine, a directory on disk. A tmpfs such as
 `/dev/shm` is faster but not durable there: logind's `RemoveIPC=yes` (the default) deletes
@@ -62,6 +62,7 @@ git ls-files > /tmp/files.txt
 rsync -a --files-from=/tmp/files.txt . $REMOTE:$DIR/
 rsync -a --relative --exclude bin/ study/apps/MBI/gencodes third_party/mpi-bugbench/scripts/gencodes $REMOTE:$DIR/
 rsync -a --relative study/apps/AMG/test/amg third_party/apps/NPB-mpich/bin tracer/bin replay/bin $REMOTE:$DIR/
+rsync -a --relative study/apps/Nekbone $REMOTE:$DIR/      # sources: nekbone/run.sh build runs inside the container
 rsync -a --relative experiments/results/e4/e4.csv experiments/results/e4/trace.* $REMOTE:$DIR/
 
 # on the second machine: build, test, then every remaining step, detached
@@ -103,8 +104,9 @@ on `container/run.sh` sets the host name the summaries print.
 communication suite (`test/nek_comm`, `PPLIST=NEKCOMM`, the build that reaches the
 `MPI_ANY_SOURCE` wrappers of `comm_mpi.f`) with the MPICH wrappers, traces it at 8 ranks and
 analyses the trace; `experiments/results/nekbone/summary8.txt` is committed. The trace is
-10 million records (1.1 GB) and the analysis needs about 33 GB and 95 minutes in one process:
-run it in a container with a memory cap of at least 40 GB (`--memory 48g`). A `docker run
+10 million records (1.1 GB) and the analysis needs about 33 GB and an hour in one process:
+run it in a container with a memory cap of at least 40 GB (`MEMORY=48g` on
+`container/run.sh`). A `docker run
 --rm` container killed by its cap leaves empty outputs and exit code 137 with nothing in
 `docker events` beyond create and start; sample `docker stats` into a file to see the peak.
 MACSio's one wildcard site lies in `src-stuff/`, outside the built program, so MACSio is not

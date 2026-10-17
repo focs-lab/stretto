@@ -310,7 +310,7 @@ produce no finding. Rejected alternatives are the candidate senders the checker 
 trace: 8 ranks, 2060218 sends, 2060218 receives, 35714 wildcard receives, 0 probes, 56248 collective records, 11 communicators
 findings by class: 1f 10000
 rejected alternatives: 8759
-host: a-p13, one process; analysis 5687.84 s, 32530920 KB
+host: a-p13, one process; analysis 3778.71 s, 32534988 KB
 ```
 
 ## E6: polynomial checker vs exhaustive explorer

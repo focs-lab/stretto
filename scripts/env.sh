@@ -18,18 +18,24 @@ mpi_run() {
     local np="$1"; shift
     local xargs=()
     while [ "$1" != "--" ]; do xargs+=(-x "$1"); shift; done; shift
-    /usr/bin/timeout -k 5 "$TIMEOUT" "$MPIRUN" -np "$np" "${xargs[@]}" "$@" < /dev/null
+    local t0=$SECONDS rc
+    /usr/bin/timeout -k 5 "$TIMEOUT" "$MPIRUN" -np "$np" "${xargs[@]}" "$@" < /dev/null; rc=$?
+    MPI_RUN_SECONDS=$((SECONDS - t0))     # read by classify_rc: a SIGKILL past the timeout is a hang
+    return $rc
 }
 
 # classify_rc <rc> [stderr-file] -> FINISHED | TIMEOUT | KILLED | MPI-ERROR:<name> | SIGNAL:<n> | APP-ERROR:<rc>
-# 124 is timeout's own status; 137 (SIGKILL) can be a memory cap or a kill, not a hang.
-# Only the launcher's stderr is read, and only for MPI error names.
+# 124 is timeout's own status. 137 (SIGKILL) after TIMEOUT seconds have elapsed is timeout's
+# own -k kill of a launcher that ignored SIGTERM (Open MPI's does when its ranks are
+# deadlocked), so it is a hang too; before that it is a memory cap or a kill, not a hang.
+# The same rule as rematch.confirm.classify_rc. Only the launcher's stderr is read, and only
+# for MPI error names.
 classify_rc() {
     local rc="$1" log="${2:-/dev/null}"
     case "$rc" in
         0) echo FINISHED;;
         124) echo TIMEOUT;;
-        137) echo KILLED;;
+        137) if [ "${MPI_RUN_SECONDS:-0}" -ge "${TIMEOUT:-0}" ] && [ "${TIMEOUT:-0}" -gt 0 ]; then echo TIMEOUT; else echo KILLED; fi;;
         *)  if grep -qoE 'MPI_ERR_[A-Z_]+' "$log" 2>/dev/null; then echo "MPI-ERROR:$(grep -oE 'MPI_ERR_[A-Z_]+' "$log" | head -1)";
             elif [ "$rc" -ge 128 ]; then echo "SIGNAL:$((rc-128))";
             else echo "APP-ERROR:$rc"; fi;;

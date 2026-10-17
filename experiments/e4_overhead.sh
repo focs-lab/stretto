@@ -14,6 +14,8 @@ export OMPI_MCA_rmaps_base_oversubscribe=1 PYTHONPATH="$R/analysis"
 nps="${*:-4 16}"
 CSV="${CSV:-$OUT/e4.csv}"
 echo "benchmark,class,np,plain_s,traced_s,slowdown,trace_MB,events,wildcards,analysis_s,findings,classes" > "$CSV"
+# The launcher is called directly with fixed timeouts (600 s plain, 1200 s traced) rather than
+# through mpi_run, so TIMEOUT does not apply here: a timed leg must not cut a benchmark short.
 for np in $nps; do for b in ${BENCHMARKS:-is ep cg mg lu}; do for cls in ${CLASSES:-S A}; do
   exe="$BIN/$b.$cls.x"; [ -x "$exe" ] || continue
   t0=$(date +%s.%N); timeout -k 5 600 /usr/bin/mpirun.openmpi -np $np "$exe" > "$OUT/$b.$cls.$np.plain.log" 2>&1; t1=$(date +%s.%N)

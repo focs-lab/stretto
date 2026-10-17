@@ -178,7 +178,7 @@ tests `C_FastEqualsGeneric`. Evidence: a synthetic master-worker trace with 256 
 receives takes 0.2 s; AMG at 8 ranks (39 643 sends, 53 wildcard receives, 10 978 probes,
 3 263 probe alternatives, about 260 message sizes) takes 13.2 s and 0.55 GB on the idle second
 machine, 300 s and 1.2 GB with `--full-profile`; Nekbone's communication suite at 8 ranks
-(10.4 million records, 18 759 alternatives) 95 min and 32.5 GB, about 0.3 s per alternative,
+(10.4 million records, 18 759 alternatives) 63 min and 32.5 GB, about 0.2 s per alternative,
 the linear check at that trace size (`results.md`, E5 and E5b).
 
 **Lemma T5 (the single-path assumption is unsound on metadata-dependent code).** There are two

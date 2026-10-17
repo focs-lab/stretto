@@ -824,7 +824,7 @@ What is settled (`model.md` T4): with the matching given, the check is linear pe
 
   scalability     measured up to 16 ranks and 3 million events (lu.A: 50 s)
                   and, with alternatives, to 10 million records and 18 759
-                  alternatives (Nekbone: 95 min, 32.5 GB); the claim is
+                  alternatives (Nekbone: 63 min, 32.5 GB); the claim is
                   stated for that range
 ```
 
