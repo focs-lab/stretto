@@ -13,9 +13,10 @@ import re
 import subprocess
 import time
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 from .report import Finding, Report
+from .trace import ANY
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
@@ -108,6 +109,65 @@ def control_pin(t, pin: str) -> Optional[str]:
     return f"{name}={','.join(toks)}" if toks else None
 
 
+def horizon_pins(t, f: Finding, B=None) -> Optional[Tuple[List[str], List[str]]]:
+    """Pins that force, in a replay, the alternative's execution over its whole horizon, and the
+    control: every wildcard receive (REMATCH_PIN) and every wildcard probe that found a message
+    (REMATCH_PIN_PROBE) posted inside the horizon is pinned to the sender it took in the run,
+    and the changed one to the alternative's (the control keeps the observed sender there too).
+    Pinning the changed operation alone leaves the earlier wildcard operations free to match
+    differently in the rerun, and then neither the alternative nor its control is the execution
+    theorem T1 constructs. Returns (alternative, control) as lists of VAR=value, or None if the
+    finding names no single change or the alternative is not feasible at B."""
+    from .feasible import check
+    if f.probe is not None and f.send is not None:
+        chk = check(t, t.observed, set(), B, "L1", changed_probes={f.probe}, probe_alt={f.probe: f.send})
+        change = ("probe", f.probe, f.send)
+    elif f.recv is not None and f.send is not None and f.level in ("L1", "L1+SP"):
+        M = dict(t.observed)
+        victim = next((rk for rk, sk in t.observed.items() if sk == f.send and rk != f.recv), None)
+        if victim is not None:
+            del M[victim]
+        M[f.recv] = f.send
+        chk = check(t, M, {f.recv}, B, "L1")
+        change = ("recv", f.recv, f.send)
+    else:
+        return None
+    if not chk.feasible or chk.cut is None:
+        return None
+    cut = chk.cut
+
+    def specs(alternative: bool) -> List[str]:
+        rtok, ptok = [], []
+        for r in sorted(t.recvs.values(), key=lambda r: (r.rank, r.idx)):
+            if r.widx is None or r.idx >= cut[r.rank]:
+                continue
+            sk = change[2] if alternative and change[0] == "recv" and change[1] == r.key else t.observed.get(r.key)
+            if sk is None:
+                continue
+            m = t.sends[sk]
+            rtok.append(f"{r.rank}:{r.widx}:{m.rank}" + (f":{m.tag}" if r.tag == ANY else ""))
+        for q in sorted(t.probes.values(), key=lambda q: (q.rank, q.idx)):
+            if q.pidx is None or not q.flag or q.idx >= cut[q.rank]:
+                continue
+            sk = change[2] if alternative and change[0] == "probe" and change[1] == q.key else q.seen
+            if sk is None:
+                continue
+            m = t.sends[sk]
+            ptok.append(f"{q.rank}:{q.pidx}:{m.rank}" + (f":{m.tag}" if q.tag == ANY else ""))
+        out = []
+        if rtok:
+            out.append("REMATCH_PIN=" + ",".join(rtok))
+        if ptok:
+            out.append("REMATCH_PIN_PROBE=" + ",".join(ptok))
+        return out
+
+    return specs(True), specs(False)
+
+
+def all_matched(pins: List[str], stderr: str) -> bool:
+    return all(pins_matched(p, stderr) for p in pins)
+
+
 def expected_outcomes(f: Finding) -> set:
     """Which replay results confirm a finding of this class, provided its pins were applied."""
     if f.cls in ("1a",):
@@ -117,12 +177,13 @@ def expected_outcomes(f: Finding) -> set:
     return set()   # 1b, 1f, probe-alt, waitany-order: any outcome is consistent (info only)
 
 
-def run_pinned(np: int, exe: str, args: List[str], pin: Optional[str], timeout: int = 20, mpi: str = "openmpi",
+def run_pinned(np: int, exe: str, args: List[str], pin, timeout: int = 20, mpi: str = "openmpi",
                mpirun_args: Optional[List[str]] = None, extra_env: Optional[dict] = None) -> subprocess.CompletedProcess:
+    """pin: one "REMATCH_PIN=..." assignment, a list of them, or None."""
     pinlib = os.path.join(ROOT, "replay", "bin", mpi, "librematch-pin.so")
     env_args = ["-x", f"LD_PRELOAD={pinlib}"]
-    if pin:
-        env_args += ["-x", pin]   # "REMATCH_PIN=..."
+    for assignment in ([pin] if isinstance(pin, str) else (pin or [])):
+        env_args += ["-x", assignment]   # "REMATCH_PIN=..." or "REMATCH_PIN_PROBE=..."
     for k, v in (extra_env or {}).items():
         env_args += ["-x", f"{k}={v}"]
     # no --foreground: timeout then signals the whole process group, so the ranks go with mpirun
@@ -137,19 +198,22 @@ def run_pinned(np: int, exe: str, args: List[str], pin: Optional[str], timeout: 
 
 def confirm(rep: Report, np: int, exe: str, args: List[str] = (), timeout: int = 20, mpi: str = "openmpi",
             only_errors: bool = True, t=None) -> List[Confirmation]:
-    """t, the trace, gives the control reruns; without it no finding can be confirmed."""
+    """t, the trace, gives the horizon pins and the control reruns; without it no finding can be
+    confirmed. A finding whose consequence holds in every execution with the change is replayed
+    with the horizon pins (every wildcard operation of the alternative's horizon pinned); one
+    whose consequence holds in some execution with the pins of the explorer's witness."""
     out = []
     seen = set()
     controls: dict = {}
 
-    def control(pin: str) -> str:
-        cp = control_pin(t, pin) if t is not None else None
-        if t is None:
+    def control(pins: List[str]) -> str:
+        if t is None or not pins:
             return ""
-        if cp not in controls:
-            r = run_pinned(np, exe, list(args), cp, timeout, mpi)
-            controls[cp] = classify_rc(r.returncode, r.stderr, r.elapsed, timeout)
-        return controls[cp]
+        key = tuple(pins)
+        if key not in controls:
+            r = run_pinned(np, exe, list(args), pins, timeout, mpi)
+            controls[key] = classify_rc(r.returncode, r.stderr, r.elapsed, timeout)
+        return controls[key]
 
     for f in rep.findings:
         if f.level == "observed":
@@ -161,24 +225,31 @@ def confirm(rep: Report, np: int, exe: str, args: List[str] = (), timeout: int =
             # SP findings share the pin of their L1 parent (same recv/send)
             parent = next((g for g in rep.findings if g.pin and g.recv == f.recv and g.send == f.send), None)
             pin = parent.pin if parent else None
-        if pin is None:
+        hp = horizon_pins(t, f) if t is not None and f.certainty != "some" else None
+        if hp is not None:
+            pins, ctl_pins = hp
+        elif pin is not None:
+            pins = [pin]
+            cp = control_pin(t, pin) if t is not None else None
+            ctl_pins = [cp] if cp else []
+        else:
             out.append(Confirmation(f, "", "NO-PIN", "n/a"))
             continue
-        key = (pin, f.cls)
+        key = (tuple(pins), f.cls)
         if key in seen:
             continue
         seen.add(key)
-        r = run_pinned(np, exe, list(args), pin, timeout, mpi)
+        r = run_pinned(np, exe, list(args), pins, timeout, mpi)
         res = classify_rc(r.returncode, r.stderr, r.elapsed, timeout)
-        applied = pins_applied(pin, r.stderr)
-        matched = pins_matched(pin, r.stderr)
+        applied = all(pins_applied(x, r.stderr) for x in pins)
+        matched = all_matched(pins, r.stderr)
         want = expected_outcomes(f)
-        ctl = control(pin) if want and res in want and matched else ""
+        ctl = control(ctl_pins) if want and res in want and matched else ""
         if not want:
             verdict = "n/a"
         elif res not in want or not matched:
             verdict = "not-confirmed"
         else:
             verdict = "confirmed" if ctl == "FINISHED" else "inconclusive"
-        out.append(Confirmation(f, pin, res, verdict, r.stderr[-300:], applied, matched, ctl))
+        out.append(Confirmation(f, " ".join(pins), res, verdict, r.stderr[-300:], applied, matched, ctl))
     return out

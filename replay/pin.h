@@ -28,7 +28,7 @@ int  rematch_pin_recv(int *src, int *tag, MPI_Comm comm, int *widx);
    communicator. Only this line shows that the forced match happened. */
 void rematch_pin_matched(int widx, int comm_src);
 int  rematch_pin_probe(int *src, int *tag, MPI_Comm comm, int *pidx);   /* peek; ordinal counts successful probes only */
-void rematch_pin_probe_commit(int pidx);
+void rematch_pin_probe_commit(int pidx, int src, int tag);   /* src, tag: the envelope the probe reported (comm-local) */
 /* At MPI_Finalize: report every pin whose ordinal the run never reached ("unused"). */
 void rematch_pin_finalize(void);
 void rematch_pin_before_send(void);

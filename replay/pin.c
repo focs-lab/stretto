@@ -164,13 +164,13 @@ HIDDEN int rematch_pin_probe(int *src, int *tag, MPI_Comm comm, int *pidx) {
     return 0;
 }
 
-HIDDEN void rematch_pin_probe_commit(int pidx) {
+HIDDEN void rematch_pin_probe_commit(int pidx, int src, int tag) {
     if (pidx < 0) return;
     pthread_mutex_lock(&g_pmu);
     if (g_nprobe == pidx) {
         g_nprobe++;
         if (g_pinned_probe == pidx) {
-            fprintf(stderr, "[rematch-pin] rank %d: applied probe pidx=%d\n", g_rank, pidx);
+            fprintf(stderr, "[rematch-pin] rank %d: applied probe pidx=%d src=%d tag=%d\n", g_rank, pidx, src, tag);
             g_pinned_probe = -1;
         }
     }

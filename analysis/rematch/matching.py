@@ -470,7 +470,8 @@ def probe_candidates(t: Trace, hb=None) -> List[Tuple[Probe, Send]]:
     return out
 
 
-def matching_order_ok(t: Trace, M: Dict[Key, Key], kept_recv, ranks: Optional[Set[int]] = None) -> Optional[str]:
+def matching_order_ok(t: Trace, M: Dict[Key, Key], kept_recv, ranks: Optional[Set[int]] = None,
+                      kept_probe=None, probe_alt: Optional[Dict[Key, Key]] = None) -> Optional[str]:
     """MPI matching order for M restricted to receives with kept_recv(key) (posting-index
     based), optionally only for receives on the given ranks (the observed matching is
     valid by construction, so only ranks touched by a change need re-checking).
@@ -519,6 +520,29 @@ def matching_order_ok(t: Trace, M: Dict[Key, Key], kept_recv, ranks: Optional[Se
             s2 = t.sends[M[r2.key]]
             if s2.rank == s.rank and s2.dst == s.dst and s2.comm == s.comm and s2.idx > s.idx:
                 return f"receiver order: earlier {r2} would take {s} before {s2}"
+    # (c) a probe reports what a receive posted at its point would take: the earlier messages of
+    # its channel that it accepts are matched to receives posted before it, and every receive
+    # posted before it that accepts the reported message is matched to another message
+    if kept_probe is not None:
+        probe_alt = probe_alt or {}
+        for q in t.probes.values():
+            if (ranks is not None and q.rank not in ranks) or not q.completed or not q.flag or not kept_probe(q):
+                continue
+            sk = probe_alt.get(q.key, q.seen)
+            if sk is None:
+                continue
+            s = t.sends[sk]
+            for s2 in t.earlier_sends(q, s):
+                r2k = matched_send.get(s2.key)
+                if r2k is None or post_idx[r2k] > q.idx:
+                    return f"probe order: {s2} would be reported by {q} before {s}"
+            for src in (s.rank, ANY):
+                for tag in (s.tag, ANY):
+                    if first_unmatched.get((q.rank, q.comm, src, tag), 10**18) < q.idx:
+                        return f"probe order: an earlier receive of rank {q.rank} accepts {s} and has no message in this matching"
+            rk = matched_send.get(sk)
+            if rk is not None and rk[0] == q.rank and post_idx[rk] < q.idx and not t.recvs[rk].mrecv:
+                return f"probe order: {t.recvs[rk]}, posted before {q}, takes {s}"
     return None
 
 

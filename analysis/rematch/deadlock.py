@@ -125,12 +125,21 @@ def contained_deadlock(t: Trace, M, changed: Set[Key], cut: Dict[int, int], issu
         rec = t.ranks[rank][c]
         if rec.op not in ("send", "recv", "coll", "probe", "wait"):
             continue
-        ops = _completed_at(t).get((rank, c), [])
+        kind = rec.raw.get("kind") if rec.op == "wait" else None
+        if kind is not None and kind.startswith("test"):
+            continue                             # a test returns at once: the rank does not stop there
+        if rec.op == "probe" and rec.raw.get("kind") in ("iprobe", "improbe"):
+            continue
+        if kind in ("waitany", "waitsome"):
+            # it waits for any of its requests, not only the one that completed in the run
+            ops = [x for q in rec.raw.get("reqs", []) if q is not None and q >= 0
+                   for x in (t.recv_by_req(rank, q), t._by_req.get(("s", rank, q))) if x is not None]
+        else:
+            ops = _completed_at(t).get((rank, c), [])
         if not ops:
             continue
-        kind = rec.raw.get("kind") if rec.op == "wait" else None
         reqs = [needs(x) for x in ops]
-        if kind in ("waitany", "testany", "waitsome", "testsome"):
+        if kind in ("waitany", "waitsome"):
             if any(r is None for r in reqs):
                 continue                         # one of them can complete
             partners = set().union(*reqs)

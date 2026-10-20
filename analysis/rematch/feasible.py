@@ -68,7 +68,13 @@ def check(t: Trace, M: Dict[Key, Key], changed, B: Optional[int], mode: str = "L
         r = t.recvs[rk]
         return r.idx < cut[r.rank]
 
-    why = matching_order_ok(t, M, kept_recv, affected_ranks(t, M, changed) if changed or M != t.observed else set())
+    def kept_probe(q) -> bool:
+        return q.idx < cut[q.rank]
+
+    ranks = affected_ranks(t, M, changed) if changed or M != t.observed else set()
+    for pk in (probe_alt or {}):
+        ranks.add(pk[0])
+    why = matching_order_ok(t, M, kept_recv, ranks, kept_probe, probe_alt)
     if why:
         return Verdict(False, why, cut)
     g = build_graph(t, M, cut, B, extra_edges, strong_only, probe_alt, issued)

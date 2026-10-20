@@ -781,7 +781,7 @@ static void probe_rec(const char *kind, int src, int tag, MPI_Comm comm, int fla
     if (flag && pidx >= 0) rb_printf(&b, ",\"pidx\":%d", pidx);
     if (pinned) rb_printf(&b, ",\"pinned\":{\"src\":%d}", psrc);
     if (flag && rc == MPI_SUCCESS && st) { int cnt = -1; PMPI_Get_count(st, MPI_BYTE, &cnt); rb_printf(&b, ",\"msrc\":%d,\"mtag\":%d,\"mbytes\":%d", st->MPI_SOURCE, st->MPI_TAG, cnt); }
-    if (flag) rematch_pin_probe_commit(pidx);
+    if (flag) rematch_pin_probe_commit(pidx, rc == MPI_SUCCESS && st ? st->MPI_SOURCE : -1, rc == MPI_SUCCESS && st ? st->MPI_TAG : -1);
     rb_emit_kind(&b, !flag);
 }
 int MPI_Probe(int src, int tag, MPI_Comm comm, MPI_Status *st) {

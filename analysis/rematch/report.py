@@ -29,6 +29,7 @@ class Finding:
     send: Optional[Key] = None
     pin: Optional[str] = None   # ready-to-use REMATCH_PIN spec for replay
     certainty: str = ""         # L1+SP: 'all' (every execution with the pair) or 'some'
+    probe: Optional[Key] = None  # probe alternatives: the probe whose report changes (send = what it reports)
 
     def __str__(self):
         b = f" [{self.B}]" if self.B else ""
@@ -419,7 +420,7 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
         pin = f"REMATCH_PIN_PROBE={p.rank}:{p.pidx}:{s.rank}" + (f":{s.tag}" if p.tag == ANY else "") if p.pidx is not None else None
         rep.findings.append(Finding("probe", cls, "L1", f"{p} could observe {s} instead of {seen}",
                                     [why, f"L1: a receive whose source or count is taken from this probe's status changes with it; continuation of rank {p.rank} undetermined"],
-                                    B=brange, pin=pin))
+                                    B=brange, pin=pin, probe=p.key, send=s.key))
 
     # ---- completion-order alternatives (Waitany/Testany/Waitsome/Testsome): another request
     # completes first; the record's outcome changes, so the horizon cuts after it
@@ -542,7 +543,10 @@ def _profiles_fast(t: Trace, alts, probes, waits, full: bool = False) -> _Profil
         def alt_at(B, a=a):
             fv = at(B).check_alternative(a)
             return fv if fv is not None else check(t, a.M, a.changed, B, "L1")   # a swap or a nonblocking receive
-        pr.alt_reason[i] = profile(pr.alt[i], alt_at, lambda v: v.feasible, a.describe(t), floor, a.kind != "steal")[None].reason
+        # T2 covers steals at blocking receives: a swap re-matches two receives, and at a
+        # nonblocking receive the judged receives can change with B (proof appendix)
+        exact = a.kind == "steal" and t.recvs[a.recv].blocking
+        pr.alt_reason[i] = profile(pr.alt[i], alt_at, lambda v: v.feasible, a.describe(t), floor, not exact)[None].reason
     for j, (p, s) in enumerate(probes):
         pr.probe_reason[j] = profile(pr.probe[j], lambda B, p=p, s=s: at(B).check_probe(p, s), lambda v: v.feasible,
                                      f"{p} sees {s}", floor)[None].reason
@@ -569,7 +573,7 @@ def _profiles_generic(t: Trace, alts, probes, waits) -> _Profiles:
     bps = breakpoints(t) + [None]
     B0 = bps[observed_floor(bps, pr.obs)]
     for a in alts:
-        pr.alt.append(feasible_profile(t, a.M, a.changed, mode="L1", full=a.kind != "steal", floor=B0))
+        pr.alt.append(feasible_profile(t, a.M, a.changed, mode="L1", full=not (a.kind == "steal" and t.recvs[a.recv].blocking), floor=B0))
         pr.alt_reason.append(check(t, a.M, a.changed, None, "L1").reason)
     for p, s in probes:
         kw = dict(changed_probes={p.key}, probe_alt={p.key: s.key})

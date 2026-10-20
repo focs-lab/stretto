@@ -5,7 +5,7 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from rematch.confirm import classify_rc, control_pin, expected_outcomes, pins_applied, pins_matched  # noqa: E402
+from rematch.confirm import classify_rc, control_pin, expected_outcomes, horizon_pins, pins_applied, pins_matched  # noqa: E402
 from rematch import trace as T  # noqa: E402
 from rematch.report import Finding  # noqa: E402
 
@@ -65,6 +65,31 @@ class PinsMatched(unittest.TestCase):
                      2: [{"op": "init", "np": 3}, {"op": "send", "mode": "std", "dst": 0, "tag": 1, "comm": 0, "count": 1, "tsize": 4}, {"op": "finalize"}]})
         self.assertEqual(control_pin(t, "REMATCH_PIN=0:0:2,0:1:1"), "REMATCH_PIN=0:0:1,0:1:2")
         self.assertIsNone(control_pin(t, "REMATCH_PIN=0:7:2"))                  # no such receive: nothing to pin
+
+
+class HorizonPins(unittest.TestCase):
+    """A replay forces the alternative's whole horizon: every wildcard receive and probe posted
+    in it is pinned to the sender it took in the run, the changed one to the alternative's."""
+
+    def trace(self):
+        rec = lambda **kw: {"op": "recv", "src": 0, "anysrc": 1, "tag": 1, "comm": 0, "count": 1, "tsize": 4, "mtag": 1, "mcount": 1, **kw}
+        send = {"op": "send", "mode": "std", "dst": 0, "tag": 1, "comm": 0, "count": 1, "tsize": 4}
+        t = T.Trace()
+        T._build(t, {0: [{"op": "init", "np": 4}, rec(msrc=1, widx=0), rec(msrc=2, widx=1), rec(msrc=3, widx=2), {"op": "finalize"}],
+                     1: [{"op": "init", "np": 4}, send, {"op": "finalize"}],
+                     2: [{"op": "init", "np": 4}, send, {"op": "finalize"}],
+                     3: [{"op": "init", "np": 4}, send, {"op": "finalize"}]})
+        return t
+
+    def test_earlier_wildcards_pinned_to_their_observed_senders(self):
+        t = self.trace()
+        # the second wildcard receive takes rank 3's message instead of rank 2's
+        f = Finding("1", "1f", "L1", "", recv=(0, 1), send=(3, 0))
+        alt, ctl = horizon_pins(t, f)
+        self.assertEqual(alt, ["REMATCH_PIN=0:0:1,0:1:3"])        # rank 0 is cut right after the changed receive
+        self.assertEqual(ctl, ["REMATCH_PIN=0:0:1,0:1:2"])
+        self.assertTrue(pins_matched(alt[0], "[rematch-pin] rank 0: matched widx=0 src=1\n[rematch-pin] rank 0: matched widx=1 src=3\n"))
+        self.assertFalse(pins_matched(alt[0], "[rematch-pin] rank 0: matched widx=1 src=3\n"))
 
 
 if __name__ == "__main__":
