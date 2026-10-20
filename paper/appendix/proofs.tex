@@ -56,11 +56,11 @@ $\trace$. We read the obligations of \cref{sec:graph} as follows.
 \end{itemize}
 $\Malt$ is feasible if it survives, (O1)--(O3) hold and $\Graph$ is acyclic.
 \texttt{matching.matching\_order\_ok} checks (O1) and (O2) for each receive posted in $\Hpre$
-that $\Malt$ matches, judged or not. \pending{Gap in \cref{sec:graph}: the wording omits
-``posted before $r$'' and probes. Without the clause \cref{thm:sound} fails: rank~0 runs
-$\mpicall{Recv}(r,\ANY)$, $\mpicall{Recv}(q,\text{from }1)$; rank~1 sends $s'$ then $s$, rank~2
-sends $s_o$; $\trace$ has $r\gets s_o$, $q\gets s'$. The alternative $r\mapsto s$ meets the
-wording, as $s'$ is matched to $q$, but $r$ cannot take $s$ while $s'$ is pending.}
+that $\Malt$ matches, judged or not, and (O3) for the probes of the ranks it affects. The
+clause ``posted before $r$'' of (O1) is necessary. Without it \cref{thm:sound} fails: rank~0
+runs $\mpicall{Recv}(r,\ANY)$, $\mpicall{Recv}(q,\text{from }1)$; rank~1 sends $s'$ then $s$,
+rank~2 sends $s_o$; $\trace$ has $r\gets s_o$, $q\gets s'$. The alternative $r\mapsto s$ would
+pass, as $s'$ is matched to $q$, but $r$ cannot take $s$ while $s'$ is pending.
 
 \paragraph{Steals and the observed threshold.}
 A steal $r\mapsto s$ is $\Malt=\Mobs[r\mapsto s]$ minus the pair $(r_2,s)$, if
@@ -81,7 +81,8 @@ kernel steal's $s$: before $s$ it would be matched to $r$ itself, after $s$ it w
 
 For a prefix $X$, let $T(X)$ be the events the rules target on $X$:
 \begin{itemize}[leftmargin=*]
-\item \ref{H:changed}: for $r\in\Changed$, the call that follows $\compl(r)$;
+\item \ref{H:changed}: for $r\in\Changed$, the call that follows $\compl(r)$, or that follows the
+  posting of $r$ if $r$ does not complete in $\trace$;
 \item \ref{H:recv}: for a receive that completes in $\trace$ and whose $\Malt$-send is undefined
   or not issued in $X$, the call of its completing record;
 \item \ref{H:send}: for a send that completes in $\trace$, blocks at $\Bt$, and whose
@@ -222,26 +223,27 @@ $X$ is finite and no rule asks for more: a posted receive whose $\Malt$-send is 
 $\Hpre$, or that $\Malt$ leaves unmatched, is simply not matched in $X$.
 \end{proof}
 
-The proof covers \texttt{feasible.check} when it accepts, except for (O3), and the fast check
+The proof covers \texttt{feasible.check} when it accepts and the fast check
 for a steal at a blocking receive (\texttt{fast.Observed.check\_alternative}). There
 \ref{H:changed} and (O1) leave $\compl(s)$ as the only possible successor of $\mnode(r,s)$;
 $\Graph$ without $\mnode(r,s)$ and without the \ref{G:ready} edge of a ready $s$ is a subgraph
 of $\hat G_\Bt$, which the check requires acyclic; and the check tests the two remaining paths,
 from $\compl(s)$ to a predecessor of $\mnode(r,s)$ and from $\issue(s)$ to $\issue(r)$.
-\pending{Gap: no code checks (O3); \texttt{build\_graph} adds order edges into $\compl(p)$ only
-for messages that $\Malt$ matches. The theorem then fails for the implementation. Rank~0 runs
+Before (O3) was checked, the theorem failed for the implementation, as \texttt{build\_graph}
+adds order edges into $\compl(p)$ only for messages that $\Malt$ matches. Rank~0 runs
 $\mpicall{Irecv}(r,\ANY)$, $\mpicall{Probe}(p,\text{from }2)$, $\mpicall{Wait}(r)$,
 $\mpicall{Recv}(r_2,\text{from }2)$; rank~1 sends $s_o$, rank~2 sends $s$; in $\trace$
-$r\gets s_o$, $p$ reports $s$, $r_2\gets s$, and $\Bobs=0$. The steal $r\mapsto s$ is accepted
+$r\gets s_o$, $p$ reports $s$, $r_2\gets s$, and $\Bobs=0$. The steal $r\mapsto s$ was accepted
 at every $\Bt$, but $r$ takes $s$ before $p$ can report it. A probe of rank~1 reporting a later
-message of rank~1 fails alike, on the released $s_o$. Repair: check (O3), or (H8) of
-\cref{app:mono}.}
+message of rank~1 failed alike, on the released $s_o$. \texttt{matching\_order\_ok} now checks
+(O3), which rejects both; (H8) of \cref{app:mono} would be the alternative repair.
 
 \subsection{Monotonicity}
 \label{app:mono}
 
 \paragraph{A nonblocking changed receive.}
-\Cref{thm:mono} fails for it. Rank~0 runs $\mpicall{Irecv}(r,\ANY)$, $\mpicall{Irecv}(r',\text{from }1)$,
+\Cref{thm:mono} is restricted to blocking receives because it fails for a nonblocking one.
+Rank~0 runs $\mpicall{Irecv}(r,\ANY)$, $\mpicall{Irecv}(r',\text{from }1)$,
 $\mpicall{Wait}(r)$, $\mpicall{Wait}(r')$, $\mpicall{Recv}(r_3,\ANY)$; rank~1 sends $s_o$ then
 $s_1$, rank~2 sends $s$, all to rank~0 in standard mode with one tag. In $\trace$, $r\gets s_o$,
 $r'\gets s_1$, $r_3\gets s$, and $\Bobs=0$. Take the kernel steal $r\mapsto s$. At $\Bt=0$,
@@ -257,7 +259,7 @@ in $\trace$, fails here: their obligations mention the released $s_o$.
 Let $W(r)$ be the receives and probes of $\mathit{rank}(r)$ posted after $r$ and before
 $\compl(r)$, or after $r$ if $r$ does not complete in $\trace$; $W(r)=\emptyset$ if $r$ blocks.
 
-\begin{theorem}[Monotonicity, as proved]\label{thm:app-mono}
+\begin{theorem}[Monotonicity, in full]\label{thm:app-mono}
 Let $\Malt$ be a kernel steal $r\mapsto s$, $\Bobs\le\Bt\le\Bt'$, and $\Malt$ feasible at
 $\Bt$. Then (a) $\Hpre(\Bt)\subseteq\Hpre(\Bt')$ and $\judged(\Bt)\subseteq\judged(\Bt')$;
 (b) $\Malt$ survives at $\Bt'$ and $\Graph(\Bt')$ is acyclic; (c) an obligation fails at
@@ -371,9 +373,7 @@ $O((n+|\Malt|+\pi)\log n)$; \texttt{compute\_cut} rescans a set per removed memb
 $O(\sum_C|C|^2)\le O(p\,n)$. (O2) uses the earliest unmatched receive per class, (O1) one
 bisection per tag (\cref{lem:app-chain}). The graph has $O(n)$ program-order and hub edges and,
 per pair or probe, a match node and at most $4+T$ order edges, each found by a bisection; cycle
-detection is linear. \pending{\Cref{thm:cost} omits $\pi$, though a probe adds order edges as a
-pair does, and the $\sum_C|C|^2$ of \texttt{compute\_cut}; it holds as stated if
-$\pi=O(|\Malt|)$ or $T=O(1)$.}
+detection is linear.
 (iii) A steal is judged at $\Bobs$ and $\infty$ and, if the two differ, by bisection over the $k$
 sizes: $O(\log k)$ checks. A swap is judged at all $k+2$ breakpoints.
 \end{proof}
@@ -385,11 +385,11 @@ interval, which (d) excludes for a blocking $r$.
 \subsection{Completeness}
 \label{app:complete}
 
-\Cref{thm:complete} fails as stated. In the first witness of \cref{app:mono} at $\Bt=\infty$,
-rank~0 posting $r$ and $r'$, rank~2 sending $s$, $r$ taking it and $\mpicall{Wait}(r)$
-returning is a matching-preserving reordering for $r\mapsto s$, yet the check rejects. The
-proof idea fails at its last sentence: the horizon rules keep a reordering inside $\Hpre$, but
-the cycle or failed obligation can lie in the part of $\Hpre$ the reordering omits.
+Completeness must be relative to the horizon. In the first witness of \cref{app:mono} at
+$\Bt=\infty$, rank~0 posting $r$ and $r'$, rank~2 sending $s$, $r$ taking it and
+$\mpicall{Wait}(r)$ returning is a matching-preserving reordering of a prefix of $\trace$ for
+$r\mapsto s$, yet the check rejects. The horizon rules keep such a reordering inside $\Hpre$,
+but the cycle or failed obligation can lie in the part of $\Hpre$ the reordering omits.
 
 \begin{definition}\label{def:app-real}
 Let $\Malt$ survive at $\Bt$ with horizon $\Hpre$. A \emph{realisation} of $\Malt$ over $\Hpre$
@@ -398,7 +398,7 @@ $\mnode(r,\Malt(r))$ for each $r\in\judged$ that $\Malt$ matches, and in which e
 reports $s_p$. For a kernel steal, it is a matching-preserving reordering of the whole horizon.
 \end{definition}
 
-\begin{theorem}[Completeness, as proved]\label{thm:app-complete}
+\begin{theorem}[\Cref{thm:complete}]\label{thm:app-complete}
 Assume (C1) every collective of $\trace$ has a known shape and, if the shape has a root, a
 recorded root; (C2) the ready-send clause of \ref{E:compl} requires the receive that the send is
 \emph{matched to} to be posted, as the standard's ready mode does. Let $\Malt$ survive at $\Bt$.
@@ -442,30 +442,36 @@ realisable is not proved here.}
 
 \paragraph{Conservative steps of the implementation.}
 \begin{enumerate}[leftmargin=*]
-\item \texttt{fast.Observed.check\_alternative} rejects every steal at $\Bt$ when $\hat G_\Bt$ is
-  cyclic (\texttt{Observed.acyclic}), wherever the cycle lies. By (F2) this never happens at
-  $\Bt\ge\Bobs$ as defined in \cref{app:conv}, but the implementation's $\Bobs$ can be lower.
-\item Same function: reachability from $\compl(s)$ is decided in $\hat G_\Bt$, which also has the
+\item \emph{Removed.} \texttt{fast.Observed.check\_alternative} rejected every steal at $\Bt$ when
+  $\hat G_\Bt$ was cyclic, wherever the cycle lay. By (F2) this cannot happen at $\Bt\ge\Bobs$ as
+  defined in \cref{app:conv}, but the implementation's $\Bobs$ can be lower; the fast checks now
+  leave such a threshold to the generic check.
+\item \texttt{fast.Observed.check\_alternative}: reachability from $\compl(s)$ is decided in $\hat G_\Bt$, which also has the
   pairs $(r,s_o)$, $(r_2,s)$ and the events beyond $\Hpre$.
 \item \texttt{matching.coll\_shape}, \texttt{horizon.coll\_can\_complete},
   \texttt{build\_graph}: unknown collectives and root shapes without a recorded root are
   barriers.
-\item \texttt{horizon.compute\_cut}, \texttt{compute\_cut\_fixpoint}, rule~5 of
-  \texttt{fast.Observed.closure}: a probe is removed when the record of $s_p$ is cut, even if
+\item \emph{Removed.} \texttt{horizon.compute\_cut}, \texttt{compute\_cut\_fixpoint} and rule~5 of
+  \texttt{fast.Observed.closure} removed a probe when the record of $s_p$ was cut, even if
   \ref{H:send} kept its call.
-\item \texttt{matching\_order\_ok} checks (O1) and (O2) for unjudged posted receives; the first
-  witness of \cref{app:mono} at $\Bt=0$ has a realisation and is rejected.
-\item \texttt{horizon.compute\_cut} cuts right after the posting of a changed receive that never
-  completed in $\trace$ (\texttt{\_cidx}); \ref{H:changed} removes nothing then.
+\item \emph{Removed.} \texttt{matching\_order\_ok} checked (O1) and (O2) for unjudged posted
+  receives, and rejected the first witness of \cref{app:mono} at $\Bt=0$, which has a
+  realisation.
+\item \emph{Not conservative.} \texttt{horizon.compute\_cut} cuts right after the posting of a
+  changed receive that never completed in $\trace$ (\texttt{\_cidx}). An earlier version of
+  \ref{H:changed} removed nothing then, which is unsound: if a receive posted later on the rank
+  is judged and $r$ accepts its message, \ref{G:order} puts $\mnode(r,\Malt(r))$ before it, and
+  a test of $r$'s request after that receive, which failed in $\trace$, succeeds.
 \item Outside the model: \texttt{matching\_order\_ok} and \texttt{fast.Observed.\_order} count
   a receive freed while pending (\texttt{Recv.freed}) as unmatched, though it completed
   unobserved; \texttt{Trace.earlier\_competitors} and \texttt{earlier\_sends} order an
   \mpicall{Mrecv} from its own posting, though its message was fixed at its \mpicall{Mprobe}.
 \end{enumerate}
-To meet \cref{thm:app-complete}, items 1, 2, 4, 5 and 6 must change: decide acyclicity of
-$\Graph$ over $\Hpre$ (or use the generic check when $\hat G_\Bt$ is cyclic or the query
-succeeds), test \ref{H:probe} on the call of $s_p$, restrict the obligations to $\judged$, and
-apply \ref{H:changed} only after a recorded completion. (C1) excludes item 3.
+Items 1, 4 and 5 are removed, with regression tests (\texttt{C\_CompletenessSteps}), and
+item 6 is the rule. Item 2 remains in the fast check, used for steals at blocking receives:
+\texttt{report.\_profiles\_fast} has the generic check confirm each of its rejections by a cycle
+on traces of up to $2\cdot10^5$ records (\texttt{CONFIRM\_LIMIT}), and above that counts them in
+a note. (C1) excludes item 3.
 
 \subsection{Deadlocks inside the horizon}
 \label{app:l1dead}
@@ -475,7 +481,7 @@ Let $\Malt$ be feasible at $\Bt$ with horizon $\Hpre$, and $X$ an execution buil
 return is not in $\Hpre$. A rank \emph{terminates in $\Hpre$} if all its records, the last a
 finalize, are in $\Hpre$.
 
-\begin{definition}[Contained deadlock, as proved]\label{def:app-dead}
+\begin{definition}[Contained deadlock, in full]\label{def:app-dead}
 $D$ is a contained deadlock if every $i\in D$ satisfies:
 \begin{enumerate}[leftmargin=*,label=(D\arabic*)]
 \item $i$ is not the rank of a changed receive that completes in $\Hpre$;
@@ -494,7 +500,7 @@ $D$ is a contained deadlock if every $i\in D$ satisfies:
 \end{enumerate}
 \end{definition}
 
-\begin{theorem}[Deadlock at \Lone, as proved]\label{thm:app-dead}
+\begin{theorem}[\Cref{thm:l1dead}]\label{thm:app-dead}
 Let $D$ be a contained deadlock and $\Hpre^+=\Hpre\cup\{\evcall(\kappa_i)\mid i\in D\}$. For
 every $\prog\in\Cons(\trace,\Hpre^+)$, every execution $X$ of $\prog$ given by
 \cref{thm:sound} and every execution $X'$ of $\prog$ at $\Bt$ that extends $X$, no $i\in D$
@@ -515,23 +521,20 @@ belongs by (D4) to a terminated rank, which by (P2) calls nothing, or to a $j\in
 $\kappa_j$, excluded by (D4), or a later call, which needs the return of $\kappa_j$ before $v$.
 \end{proof}
 
-\Cref{thm:l1dead} quantifies over $\Cons(\trace,\Hpre)$, which is too strong: when $\kappa_i$
-is not issued in $\Hpre$ (after \ref{H:recv}, \ref{H:coll}, \ref{H:pending} or \ref{H:ready}),
-a program consistent on $\Hpre$ may issue in its place a send that completes another rank's
-blocked receive. \texttt{docs/model.md} has the needed hypothesis, and the definition of
-\cref{sec:l1dead} also needs (D2) and the last clause of (D4). \texttt{deadlock.contained\_deadlock}
-treats a test at the cut (kinds \texttt{test}, \texttt{testall}, \texttt{testany},
-\texttt{testsome}) as blocking, though it may return false and let the rank go on; it judges a
-\mpicall{Waitany} or \mpicall{Waitsome} at the cut by the request it completed in $\trace$
-(\texttt{\_completed\_at}), not by all of $Q_i$; and it checks partner ranks rather than whether
-$\kappa_j$ is a partner, which \texttt{message\_present} and \texttt{receive\_present} cover
-except for a ready send removed by \ref{H:ready}. The first two can report a set that
-\cref{def:app-dead} rejects; we know no trace on which the third matters.
-\pending{\Cref{sec:l1dead} says that every cut descends from \ref{H:changed}. For a steal, cuts
-also start at $r_2$ (\ref{H:recv}, \ref{H:pending}) and at the released $s_o$ (\ref{H:send},
-\ref{H:ready}). Its conclusion, that $D$ contains the rank of a changed receive that does not
-complete in $\Hpre$, is plausible through (D4), as a rank stopped at $s_o$ needs
-$\mathit{rank}(r)$, but is not proved here.}
+Consistency on $\Hpre$ alone would not do: when $\kappa_i$ is not issued in $\Hpre$ (after
+\ref{H:recv}, \ref{H:coll}, \ref{H:pending} or \ref{H:ready}), a program consistent on $\Hpre$
+may issue in its place a send that completes another rank's blocked receive.
+\texttt{deadlock.contained\_deadlock} skips a test or an iprobe at the cut, judges a
+\mpicall{Waitany} or \mpicall{Waitsome} by all of $Q_i$, and for a wait or wait-all requires
+every blocked request's partner ranks in $D$ or terminated, which is stronger than (D3)--(D4).
+It checks partner ranks rather than whether $\kappa_j$ is a partner, which
+\texttt{message\_present} and \texttt{receive\_present} cover except for a ready send removed
+by \ref{H:ready}; we know no trace on which that matters.
+\pending{Cuts start at the changed receive (\ref{H:changed}), at $r_2$ (\ref{H:recv},
+\ref{H:pending}) and at the released $s_o$ (\ref{H:send}, \ref{H:ready}). That every
+contained deadlock contains the rank of a changed receive that does not complete in $\Hpre$
+is plausible through (D4), as a rank stopped at $s_o$ needs $\mathit{rank}(r)$, but is not
+proved here.}
 
 \subsection{Single-path is unsound}
 \label{app:sp}

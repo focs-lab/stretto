@@ -145,8 +145,11 @@ pin & alternative & replay & probe took the pinned message & residual \\
 \tool reports the race as a probe alternative, a warning, with the remark that a count taken
 from the probe would differ. It does not report a deadlock: the hang happens after the probe,
 and the receive that follows takes its source from the probe's status, so the continuation is
-beyond the horizon. The replay supplies what the trace cannot. \pending{Report the probe sites
-grouped, so the one alternative of a different size stands out among the 25.}
+beyond the horizon. The replay supplies what the trace cannot. Grouped by call site, the 25
+probe alternatives of a trace fall at four sites: HYPRE's own \mpicall{Iprobe} wrapper in its
+data exchange, the diagonal-scaling exchange, ParaSails's \texttt{ReceiveReplyPrunedRows},
+and its \texttt{ReceiveRequest}, the probe for tag~222 where the race lies. \pending{Site counts over
+the campaign's traces, from the site column of the rerun.}
 
 \paragraph{Wildcard-heavy correct code.} \pending{AMG (probe-driven exchange) and Nekbone's
 communication suite: \Lone deadlocks searched by \cref{thm:l1dead}; 30 alternatives each

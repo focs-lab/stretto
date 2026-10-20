@@ -16,7 +16,8 @@ record of that rank.
 \begin{enumerate}[leftmargin=*,label=(H\arabic*)]
 \item\label{H:changed} For $r\in\Changed$, the records of $\mathit{rank}(r)$ after the
   completion of $r$ are removed. Their results differ from $\trace$, so $\trace$ does not
-  determine them.
+  determine them. If $r$ does not complete in $\trace$, the records after its posting are
+  removed, since a later test of its request could now succeed.
 \item\label{H:recv} A receive whose $\Malt$-send is not issued in $\Hpre$, or that has no
   $\Malt$-send, does not complete: the record completing it is removed.
 \item\label{H:send} A send that blocks at $\Bt$ and whose $\Malt$-receive is not posted
@@ -69,14 +70,23 @@ for every judged receive $r$ with $\Malt(r)=s$. Its edges are:
   take.
 \end{enumerate}
 A collective of a root shape without a recorded root synchronises all members.
-A sender-side or receiver-side obligation whose earlier operation is issued in $\Hpre$
-but unmatched under $\Malt$ makes the alternative infeasible. Rule~\ref{H:pending} has
-already removed the receives that such a pending competitor would block.
 \end{definition}
 
+The edges order matches; three \emph{obligations} say which matches must exist.
+\begin{enumerate}[leftmargin=*,label=(O\arabic*)]
+\item\label{O:fifo} If $r$ is judged and $\Malt(r)=s$, each send before $s$ on its channel that
+  $r$ accepts is matched by $\Malt$ to a receive posted before $r$.
+\item\label{O:order} If $r$ is judged and $\Malt(r)=s$, each receive posted before $r$ that
+  accepts $s$ is matched by $\Malt$.
+\item\label{O:probe} If a probe completes in $\Hpre$ and reports $s_p$, each send before $s_p$
+  on its channel that the probe accepts is matched by $\Malt$ to a receive posted before the
+  probe, and each receive posted before the probe that accepts $s_p$ is matched by $\Malt$ to
+  another send.
+\end{enumerate}
+
 \begin{definition}[Feasibility]
-$\Malt$ is \emph{feasible at $\Bt$} if it survives in $\Hpre(\trace,\Malt,\Bt)$, every
-sender-side and receiver-side obligation over $\Hpre$ is met, and
+$\Malt$ is \emph{feasible at $\Bt$} if it survives in $\Hpre(\trace,\Malt,\Bt)$, the
+obligations \ref{O:fifo}--\ref{O:probe} hold over $\Hpre$, and
 $\Graph(\trace,\Malt,\Bt,\Hpre)$ is acyclic.
 \end{definition}
 
@@ -110,13 +120,13 @@ unmatched.
 schedule. Rule \ref{E:po} holds because each rank's results in $\Hpre$ equal those of
 $\trace$, except at a changed receive. Each changed receive is the last record of its
 rank in $\Hpre$ by \ref{H:changed}, so consistency makes $\prog$ issue exactly the
-operations of $\Hpre$. When a match node is reached, \ref{G:fifo} and \ref{G:order}
-guarantee that every earlier competitor on either side has been matched. Rule
+operations of $\Hpre$. When a match node is reached, the obligations guarantee that every
+earlier competitor on either side has a match, and \ref{G:fifo} and \ref{G:order} that it
+has been matched already. Rule
 \ref{H:pending} guarantees that no pending receive of the rank accepts the message, so
 MPI's matching rule has no choice but $\Malt$. Rendezvous completions follow their
 matches by \ref{G:match}, collectives follow their shapes, and probes see issued,
-unmatched messages. \Cref{app:proofs} gives the full proof.
-\pending{Proof being rewritten around match nodes.}
+unmatched messages. \Cref{app:sound} gives the full proof.
 
 \subsection{Buffering profiles}
 \label{sec:buffering}
@@ -136,19 +146,23 @@ the edges $\mnode(r,s)\to\compl(s)$ of \ref{G:match}.
 
 \begin{theorem}[Monotonicity]
 \label{thm:mono}
-Let $\Malt$ be a steal and $\Bobs\le\Bt\le\Bt'$. If $\Malt$ is feasible at $\Bt$, it is
-feasible at $\Bt'$, and $\Hpre(\trace,\Malt,\Bt)\subseteq\Hpre(\trace,\Malt,\Bt')$.
+Let $\Malt$ be a steal at a blocking receive and $\Bobs\le\Bt\le\Bt'$. If $\Malt$ is feasible
+at $\Bt$, it is feasible at $\Bt'$, and $\Hpre(\trace,\Malt,\Bt)\subseteq\Hpre(\trace,\Malt,\Bt')$.
 \end{theorem}
 
-The hypothesis $\Bt\ge\Bobs$ is necessary. Below $\Bobs$, raising the threshold can bring
+\noindent For a steal at a nonblocking receive the horizon still grows with $\Bt$, but a receive
+posted between the changed one and its wait can become judged and fail an obligation, so
+feasibility can be lost as $\Bt$ grows (\cref{app:mono} gives the trace). Its feasible
+thresholds still form an interval, and \tool profiles such steals at every breakpoint.
+
+The hypothesis $\Bt\ge\Bobs$ is also necessary. Below $\Bobs$, raising the threshold can bring
 back into the horizon a head-to-head exchange that is cut at the lower threshold. That
 exchange then closes a cycle until the threshold exceeds its messages, so feasibility can
 switch from true to false and back. \Cref{thm:mono} makes bisection over
-$[\Bobs,\infty]$ exact. \tool profiles each steal at $\Bobs$ and $\infty$ and bisects
-between them. Judging every breakpoint is the differential test.
-Swaps re-match two receives, which \cref{thm:mono} does not cover, so \tool profiles them at
-every breakpoint. \pending{Proof: repair the step for a nonblocking changed receive, whose
-judged receives can grow with $\Bt$.}
+$[\Bobs,\infty]$ exact for steals at blocking receives. \tool profiles each of them at
+$\Bobs$ and $\infty$ and bisects between them. Judging every breakpoint is the
+differential test. Swaps re-match two receives, which \cref{thm:mono} does not cover, so
+\tool profiles them, like steals at nonblocking receives, at every breakpoint.
 
 \begin{proposition}[Deadlocks are not monotone in $\Bt$]
 \label{prop:nonmono}
@@ -160,47 +174,63 @@ exactly for $\Bt<400$. In MBI's loop races, a steal needs the stolen message buf
 so the resulting deadlock exists only for $\Bt\ge 4$. A deadlock prediction therefore
 names its thresholds.
 
-\subsection{Completeness for single changes}
+\subsection{Completeness relative to the horizon}
 \label{sec:complete}
 
 Soundness alone is cheap: an analysis that accepts nothing is sound. Following the
 optimality results for shared-memory race prediction~\citep{mathur21syncp}, we
-characterise exactly which single changes the check accepts.
+characterise exactly which alternatives the check accepts.
 
-\begin{definition}[Matching-preserving reordering]
-A \emph{matching-preserving reordering} of $\trace$ for a steal $r\mapsto s$ at $\Bt$ is an
-execution at $\Bt$ of the operations of a prefix of $\trace$ that matches $r$ to $s$ and
-matches every other receive it completes as $\Mobs$ does.
+\begin{definition}[Realisation]
+Let $\Malt$ survive at $\Bt$ with horizon $\Hpre$. A \emph{realisation} of $\Malt$ over
+$\Hpre$ is an execution of $\SP(\trace)$ at $\Bt$ whose events are the calls and returns of
+$\Hpre$ and the matches of $\Malt$ on the judged receives, and in which each probe of $\Hpre$
+reports the message $s_p$ that $\Malt$ assigns it.
 \end{definition}
 
 \begin{theorem}[Completeness]
 \label{thm:complete}
-Let $\Bt\ge\Bobs$ and let the collectives of $\trace$ have known shapes. The check accepts
-a steal $r\mapsto s$ at $\Bt$ if and only if a matching-preserving reordering for
-$r\mapsto s$ at $\Bt$ exists.
+Assume that every collective of $\trace$ has a known shape and, if the shape has a root, a
+recorded root, and that a ready send requires the receive it is matched to to be posted. Let
+$\Malt$ survive at $\Bt$. Then $\Malt$ is feasible at $\Bt$ if and only if a realisation of
+$\Malt$ over $\Hpre(\trace,\Malt,\Bt)$ exists.
 \end{theorem}
 
-\noindent\emph{Proof idea.} ``Only if'' is \cref{thm:sound} applied to $\SP(\trace)$.
-For ``if'', every edge of $\Graph$ orders two events that every such reordering must
-order the same way, and every rule of the horizon removes an operation that no such
-reordering completes. A cycle would therefore lie inside the events the reordering must
-contain.
-\pending{T6 holds only after the conservative steps are removed or bounded: the global
-cycle gate of the fast check, rule~\ref{H:probe}, freed receives counted as competitors,
-and the order of an \mpicall{Mrecv} taken from its own posting. Proof to be written.}
+\noindent\emph{Proof idea.} ``Only if'' is \cref{thm:sound} applied to $\SP(\trace)$. For
+``if'', every obligation and every edge of $\Graph$ states an order that MPI's rules impose on
+any execution with the events of $\Hpre$ and the matches of $\Malt$. A realisation therefore
+meets the obligations, contains every node of $\Graph$, and orders them topologically
+(\cref{app:complete}).
+
+For a steal, a realisation is a matching-preserving reordering of the whole horizon: an
+execution of the operations of $\Hpre$ that matches $r$ to $s$ and every other judged
+receive as $\Mobs$ does. The theorem is relative to the horizon, and it has to be. A
+reordering of a shorter prefix can exist while the check rejects, because the horizon keeps
+a receive that the reordering omits and whose obligation fails (\cref{app:mono}). The rules
+\ref{H:recv}--\ref{H:probe} and \ref{H:ready} remove only events that no such execution can
+contain. Rule~\ref{H:pending} is stronger than necessary: it removes a deprived receive where
+removing its completion would suffice.
+The generic check meets the theorem. The fast check, which \tool uses for steals at
+blocking receives, decides reachability in the observed graph, which also contains events
+beyond the horizon, so it can reject where the generic check accepts (\cref{app:complete}).
+On traces of up to $2\cdot10^5$ records the generic check confirms every rejection the fast
+check makes by a cycle, so \tool meets the theorem there; above that, the report counts the
+rejections left unconfirmed.
 
 \subsection{Cost}
 \label{sec:cost}
 
 \begin{theorem}[Cost]
 \label{thm:cost}
-Let $\trace$ have $n$ records, $w$ wildcard receives of which $w_q$ on rank $q$, at most $T$
-tags on any channel read by an \ANY-tag receive, and $k$ distinct message sizes. Then
+Let $\trace$ have $n$ records, $w$ wildcard receives of which $w_q$ on rank $q$, $\pi$ probes
+that report a message, at most $T$ tags on any channel read by an \ANY-tag receive or probe,
+and $k$ distinct message sizes, and let $C$ range over its collective sets. Then
 \begin{enumerate}[leftmargin=*,label=(\roman*)]
 \item there are at most $w\cdot p$ steals and at most $\sum_q \binom{w_q}{2}$ swaps;
-\item one alternative is decided at one threshold in time $O((n+|\Malt|\,T)\log n)$;
-\item a steal is profiled with $O(\log k)$ checks above $\Bobs$ (\cref{thm:mono}), a swap with
-  $k+2$.
+\item one alternative is decided at one threshold in time
+  $O((n+(|\Malt|+\pi)\,T)\log n+\sum_C|C|^2)$, where $\sum_C|C|^2\le p\,n$;
+\item a steal at a blocking receive is profiled with $O(\log k)$ checks above $\Bobs$
+  (\cref{thm:mono}), any other alternative with $k+2$.
 \end{enumerate}
 \end{theorem}
 
@@ -208,8 +238,10 @@ tags on any channel read by an \ANY-tag receive, and $k$ distinct message sizes.
 message of each source can be next. The horizon is computed with a worklist. Each record
 loses its issue at most once, because cuts only decrease, and each rule is re-evaluated only
 when an input of its condition changes. Rule~\ref{H:pending} costs one bisection in an index
-of the messages each receive takes. The graph has $O(n+|\Malt|\,T)$ edges thanks to the
-class-indexed order edges, and cycle detection is linear. The check is therefore
+of the messages each receive takes. A collective set is rescanned whenever one of its members
+is removed, which gives the term $\sum_C|C|^2$. Each pair and each probe adds a match node and
+at most $4+T$ class-indexed order edges, so the graph has $O(n+(|\Malt|+\pi)\,T)$ edges, and
+cycle detection is linear. The check is therefore
 quasi-linear per alternative, for any number of changed receives. What grows with the number
 of changed receives is the number of alternatives. Choosing which receives to change is
 NP-complete in general~\citep{forejt17mopper}, and placing that problem between polynomial

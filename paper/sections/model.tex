@@ -108,8 +108,8 @@ restricts itself to observed findings (\cref{sec:implementation}).
 
 An \emph{alternative} is a partial injective map $\Malt$ from receives to sends with
 $r\accepts\Malt(r)$. Its \emph{changed receives} are
-$\Changed=\{r \mid \Malt(r)\ne\Mobs(r)\}$. A \emph{steal} changes one receive $r$ to a
-send $s$; if $s$ was taken in $\trace$ by a later receive $r_2$, $r_2$ loses its message.
+$\Changed=\{r\in\mathrm{dom}\,\Malt \mid \Malt(r)\ne\Mobs(r)\}$. A \emph{steal} changes one
+receive $r$ to a send $s$; if $s$ was taken in $\trace$ by a later receive $r_2$, $r_2$ loses its message.
 A \emph{swap} exchanges the messages of two wildcard receives of one rank. By
 \ref{E:fifo}, only the earliest message of each source that $r$ has not consumed can be
 $\Malt(r)$, so a wildcard receive has at most one steal per source with a pending

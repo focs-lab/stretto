@@ -9,7 +9,10 @@ record per call and rank: the arguments, the result, the request it creates or c
 and the communicator as a global identifier with its members' world ranks. Blocking calls
 first emit a \emph{begin} record, so that a rank killed while blocked shows where it was
 blocked. Repeated failed polls (\mpicall{Iprobe}, \mpicall{Test}) with no call in between
-are written once with a count. Derived datatypes are flattened to their basic type
+are written once with a count. Each record from user code names its call site, the return
+address of the MPI call as an object and an offset, which are the same in every process; the
+report groups the findings by the site of the changed receive or probe, and \texttt{addr2line}
+names a site in the source. Derived datatypes are flattened to their basic type
 signature for the count and type checks of \cls{1a}. The tracer covers all point-to-point
 modes, persistent requests, \mpicall{Sendrecv}, every wait and test variant, probes
 including matched probes, cancellation, blocking and nonblocking collectives, and
@@ -37,7 +40,7 @@ alternatives on different ranks are available on request.
 drop-in for the vector clocks.}
 
 \paragraph{Replay.} The replay library reads the pins from the environment and
-substitutes the source of the pinned wildcard receives, persistent receives included,
-through a shadow request. It can also delay chosen sends and receives, which the
-stress-testing baseline of \cref{sec:eval} uses. When a pinned receive completes, the
-library logs its match (\cref{sec:replay}).
+substitutes the source of the pinned wildcard receives and probes, persistent receives
+included, through a shadow request. It can also delay chosen sends and receives, which the
+stress-testing baseline of \cref{sec:eval} uses. When a pinned receive completes or a pinned
+probe finds a message, the library logs the match or the envelope (\cref{sec:replay}).

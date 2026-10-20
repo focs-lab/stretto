@@ -21,6 +21,7 @@ python3 -m stretto analyze --no-sp tr         # skip the single-path explorer (l
 python3 -m stretto analyze --changes 2 tr     # also two-change alternatives
 # exit status: 0 no error class, 1 an error class was found, 2 the trace could not be loaded, 3 internal error
 python3 -m stretto show tr                    # events, communicators, observed matching, probes
+python3 -m stretto sites --findings tr        # call sites named in the source (addr2line), findings per site
 python3 -m stretto candidates tr              # every candidate alternative with its verdict at B=0 / inf
 python3 -m stretto oracle tr                  # exhaustive exploration of the trace as a straight-line program
 

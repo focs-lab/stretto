@@ -42,35 +42,56 @@ exactly that part.
 
 Some deadlocks need no knowledge of the changed rank's continuation.
 
+Let $\Malt$ be feasible at $\Bt$ with horizon $\Hpre$. For a rank $i$ with records beyond
+$\Hpre$, let $\kappa_i$ be its first record whose return is not in $\Hpre$. A rank
+\emph{terminates in $\Hpre$} if all its records, the last a finalize, are in $\Hpre$.
+
 \begin{definition}[Contained deadlock]
-Let $\Malt$ be feasible at $\Bt$ with horizon $\Hpre$. A set $D$ of ranks is a
-\emph{contained deadlock} if no rank of $D$ is cut by \ref{H:changed}, every rank of $D$
-is cut at an operation it has issued but cannot complete in $\Hpre$, and every send or
-receive that could complete one of these operations belongs to a rank of $D$ and lies
-after that rank's cut.
+A set $D$ of ranks is a \emph{contained deadlock} if every $i\in D$ satisfies:
+\begin{enumerate}[leftmargin=*,label=(D\arabic*)]
+\item\label{D:changed} $i$ is not the rank of a changed receive that completes in $\Hpre$;
+\item\label{D:block} $\kappa_i$ blocks: it is a blocking send, receive, probe or collective,
+  or a wait, not a test or an iprobe;
+\item\label{D:partner} what $\kappa_i$ waits for has no partner in $\Hpre$: no unmatched send
+  of $\Hpre$ that a receive or probe accepts, no unmatched receive for a send that blocks at
+  $\Bt$, a required member missing for a collective (for a wait-all one blocked request
+  suffices; a wait-any or wait-some counts every request);
+\item\label{D:closed} every rank that could later supply such a partner is in $D$ or
+  terminates in $\Hpre$, and no $\kappa_j$ with $j\in D$ is itself a partner.
+\end{enumerate}
 \end{definition}
 
 \begin{theorem}[Deadlock at \Lone]
 \label{thm:l1dead}
-If $\Hpre$ contains a contained deadlock $D$, then for every
-$\prog\in\Cons(\trace,\Hpre)$, every execution given by \cref{thm:sound} extends only to
-executions in which the ranks of $D$ never complete their cut operations.
+Let $D$ be a contained deadlock and $\Hpre^+$ be $\Hpre$ with the calls of the records
+$\kappa_i$, $i\in D$, added. For every $\prog\in\Cons(\trace,\Hpre^+)$, every execution of
+$\prog$ given by \cref{thm:sound} extends only to executions at $\Bt$ in which no rank of $D$
+returns from $\kappa_i$.
 \end{theorem}
 
-\noindent The ranks of $D$ are not cut by \ref{H:changed}, so their prefixes in $\Hpre$
-are what every consistent program issues. Their blocked operations can only be completed
-by operations of $D$, which never come. A wildcard receive belongs to a contained deadlock
-only if every rank of its communicator is in $D$ or has terminated, because any other rank
-might still send. This is the analogue of sync-preserving deadlock
-prediction~\citep{tunc23spd} for message matching. \pending{Full proof.}
+\noindent By \ref{D:changed}, the ranks of $D$ return in $\Hpre$ the results they returned in
+$\trace$, so every program consistent on $\Hpre^+$ calls $\kappa_i$ next. Consider the first
+event after the execution of \cref{thm:sound} that would complete what some $\kappa_i$ waits
+for. Its partner is not in $\Hpre$ by \ref{D:partner}, and by \ref{D:closed} it could only
+come from a rank of $D$ after its own $\kappa_j$ returned, which has not happened
+(\cref{app:l1dead}). Consistency must hold on $\Hpre^+$, not only on $\Hpre$: when the call
+of $\kappa_i$ is cut, a program consistent on $\Hpre$ could issue a different call there, for
+instance a send that releases another rank of $D$. A wildcard receive belongs to a contained
+deadlock only if every rank of its communicator is in $D$ or terminates, because any other
+rank might still send. This is the analogue of sync-preserving deadlock
+prediction~\citep{tunc23spd} for message matching.
 
-Every cut of the horizon descends from \ref{H:changed}, so a contained deadlock needs a
-changed rank that stops \emph{before} its changed receive completes. Consider a nonblocking
-wildcard \mpicall{Irecv(ANY)}, then \mpicall{Recv(from 1)}, then the wait. If the wildcard
-takes rank~1's only message, the second receive has nothing left to take. The rank stops
-there, before the wait whose result could change its behaviour. With a blocking wildcard,
-the rank is cut right after it, and every rank that waits on it waits on an unknown
-continuation. Such deadlocks remain \LoneSP or \Ltwo claims.
+By \ref{D:changed}, a contained deadlock never needs the changed rank's continuation. A
+blocking changed receive is the last record of its rank in $\Hpre$, so a rank that waits on
+the changed rank waits on an unknown continuation, and \ref{D:closed} fails. A nonblocking
+one can stop its rank \emph{before} the receive completes. Consider a nonblocking wildcard
+\mpicall{Irecv(ANY)}, then \mpicall{Recv(from 1)}, then the wait. If the wildcard takes
+rank~1's only message, the second receive has nothing left to take. The rank stops there,
+before the wait whose result could change its behaviour. Deadlocks that need the changed
+rank's continuation remain \LoneSP or \Ltwo claims.
+\pending{That every contained deadlock contains the rank of a changed nonblocking receive
+that does not complete in $\Hpre$ is plausible but not proved: cuts also start at the
+receive deprived of the stolen message and at the released send.}
 
 \subsection{Single-path consequences}
 
@@ -113,17 +134,24 @@ findings sound where it passes.}
 \label{sec:replay}
 
 A theorem certifies the model; the tool can still diverge from it. Every receive and
-probe finding therefore carries a pin. A pin names, per rank, a wildcard receive by its
-ordinal and the sender it must take. The replay library rewrites that receive's source
-before the call, translating world ranks into the receive's communicator. After the
-receive completes, it logs the source the receive actually matched. A finding is
-\emph{confirmed} when three conditions hold:
+probe finding therefore carries a pin. A pin names, per rank, a wildcard receive or probe by
+its ordinal and the sender it must take. The replay library rewrites that operation's source
+before the call, translating world ranks into its communicator. After the operation
+completes, it logs the source it actually matched or reported. Pinning only the changed
+receive is not enough on wildcard-heavy code: the earlier wildcards of the horizon are then
+free, the replay drifts from the trace before it reaches the changed receive, and the pinned
+match may become impossible. Replays therefore use \emph{horizon pins}: the changed operation
+gets the alternative's sender, and every other wildcard receive and probe of the horizon gets
+the sender it had in $\trace$, except the receive a steal leaves without a message, which
+stays unpinned. A finding is \emph{confirmed} when three conditions hold:
 \begin{itemize}[leftmargin=*]
-\item every pinned receive matched its named sender;
+\item every pinned operation that completes inside the horizon matched its named sender (a
+  receive whose wait lies beyond the horizon may never reach it in a run that hangs);
 \item the run reaches the predicted outcome: a hang for \cls{1c} and \cls{1d}, the
   specific MPI error for \cls{1a};
-\item a control replay that pins the observed matching finishes.
+\item a control replay with the same pins, but the observed sender at the changed
+  operation, finishes.
 \end{itemize}
-The first and the last condition matter because forcing an impossible match also
-hangs. A pinned receive can only match its pinned source, so its completion, which the
-library logs, is the evidence of the forced match.
+Otherwise it is \emph{inconclusive}. The first and the last condition matter because
+forcing an impossible match also hangs. A pinned receive can only match its pinned source,
+so its completion, which the library logs, is the evidence of the forced match.

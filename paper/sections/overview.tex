@@ -50,10 +50,13 @@ received (\cls{1c}, orphan). The prediction holds at every buffering threshold. 
 witness is a pin, \texttt{STRETTO\_PIN=0:0:2}: on rank~0, wildcard receive number~0
 takes rank~2's message.
 
-\paragraph{Replay.} A second PMPI library reads the pin and substitutes the source of
-that receive. It logs the source that the receive actually matched. The finding is
-confirmed when every pinned receive matched its named sender, the run shows the
-predicted outcome (here a hang), and a control run with the observed matching
+\paragraph{Replay.} A second PMPI library reads the pins and substitutes the source of
+each pinned receive or probe. The changed receive gets the alternative's sender, and every
+other wildcard receive and probe in the horizon gets the sender it had in the recorded run,
+so that the replay follows the horizon and not only its last step. The library logs the
+source that each pinned operation actually matched. The finding is confirmed when every
+pin matched its named sender, the run shows the predicted outcome (here a hang), and a
+control run, pinned the same way but with the observed sender at the changed receive,
 finishes.
 
 \paragraph{Levels of evidence.} The single-path assumption that turned \cls{1f} into
