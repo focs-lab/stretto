@@ -9,6 +9,10 @@
 \usepackage{xcolor}
 \usepackage[capitalise,nameinlink]{cleveref}
 
+% code names in running text leave few break points; let such lines stretch instead of
+% running into the margin
+\setlength{\emergencystretch}{2em}
+
 % ---------------------------------------------------------------- drafting
 % \pending{...}: text whose claim waits for a fix, a proof or a rerun.
 % \prov{...}: a number taken from the tables before the rerun; it is replaced by a macro
@@ -28,6 +32,11 @@
 \newcommand{\ANY}{\textsf{ANY}}
 \newcommand{\anysrc}{\texttt{MPI\_ANY\_SOURCE}\xspace}
 \newcommand{\mpicall}[1]{\texttt{#1}}
+% rows of a table written by experiments/tables.py: the primitive \input, which expands, so
+% that \multicolumn and \bottomrule around it still start their rows
+\makeatletter
+\newcommand{\inputrows}[1]{\@@input #1 }
+\makeatother
 
 % ---------------------------------------------------------------- model
 \newcommand{\Ranks}{\mathcal{P}}

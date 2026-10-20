@@ -451,8 +451,8 @@ realisable is not proved here.}
 \item \texttt{matching.coll\_shape}, \texttt{horizon.coll\_can\_complete},
   \texttt{build\_graph}: unknown collectives and root shapes without a recorded root are
   barriers.
-\item \emph{Removed.} \texttt{horizon.compute\_cut}, \texttt{compute\_cut\_fixpoint} and rule~5 of
-  \texttt{fast.Observed.closure} removed a probe when the record of $s_p$ was cut, even if
+\item \emph{Removed.} \texttt{horizon.\allowbreak compute\_cut}, \texttt{compute\_cut\_fixpoint} and rule~5 of
+  \texttt{fast.\allowbreak Observed.\allowbreak closure} removed a probe when the record of $s_p$ was cut, even if
   \ref{H:send} kept its call.
 \item \emph{Removed.} \texttt{matching\_order\_ok} checked (O1) and (O2) for unjudged posted
   receives, and rejected the first witness of \cref{app:mono} at $\Bt=0$, which has a
@@ -462,9 +462,9 @@ realisable is not proved here.}
   \ref{H:changed} removed nothing then, which is unsound: if a receive posted later on the rank
   is judged and $r$ accepts its message, \ref{G:order} puts $\mnode(r,\Malt(r))$ before it, and
   a test of $r$'s request after that receive, which failed in $\trace$, succeeds.
-\item Outside the model: \texttt{matching\_order\_ok} and \texttt{fast.Observed.\_order} count
-  a receive freed while pending (\texttt{Recv.freed}) as unmatched, though it completed
-  unobserved; \texttt{Trace.earlier\_competitors} and \texttt{earlier\_sends} order an
+\item Outside the model: \texttt{matching\_order\_ok} and \texttt{fast.\allowbreak Observed.\allowbreak\_order} count
+  a receive freed while pending (\texttt{Recv.\allowbreak freed}) as unmatched, though it completed
+  unobserved; \texttt{Trace.\allowbreak earlier\_competitors} and \texttt{earlier\_sends} order an
   \mpicall{Mrecv} from its own posting, though its message was fixed at its \mpicall{Mprobe}.
 \end{enumerate}
 Items 1, 4 and 5 are removed, with regression tests (\texttt{C\_CompletenessSteps}), and

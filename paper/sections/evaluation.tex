@@ -1,9 +1,10 @@
 \section{Evaluation}
 \label{sec:eval}
 
-\pending{Every number in this section is provisional (blue): it comes from the run before
-the soundness and evidence fixes, and the tables are regenerated from the CSV files by
-\texttt{experiments/tables.py} after the rerun.}
+Every number in this section is a macro written by \texttt{experiments/tables.py} from the
+result tables of one rerun on the code of the paper; the tables name the commit of each row.
+\pending{Numbers in blue are older: the timing leg and Nekbone wait for a rerun with the final
+tracer.}
 
 We ask six questions.
 \begin{description}[leftmargin=*,style=nextline]
@@ -20,85 +21,127 @@ We ask six questions.
 \end{description}
 
 \paragraph{Setup.} Programs are built with Open MPI~4.1.6 and MPICH~4.2 on Ubuntu~24.04
-and run on one node. Corpora: the message-race, tag-matching, buffering and probe programs
-of the MPI Bugs Initiative~\citep{laurent21mbi} (\nMBIprogs programs, \nMBIcorrect of
-them correct), and the point-to-point and collective programs of \MBB
-level~2~\citep{jammer24mbb} (\nMBBprogs). The baseline is \MUST~1.9.2, run in \MBB's
-container with the same timeout. \pending{Stress-testing baseline: $N$ runs per program
-with random delays injected by the replay library. PARCOACH if it builds from the
-\MBB container.}
+and run on one node of a shared machine, in a container with 12 cores. Corpora: the
+message-race, tag-matching, buffering and probe programs of the MPI Bugs
+Initiative~\citep{laurent21mbi} (\nMBIprogs programs, \nMBIcorrect of them correct), and the
+point-to-point and collective programs of \MBB level~2~\citep{jammer24mbb} (\nMBBprogs).
+\tool traces one run of each program under Open MPI and analyses it. The first baseline is
+\MUST~1.9.2, run in \MBB's container with the same timeout; it rebuilds each program with
+MPICH, so it sees a run of its own. The second is stress testing: up to \nMBIStressRuns runs of
+each program with random delays of 0 to 50\,ms before the sends and receives of each rank,
+injected by the replay library, stopping at the first run that does not finish.
 
 \subsection{RQ1: soundness in practice}
 
-\pending{E6 rerun on the fixed checker. The comparison is against an exhaustive explorer
-of $\SP(\trace)$, over every judged pair rather than only matched ones, on corpus and idiom
-traces and on random programs extended with synchronous and ready sends, probes,
-\mpicall{Waitany} and sends after receives. Before the fix: \nEsixPairs (alternative,
-threshold) pairs, \nEsixUnsound unsound, \nEsixIncomplete incomplete, at most
-\nEsixMaxEvents events per trace. The audit's two counterexamples were outside the
-generator's reach.}
+\paragraph{Against exhaustive exploration.} We compare the check, in \Lone mode, with an
+exhaustive explorer of $\SP(\trace)$ at $\Bt=0$ and $\Bt=\infty$, on \nEsixTraces traces: the
+corpus and idiom traces small enough to explore, and random programs with synchronous and
+ready sends, probes, \mpicall{Waitany} and sends after receives, of up to \nEsixMaxEvents
+events. Every alternative the check judges counts, accepted or rejected. Of \nEsixPairs
+(alternative, threshold) pairs, \nEsixUnsound are unsound: no accepted alternative lacks an
+execution that realises its pairs on the receives of its horizon. One pair is incomplete. It
+is a steal that does not survive, since the closure removes the changed receive itself, as in
+the example after \cref{thm:complete}, and the theorem assumes survival. The explorer confirms
+all \nEsixLdead contained deadlocks of \cref{thm:l1dead} among the accepted pairs.
 
-\pending{Replays: findings, distinct pinned runs and programs, each with match logging
-and a control. Before the fix: \nSPfindings \LoneSP findings, \nReplayRuns distinct
-pinned runs in \nReplayPrograms programs, all of which hung as predicted.}
+\paragraph{Replays.} A finding is confirmed when a rerun with the pins of its horizon
+(\cref{sec:replay}) matches every pinned operation whose completion lies in the horizon and
+reaches the predicted outcome, and a control rerun with the observed senders pinned finishes.
+On MBI, the \nMBIReplayFindings findings that claim a deadlock or an unreceived send, \nMBIReplayRuns
+distinct pinned runs in \nMBIReplayPrograms programs, give \nMBIReplayConfirmed confirmed,
+\nMBIReplayInconclusive inconclusive and \nMBIReplayNotConfirmed not confirmed. A replay is
+inconclusive when its control does not finish. Nine of the ten belong to one program whose
+recorded run itself hung. In the tenth the control pins a single receive, and the program, a
+racing loop labelled erroneous, can hang after it without the change. On AMG, a random
+sample of \nAMGsample of its alternatives, which claim no failure, was replayed: all
+\nAMGsampleMatched matched their pins, \nAMGsampleFinish finished, and so did
+\nAMGsampleControls controls. A match the pins force is therefore one the implementation
+accepts, and the alternative execution exists. The buffering replays are in RQ3 and HYPRE's
+in RQ6.
 
 \subsection{RQ2: effectiveness}
 
 \begin{table}[t]
-\caption{Labelled errors found, scored per program. ``Observed'' findings are visible
-in the recorded run itself; ``predicted'' findings are claims about other runs of a
-program whose recorded run finished.}
+\caption{Labelled errors found, scored per program. \emph{Observed} findings are visible in
+the recorded run itself; \emph{predicted} findings are claims about other runs of a program.
+A hang the harness kills counts as an error for \tool; for \MUST both scorings are shown.
+The stress row covers the MBI programs only.}
 \label{tab:rq2}
 \small
 \begin{tabular}{@{}lrrrrr@{}}
 \toprule
  & TP & FP & FN & TN & F1 \\
 \midrule
-\multicolumn{6}{@{}l}{\emph{MBI, \nMBIprogs programs}} \\
-\tool, observed & & & & & \\
-\tool, predicted (finished runs) & & & & & \\
-\tool, union & & & & & \MBIfoneStretto \\
-\MUST, hangs not credited & & & & & \MBIfoneMUST \\
-\MUST, hangs credited & & & & & \MBIfoneMUSTsym \\
-Randomised reruns & & & & & \\
-\midrule
-\multicolumn{6}{@{}l}{\emph{\MBB level 2, \nMBBprogs programs}} \\
-\tool, union & & & & & \MBBfoneStretto \\
-\MUST & & & & & \MBBfoneMUST \\
+\inputrows{generated/rq2.tex}
 \bottomrule
 \end{tabular}
 \end{table}
 
-\pending{Discussion after the rerun. Points that must appear, from the audit:
-(i) a hang observed by the harness is credited to both tools or to neither, and both
-scorings are shown; (ii) \cls{2-buffering} on a run that did not finish is observed, not
-predicted; (iii) the \nCleanPred clean-run predictions come from \nCleanTemplates program
-templates; (iv) \MBB's bugs show in the run itself, so it measures the observational floor
-and false positives, not prediction; (v) the four MBI misses whose payload mirrors the
-sender's rank, two of which abort in the recorded run.}
+\Cref{tab:rq2} scores each program once. On MBI, \tool finds 61 of the 65 labelled errors
+with no false positive (F1 \MBIfoneunion), against \MBIfoneMUST and \MBIfoneMUSTsym for
+\MUST and \MBIfonestress for stress testing. Neither half alone does it: the recorded run
+shows an error in 39 programs, and prediction from a run adds the rest. Of the
+\nMBIOnlyStretto errors that \tool reports and \MUST does not, \nMBICleanPred are predicted
+from a run that finished cleanly. They come from \nMBICleanTemplates program templates, and
+\nMBICleanConfirmed of them are confirmed by replay. The four misses are message races
+whose payload is the sender's rank and whose program checks it (RQ4).
+
+Stress testing makes 53 of the 65 fail, mostly in its first run; 16 need more than one. The
+12 it never makes fail are the buffering programs, which deadlock only if the implementation
+does not buffer a 4-byte send. Open MPI buffers every message that small, so no delay exposes
+them. \tool predicts each of them from one finished run, as realisable only from a threshold of
+4~bytes. The replays of RQ3 confirm the threshold for the eight that send to another rank.
+
+\MBB's errors show in the run itself: \tool's predicted findings alone score
+\MBBfonepredicted, while the observed checks score \MBBfoneunion, against \MBBfoneMUST and
+\MBBfoneMUSTsym for \MUST. The corpus thus measures the observational floor and the false
+positives, not prediction. The \nMBBfp false positives are correct-labelled gather and reduce
+programs whose runs Open MPI ends with \texttt{MPI\_ERR\_ARG}. The 20 misses are local
+concurrency errors, a buffer reused while a nonblocking operation is pending, which a matching
+model does not see.
 
 \subsection{RQ3: buffering}
 
-\pending{E2 over \nEtwoTraces traces: \nEtwoObsBuf recorded runs realisable only above a
-threshold; alternatives that need a threshold; Open MPI's eager limit measured at
-\BimplOMPI bytes by default and \BminOMPI at the smallest forced setting. The replay with
-the limit forced down is the confirmation. Idiom 03 is the case it can test. The two
-persistent-send replays that hung where the prediction says they finish must be explained
-first.}
+Over \nEtwoTraces traces, \nEtwoObsBuf recorded runs are realisable only from a threshold on:
+they finished because the implementation buffered a send. Of \nEtwoAlts feasible
+alternatives, \nEtwoBdep are feasible at some thresholds only. The profiles of
+\nEtwoNonmono runs or alternatives are not monotone in the threshold. We measured Open MPI's thresholds per send path with a probe program: the
+shared-memory transport buffers \BimplOMPI bytes by default; with its eager limit forced down,
+\mpicall{Send} and \mpicall{Isend} still send up to \BminOMPI bytes inline, while persistent
+sends buffer \BpersOMPI; the TCP transport with a 64-byte limit buffers \BtcpOMPI bytes on
+every path. The per-path measurement explains the two persistent-send replays that hung where
+a single threshold predicted they would finish.
+
+Each of the \nEtwoReplayPrograms programs whose run finished and needs a threshold is rerun
+three times. With the default limits it must finish again (\nEtwoReplayDefaultOK did). On TCP,
+with the threshold one byte below the predicted bound, it must hang: \nEtwoReplayBelowOK of
+\nEtwoReplayBelowTestable did. The other four send to themselves, which the self transport
+does inline up to 256 bytes, so no setting tests them. With the threshold at the bound, it
+must finish: \nEtwoReplayAtOK of \nEtwoReplayAt did. \nEtwoReplayBad replays went against
+the prediction.
 
 \subsection{RQ4: levels}
 
-\pending{E3 and E7: the single-path deadlock of the master--worker idiom that the real
-program cannot reach; MBI's payload-guarded races certified by twins as \cls{1e}; \Lone
-deadlocks (\cref{thm:l1dead}) where they exist.}
+\Lone flags a racing receive; \LoneSP adds the consequences the single path shows. On MBI,
+\Lone reports 144 same-shape alternatives (\cls{1f}) in 60 programs. \LoneSP certifies
+47 unreceived sends (\cls{1c}) and 32 deadlocks (\cls{1d}), in 11 programs. On the idioms, \LoneSP's deadlock of the master--worker program
+(idiom~01) is spurious: the real program's loop ends on the count of results, and its
+\Ltwo twin finishes. The four MBI races that \tool misses compare the payload, the sender's
+rank, with~3 and abort otherwise. \Lone flags each race as a warning, and the single path,
+which has no branch, cannot reach the abort. Their \Ltwo twins, which write the check as a
+branch on the source of the last message, certify \cls{1e}, the abort, in every case. The
+twins are written knowing the labels; \Ltwo shows what a value skeleton adds, not how one is
+obtained. No corpus program has a contained deadlock (\cref{thm:l1dead}); the ones found
+arise in the random programs of RQ1.
 
 \subsection{RQ5: cost}
 
-\pending{E4 repeated five times with NPB's own timers: the traced run takes
-\TraceOverhead times the plain one. Analysis: \nAMGalts probe alternatives of AMG in
-\AMGtime\,s. Nekbone's communication suite, \NekRecords million records and
-\nNekAlts receive alternatives, in \NekMinutes minutes and \NekGB GB on a shared host,
-which is an upper bound.}
+\pending{E4 repeated five times with NPB's own timers, with the final tracer.} One timed leg
+on an otherwise idle machine gave traced runs \TraceOverhead times as long as plain ones on
+NPB. The analysis of AMG, \nAMGalts probe alternatives, took \AMGtime\,s in one process.
+Nekbone's communication suite, \NekRecords million records and \nNekAlts receive
+alternatives, took \NekMinutes minutes and \NekGB GB on the shared machine, which is an upper
+bound.
 
 \subsection{RQ6: real applications}
 
@@ -111,33 +154,59 @@ probe then takes it, and the run hangs. In production this hang appeared intermi
 months, and diagnosing it took 291 jobs and 10\,392 compute-node hours~\citep{sato17ninja}.
 Version~2.11.0 fixed it by giving the two exchanges different tags.
 
-We traced one run of HYPRE's \texttt{ij} driver with ParaSails-PCG on four processes. The run
-finished normally after 19 iterations. Among \tool's 25 probe alternatives, one says that rank~2's
-second pruned-rows probe could have reported rank~3's 800-byte request, the stored-rows
-request of the next exchange, instead of rank~1's 400-byte pruned-rows request, for every
-threshold of at least 3\,444 bytes. The other request-exchange alternatives have the same
-shape: the other neighbour's pruned-rows request. Replayed with a probe pin, the predicted
-alternative hangs. Its control, which pins the same probe to the sender it saw, finishes with
-the recorded residual, and so do the same-shape alternatives and their controls. On
-version~2.11.0 the alternative does not exist (\cref{tab:hypre}). A second trace of the same
-configuration recorded the neighbours in another order and showed the alternative at two
-probes. Both hung when replayed, and both controls finished. Which probe exposes the race
-depends on the order recorded, which is the point of prediction: the run itself showed nothing.
+We traced \nHypreFourRuns runs of HYPRE's \texttt{ij} driver with ParaSails-PCG on four
+processes and \nHypreEightRuns on eight. Every run finished normally. In each trace we replayed
+every alternative of a request probe, with the pins of its horizon and with its control. An
+alternative is \emph{cross} when the probe would take a request of the other exchange, which is
+the race, and \emph{same} when it would take another neighbour's request of its own exchange.
+The trace tells the two apart. An exchange sends its requests, counts the replies to expect
+with an \mpicall{Allreduce}, and only then probes. A request and a probe therefore belong to
+one exchange exactly when the probing rank has made one more collective call before the probe
+than the sending rank before the request.
+
+\Cref{tab:hypre} gives the outcome. On four processes, \nHypreFourExposed of the
+\nHypreFourRuns traces have a cross alternative, \nHypreFourAlts in all. On eight, every trace
+has one, and there are \nHypreEightAlts. Every cross alternative hangs when replayed, with its pins
+matched as in RQ1, and every control finishes. The same alternatives finish with the
+residual of their control: all \nHypreFourLocalAlts on four processes, and
+\nHypreEightLocalSameResidual of the \nHypreEightLocalAlts on eight. On version~2.11.0, the
+fix, no trace has a cross alternative, and its same alternatives finish too. A few runs on
+eight processes, replays and controls alike, exited with status~15 without finishing: the
+remaining replay of version~2.10.1, and \nHypreFixedEightLocalOther replays and
+\nHypreFixedEightLocalControlsFailed controls of version~2.11.0. Plain runs launched the same
+way did not reproduce it, and their output was not kept, so we count them as neither hanging
+nor finishing. Stress testing never hit the hang: \nHypreStressRuns untraced runs of
+version~2.10.1, half of them with random delays, all finished.
+
+A trace has a cross alternative only if it recorded an order in which a neighbour's request was
+taken early enough for that neighbour to reach the next exchange while this rank still probes.
+The run itself finishes either way, so prediction from a recorded order is what exposes the
+race: the order is common, the hang it allows is not.
 
 \begin{table}[t]
-\caption{HYPRE~2.10.1, ParaSails: the probe alternatives of the request exchange, replayed.}
+\caption{HYPRE, ParaSails: the alternatives of the request probes in every traced run. A
+\emph{cross} alternative takes the other exchange's request, a \emph{same} one another
+neighbour's request of its own exchange. \emph{Traces}: traces with such an alternative, of
+those traced. Each alternative is replayed with the pins of its horizon (\emph{hang},
+\emph{finish}; \emph{matched}: every pin of the horizon matched) and with its control
+(\emph{control}: controls that finish).}
 \label{tab:hypre}
 \small
-\begin{tabular}{@{}lllll@{}}
+\begin{tabular}{@{}llrrrrrr@{}}
 \toprule
-pin & alternative & replay & probe took the pinned message & residual \\
+procs & kind & traces & replays & hang & finish & matched & control \\
 \midrule
-\texttt{2:3:3} & the next exchange's request (800\,B) & hangs & yes & -- \\
-\texttt{2:3:1} & control & finishes & yes & $6.788872\cdot10^{-9}$ \\
-\texttt{1:2:2}, \texttt{2:2:1} & the other neighbour (400\,B) & finish & yes & $6.788872\cdot10^{-9}$ \\
-\texttt{1:2:0}, \texttt{2:2:3} & controls & finish & yes & $6.788872\cdot10^{-9}$ \\
+\multicolumn{8}{@{}l}{\emph{2.10.1, the bug}} \\
+4 & cross & \nHypreFourExposed/\nHypreFourRuns{} & \nHypreFourAlts{} & \nHypreFourHang{} & \nHypreFourFinish{} & \nHypreFourMatched{} & \nHypreFourControls{} \\
+4 & same & \nHypreFourLocalRuns/\nHypreFourRuns{} & \nHypreFourLocalAlts{} & \nHypreFourLocalHang{} & \nHypreFourLocalFinish{} & \nHypreFourLocalMatched{} & \nHypreFourLocalControls{} \\
+8 & cross & \nHypreEightExposed/\nHypreEightRuns{} & \nHypreEightAlts{} & \nHypreEightHang{} & \nHypreEightFinish{} & \nHypreEightMatched{} & \nHypreEightControls{} \\
+8 & same & \nHypreEightLocalRuns/\nHypreEightRuns{} & \nHypreEightLocalAlts{} & \nHypreEightLocalHang{} & \nHypreEightLocalFinish{} & \nHypreEightLocalMatched{} & \nHypreEightLocalControls{} \\
 \midrule
-2.11.0 & no alternative of the other exchange & & & \\
+\multicolumn{8}{@{}l}{\emph{2.11.0, the fix}} \\
+4 & cross & \nHypreFixedFourExposed/\nHypreFixedFourRuns{} & \nHypreFixedFourAlts{} & \nHypreFixedFourHang{} & \nHypreFixedFourFinish{} & \nHypreFixedFourMatched{} & \nHypreFixedFourControls{} \\
+4 & same & \nHypreFixedFourLocalRuns/\nHypreFixedFourRuns{} & \nHypreFixedFourLocalAlts{} & \nHypreFixedFourLocalHang{} & \nHypreFixedFourLocalFinish{} & \nHypreFixedFourLocalMatched{} & \nHypreFixedFourLocalControls{} \\
+8 & cross & \nHypreFixedEightExposed/\nHypreFixedEightRuns{} & \nHypreFixedEightAlts{} & \nHypreFixedEightHang{} & \nHypreFixedEightFinish{} & \nHypreFixedEightMatched{} & \nHypreFixedEightControls{} \\
+8 & same & \nHypreFixedEightLocalRuns/\nHypreFixedEightRuns{} & \nHypreFixedEightLocalAlts{} & \nHypreFixedEightLocalHang{} & \nHypreFixedEightLocalFinish{} & \nHypreFixedEightLocalMatched{} & \nHypreFixedEightLocalControls{} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -145,21 +214,34 @@ pin & alternative & replay & probe took the pinned message & residual \\
 \tool reports the race as a probe alternative, a warning, with the remark that a count taken
 from the probe would differ. It does not report a deadlock: the hang happens after the probe,
 and the receive that follows takes its source from the probe's status, so the continuation is
-beyond the horizon. The replay supplies what the trace cannot. Grouped by call site, the 25
-probe alternatives of a trace fall at four sites: HYPRE's own \mpicall{Iprobe} wrapper in its
-data exchange, the diagonal-scaling exchange, ParaSails's \texttt{ReceiveReplyPrunedRows},
-and its \texttt{ReceiveRequest}, the probe for tag~222 where the race lies. \pending{Site counts over
-the campaign's traces, from the site column of the rerun.}
+beyond the horizon. The replay supplies what the trace cannot. In a trace on four processes the
+probe alternatives fall at four call sites: HYPRE's own \mpicall{Iprobe} wrapper in its data
+exchange, the diagonal-scaling exchange, ParaSails's \texttt{ReceiveReplyPrunedRows}, and its
+\texttt{ReceiveRequest}. Every alternative replayed in the campaign lies at the last, the probe
+for requests (\texttt{ParaSails.c:166}).
 
-\paragraph{Wildcard-heavy correct code.} \pending{AMG (probe-driven exchange) and Nekbone's
-communication suite: \Lone deadlocks searched by \cref{thm:l1dead}; 30 alternatives each
-replayed with controls; findings grouped per call site. Nekbone's wildcard reduction tree
-(\texttt{gp2}) belongs to the communication suite's timing test; the solver sums with
-\mpicall{MPI\_Allreduce}.}
+\paragraph{Wildcard-heavy correct code.} AMG's solver exchanges its matrix data with probes on
+any source. One traced run on eight processes, with \nAMGsends messages, \nAMGwild wildcard
+receives and \nAMGprobes probes, gives \nAMGalts probe alternatives and \nAMGrecvAlts
+same-shape receive alternatives. All of them are warnings or information, and none is a
+contained deadlock. The sample of RQ1 finished under every pin. By call site the findings fall
+at two sites, the probe and the receive inside HYPRE's MPI wrappers
+(\texttt{hypre\_MPI\_Iprobe}, \texttt{hypre\_MPI\_Recv}). A site is the caller of the MPI
+call, one frame up, so naming the code that called the wrapper needs a deeper stack. In
+Nekbone, every finding is a \cls{1f} at the binary-tree reduction \texttt{gp2}, whose inner
+nodes take their children's contributions with one tag from any source. Only the
+communication suite's timing test calls it; the solver sums with \mpicall{Allreduce}.
+\pending{Nekbone rerun on the final code, with a sample of replays.}
 
 \subsection{Threats to validity}
 
-\pending{One node and few ranks; the corpora's programs are small; twins are written
-knowing the labels; \MUST runs a different build of each program under MPICH, so it sees
-a different run; the model's premises (complete trace of the modelled fragment, a single
-threshold per implementation, angelic \mpicall{Waitany}).}
+All runs used one node and at most eight processes, and the corpora's programs are small; the
+exhaustive comparison of RQ1 reaches \nEsixMaxEvents events. The \Ltwo twins are written
+knowing the labels. \MUST rebuilds each program with MPICH and sees a run of its own, so the
+tools are not compared on one execution, and the harness's timeout decides what counts as a
+hang for both. Stress testing used one delay distribution; another, or a noise-injection
+tool, may find more of the races, but no delay makes Open MPI stop buffering a 4-byte send.
+The model assumes a complete trace of the modelled fragment (a call outside it restricts the
+report to observed findings), a threshold per send path that does not change within a run,
+and an angelic choice in \mpicall{Waitany}. The HYPRE campaign uses one input and two process
+counts.

@@ -11,8 +11,8 @@ A program runs on ranks $\Ranks=\{0,\dots,p-1\}$. Each rank issues a sequence of
 \emph{operations}:
 \begin{itemize}[leftmargin=*]
 \item a \emph{send} $s$ with destination $\mathit{dst}(s)$, tag, communicator, size
-  $\mathit{bytes}(s)$ and mode $\mathit{mode}(s)\in\{\mathsf{std},\mathsf{sync},
-  \mathsf{buf},\mathsf{rdy}\}$, blocking or nonblocking;
+  $\mathit{bytes}(s)$ and mode $\mathit{mode}(s)\in\{\mathsf{std},\allowbreak\mathsf{sync},\allowbreak
+  \mathsf{buf},\allowbreak\mathsf{rdy}\}$, blocking or nonblocking;
 \item a \emph{receive} $r$ with source $\mathit{src}(r)\in\Ranks\cup\{\ANY\}$, tag in
   $\mathbb{N}\cup\{\ANY\}$, communicator and capacity, blocking or nonblocking;
 \item a \emph{probe} with the same envelope fields as a receive;
