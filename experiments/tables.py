@@ -6,6 +6,7 @@ from __future__ import annotations
 import collections
 import csv
 import os
+import re
 import subprocess
 import sys
 
@@ -78,13 +79,17 @@ def e1(name, path, key=None):
         inv = [r for r in rs if r["expect"] == "ERROR" and score.verdict(r) == "ERROR" and score.must_verdict(r) != "ERROR"]
         inv_pred = [r for r in inv if score.predicted_verdict(r) == "ERROR" and score.observed_verdict(r) != "ERROR"]
         conf = [r for r in inv if r.get("confirmed") and int(r["confirmed"]) > 0]
+        conf_pred = [r for r in inv_pred if r.get("confirmed") and int(r["confirmed"]) > 0]
         if key:
             num(f"n{key}CleanPred", len(inv_pred))
             num(f"n{key}CleanTemplates", len({"_".join(r["name"].split("_")[:2]) for r in inv_pred}))
-            num(f"n{key}CleanConfirmed", sum(1 for r in inv_pred if r.get("confirmed") and int(r["confirmed"]) > 0))
+            num(f"n{key}CleanConfirmed", len(conf_pred))
+            num(f"n{key}OnlyStretto", len(inv))
+            num(f"n{key}OnlyStrettoConfirmed", len(conf))
         out += ["", f"Labelled errors Stretto reports and MUST does not on the same program: **{len(inv)}**, of which",
-                f"predicted on a run that showed nothing itself: **{len(inv_pred)}**, replay-confirmed (a pinned rerun with",
-                f"the pin applied hangs or raises the predicted MPI error): **{len(conf)}**."]
+                f"predicted on a run that showed nothing itself: **{len(inv_pred)}**. With at least one finding replay-confirmed",
+                f"(a pinned rerun with every pin matched reaches the predicted outcome and its control finishes): **{len(conf)}** of the",
+                f"{len(inv)}, **{len(conf_pred)}** of the {len(inv_pred)} predicted ones."]
     race = [r for r in rs if r.get("detail") == "MessageRace"]
     if key:
         num(f"n{key}race", len(race))
@@ -190,6 +195,8 @@ def e2():
                 num("BimplOMPI", int(r["eager_max_bytes"]))          # the default eager payload
             if r["setting"] == "openmpi-forced-rendezvous" and path_ == "send":
                 num("BminOMPI", int(r["eager_max_bytes"]))           # the inline sends the forced limit leaves
+            if r["setting"] == "openmpi-forced-rendezvous" and path_ == "persistent":
+                num("BpersOMPI", int(r["eager_max_bytes"]))          # persistent sends skip the inline path
             if r["setting"] == "openmpi-tcp-64" and path_ == "send":
                 num("BtcpOMPI", int(r["eager_max_bytes"]))           # the TCP limit minus its header
     rp = rows(os.path.join(RES, "e2_replay.csv"))
@@ -290,56 +297,62 @@ def hypre():
 
 def hypre_campaign():
     """How often one trace exposes HYPRE's race, and how often stress testing hits it
-    (experiments/hypre/campaign.sh: predict.csv and stress.csv)."""
+    (experiments/hypre/campaign.sh: predict.csv and stress.csv; predict-2.11.0.csv, the fix)."""
     d = os.path.join(RES, "hypre")
     pr = rows(os.path.join(d, "predict.csv"))
+    fixed = rows(os.path.join(d, "predict-2.11.0.csv"))
     st = rows(os.path.join(d, "stress.csv"))
     if not pr and not st:
         return "_no results_\n"
     out = []
     if pr:
-        out += ["Traced runs of `ij -solver 8 -pout 0`; for each, every probe alternative of the request exchanges (tag 222),",
-                "replayed with the pins of its whole horizon and with its control (`experiments/hypre/predict.py`). An alternative",
-                "is *cross* if the probe would take a request of the other exchange (the race), *same* if another neighbour's",
-                "request of the same exchange; rows from before that classification selected requests of a different size and",
-                f"count as cross. Rows by code commit: {commits(pr)}.", "",
-                "| ranks | kind | traced runs | runs with one | runs with a hanging replay | alternatives | replay hangs | replay finishes | required pins matched | controls finish | finished with the control's residual |",
-                "|---|---|---|---|---|---|---|---|---|---|---|"]
-        for r in pr:
-            r.setdefault("kind", "cross")
-            r["kind"] = r["kind"] or "cross"
-        for np_ in sorted({r["np"] for r in pr}, key=int):
-            sel = [r for r in pr if r["np"] == np_]
-            runs = {r["run"] for r in sel}
-            bad = {r["run"] for r in sel if (r.get("replay") or "").startswith("traced run")}
-            k = f"Hypre{'Four' if np_ == '4' else 'Eight' if np_ == '8' else np_}"
-            num(f"n{k}Runs", len(runs) - len(bad))
-            for kind, macro in (("cross", ""), ("same", "Local")):
-                alts = [r for r in sel if r.get("pin") and r["kind"] == kind]
-                if kind == "same" and not alts:
-                    continue
-                hang = [r for r in alts if r.get("replay") == "TIMEOUT"]
-                fin = [r for r in alts if r.get("replay") == "FINISHED"]
-                matched = [r for r in alts if r.get("matched") == "True"]
-                ctl = [r for r in alts if r.get("control") == "FINISHED"]
-                same_res = [r for r in fin if r.get("residual") and r.get("residual") == r.get("control_residual")]
-                res_known = "residual" in sel[0]
-                with_one = {r["run"] for r in alts}
-                hang_runs = {r["run"] for r in hang}
-                res_col = f"{len(same_res)}/{len(fin)}" if res_known and fin else "-" if res_known else "not recorded"
-                out.append(f"| {np_} | {kind} | {len(runs) - len(bad)} (+{len(bad)} failed) | {len(with_one)} | {len(hang_runs)} | {len(alts)} | "
-                           f"{len(hang)} | {len(fin)} | {len(matched)}/{len(alts)} | {len(ctl)}/{len(alts)} | {res_col} |")
-                num(f"n{k}{macro}{'Exposed' if kind == 'cross' else 'Runs'}", len(with_one))
-                num(f"n{k}{macro}HangRuns", len(hang_runs))
-                num(f"n{k}{macro}Alts", len(alts))
-                num(f"n{k}{macro}Hang", len(hang))
-                num(f"n{k}{macro}Finish", len(fin))
-                num(f"n{k}{macro}Matched", len(matched))
-                num(f"n{k}{macro}Controls", len(ctl))
-                if res_known and fin:
-                    num(f"n{k}{macro}SameResidual", len(same_res))
+        out += ["Traced runs of `ij -solver 8 -pout 0`; for each, every probe alternative of the request exchanges (tag 222;",
+                "on 2.11.0, the fix, tags 221 and 222), replayed with the pins of its whole horizon and with its control",
+                "(`experiments/hypre/predict.py`). An alternative is *cross* if the probe would take a request of the other",
+                "exchange (the race), *same* if another neighbour's request of the same exchange; rows from before that",
+                f"classification selected requests of a different size and count as cross. Rows by code commit: {commits(pr + fixed)}.", "",
+                "| version | ranks | kind | traced runs | runs with one | runs with a hanging replay | alternatives | replay hangs | replay finishes | other replay results | required pins matched | controls finish | finished with the control's residual |",
+                "|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
+        for version, vrows, prefix in (("2.10.1", pr, "Hypre"), ("2.11.0", fixed, "HypreFixed")):
+            for r in vrows:
+                r.setdefault("kind", "cross")
+                r["kind"] = r["kind"] or "cross"
+            for np_ in sorted({r["np"] for r in vrows}, key=int):
+                sel = [r for r in vrows if r["np"] == np_]
+                runs = {r["run"] for r in sel}
+                bad = {r["run"] for r in sel if (r.get("replay") or "").startswith("traced run")}
+                k = f"{prefix}{'Four' if np_ == '4' else 'Eight' if np_ == '8' else np_}"
+                num(f"n{k}Runs", len(runs) - len(bad))
+                for kind, macro in (("cross", ""), ("same", "Local")):
+                    alts = [r for r in sel if r.get("pin") and r["kind"] == kind]
+                    if kind == "same" and not alts:
+                        continue
+                    hang = [r for r in alts if r.get("replay") == "TIMEOUT"]
+                    fin = [r for r in alts if r.get("replay") == "FINISHED"]
+                    other = collections.Counter(r.get("replay") for r in alts if r.get("replay") not in ("TIMEOUT", "FINISHED"))
+                    matched = [r for r in alts if r.get("matched") == "True"]
+                    ctl = [r for r in alts if r.get("control") == "FINISHED"]
+                    same_res = [r for r in fin if r.get("residual") and r.get("residual") == r.get("control_residual")]
+                    res_known = "residual" in sel[0]
+                    with_one = {r["run"] for r in alts}
+                    hang_runs = {r["run"] for r in hang}
+                    res_col = f"{len(same_res)}/{len(fin)}" if res_known and fin else "-" if res_known else "not recorded"
+                    other_col = ", ".join(f"{n} {res}" for res, n in sorted(other.items())) or "0"
+                    out.append(f"| {version} | {np_} | {kind} | {len(runs) - len(bad)} (+{len(bad)} failed) | {len(with_one)} | {len(hang_runs)} | "
+                               f"{len(alts)} | {len(hang)} | {len(fin)} | {other_col} | {len(matched)}/{len(alts)} | {len(ctl)}/{len(alts)} | {res_col} |")
+                    num(f"n{k}{macro}{'Exposed' if kind == 'cross' else 'Runs'}", len(with_one))
+                    num(f"n{k}{macro}HangRuns", len(hang_runs))
+                    num(f"n{k}{macro}Alts", len(alts))
+                    num(f"n{k}{macro}Hang", len(hang))
+                    num(f"n{k}{macro}Finish", len(fin))
+                    num(f"n{k}{macro}Other", sum(other.values()))
+                    num(f"n{k}{macro}Matched", len(matched))
+                    num(f"n{k}{macro}Controls", len(ctl))
+                    if res_known and fin:
+                        num(f"n{k}{macro}SameResidual", len(same_res))
         sites = collections.Counter(r.get("site") for r in pr if r.get("pin") and r.get("site"))
         if sites:
+            num("nHypreSites", len(sites))
             out += ["", "Changed probes by call site: " + ", ".join(f"`{s}` {n}" for s, n in sites.most_common()) + "."]
         # the pin is rank:probe ordinal:source; the probe is the same program point across runs
         # of one configuration only as far as the ranks probe in the same order, which they do here
@@ -350,9 +363,10 @@ def hypre_campaign():
                 by_probe[(int(r["np"]), int(rank), int(idx), r["kind"])][r.get("replay")] += 1
         if by_probe:
             out += ["", "By changed probe (rank, ordinal of its probe):", "",
-                    "| ranks | probe | kind | alternatives | replay hangs | replay finishes |", "|---|---|---|---|---|---|"]
+                    "| ranks | probe | kind | alternatives | replay hangs | replay finishes | other |", "|---|---|---|---|---|---|---|"]
             for (np_, rank, idx, kind), c in sorted(by_probe.items()):
-                out.append(f"| {np_} | {rank}:{idx} | {kind} | {sum(c.values())} | {c['TIMEOUT']} | {c['FINISHED']} |")
+                out.append(f"| {np_} | {rank}:{idx} | {kind} | {sum(c.values())} | {c['TIMEOUT']} | {c['FINISHED']} | "
+                           f"{sum(c.values()) - c['TIMEOUT'] - c['FINISHED']} |")
     if st:
         out += ["", "Untraced runs, each with a 60 s timeout: plain, and with random send and receive delays of 0 to 50 ms",
                 f"per rank from the replay library (no pin). Rows by code commit: {commits(st)}.", "",
@@ -485,6 +499,16 @@ def e5():
     if not os.path.exists(p):
         return "_no results_\n"
     summary = open(p).read().strip()
+    m = re.search(r"(\d+) sends, (\d+) receives, (\d+) wildcard receives, (\d+) probes", summary)
+    if m:
+        num("nAMGsends", int(m.group(1)))
+        num("nAMGwild", int(m.group(3)))
+        num("nAMGprobes", int(m.group(4)))
+    line = next((ln for ln in summary.splitlines() if ln.startswith("findings by class:")), "")
+    found = {k: int(v) for k, v in re.findall(r"(\S+) (\d+)", line.split(":", 1)[-1])}
+    if found:
+        num("nAMGalts", found.get("probe-alt", 0))
+        num("nAMGrecvAlts", sum(v for k, v in found.items() if k != "probe-alt"))
     conf = os.path.join(RES, "amg", "confirm8.txt")
     c = open(conf).read().strip() if os.path.exists(conf) else ""
     must = []

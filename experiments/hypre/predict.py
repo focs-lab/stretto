@@ -5,9 +5,11 @@ alternative hang when replayed? For each rank count, RUNS traced runs of test/ij
 as a request of another exchange ("cross", the race) or another neighbour's request of the same
 exchange ("same", a harmless reordering), and replayed with the pins of its whole horizon
 (stretto.confirm.horizon_pins: every wildcard receive and probe before it pinned to what it
-took in the run, the changed probe to the alternative) and with its control.
+took in the run, the changed probe to the alternative) and with its control. On 2.11.0, the
+fix, the two exchanges send their requests with tags 221 and 222 (--tags 221 222).
 
-usage: predict.py <hypre test dir> [--runs N] [--np 4 8] [--timeout S] [--jobs J]
+usage: predict.py <hypre test dir> [--runs N] [--np 4 8] [--timeout S] [--jobs J] [--tags T..]
+                  [--out CSV]
 Writes experiments/results/hypre/predict.csv: np, run, records, cross-exchange and same-exchange
 alternatives of the run, pin, kind and call site of the changed probe, replay result, every
 required pin matched, its final residual, control result, control matched, control residual,
@@ -45,8 +47,8 @@ def residual(out: str) -> str:
 TRACER = os.path.join(ROOT, "tracer", "bin", "mpich", "libstretto-trace.so")
 
 
-def request_alternatives(t, rep):
-    """Probe alternatives on tag 222, each with its kind. Every exchange (ExchangePrunedRows,
+def request_alternatives(t, rep, tags=(222,)):
+    """Probe alternatives on the request tags, each with its kind. Every exchange (ExchangePrunedRows,
     ExchangeStoredRows) posts its requests, calls the Allreduce of FindNumReplies, and only then
     probes for requests, so a request sent after s collectives on the communicator belongs to
     the exchange whose Allreduce is collective s+1, and a probe after p collectives to the
@@ -66,7 +68,7 @@ def request_alternatives(t, rep):
         if f.probe is None or f.send is None:
             continue
         p, s = t.probes[f.probe], t.sends[f.send]
-        if p.tag in (222, -1) and s.tag == 222:
+        if s.tag in tags and p.tag in (s.tag, -1):
             same = phase(s.rank, s.comm, s.idx) + 1 == phase(p.rank, p.comm, p.idx)
             yield f, "same" if same else "cross"
 
@@ -78,6 +80,7 @@ def main() -> int:
     ap.add_argument("--np", type=int, nargs="+", default=[4, 8])
     ap.add_argument("--timeout", type=int, default=60)
     ap.add_argument("--jobs", type=int, default=1, help="replays run at once")
+    ap.add_argument("--tags", type=int, nargs="+", default=[222], help="tags of the row requests")
     ap.add_argument("--out", default=os.path.join(ROOT, "experiments", "results", "hypre", "predict.csv"))
     args = ap.parse_args()
     exe = os.path.join(args.testdir, "ij")
@@ -95,7 +98,7 @@ def main() -> int:
                 continue
             t = trace.load(d)
             rep = analyze(t, with_sp=False)
-            found = list(request_alternatives(t, rep))
+            found = list(request_alternatives(t, rep, tuple(args.tags)))
             row.update(records=sum(len(v) for v in t.ranks.values()),
                        alternatives=sum(1 for _, k in found if k == "cross"),
                        same_alternatives=sum(1 for _, k in found if k == "same"))
