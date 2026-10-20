@@ -19,7 +19,7 @@ python3 -m rematch analyze tr                 # findings with B-intervals and a 
 python3 -m rematch analyze --json tr          # machine-readable
 python3 -m rematch analyze --no-sp tr         # skip the single-path explorer (large traces)
 python3 -m rematch analyze --changes 2 tr     # also two-change alternatives
-# exit status: 0 no error class, 1 an error class was found, 2 the trace could not be loaded
+# exit status: 0 no error class, 1 an error class was found, 2 the trace could not be loaded, 3 internal error
 python3 -m rematch show tr                    # events, communicators, observed matching, probes
 python3 -m rematch candidates tr              # every candidate alternative with its verdict at B=0 / inf
 python3 -m rematch oracle tr                  # exhaustive exploration of the trace as a straight-line program
@@ -45,6 +45,7 @@ python3 experiments/tables.py                                                   
 | 1f | L1 | same shape as the observed message (another sender); benign unless the continuation depends on it | info |
 | 1c | L1+SP | a send is left unmatched under the single-path assumption, in every or in some of its executions | error |
 | 1c | observed | a send was never received in the observed run (pending at finalize, or the run was killed) | error |
+| 1d | L1 | deadlock contained in the horizon (theorem T7): a changed rank stops before its nonblocking wildcard completes and every rank that could unblock it stops too or has terminated | error |
 | 1d | L1+SP | deadlock under the single-path assumption, in every or in some of its executions | error |
 | 1d | L2 | deadlock of the twin program (metadata dependencies encoded) under the alternative | error |
 | 1e | L2 | the twin's continuation diverges from the trace (a send to another destination or tag, a different number of collectives), or the twin aborts on the program's own check | error |
@@ -67,9 +68,12 @@ idioms_dsl.py`). Every receive and probe alternative carries a `REMATCH_PIN` or
 execution; completion-order alternatives have no replay mechanism. `--changes 2` also lists
 alternatives that re-match two wildcard receives on different ranks.
 
-A replay confirms a finding only if the replay library reports every pin applied and the run
-reaches the predicted outcome (a hang for 1c/1d/2-buffering, the specific MPI error for 1a);
-`rematch confirm` prints both.
+A replay confirms a finding only if every pinned receive *matched* in the rerun (the replay
+library prints `matched widx=W` when a pinned receive completes; `applied` only says the source
+argument was rewritten, and forcing an impossible match hangs as well), the run reaches the
+predicted outcome (a hang for 1c/1d, the specific MPI error for 1a), and a control rerun that
+pins the same receives to their observed senders finishes. A finding whose control does not
+finish is inconclusive. `rematch confirm` prints all three.
 
 ## Coverage
 
@@ -85,9 +89,13 @@ shows where it was blocked. Failed polls repeated without other calls in between
 once with a repeat count. Under `MPI_THREAD_MULTIPLE` records carry the thread id and the
 analysis stops at observed findings, since per-rank program order is not total.
 
-Not modelled: RMA, neighbourhood collectives, generalised requests, MPI-4 partitioned
-communication and persistent collectives, Fortran under Open MPI (its bindings bypass C
-interposition: use the MPICH build, as the NPB experiment does), memory accesses (family ③).
+Not modelled: RMA, neighbourhood collectives, dynamic processes, generalised requests, MPI-4
+`Isendrecv`, partitioned communication, persistent collectives and large-count point-to-point
+calls. The tracer writes an `unmodelled` record when the program creates a window, calls one of
+the others, or starts a persistent request it does not track, and the analysis then reports
+observed findings only, since the trace is no longer a complete record of the run's
+communication. Not seen at all: Fortran under Open MPI (its bindings bypass C interposition:
+use the MPICH build, as the NPB experiment does) and memory accesses (family ③).
 
 ## Limits
 
@@ -101,9 +109,9 @@ interposition: use the MPICH build, as the NPB experiment does), memory accesses
 - Analysis cost grows with the number of alternatives (wildcard receives × compatible
   sends, probes × other senders) times the thresholds the bisection visits, plus the trace
   size: 8-rank AMG (53 wildcard receives, 10 978 probes, 3263 probe alternatives) takes
-  13 s and 0.55 GB on the second machine, idle (300 s with `--full-profile`); lu.A at 16
+  13 s and 0.56 GB on the second machine (300 s with `--full-profile`); lu.A at 16
   ranks (3 million events, no wildcards) 50 s; Nekbone's communication suite at 8 ranks
-  (10 million records, 35 714 wildcard receives, 18 759 alternatives) 63 min and 32.5 GB in
+  (10 million records, 35 714 wildcard receives, 18 759 alternatives) 63 min and 33.3 GB in
   one process, about 3 KB per record and 0.2 s per alternative (`docs/results.md`, E4, E5
   and E5b). Memory is the loaded trace and its graph; time is one check per alternative over
   the whole trace.

@@ -66,7 +66,7 @@ The project is not a transplant, and the proposal is organised around the precis
   └────────────────────────────────────────────────────────────────┘
 ```
 
-**Deliverables:** a feasibility criterion and a soundness theorem for alternative matchings in MPI's matching semantics, with a taxonomy of the consequences a changed match has; a linear check per alternative and a kernel that bounds the alternatives to check; a buffering profile per prediction with its two theorems; the L1 / L1+SP / L2 hierarchy with the evidence that the single-path assumption is unsound on metadata-dependent code; a tool evaluated on the MPI Bugs Initiative and on MPI-BugBench against MUST, with every prediction replayed.
+**Deliverables:** a feasibility criterion and a soundness theorem for alternative matchings in MPI's matching semantics, with a taxonomy of the consequences a changed match has; a linear check per alternative and a kernel that bounds the alternatives to check; a buffering profile per prediction with its two theorems; the L1 / L1+SP / L2 hierarchy with the evidence that the single-path assumption is unsound on metadata-dependent code; a tool evaluated on the MPI Bugs Initiative and on MPI-BugBench against MUST, with every error finding replayed.
 
 **Cost profile:** no GPUs, no proprietary tools, no cluster quotas. A CPU cluster and a laptop.
 
@@ -803,9 +803,9 @@ What is settled (`model.md` T4): with the matching given, the check is linear pe
                   from the non-overtaking kernel, acyclicity as one
                   reachability query on the observed graph (vector clocks
                   computed once per threshold, the buffering profile
-                  bisected by the monotonicity theorem); 13 s and 0.55 GB
+                  bisected by the monotonicity theorem); 13 s and 0.56 GB
                   for AMG at 8 ranks (3 263 probe alternatives) on the
-                  idle second machine
+                  second machine
 
   L2 skeleton     hand-written twin programs so far (the idioms, MBI's
                   payload races); the Clang pass that would extract
@@ -824,7 +824,7 @@ What is settled (`model.md` T4): with the matching given, the check is linear pe
 
   scalability     measured up to 16 ranks and 3 million events (lu.A: 50 s)
                   and, with alternatives, to 10 million records and 18 759
-                  alternatives (Nekbone: 63 min, 32.5 GB); the claim is
+                  alternatives (Nekbone: 63 min, 33.3 GB); the claim is
                   stated for that range
 ```
 
@@ -1086,7 +1086,7 @@ Ranked, not listed as equals — the ranking is itself a decision about where th
    │  A tool evaluated on the MPI Bugs Initiative (115 wildcard,      │
    │  probe, tag and buffering programs) and on MPI-BugBench level 2  │
    │  (388 programs) against MUST, with observed and predicted         │
-   │  findings scored apart and every prediction replayed.            │
+   │  findings scored apart and every error finding replayed.         │
    └──────────────────────────────────────────────────────────────────┘
 ```
 
@@ -1238,8 +1238,8 @@ Do not start by "building a theory of prediction for message passing" — that i
       under the tracer is observation, not prediction. Each benchmark
       race gives two numbers: racing receive flagged (L1) and
       consequence certified (L1+SP or L2), because the benchmark's races
-      are payload-dependent by construction. Every finding is replayed;
-      the unconfirmed ones are listed, not dropped.
+      are payload-dependent by construction. Every error finding is
+      replayed with a control; the unconfirmed ones are listed.
 
   (b) GROUND TRUTH  (E1, E7)
       MBI (115 wildcard, probe, tag and buffering programs) and

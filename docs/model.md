@@ -32,24 +32,43 @@ Buffering threshold `B ∈ ℕ ∪ {∞}`: a send with bytes > B completes only 
 
 1. **injective**: no send consumed twice;
 2. **non-overtaking (sender side)**: if `M'(r) = s`, every earlier send `s'` from the same
-   (src, dst, comm) that `r` accepts is matched to a receive at dst posted before `r`;
+   (src, dst, comm) that `r` accepts is matched to a receive at dst posted before `r`, and that
+   match comes first: edge `m(M'⁻¹(s'), s') → m(r, s)`;
 3. **receiver order**: every receive `r'` at dst posted before `r` that accepts `s` is matched
    (to something other than `s`);
-3'. **receiver-side order, strengthened**: if `r'` is posted before `r`, accepts `s`, and
-   `M'(r') = s'` comes from another source, then `s'` must arrive before `s`: edge
-   `issue(s') → complete(r)` (this is MOPPER's "conditional matches-before" edge);
-4. **acyclic**: the constraint graph on `H` has no cycle, where the edges are
+3'. **receiver order on matches**: such an `r'` is matched before `r` takes `s`: edge
+   `m(r', M'(r')) → m(r, s)` (MOPPER's "conditional matches-before", stated on matches);
+4. **acyclic**: the constraint graph on `H` has no cycle. Its nodes are `issue(e)` and
+   `complete(e)` for the operations of `H` and a **match node** `m(r, s)` for every pair of
+   `M'` whose receive is posted and whose send is issued in `H`. A blocking receive is matched
+   in its own call, so its completion node serves as its match node (reachability is the same);
+   a nonblocking receive has a node of its own, since its wait comes later. The edges are
    - program order: `issue(e) → complete(e) → issue(next)`;
-   - delivery: `issue(s) → complete(r)` for every `(r, s) ∈ M'` whose receive completed;
-   - rendezvous: `issue(r) → complete(s)` when the send's request completes only once matched:
+   - match: `issue(r) → m`, `issue(s) → m`, `m → complete(r)`;
+   - rendezvous: `m → complete(s)` when the send's request completes only once matched:
      `ssend`/`issend` always, `bsend`/`ibsend` never, otherwise bytes(s) > B; ready-mode sends
      add `issue(r) → issue(s)`;
+   - order: the edges of 2 and 3'. They are built from the latest earlier member of each
+     envelope class that accepts `s` (source `rank(s)` or ANY, tag `tag(s)` or ANY) and the
+     latest earlier send of each tag of `s`'s channel that `r` accepts; within a class each
+     member accepts what a later one accepts, so the order reaches the rest of the class
+     through the members' own pairs (`Trace.earlier_competitors`, `Trace.earlier_sends`);
    - collectives, by shape: barrier-like (barrier, allreduce, allgather(v), alltoall(v/w),
      reduce_scatter) all-to-all; bcast/scatter(v) root → others; reduce/gather(v)
      others → root; scan/exscan i → j for i < j. Unknown collectives are treated as barriers,
      which is sound for feasibility claims but *not* for deadlock claims (the family-②
      report uses guaranteed edges only);
-   - probes: `issue(seen) → complete(probe)` for the send the probe observed.
+   - probes: `issue(seen) → complete(probe)` for the send the probe observed, and the order
+     edges of 2 and 3' into `complete(probe)`: the matches of earlier receives of the rank that
+     accept `seen`, and of earlier messages of its channel that the probe accepts, come first.
+   Collectives of a root shape without a recorded root synchronise everyone, as in the horizon
+   and the explorer.
+
+Why match nodes. Matching order binds the *match* of the later receive, not a completion. With
+the order edges attached to `complete(r)` (as before 20 Oct 2026), two shapes were accepted
+that MPI cannot produce: a pending nonblocking receive overtaken by a later one, and a
+rendezvous send matched after its own completion (the counterexamples under T1 below, now
+`C_MatchNodes` in `analysis/tests/test_checker.py`).
 Matching-order obligations (2, 3, 3') are evaluated for every receive *posted* inside `H`,
 whatever its completion index: MPI decides matching at posting time. Operations that never
 completed in the observed run (blocked calls, unwaited requests) contribute program-order nodes
@@ -64,12 +83,17 @@ the closure runs as a worklist over ranks, where a cut on one rank finds the ear
 receive, rendezvous sender, collective or probe it drags along by a suffix-minimum query on
 a per-pair-of-ranks list (O(P² log n) per alternative); matching order follows from the
 kernel that enumerated the candidate (the send is the earliest unconsumed one of its
-source), so only the receives of the changed rank are looked at; and acyclicity reduces to
-one reachability query on the observed graph of the threshold, answered by vector clocks
-computed once per threshold, because the closure removes every node through which an added
-edge could otherwise return (an added delivery or probe edge ends at a node whose kept
-successors are empty; only the rendezvous edge `issue(r) → complete(s)` can close a cycle,
-iff `complete(s)` reaches `issue(r)` in the observed graph). Collectives enter the graph
+source), so only the receives of the changed rank are looked at; and, for a steal at a
+*blocking* receive, acyclicity reduces to reachability queries on the observed graph of the
+threshold, answered by vector clocks computed once per threshold (match nodes carry no
+timestamp of their own, like hubs). Rule 1 cuts the rank right after the receive, so the
+only kept successor of the new match is the completion of a rendezvous send, and a cycle
+exists iff that completion reaches one of the match's predecessors: the receive's issue or
+the match nodes of its order edges. Reachability in the observed graph over the whole trace
+over-approximates reachability in the alternative's graph minus the new match, so the test
+is sound (it may reject an alternative the generic check accepts). Steals at nonblocking
+receives, whose match has later receives of the rank as successors, and swaps go to the
+generic check. Collectives enter the graph
 through hub nodes, 2P edges each. Preparation is O(n log n) per trace and O((n + m) P) per
 threshold; the tests compare the fast and the generic verdicts on every alternative of every
 traced idiom. (Relation to POPL'26 Thm 1.9: with rf fixed and every channel synchronous,
@@ -83,11 +107,22 @@ a class of programs consistent with it, and a claim about every program of the c
 theorem names the test that exercises it; the proofs are sketched here and written out in the
 paper.
 
-**Programs consistent with a trace.** A program P is consistent with trace σ on a prefix H
-(one prefix per rank) if every execution of P that reaches, on each rank, the same sequence of
-MPI calls with the same arguments and the same completions as σ does on H, continues to issue
-exactly the calls σ records on H. The single-path class SP(σ) is the one program whose every
-rank issues σ's calls unconditionally. L1 makes no assumption beyond consistency on H.
+**Programs consistent with a trace.** A program gives each rank a function from the results
+its calls have returned so far (request handles, statuses with source, tag, count and data,
+test and probe flags, Waitany indices, cancel flags) to its next MPI call. A program P is
+consistent with trace σ on a prefix H (one prefix per rank) if, for every rank and every record
+k of that rank in H, P's function applied to the results σ records for that rank's records
+0..k-1 yields record k's call. The single-path program SP(σ) issues σ's calls whatever they
+return. L1 makes no assumption beyond consistency on H. (The earlier wording, "every execution
+that reaches the same calls continues to issue them", was circular; audit of 20 Oct 2026.)
+
+Premises of every theorem below, stated because the proofs use them: message delays are
+arbitrary (any interleaving the matching rules allow is an execution); a Waitany or Waitsome
+may return any completed request; a send that does not block at B completes at once
+(unbounded buffering below the threshold); collectives synchronise by their shape and do not
+depend on B; a cancel succeeds exactly when it did in σ; and σ records every communication call
+of the run. The last premise is not yet enforced: calls outside the modelled fragment pass the
+tracer silently (audit finding C-1).
 
 **Theorem T1 (soundness of the L1 check).** Let M' be a matching, R* the receives whose match
 differs from M₀, and H the kept prefix of §3 for (M', R*, B). If `feasible.check(σ, M', R*, B,
@@ -109,15 +144,48 @@ its rank would have deprived of its message, so no kept receive is served out of
 (E6 found this gap on a synthetic trace before the rule existed: a pending Irecv from ANY/ANY
 followed by a specific receive whose message the Irecv accepts). Rendezvous edges
 `issue(r) → complete(s)` put each blocking send's completion after its receive is posted, so no
-send of H blocks forever; the closure (rules 2–6) removed every operation whose completion H
+send of H blocks forever; the closure (rules 2–7) removed every operation whose completion H
 cannot guarantee, so the order contains no completion the library would withhold. Consistency
 with σ on H means P issues the operations of H in that order. Tests: `CheckerSoundness` (every
 accepted alternative of every traced idiom is realised by the explorer) and E6 on the corpus
 traces and on synthetic traces; evidence so far: 0 unsound pairs.
 
-**Theorem T2 (monotonicity in B).** If a single-change alternative M' (one wildcard receive
-re-matched, §2) is feasible at B, then it is feasible at every B' > B, and the kept prefix at B'
-contains the kept prefix at B.
+*Gaps found by the audit of 20 Oct 2026, all repaired.* (a) and (b) by the match nodes of §2
+(regression tests `C_MatchNodes`); (c) by rule 6 over probes, rule 7 and the probe order edges
+of §2, and by treating root-shaped collectives without a recorded root as barriers in the graph
+(`C_ProbesReadyRoots`).
+(a) The 3' edges of an unchanged pair are read from the observed matching
+(`Trace.rs_edges_observed`): when a nonblocking wildcard r is re-matched, a later receive r3 of
+the same rank keeps `issue(M0(r)) → complete(r3)` instead of `issue(M'(r)) → complete(r3)`.
+Counterexample: A: Irecv r(ANY); Recv r3(ANY); Send x→C; Wait r. C: Recv x; Send sC→A.
+σ: r←sB, r3←sD, sC unmatched. r←sC is accepted, yet MPI gives sD to the pending r.
+(b) A 3' edge ends at `complete(r)`, but a rendezvous send is matched before its own
+completion. Counterexample: A: Irecv r1(ANY); Irecv r2(ANY); Waitall. C: Send sC→A (4 KB);
+Send x→B. B: Recv x; Send sB→A. σ: r1←sB, r2←sC. At B = 0 σ is unrealisable, yet
+`observed_feasible_at(t, 0)` holds. The repair is a match node m(r, s) per pair, with
+`issue(r) → m`, `issue(s) → m`, `m → complete(r)`, `m → complete(s)` when s blocks, the order
+edges between match nodes, and 3' recomputed from M' for every receive posted after a changed
+one. (c) Rule 6 does not cover probes and Mprobes; a ready send whose receive is cut is kept;
+root-shaped collectives without a recorded root get no edges in `build_graph`, while the
+horizon and the explorer treat them as barriers. The E6 generator cannot produce (a) or (b):
+it has no ssend, rsend, probes or Waitany, and never sends after a receive within a round.
+
+**Theorem T2 (monotonicity in B).** Let B0 be the least threshold at which the observed
+matching is feasible. If a single-change alternative M' (one wildcard receive re-matched, §2)
+is feasible at B ≥ B0, then it is feasible at every B' > B, and the kept prefix at B' contains
+the kept prefix at B.
+
+*Hypothesis added after the audit of 20 Oct 2026.* Below B0 the statement is false. An
+alternative can be feasible at B = 100: rule 3 cuts a rank whose 150-byte send lost its
+receive, and with it a later head-to-head 400-byte exchange. At 200 the exchange is kept and
+cyclic, so the alternative is infeasible, and at infinity it is feasible again. The step
+"acyclic because σ happened" below holds only for B ≥ B0. The report already states intervals
+over the thresholds at which the observed run is realisable (`realisable` in
+`report.analyze`), so its output follows the corrected statement. Three gaps remain. The
+bisection guard (`_profiles_fast`) catches only "feasible at 0, infeasible at infinity". The
+cut on the changed rank is not the same at every B when the changed receive is nonblocking:
+receives posted after it become judged as B grows. And swaps re-match two receives, so they
+are not single changes.
 *Sketch.* A send blocks at B' only if it blocks at B (`send_blocks` is antitone in B), so rule 3
 removes at B' a subset of what it removes at B; rules 1, 2, 4, 5 and 6 do not mention B and are
 monotone in the prefix (rule 6 fires on a receive whose send is removed, and removal only
@@ -154,39 +222,74 @@ and completion order the differential is the only measurement. Should a profile 
 feasible at B = 0 and infeasible at B = ∞, `report._profiles_fast` judges it at every
 breakpoint and the report says so in a note, so a counterexample cannot pass as an interval.
 
-**Proposition T3 (deadlock predictions are not monotone).** The set of thresholds at which the
-observed run deadlocks is not an interval in general: idiom 03 (head-to-head exchange)
-deadlocks below 400 bytes and not above; the loop races of MBI deadlock under the stolen
-match only when the stolen message is buffered (B ≥ 4), since below that the steal itself is
-infeasible. Both are witnesses, no proof needed.
+**Proposition T3 (deadlock predictions are not monotone).** The set of thresholds at which a
+predicted deadlock occurs is neither upward- nor downward-closed in general: idiom 03
+(head-to-head exchange) deadlocks below 400 bytes and not above; the loop races of MBI deadlock
+under the stolen match only when the stolen message is buffered (B ≥ 4), since below that the
+steal itself is infeasible. Both are witnesses, no proof needed. Each witness set is itself an
+interval; an earlier wording claimed "not an interval", which they do not show.
 
-**Theorem T4 (cost).** For a trace with n records, m constraint edges, P ranks and w wildcard
-receives: the generic check costs O(n + m) per alternative and threshold; the fast check costs
-O(P² log n) per alternative and threshold after O(n log n) preparation per trace and
-O((n + m)·P) per threshold; the non-overtaking kernel yields at most one candidate per (wildcard
-receive, source), so the number of alternatives is at most w·P; a run of the analysis over the
-breakpoints of a trace with k distinct message sizes costs O(k·(w·P·P² log n + (n + m)·P)) when
-every breakpoint is judged and, by T2, O(w·P·P² log n · log k + k'·(n + m)·P) with the bisecting
-profile, k' ≤ k being the thresholds any item visits (two for an alternative whose two ends
-agree).
-Collectives contribute O(P) edges each through hub nodes. The matching problem with M' given is
-therefore linear per alternative for any number of changed receives; what grows with the number
-of changed receives is the number of alternatives, and the choice of which receives to change
-is the problem that is NP-complete in general (MOPPER's), which this work does not solve.
-*Sketch.* By construction of `rematch.fast` (§2, Cost); the measured scaling is in E4 and in the
-tests `C_FastEqualsGeneric`. Evidence: a synthetic master-worker trace with 256 wildcard
-receives takes 0.2 s; AMG at 8 ranks (39 643 sends, 53 wildcard receives, 10 978 probes,
-3 263 probe alternatives, about 260 message sizes) takes 13.2 s and 0.55 GB on the idle second
-machine, 300 s and 1.2 GB with `--full-profile`; Nekbone's communication suite at 8 ranks
-(10.4 million records, 18 759 alternatives) 63 min and 32.5 GB, about 0.2 s per alternative,
-the linear check at that trace size (`results.md`, E5 and E5b).
+**Theorem T4 (cost).** Let a trace have n records, an alternative matching M' (|M'| ≤ n),
+P ranks, w wildcard receives of which w_q on rank q, at most T tags on any channel that an
+ANY_TAG receive reads, and k distinct message sizes. Then
+(i) the candidates number at most w·P steals (the non-overtaking kernel: per wildcard receive
+and source, only the earliest send no earlier receive has taken) and at most Σ_q w_q(w_q−1)/2
+swaps (a swap exchanges the messages of two wildcard receives of one rank, so each unordered
+pair gives at most one);
+(ii) one check of one alternative at one threshold (`feasible.check`) takes
+O((n + |M'|·T) log n) time: the horizon closure is a worklist in which each record loses its
+issue at most once and rule 6 costs one bisection (`horizon.compute_cut`), matching order costs
+O(T) lookups per pair (`matching.matching_order_ok`), and the constraint graph has
+O(n + |M'|·T) edges (a match node and at most four receiver-side and T sender-side order edges
+per pair, P edges per collective through its hub), searched for a cycle in linear time;
+(iii) a steal's profile over the breakpoints takes O(log k) checks from B0 on (T2), a swap's
+k + 2 (T2 does not cover it).
+The check is thus quasi-linear per alternative for any number of changed receives; what grows
+with the number of changed receives is the number of alternatives, and the choice of which
+receives to change is the problem that is NP-complete in general (MOPPER's), which this work
+does not solve. The fast check (`rematch.fast`), for steals at blocking receives, has the same
+bound after O(n log n) preparation per trace and per threshold; in practice it costs far less
+per alternative.
+*Sketch.* (i) by construction of `matching.candidates_full`; (ii) each rule of the closure is
+evaluated at the start and then once per record whose issue it depends on, records lose their
+issue at most once because cuts only decrease, and the cut states are ordered (index, issue
+removed) < (index, issue kept), so the worklist reaches the greatest fixpoint that the
+rescanning `compute_cut_fixpoint` reaches (tests `closure_equals_fixpoint` and the 503 corpus
+traces); the order edges suffice by the chain argument of §2 (equal verdicts with the
+scanning versions on 816 traces, 20 Oct 2026). Evidence of the practical cost: AMG at 8 ranks
+(39 643 sends, 53 wildcard receives, 10 978 probes, 3 263 probe alternatives, about 260 message
+sizes) 13.2 s and 0.56 GB on the second machine; Nekbone's communication suite at 8 ranks
+(10.4 million records, 18 759 alternatives) 63 min and 33.3 GB (31.0 GiB), about 0.2 s per
+alternative (`results.md`, E5 and E5b; measured before the changes of 20 Oct 2026, to be
+remeasured).
 
 **Lemma T5 (the single-path assumption is unsound on metadata-dependent code).** There are two
-programs consistent with the same trace σ on the whole trace, one of which deadlocks under an
-alternative matching and one of which does not. Idiom 01 (the reply goes to `MPI_SOURCE`) and
-idiom 06 (a collective guarded by `MPI_SOURCE`) are the witnesses: SP(σ) deadlocks, the real
-program does not (01) or deadlocks for another reason (06); E3 lists them. Consequence: an
+programs consistent with the same trace σ on the whole trace and a threshold B such that one
+deadlocks at B under an alternative matching and the other has an execution at B realising it
+that terminates. Idiom 01 (the reply goes to `MPI_SOURCE`) at B = 0 is the witness: SP(σ)
+deadlocks, while the real program, written as its L2 twin, does not. Idiom 06 (a collective
+guarded by `MPI_SOURCE`) is not a witness of this statement, since both programs deadlock
+there; E3 records its single-path deadlock as not spurious, and nothing committed shows that
+the mechanism differs from the program's. Consequence: an
 L1+SP finding is a claim about SP(σ), never about the program; the report labels it so.
+
+**Theorem T7 (deadlocks contained in the horizon).** Let M' be feasible at B with horizon H. A
+set D of ranks is a *contained deadlock* if no rank of D is cut by rule 1, every rank of D stops
+at an operation it issues but that nothing inside H can complete (no acceptable message issued
+in H and not taken there, no acceptable posted receive still waiting, the collective's required
+members missing), and every rank whose future operations could complete one of those operations
+is in D or has terminated. Then for every program consistent with σ on H and on the operations
+at which D stops, every execution given by T1 extends only to executions in which the ranks of D
+never complete those operations.
+*Sketch.* The ranks of D are not cut by rule 1, so the operations at which they stop are what
+every consistent program issues; nothing H holds completes them, and the only ranks that could
+are blocked in D or gone. Every cut descends from rule 1, so a contained deadlock needs a
+changed rank that stops *before* its changed receive completes: a nonblocking wildcard receive
+whose rank blocks on another operation before the wait. A blocking changed receive cuts its rank
+right after it, and every rank that waits on that rank waits on an unknown continuation; such
+deadlocks stay L1+SP or L2 claims. Implemented in `rematch.deadlock`, reported as class 1d at
+level L1; tests `C_ContainedDeadlock`, and E6 checks every L1 deadlock against the explorer
+(every execution with the changed match must deadlock).
 
 ## 3. Horizon as a causal closure (level L1)
 
@@ -208,8 +311,12 @@ set closed under (`horizon.compute_cut`):
    stays pending through the prefix, so a later receive of its rank cannot take a message the
    pending one accepts (the standard's second non-overtaking clause, §3.5: the later receive
    "cannot be satisfied by this message if the first one is still unmatched"): that receive
-   and what follows it are removed. The rule is what lets the claim cover receives that
-   complete beyond the prefix: a pending receive competes for every message its rank gets.
+   and what follows it are removed. A later probe that reports such a message is removed too,
+   since a probe reports what a receive posted at that point would take. The rule is what
+   lets the claim cover receives that complete beyond the prefix: a pending receive competes
+   for every message its rank gets;
+7. a ready-mode send whose `M'` receive is not posted inside the prefix would be erroneous:
+   the send and what follows it are removed.
 
 A blocking send removed by rule 3 at its own record is still *issued*: the rank never gets
 past it, but its envelope is visible to a probe. A probe alternative (`probe_alt`: the probe
@@ -231,7 +338,7 @@ so a leaked request does not silence its rank; but a never-completed receive pos
 that accepts `s` does block `r <- s` (it would take the message).
 
 Level **L1+SP** (MOPPER's setting) drops rule 1: the continuation is *assumed* identical, so
-an operation removed by rules 2–6 is one its rank never completes: a hang. `feasible.check`
+an operation removed by rules 2–7 is one its rank never completes: a hang. `feasible.check`
 in SP mode therefore rejects a matching whose closure removes anything, naming the rank and
 the operation; that is how the observed run's buffering profile (§4) detects a rendezvous
 send that nobody receives. For the consequences of an alternative the prototype runs the

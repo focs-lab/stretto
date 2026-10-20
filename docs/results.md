@@ -7,11 +7,12 @@ runs, their replays, E2, the E3 and E7 inputs and the AMG trace come from one ru
 MPI-BugBench's own container on the same machine, with the same timeout per program. Five MBI
 replays were redone there with `run_mbi.py --replay-only` after the replay classification learned
 that a kill past the timeout is a hang. E6 was run on the development host (same Ubuntu 24.04
-userland, Open MPI 4.1.6, MPICH 4.2.0) with the final analysis code, which postdates the corpus
-run by one horizon rule that changes no corpus table and by a loader fix. The E4 times and the
-AMG analysis time come from one announced timed leg on the second machine with the host idle
-(`experiments/timing_leg.sh`); they are the only timing claims. Every number in `gate.md` names
-the table it comes from.
+userland, Open MPI 4.1.6, MPICH 4.2.0) with the code of commit 028cb16 (where its CSV was committed),
+which postdates the corpus run by one horizon rule and a loader fix; four later analysis commits
+(e37baa6, 470d4c1, b2788c5, 2f66592) are not reflected in it. The E4 times and the AMG analysis
+time come from one announced timed leg on the second machine at commit 404927c
+(`experiments/timing_leg.sh`); they are the only timing claims. The numbers here predate the
+fixes of the audit of 20 Oct 2026 (see the status note in `gate.md`).
 
 ## E1: predictions vs benchmark labels
 
@@ -24,18 +25,22 @@ present; 1b, 1f, probe-alt and waitany-order are warnings and never count. The *
 only what the run itself showed (a blocked or spinning rank, a collective mismatch, a message never
 received), which any observational tool sees; the *predicted* row only what Rematch says about other
 runs (a mismatch certain from the trace, a deadlock or orphan under the single-path assumption, a
-finished run that would deadlock below a threshold); the union is the tool's verdict.
+finished run that would deadlock below a threshold); a 2-buffering finding on a run that did not
+finish is the hang itself and counts as observed. The union is the tool's verdict.
 
 | | TP | FP | FN | TN | precision | recall | F1 |
 |---|---|---|---|---|---|---|---|
 | Rematch (union) | 61 | 0 | 4 | 50 | 1.00 | 0.94 | 0.97 |
 | Rematch, observed in the run | 39 | 0 | 26 | 50 | 1.00 | 0.60 | 0.75 |
-| Rematch, predicted | 51 | 0 | 14 | 50 | 1.00 | 0.78 | 0.88 |
+| Rematch, predicted | 22 | 0 | 43 | 50 | 1.00 | 0.34 | 0.51 |
 | MUST 1.9.2 (same source, its own run under MPICH) | 46 | 0 | 19 | 50 | 1.00 | 0.71 | 0.83 |
+| MUST 1.9.2, a timeout counted as an error | 50 | 0 | 15 | 50 | 1.00 | 0.77 | 0.87 |
 
-MUST verdicts: ERROR 46, OK 63, RE 2, TIMEOUT 4. A MUST run that timed out,
-crashed or did not compile counts as no error reported, as a Rematch run without a finding does.
-Both tools ran each program once, with the same timeout; MUST under MPICH, Rematch under Open MPI.
+MUST verdicts: ERROR 46, OK 63, RE 2, TIMEOUT 4. In the first MUST row a run
+that timed out, crashed or did not compile counts as no error reported. A Rematch run that the harness
+killed at the timeout is reported as a blocked rank (2-blocked), an error, so the second MUST row credits
+MUST's timeouts the same way; the two rows bracket the comparison. Both tools ran each program once, with
+the same timeout; MUST under MPICH, Rematch under Open MPI, so they did not see the same run.
 
 Labelled errors Rematch reports and MUST does not on the same program: **15**, of which
 predicted on a run that showed nothing itself: **7**, replay-confirmed (a pinned rerun with
@@ -54,14 +59,13 @@ Correct programs: 50; with warnings (not counted as errors): 29; findings per pr
 mean 1.62, max 3.
 Warnings on correct programs by class: `1b` 1, `1f` 28.
 
-Replays, one per error finding (a finding is confirmed only if the rerun reported its pin applied and
-reached the predicted outcome):
+Replays: 65 rows (one per finding and class after removing duplicate pins), 38 distinct pinned runs, 10 programs (recorded before match logging and control reruns: 'confirmed' means the rerun reported its pin applied and reached the predicted outcome, which an impossible forced match also does):
 
-| class | confirmed | not confirmed | n/a |
-|---|---|---|---|
-| 1b | 0 | 0 | 2 |
-| 1c | 38 | 0 | 0 |
-| 1d | 25 | 0 | 0 |
+| class | confirmed | inconclusive | not confirmed | n/a |
+|---|---|---|---|---|
+| 1b | 0 | 0 | 0 | 2 |
+| 1c | 38 | 0 | 0 | 0 |
+| 1d | 25 | 0 | 0 | 0 |
 
 | label | detail | observed run | Rematch classes | MUST | programs |
 |---|---|---|---|---|---|
@@ -92,18 +96,22 @@ present; 1b, 1f, probe-alt and waitany-order are warnings and never count. The *
 only what the run itself showed (a blocked or spinning rank, a collective mismatch, a message never
 received), which any observational tool sees; the *predicted* row only what Rematch says about other
 runs (a mismatch certain from the trace, a deadlock or orphan under the single-path assumption, a
-finished run that would deadlock below a threshold); the union is the tool's verdict.
+finished run that would deadlock below a threshold); a 2-buffering finding on a run that did not
+finish is the hang itself and counts as observed. The union is the tool's verdict.
 
 | | TP | FP | FN | TN | precision | recall | F1 |
 |---|---|---|---|---|---|---|---|
 | Rematch (union) | 216 | 4 | 20 | 148 | 0.98 | 0.92 | 0.95 |
 | Rematch, observed in the run | 216 | 4 | 20 | 148 | 0.98 | 0.92 | 0.95 |
-| Rematch, predicted | 9 | 0 | 227 | 152 | 1.00 | 0.04 | 0.07 |
+| Rematch, predicted | 7 | 0 | 229 | 152 | 1.00 | 0.03 | 0.06 |
 | MUST 1.9.2 (same source, its own run under MPICH) | 213 | 4 | 23 | 148 | 0.98 | 0.90 | 0.94 |
+| MUST 1.9.2, a timeout counted as an error | 218 | 5 | 18 | 147 | 0.98 | 0.92 | 0.95 |
 
-MUST verdicts: ERROR 217, OK 160, RE 5, TIMEOUT 6. A MUST run that timed out,
-crashed or did not compile counts as no error reported, as a Rematch run without a finding does.
-Both tools ran each program once, with the same timeout; MUST under MPICH, Rematch under Open MPI.
+MUST verdicts: ERROR 217, OK 160, RE 5, TIMEOUT 6. In the first MUST row a run
+that timed out, crashed or did not compile counts as no error reported. A Rematch run that the harness
+killed at the timeout is reported as a blocked rank (2-blocked), an error, so the second MUST row credits
+MUST's timeouts the same way; the two rows bracket the comparison. Both tools ran each program once, with
+the same timeout; MUST under MPICH, Rematch under Open MPI, so they did not see the same run.
 
 Labelled errors Rematch reports and MUST does not on the same program: **6**, of which
 predicted on a run that showed nothing itself: **0**, replay-confirmed (a pinned rerun with
@@ -142,6 +150,8 @@ mean 0.05, max 2.
 | OK |  | FINISHED | - | TIMEOUT | 1 |
 | OK |  | MPI-ERROR | 2-blocked | RE | 4 |
 
+
+
 ## E2: buffering ablation
 
 Every alternative and every observed run is checked at every breakpoint (0, each message size, inf);
@@ -177,33 +187,34 @@ when the message is eager and hangs when it is rendezvous):
 | openmpi-default | `-` | 4040 | 4041 |
 | openmpi-forced-rendezvous | `--mca btl self,vader --mca btl_vader_eager_limit 64 --mca btl_self_eager_limit 64 --mca btl_vader_fbox_max 0` | 256 | 257 |
 
-Replays of the 19 programs whose observed run finished and is realisable only above a threshold:
-each rerun with the default eager limits (it should finish again) and with the limits forced down (it should
-hang when its bound is above the forced eager size). As predicted: default 19/19, forced
-0/0 among the bounds the forced limit gets under; the other 19 bounds are below
-the smallest eager size the transport accepts and cannot be tested on this implementation.
+Replays of the 19 programs whose observed run finished and is realisable only above a threshold,
+each rerun with the default eager limits and with the limits forced down. With the default limits the run
+must finish again: as predicted 19/19. Forced down, a run whose bound is above the
+forced eager size must hang: as predicted 0/0; a run whose bound is at or below it
+must still finish, which tests the prediction on the other side of the bound: as predicted
+17/19. Not as predicted: 2 (P2P__CallOrdering-unmatched-mpi_rsend_init-001 forced-rendezvous TIMEOUT, P2P__CallOrdering-unmatched-mpi_send_init-001 forced-rendezvous TIMEOUT).
 
 | trace | bound | default | forced rendezvous |
 |---|---|---|---|
-| experiments/results/mbb/P2P__CallOrdering-ANY_TAG-001/trace | B < 40 | FINISHED (as predicted) | FINISHED (untestable) |
-| experiments/results/mbb/P2P__CallOrdering-unmatched-mpi_irsend-001/trace | B < 40 | FINISHED (as predicted) | FINISHED (untestable) |
-| experiments/results/mbb/P2P__CallOrdering-unmatched-mpi_isend-001/trace | B < 40 | FINISHED (as predicted) | FINISHED (untestable) |
-| experiments/results/mbb/P2P__CallOrdering-unmatched-mpi_rsend-001/trace | B < 40 | FINISHED (as predicted) | FINISHED (untestable) |
-| experiments/results/mbb/P2P__CallOrdering-unmatched-mpi_rsend_init-001/trace | B < 40 | FINISHED (as predicted) | TIMEOUT (untestable) |
-| experiments/results/mbb/P2P__CallOrdering-unmatched-mpi_send-001/trace | B < 40 | FINISHED (as predicted) | FINISHED (untestable) |
-| experiments/results/mbb/P2P__CallOrdering-unmatched-mpi_send_init-001/trace | B < 40 | FINISHED (as predicted) | TIMEOUT (untestable) |
-| experiments/results/mbi/P2PBuffering_Circular_Isend_Irecv_nok/trace | B < 4 | FINISHED (as predicted) | FINISHED (untestable) |
-| experiments/results/mbi/P2PBuffering_Circular_Isend_Recv_nok/trace | B < 4 | FINISHED (as predicted) | FINISHED (untestable) |
-| experiments/results/mbi/P2PBuffering_Circular_Send_Irecv_nok/trace | B < 4 | FINISHED (as predicted) | FINISHED (untestable) |
-| experiments/results/mbi/P2PBuffering_Circular_Send_Recv_nok/trace | B < 4 | FINISHED (as predicted) | FINISHED (untestable) |
-| experiments/results/mbi/P2PBuffering_Isend_Irecv_Isend_Irecv_nok/trace | B < 4 | FINISHED (as predicted) | FINISHED (untestable) |
-| experiments/results/mbi/P2PBuffering_Isend_Recv_Isend_Recv_nok/trace | B < 4 | FINISHED (as predicted) | FINISHED (untestable) |
-| experiments/results/mbi/P2PBuffering_SameProcess_Isend_Irecv_nok/trace | B < 4 | FINISHED (as predicted) | FINISHED (untestable) |
-| experiments/results/mbi/P2PBuffering_SameProcess_Isend_Recv_nok/trace | B < 4 | FINISHED (as predicted) | FINISHED (untestable) |
-| experiments/results/mbi/P2PBuffering_SameProcess_Send_Irecv_nok/trace | B < 4 | FINISHED (as predicted) | FINISHED (untestable) |
-| experiments/results/mbi/P2PBuffering_SameProcess_Send_Recv_nok/trace | B < 4 | FINISHED (as predicted) | FINISHED (untestable) |
-| experiments/results/mbi/P2PBuffering_Send_Irecv_Send_Irecv_nok/trace | B < 4 | FINISHED (as predicted) | FINISHED (untestable) |
-| experiments/results/mbi/P2PBuffering_Send_Recv_Send_Recv_nok/trace | B < 4 | FINISHED (as predicted) | FINISHED (untestable) |
+| experiments/results/mbb/P2P__CallOrdering-ANY_TAG-001/trace | B < 40 | FINISHED (as predicted) | FINISHED (as predicted) |
+| experiments/results/mbb/P2P__CallOrdering-unmatched-mpi_irsend-001/trace | B < 40 | FINISHED (as predicted) | FINISHED (as predicted) |
+| experiments/results/mbb/P2P__CallOrdering-unmatched-mpi_isend-001/trace | B < 40 | FINISHED (as predicted) | FINISHED (as predicted) |
+| experiments/results/mbb/P2P__CallOrdering-unmatched-mpi_rsend-001/trace | B < 40 | FINISHED (as predicted) | FINISHED (as predicted) |
+| experiments/results/mbb/P2P__CallOrdering-unmatched-mpi_rsend_init-001/trace | B < 40 | FINISHED (as predicted) | TIMEOUT (not as predicted) |
+| experiments/results/mbb/P2P__CallOrdering-unmatched-mpi_send-001/trace | B < 40 | FINISHED (as predicted) | FINISHED (as predicted) |
+| experiments/results/mbb/P2P__CallOrdering-unmatched-mpi_send_init-001/trace | B < 40 | FINISHED (as predicted) | TIMEOUT (not as predicted) |
+| experiments/results/mbi/P2PBuffering_Circular_Isend_Irecv_nok/trace | B < 4 | FINISHED (as predicted) | FINISHED (as predicted) |
+| experiments/results/mbi/P2PBuffering_Circular_Isend_Recv_nok/trace | B < 4 | FINISHED (as predicted) | FINISHED (as predicted) |
+| experiments/results/mbi/P2PBuffering_Circular_Send_Irecv_nok/trace | B < 4 | FINISHED (as predicted) | FINISHED (as predicted) |
+| experiments/results/mbi/P2PBuffering_Circular_Send_Recv_nok/trace | B < 4 | FINISHED (as predicted) | FINISHED (as predicted) |
+| experiments/results/mbi/P2PBuffering_Isend_Irecv_Isend_Irecv_nok/trace | B < 4 | FINISHED (as predicted) | FINISHED (as predicted) |
+| experiments/results/mbi/P2PBuffering_Isend_Recv_Isend_Recv_nok/trace | B < 4 | FINISHED (as predicted) | FINISHED (as predicted) |
+| experiments/results/mbi/P2PBuffering_SameProcess_Isend_Irecv_nok/trace | B < 4 | FINISHED (as predicted) | FINISHED (as predicted) |
+| experiments/results/mbi/P2PBuffering_SameProcess_Isend_Recv_nok/trace | B < 4 | FINISHED (as predicted) | FINISHED (as predicted) |
+| experiments/results/mbi/P2PBuffering_SameProcess_Send_Irecv_nok/trace | B < 4 | FINISHED (as predicted) | FINISHED (as predicted) |
+| experiments/results/mbi/P2PBuffering_SameProcess_Send_Recv_nok/trace | B < 4 | FINISHED (as predicted) | FINISHED (as predicted) |
+| experiments/results/mbi/P2PBuffering_Send_Irecv_Send_Irecv_nok/trace | B < 4 | FINISHED (as predicted) | FINISHED (as predicted) |
+| experiments/results/mbi/P2PBuffering_Send_Recv_Send_Recv_nok/trace | B < 4 | FINISHED (as predicted) | FINISHED (as predicted) |
 
 ## E3: level ablation
 
@@ -242,9 +253,9 @@ the smallest eager size the transport accepts and cannot be tested on this imple
 ## E4: tracer overhead and analysis cost (NPB 3.4.3, MPICH build)
 
 Plain, traced and analysis times from one timed leg (`experiments/timing_leg.sh`, log in
-`experiments/results/timing-leg.log`) on the second machine with the whole host idle, announced
+`experiments/results/timing-leg.log`) on the second machine, announced
 to the other lanes: 16 ranks on the container's 12 cores (24 hardware threads), the analysis
-one process, final code. The 4-rank rows are the leg's rerun of that set after a 6 s configure
+one process, at commit 404927c (before b2788c5 and 2f66592). The 4-rank rows are the leg's rerun of that set after a 6 s configure
 step of another lane overlapped the first pass; both passes are in the log.
 
 | benchmark | class | np | plain (s) | traced (s) | slowdown | trace (MB) | events | wildcards | analysis (s) | findings |
@@ -301,10 +312,11 @@ Nekbone (test/nek_comm, `PPLIST=NEKCOMM`), 8 ranks, MPICH build, the program who
 message-volume and tree-reduction tests reach the `MPI_ANY_SOURCE` wrappers of `comm_mpi.f`
 (`experiments/nekbone/run.sh`, analysis with `--no-sp`, one process, run on the second machine
 while another lane's jobs ran on the host, so the time is an upper bound). Every finding is a
-1f at the binary-tree global operation (`gop`, `comm_mpi.f` line 994, `study/sites.csv`): the
-inner nodes 0 and 4 receive their children's contributions with one tag and `MPI_ANY_SOURCE`, so
-the children can arrive in either order; the ping-pong tests, whose tags make the sender unique,
-produce no finding. Rejected alternatives are the candidate senders the checker refuses.
+1f at the binary-tree global operation `gp2` (`comm_mpi.f` line 994, `study/sites.csv`), which only
+the suite's `gp2_test` calls (the solver's `gop` is an `MPI_Allreduce`): the inner nodes 0 and 4
+receive their children's contributions with one tag and `MPI_ANY_SOURCE`, so the children can arrive
+in either order; the ping-pong tests, whose tags make the sender unique, produce no finding. Rejected
+alternatives are the candidate senders the checker refuses.
 
 ```
 trace: 8 ranks, 2060218 sends, 2060218 receives, 35714 wildcard receives, 0 probes, 56248 collective records, 11 communicators

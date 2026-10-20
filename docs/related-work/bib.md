@@ -8,10 +8,10 @@
 | mopper14 | V. Forejt, D. Kroening, G. Narayanaswamy, S. Sharma. Precise Predictive Analysis for Discovering Communication Deadlocks in MPI Programs. FM 2014, LNCS 8442 | open (qav.comlab.ox.ac.uk/papers/fm14.pdf) | mopper-fm14.pdf |
 | mopper17 | V. Forejt, S. Joshi, D. Kroening, G. Narayanaswamy, S. Sharma. Same title. ACM TOPLAS 39(4), 2017. doi:10.1145/3095075 | paywalled; ORA copy exists (ora.ox.ac.uk uuid:3fd7b5c5-…) | — |
 | ase20 | Y. Huang, B. Ogles, E. Mercer. A Predictive Analysis for Detecting Deadlock in MPI Programs. ASE 2020. doi:10.1145/3324884.3416588 | paywalled (ACM 403); abstract via conf.researchr.org | — |
-| tpds23 | Z. Hao et al. Improving the Efficiency of Deadlock Detection in MPI Programs Through Trace Compression. IEEE TPDS 34(1):400–, 2023 | paywalled; abstract (ADS) | — |
-| cluster22 | Deadlock Detection for MPI Programs Based on Refined Match-sets (SAMPI). IEEE CLUSTER 2022. doi:10.1109/CLUSTER51413.2022 | paywalled; abstract (IEEE) | — |
+| tpds23 | Y. Huang, T. Wang, Z. Yin, E. Mercer, B. Ogles. Improving the Efficiency of Deadlock Detection in MPI Programs Through Trace Compression. IEEE TPDS 34(1):400–415, 2023. doi:10.1109/TPDS.2022.3218346 | paywalled; abstract (ADS) | — |
+| cluster22 | S. Li, M. Wang, H. Zhang. Deadlock Detection for MPI Programs Based on Refined Match-sets. IEEE CLUSTER 2022, pp. 82–93 | paywalled; abstract (IEEE) | — |
 | parco24 | S. Li, M. Wang, H. Zhang, Y. Liu. Program partitioning and deadlock analysis for MPI based on logical clocks (PDMPI). Parallel Computing 119:103061, 2024 | paywalled; abstract (ScienceDirect) | — |
-| internetware24 | Efficient Deadlock Detection in MPI Programs with Path Compression and Focus Matching. Internetware 2024. doi:10.1145/3671016.3674822 | paywalled; abstract | — |
+| internetware24 | J. Hao, M. Wang, H. Zhang. Efficient Deadlock Detection in MPI Programs with Path Compression and Focus Matching. Internetware 2024, pp. 467–476. doi:10.1145/3671016.3674822 | paywalled; abstract | — |
 | netzer96 | R. H. B. Netzer, T. W. Brennan, S. K. Damodaran-Kamal. Debugging Race Conditions in Message-Passing Programs. SPDT'96, pp. 31–40. doi:10.1145/238020.238033 | paywalled (ACM 403); abstract elided at Semantic Scholar; cited by Kranzlmüller 2000 [8] and Park–Jun 2004 | — |
 | netzer92 | R. H. B. Netzer, B. P. Miller. Optimal Tracing and Replay for Debugging Message-Passing Parallel Programs. SC'92; J. Supercomputing 8(4), 1995 | paywalled | — |
 | dk94 | S. K. Damodaran-Kamal. Testing and Debugging Nondeterministic Message Passing Programs. PhD thesis, U. Southwestern Louisiana, 1994; with J. M. Francioni, Testing Races in Parallel Programs with an OtOt Strategy, ISSTA 1994 | not fetched | — |
@@ -26,5 +26,8 @@
 | corrbench21 | A. Hück et al. MPI-CorrBench. HPDC-W 2021 | repo github.com/tudasc/MPI-CorrBench read | — |
 | summit17 | Report of the HPC Correctness Summit. arXiv 1705.07478, 2017 | open | hpc-correctness-summit-2017.pdf |
 
-The proposal's reference list misattributes SPDT'96, MOPPER FM'14 and ASE'20; the rows
-above carry the author lists as published.
+The proposal's reference list misattributes SPDT'96, MOPPER FM'14 and ASE'20, and an earlier
+version of this table credited the TPDS'23 paper to a first author it does not have; the rows
+above carry the author lists as published (checked against Crossref on 20 Oct 2026, the
+paper's refs.bib names the source of each entry). CLUSTER'22, Parallel Computing'24 and
+Internetware'24 come from one group.
