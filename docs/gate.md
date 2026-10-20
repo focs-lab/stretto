@@ -1,9 +1,12 @@
 # Project gate (benchmark level)
 
 First written 2026-09-07, superseding the idiom-level `wp0-gate.md`; rewritten 2026-10-16
-from the single corpus run that followed the audit (`experiments/RUNBOOK.md`). The three
-criteria of proposal §15 are measured on benchmark programs (MBI, MPI-BugBench level 2) and
-two real applications (AMG, Nekbone's communication suite), with MUST 1.9.2 as the
+from the single corpus run that followed the audit (`experiments/RUNBOOK.md`); numbers updated
+2026-10-21 from the rerun of every corpus step at commit c27c793 (`experiments/run_remaining.sh`)
+and the HYPRE campaign (`experiments/hypre/campaign.sh`). The three
+criteria of proposal §15 are measured on benchmark programs (MBI, MPI-BugBench level 2),
+two wildcard-heavy correct applications (AMG, Nekbone's communication suite) and one real bug
+(HYPRE 2.10.1's ParaSails race), with MUST 1.9.2 as the
 observational baseline on the corpora and on AMG, and pinned replay
 as the confirmation. MUST builds the same source with MPICH in its own container and runs it
 once with the same timeout, so its verdicts come from a different run of the same program.
@@ -22,24 +25,16 @@ assumption (1c, 1d), a finished run that deadlocks below a buffering threshold
 (2-buffering). The classes 1b, 1f, probe-alt and waitany-order are warnings and never count
 as errors. The results tables show the observed floor, the predicted part and their union.
 
-**Status after the audit of 20 Oct 2026.** The numbers below match the committed tables, but
-several of the claims made from them are stronger than the evidence, and two are wrong. Until
-the fixes and the rerun land (plan steps 1-4), read them with these corrections:
-
-- The checker has two soundness gaps against T1 (`model.md` §2b, "Known gaps"). Neither shape
-  occurs in the corpora as far as E6 can tell, but E6's generator cannot produce them.
-- A replay "confirms" a finding when the pin was set and the run hung. Setting the pin is not
-  evidence that the forced match happened, and forcing an impossible match also hangs. There is
-  no control replay. "Confirmed" below means "hung with the pin set".
-- The predicted row counts `2-buffering` findings on runs that themselves timed out: 29 such MBI
-  programs. Counting finished runs only, the predicted part is TP 22, FP 0, FN 43 (F1 0.51) on
-  MBI and TP 7 (F1 0.06) on MPI-BugBench.
-- A run the harness killed counts as a Stretto finding (`2-blocked`) and as "no error" for MUST.
-  Crediting MUST's timeouts the same way gives MUST TP 50, F1 0.87 on MBI, and TP 218, FP 5,
-  F1 0.950 on MPI-BugBench, level with Stretto's 0.947. Four "Stretto-only" MBI programs hung
-  under Open MPI and finished under MUST's MPICH build.
-- AMG and Nekbone were analysed with `--no-sp`, which cannot produce 1c or 1d, so "no harmful
-  alternative" there is true by construction, not a finding.
+**Status after the rerun of 21 Oct 2026.** The fixes of the audit of 20 Oct are in and every
+corpus table was regenerated with them: the checker's two soundness gaps against T1 are closed
+(match nodes, `model.md` §2b); a replay confirms a finding only if every pinned operation whose
+completion lies in the horizon matched, the rerun reached the predicted outcome and a control
+rerun with the observed senders pinned finished; the predicted row counts `2-buffering` only on
+runs that finished; MUST is scored both with its timeouts as no error and as errors; stress
+testing is a second baseline. The HYPRE race is predicted from 35 of 40 single finished runs; every
+predicted cross-exchange alternative hangs when replayed, and testing never hit it (E5c).
+Still open: AMG and Nekbone are analysed with `--no-sp`, so they
+cannot show a 1c or 1d; the timing leg predates the current tracer; Nekbone was not rerun.
 
 ## Criterion 1: ≥ 3 benchmark bugs predicted from a run in which MUST reports nothing, confirmed by replay
 
@@ -48,31 +43,34 @@ the fixes and the rerun land (plan steps 1-4), read them with these corrections:
 programs) and 50 correct.
 
 - Stretto, union: TP 61, FP 0, FN 4, TN 50 (precision 1.00, recall 0.94, F1 0.97).
-  The observed floor alone is TP 39 (F1 0.75); the predicted part alone TP 51 (F1 0.88), of
-  which 29 are `2-buffering` on runs that timed out (finished runs only: TP 22, F1 0.51).
-  MUST 1.9.2 (`--must:distributed`): TP 46, FP 0, FN 19 (F1 0.83); MUST verdicts ERROR 46,
-  OK 63, RE 2, TIMEOUT 4.
-- Labelled errors Stretto reports and MUST does not on the same program: 15. Of these, 7
-  are predicted on a run that showed nothing itself (the run finished): the `Gather`,
-  `Reduce` (×2) and `Loop` (×4) message-race programs, where the racing receive is flagged at
-  L1 and a deadlock and an orphan are certified under the single-path assumption. All 7 hang
-  when replayed with their pins. They come from three program templates (Loop, Reduce,
-  Gather). The other 8 are observed hangs (four probe `CallOrdering` programs, four
-  collective message-race programs) on which MUST times out or reports nothing.
-- Replays (results table "Replays, one per error finding"): 80 L1+SP findings (48 1c,
-  32 1d) on MBI. After removing duplicates by (pin, class) they give 63 replay rows, but only
-  38 distinct pinned runs in 10 programs, because every 1d pin repeats a 1c pin; 51 of the 63
-  rows come from the four `Loop` programs. All 38 runs hung; 1b 2 informational. A replay
-  counts as confirming a finding if the rerun reported every pin applied and reached the
-  predicted outcome (a hang for 1c/1d). "Applied" is printed when the source argument is
-  rewritten, not when the receive matches (see the status note above). Findings with certainty
-  `some` (the explorer found a deadlock in some, not every, continuation) are replayed with
-  the pins of the explorer's witness execution, which is why the four `Loop` programs, whose
-  first-pair pins did not reproduce in the previous run, now confirm.
+  The observed floor alone is TP 39 (F1 0.75); the predicted part alone, on runs that
+  finished, TP 23 (F1 0.52). MUST 1.9.2 (`--must:distributed`): TP 46, FP 0, FN 19 (F1 0.83);
+  with its timeouts counted as errors, TP 50 (F1 0.87). MUST verdicts ERROR 46, OK 63, RE 2,
+  TIMEOUT 4.
+- Stress testing (results section "Stress-testing baseline: MBI"): up to 30 runs per program
+  with random delays; 53 of the 65 errors fail in some run (median first failure in run 1,
+  16 only later), no correct program fails (F1 0.90). The 12 it never makes fail are the
+  `P2PBuffering` programs, which deadlock only if a 4-byte send is not buffered; Stretto
+  predicts each of them from one finished run.
+- Labelled errors Stretto reports and MUST does not on the same program: 15. Of these, 8
+  are predicted on a run that showed nothing itself (the run finished): the `Allreduce`,
+  `Alltoall`, `Gather`, `Reduce` (×2) and `Loop` (×3) message-race programs, where the racing
+  receive is flagged at L1 and a deadlock and an orphan are certified under the single-path
+  assumption. They come from five program templates, and all 8 are replay-confirmed. The other
+  7 are observed hangs (four probe `CallOrdering` programs, three message-race programs) on
+  which MUST times out or reports nothing.
+- Replays (results table "Replays, one per error finding"): 76 rows after removing duplicate
+  pins, 74 of them for 1c or 1d findings, in 50 distinct pinned runs of 11 programs: 64
+  confirmed (1c 36, 1d 28), 10 inconclusive, 0 not confirmed. The inconclusive ones are those
+  whose control did not finish: nine in `MessageRace_Loop_Isend_Irecv_nok`, whose recorded run
+  itself hung, and one in `MessageRace_Loop_Send_Irecv_nok`, whose control pins a single
+  receive and leaves the racing loop after it free to hang. Findings with certainty `some`
+  (the explorer found a deadlock in some, not every, continuation) are replayed with the pins
+  of the explorer's witness execution.
 
 Message-race programs (results table "Message-race programs"): 34; 12 with a clean observed
 run; the racing receive flagged at L1 in 33 (12/12 of the clean ones); a consequence
-certified at L1+SP in 10 (10/12 clean), all 10 replay-confirmed; 22 deadlock or abort in
+certified at L1+SP in 11 (10/12 clean), all 11 replay-confirmed; 22 deadlock or abort in
 the observed run itself.
 
 The four programs Stretto misses are `MessageRace_{Recv,Irecv}_{Send,Isend}_nok`, whose
@@ -85,7 +83,7 @@ the scored verdict, so they stay FN in the table above.
 
 ## Criterion 2: ≥ 1 of those is family ① (message race), not family ③
 
-**Met.** The seven clean-run predictions above are family ①: classes 1f (racing receive),
+**Met.** The eight clean-run predictions above are family ①: classes 1f (racing receive),
 1c (orphan) and 1d (deadlock), each with the wildcard receive and the message that cause it.
 `MessageRace_tag_ANY_TAG_1_Send_Recv_nok` is 1b (cross-purpose tag) with an observed hang
 and an informational replay. Idiom 05 (1a, count mismatch) reproduces as `MPI_ERR_TRUNCATE`
@@ -111,8 +109,9 @@ On the other 388:
 |---|---|---|---|---|---|
 | Stretto (union) | 216 | 4 | 20 | 148 | 0.95 |
 | Stretto, observed in the run | 216 | 4 | 20 | 148 | 0.95 |
-| Stretto, predicted | 9 | 0 | 227 | 152 | 0.07 |
+| Stretto, predicted | 7 | 0 | 229 | 152 | 0.06 |
 | MUST 1.9.2 | 213 | 4 | 23 | 148 | 0.94 |
+| MUST 1.9.2, a timeout counted as an error | 218 | 5 | 18 | 147 | 0.95 |
 
 - **The corpus is observational.** The predicted row is almost empty because the bugs show
   in the run itself: collective mismatches, blocked ranks, ranks spinning in an `Improbe`
@@ -137,57 +136,49 @@ On the other 388:
   that are its false positives.
 - Warnings on correct programs: none (MBI: 29 of 50 correct programs carry a 1f or 1b
   warning, results line "Correct programs"); wildcard competition on MBI: 165 wildcard
-  receives, 144 feasible L1 alternatives, 0.87 per wildcard receive, at most 7 in one program
+  receives, 146 feasible L1 alternatives, 0.88 per wildcard receive, at most 7 in one program
   (results line "Wildcard competition").
 
 ## Checker against explorer (E6)
 
 Results table "E6". The checker in L1 mode, the claim the report makes, against exhaustive
 exploration of the trace as a straight-line program, at B = 0 and B = ∞, on every corpus and
-idiom trace with at most 2000 events and on 127 random programs whose explorer-chosen
-execution is the trace (`dsl.random_matched_program`, `dsl.trace_from_execution`; 200 were
-requested, and the programs that deadlocked, left requests open or had no wildcard receive
-were discarded):
+idiom trace small enough to explore and on 126 random programs with synchronous and ready
+sends, probes, `Waitany` and sends after receives (`dsl.random_matched_program`). Every
+alternative the checker judges counts, accepted or rejected:
 
 | traces | pairs (alternative, B) | agree | unsound | incomplete | exact as well | events, max |
 |---|---|---|---|---|---|---|
-| corpus and idiom traces (71) | 306 | 306 | 0 | 0 | 118 | 48 |
-| synthetic traces (127) | 528 | 525 | 0 | 3 | 96 | 72 |
+| corpus and idiom traces (71) | 310 | 310 | 0 | 0 | 120 | 48 |
+| synthetic traces (126) | 516 | 515 | 0 | 1 | 73 | 74 |
 
 *Unsound* would be an accepted alternative that no execution realises on the receives inside
-the checker's cut; there is none. The run on the second machine had one, on a synthetic
-trace: a pending `Irecv` from ANY/ANY followed by a specific receive whose message the
-`Irecv` accepts. It became horizon rule 6 (`model.md` §3, the standard's second
-non-overtaking clause), after which the corpus tables are unchanged and the pair is
-rejected. The three *incomplete* pairs are synthetic, at B = 0, with the reason "witness cut by the
-horizon closure". An earlier version of this paragraph attributed them to a second wildcard
-receive re-matched outside the judged set, but the CSV does not record which receive
-differed, so the attribution is unverified. The checker is about 5 times faster on the corpus
-traces (27 ms against 146 ms in total) and over 300 times faster on the synthetic ones
-(columns "checker time", "explorer time"); the explorer's cost grows exponentially. The CSV
-predates four analysis commits (e37baa6, 470d4c1, b2788c5, 2f66592) and is rerun with the
-fixes.
+the checker's cut; there is none. The one *incomplete* pair (synthetic/056, a steal at B = 0)
+does not survive: the horizon closure removes the changed receive itself ("witness cut by the
+horizon closure"), which theorem T6 excludes by assumption. The explorer confirms all 25
+contained deadlocks (T7) among the accepted pairs. The checker is about 5 times faster on the
+corpus traces (41 ms against 194 ms in total) and about 200 times faster on the synthetic ones;
+the explorer's cost grows exponentially.
 
 ## Buffering (E2)
 
 Results table "E2". Every alternative and every observed run is checked at every
 breakpoint (0, each message size, ∞), not bisected: over 516 traces, no profile is
-non-monotone in B (theorem T2's evidence). 51 observed runs are infeasible at B = 0: they
-deadlock on a rendezvous implementation (2-buffering). Of 153 feasible alternatives, 140 are
-feasible at B = 0 and all 153 from B = 4096 on; the 13 B-dependent ones are steals in MBI's
-loop message-race programs that need the stolen message buffered (B ≥ 4). The eager size of
-the implementation is measured, not assumed (`b_impl.csv`): Open MPI 4.1.6 buffers up to
-4040 bytes by default and no less than 256 bytes when forced down. Replaying the 19 programs
-whose finished run is realisable only above a threshold: 19/19 finish again with the default
-limits, as predicted; their bounds (4 and 40 bytes) lie below the smallest eager size the
-transport accepts, so the forced-rendezvous replay cannot test the deadlock below them. It
-does test the other side of the bound: with 256 bytes eager the runs must still finish. 17 of
-19 do; the two MPI-BugBench programs with persistent sends (`unmatched-mpi_send_init`,
-`unmatched-mpi_rsend_init`) hang. An earlier version of this paragraph and of the table
-labelled all 19 "untestable" and so hid the two. They are not explained yet: either the
-single-threshold model of buffering does not hold for Open MPI's persistent sends under the
-forced settings, or the forced settings change something else; no buffering prediction is
-confirmed until they are.
+non-monotone in B. 51 observed runs are infeasible at B = 0: they deadlock on a rendezvous
+implementation (2-buffering). Of 155 feasible alternatives, 144 are feasible at B = 0 and all
+155 from B = 4096 on; the 11 B-dependent ones are steals in MBI's loop message-race programs
+that need the stolen message buffered (B ≥ 4). The eager size is measured per send path
+(`b_impl.csv`): Open MPI 4.1.6 buffers up to 4040 bytes by default; with the shared-memory
+limit forced down, `MPI_Send` and `MPI_Isend` still send up to 256 bytes inline while
+persistent sends buffer 8; the TCP transport with a 64-byte limit buffers 8 bytes on every
+path. The persistent path explains the two persistent-send replays that hung in the previous
+run where a single threshold of 256 bytes predicted they would finish.
+
+Replays of the 17 programs whose finished run is realisable only from a threshold on: with
+the default limits all 17 finish again; on the TCP transport with the threshold one byte below
+the bound, 13 of 13 testable ones hang, as predicted (the other 4 send to themselves, which
+the self transport does inline up to 256 bytes); on TCP with the threshold at the bound, all
+17 finish. None went against the prediction.
 
 ## Scale (E4, E5, E5b)
 
@@ -202,9 +193,11 @@ the leg's second pass); lu.A at 4 ranks, 508 376 events, 7.9 s; cg.A at 16 ranks
 events, 3.5 s. That is about 16 µs per event on traces without wildcard receives, where the
 cost is loading and the observed-run checks.
 
-Results section "E5" (AMG, 8 ranks, `summary8.txt`): 39 643 sends, 53 wildcard receives,
-10 978 probes. The analysis reports 5 racing receives (1f) and 3263 probe alternatives, all
-at L1, in 13.2 s with a peak of 0.56 GB in the same timed leg (13.0 s in its second pass;
+Results section "E5" (AMG, 8 ranks, `summary8.txt`, rerun at c27c793): 39 643 sends, 53
+wildcard receives, 8 936 probes (10 978 in the trace of the timed leg). The analysis reports
+5 racing receives (1f) and 3263 probe alternatives, all at L1, at two call sites inside
+HYPRE's MPI wrappers (`hypre_MPI_Iprobe`, `hypre_MPI_Recv`); in 13.2 s with a peak of 0.56 GB
+in the timed leg (13.0 s in its second pass;
 9.3 s on the development host, not committed). The 3263 probe alternatives are profiled at
 the two ends of the B range and bisected between them (exact by corollary T2' for
 B ≥ B0); judging all of the about 260 breakpoints (`--full-profile`) gave the same findings
@@ -218,7 +211,10 @@ crashes inside its wait-state module (RE). The centralised layout runs AMG to it
 merit and reports requests not freed at `MPI_Finalize`; then a process is killed with signal 9
 at shutdown. It reports nothing about message matching. No harmful alternative was found in
 AMG, but the analysis ran with `--no-sp`, so no 1c or 1d could be reported; with one of 3263
-alternatives replayed, this is not yet evidence that none exists. The proposal's §19 minimum
+alternatives replayed, this was not yet evidence that none exists. A random sample of 30
+alternatives (`replay_sample.csv`, `experiments/replay_sample.py`) replayed with the pins of
+their horizon and with controls: all 30 matched every required pin and finished, and so did
+their controls. The proposal's §19 minimum
 is restated accordingly (a prediction on a real application confirmed realisable by replay,
 and benchmark bugs MUST misses confirmed).
 
@@ -249,6 +245,51 @@ alternatives") the same analysis was killed at 4, 24 and 64 GB: one dictionary c
 observed matching per alternative. MACSio was not traced: its only wildcard site lies in
 `src-stuff/`, outside the built program.
 
+## A real bug (E5c): HYPRE 2.10.1, ParaSails
+
+Results section "E5c" (`hypre/predict.csv` at 67e043a, `hypre/predict-2.11.0.csv` at 53dceae,
+`hypre/stress.csv` at c27c793; `experiments/hypre/campaign.sh`). HYPRE 2.10.1's ParaSails sends
+the requests of its pruned-rows and stored-rows exchanges with one tag, 222, and takes them with
+`Probe(ANY_SOURCE, 222)` followed by a receive from the probed source; a probe that takes the
+next exchange's request hangs the run. At the time the hang took 291 jobs and 10 392 node-hours
+to diagnose (NINJA, PPoPP'17); 2.11.0 fixed it by giving the pruned-rows requests tag 221
+(upstream commit bc3158ee). Driver `test/ij -solver 8 -pout 0`, MPICH build, 20 traced runs at
+4 ranks and 20 at 8; every traced run finished. Every probe alternative at a request probe is
+classified by the exchange of its request: an exchange posts its requests, calls the
+`Allreduce` of `FindNumReplies` and only then probes, so a request sent after s collectives on
+the communicator and a probe after p collectives belong to one exchange iff s + 1 = p ("same":
+another neighbour's request) and otherwise to two ("cross": the race). Each alternative was
+replayed with the pins of its horizon and with its control, 60 s each.
+
+- 4 ranks: 15 of 20 traces have a cross alternative, 18 in all; all 18 hang with every required
+  pin matched, and all 18 controls finish. The 40 same alternatives (2 per trace) finish with the
+  control's final residual (6.788872e-09).
+- 8 ranks: all 20 traces have cross alternatives, 272 in all; all hang with their pins matched
+  and finishing controls. Of the 220 same alternatives, 219 finish with the control's residual
+  (8.347820e-09); one exited with status 15 with not all of its pins matched, and its output and
+  trace were not kept, so it counts neither way.
+- Every replayed alternative lies at one call site, the probe of `ReceiveRequest`
+  (`ParaSails.c:166`).
+- 2.11.0, both request tags (221, 222): 20 traces at each rank count, all finished, and none
+  has a cross alternative. The 40 same alternatives at 4 ranks finish with the control's
+  residual; of the 220 at 8 ranks, 217 replays finish and 3 exit with status 15, and 3 of the
+  controls exit with status 15 (two bursts of three concurrent runs); 214 replays finish with
+  the residual of a finished control.
+- Status 15: seven 8-rank runs in all, replays and controls alike, exited with it without
+  finishing. The two bursts on 2.11.0 fell in the minutes in which short containers of ours
+  (tables, LaTeX) ran on two of the campaign's processors. 132 plain 8-rank runs, four at a
+  time with the pin library preloaded, all finished, 40 of them while other containers started
+  and 32 with those two processors kept busy (diagnostic, not committed). The cause is unknown;
+  `predict.py` now keeps the output of such runs (`failed/`, not committed).
+- Testing (`stress.csv`): 80 untraced runs of 2.10.1, at each rank count 20 plain and 20 with
+  random send and receive delays of 0 to 50 ms per rank; none hung.
+
+Whether a trace shows a cross alternative depends on the recorded order: the neighbour's
+request must have been taken early enough for the neighbour to reach the next exchange while
+this rank still probes. A first campaign at a8553c2 classified by request size (another size
+meaning another exchange); at 8 ranks that picked a same-exchange reordering and missed
+cross-exchange requests of equal size, so its results were replaced and not committed.
+
 ## WP0a (payload-obliviousness) on the full corpus
 
 `study/sites.csv`: 19 wildcard/probe/Waitany sites in AMG, MACSio and Nekbone, 18
@@ -276,7 +317,8 @@ MPI-BugBench. See `related-work/analysis.md` and `proposal-delta.md`.
 
 **Continue on the PLDI/OOPSLA trajectory** with proposal v4 (`proposal_EN.md`). Open risks:
 the two-change rung (E6 shows where single-change stops), the value skeleton beyond
-hand-written twins, family ③ instrumentation, and the thinness of the real-application
-evidence: AMG and Nekbone's communication suite are the only wildcard-heavy correct programs
-analysed, and Nekbone's 10 000 1f findings at one site show that a finding per competing
-sender is not a usable report on reduction trees (E5b).
+hand-written twins, family ③ instrumentation, and the breadth of the real-application
+evidence: one real bug (HYPRE, E5c, one input and two rank counts) and two wildcard-heavy
+correct programs (AMG and Nekbone's communication suite), and Nekbone's 10 000 1f findings at
+one site show that a finding per competing sender is not a usable report on reduction trees
+(E5b).

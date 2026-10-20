@@ -1,3 +1,3 @@
-pin: REMATCH_PIN_PROBE=0:0:2
-[rematch-pin] rank 0: applied probe pidx=0
+pin: STRETTO_PIN_PROBE=0:0:1
+[stretto-pin] rank 0: applied probe pidx=0 src=1 tag=1000
 result: FINISHED
