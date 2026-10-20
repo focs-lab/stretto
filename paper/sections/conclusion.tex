@@ -1,0 +1,18 @@
+\section{Limitations and Conclusion}
+\label{sec:conclusion}
+
+\paragraph{Limitations.} The model covers point-to-point communication, probes,
+completion calls and collectives by shape. RMA, neighbourhood collectives, partitioned
+communication and memory accesses are outside it. Buffer reuse before a nonblocking
+operation completes needs access instrumentation that MPI interposition does not provide.
+Under \texttt{MPI\_THREAD\_MULTIPLE} we report observed findings only. Skeletons are
+written by hand. Our experiments use one node.
+
+\paragraph{Conclusion.} One recorded run of an MPI program determines more than the run
+itself. Over the horizon, which is the part of the trace every consistent program
+repeats, an alternative matching is feasible iff a constraint graph with match nodes is
+acyclic. The certificate holds for every such program. For single changes it is exact
+relative to the reorderings that keep every other match. It comes with the buffering
+thresholds at which it holds, with a level of evidence for its consequence, and with a
+pin that forces it in a replay.
+\pending{Final sentence on results.}

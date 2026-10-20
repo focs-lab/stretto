@@ -1,0 +1,77 @@
+\section{Overview}
+\label{sec:overview}
+
+We follow the program of \cref{fig:tworuns} through \tool, and then a second program
+that shows why levels of evidence are needed.
+
+\paragraph{Record.} A PMPI library, preloaded into the unchanged binary, writes one
+record per MPI call on each rank, with the call's arguments and returned status. The run
+we record is run~A: the wildcard receive $r_0$ of rank~0 took rank~1's send $s_1$, and
+the receive $r_0'$ from rank~2 took $s_2$. Non-overtaking makes the observed matching
+$\Mobs = \{r_0 \mapsto s_1, r_0' \mapsto s_2\}$ recoverable from the records: per
+receiving rank and source, receives take that source's messages in order.
+
+\paragraph{Rematch.} An alternative changes the message of one wildcard receive. By the
+first non-overtaking rule, only the earliest unconsumed message from each source can be
+next. So $r_0$ has one alternative per other sender with a pending message, here
+$\Malt = \{r_0 \mapsto s_2\}$.
+
+\paragraph{Check.} Is $\Malt$ possible, and possible for which programs? After $r_0$
+takes $s_2$, rank~0's continuation is unknown. It may branch on the status, so the
+analysis keeps only rank~0's events up to the completion of $r_0$ and nothing after it.
+Other ranks keep their events unless they depend on something removed: a blocking send
+whose receive is gone, a receive whose message is gone. This greatest set closed under
+such rules is the \emph{horizon} $\Hpre$ (\cref{sec:horizon}). Here it is rank~0 up to
+$r_0$, rank~2 entirely, and rank~1 up to its send. Over $\Hpre$, \tool builds a
+graph with an issue and a completion node per operation and a match node per matched
+pair. Its edges are program order, the dependencies of each match, and MPI's ordering
+rules (\cref{fig:graph}a). The graph is acyclic, so a topological order is an execution.
+Every program that issues the recorded calls when it receives the recorded statuses can
+perform it (\cref{thm:sound}). If rank~2 sent only after hearing from rank~0, the new
+match edge would close a cycle (\cref{fig:graph}b), and no execution could realise
+$\Malt$.
+
+\begin{figure}[t]
+\input{figures/graph}
+\caption{Constraint graphs over the horizon. Boxes are issue (\textsf{i}), completion
+(\textsf{c}) and match (\textsf{m}) nodes; grey edges are program order, orange edges
+come from the alternative match. (a) The alternative of \cref{fig:tworuns} is acyclic
+and certified. (b) If rank~2 sends only after receiving from rank~0, the alternative
+closes a cycle and is rejected.}
+\label{fig:graph}
+\end{figure}
+
+\paragraph{Classify and profile.} At \Lone, the trace alone says that $r_0$ can take a
+message of the same type and size from another sender. This is class \cls{1f}, harmless
+unless the continuation depends on it. Assuming in addition that rank~0 continues with the
+recorded calls (\LoneSP), an exhaustive exploration of the straight-line program shows
+that the receive from rank~2 never completes (\cls{1d}, deadlock) and that $s_1$ is never
+received (\cls{1c}, orphan). The prediction holds at every buffering threshold. Its
+witness is a pin, \texttt{REMATCH\_PIN=0:0:2}: on rank~0, wildcard receive number~0
+takes rank~2's message.
+
+\paragraph{Replay.} A second PMPI library reads the pin and substitutes the source of
+that receive. It logs the source that the receive actually matched. The finding is
+confirmed when every pinned receive matched its named sender, the run shows the
+predicted outcome (here a hang), and a control run with the observed matching
+finishes.
+
+\paragraph{Levels of evidence.} The single-path assumption that turned \cls{1f} into
+\cls{1d} above is the assumption of earlier MPI predictors~\citep{forejt17mopper}, and it
+can be wrong. Consider a master that receives a result from \anysrc and replies to
+\texttt{status.MPI\_SOURCE}, with two workers that each send a result and wait for a
+reply. Suppose the master's first receive takes worker~2's result instead of worker~1's.
+The recorded call sequence still sends the first reply to worker~1. Under rendezvous,
+that send waits for worker~1 to post its receive, while worker~1 waits for the master to
+take its result. The single-path analysis therefore reports a deadlock. The real master
+replies to worker~2, who is waiting for it, and the program finishes. \tool reports each finding with its level: \Lone
+(trace only, sound for every consistent program), \LoneSP (adds the single-path
+assumption) or \Ltwo (adds a skeleton recording which calls depend on message metadata).
+\Cref{sec:levels} makes the difference precise and gives deadlock predictions that need
+no single-path assumption.
+
+\paragraph{Buffering.} Feasibility depends on the threshold $\Bt$. Two ranks that each
+\mpicall{Send} 400 bytes to the other and then \mpicall{Recv} finish on Open MPI's
+defaults and deadlock under rendezvous. The recorded run is therefore realisable only
+for $\Bt \ge 400$, and \tool reports it as \cls{2-buffering}. Each prediction carries the
+set of thresholds at which it holds (\cref{sec:buffering}).

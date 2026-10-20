@@ -1,0 +1,117 @@
+\section{Evaluation}
+\label{sec:eval}
+
+\pending{Every number in this section is provisional (blue): it comes from the run before
+the soundness and evidence fixes, and the tables are regenerated from the CSV files by
+\texttt{experiments/tables.py} after the rerun.}
+
+We ask six questions.
+\begin{description}[leftmargin=*,style=nextline]
+\item[RQ1, soundness in practice.] Does the check ever accept an alternative that no
+  execution realises, and does every replayed finding behave as predicted?
+\item[RQ2, effectiveness.] Which labelled bugs does \tool find from one run, compared
+  with \MUST on the same programs and with repeated randomised runs?
+\item[RQ3, buffering.] How many recorded runs and alternatives depend on the threshold,
+  and do the predicted thresholds hold on a real implementation?
+\item[RQ4, levels.] Where do \Lone, \LoneSP and \Ltwo disagree, and why?
+\item[RQ5, cost.] What do tracing and analysis cost?
+\item[RQ6, real applications.] What does \tool report on wildcard-heavy correct code, and
+  what do its alternatives change?
+\end{description}
+
+\paragraph{Setup.} Programs are built with Open MPI~4.1.6 and MPICH~4.2 on Ubuntu~24.04
+and run on one node. Corpora: the message-race, tag-matching, buffering and probe programs
+of the MPI Bugs Initiative~\citep{laurent21mbi} (\nMBIprogs programs, \nMBIcorrect of
+them correct), and the point-to-point and collective programs of \MBB
+level~2~\citep{jammer24mbb} (\nMBBprogs). The baseline is \MUST~1.9.2, run in \MBB's
+container with the same timeout. \pending{Stress-testing baseline: $N$ runs per program
+with random delays injected by the replay library. PARCOACH if it builds from the
+\MBB container.}
+
+\subsection{RQ1: soundness in practice}
+
+\pending{E6 rerun on the fixed checker. The comparison is against an exhaustive explorer
+of $\SP(\trace)$, over every judged pair rather than only matched ones, on corpus and idiom
+traces and on random programs extended with synchronous and ready sends, probes,
+\mpicall{Waitany} and sends after receives. Before the fix: \nEsixPairs (alternative,
+threshold) pairs, \nEsixUnsound unsound, \nEsixIncomplete incomplete, at most
+\nEsixMaxEvents events per trace. The audit's two counterexamples were outside the
+generator's reach.}
+
+\pending{Replays: findings, distinct pinned runs and programs, each with match logging
+and a control. Before the fix: \nSPfindings \LoneSP findings, \nReplayRuns distinct
+pinned runs in \nReplayPrograms programs, all of which hung as predicted.}
+
+\subsection{RQ2: effectiveness}
+
+\begin{table}[t]
+\caption{Labelled errors found, scored per program. ``Observed'' findings are visible
+in the recorded run itself; ``predicted'' findings are claims about other runs of a
+program whose recorded run finished.}
+\label{tab:rq2}
+\small
+\begin{tabular}{@{}lrrrrr@{}}
+\toprule
+ & TP & FP & FN & TN & F1 \\
+\midrule
+\multicolumn{6}{@{}l}{\emph{MBI, \nMBIprogs programs}} \\
+\tool, observed & & & & & \\
+\tool, predicted (finished runs) & & & & & \\
+\tool, union & & & & & \MBIfoneRematch \\
+\MUST, hangs not credited & & & & & \MBIfoneMUST \\
+\MUST, hangs credited & & & & & \MBIfoneMUSTsym \\
+Randomised reruns & & & & & \\
+\midrule
+\multicolumn{6}{@{}l}{\emph{\MBB level 2, \nMBBprogs programs}} \\
+\tool, union & & & & & \MBBfoneRematch \\
+\MUST & & & & & \MBBfoneMUST \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\pending{Discussion after the rerun. Points that must appear, from the audit:
+(i) a hang observed by the harness is credited to both tools or to neither, and both
+scorings are shown; (ii) \cls{2-buffering} on a run that did not finish is observed, not
+predicted; (iii) the \nCleanPred clean-run predictions come from \nCleanTemplates program
+templates; (iv) \MBB's bugs show in the run itself, so it measures the observational floor
+and false positives, not prediction; (v) the four MBI misses whose payload mirrors the
+sender's rank, two of which abort in the recorded run.}
+
+\subsection{RQ3: buffering}
+
+\pending{E2 over \nEtwoTraces traces: \nEtwoObsBuf recorded runs realisable only above a
+threshold; alternatives that need a threshold; Open MPI's eager limit measured at
+\BimplOMPI bytes by default and \BminOMPI at the smallest forced setting. The replay with
+the limit forced down is the confirmation. Idiom 03 is the case it can test. The two
+persistent-send replays that hung where the prediction says they finish must be explained
+first.}
+
+\subsection{RQ4: levels}
+
+\pending{E3 and E7: the single-path deadlock of the master--worker idiom that the real
+program cannot reach; MBI's payload-guarded races certified by twins as \cls{1e}; \Lone
+deadlocks (\cref{thm:l1dead}) where they exist.}
+
+\subsection{RQ5: cost}
+
+\pending{E4 repeated five times with NPB's own timers: the traced run takes
+\TraceOverhead times the plain one. Analysis: \nAMGalts probe alternatives of AMG in
+\AMGtime\,s. Nekbone's communication suite, \NekRecords million records and
+\nNekAlts receive alternatives, in \NekMinutes minutes and \NekGB GB on a shared host,
+which is an upper bound.}
+
+\subsection{RQ6: real applications}
+
+\pending{AMG (probe-driven exchange) and Nekbone (reduction tree): \Lone deadlocks searched
+by \cref{thm:l1dead}; 30 alternatives each replayed with controls; findings grouped per
+call site. Nekbone's wildcard reduction tree (\texttt{gp2}) belongs to the communication
+suite's timing test; the solver sums with \mpicall{MPI\_Allreduce}, so the planned
+numerical-irreproducibility experiment needs another code. The HYPRE~2.10.1 nondeterminism,
+if one traced run predicts it.}
+
+\subsection{Threats to validity}
+
+\pending{One node and few ranks; the corpora's programs are small; twins are written
+knowing the labels; \MUST runs a different build of each program under MPICH, so it sees
+a different run; the model's premises (complete trace of the modelled fragment, a single
+threshold per implementation, angelic \mpicall{Waitany}).}

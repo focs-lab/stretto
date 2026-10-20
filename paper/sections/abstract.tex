@@ -1,0 +1,21 @@
+A receive in an MPI program may name no sender and take whichever matching message
+arrives first. Which message that is depends on timing, so one program on one input can
+deadlock, lose a message or compute different numbers in one run out of many, and the
+failure is gone when the run is repeated. Runtime checkers judge only the run that
+happened. Exhaustive verifiers enumerate schedules and do not scale. The predictive
+analyses proposed for MPI so far search for deadlocks with a solver and assume that a
+program's calls do not depend on what it receives.
+
+We carry sound predictive analysis from shared-memory concurrency to message matching.
+From one trace, our tool \tool enumerates the alternative matchings that a program
+consistent with the trace could take. It decides each one with a graph check over a
+causally closed prefix of the trace, profiles it over the buffering threshold of the MPI
+implementation, classifies its consequence, and emits a pin that forces the matching in
+a replay. We prove the check sound for every program consistent with the trace and
+complete for single-change alternatives. We show that feasibility is monotone in the
+buffering threshold above the threshold of the observed run, while deadlock predictions
+are not. We also show that the single-path assumption of earlier predictors is unsound
+when control flow depends on message metadata, and we give a deadlock prediction that
+needs no such assumption.
+\pending{Evaluation sentence after the rerun: MBI and MPI-BugBench against MUST and
+against repeated randomised runs; real applications; cost.}

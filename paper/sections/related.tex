@@ -1,0 +1,73 @@
+\section{Related Work}
+\label{sec:related}
+
+\paragraph{Sound predictive analysis for shared memory.} Predictive analysis takes one
+trace of a multithreaded program and proves that a reordering of it is a run of every
+program consistent with the trace. WCP~\citep{kini17wcp} gave the first sound partial
+order weaker than happens-before with a linear-time algorithm. SHB~\citep{mathur18shb}
+showed that happens-before is sound only up to the first race and repaired it.
+SDP~\citep{genc19sdp}, M2~\citep{pavlogiannis20m2} and sync-preserving
+races~\citep{mathur21syncp} weakened the order further. SyncP is sound and complete for
+the reorderings that preserve the order of critical sections, which is the template for
+\cref{thm:complete}. Deadlock prediction followed the same path, from executability
+constraints solved by SMT~\citep{kalhauge18sound} to sync-preserving deadlocks in linear
+time~\citep{tunc23spd}, the template for \cref{thm:l1dead}. Synchronisation-reversal
+races~\citep{shi24osr} predict races that need a lock order reversed; reversing one match
+is the message-passing analogue of that step. Strong trace prefixes~\citep{ang24strong}
+let a monitor drop parts of the trace that cannot affect the property. Our horizon is a
+strong prefix for the matching alphabet, with program order, deliveries, collectives and
+rendezvous as strong dependencies and no weak ones. A unified definition of soundness for
+these analyses is due to~\citet{liu25soundness}. It is stated for shared memory with locks,
+and we restate it for matching consistency. Tree clocks~\citep{mathur22treeclock} speed up
+the causal orders these analyses compute. The complexity of race
+prediction~\citep{mathur20lics} and its fine-grained lower bounds~\citep{kulkarni21concur}
+frame the open question of choosing which receives to change.
+
+\paragraph{Complexity of message-passing consistency.} \citet{shi26popl} map the
+complexity of deciding whether an abstract execution of a channel-based program is
+consistent, with or without a fixed reads-from relation. Our check is their VCh-rf problem
+for MPI's channel shape. Queues are single-producer and single-consumer per (source,
+destination, communicator), wildcard receives take from a union of queues, buffering is a
+per-message threshold, and collectives synchronise by shape. Their linear case requires
+synchronous channels. MPI's structure keeps the problem tractable for mixed eager and
+rendezvous traffic. They also use swaps of two reads-from pairs as a mutation operator,
+which we use as one of two alternative shapes.
+
+\paragraph{Prediction for MPI.} MOPPER~\citep{forejt14mopper,forejt17mopper} proved
+deadlock detection NP-complete for single-path MPI programs and encoded it
+propositionally. Later work from the same circle encodes candidates for an SMT
+solver~\citep{huang20ase} and compresses traces to scale it~\citep{huang23tpds}. Another
+group refines the match sets~\citep{cluster22matchsets}, partitions programs with logical
+clocks~\citep{li24parco}, and compresses paths and focuses the
+matching~\citep{internetware24}. All of them target deadlocks under the
+single-path assumption, which \cref{lem:sp} shows unsound on metadata-dependent code.
+None states a soundness theorem for the alternative itself or a buffering profile. The
+idea of reasoning about the part of a message-passing execution unaffected by an earlier
+race is older. The MAD environment stated it for message races~\citep{kranzlmueller00mad},
+and the unaffected-race papers define races causally and detect them on the
+fly~\citep{park04unaffected,park07mpirace}. These works do not certify that an
+alternative is executable.
+
+\paragraph{Exhaustive exploration.} ISP~\citep{vakkalanka08isp}, DAMPI~\citep{vo10dampi},
+MPI-SV~\citep{yu20mpisv} and CIVL~\citep{siegel15civl} explore the schedules of a program
+or verify it symbolically. They see everything a program can do on an input, but they pay
+for every competing wildcard. We use re-execution only to confirm. The stress-testing
+baseline of \cref{sec:eval} follows the randomised concurrency testing
+line~\citep{wolff24rff,zhao25surw}. State-space estimation for DPOR~\citep{balasubramanian26dpor}
+quantifies how much exploration a program needs.
+
+\paragraph{Observational tools and replay.} \MUST~\citep{hilbrich12must} checks the
+recorded run for argument errors, type mismatches, deadlocks and, with ThreadSanitizer,
+buffer races. PARCOACH~\citep{saillard14parcoach} checks collective ordering statically
+and dynamically. Record and replay for MPI~\citep{netzer92replay,sato15rempi} reproduces
+the matching of a recorded run. Our pins force a matching the run did \emph{not} take.
+
+\paragraph{Message passing beyond MPI.} Vector-clock analyses of Go channels report
+alternative communications~\citep{sulzmann18go}, and dl$^2$ finds communication deadlocks
+in distributed deep-learning jobs observationally~\citep{gao25dl2}. MPI's matching
+semantics (envelopes, wildcards, non-overtaking, buffering regimes, collectives)
+specialises to Go's channels, not the other way round.
+
+\paragraph{Benchmarks.} The MPI Bugs Initiative~\citep{laurent21mbi} and
+\MBB~\citep{jammer24mbb} are the standard corpora. \MBB merges earlier suites and reports
+that \MUST is the strongest existing tool.

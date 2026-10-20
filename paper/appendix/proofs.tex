@@ -1,0 +1,28 @@
+\section{Proofs}
+\label{app:proofs}
+
+\pending{Written after the soundness fixes, so that every step names the code that
+implements it. Planned structure:}
+
+\subsection{Soundness (\cref{thm:sound})}
+\pending{Lemma A.1: the horizon is the greatest fixpoint of a monotone operator on prefix
+vectors, so it exists and is unique. Lemma A.2: in a topological order of $\Graph$, each
+match node is reached when every earlier competitor on either side is matched, so MPI's
+matching rule selects $\Malt$. Lemma A.3: consistency and \ref{H:changed} make the
+program issue exactly $\Hpre$. Lemma A.4: completions of rendezvous sends, collectives
+and probes follow their constraints. Theorem.}
+
+\subsection{Monotonicity (\cref{thm:mono})}
+\pending{Lemma A.5: $\blocks_\Bt$ is antitone in $\Bt$. Lemma A.6: $\Hpre(\Bt)\subseteq
+\Hpre(\Bt')$, including the changed rank when the changed receive is nonblocking. Lemma
+A.7: a cycle at $\Bt'$ over $\Hpre(\Bt')$ either lies in $\Hpre(\Bt)$ or enters
+$\Hpre(\Bt')\setminus\Hpre(\Bt)$, where every edge is a constraint of $\Mobs$, acyclic
+for $\Bt'\ge\Bobs$ by \cref{lem:obsmono}.}
+
+\subsection{Completeness (\cref{thm:complete})}
+\pending{Necessity of each edge and each horizon rule for matching-preserving
+reorderings; the conservative steps to be removed first.}
+
+\subsection{Deadlock at \Lone (\cref{thm:l1dead})}
+\pending{From \cref{thm:sound} and closure of $D$ under the possible partners of its
+blocked operations.}
