@@ -56,6 +56,11 @@ baseline of \cref{sec:eval} follows the randomised concurrency testing
 line~\citep{wolff24rff,zhao25surw}. State-space estimation for DPOR~\citep{balasubramanian26dpor}
 quantifies how much exploration a program needs.
 
+\paragraph{Noise injection.} NINJA~\citep{sato17ninja} injects network noise to make
+message races manifest in testing, and found the ParaSails race of HYPRE that we predict from
+one run in \cref{sec:eval}. Our stress-testing baseline is in its spirit, with random delays
+instead of modelled congestion.
+
 \paragraph{Observational tools and replay.} \MUST~\citep{hilbrich12must} checks the
 recorded run for argument errors, type mismatches, deadlocks and, with ThreadSanitizer,
 buffer races. PARCOACH~\citep{saillard14parcoach} checks collective ordering statically

@@ -102,12 +102,57 @@ which is an upper bound.}
 
 \subsection{RQ6: real applications}
 
-\pending{AMG (probe-driven exchange) and Nekbone (reduction tree): \Lone deadlocks searched
-by \cref{thm:l1dead}; 30 alternatives each replayed with controls; findings grouped per
-call site. Nekbone's wildcard reduction tree (\texttt{gp2}) belongs to the communication
-suite's timing test; the solver sums with \mpicall{MPI\_Allreduce}, so the planned
-numerical-irreproducibility experiment needs another code. The HYPRE~2.10.1 nondeterminism,
-if one traced run predicts it.}
+\paragraph{A production bug from one clean run.} HYPRE~2.10.1's ParaSails preconditioner
+exchanges matrix rows twice, first the pruned rows and then the stored rows. Both exchanges
+send their requests with tag~222 and take them with \mpicall{Probe(ANY\_SOURCE, 222)}
+followed by a receive from the probed source. A rank that has finished the first exchange can
+send its stored-rows request while a neighbour is still probing for pruned-rows requests. The
+probe then takes it, and the run hangs. In production this hang appeared intermittently for 18
+months, and diagnosing it took 291 jobs and 10\,392 compute-node hours~\citep{sato17ninja}.
+Version~2.11.0 fixed it by giving the two exchanges different tags.
+
+We traced one run of HYPRE's \texttt{ij} driver with ParaSails-PCG on four processes. The run
+finished normally after 19 iterations. Among \tool's 25 probe alternatives, one says that rank~2's
+second pruned-rows probe could have reported rank~3's 800-byte request, the stored-rows
+request of the next exchange, instead of rank~1's 400-byte pruned-rows request, for every
+threshold of at least 3\,444 bytes. The other request-exchange alternatives have the same
+shape: the other neighbour's pruned-rows request. Replayed with a probe pin, the predicted
+alternative hangs. Its control, which pins the same probe to the sender it saw, finishes with
+the recorded residual, and so do the same-shape alternatives and their controls. On
+version~2.11.0 the alternative does not exist (\cref{tab:hypre}). A second trace of the same
+configuration recorded the neighbours in another order and showed the alternative at two
+probes. Both hung when replayed, and both controls finished. Which probe exposes the race
+depends on the order recorded, which is the point of prediction: the run itself showed nothing.
+
+\begin{table}[t]
+\caption{HYPRE~2.10.1, ParaSails: the probe alternatives of the request exchange, replayed.}
+\label{tab:hypre}
+\small
+\begin{tabular}{@{}lllll@{}}
+\toprule
+pin & alternative & replay & probe took the pinned message & residual \\
+\midrule
+\texttt{2:3:3} & the next exchange's request (800\,B) & hangs & yes & -- \\
+\texttt{2:3:1} & control & finishes & yes & $6.788872\cdot10^{-9}$ \\
+\texttt{1:2:2}, \texttt{2:2:1} & the other neighbour (400\,B) & finish & yes & $6.788872\cdot10^{-9}$ \\
+\texttt{1:2:0}, \texttt{2:2:3} & controls & finish & yes & $6.788872\cdot10^{-9}$ \\
+\midrule
+2.11.0 & no alternative of the other exchange & & & \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\tool reports the race as a probe alternative, a warning, with the remark that a count taken
+from the probe would differ. It does not report a deadlock: the hang happens after the probe,
+and the receive that follows takes its source from the probe's status, so the continuation is
+beyond the horizon. The replay supplies what the trace cannot. \pending{Report the probe sites
+grouped, so the one alternative of a different size stands out among the 25.}
+
+\paragraph{Wildcard-heavy correct code.} \pending{AMG (probe-driven exchange) and Nekbone's
+communication suite: \Lone deadlocks searched by \cref{thm:l1dead}; 30 alternatives each
+replayed with controls; findings grouped per call site. Nekbone's wildcard reduction tree
+(\texttt{gp2}) belongs to the communication suite's timing test; the solver sums with
+\mpicall{MPI\_Allreduce}.}
 
 \subsection{Threats to validity}
 

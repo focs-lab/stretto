@@ -19,9 +19,11 @@ the wildcard takes it. The receive from rank~2 then waits forever, and rank~1's 
 is never received. Both runs are legal MPI. Which one happens is decided by the network,
 the load on the node and the MPI library's progress engine. The bad order may appear once
 in thousands of test runs, disappear when the test is repeated under a debugger, and
-then surface at scale. Documented cases include a race in a laser--plasma code that
-appeared only at 524\,288 processes and took months to diagnose~\citep{laguna15cacm},
-\pending{and the other §5.2 cases with their primary sources}.
+then surface at scale. A race in a laser--plasma code appeared only at 524\,288 processes
+and took months of debugging with print statements~\citep{laguna15cacm}. A message race
+in the ParaSails preconditioner of the HYPRE solver library hung a production code
+intermittently for 18 months; diagnosing it took 291 jobs and 10\,392 compute-node hours,
+and the fix was ten lines~\citep{sato17ninja}.
 
 \begin{figure}[t]
 \input{figures/tworuns}
@@ -87,5 +89,7 @@ the program's dependence on message metadata.
   control run.
 \item An evaluation on the MPI Bugs Initiative and \MBB against \MUST and against repeated
   randomised runs, a differential check of soundness against an exhaustive explorer, and
-  two real applications. \pending{RQ results after the rerun.}
+  real applications. From one clean run of HYPRE~2.10.1, \tool finds the ParaSails race as
+  a probe alternative. The pinned replay hangs, its control finishes, and the alternative is
+  absent from the fixed version. \pending{Benchmark results after the rerun.}
 \end{itemize}
