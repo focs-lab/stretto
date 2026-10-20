@@ -15,11 +15,11 @@ step_trace() {
     [ -x "$EXE" ] || { echo "$EXE missing: third_party/fetch.sh apps" >&2; return 1; }
     need_lib "$TRACER" tracer
     rm -rf "$D/trace8"; mkdir -p "$D/trace8"
-    TIMEOUT=600 mpi_run 8 "REMATCH_TRACE_DIR=$R/$D/trace8" "LD_PRELOAD=$TRACER" "OMP_NUM_THREADS=1" -- "$EXE" "${ARGS[@]}" > "$D/run8.log" 2>&1
+    TIMEOUT=600 mpi_run 8 "STRETTO_TRACE_DIR=$R/$D/trace8" "LD_PRELOAD=$TRACER" "OMP_NUM_THREADS=1" -- "$EXE" "${ARGS[@]}" > "$D/run8.log" 2>&1
     echo "traced run: $(classify_rc $? "$D/run8.log"), $(cat "$D"/trace8/rank-*.jsonl | wc -l) records"
 }
 step_analyse() {
-    /usr/bin/time -f 'analysis %e s, %M KB' python3 -m rematch analyze --no-sp "$D/trace8" > "$D/report8.txt" 2> "$D/analyze8.err"
+    /usr/bin/time -f 'analysis %e s, %M KB' python3 -m stretto analyze --no-sp "$D/trace8" > "$D/report8.txt" 2> "$D/analyze8.err"
     step_summary
 }
 step_summary() {
@@ -33,11 +33,11 @@ step_summary() {
 step_confirm() {
     # the first probe alternative's pin; the replay must report it applied and finish
     need_lib "$PINLIB" replay
-    pin="$(grep -m1 -o 'REMATCH_PIN_PROBE=[0-9:,]*' "$D/report8.txt")"
+    pin="$(grep -m1 -o 'STRETTO_PIN_PROBE=[0-9:,]*' "$D/report8.txt")"
     [ -n "$pin" ] || { echo "no probe alternative to replay" | tee "$D/confirm8.txt"; return 0; }
     TIMEOUT=600 mpi_run 8 "$pin" "LD_PRELOAD=$PINLIB" "OMP_NUM_THREADS=1" -- "$EXE" "${ARGS[@]}" > "$D/run8pin.log" 2> "$D/run8pin.err"
     rc=$?
-    { echo "pin: $pin"; grep '^\[rematch-pin\]' "$D/run8pin.err"; echo "result: $(classify_rc $rc "$D/run8pin.err")"; } | tee "$D/confirm8.txt"
+    { echo "pin: $pin"; grep '^\[stretto-pin\]' "$D/run8pin.err"; echo "result: $(classify_rc $rc "$D/run8pin.err")"; } | tee "$D/confirm8.txt"
 }
 for s in "${@:-all}"; do
     case "$s" in

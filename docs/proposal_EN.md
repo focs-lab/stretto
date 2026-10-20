@@ -815,7 +815,7 @@ What is settled (`model.md` T4): with the matching given, the check is linear pe
 
   family ③        PMPI interposition does not see memory accesses: buffer
                   races need access instrumentation (the 20 MPI-BugBench
-                  local-concurrency programs Rematch misses are all of
+                  local-concurrency programs Stretto misses are all of
                   this kind)
 
   Fortran         Open MPI's Fortran bindings call PMPI directly and bypass

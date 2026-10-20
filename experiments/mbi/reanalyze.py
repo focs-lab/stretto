@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Re-run the analysis on the traces a harness run left behind and refresh the Rematch
+"""Re-run the analysis on the traces a harness run left behind and refresh the Stretto
 columns of its table (classes, findings, notes, report files). Run results, replay
 confirmations and MUST verdicts are kept. Use after a change to the analysis that does not
 need new runs.   usage: reanalyze.py [--sp-max-events N] [--max-states N] <corpus>.csv
@@ -12,7 +12,7 @@ import sys
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 sys.path.insert(0, os.path.join(ROOT, "analysis"))
-from rematch import report, trace  # noqa: E402
+from stretto import report, trace  # noqa: E402
 
 ap = argparse.ArgumentParser()
 ap.add_argument("csv"); ap.add_argument("--sp-max-events", type=int, default=600); ap.add_argument("--max-states", type=int, default=30000)

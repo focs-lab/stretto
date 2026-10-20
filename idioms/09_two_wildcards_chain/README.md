@@ -16,4 +16,4 @@ Expected reports:
 - L1+SP: **1c orphan** (`s2`) and **1d deadlock** (`rC`).
 - Exactly one feasible alternative; the two infeasible ones are silently rejected.
 
-Replay: `REMATCH_PIN=0:1:1` pins rank 0's second wildcard to source 1; hangs under `timeout`.
+Replay: `STRETTO_PIN=0:1:1` pins rank 0's second wildcard to source 1; hangs under `timeout`.

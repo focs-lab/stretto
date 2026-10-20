@@ -11,7 +11,7 @@ the receive $r_0'$ from rank~2 took $s_2$. Non-overtaking makes the observed mat
 $\Mobs = \{r_0 \mapsto s_1, r_0' \mapsto s_2\}$ recoverable from the records: per
 receiving rank and source, receives take that source's messages in order.
 
-\paragraph{Rematch.} An alternative changes the message of one wildcard receive. By the
+\paragraph{Stretto.} An alternative changes the message of one wildcard receive. By the
 first non-overtaking rule, only the earliest unconsumed message from each source can be
 next. So $r_0$ has one alternative per other sender with a pending message, here
 $\Malt = \{r_0 \mapsto s_2\}$.
@@ -47,7 +47,7 @@ unless the continuation depends on it. Assuming in addition that rank~0 continue
 recorded calls (\LoneSP), an exhaustive exploration of the straight-line program shows
 that the receive from rank~2 never completes (\cls{1d}, deadlock) and that $s_1$ is never
 received (\cls{1c}, orphan). The prediction holds at every buffering threshold. Its
-witness is a pin, \texttt{REMATCH\_PIN=0:0:2}: on rank~0, wildcard receive number~0
+witness is a pin, \texttt{STRETTO\_PIN=0:0:2}: on rank~0, wildcard receive number~0
 takes rank~2's message.
 
 \paragraph{Replay.} A second PMPI library reads the pin and substitutes the source of

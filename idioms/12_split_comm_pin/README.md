@@ -8,7 +8,7 @@ Alternative matching: `r0 <- world 3`, `r1 <- world 2`.
 
 Expected reports:
 - L1: the alternative is feasible at every B, class **1f benign**, continuation metadata-
-  dependent (the reply goes to `MPI_SOURCE`), pin `REMATCH_PIN=1:0:3`.
+  dependent (the reply goes to `MPI_SOURCE`), pin `STRETTO_PIN=1:0:3`.
 - Replay: the pin names the sender's *world* rank; the replay library translates it into the
   communicator (rank 2 there), reports `applied widx=0 src=2 (world 3)`, and the run
   finishes. Before the translation existed, the pin would have named communicator rank 3,

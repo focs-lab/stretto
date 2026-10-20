@@ -1,4 +1,6 @@
-# Rematch
+# Stretto
+
+(The project was called Rematch until 21 Oct 2026; results committed before then use that name.)
 
 Sound prediction of alternative message matchings from one MPI run. WP0 prototype for the
 proposal in `docs/proposal_EN.md`; the critique that shaped it is `docs/analysis.md`, the
@@ -15,7 +17,7 @@ cross-purpose, orphan, deadlock, benign) → confirm by forced replay.
 docs/       proposal, analysis, model, related-work checklist, WP0 gate report
 idioms/     thirteen small MPI programs with the expected prediction in each README
 tracer/     PMPI tracer -> traces/<mpi>/<idiom>/rank-*.jsonl
-analysis/   Python package `rematch` (stdlib only) + tests
+analysis/   Python package `stretto` (stdlib only) + tests
 replay/     pin library: force wildcard sources, inject delays
 study/      WP0a measurement: proxy-app wildcard sites and their dependence class
 scripts/    run_idiom.sh, run_all.sh, replay_idiom.sh, must_run.sh, heavy.sh
@@ -35,11 +37,11 @@ scripts/run_all.sh                       # trace + analyse all idioms
 scripts/run_idiom.sh 05                  # one idiom
 MPI=mpich scripts/run_idiom.sh 05        # same on MPICH
 scripts/replay_idiom.sh 05 0:0:2         # pin rank 0's first wildcard to source 2
-PYTHONPATH=analysis python3 -m rematch analyze -v traces/openmpi/09_two_wildcards_chain
-PYTHONPATH=analysis python3 -m rematch confirm traces/openmpi/05_count_mismatch idioms/05_count_mismatch/bin/openmpi/main
-PYTHONPATH=analysis python3 -m rematch oracle traces/openmpi/04_orphan_send
+PYTHONPATH=analysis python3 -m stretto analyze -v traces/openmpi/09_two_wildcards_chain
+PYTHONPATH=analysis python3 -m stretto confirm traces/openmpi/05_count_mismatch idioms/05_count_mismatch/bin/openmpi/main
+PYTHONPATH=analysis python3 -m stretto oracle traces/openmpi/04_orphan_send
 make -C tracer && make -C replay                                # the tracer and the replay library (system MPI)
-cd analysis && python3 -m unittest discover -s tests          # the suite incl. the differential tests (REMATCH_REQUIRE_TRACES=1 after run_all.sh)
+cd analysis && python3 -m unittest discover -s tests          # the suite incl. the differential tests (STRETTO_REQUIRE_TRACES=1 after run_all.sh)
 ```
 
 Experiments (see `docs/results.md`, `docs/gate.md`, `docs/mvp.md`; the two-machine procedure
@@ -58,8 +60,8 @@ Third-party pieces (git-ignored, fetched by scripts): MUST (1.11.2 built by `thi
 hangs under this host's Open MPI, so every result uses MUST 1.9.2 in the MPI-BugBench container
 built from `third_party/mpi-bugbench/Dockerfile.must`), MPI-BugBench, NPB 3.4.3, AMG, MBI, MPI-CorrBench.
 
-Pin syntax: `REMATCH_PIN="rank:idx:src[:tag],..."` pins the idx-th wildcard receive of a rank.
-`REMATCH_SEND_DELAY_MS="rank:ms"` and `REMATCH_RECV_DELAY_MS` skew timing.
+Pin syntax: `STRETTO_PIN="rank:idx:src[:tag],..."` pins the idx-th wildcard receive of a rank.
+`STRETTO_SEND_DELAY_MS="rank:ms"` and `STRETTO_RECV_DELAY_MS` skew timing.
 
 ## Report classes
 

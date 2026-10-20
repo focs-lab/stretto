@@ -10,7 +10,7 @@ for r in rows:
     if not os.path.isdir(td):
         continue
     t0 = time.perf_counter()
-    p = subprocess.run([sys.executable, "-m", "rematch", "analyze", "--no-sp", td], capture_output=True, text=True,
+    p = subprocess.run([sys.executable, "-m", "stretto", "analyze", "--no-sp", td], capture_output=True, text=True,
                        env={**os.environ, "PYTHONPATH": os.path.join(ROOT, "analysis")})
     r["analysis_s"] = f"{time.perf_counter() - t0:.2f}"
     lines = [l for l in p.stdout.splitlines() if l.startswith("[")]

@@ -1,6 +1,6 @@
 /* Shared helpers for the idioms. System MPI only. */
-#ifndef REMATCH_IDIOM_COMMON_H
-#define REMATCH_IDIOM_COMMON_H
+#ifndef STRETTO_IDIOM_COMMON_H
+#define STRETTO_IDIOM_COMMON_H
 #include <mpi.h>
 #include <stdio.h>
 #include <stdlib.h>

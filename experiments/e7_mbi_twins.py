@@ -13,7 +13,7 @@ import sys
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, os.path.join(ROOT, "analysis"))
 sys.path.insert(0, os.path.join(ROOT, "experiments", "mbi"))
-from rematch import report, trace  # noqa: E402
+from stretto import report, trace  # noqa: E402
 import twins  # noqa: E402
 
 

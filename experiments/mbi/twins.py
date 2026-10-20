@@ -9,7 +9,7 @@ from __future__ import annotations
 import re
 from typing import Dict, Optional
 
-from rematch.dsl import ANY, Abort, If, Irecv, Isend, Program, Recv, Send, Wait
+from stretto.dsl import ANY, Abort, If, Irecv, Isend, Program, Recv, Send, Wait
 
 PAYLOAD_CHECK = re.compile(r"MessageRace_(Recv|Irecv)_(Send|Isend)_nok")
 

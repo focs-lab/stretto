@@ -1,6 +1,6 @@
 # Formal core (WP0 draft)
 
-This is the working definition set behind `analysis/rematch`. Every claim here has, or must
+This is the working definition set behind `analysis/stretto`. Every claim here has, or must
 get, a test in `analysis/tests` before it is written up as a theorem.
 
 ## 1. Trace
@@ -78,7 +78,7 @@ at every breakpoint on request (`--full-profile`, the differential).
 
 Cost. The generic check (`feasible.check`) builds the closure and the graph from scratch,
 O(n + m) per alternative and threshold; it is the reference. The fast checks
-(`rematch.fast`) answer the same questions for single-change alternatives from indexes:
+(`stretto.fast`) answer the same questions for single-change alternatives from indexes:
 the closure runs as a worklist over ranks, where a cut on one rank finds the earliest
 receive, rendezvous sender, collective or probe it drags along by a suffix-minimum query on
 a per-pair-of-ranks list (O(P² log n) per alternative); matching order follows from the
@@ -203,7 +203,7 @@ constraints, acyclic because σ happened. Tests: `CheckerSoundness.test_*_monoto
 profile monotone, bisection equal) and E2 (profiles that are not monotone: 0 on 516 traces).
 Consequence: for single-change alternatives the bisecting profile is exact and the full one is
 unnecessary; the report therefore profiles each alternative at the two ends of the range and
-bisects between them (`rematch analyze --full-profile` judges every breakpoint and is the
+bisects between them (`stretto analyze --full-profile` judges every breakpoint and is the
 differential: equal on all 516 traces). Whether the statement extends to arbitrary M' is open
 (an operation newly kept on a rank where M' differs from M₀ could carry a new obligation), so
 two-change alternatives are profiled at every breakpoint.
@@ -247,7 +247,7 @@ k + 2 (T2 does not cover it).
 The check is thus quasi-linear per alternative for any number of changed receives; what grows
 with the number of changed receives is the number of alternatives, and the choice of which
 receives to change is the problem that is NP-complete in general (MOPPER's), which this work
-does not solve. The fast check (`rematch.fast`), for steals at blocking receives, has the same
+does not solve. The fast check (`stretto.fast`), for steals at blocking receives, has the same
 bound after O(n log n) preparation per trace and per threshold; in practice it costs far less
 per alternative.
 *Sketch.* (i) by construction of `matching.candidates_full`; (ii) each rule of the closure is
@@ -287,7 +287,7 @@ are blocked in D or gone. Every cut descends from rule 1, so a contained deadloc
 changed rank that stops *before* its changed receive completes: a nonblocking wildcard receive
 whose rank blocks on another operation before the wait. A blocking changed receive cuts its rank
 right after it, and every rank that waits on that rank waits on an unknown continuation; such
-deadlocks stay L1+SP or L2 claims. Implemented in `rematch.deadlock`, reported as class 1d at
+deadlocks stay L1+SP or L2 claims. Implemented in `stretto.deadlock`, reported as class 1d at
 level L1; tests `C_ContainedDeadlock`, and E6 checks every L1 deadlock against the explorer
 (every execution with the changed match must deadlock).
 

@@ -10,6 +10,6 @@ Expected reports:
 - L1+SP: with the single-path assumption the whole run is determined: **1c orphan send** (rank 1)
   and **1d deadlock** (rank 0 blocks in `Recv(2)`). Both are confirmed by the explorer.
 
-Replay: `REMATCH_PIN=0:0:2` pins rank 0's first wildcard to source 2; the run hangs under `timeout`.
+Replay: `STRETTO_PIN=0:0:2` pins rank 0's first wildcard to source 2; the run hangs under `timeout`.
 
 Gate role: criterion 1 (invisible to MUST on the observed trace) and criterion 2 (family ①).

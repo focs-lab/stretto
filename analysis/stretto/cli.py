@@ -1,4 +1,4 @@
-"""python -m rematch <command> ..."""
+"""python -m stretto <command> ..."""
 from __future__ import annotations
 import argparse
 import json
@@ -122,7 +122,7 @@ def _analysis_options(a):
 
 
 def main(argv=None) -> int:
-    p = argparse.ArgumentParser(prog="rematch", description="sound prediction of alternative MPI matchings")
+    p = argparse.ArgumentParser(prog="stretto", description="sound prediction of alternative MPI matchings")
     sub = p.add_subparsers(dest="cmd", required=True)
     a = sub.add_parser("show", help="print events and the observed matching"); a.add_argument("tracedir"); a.set_defaults(fn=cmd_show)
     a = sub.add_parser("analyze", help="predict alternatives and classify them; exit status 0 none found, 1 an error class found, 2 the trace cannot be loaded, 3 internal error")
@@ -130,7 +130,7 @@ def main(argv=None) -> int:
     a.add_argument("-v", "--verbose", action="store_true", help="also list rejected alternatives"); a.set_defaults(fn=cmd_analyze)
     a = sub.add_parser("candidates", help="list every candidate alternative with its verdict"); a.add_argument("tracedir")
     a.add_argument("--mode", default="L1", choices=["L1", "SP"]); a.set_defaults(fn=cmd_candidates)
-    a = sub.add_parser("confirm", help="replay each finding with its REMATCH_PIN and classify the outcome")
+    a = sub.add_parser("confirm", help="replay each finding with its STRETTO_PIN and classify the outcome")
     a.add_argument("tracedir"); a.add_argument("exe"); a.add_argument("args", nargs="*")
     a.add_argument("--np", type=int, default=0); a.add_argument("--timeout", type=int, default=20)
     a.add_argument("--mpi", default="openmpi"); a.add_argument("--all", action="store_true", help="also replay informational findings")
@@ -141,7 +141,7 @@ def main(argv=None) -> int:
     try:
         return args.fn(args)
     except LoadError as e:
-        print(f"rematch: {e}", file=sys.stderr)
+        print(f"stretto: {e}", file=sys.stderr)
         return 2
     except Exception:   # noqa: BLE001 - an internal error must not read as "an error class was found" (1)
         import traceback

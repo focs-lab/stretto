@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """The stress-testing baseline: rerun each corpus program up to N times with random delays
-injected by the replay library (REMATCH_SEND_DELAY_MS, REMATCH_RECV_DELAY_MS, per rank, drawn
+injected by the replay library (STRETTO_SEND_DELAY_MS, STRETTO_RECV_DELAY_MS, per rank, drawn
 anew for every run) and record after how many runs, if any, the run stops finishing (a hang
 or an error). This is what a developer without a predictive tool can do: shake the schedule
-and wait for the bad order. Rematch is compared with it from one recorded run.
+and wait for the bad order. Stretto is compared with it from one recorded run.
 
 usage: stress_baseline.py <corpus csv> [--runs N] [--timeout S] [--jobs J] [--select REGEX] [--seed K]
 
@@ -25,7 +25,7 @@ from concurrent.futures import ThreadPoolExecutor
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, os.path.join(ROOT, "analysis"))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from rematch.confirm import classify_rc, run_pinned  # noqa: E402
+from stretto.confirm import classify_rc, run_pinned  # noqa: E402
 from provenance import code_commit  # noqa: E402
 
 DELAYS_MS = [0, 0, 0, 1, 5, 20, 50]
@@ -35,7 +35,7 @@ def delays(rng: random.Random, np: int) -> dict:
     """One random schedule perturbation: a send and a receive delay per rank."""
     send = ",".join(f"{r}:{rng.choice(DELAYS_MS)}" for r in range(np))
     recv = ",".join(f"{r}:{rng.choice(DELAYS_MS)}" for r in range(np))
-    return {"REMATCH_SEND_DELAY_MS": send, "REMATCH_RECV_DELAY_MS": recv}
+    return {"STRETTO_SEND_DELAY_MS": send, "STRETTO_RECV_DELAY_MS": recv}
 
 
 def stress(row: dict, exe: str, args) -> dict:

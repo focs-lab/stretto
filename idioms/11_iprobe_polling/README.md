@@ -8,7 +8,7 @@ Expected:
 - The trace stays small: the failed polls of each spin are one record plus a `pollrepeat`
   count, not one record per iteration.
 - `probe-alt` (L1): the first successful wildcard probe could observe rank 2's message instead
-  of rank 1's; the finding carries `REMATCH_PIN_PROBE=0:0:2`.
+  of rank 1's; the finding carries `STRETTO_PIN_PROBE=0:0:2`.
 - The probe ordinal counts successful probes only, so the pin refers to the same probe in the
   replay however long each loop spins. Replaying with the pin makes rank 0 receive from rank 2
   first, and the run still completes: the alternative is realisable and benign.

@@ -27,7 +27,7 @@ the alteration at the nondeterministic receive". *Detecting Unaffected Race Cond
 closure. *Debugging Race Conditions in Message-Passing Programs* (SPDT'96, paywalled) introduced first
 races. Strong trace prefixes (CAV'24) are the shared-memory analogue.
 
-What none of them has, and what Rematch claims instead: a feasibility criterion for the
+What none of them has, and what Stretto claims instead: a feasibility criterion for the
 *alternative* (availability, FIFO across tags, buffering regime, collectives), a soundness
 statement in the OOPSLA'25 template, a complexity statement, a consequence taxonomy (their
 races are all our class 1f), and anything past the horizon (L2).
@@ -35,7 +35,7 @@ races are all our class 1f), and anything past the horizon (L2).
 A second, larger overlap surfaced: *The Complexity of
 Testing Message-Passing Concurrency* (POPL'26), gives the complexity landscape of channel
 consistency with and without a fixed matching. Its synchronous-channel algorithm (pack
-send/receive pairs, check acyclicity) is Rematch's constraint graph at B = 0, and its
+send/receive pairs, check acyclicity) is Stretto's constraint graph at B = 0, and its
 evaluation uses the single-swap mutation. The proposal's complexity claims must be restated
 as the MPI-shaped delta (single-producer single-consumer queues, union receives, per-message
 capacity, tags, collectives, and the parameter w). See `proposal-delta.md`.
@@ -76,7 +76,7 @@ Re-matching P2's receive invalidates P2's suffix, hence every message P2 sent in
 the suffix of every process that received one of them, transitively. Under B = 0 a send whose
 receiver is now undetermined also blocks its issuer. Collectives propagate the cut to every
 participant. The horizon is therefore the largest prefix-closed, match-closed subset of the trace
-unaffected by the change. `rematch/horizon.py` computes exactly this fixpoint, and it is what makes
+unaffected by the change. `stretto/horizon.py` computes exactly this fixpoint, and it is what makes
 the single-swap check a plain acyclicity test.
 
 ## D. Buffering monotonicity holds per family, not globally

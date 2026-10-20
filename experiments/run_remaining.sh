@@ -14,7 +14,7 @@ cd "$R"
 export PYTHONPATH="$R/analysis" OMPI_MCA_rmaps_base_oversubscribe=1 OMPI_MCA_hwloc_base_binding_policy=none
 # the commit every CSV row records (experiments/provenance.py); the copy here may have no .git,
 # so the sync writes it to COMMIT (RUNBOOK.md)
-export REMATCH_COMMIT="${REMATCH_COMMIT:-$(cat "$R/COMMIT" 2>/dev/null || echo unknown)}"
+export STRETTO_COMMIT="${STRETTO_COMMIT:-$(cat "$R/COMMIT" 2>/dev/null || echo unknown)}"
 JOBS="${JOBS:-6}"
 TIMEOUT="${TIMEOUT:-60}"
 log() { echo "== $(date '+%F %T') $*"; }
@@ -24,7 +24,7 @@ step_build() {
 }
 step_tests() {
     scripts/run_all.sh > experiments/results/run-all.log 2>&1
-    (cd analysis && REMATCH_REQUIRE_TRACES=1 python3 -m unittest discover -s tests 2>&1 | tail -3)
+    (cd analysis && STRETTO_REQUIRE_TRACES=1 python3 -m unittest discover -s tests 2>&1 | tail -3)
 }
 step_mbi() {
     # MBI: every wildcard, probe, tag-matching and buffering program (115), with replays

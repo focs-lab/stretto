@@ -2,7 +2,7 @@
 Run: cd analysis && python3 -m unittest discover -s tests. The traced idioms come from
 traces/<MPI> when scripts/run_all.sh has made them, else from the copies committed under
 tests/golden/<MPI> (Open MPI), so that a clean checkout runs every test; with neither, tests
-that need a trace skip, or fail with REMATCH_REQUIRE_TRACES=1. Refresh the golden copies with
+that need a trace skip, or fail with STRETTO_REQUIRE_TRACES=1. Refresh the golden copies with
 scripts/update_golden.sh after a change of the trace format."""
 import os
 import sys
@@ -13,10 +13,10 @@ ROOT = os.path.dirname(os.path.dirname(HERE))
 sys.path.insert(0, os.path.dirname(HERE))
 sys.path.insert(0, HERE)
 
-from rematch import dsl, explore, trace  # noqa: E402
-from rematch.feasible import check, feasible_profile  # noqa: E402
-from rematch.matching import candidates  # noqa: E402
-from rematch.report import analyze  # noqa: E402
+from stretto import dsl, explore, trace  # noqa: E402
+from stretto.feasible import check, feasible_profile  # noqa: E402
+from stretto.matching import candidates  # noqa: E402
+from stretto.report import analyze  # noqa: E402
 from test_checker import closure_equals_fixpoint, fast_equals_generic  # noqa: E402
 import idioms_dsl as I  # noqa: E402
 
@@ -24,15 +24,15 @@ MPI = os.environ.get("MPI", "openmpi")
 TRACES = os.path.join(ROOT, "traces", MPI)
 if not os.path.isdir(TRACES):
     TRACES = os.path.join(HERE, "golden", MPI)
-REQUIRE = os.environ.get("REMATCH_REQUIRE_TRACES") == "1"
+REQUIRE = os.environ.get("STRETTO_REQUIRE_TRACES") == "1"
 
 
 def need_trace(tc, n):
-    """The trace directory of idiom n, or skip (fail under REMATCH_REQUIRE_TRACES=1)."""
+    """The trace directory of idiom n, or skip (fail under STRETTO_REQUIRE_TRACES=1)."""
     d = traced(n)
     if d is None:
         if REQUIRE:
-            tc.fail(f"idiom {n:02d} not traced (REMATCH_REQUIRE_TRACES=1)")
+            tc.fail(f"idiom {n:02d} not traced (STRETTO_REQUIRE_TRACES=1)")
         tc.skipTest(f"idiom {n:02d} not traced")
     return d
 
@@ -203,7 +203,7 @@ class TwoChanges(unittest.TestCase):
     def test_idioms_with_two_wildcard_ranks(self):
         # the master-worker idiom has one wildcard rank: no two-change alternative; a trace
         # with wildcards on two ranks has them and the checker judges each
-        from rematch.matching import candidates_k
+        from stretto.matching import candidates_k
         t = trace.load(need_trace(self, 1))
         self.assertEqual(candidates_k(t, 2), [])
 
@@ -230,7 +230,7 @@ class PollingIdiom(unittest.TestCase):
         rep = analyze(trace.load(d), with_sp=False)
         alts = rep.by_class("probe-alt")
         self.assertEqual(len(alts), 1)
-        self.assertEqual(alts[0].pin, "REMATCH_PIN_PROBE=0:0:2")
+        self.assertEqual(alts[0].pin, "STRETTO_PIN_PROBE=0:0:2")
 
 
 class Cli(unittest.TestCase):
@@ -240,7 +240,7 @@ class Cli(unittest.TestCase):
     def _run(self, *argv):
         import contextlib
         import io
-        from rematch import cli
+        from stretto import cli
         out, err = io.StringIO(), io.StringIO()
         with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
             rc = cli.main(list(argv))
@@ -258,7 +258,7 @@ class Cli(unittest.TestCase):
 
     def test_json_carries_the_text_report(self):
         import json
-        from rematch import report as R
+        from stretto import report as R
         d = need_trace(self, 3)
         rc, out, _ = self._run("analyze", "--no-sp", "--json", d)
         j = json.loads(out)

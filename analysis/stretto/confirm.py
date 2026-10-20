@@ -1,4 +1,4 @@
-"""Confirming replay: rerun the program with each finding's REMATCH_PIN and classify the
+"""Confirming replay: rerun the program with each finding's STRETTO_PIN and classify the
 outcome (hang / MPI error / finished). A finding is confirmed only if (1) every pinned
 receive *matched* in the rerun (the replay library prints "matched" when a pinned receive
 completes, which with its source rewritten means it took the pinned sender; "applied" only
@@ -56,32 +56,32 @@ def classify_rc(rc: int, stderr: str, elapsed: Optional[float] = None, timeout: 
 
 def pins_applied(pin: str, stderr: str) -> bool:
     """Did the replay library report every pin of the spec as applied? The library prints
-    '[rematch-pin] rank R: applied widx=W ...' (or 'applied probe pidx=P') for each."""
+    '[stretto-pin] rank R: applied widx=W ...' (or 'applied probe pidx=P') for each."""
     name, _, spec = pin.partition("=")
-    probe = name == "REMATCH_PIN_PROBE"
+    probe = name == "STRETTO_PIN_PROBE"
     for tok in spec.split(","):
         parts = tok.split(":")
         if len(parts) < 3:
             return False
         rank, idx = parts[0], parts[1]
-        pat = rf"\[rematch-pin\] rank {rank}: applied {'probe pidx' if probe else 'widx'}={idx}\b"
+        pat = rf"\[stretto-pin\] rank {rank}: applied {'probe pidx' if probe else 'widx'}={idx}\b"
         if not re.search(pat, stderr):
             return False
     return True
 
 
 def pins_matched(pin: str, stderr: str) -> bool:
-    """Did every pinned receive complete? '[rematch-pin] rank R: matched widx=W src=S' per
+    """Did every pinned receive complete? '[stretto-pin] rank R: matched widx=W src=S' per
     receive pin; a probe pin counts when the probe found its message ('applied probe pidx=P',
     printed only then)."""
     name, _, spec = pin.partition("=")
-    probe = name == "REMATCH_PIN_PROBE"
+    probe = name == "STRETTO_PIN_PROBE"
     for tok in spec.split(","):
         parts = tok.split(":")
         if len(parts) < 3:
             return False
         rank, idx = parts[0], parts[1]
-        pat = rf"\[rematch-pin\] rank {rank}: " + (rf"applied probe pidx={idx}\b" if probe else rf"matched widx={idx}\b")
+        pat = rf"\[stretto-pin\] rank {rank}: " + (rf"applied probe pidx={idx}\b" if probe else rf"matched widx={idx}\b")
         if not re.search(pat, stderr):
             return False
     return True
@@ -91,7 +91,7 @@ def control_pin(t, pin: str) -> Optional[str]:
     """The same receives (or probes) pinned to the senders they took in the recorded run.
     Receives that never completed there are left unpinned. None if no pin remains."""
     name, _, spec = pin.partition("=")
-    probe = name == "REMATCH_PIN_PROBE"
+    probe = name == "STRETTO_PIN_PROBE"
     toks = []
     for tok in spec.split(","):
         parts = tok.split(":")
@@ -111,8 +111,8 @@ def control_pin(t, pin: str) -> Optional[str]:
 
 def horizon_pins(t, f: Finding, B=None) -> Optional[Tuple[List[str], List[str]]]:
     """Pins that force, in a replay, the alternative's execution over its whole horizon, and the
-    control: every wildcard receive (REMATCH_PIN) and every wildcard probe that found a message
-    (REMATCH_PIN_PROBE) posted inside the horizon is pinned to the sender it took in the run,
+    control: every wildcard receive (STRETTO_PIN) and every wildcard probe that found a message
+    (STRETTO_PIN_PROBE) posted inside the horizon is pinned to the sender it took in the run,
     and the changed one to the alternative's (the control keeps the observed sender there too).
     Pinning the changed operation alone leaves the earlier wildcard operations free to match
     differently in the rerun, and then neither the alternative nor its control is the execution
@@ -156,9 +156,9 @@ def horizon_pins(t, f: Finding, B=None) -> Optional[Tuple[List[str], List[str]]]
             ptok.append(f"{q.rank}:{q.pidx}:{m.rank}" + (f":{m.tag}" if q.tag == ANY else ""))
         out = []
         if rtok:
-            out.append("REMATCH_PIN=" + ",".join(rtok))
+            out.append("STRETTO_PIN=" + ",".join(rtok))
         if ptok:
-            out.append("REMATCH_PIN_PROBE=" + ",".join(ptok))
+            out.append("STRETTO_PIN_PROBE=" + ",".join(ptok))
         return out
 
     return specs(True), specs(False)
@@ -179,11 +179,11 @@ def expected_outcomes(f: Finding) -> set:
 
 def run_pinned(np: int, exe: str, args: List[str], pin, timeout: int = 20, mpi: str = "openmpi",
                mpirun_args: Optional[List[str]] = None, extra_env: Optional[dict] = None) -> subprocess.CompletedProcess:
-    """pin: one "REMATCH_PIN=..." assignment, a list of them, or None."""
-    pinlib = os.path.join(ROOT, "replay", "bin", mpi, "librematch-pin.so")
+    """pin: one "STRETTO_PIN=..." assignment, a list of them, or None."""
+    pinlib = os.path.join(ROOT, "replay", "bin", mpi, "libstretto-pin.so")
     env_args = ["-x", f"LD_PRELOAD={pinlib}"]
     for assignment in ([pin] if isinstance(pin, str) else (pin or [])):
-        env_args += ["-x", assignment]   # "REMATCH_PIN=..." or "REMATCH_PIN_PROBE=..."
+        env_args += ["-x", assignment]   # "STRETTO_PIN=..." or "STRETTO_PIN_PROBE=..."
     for k, v in (extra_env or {}).items():
         env_args += ["-x", f"{k}={v}"]
     # no --foreground: timeout then signals the whole process group, so the ranks go with mpirun

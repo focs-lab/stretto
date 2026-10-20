@@ -1,9 +1,9 @@
 """Reference implementations kept for differential tests: the straightforward versions the
-fast ones in rematch replaced. They are correct by construction and slow."""
+fast ones in stretto replaced. They are correct by construction and slow."""
 from typing import Dict, List, Tuple
 
-from rematch.matching import Alternative, observed_hb
-from rematch.trace import Key, Trace
+from stretto.matching import Alternative, observed_hb
+from stretto.trace import Key, Trace
 
 
 def candidates_full_slow(t, hb=None) -> Tuple[List[Alternative], List[Tuple[str, str]]]:

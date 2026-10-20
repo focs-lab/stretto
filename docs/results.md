@@ -23,26 +23,26 @@ Programs: 115.
 A program's verdict is ERROR iff a finding of class 1a/1c/1d/2-buffering/2-collective/2-blocked is
 present; 1b, 1f, probe-alt and waitany-order are warnings and never count. The *observed* row uses
 only what the run itself showed (a blocked or spinning rank, a collective mismatch, a message never
-received), which any observational tool sees; the *predicted* row only what Rematch says about other
+received), which any observational tool sees; the *predicted* row only what Stretto says about other
 runs (a mismatch certain from the trace, a deadlock or orphan under the single-path assumption, a
 finished run that would deadlock below a threshold); a 2-buffering finding on a run that did not
 finish is the hang itself and counts as observed. The union is the tool's verdict.
 
 | | TP | FP | FN | TN | precision | recall | F1 |
 |---|---|---|---|---|---|---|---|
-| Rematch (union) | 61 | 0 | 4 | 50 | 1.00 | 0.94 | 0.97 |
-| Rematch, observed in the run | 39 | 0 | 26 | 50 | 1.00 | 0.60 | 0.75 |
-| Rematch, predicted | 22 | 0 | 43 | 50 | 1.00 | 0.34 | 0.51 |
+| Stretto (union) | 61 | 0 | 4 | 50 | 1.00 | 0.94 | 0.97 |
+| Stretto, observed in the run | 39 | 0 | 26 | 50 | 1.00 | 0.60 | 0.75 |
+| Stretto, predicted | 22 | 0 | 43 | 50 | 1.00 | 0.34 | 0.51 |
 | MUST 1.9.2 (same source, its own run under MPICH) | 46 | 0 | 19 | 50 | 1.00 | 0.71 | 0.83 |
 | MUST 1.9.2, a timeout counted as an error | 50 | 0 | 15 | 50 | 1.00 | 0.77 | 0.87 |
 
 MUST verdicts: ERROR 46, OK 63, RE 2, TIMEOUT 4. In the first MUST row a run
-that timed out, crashed or did not compile counts as no error reported. A Rematch run that the harness
+that timed out, crashed or did not compile counts as no error reported. A Stretto run that the harness
 killed at the timeout is reported as a blocked rank (2-blocked), an error, so the second MUST row credits
 MUST's timeouts the same way; the two rows bracket the comparison. Both tools ran each program once, with
-the same timeout; MUST under MPICH, Rematch under Open MPI, so they did not see the same run.
+the same timeout; MUST under MPICH, Stretto under Open MPI, so they did not see the same run.
 
-Labelled errors Rematch reports and MUST does not on the same program: **15**, of which
+Labelled errors Stretto reports and MUST does not on the same program: **15**, of which
 predicted on a run that showed nothing itself: **7**, replay-confirmed (a pinned rerun with
 the pin applied hangs or raises the predicted MPI error): **7**.
 
@@ -67,7 +67,7 @@ Replays: 65 rows (one per finding and class after removing duplicate pins), 38 d
 | 1c | 38 | 0 | 0 | 0 |
 | 1d | 25 | 0 | 0 | 0 |
 
-| label | detail | observed run | Rematch classes | MUST | programs |
+| label | detail | observed run | Stretto classes | MUST | programs |
 |---|---|---|---|---|---|
 | ERROR | BufferingHazard | FINISHED | 2-buffering | ERROR | 12 |
 | ERROR | CallMatching | TIMEOUT | 2-blocked | TIMEOUT | 4 |
@@ -94,26 +94,26 @@ Programs: 388. Not compiled with Open MPI 4.1.6 and left out: 8 (P2P__CallOrderi
 A program's verdict is ERROR iff a finding of class 1a/1c/1d/2-buffering/2-collective/2-blocked is
 present; 1b, 1f, probe-alt and waitany-order are warnings and never count. The *observed* row uses
 only what the run itself showed (a blocked or spinning rank, a collective mismatch, a message never
-received), which any observational tool sees; the *predicted* row only what Rematch says about other
+received), which any observational tool sees; the *predicted* row only what Stretto says about other
 runs (a mismatch certain from the trace, a deadlock or orphan under the single-path assumption, a
 finished run that would deadlock below a threshold); a 2-buffering finding on a run that did not
 finish is the hang itself and counts as observed. The union is the tool's verdict.
 
 | | TP | FP | FN | TN | precision | recall | F1 |
 |---|---|---|---|---|---|---|---|
-| Rematch (union) | 216 | 4 | 20 | 148 | 0.98 | 0.92 | 0.95 |
-| Rematch, observed in the run | 216 | 4 | 20 | 148 | 0.98 | 0.92 | 0.95 |
-| Rematch, predicted | 7 | 0 | 229 | 152 | 1.00 | 0.03 | 0.06 |
+| Stretto (union) | 216 | 4 | 20 | 148 | 0.98 | 0.92 | 0.95 |
+| Stretto, observed in the run | 216 | 4 | 20 | 148 | 0.98 | 0.92 | 0.95 |
+| Stretto, predicted | 7 | 0 | 229 | 152 | 1.00 | 0.03 | 0.06 |
 | MUST 1.9.2 (same source, its own run under MPICH) | 213 | 4 | 23 | 148 | 0.98 | 0.90 | 0.94 |
 | MUST 1.9.2, a timeout counted as an error | 218 | 5 | 18 | 147 | 0.98 | 0.92 | 0.95 |
 
 MUST verdicts: ERROR 217, OK 160, RE 5, TIMEOUT 6. In the first MUST row a run
-that timed out, crashed or did not compile counts as no error reported. A Rematch run that the harness
+that timed out, crashed or did not compile counts as no error reported. A Stretto run that the harness
 killed at the timeout is reported as a blocked rank (2-blocked), an error, so the second MUST row credits
 MUST's timeouts the same way; the two rows bracket the comparison. Both tools ran each program once, with
-the same timeout; MUST under MPICH, Rematch under Open MPI, so they did not see the same run.
+the same timeout; MUST under MPICH, Stretto under Open MPI, so they did not see the same run.
 
-Labelled errors Rematch reports and MUST does not on the same program: **6**, of which
+Labelled errors Stretto reports and MUST does not on the same program: **6**, of which
 predicted on a run that showed nothing itself: **0**, replay-confirmed (a pinned rerun with
 the pin applied hangs or raises the predicted MPI error): **0**.
 
@@ -129,7 +129,7 @@ Wildcard competition (the w ablation): 2 programs with wildcard receives, 12 wil
 Correct programs: 152; with warnings (not counted as errors): 0; findings per program
 mean 0.05, max 2.
 
-| label | detail | observed run | Rematch classes | MUST | programs |
+| label | detail | observed run | Stretto classes | MUST | programs |
 |---|---|---|---|---|---|
 | ERROR | CallOrdering | FINISHED | 1c | ERROR | 3 |
 | ERROR | CallOrdering | FINISHED | 1c 2-buffering | ERROR | 7 |
@@ -294,8 +294,8 @@ host: a-p13, one process; analysis 13.16 s, 549928 KB
 Replay of the first probe alternative with its pin (`confirm8.txt`):
 
 ```
-pin: REMATCH_PIN_PROBE=0:0:2
-[rematch-pin] rank 0: applied probe pidx=0
+pin: STRETTO_PIN_PROBE=0:0:2
+[stretto-pin] rank 0: applied probe pidx=0
 result: FINISHED
 ```
 

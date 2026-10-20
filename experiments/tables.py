@@ -30,30 +30,30 @@ def e1(name, path):
            "A program's verdict is ERROR iff a finding of class 1a/1c/1d/2-buffering/2-collective/2-blocked is",
            "present; 1b, 1f, probe-alt and waitany-order are warnings and never count. The *observed* row uses",
            "only what the run itself showed (a blocked or spinning rank, a collective mismatch, a message never",
-           "received), which any observational tool sees; the *predicted* row only what Rematch says about other",
+           "received), which any observational tool sees; the *predicted* row only what Stretto says about other",
            "runs (a mismatch certain from the trace, a deadlock or orphan under the single-path assumption, a",
            "finished run that would deadlock below a threshold); a 2-buffering finding on a run that did not",
            "finish is the hang itself and counts as observed. The union is the tool's verdict.", "",
            "| | TP | FP | FN | TN | precision | recall | F1 |", "|---|---|---|---|---|---|---|---|",
-           conf_row("Rematch (union)", score.confusion(rs, score.verdict)),
-           conf_row("Rematch, observed in the run", score.confusion(rs, score.observed_verdict)),
-           conf_row("Rematch, predicted", score.confusion(rs, score.predicted_verdict))]
+           conf_row("Stretto (union)", score.confusion(rs, score.verdict)),
+           conf_row("Stretto, observed in the run", score.confusion(rs, score.observed_verdict)),
+           conf_row("Stretto, predicted", score.confusion(rs, score.predicted_verdict))]
     if any(r.get("must") for r in rs):
         kinds = collections.Counter(score.must_kind(r) for r in rs)
         out.append(conf_row("MUST 1.9.2 (same source, its own run under MPICH)", score.confusion(rs, score.must_verdict)))
         out.append(conf_row("MUST 1.9.2, a timeout counted as an error", score.confusion(rs, score.must_verdict_hangs)))
         out += ["", "MUST verdicts: " + ", ".join(f"{k or 'none'} {v}" for k, v in sorted(kinds.items())) + ". In the first MUST row a run",
-                "that timed out, crashed or did not compile counts as no error reported. A Rematch run that the harness",
+                "that timed out, crashed or did not compile counts as no error reported. A Stretto run that the harness",
                 "killed at the timeout is reported as a blocked rank (2-blocked), an error, so the second MUST row credits",
                 "MUST's timeouts the same way; the two rows bracket the comparison. Both tools ran each program once, with",
-                "the same timeout; MUST under MPICH, Rematch under Open MPI, so they did not see the same run."]
+                "the same timeout; MUST under MPICH, Stretto under Open MPI, so they did not see the same run."]
         failed = [r["name"] for r in rs if score.analysis_failed(r)]
         if failed:
             out += ["", f"Analysis failed on {len(failed)} program(s), counted as no error: {', '.join(failed)}."]
         inv = [r for r in rs if r["expect"] == "ERROR" and score.verdict(r) == "ERROR" and score.must_verdict(r) != "ERROR"]
         inv_pred = [r for r in inv if score.predicted_verdict(r) == "ERROR" and score.observed_verdict(r) != "ERROR"]
         conf = [r for r in inv if r.get("confirmed") and int(r["confirmed"]) > 0]
-        out += ["", f"Labelled errors Rematch reports and MUST does not on the same program: **{len(inv)}**, of which",
+        out += ["", f"Labelled errors Stretto reports and MUST does not on the same program: **{len(inv)}**, of which",
                 f"predicted on a run that showed nothing itself: **{len(inv_pred)}**, replay-confirmed (a pinned rerun with",
                 f"the pin applied hangs or raises the predicted MPI error): **{len(conf)}**."]
     race = [r for r in rs if r.get("detail") == "MessageRace"]
@@ -112,7 +112,7 @@ def e1(name, path):
             out += [f"| {r['program']} | {r['cls']} | {r.get('certainty', '')} | {r['pin']} | {r['result']} | {r.get('pin_applied', '')} "
                     f"| {r.get('pin_matched', '')} | {r.get('control', '')} |" for r in nc]
     c = collections.Counter((r["expect"], r["detail"], r["run"].split(":")[0], r["classes"], score.must_kind(r)) for r in rs)
-    out += ["", "| label | detail | observed run | Rematch classes | MUST | programs |", "|---|---|---|---|---|---|"]
+    out += ["", "| label | detail | observed run | Stretto classes | MUST | programs |", "|---|---|---|---|---|---|"]
     for k, v in sorted(c.items()):
         out.append(f"| {k[0]} | {k[1]} | {k[2]} | {k[3] or '-'} | {k[4] or '-'} | {v} |")
     return "\n".join(out) + "\n"
@@ -171,7 +171,7 @@ def e2():
 
 
 def stress(name, path):
-    """The stress-testing baseline (experiments/stress_baseline.py) against Rematch's one run."""
+    """The stress-testing baseline (experiments/stress_baseline.py) against Stretto's one run."""
     st = rows(os.path.join(os.path.dirname(path), "stress.csv"))
     if not st:
         return ""
@@ -192,7 +192,7 @@ def stress(name, path):
         f"Up to {runs} runs per program with random send and receive delays per rank, stopping at the first run that",
         "does not finish (`experiments/stress_baseline.py`).", "",
         f"Labelled-error programs: {len(err)}. Stress testing makes {len(found)} fail (median run of the first failure {med};",
-        f"{len(later)} only after the first run). Rematch reports {len(rem)} from one run, {len(pred)} of them predicted from a",
+        f"{len(later)} only after the first run). Stretto reports {len(rem)} from one run, {len(pred)} of them predicted from a",
         f"run that finished; stress testing never makes {len(pred_missed)} of those fail"
         + (f" ({', '.join(r['program'] for r in pred_missed)})" if pred_missed else "") + ".",
         f"Correct programs that failed under stress (a hang under load or a delay): {len(fp)}.", ""])

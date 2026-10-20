@@ -21,10 +21,10 @@ import sys
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, os.path.join(ROOT, "analysis"))
-from rematch import trace  # noqa: E402
-from rematch.confirm import classify_rc, run_pinned  # noqa: E402
-from rematch.feasible import feasible_profile, profile_summary  # noqa: E402
-from rematch.matching import candidates_full  # noqa: E402
+from stretto import trace  # noqa: E402
+from stretto.confirm import classify_rc, run_pinned  # noqa: E402
+from stretto.feasible import feasible_profile, profile_summary  # noqa: E402
+from stretto.matching import candidates_full  # noqa: E402
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from provenance import code_commit  # noqa: E402
 from b_impl import tcp  # noqa: E402

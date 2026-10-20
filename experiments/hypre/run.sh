@@ -17,7 +17,7 @@
 #   fetch    download both versions, check the archives' sha256
 #   build    configure and make each version with the MPICH wrappers, -j8
 #   trace    one run of test/ij -solver 8 -pout 0 at 4 ranks per version, traced
-#   analyse  rematch analyze on both traces
+#   analyse  stretto analyze on both traces
 #   replay   the alternatives at the pruned exchange's second probe (rank 1 and rank 2), each
 #            with its control (the probe pinned to the sender it saw in the run) and the benign
 #            alternative at the first probe; 60 s each
@@ -27,9 +27,9 @@ set -uo pipefail
 R="$(cd "$(dirname "$0")/../.." && pwd)"; cd "$R"
 H="${HYPRE_DIR:-$R/third_party/apps/hypre}"
 OUT=experiments/results/hypre; mkdir -p "$OUT" "$H"
-export REMATCH_COMMIT="${REMATCH_COMMIT:-$(cat "$R/COMMIT" 2>/dev/null || git -C "$R" rev-parse --short HEAD 2>/dev/null || echo unknown)}"
+export STRETTO_COMMIT="${STRETTO_COMMIT:-$(cat "$R/COMMIT" 2>/dev/null || git -C "$R" rev-parse --short HEAD 2>/dev/null || echo unknown)}"
 NP=4; ARGS=(-solver 8 -pout 0); TIMEOUT=60
-TRACER="$R/tracer/bin/mpich/librematch-trace.so"; PINLIB="$R/replay/bin/mpich/librematch-pin.so"
+TRACER="$R/tracer/bin/mpich/libstretto-trace.so"; PINLIB="$R/replay/bin/mpich/libstretto-pin.so"
 declare -A SHA=([2.10.1]=69c50d785fccaebab9c220839b56d4ffef0666248988a668747e60c9250e7bdf
                 [2.11.0]=d9d6999c60e6ac394e9751923e25af2f1d8dd1e84b000063be212737b4d1aa31)
 src() { [ -f "$H/hypre-$1/configure" ] && echo "$H/hypre-$1" || echo "$H/hypre-$1/src"; }
@@ -55,13 +55,13 @@ step_trace() {
     for v in 2.10.1 2.11.0; do
         d="$R/$OUT/trace$NP$(tag $v)"; rm -rf "$d"; mkdir -p "$d"
         (cd "$(src $v)/test" && /usr/bin/timeout 300 mpirun.openmpi --oversubscribe -np $NP -x LD_PRELOAD="$TRACER" \
-             -x REMATCH_TRACE_DIR="$d" ./ij "${ARGS[@]}" > "$R/$OUT/run$NP$(tag $v).log" 2>&1)
+             -x STRETTO_TRACE_DIR="$d" ./ij "${ARGS[@]}" > "$R/$OUT/run$NP$(tag $v).log" 2>&1)
         echo "$v traced: rc=$?, $(cat "$d"/rank-*.jsonl | wc -l) records"
     done
 }
 step_analyse() {
     for v in 2.10.1 2.11.0; do
-        PYTHONPATH="$R/analysis" python3 -m rematch analyze -v "$OUT/trace$NP$(tag $v)" > "$OUT/report$NP$(tag $v).txt" 2> "$OUT/analyze$NP$(tag $v).err"
+        PYTHONPATH="$R/analysis" python3 -m stretto analyze -v "$OUT/trace$NP$(tag $v)" > "$OUT/report$NP$(tag $v).txt" 2> "$OUT/analyze$NP$(tag $v).err"
         echo "$v: $(grep -c probe-alt "$OUT/report$NP$(tag $v).txt") probe alternatives"
     done
 }
@@ -77,7 +77,7 @@ import re, sys
 text = open(sys.argv[1]).read()
 for block in re.split(r"\n(?=\[)", text):
     m = re.match(r"\[\s*probe-alt\]\s+L1\s+probe\((\d+), \d+\) src=ANY tag=222 could observe send\((\d+), \d+\).* instead of send\((\d+), \d+\)", block)
-    pin = re.search(r"REMATCH_PIN_PROBE=(\d+):(\d+):(\d+)", block)
+    pin = re.search(r"STRETTO_PIN_PROBE=(\d+):(\d+):(\d+)", block)
     if not m or not pin:
         continue
     rank, pidx, alt = pin.groups()
@@ -88,12 +88,12 @@ PY
     while IFS=, read -r pin role; do
         log="$OUT/replay-${pin//:/-}.log"; t0=$SECONDS
         (cd "$(src 2.10.1)/test" && /usr/bin/timeout -k 5 $TIMEOUT mpirun.openmpi --oversubscribe -np $NP \
-             -x LD_PRELOAD="$PINLIB" -x REMATCH_PIN_PROBE=$pin ./ij "${ARGS[@]}" < /dev/null > "$R/$log" 2>&1)
+             -x LD_PRELOAD="$PINLIB" -x STRETTO_PIN_PROBE=$pin ./ij "${ARGS[@]}" < /dev/null > "$R/$log" 2>&1)
         rc=$?; res=$([ $rc = 0 ] && echo FINISHED || { [ $rc = 124 ] && echo TIMEOUT || echo "rc=$rc"; })
         pidx=$(echo "$pin" | cut -d: -f2); rank=${pin%%:*}
         found=$(grep -c "rank $rank: applied probe pidx=$pidx\b" "$log")
         resid=$(grep -o "Final Relative Residual Norm = .*" "$log" | sed 's/.*= //')
-        echo "$pin,$role,$res,$((SECONDS - t0)),$found,$resid,$REMATCH_COMMIT" | tee -a "$OUT/replays.csv"
+        echo "$pin,$role,$res,$((SECONDS - t0)),$found,$resid,$STRETTO_COMMIT" | tee -a "$OUT/replays.csv"
     done < "$OUT/replay-pins.txt"
 }
 for step in "${@:-all}"; do

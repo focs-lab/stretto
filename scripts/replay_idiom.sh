@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Confirming replay: run an idiom with pinned wildcard sources and classify the outcome.
-# usage: scripts/replay_idiom.sh <NN> "<REMATCH_PIN spec>" [np] [--mpirun-arg ...] [-- program args]
+# usage: scripts/replay_idiom.sh <NN> "<STRETTO_PIN spec>" [np] [--mpirun-arg ...] [-- program args]
 set -uo pipefail
 source "$(dirname "$0")/env.sh"
 n="$1"; pin="$2"; shift 2
@@ -11,20 +11,20 @@ margs=(); while [ $# -gt 0 ] && [ "$1" != "--" ]; do margs+=("$1"); shift; done
 dir="$(idiom_dir "$n")"; [ -n "$dir" ] || { echo "no idiom $n" >&2; exit 1; }
 need_lib "$PINLIB" replay
 out="$(mktemp)"; err="$(mktemp)"
-echo "== replay $(basename "$dir") with REMATCH_PIN=$pin (timeout ${TIMEOUT}s)"
-mpi_run "$np" "REMATCH_PIN=$pin" "LD_PRELOAD=$PINLIB" -- "${margs[@]}" "$dir/bin/$MPI/main" "$@" > "$out" 2> "$err"
+echo "== replay $(basename "$dir") with STRETTO_PIN=$pin (timeout ${TIMEOUT}s)"
+mpi_run "$np" "STRETTO_PIN=$pin" "LD_PRELOAD=$PINLIB" -- "${margs[@]}" "$dir/bin/$MPI/main" "$@" > "$out" 2> "$err"
 rc=$?
 head -5 "$out"
-grep '^\[rematch-pin\]' "$err"        # which pins were applied, matched, or left unused
+grep '^\[stretto-pin\]' "$err"        # which pins were applied, matched, or left unused
 res="$(classify_rc $rc "$err")"
 # every pin of the spec must have matched: "applied" only says the source argument was set,
 # and forcing an impossible match also hangs. The control rerun (the observed senders pinned)
-# is rematch confirm's job; this script shows one replay.
+# is stretto confirm's job; this script shows one replay.
 npins=$(tr ',' '\n' <<< "$pin" | grep -c .)
-matched=$(grep -c '^\[rematch-pin\] rank [0-9]*: matched' "$err")
+matched=$(grep -c '^\[stretto-pin\] rank [0-9]*: matched' "$err")
 case "$res" in
   FINISHED)   echo "   result: FINISHED with $matched of $npins pin(s) matched (no hang under this matching)";;
-  TIMEOUT)    if [ "$matched" -ge "$npins" ]; then echo "   result: HANG after all $npins pinned receive(s) matched (a deadlock under this matching; confirm against a control with rematch confirm)";
+  TIMEOUT)    if [ "$matched" -ge "$npins" ]; then echo "   result: HANG after all $npins pinned receive(s) matched (a deadlock under this matching; confirm against a control with stretto confirm)";
               else echo "   result: HANG with $matched of $npins pin(s) matched (not a confirmation: a pinned receive may be waiting for an impossible match)"; fi;;
   *)          echo "   result: $res ($matched of $npins pin(s) matched)";;
 esac

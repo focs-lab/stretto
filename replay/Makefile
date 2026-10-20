@@ -6,11 +6,11 @@ CFLAGS ?= -O1 -g -Wall -Wextra
 CFLAGS += -fPIC   # a shared object whatever CFLAGS the environment sets
 OUT := bin/$(MPI)
 
-all: $(OUT)/librematch-pin.so
+all: $(OUT)/libstretto-pin.so
 
-$(OUT)/librematch-pin.so: ../tracer/mpitrace.c pin.c pin.h
+$(OUT)/libstretto-pin.so: ../tracer/mpitrace.c pin.c pin.h
 	@mkdir -p $(OUT)
-	$(MPICC) $(CFLAGS) -DREMATCH_PIN_ONLY -shared -o $@ ../tracer/mpitrace.c pin.c -lpthread
+	$(MPICC) $(CFLAGS) -DSTRETTO_PIN_ONLY -shared -o $@ ../tracer/mpitrace.c pin.c -lpthread
 
 clean:
 	rm -rf bin

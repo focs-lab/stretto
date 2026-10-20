@@ -9,7 +9,7 @@ bug taxonomy of `analysis.md` section B.
 ## (b) Hand-check of the mini-model on the idioms
 
 All ten idioms traced on Open MPI 4.1.6 and MPICH 4.2.0 (`scripts/run_all.sh`,
-`MPI=mpich scripts/run_idiom.sh NN`), analysed by `rematch`, and confirmed by forced replay
+`MPI=mpich scripts/run_idiom.sh NN`), analysed by `stretto`, and confirmed by forced replay
 where a prediction was made. Ground truth by the exhaustive explorer over the DSL twins; 47
 unit tests pass (`analysis/tests`).
 

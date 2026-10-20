@@ -34,9 +34,9 @@ the fixes and the rerun land (plan steps 1-4), read them with these corrections:
 - The predicted row counts `2-buffering` findings on runs that themselves timed out: 29 such MBI
   programs. Counting finished runs only, the predicted part is TP 22, FP 0, FN 43 (F1 0.51) on
   MBI and TP 7 (F1 0.06) on MPI-BugBench.
-- A run the harness killed counts as a Rematch finding (`2-blocked`) and as "no error" for MUST.
+- A run the harness killed counts as a Stretto finding (`2-blocked`) and as "no error" for MUST.
   Crediting MUST's timeouts the same way gives MUST TP 50, F1 0.87 on MBI, and TP 218, FP 5,
-  F1 0.950 on MPI-BugBench, level with Rematch's 0.947. Four "Rematch-only" MBI programs hung
+  F1 0.950 on MPI-BugBench, level with Stretto's 0.947. Four "Stretto-only" MBI programs hung
   under Open MPI and finished under MUST's MPICH build.
 - AMG and Nekbone were analysed with `--no-sp`, which cannot produce 1c or 1d, so "no harmful
   alternative" there is true by construction, not a finding.
@@ -47,12 +47,12 @@ the fixes and the rerun land (plan steps 1-4), read them with these corrections:
 `MessageRace`, 15 `TagMatching`, 12 `BufferingHazard`, 4 `CallMatching` (the probe
 programs) and 50 correct.
 
-- Rematch, union: TP 61, FP 0, FN 4, TN 50 (precision 1.00, recall 0.94, F1 0.97).
+- Stretto, union: TP 61, FP 0, FN 4, TN 50 (precision 1.00, recall 0.94, F1 0.97).
   The observed floor alone is TP 39 (F1 0.75); the predicted part alone TP 51 (F1 0.88), of
   which 29 are `2-buffering` on runs that timed out (finished runs only: TP 22, F1 0.51).
   MUST 1.9.2 (`--must:distributed`): TP 46, FP 0, FN 19 (F1 0.83); MUST verdicts ERROR 46,
   OK 63, RE 2, TIMEOUT 4.
-- Labelled errors Rematch reports and MUST does not on the same program: 15. Of these, 7
+- Labelled errors Stretto reports and MUST does not on the same program: 15. Of these, 7
   are predicted on a run that showed nothing itself (the run finished): the `Gather`,
   `Reduce` (×2) and `Loop` (×4) message-race programs, where the racing receive is flagged at
   L1 and a deadlock and an orphan are certified under the single-path assumption. All 7 hang
@@ -75,7 +75,7 @@ run; the racing receive flagged at L1 in 33 (12/12 of the clean ones); a consequ
 certified at L1+SP in 10 (10/12 clean), all 10 replay-confirmed; 22 deadlock or abort in
 the observed run itself.
 
-The four programs Rematch misses are `MessageRace_{Recv,Irecv}_{Send,Isend}_nok`, whose
+The four programs Stretto misses are `MessageRace_{Recv,Irecv}_{Send,Isend}_nok`, whose
 outcome depends on a received value: the payload is the sender's rank and the program calls
 `abort()` unless `buf1 != 3` is false (4 of the 34 race programs use this guard). At L1
 they get the racing-receive warning only. E7 (results table "E7") analyses them with a
@@ -109,9 +109,9 @@ On the other 388:
 
 | | TP | FP | FN | TN | F1 |
 |---|---|---|---|---|---|
-| Rematch (union) | 216 | 4 | 20 | 148 | 0.95 |
-| Rematch, observed in the run | 216 | 4 | 20 | 148 | 0.95 |
-| Rematch, predicted | 9 | 0 | 227 | 152 | 0.07 |
+| Stretto (union) | 216 | 4 | 20 | 148 | 0.95 |
+| Stretto, observed in the run | 216 | 4 | 20 | 148 | 0.95 |
+| Stretto, predicted | 9 | 0 | 227 | 152 | 0.07 |
 | MUST 1.9.2 | 213 | 4 | 23 | 148 | 0.94 |
 
 - **The corpus is observational.** The predicted row is almost empty because the bugs show
@@ -121,14 +121,14 @@ On the other 388:
   order leaves no alternative and shows as an unreceived send. MPI-BugBench measures the
   observational floor and the false-positive rate on correct programs; MBI is where
   prediction shows.
-- **Rematch's four false positives are label disagreements** (column `run` =
+- **Stretto's four false positives are label disagreements** (column `run` =
   `MPI-ERROR:MPI_ERR_ARG`): correct-labelled `MPI_Gather`/`MPI_Reduce` programs that pass
-  `MPI_IN_PLACE` on non-root ranks. Open MPI aborts the run; Rematch reports the aborted run
+  `MPI_IN_PLACE` on non-root ranks. Open MPI aborts the run; Stretto reports the aborted run
   (2-blocked). MUST's run of the same four crashes (RE).
-- **Rematch's 20 false negatives are all local-concurrency programs** (column `detail`): a
+- **Stretto's 20 false negatives are all local-concurrency programs** (column `detail`): a
   buffer reused before its nonblocking operation completes. That is family ③; PMPI
   interposition does not see memory accesses.
-- **Six labelled errors only Rematch reports:** probe-driven hangs and unmatched
+- **Six labelled errors only Stretto reports:** probe-driven hangs and unmatched
   `Improbe`/`Mprobe` calls, reported from the observed run (a blocked rank, a rank spinning
   in a polling loop, a send never received); MUST times out on five and crashes on one.
 - **Three errors only MUST reports:** two receives into overlapping buffers (its buffer

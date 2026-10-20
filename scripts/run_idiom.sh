@@ -14,8 +14,8 @@ need_lib "$TRACER" tracer
 out="$ROOT/traces/$MPI/$(basename "$dir")"
 rm -rf "$out"; mkdir -p "$out"
 echo "== $(basename "$dir") (np=$np, $MPI)"
-mpi_run "$np" "REMATCH_TRACE_DIR=$out" "LD_PRELOAD=$TRACER" -- "$dir/bin/$MPI/main" "$@" > "$out/stdout.log" 2> "$out/stderr.log"
+mpi_run "$np" "STRETTO_TRACE_DIR=$out" "LD_PRELOAD=$TRACER" -- "$dir/bin/$MPI/main" "$@" > "$out/stdout.log" 2> "$out/stderr.log"
 rc=$?
 res="$(classify_rc $rc "$out/stderr.log")"
 [ "$res" != FINISHED ] && echo "   observed run: $res"
-python3 -m rematch analyze "$out"
+python3 -m stretto analyze "$out"

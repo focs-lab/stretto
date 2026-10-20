@@ -8,13 +8,13 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import unittest
 
-from rematch import dsl, explore, fast, trace as T, types
-from rematch.feasible import breakpoints
-from rematch.matching import Overlay, probe_candidates
-from rematch.report import _completion_alternatives
-from rematch.feasible import check, feasible_profile, observed_feasible_at, profile_summary
-from rematch.matching import candidates_full
-from rematch.report import analyze
+from stretto import dsl, explore, fast, trace as T, types
+from stretto.feasible import breakpoints
+from stretto.matching import Overlay, probe_candidates
+from stretto.report import _completion_alternatives
+from stretto.feasible import check, feasible_profile, observed_feasible_at, profile_summary
+from stretto.matching import candidates_full
+from stretto.report import analyze
 import reference
 
 
@@ -267,7 +267,7 @@ class C_ProbeFifo(unittest.TestCase):
         p = {"op": "probe", "kind": "iprobe", "src": 0, "tag": 1, "comm": 0, "flag": 1, "msrc": 1, "mtag": 1, "anysrc": 1}
         # rank 1 sends twice with the same tag; the probe saw the first: the second is not an alternative
         t = mk({0: [p, recv(1, 1, 1, 1), recv(1, 1, 1, 1), recv(2, 1, 2, 1)], 1: [send(0, 1), send(0, 1)], 2: [send(0, 1)]})
-        alts = [(pp.key, s.key) for pp, s in __import__("rematch.matching", fromlist=["probe_candidates"]).probe_candidates(t)]
+        alts = [(pp.key, s.key) for pp, s in __import__("stretto.matching", fromlist=["probe_candidates"]).probe_candidates(t)]
         self.assertEqual(alts, [((0, 0), (2, 0))])
 
 
@@ -473,7 +473,7 @@ class C_SinglePathBaseline(unittest.TestCase):
         rep = analyze(t)
         d = rep.by_class("1d")
         self.assertEqual([f.certainty for f in d], ["all"])
-        self.assertEqual(d[0].pin, "REMATCH_PIN=0:0:2")
+        self.assertEqual(d[0].pin, "STRETTO_PIN=0:0:2")
         c = rep.by_class("1c")
         self.assertEqual([(f.level, f.certainty) for f in c], [("L1+SP", "all")])
 
@@ -485,7 +485,7 @@ class C_SinglePathBaseline(unittest.TestCase):
         rep = analyze(t)
         d = rep.by_class("1d")
         self.assertEqual([f.certainty for f in d], ["some"])
-        self.assertEqual(d[0].pin, "REMATCH_PIN=0:0:2,0:1:2")
+        self.assertEqual(d[0].pin, "STRETTO_PIN=0:0:2,0:1:2")
 
 
 class C_ProbeAndCompletionOrder(unittest.TestCase):
@@ -518,7 +518,7 @@ class C_ProbeAndCompletionOrder(unittest.TestCase):
         alts = [f for f in rep.by_class("probe-alt") if "send(2, 1)" in f.title]
         self.assertEqual(len(alts), 1)
         self.assertEqual(alts[0].B, "B >= 4000")
-        self.assertEqual(alts[0].pin, "REMATCH_PIN_PROBE=0:0:2")
+        self.assertEqual(alts[0].pin, "STRETTO_PIN_PROBE=0:0:2")
 
     def test_waitsome_order_alternative(self):
         t = mk({0: [irecv(1, 1, 0), irecv(2, 1, 1), wait((0, 1, 1), kind="waitsome", reqs=[0, 1]), wait((1, 2, 1))],
@@ -655,7 +655,7 @@ def closure_equals_fixpoint(tc, t):
     (compute_cut_fixpoint): same cut, same issued sends, same hang reasons per rank, for the
     observed matching in SP mode and for every candidate alternative and probe alternative in
     L1 mode, at every breakpoint."""
-    from rematch.horizon import compute_cut, compute_cut_fixpoint
+    from stretto.horizon import compute_cut, compute_cut_fixpoint
     alts = candidates_full(t)[0]
     probes = probe_candidates(t)
     for B in breakpoints(t) + [None]:
@@ -1024,7 +1024,7 @@ class C_TwoChanges(unittest.TestCase):
         t = mk({0: [recv(T.ANY, 1, 2, 1, widx=0), recv(T.ANY, 1, 3, 1, widx=1)],
                 1: [recv(T.ANY, 2, 2, 2, widx=0), recv(T.ANY, 2, 3, 2, widx=1)],
                 2: [send(0, 1), send(1, 2)], 3: [send(0, 1), send(1, 2)]})
-        from rematch.matching import candidates_k
+        from stretto.matching import candidates_k
         ks = candidates_k(t, 2)
         self.assertEqual(len(ks), 1)
         self.assertTrue(check(t, ks[0].M, ks[0].changed, None, "L1").feasible)

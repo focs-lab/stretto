@@ -5,12 +5,12 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from rematch.confirm import classify_rc, control_pin, expected_outcomes, horizon_pins, pins_applied, pins_matched  # noqa: E402
-from rematch import trace as T  # noqa: E402
-from rematch.report import Finding  # noqa: E402
+from stretto.confirm import classify_rc, control_pin, expected_outcomes, horizon_pins, pins_applied, pins_matched  # noqa: E402
+from stretto import trace as T  # noqa: E402
+from stretto.report import Finding  # noqa: E402
 
-APPLIED = ("[rematch-pin] rank 0: 2 pin(s) active\n[rematch-pin] rank 0: applied widx=0 src=2 (world 2) tag=5\n"
-           "[rematch-pin] rank 0: applied widx=1 src=1 (world 1) tag=5\n[rematch-pin] rank 1: applied probe pidx=0\n")
+APPLIED = ("[stretto-pin] rank 0: 2 pin(s) active\n[stretto-pin] rank 0: applied widx=0 src=2 (world 2) tag=5\n"
+           "[stretto-pin] rank 0: applied widx=1 src=1 (world 1) tag=5\n[stretto-pin] rank 1: applied probe pidx=0\n")
 
 
 class Classify(unittest.TestCase):
@@ -32,15 +32,15 @@ class Classify(unittest.TestCase):
 
 class PinsApplied(unittest.TestCase):
     def test_every_pin_of_the_spec_must_be_reported(self):
-        self.assertTrue(pins_applied("REMATCH_PIN=0:0:2", APPLIED))
-        self.assertTrue(pins_applied("REMATCH_PIN=0:0:2,0:1:1:5", APPLIED))
-        self.assertFalse(pins_applied("REMATCH_PIN=0:0:2,0:2:1", APPLIED))      # widx 2 never reached
-        self.assertFalse(pins_applied("REMATCH_PIN=0:1:1", APPLIED.replace("widx=1", "widx=10")))
-        self.assertFalse(pins_applied("REMATCH_PIN=0:0:2", ""))
+        self.assertTrue(pins_applied("STRETTO_PIN=0:0:2", APPLIED))
+        self.assertTrue(pins_applied("STRETTO_PIN=0:0:2,0:1:1:5", APPLIED))
+        self.assertFalse(pins_applied("STRETTO_PIN=0:0:2,0:2:1", APPLIED))      # widx 2 never reached
+        self.assertFalse(pins_applied("STRETTO_PIN=0:1:1", APPLIED.replace("widx=1", "widx=10")))
+        self.assertFalse(pins_applied("STRETTO_PIN=0:0:2", ""))
 
     def test_probe_pins(self):
-        self.assertTrue(pins_applied("REMATCH_PIN_PROBE=1:0:2", APPLIED))
-        self.assertFalse(pins_applied("REMATCH_PIN_PROBE=1:1:2", APPLIED))
+        self.assertTrue(pins_applied("STRETTO_PIN_PROBE=1:0:2", APPLIED))
+        self.assertFalse(pins_applied("STRETTO_PIN_PROBE=1:1:2", APPLIED))
 
 
 class PinsMatched(unittest.TestCase):
@@ -49,11 +49,11 @@ class PinsMatched(unittest.TestCase):
     match also hangs, with every pin applied)."""
 
     def test_applied_is_not_matched(self):
-        self.assertFalse(pins_matched("REMATCH_PIN=0:0:2", APPLIED))
-        matched = APPLIED + "[rematch-pin] rank 0: matched widx=0 src=2\n"
-        self.assertTrue(pins_matched("REMATCH_PIN=0:0:2", matched))
-        self.assertFalse(pins_matched("REMATCH_PIN=0:0:2,0:1:1", matched))      # widx 1 applied, never matched
-        self.assertTrue(pins_matched("REMATCH_PIN_PROBE=1:0:2", APPLIED))        # a probe pin reports when it found its message
+        self.assertFalse(pins_matched("STRETTO_PIN=0:0:2", APPLIED))
+        matched = APPLIED + "[stretto-pin] rank 0: matched widx=0 src=2\n"
+        self.assertTrue(pins_matched("STRETTO_PIN=0:0:2", matched))
+        self.assertFalse(pins_matched("STRETTO_PIN=0:0:2,0:1:1", matched))      # widx 1 applied, never matched
+        self.assertTrue(pins_matched("STRETTO_PIN_PROBE=1:0:2", APPLIED))        # a probe pin reports when it found its message
 
     def test_control_pins_the_observed_senders(self):
         t = T.Trace()
@@ -63,8 +63,8 @@ class PinsMatched(unittest.TestCase):
                          {"op": "finalize"}],
                      1: [{"op": "init", "np": 3}, {"op": "send", "mode": "std", "dst": 0, "tag": 1, "comm": 0, "count": 1, "tsize": 4}, {"op": "finalize"}],
                      2: [{"op": "init", "np": 3}, {"op": "send", "mode": "std", "dst": 0, "tag": 1, "comm": 0, "count": 1, "tsize": 4}, {"op": "finalize"}]})
-        self.assertEqual(control_pin(t, "REMATCH_PIN=0:0:2,0:1:1"), "REMATCH_PIN=0:0:1,0:1:2")
-        self.assertIsNone(control_pin(t, "REMATCH_PIN=0:7:2"))                  # no such receive: nothing to pin
+        self.assertEqual(control_pin(t, "STRETTO_PIN=0:0:2,0:1:1"), "STRETTO_PIN=0:0:1,0:1:2")
+        self.assertIsNone(control_pin(t, "STRETTO_PIN=0:7:2"))                  # no such receive: nothing to pin
 
 
 class HorizonPins(unittest.TestCase):
@@ -86,10 +86,10 @@ class HorizonPins(unittest.TestCase):
         # the second wildcard receive takes rank 3's message instead of rank 2's
         f = Finding("1", "1f", "L1", "", recv=(0, 1), send=(3, 0))
         alt, ctl = horizon_pins(t, f)
-        self.assertEqual(alt, ["REMATCH_PIN=0:0:1,0:1:3"])        # rank 0 is cut right after the changed receive
-        self.assertEqual(ctl, ["REMATCH_PIN=0:0:1,0:1:2"])
-        self.assertTrue(pins_matched(alt[0], "[rematch-pin] rank 0: matched widx=0 src=1\n[rematch-pin] rank 0: matched widx=1 src=3\n"))
-        self.assertFalse(pins_matched(alt[0], "[rematch-pin] rank 0: matched widx=1 src=3\n"))
+        self.assertEqual(alt, ["STRETTO_PIN=0:0:1,0:1:3"])        # rank 0 is cut right after the changed receive
+        self.assertEqual(ctl, ["STRETTO_PIN=0:0:1,0:1:2"])
+        self.assertTrue(pins_matched(alt[0], "[stretto-pin] rank 0: matched widx=0 src=1\n[stretto-pin] rank 0: matched widx=1 src=3\n"))
+        self.assertFalse(pins_matched(alt[0], "[stretto-pin] rank 0: matched widx=1 src=3\n"))
 
 
 if __name__ == "__main__":

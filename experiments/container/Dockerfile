@@ -1,6 +1,6 @@
 # Experiment environment: the userland of the development host (Ubuntu 24.04), so that
 # traces, replays and analysis behave the same wherever the experiments run.
-# Build:  docker build -t rematch-exp:24.04 experiments/container
+# Build:  docker build -t stretto-exp:24.04 experiments/container
 FROM ubuntu:24.04
 ENV DEBIAN_FRONTEND=noninteractive LANG=C.UTF-8
 RUN apt-get update \

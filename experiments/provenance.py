@@ -1,6 +1,6 @@
 """The code version an experiment row comes from, written into every CSV row so that a
 table can be traced to the commit that produced it. The runner on the experiment machine
-sets REMATCH_COMMIT (the copy there may have no .git); otherwise git is asked, and a tree
+sets STRETTO_COMMIT (the copy there may have no .git); otherwise git is asked, and a tree
 with uncommitted changes to the code is marked "-dirty"."""
 import functools
 import os
@@ -12,7 +12,7 @@ CODE = ["analysis", "tracer", "replay", "experiments", "scripts"]
 
 @functools.lru_cache(maxsize=1)
 def code_commit() -> str:
-    env = os.environ.get("REMATCH_COMMIT")
+    env = os.environ.get("STRETTO_COMMIT")
     if env:
         return env
     try:

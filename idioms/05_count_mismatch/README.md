@@ -11,6 +11,6 @@ Expected reports:
 - L1+SP: additionally **1c orphan** (rank 1's send) and **1d deadlock**: after the truncation (modelled
   as under `MPI_ERRORS_RETURN`) rank 0 continues to `Recv(2)`, whose message was consumed, and starves.
 
-Replay: `REMATCH_PIN=0:0:2`; Open MPI aborts with `MPI_ERR_TRUNCATE`.
+Replay: `STRETTO_PIN=0:0:2`; Open MPI aborts with `MPI_ERR_TRUNCATE`.
 
 Gate role: criteria 1 and 2.

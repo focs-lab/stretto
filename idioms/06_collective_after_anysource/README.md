@@ -17,4 +17,4 @@ Expected reports:
 
 Gate role: criterion 3 (needs a non-trivial skeleton: beyond single-path).
 
-Replay: `REMATCH_PIN=0:0:2`; hangs under `timeout`.
+Replay: `STRETTO_PIN=0:0:2`; hangs under `timeout`.

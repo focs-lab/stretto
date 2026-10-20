@@ -2,8 +2,8 @@
 """E1 harness over the MPI Bugs Initiative (MBI) corpus.
 
 For every selected generated program: parse the MBI header (run command, np, expected
-outcome and detail), build it with the system mpicc, run it once under the Rematch tracer
-with the header's np, analyse the trace, and record the Rematch classes, qualified by the
+outcome and detail), build it with the system mpicc, run it once under the Stretto tracer
+with the header's np, analyse the trace, and record the Stretto classes, qualified by the
 level that established them. With --confirm every error finding is replayed with its pin
 and the outcome of each replay goes to replays.csv next to the table (one row per finding:
 class, level, certainty, pin, result, whether the pin was applied, verdict). With --must,
@@ -38,10 +38,10 @@ GENCODES = CORPORA["mbi"]
 RESULTS = os.path.join(ROOT, "experiments", "results", "mbi")
 MPICC = "/usr/bin/mpicc.openmpi"
 MPIRUN = "/usr/bin/mpirun.openmpi"
-TRACER = os.path.join(ROOT, "tracer", "bin", "openmpi", "librematch-trace.so")
+TRACER = os.path.join(ROOT, "tracer", "bin", "openmpi", "libstretto-trace.so")
 sys.path.insert(0, os.path.join(ROOT, "analysis"))
-from rematch import confirm as confirm_mod, report, trace  # noqa: E402
-from rematch.confirm import classify_rc  # noqa: E402
+from stretto import confirm as confirm_mod, report, trace  # noqa: E402
+from stretto.confirm import classify_rc  # noqa: E402
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from provenance import code_commit  # noqa: E402
 
@@ -94,7 +94,7 @@ def features(path: str) -> dict:
 
 
 def pin_label(pin: str) -> str:
-    """REMATCH_PIN=1:0:0:0 -> 1/0/0/0 (rank/widx/src[/tag]); REMATCH_PIN_PROBE=... -> probe 1/0/2."""
+    """STRETTO_PIN=1:0:0:0 -> 1/0/0/0 (rank/widx/src[/tag]); STRETTO_PIN_PROBE=... -> probe 1/0/2."""
     name, _, spec = (pin or "").partition("=")
     return ("probe " if name.endswith("PROBE") else "") + spec.replace(":", "/")
 
@@ -113,7 +113,7 @@ def run_one(name: str, args) -> dict:
     tracedir = os.path.join(out, "trace")
     shutil.rmtree(tracedir, ignore_errors=True)
     os.makedirs(tracedir)
-    env = ["-x", f"REMATCH_TRACE_DIR={tracedir}", "-x", f"LD_PRELOAD={TRACER}"]
+    env = ["-x", f"STRETTO_TRACE_DIR={tracedir}", "-x", f"LD_PRELOAD={TRACER}"]
     cmd = ["/usr/bin/timeout", "-k", "5", str(args.timeout), MPIRUN, "-np", str(row["np"]), *env, exe]
     t0 = time.monotonic()
     r = subprocess.run(cmd, capture_output=True, text=True, stdin=subprocess.DEVNULL,
@@ -138,7 +138,7 @@ def replay_one(row: dict, args) -> dict:
 
 
 def analyse(row: dict, out: str, exe: str, tracedir: str, args) -> None:
-    """Analyse the trace under out/, fill the Rematch columns of row and, with --confirm,
+    """Analyse the trace under out/, fill the Stretto columns of row and, with --confirm,
     replay every error finding with its pin."""
     try:
         t = trace.load(tracedir)

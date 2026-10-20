@@ -27,7 +27,7 @@ class Finding:
     B: str = ""                 # human range of thresholds at which the finding is realisable
     recv: Optional[Key] = None
     send: Optional[Key] = None
-    pin: Optional[str] = None   # ready-to-use REMATCH_PIN spec for replay
+    pin: Optional[str] = None   # ready-to-use STRETTO_PIN spec for replay
     certainty: str = ""         # L1+SP: 'all' (every execution with the pair) or 'some'
     probe: Optional[Key] = None  # probe alternatives: the probe whose report changes (send = what it reports)
 
@@ -72,7 +72,7 @@ def _pin_token(r: Recv, s: Send) -> Optional[str]:
 
 def pin_spec(r: Recv, s: Send) -> Optional[str]:
     tok = _pin_token(r, s)
-    return None if tok is None else "REMATCH_PIN=" + tok
+    return None if tok is None else "STRETTO_PIN=" + tok
 
 
 def pin_from_execution(t: Trace, o: explore.Outcome) -> Optional[str]:
@@ -80,7 +80,7 @@ def pin_from_execution(t: Trace, o: explore.Outcome) -> Optional[str]:
     that execution and not only its first changed pair."""
     toks = [_pin_token(t.recvs[rk], t.sends[sk]) for rk, sk in o.order if rk in t.recvs and t.recvs[rk].wildcard]
     toks = [x for x in toks if x is not None]
-    return "REMATCH_PIN=" + ",".join(toks) if toks else None
+    return "STRETTO_PIN=" + ",".join(toks) if toks else None
 
 
 def classify(r: Recv, s: Send, s_obs: Optional[Send]) -> Tuple[str, str]:
@@ -97,7 +97,7 @@ def classify(r: Recv, s: Send, s_obs: Optional[Send]) -> Tuple[str, str]:
 
 def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_events: int = 2000,
             generic: bool = False, full_profile: bool = False, twin=None, changes: int = 1) -> Report:
-    """Alternatives are judged by the indexed checker (rematch.fast), each profiled at the
+    """Alternatives are judged by the indexed checker (stretto.fast), each profiled at the
     two ends of the B range and bisected between them (exact by theorem T2); full_profile=True
     judges every breakpoint, generic=True uses the generic checker (feasible.check) instead
     of the indexed one. Both exist for differential testing and are slower. twin: a DSL
@@ -192,7 +192,7 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
 
     # ---- profiles over the breakpoints: the observed run and every alternative (receive,
     # probe, completion order) judged at each threshold, threshold-major so that one
-    # Observed(t, B) serves every check at B (rematch.fast), or the generic checker on request
+    # Observed(t, B) serves every check at B (stretto.fast), or the generic checker on request
     hb = fast.Observed(t, None).reaches if not generic else observed_hb(t)
     alts, pruned = candidates_full(t, hb)
     rep.infeasible.extend((d, why) for d, why in pruned)
@@ -417,7 +417,7 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
             continue
         seen = t.sends[p.seen]
         cls, why = classify_probe(p, s, seen)
-        pin = f"REMATCH_PIN_PROBE={p.rank}:{p.pidx}:{s.rank}" + (f":{s.tag}" if p.tag == ANY else "") if p.pidx is not None else None
+        pin = f"STRETTO_PIN_PROBE={p.rank}:{p.pidx}:{s.rank}" + (f":{s.tag}" if p.tag == ANY else "") if p.pidx is not None else None
         rep.findings.append(Finding("probe", cls, "L1", f"{p} could observe {s} instead of {seen}",
                                     [why, f"L1: a receive whose source or count is taken from this probe's status changes with it; continuation of rank {p.rank} undetermined"],
                                     B=brange, pin=pin, probe=p.key, send=s.key))
@@ -475,7 +475,7 @@ class _Profiles:
 
 
 def _profiles_fast(t: Trace, alts, probes, waits, full: bool = False) -> _Profiles:
-    """The indexed checker (rematch.fast). Each item is judged at the two ends of the B range
+    """The indexed checker (stretto.fast). Each item is judged at the two ends of the B range
     and, when the verdicts differ, bisected over the breakpoints between them: theorem T2
     (docs/model.md) makes the feasibility of a single-change alternative monotone in B, so
     the profile is an interval and the bisection exact. full=True judges every breakpoint

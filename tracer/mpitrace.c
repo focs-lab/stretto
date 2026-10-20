@@ -1,7 +1,7 @@
-/* Rematch PMPI tracer. One JSON record per MPI event, per rank, in
-   $REMATCH_TRACE_DIR/rank-<r>.jsonl (default ./traces). Builds with the system MPI.
+/* Stretto PMPI tracer. One JSON record per MPI event, per rank, in
+   $STRETTO_TRACE_DIR/rank-<r>.jsonl (default ./traces). Builds with the system MPI.
 
-   Compile with -DREMATCH_PIN_ONLY to get the replay library: same interposition, same
+   Compile with -DSTRETTO_PIN_ONLY to get the replay library: same interposition, same
    wildcard counting and pinning, no file output.
 
    Record kinds (all carry "r" and "seq"):
@@ -26,7 +26,7 @@
      reqfree   req (MPI_Request_free: the operation completes unobserved)
      probe     kind(probe|iprobe|mprobe|improbe), src, tag, comm, [anysrc], [anytag], flag,
                [msrc, mtag, mbytes], [pidx] (the probe's ordinal among the rank's wildcard
-               probes, what REMATCH_PIN_PROBE counts)
+               probes, what STRETTO_PIN_PROBE counts)
      coll      name, comm, root(-1 if none), count, tsize, [req]
      comm      name, parent(local id), id(local id), ranks:[world ranks in comm-rank order],
                gord (creation ordinal of that group); an intercommunicator carries
@@ -64,7 +64,7 @@ static pthread_mutex_t g_mu = PTHREAD_MUTEX_INITIALIZER;
 
 static void *xrealloc(void *p, size_t n) {
     void *q = realloc(p, n);
-    if (!q) { fprintf(stderr, "rematch tracer: out of memory\n"); abort(); }
+    if (!q) { fprintf(stderr, "stretto tracer: out of memory\n"); abort(); }
     return q;
 }
 
@@ -100,7 +100,7 @@ static void rb_printf(rec_t *b, const char *fmt, ...) {
    iteration, gigabytes for a loop that spins until a timeout. A failed poll identical to
    the previous record is not written; the run of repeats is summarised by one
    {"op":"pollrepeat","n":k} record before the next different record. */
-#ifndef REMATCH_PIN_ONLY
+#ifndef STRETTO_PIN_ONLY
 static char *g_poll_body = NULL;
 static long g_poll_rep = 0;
 
@@ -112,7 +112,7 @@ static void flush_poll_locked(void) {
 #endif
 
 static void rb_emit_kind(rec_t *b, int failed_poll) {
-#ifndef REMATCH_PIN_ONLY
+#ifndef STRETTO_PIN_ONLY
     pthread_mutex_lock(&g_mu);
     if (g_out) {
         if (failed_poll && g_poll_body && strcmp(g_poll_body, b->p) == 0) {
@@ -143,7 +143,7 @@ static void rb_emit(rec_t *b) { rb_emit_kind(b, 0); }
 
 /* ------------------------------------------------------------ small utils */
 static int tsize(MPI_Datatype dt) { int s = 0; if (dt != MPI_DATATYPE_NULL) PMPI_Type_size(dt, &s); return s; }
-/* Type signatures (analysis/rematch/types.py reads them): a named type by its name, a
+/* Type signatures (analysis/stretto/types.py reads them): a named type by its name, a
    derived type flattened into runs of named types, "MPI_INT*4,MPI_DOUBLE*2", in type-map
    order. Combiners the flattening does not follow (darray, f90) and signatures longer than
    the record field give the opaque "derived:..." form, which the analysis treats as unknown.
@@ -382,16 +382,16 @@ static int req_start(MPI_Request r, int *kind, MPI_Datatype *dt) {
 /* ------------------------------------------------------------- init/fini */
 static void open_trace(int provided) {
     PMPI_Comm_rank(MPI_COMM_WORLD, &g_rank);
-#ifndef REMATCH_PIN_ONLY
-    const char *dir = getenv("REMATCH_TRACE_DIR");
+#ifndef STRETTO_PIN_ONLY
+    const char *dir = getenv("STRETTO_TRACE_DIR");
     if (!dir) dir = "traces";
     mkdir(dir, 0777);
     char path[1024];
     snprintf(path, sizeof path, "%s/rank-%d.jsonl", dir, g_rank);
     g_out = fopen(path, "w");
-    if (!g_out) { perror("rematch tracer: fopen"); g_out = stderr; }
+    if (!g_out) { perror("stretto tracer: fopen"); g_out = stderr; }
 #endif
-    rematch_pin_init(g_rank);
+    stretto_pin_init(g_rank);
     g_multi = provided == MPI_THREAD_MULTIPLE;
     int np; PMPI_Comm_size(MPI_COMM_WORLD, &np);
     REC(b, "init"); rb_printf(&b, ",\"np\":%d,\"thread\":%d", np, provided); rb_emit(&b);
@@ -401,7 +401,7 @@ static void open_trace(int provided) {
 int MPI_Init(int *argc, char ***argv) { int rc = PMPI_Init(argc, argv); open_trace(MPI_THREAD_SINGLE); return rc; }
 int MPI_Init_thread(int *argc, char ***argv, int req, int *prov) { int rc = PMPI_Init_thread(argc, argv, req, prov); open_trace(*prov); return rc; }
 int MPI_Finalize(void) {
-    rematch_pin_finalize();
+    stretto_pin_finalize();
     REC(b, "finalize"); if (g_truncated) rb_printf(&b, ",\"truncated\":1"); rb_emit(&b);
     pthread_mutex_lock(&g_mu);
     if (g_out && g_out != stderr) fclose(g_out);
@@ -424,7 +424,7 @@ static void send_fields(rec_t *b, const char *mode, int count, MPI_Datatype dt, 
 }
 #define BLOCKING_SEND(NAME, MODE) \
 int NAME(const void *buf, int count, MPI_Datatype dt, int dst, int tag, MPI_Comm comm) { \
-    rematch_pin_before_send(); \
+    stretto_pin_before_send(); \
     { REC(b, "begin"); rb_printf(&b, ",\"call\":\"send\""); send_fields(&b, MODE, count, dt, dst, tag, comm); rb_emit(&b); } \
     int rc = P##NAME(buf, count, dt, dst, tag, comm); \
     { REC(b, "send"); send_fields(&b, MODE, count, dt, dst, tag, comm); rb_emit(&b); } \
@@ -435,7 +435,7 @@ BLOCKING_SEND(MPI_Bsend, "bsend")
 BLOCKING_SEND(MPI_Rsend, "rsend")
 #define NONBLOCKING_SEND(NAME, MODE) \
 int NAME(const void *buf, int count, MPI_Datatype dt, int dst, int tag, MPI_Comm comm, MPI_Request *req) { \
-    rematch_pin_before_send(); int rc = P##NAME(buf, count, dt, dst, tag, comm, req); \
+    stretto_pin_before_send(); int rc = P##NAME(buf, count, dt, dst, tag, comm, req); \
     int id = rc == MPI_SUCCESS ? req_add(*req, 0, dt, 0) : -1; \
     REC(b, "send"); send_fields(&b, MODE, count, dt, dst, tag, comm); if (id >= 0) rb_printf(&b, ",\"req\":%d", id); rb_emit(&b); return rc; }
 NONBLOCKING_SEND(MPI_Isend,  "isend")
@@ -506,13 +506,13 @@ static void start_one(MPI_Request *rp) {
     pthread_mutex_lock(&g_mu); pinfo *pi = pers_find(r); pinfo copy; if (pi) copy = *pi; pthread_mutex_unlock(&g_mu);
     if (!pi) { unmodelled("Start of an untracked persistent request"); return; }   /* persistent collective, partitioned */
     if (kind == 0) {
-        rematch_pin_before_send();
+        stretto_pin_before_send();
         REC(b, "send"); send_fields(&b, copy.mode, copy.count, copy.dt, copy.peer, copy.tag, copy.comm);
         rb_printf(&b, ",\"req\":%d,\"persistent\":1", id); rb_emit(&b);
     } else {
         int src = copy.peer, tag = copy.tag, widx = -1;
-        rematch_pin_before_recv();
-        int pinned = rematch_pin_recv(&src, &tag, copy.comm, &widx);
+        stretto_pin_before_recv();
+        int pinned = stretto_pin_recv(&src, &tag, copy.comm, &widx);
         if (pinned) {
             MPI_Request shadow;
             if (PMPI_Recv_init(copy.buf, copy.count, copy.dt, src, tag, copy.comm, &shadow) == MPI_SUCCESS) {
@@ -551,14 +551,14 @@ static void recv_args(rec_t *b, int src, int tag, MPI_Comm comm, int count, MPI_
     if (widx >= 0) rb_printf(b, ",\"widx\":%d", widx);
 }
 int MPI_Recv(void *buf, int count, MPI_Datatype dt, int src, int tag, MPI_Comm comm, MPI_Status *st) {
-    rematch_pin_before_recv();
+    stretto_pin_before_recv();
     int osrc = src, otag = tag, widx = -1;
-    int pinned = rematch_pin_recv(&src, &tag, comm, &widx);
+    int pinned = stretto_pin_recv(&src, &tag, comm, &widx);
     { REC(b, "begin"); rb_printf(&b, ",\"call\":\"recv\""); recv_args(&b, osrc, otag, comm, count, dt, widx); rb_emit(&b); }
     MPI_Status mine;
     if (st == MPI_STATUS_IGNORE) st = &mine;
     int rc = PMPI_Recv(buf, count, dt, src, tag, comm, st);
-    if (pinned && rc == MPI_SUCCESS) rematch_pin_matched(widx, st->MPI_SOURCE);
+    if (pinned && rc == MPI_SUCCESS) stretto_pin_matched(widx, st->MPI_SOURCE);
     REC(b, "recv"); recv_args(&b, osrc, otag, comm, count, dt, widx);
     status_fields(&b, st, dt, rc == MPI_SUCCESS);
     if (pinned) rb_printf(&b, ",\"pinned\":{\"src\":%d,\"tag\":%d}", src, tag);
@@ -566,9 +566,9 @@ int MPI_Recv(void *buf, int count, MPI_Datatype dt, int src, int tag, MPI_Comm c
     return rc;
 }
 int MPI_Irecv(void *buf, int count, MPI_Datatype dt, int src, int tag, MPI_Comm comm, MPI_Request *req) {
-    rematch_pin_before_recv();
+    stretto_pin_before_recv();
     int osrc = src, otag = tag, widx = -1;
-    int pinned = rematch_pin_recv(&src, &tag, comm, &widx);
+    int pinned = stretto_pin_recv(&src, &tag, comm, &widx);
     int rc = PMPI_Irecv(buf, count, dt, src, tag, comm, req);
     int id = rc == MPI_SUCCESS ? req_add(*req, 1, dt, 0) : -1;
     if (pinned && id >= 0) req_set_pin(*req, widx);
@@ -579,16 +579,16 @@ int MPI_Irecv(void *buf, int count, MPI_Datatype dt, int src, int tag, MPI_Comm 
 }
 static int sendrecv_common(int scount, MPI_Datatype sdt, int dst, int stag, int rcount, MPI_Datatype rdt, int *src, int *rtag, MPI_Comm comm, int *widx, int *reqid) {
     /* Modelled as Isend + Recv + Wait. */
-    rematch_pin_before_send();
+    stretto_pin_before_send();
     pthread_mutex_lock(&g_mu); *reqid = g_next_req++; pthread_mutex_unlock(&g_mu);
     { REC(b, "send"); send_fields(&b, "isend", scount, sdt, dst, stag, comm); rb_printf(&b, ",\"req\":%d", *reqid); rb_emit(&b); }
     int osrc = *src, otag = *rtag;
-    int pinned = rematch_pin_recv(src, rtag, comm, widx);
+    int pinned = stretto_pin_recv(src, rtag, comm, widx);
     { REC(b, "begin"); rb_printf(&b, ",\"call\":\"recv\""); recv_args(&b, osrc, otag, comm, rcount, rdt, *widx); rb_emit(&b); }
     return pinned;
 }
 static void sendrecv_finish(int rcount, MPI_Datatype rdt, int osrc, int otag, int src, int rtag, MPI_Comm comm, MPI_Status *st, int rc, int widx, int pinned, int reqid) {
-    if (pinned && rc == MPI_SUCCESS) rematch_pin_matched(widx, st->MPI_SOURCE);
+    if (pinned && rc == MPI_SUCCESS) stretto_pin_matched(widx, st->MPI_SOURCE);
     { REC(b, "recv"); recv_args(&b, osrc, otag, comm, rcount, rdt, widx); status_fields(&b, st, rdt, rc == MPI_SUCCESS);
       if (pinned) rb_printf(&b, ",\"pinned\":{\"src\":%d,\"tag\":%d}", src, rtag);
       rb_emit(&b); }
@@ -635,7 +635,7 @@ static void done_entry(rec_t *b, int first, MPI_Request before, MPI_Status *st, 
     if (kind == 1) status_fields(b, st, dt, ok);
     if (kind == 1 && pin1 && ok && st) {
         int cancelled = 0; PMPI_Test_cancelled(st, &cancelled);
-        if (!cancelled) rematch_pin_matched(pin1 - 1, st->MPI_SOURCE);
+        if (!cancelled) stretto_pin_matched(pin1 - 1, st->MPI_SOURCE);
     }
     else if (kind == 0 && cancel_req) {          /* a send that was cancelled: did the cancel succeed? */
         int cancelled = 0; if (ok && st) PMPI_Test_cancelled(st, &cancelled);
@@ -781,30 +781,30 @@ static void probe_rec(const char *kind, int src, int tag, MPI_Comm comm, int fla
     if (flag && pidx >= 0) rb_printf(&b, ",\"pidx\":%d", pidx);
     if (pinned) rb_printf(&b, ",\"pinned\":{\"src\":%d}", psrc);
     if (flag && rc == MPI_SUCCESS && st) { int cnt = -1; PMPI_Get_count(st, MPI_BYTE, &cnt); rb_printf(&b, ",\"msrc\":%d,\"mtag\":%d,\"mbytes\":%d", st->MPI_SOURCE, st->MPI_TAG, cnt); }
-    if (flag) rematch_pin_probe_commit(pidx, rc == MPI_SUCCESS && st ? st->MPI_SOURCE : -1, rc == MPI_SUCCESS && st ? st->MPI_TAG : -1);
+    if (flag) stretto_pin_probe_commit(pidx, rc == MPI_SUCCESS && st ? st->MPI_SOURCE : -1, rc == MPI_SUCCESS && st ? st->MPI_TAG : -1);
     rb_emit_kind(&b, !flag);
 }
 int MPI_Probe(int src, int tag, MPI_Comm comm, MPI_Status *st) {
     MPI_Status mine; if (st == MPI_STATUS_IGNORE) st = &mine;
-    int osrc = src, otag = tag, pidx = -1; int pinned = rematch_pin_probe(&src, &tag, comm, &pidx);
+    int osrc = src, otag = tag, pidx = -1; int pinned = stretto_pin_probe(&src, &tag, comm, &pidx);
     { REC(b, "begin"); rb_printf(&b, ",\"call\":\"probe\",\"kind\":\"probe\""); rb_src(&b, osrc); rb_tag(&b, otag); rb_printf(&b, ",\"comm\":%d", comm_id(comm)); rb_emit(&b); }
     int rc = PMPI_Probe(src, tag, comm, st); probe_rec("probe", osrc, otag, comm, 1, st, rc, pidx, pinned, src); return rc;
 }
 int MPI_Iprobe(int src, int tag, MPI_Comm comm, int *flag, MPI_Status *st) {
     MPI_Status mine; if (st == MPI_STATUS_IGNORE) st = &mine;
-    int osrc = src, otag = tag, pidx = -1; int pinned = rematch_pin_probe(&src, &tag, comm, &pidx);
+    int osrc = src, otag = tag, pidx = -1; int pinned = stretto_pin_probe(&src, &tag, comm, &pidx);
     int rc = PMPI_Iprobe(src, tag, comm, flag, st); probe_rec("iprobe", osrc, otag, comm, *flag, st, rc, pidx, pinned, src); return rc;
 }
 int MPI_Mprobe(int src, int tag, MPI_Comm comm, MPI_Message *msg, MPI_Status *st) {
     MPI_Status mine; if (st == MPI_STATUS_IGNORE) st = &mine;
-    int osrc = src, otag = tag, pidx = -1; int pinned = rematch_pin_probe(&src, &tag, comm, &pidx);
+    int osrc = src, otag = tag, pidx = -1; int pinned = stretto_pin_probe(&src, &tag, comm, &pidx);
     { REC(b, "begin"); rb_printf(&b, ",\"call\":\"probe\",\"kind\":\"mprobe\""); rb_src(&b, osrc); rb_tag(&b, otag); rb_printf(&b, ",\"comm\":%d", comm_id(comm)); rb_emit(&b); }
     int rc = PMPI_Mprobe(src, tag, comm, msg, st); if (rc == MPI_SUCCESS) msg_add(*msg, comm, st);
     probe_rec("mprobe", osrc, otag, comm, 1, st, rc, pidx, pinned, src); return rc;
 }
 int MPI_Improbe(int src, int tag, MPI_Comm comm, int *flag, MPI_Message *msg, MPI_Status *st) {
     MPI_Status mine; if (st == MPI_STATUS_IGNORE) st = &mine;
-    int osrc = src, otag = tag, pidx = -1; int pinned = rematch_pin_probe(&src, &tag, comm, &pidx);
+    int osrc = src, otag = tag, pidx = -1; int pinned = stretto_pin_probe(&src, &tag, comm, &pidx);
     int rc = PMPI_Improbe(src, tag, comm, flag, msg, st); if (rc == MPI_SUCCESS && *flag) msg_add(*msg, comm, st);
     probe_rec("improbe", osrc, otag, comm, *flag, st, rc, pidx, pinned, src); return rc;
 }

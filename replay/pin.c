@@ -36,11 +36,11 @@ static int parse_rank_ms(const char *spec, int rank) {
     return ms;
 }
 
-HIDDEN void rematch_pin_init(int rank) {
+HIDDEN void stretto_pin_init(int rank) {
     g_rank = rank;
     g_nwild = g_nsend = g_nrecv = 0;
     g_npins = 0;
-    const char *spec = getenv("REMATCH_PIN");
+    const char *spec = getenv("STRETTO_PIN");
     if (spec) {
         char *copy = strdup(spec), *save = NULL;
         for (char *tok = strtok_r(copy, ",", &save); tok; tok = strtok_r(NULL, ",", &save)) {
@@ -54,9 +54,9 @@ HIDDEN void rematch_pin_init(int rank) {
         }
         free(copy);
         if (g_npins)
-            fprintf(stderr, "[rematch-pin] rank %d: %d pin(s) active\n", rank, g_npins);
+            fprintf(stderr, "[stretto-pin] rank %d: %d pin(s) active\n", rank, g_npins);
     }
-    const char *pspec = getenv("REMATCH_PIN_PROBE");
+    const char *pspec = getenv("STRETTO_PIN_PROBE");
     g_nppins = 0; g_nprobe = 0;
     if (pspec) {
         char *copy = strdup(pspec), *save = NULL;
@@ -71,9 +71,9 @@ HIDDEN void rematch_pin_init(int rank) {
         }
         free(copy);
     }
-    g_send_delay_ms = parse_rank_ms(getenv("REMATCH_SEND_DELAY_MS"), rank);
-    g_recv_delay_ms = parse_rank_ms(getenv("REMATCH_RECV_DELAY_MS"), rank);
-    const char *at = getenv("REMATCH_DELAY_AT");
+    g_send_delay_ms = parse_rank_ms(getenv("STRETTO_SEND_DELAY_MS"), rank);
+    g_recv_delay_ms = parse_rank_ms(getenv("STRETTO_RECV_DELAY_MS"), rank);
+    const char *at = getenv("STRETTO_DELAY_AT");
     if (at) {
         char *copy = strdup(at), *save = NULL;
         for (char *tok = strtok_r(copy, ",", &save); tok; tok = strtok_r(NULL, ",", &save)) {
@@ -102,7 +102,7 @@ static int to_comm_rank(MPI_Comm comm, int world_rank) {
     return r;
 }
 
-HIDDEN int rematch_pin_recv(int *src, int *tag, MPI_Comm comm, int *widx) {
+HIDDEN int stretto_pin_recv(int *src, int *tag, MPI_Comm comm, int *widx) {
     *widx = -1;
     if (*src != MPI_ANY_SOURCE && *tag != MPI_ANY_TAG) return 0;
     pthread_mutex_lock(&g_pmu);
@@ -114,13 +114,13 @@ HIDDEN int rematch_pin_recv(int *src, int *tag, MPI_Comm comm, int *widx) {
             if (*src == MPI_ANY_SOURCE) {
                 int cr = to_comm_rank(comm, g_pins[i].src);
                 if (cr == MPI_UNDEFINED) {
-                    fprintf(stderr, "[rematch-pin] rank %d: pin widx=%d names world rank %d, not a member of the communicator: not applied\n", g_rank, idx, g_pins[i].src);
+                    fprintf(stderr, "[stretto-pin] rank %d: pin widx=%d names world rank %d, not a member of the communicator: not applied\n", g_rank, idx, g_pins[i].src);
                     return 0;
                 }
                 *src = cr;
             }
             if (*tag == MPI_ANY_TAG && g_pins[i].tag != MPI_ANY_TAG) *tag = g_pins[i].tag;
-            fprintf(stderr, "[rematch-pin] rank %d: applied widx=%d src=%d (world %d) tag=%d\n", g_rank, idx, *src, g_pins[i].src, *tag);
+            fprintf(stderr, "[stretto-pin] rank %d: applied widx=%d src=%d (world %d) tag=%d\n", g_rank, idx, *src, g_pins[i].src, *tag);
             return 1;
         }
     }
@@ -129,14 +129,14 @@ HIDDEN int rematch_pin_recv(int *src, int *tag, MPI_Comm comm, int *widx) {
 
 /* A pinned receive completed: it can only have matched the pinned source, so this line is
    the evidence that the forced match happened ("applied" only says the argument was set). */
-HIDDEN void rematch_pin_matched(int widx, int comm_src) {
-    fprintf(stderr, "[rematch-pin] rank %d: matched widx=%d src=%d\n", g_rank, widx, comm_src);
+HIDDEN void stretto_pin_matched(int widx, int comm_src) {
+    fprintf(stderr, "[stretto-pin] rank %d: matched widx=%d src=%d\n", g_rank, widx, comm_src);
 }
 
 static int g_pinned_probe = -1;   /* the pidx whose pin was applied by the last peek */
 
-HIDDEN int rematch_pin_probe(int *src, int *tag, MPI_Comm comm, int *pidx) {
-    /* Peek only: the ordinal advances in rematch_pin_probe_commit(), called when the probe
+HIDDEN int stretto_pin_probe(int *src, int *tag, MPI_Comm comm, int *pidx) {
+    /* Peek only: the ordinal advances in stretto_pin_probe_commit(), called when the probe
        found a message. Failed polls (Iprobe/Improbe with flag 0) do not count, so the
        ordinal is the same in a traced run and in a pinned replay however long each busy
        loop spins. */
@@ -151,7 +151,7 @@ HIDDEN int rematch_pin_probe(int *src, int *tag, MPI_Comm comm, int *pidx) {
             if (*src == MPI_ANY_SOURCE) {
                 int cr = to_comm_rank(comm, g_ppins[i].src);
                 if (cr == MPI_UNDEFINED) {
-                    fprintf(stderr, "[rematch-pin] rank %d: probe pin pidx=%d names world rank %d, not a member of the communicator: not applied\n", g_rank, idx, g_ppins[i].src);
+                    fprintf(stderr, "[stretto-pin] rank %d: probe pin pidx=%d names world rank %d, not a member of the communicator: not applied\n", g_rank, idx, g_ppins[i].src);
                     return 0;
                 }
                 *src = cr;
@@ -164,36 +164,36 @@ HIDDEN int rematch_pin_probe(int *src, int *tag, MPI_Comm comm, int *pidx) {
     return 0;
 }
 
-HIDDEN void rematch_pin_probe_commit(int pidx, int src, int tag) {
+HIDDEN void stretto_pin_probe_commit(int pidx, int src, int tag) {
     if (pidx < 0) return;
     pthread_mutex_lock(&g_pmu);
     if (g_nprobe == pidx) {
         g_nprobe++;
         if (g_pinned_probe == pidx) {
-            fprintf(stderr, "[rematch-pin] rank %d: applied probe pidx=%d src=%d tag=%d\n", g_rank, pidx, src, tag);
+            fprintf(stderr, "[stretto-pin] rank %d: applied probe pidx=%d src=%d tag=%d\n", g_rank, pidx, src, tag);
             g_pinned_probe = -1;
         }
     }
     pthread_mutex_unlock(&g_pmu);
 }
 
-HIDDEN void rematch_pin_finalize(void) {
+HIDDEN void stretto_pin_finalize(void) {
     for (int i = 0; i < g_npins; i++)
         if (g_pins[i].idx >= g_nwild)
-            fprintf(stderr, "[rematch-pin] rank %d: pin widx=%d unused: the run posted %d wildcard receive(s)\n", g_rank, g_pins[i].idx, g_nwild);
+            fprintf(stderr, "[stretto-pin] rank %d: pin widx=%d unused: the run posted %d wildcard receive(s)\n", g_rank, g_pins[i].idx, g_nwild);
     for (int i = 0; i < g_nppins; i++)
         if (g_ppins[i].idx >= g_nprobe)
-            fprintf(stderr, "[rematch-pin] rank %d: probe pin pidx=%d unused: %d wildcard probe(s) found a message\n", g_rank, g_ppins[i].idx, g_nprobe);
+            fprintf(stderr, "[stretto-pin] rank %d: probe pin pidx=%d unused: %d wildcard probe(s) found a message\n", g_rank, g_ppins[i].idx, g_nprobe);
 }
 
 static void delay_at(int is_send, int k) {
     for (int i = 0; i < g_nat; i++) if (g_at[i].is_send == is_send && g_at[i].k == k) msleep(g_at[i].ms);
 }
-HIDDEN void rematch_pin_before_send(void) {
+HIDDEN void stretto_pin_before_send(void) {
     pthread_mutex_lock(&g_pmu); int k = g_nsend++; pthread_mutex_unlock(&g_pmu);
     msleep(g_send_delay_ms); delay_at(1, k);
 }
-HIDDEN void rematch_pin_before_recv(void) {
+HIDDEN void stretto_pin_before_recv(void) {
     pthread_mutex_lock(&g_pmu); int k = g_nrecv++; pthread_mutex_unlock(&g_pmu);
     msleep(g_recv_delay_ms); delay_at(0, k);
 }

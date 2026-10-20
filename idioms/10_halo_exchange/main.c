@@ -1,5 +1,5 @@
 /* 10: negative control. 1-D ring halo exchange with nonblocking p2p and an
-   Allreduce per iteration. No wildcards (w = 0): Rematch must report nothing. */
+   Allreduce per iteration. No wildcards (w = 0): Stretto must report nothing. */
 #include "../common.h"
 #define TAG_L 41
 #define TAG_R 42

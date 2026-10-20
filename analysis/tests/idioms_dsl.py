@@ -1,6 +1,6 @@
 """DSL twins of the ten idioms. Metadata branches encode the L2 skeleton; idioms 01, 02
 and 06 are the ones whose communication pattern depends on metadata."""
-from rematch.dsl import ANY, Coll, If, Irecv, Isend, Recv, Send, Wait, Waitany
+from stretto.dsl import ANY, Coll, If, Irecv, Isend, Recv, Send, Wait, Waitany
 
 TAG = 7
 

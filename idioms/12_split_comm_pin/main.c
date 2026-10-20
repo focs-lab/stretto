@@ -3,7 +3,7 @@
    (world rank 1) receives from MPI_ANY_SOURCE twice. World rank 3 is delayed, so the
    observed run is r0 <- world 2, r1 <- world 3. The alternative pins r0 to world rank 3,
    which the replay library must translate into communicator rank 2.
-   Expected: L1 reports the alternative as benign (1f) with REMATCH_PIN=1:0:3; the replay
+   Expected: L1 reports the alternative as benign (1f) with STRETTO_PIN=1:0:3; the replay
    applies the pin and finishes. */
 #include "../common.h"
 #define TAG 12

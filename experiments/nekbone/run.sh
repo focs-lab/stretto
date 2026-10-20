@@ -26,11 +26,11 @@ step_trace() {
     [ -x "$EXE" ] || { echo "$EXE missing: $0 build" >&2; return 1; }
     need_lib "$TRACER" tracer
     rm -rf "$D/trace8"; mkdir -p "$D/trace8"
-    (cd "$CASE" && TIMEOUT=600 mpi_run 8 "REMATCH_TRACE_DIR=$R/$D/trace8" "LD_PRELOAD=$TRACER" "OMP_NUM_THREADS=1" -- ./nekbone data > "$R/$D/run8.log" 2>&1)
+    (cd "$CASE" && TIMEOUT=600 mpi_run 8 "STRETTO_TRACE_DIR=$R/$D/trace8" "LD_PRELOAD=$TRACER" "OMP_NUM_THREADS=1" -- ./nekbone data > "$R/$D/run8.log" 2>&1)
     echo "traced run: $(classify_rc $? "$D/run8.log"), $(cat "$D"/trace8/rank-*.jsonl | wc -l) records"
 }
 step_analyse() {
-    /usr/bin/time -f 'analysis %e s, %M KB' python3 -m rematch analyze --no-sp --verbose "$D/trace8" > "$D/report8.txt" 2> "$D/analyze8.err"
+    /usr/bin/time -f 'analysis %e s, %M KB' python3 -m stretto analyze --no-sp --verbose "$D/trace8" > "$D/report8.txt" 2> "$D/analyze8.err"
     step_summary
 }
 step_summary() {

@@ -1,4 +1,4 @@
-# Rematch MVP: what it does, how to run it, what it does not do
+# Stretto MVP: what it does, how to run it, what it does not do
 
 ## One-line pipeline
 
@@ -12,20 +12,20 @@ matching order + acyclicity, polynomial)  →  classify the consequence  →  co
 
 ```bash
 # trace (system Open MPI or MPICH build; MPICH binaries are launched with mpirun.openmpi)
-mpirun.openmpi -np 4 -x REMATCH_TRACE_DIR=$PWD/tr -x LD_PRELOAD=$PWD/tracer/bin/openmpi/librematch-trace.so ./app args
+mpirun.openmpi -np 4 -x STRETTO_TRACE_DIR=$PWD/tr -x LD_PRELOAD=$PWD/tracer/bin/openmpi/libstretto-trace.so ./app args
 
 # analyse (PYTHONPATH=analysis)
-python3 -m rematch analyze tr                 # findings with B-intervals and a REMATCH_PIN per finding
-python3 -m rematch analyze --json tr          # machine-readable
-python3 -m rematch analyze --no-sp tr         # skip the single-path explorer (large traces)
-python3 -m rematch analyze --changes 2 tr     # also two-change alternatives
+python3 -m stretto analyze tr                 # findings with B-intervals and a STRETTO_PIN per finding
+python3 -m stretto analyze --json tr          # machine-readable
+python3 -m stretto analyze --no-sp tr         # skip the single-path explorer (large traces)
+python3 -m stretto analyze --changes 2 tr     # also two-change alternatives
 # exit status: 0 no error class, 1 an error class was found, 2 the trace could not be loaded, 3 internal error
-python3 -m rematch show tr                    # events, communicators, observed matching, probes
-python3 -m rematch candidates tr              # every candidate alternative with its verdict at B=0 / inf
-python3 -m rematch oracle tr                  # exhaustive exploration of the trace as a straight-line program
+python3 -m stretto show tr                    # events, communicators, observed matching, probes
+python3 -m stretto candidates tr              # every candidate alternative with its verdict at B=0 / inf
+python3 -m stretto oracle tr                  # exhaustive exploration of the trace as a straight-line program
 
 # confirm (replays each error finding with its pin under the replay library)
-python3 -m rematch confirm tr ./app args --np 4 --timeout 20
+python3 -m stretto confirm tr ./app args --np 4 --timeout 20
 
 # corpus runs
 python3 experiments/mbi/run_mbi.py --corpus mbi --select 'MessageRace_' --confirm    # MBI
@@ -63,8 +63,8 @@ assume the recorded call sequence does not change and are unsound on metadata-de
 or only some, and a consequence the straight-line program has without the change (a hang of the
 run, a send nobody receives) is not attributed to the alternative. "L2" findings come from a
 twin program given to `analyze(twin=...)` (`experiments/mbi/twins.py`, `analysis/tests/
-idioms_dsl.py`). Every receive and probe alternative carries a `REMATCH_PIN` or
-`REMATCH_PIN_PROBE`; an L1+SP finding's pin fixes every wildcard receive of one witness
+idioms_dsl.py`). Every receive and probe alternative carries a `STRETTO_PIN` or
+`STRETTO_PIN_PROBE`; an L1+SP finding's pin fixes every wildcard receive of one witness
 execution; completion-order alternatives have no replay mechanism. `--changes 2` also lists
 alternatives that re-match two wildcard receives on different ranks.
 
@@ -73,7 +73,7 @@ library prints `matched widx=W` when a pinned receive completes; `applied` only 
 argument was rewritten, and forcing an impossible match hangs as well), the run reaches the
 predicted outcome (a hang for 1c/1d, the specific MPI error for 1a), and a control rerun that
 pins the same receives to their observed senders finishes. A finding whose control does not
-finish is inconclusive. `rematch confirm` prints all three.
+finish is inconclusive. `stretto confirm` prints all three.
 
 ## Coverage
 
@@ -99,7 +99,7 @@ use the MPICH build, as the NPB experiment does) and memory accesses (family ③
 
 ## Limits
 
-- The explorer (L1+SP consequences) is exhaustive and exponential: `rematch analyze` skips it
+- The explorer (L1+SP consequences) is exhaustive and exponential: `stretto analyze` skips it
   above `--sp-max-events` (default 2000) and stops a forced exploration at `--max-states`
   (default 300000); both are noted in the report. The corpus harness uses 600 and 30000.
 - Every alternative is profiled at the two ends of the B range and bisected between them,

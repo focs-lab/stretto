@@ -34,10 +34,10 @@ import time
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, os.path.join(ROOT, "analysis"))
-from rematch import dsl, explore, trace  # noqa: E402
-from rematch.feasible import check  # noqa: E402
-from rematch.matching import candidates_full  # noqa: E402
-from rematch.deadlock import contained_deadlock  # noqa: E402
+from stretto import dsl, explore, trace  # noqa: E402
+from stretto.feasible import check  # noqa: E402
+from stretto.matching import candidates_full  # noqa: E402
+from stretto.deadlock import contained_deadlock  # noqa: E402
 from provenance import code_commit  # noqa: E402
 
 

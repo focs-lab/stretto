@@ -4,9 +4,9 @@ CFLAGS ?= -O1 -g -Wall -Wextra
 CFLAGS += -fPIC   # a shared object whatever CFLAGS the environment sets
 OUT := bin/$(MPI)
 
-all: $(OUT)/librematch-trace.so
+all: $(OUT)/libstretto-trace.so
 
-$(OUT)/librematch-trace.so: mpitrace.c ../replay/pin.c ../replay/pin.h
+$(OUT)/libstretto-trace.so: mpitrace.c ../replay/pin.c ../replay/pin.h
 	@mkdir -p $(OUT)
 	$(MPICC) $(CFLAGS) -shared -o $@ mpitrace.c ../replay/pin.c -lpthread
 

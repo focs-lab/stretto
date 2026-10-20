@@ -11,8 +11,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import random
 import unittest
 
-from rematch.dsl import ANY, Coll, If, Irecv, Isend, Recv, Send, Wait, Waitany
-from rematch.explore import ExploreError, StateCapReached, explore
+from stretto.dsl import ANY, Coll, If, Irecv, Isend, Recv, Send, Wait, Waitany
+from stretto.explore import ExploreError, StateCapReached, explore
 
 from idioms_dsl import ALL
 
@@ -210,7 +210,7 @@ class T14_Leaks(unittest.TestCase):
 
 # ---------------------------------------------------------------- T10 differential
 
-from rematch.dsl import random_program  # noqa: E402
+from stretto.dsl import random_program  # noqa: E402
 
 
 class T10_Differential(unittest.TestCase):

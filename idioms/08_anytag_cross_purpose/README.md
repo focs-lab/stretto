@@ -10,6 +10,6 @@ Expected reports:
   different tag than the observed one: another logical channel).
 - L1+SP: **1c orphan** (DATA from rank 1) and **1d deadlock** (`Recv(2, TAG_CTRL)` starves).
 
-Replay: `REMATCH_PIN=0:0:2`; hangs under `timeout`.
+Replay: `STRETTO_PIN=0:0:2`; hangs under `timeout`.
 
 Gate role: criteria 1 and 2; the shape of the ddcMD bug.

@@ -13,7 +13,7 @@ can be fetched alone (`corpora`, `apps`, `npb`, `must`). Everything it writes is
 
 `experiments/run_remaining.sh [step ...]` runs, inside the container, `build tests mbi mbb e2 e6
 amg e4 e3`: the tracer and replay libraries for both MPI implementations and the idioms; the
-unit tests with `REMATCH_REQUIRE_TRACES=1` after tracing the idioms; the two corpora with
+unit tests with `STRETTO_REQUIRE_TRACES=1` after tracing the idioms; the two corpora with
 replays (`experiments/mbi/run_mbi.py --confirm`, one row per finding in `replays.csv`); the
 eager-threshold measurement and the buffering ablation with its forced-rendezvous replays
 (`experiments/b_impl.py`, `experiments/e2_buffering.py --replay`); the checker-versus-explorer
@@ -30,14 +30,14 @@ Variables the scripts read (all optional):
 | `JOBS` | `run_remaining.sh` | parallel programs (6) |
 | `TIMEOUT` | `run_remaining.sh`; `scripts/env.sh` | seconds per run, replay and MUST run (60 in the corpus harness; 15 for a bare `mpi_run`) |
 | `MPI` | `scripts/*.sh`, Makefiles | `openmpi` or `mpich`: which wrapper, library and idiom binaries |
-| `REMATCH_TRACE_DIR` | tracer | where the ranks write `rank-N.jsonl` (`./traces`) |
-| `REMATCH_PIN`, `REMATCH_PIN_PROBE` | replay library | `rank:ordinal:world-src[:tag],...` for wildcard receives and probes (`replay/pin.h`) |
-| `REMATCH_SEND_DELAY_MS`, `REMATCH_RECV_DELAY_MS`, `REMATCH_DELAY_AT` | replay library | sleeps before sends/receives, per rank or at the k-th one (`replay/pin.h`) |
-| `REMATCH_REQUIRE_TRACES` | tests | `1`: idiom tests fail instead of skipping without traces (Open MPI idioms fall back to `analysis/tests/golden`) |
-| `REMATCH_COMMIT` | experiment scripts | the code commit written into every CSV row; `run_remaining.sh` reads it from `COMMIT`, else git is asked (`experiments/provenance.py`) |
+| `STRETTO_TRACE_DIR` | tracer | where the ranks write `rank-N.jsonl` (`./traces`) |
+| `STRETTO_PIN`, `STRETTO_PIN_PROBE` | replay library | `rank:ordinal:world-src[:tag],...` for wildcard receives and probes (`replay/pin.h`) |
+| `STRETTO_SEND_DELAY_MS`, `STRETTO_RECV_DELAY_MS`, `STRETTO_DELAY_AT` | replay library | sleeps before sends/receives, per rank or at the k-th one (`replay/pin.h`) |
+| `STRETTO_REQUIRE_TRACES` | tests | `1`: idiom tests fail instead of skipping without traces (Open MPI idioms fall back to `analysis/tests/golden`) |
+| `STRETTO_COMMIT` | experiment scripts | the code commit written into every CSV row; `run_remaining.sh` reads it from `COMMIT`, else git is asked (`experiments/provenance.py`) |
 | `MUST_IMAGE`, `MUST_CPUS`, `MUST_KEEP` | `scripts/must_run.sh`, `experiments/amg/must.sh` | image (`mbb-must:latest`), cpuset, keep the work directory |
 | `MUST_ARGS` | `experiments/amg/must.sh` | MUST layout (default `--must:distributed`; empty for the centralised one) |
-| `REMATCH_MACHINE_LOCK`, `REMATCH_CPUS` | `scripts/heavy.sh` | the shared-host lock file and the processors a heavy job may use |
+| `STRETTO_MACHINE_LOCK`, `STRETTO_CPUS` | `scripts/heavy.sh` | the shared-host lock file and the processors a heavy job may use |
 | `IMAGE`, `CPUS`, `MEMORY`, `NAME`, `MACHINE` | `experiments/container/run.sh` | container image, cpuset (`0-11,40-51`), memory (`24g`), name, the host name the summaries print (the host's) |
 | `BENCHMARKS`, `CLASSES`, `CSV` | `experiments/e4_overhead.sh` | which NPB rows to measure and which table to write |
 | `DOCKER_BUILD_ARGS` | `third_party/fetch.sh must` | e.g. `--cgroup-parent=docker.slice` on the development host |
@@ -58,7 +58,7 @@ over ssh on a freshly booted machine is gone before the next ssh command.
 
 ```bash
 # on the development host: copy the repository and the inputs to $DIR on the second machine
-# (a relative DIR, for example rematch, is taken from the remote home directory)
+# (a relative DIR, for example stretto, is taken from the remote home directory)
 git ls-files > /tmp/files.txt
 rsync -a --files-from=/tmp/files.txt . $REMOTE:$DIR/
 git rev-parse --short HEAD | ssh $REMOTE "cat > $DIR/COMMIT"   # the commit every CSV row records
@@ -69,7 +69,7 @@ rsync -a --relative experiments/results/e4/e4.csv experiments/results/e4/trace.*
 
 # on the second machine: build, test, then every remaining step, detached
 cd $DIR
-IMAGE=rematch-exp:24.04 experiments/container/run.sh bash -c \
+IMAGE=stretto-exp:24.04 experiments/container/run.sh bash -c \
   "experiments/run_remaining.sh > experiments/results/run-remaining.log 2>&1"
 
 # MUST baseline, on the second machine's host (its own container, MUST 1.9.2 + MPICH), the

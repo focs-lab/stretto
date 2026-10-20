@@ -1,4 +1,4 @@
-"""Rematch: sound prediction of alternative message matchings from one MPI trace.
+"""Stretto: sound prediction of alternative message matchings from one MPI trace.
 
 WP0 prototype. Stdlib only. Modules:
   trace     event model, per-rank JSONL loading, observed matching reconstruction

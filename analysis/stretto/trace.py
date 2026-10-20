@@ -311,7 +311,7 @@ class Trace:
         return [rec for recs in self.ranks.values() for rec in recs if rec.op == "blocked"]
 
     def fast_indexes(self):
-        """Threshold-independent indexes for the fast checks (rematch.fast), built once."""
+        """Threshold-independent indexes for the fast checks (stretto.fast), built once."""
         if getattr(self, "_fast", None) is None:
             from .fast import Indexes
             self._fast = Indexes(self)

@@ -1,11 +1,11 @@
-# Shared environment for the Rematch scripts. System MPI only.
+# Shared environment for the Stretto scripts. System MPI only.
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MPI="${MPI:-openmpi}"
 # Ubuntu's MPICH is PMIx-based and its hydra starts singletons; Open MPI's mpirun launches
 # MPICH binaries correctly, so it is the launcher for both.
 MPIRUN="/usr/bin/mpirun.openmpi"
-TRACER="$ROOT/tracer/bin/$MPI/librematch-trace.so"
-PINLIB="$ROOT/replay/bin/$MPI/librematch-pin.so"
+TRACER="$ROOT/tracer/bin/$MPI/libstretto-trace.so"
+PINLIB="$ROOT/replay/bin/$MPI/libstretto-pin.so"
 export PYTHONPATH="$ROOT/analysis${PYTHONPATH:+:$PYTHONPATH}"
 export OMPI_MCA_rmaps_base_oversubscribe=1
 TIMEOUT="${TIMEOUT:-15}"
@@ -28,7 +28,7 @@ mpi_run() {
 # 124 is timeout's own status. 137 (SIGKILL) after TIMEOUT seconds have elapsed is timeout's
 # own -k kill of a launcher that ignored SIGTERM (Open MPI's does when its ranks are
 # deadlocked), so it is a hang too; before that it is a memory cap or a kill, not a hang.
-# The same rule as rematch.confirm.classify_rc. Only the launcher's stderr is read, and only
+# The same rule as stretto.confirm.classify_rc. Only the launcher's stderr is read, and only
 # for MPI error names.
 classify_rc() {
     local rc="$1" log="${2:-/dev/null}"

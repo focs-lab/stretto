@@ -2,12 +2,12 @@
 """Scoring of a corpus run (MBI or MPI-BugBench harness CSV), the one place that defines
 what a verdict is. experiments/tables.py imports it; on its own it prints the summary.
 
-A program's Rematch verdict is ERROR iff a finding of an error class is present:
+A program's Stretto verdict is ERROR iff a finding of an error class is present:
   error classes   : 1a 1c 1d 2-buffering 2-collective 2-blocked
   warning classes : 1b 1f probe-alt waitany-order   (reported, never counted as errors)
 Findings are qualified by the level that established them ("levels" column: observed:2-blocked,
 L1:1f, L1+SP:1d, ...), which separates what any observational tool sees in the run from
-what Rematch predicts about other runs:
+what Stretto predicts about other runs:
   observed  : observed:1c, observed:2-blocked, observed:2-collective (the run itself)
   predicted : L1:1a (a mismatch certain from the trace), L1+SP:1a/1c/1d (consequences
               under the single-path assumption), observed:2-buffering (the finished run
@@ -91,7 +91,7 @@ def must_verdict(r: dict) -> str:
 
 
 def must_verdict_hangs(r: dict) -> str:
-    """MUST with a hang the harness observed credited as an error, as Rematch's run that the
+    """MUST with a hang the harness observed credited as an error, as Stretto's run that the
     harness killed is (a blocked rank, 2-blocked)."""
     return "ERROR" if must_kind(r) in ("ERROR", "TIMEOUT") else "OK"
 
@@ -133,7 +133,7 @@ def main(path: str, md: bool = False) -> int:
         kinds = collections.Counter(must_kind(r) for r in rs)
         print(f"MUST      TP={c['tp']} FP={c['fp']} FN={c['fn']} TN={c['tn']} F1={c['f1']:.2f}  verdict kinds {dict(kinds)}")
         c = confusion(rs, must_verdict_hangs)
-        print(f"MUST+hang TP={c['tp']} FP={c['fp']} FN={c['fn']} TN={c['tn']} F1={c['f1']:.2f}  (a timeout counts as an error, as for Rematch)")
+        print(f"MUST+hang TP={c['tp']} FP={c['fp']} FN={c['fn']} TN={c['tn']} F1={c['f1']:.2f}  (a timeout counts as an error, as for Stretto)")
     failed = [r["name"] for r in rs if analysis_failed(r)]
     if failed:
         print(f"analysis failed (counted as no error): {len(failed)}: {', '.join(failed)}")
