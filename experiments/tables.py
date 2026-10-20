@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Compose docs/results.md from the experiment CSVs. Re-run after any experiment."""
+"""Compose docs/results.md from the experiment CSVs, and the paper's numbers
+(paper/generated/numbers.tex, one macro per number, and paper/generated/rq2.tex, the body of
+the effectiveness table). Re-run after any experiment."""
 from __future__ import annotations
 import collections
 import csv
@@ -13,20 +15,33 @@ sys.path.insert(0, os.path.join(ROOT, "experiments", "mbi"))
 import score  # noqa: E402  (the one definition of verdicts)
 
 rows = score.rows
+NUM: dict = {}       # macro name -> text, written to paper/generated/numbers.tex
+CONF: dict = {}      # (corpus, row label) -> confusion counts, for paper/generated/rq2.tex
+
+
+def num(name: str, value) -> None:
+    NUM[name] = value if isinstance(value, str) else (f"{value:.2f}" if isinstance(value, float) else f"{value:,}".replace(",", "\\,"))
+
+
+def commits(rs) -> str:
+    """The code commits a table's rows were produced with, most rows first."""
+    c = collections.Counter(r.get("commit") or "unrecorded" for r in rs)
+    return ", ".join(f"{k} ({v})" for k, v in c.most_common())
 
 
 def conf_row(label, c):
     return f"| {label} | {c['tp']} | {c['fp']} | {c['fn']} | {c['tn']} | {c['precision']:.2f} | {c['recall']:.2f} | {c['f1']:.2f} |"
 
 
-def e1(name, path):
+def e1(name, path, key=None):
     rs = rows(path)
     if not rs:
         return f"### {name}\n\n_no results_\n"
+    commit_note = f"Rows by code commit: {commits(rs)}."
     ce = [r for r in rs if r.get("build") == "CE"]
     rs = score.compiled(rs)
     skipped = f" Not compiled with Open MPI 4.1.6 and left out: {len(ce)} ({', '.join(sorted(r['name'] for r in ce))})." if ce else ""
-    out = [f"### {name}", "", f"Programs: {len(rs)}.{skipped}", "",
+    out = [f"### {name}", "", f"Programs: {len(rs)}.{skipped} {commit_note}", "",
            "A program's verdict is ERROR iff a finding of class 1a/1c/1d/2-buffering/2-collective/2-blocked is",
            "present; 1b, 1f, probe-alt and waitany-order are warnings and never count. The *observed* row uses",
            "only what the run itself showed (a blocked or spinning rank, a collective mismatch, a message never",
@@ -38,6 +53,16 @@ def e1(name, path):
            conf_row("Stretto (union)", score.confusion(rs, score.verdict)),
            conf_row("Stretto, observed in the run", score.confusion(rs, score.observed_verdict)),
            conf_row("Stretto, predicted", score.confusion(rs, score.predicted_verdict))]
+    if key:
+        num(f"n{key}progs", len(rs))
+        num(f"n{key}correct", sum(1 for r in rs if r["expect"] == "OK"))
+        for label, judge in (("union", score.verdict), ("observed", score.observed_verdict), ("predicted", score.predicted_verdict),
+                             ("MUST", score.must_verdict), ("MUSTsym", score.must_verdict_hangs)):
+            if label.startswith("MUST") and not any(r.get("must") for r in rs):
+                continue
+            c = CONF[(key, label)] = score.confusion(rs, judge)
+            num(f"{key}fone{label}", c["f1"])
+        num(f"n{key}fp", CONF[(key, "union")]["fp"])
     if any(r.get("must") for r in rs):
         kinds = collections.Counter(score.must_kind(r) for r in rs)
         out.append(conf_row("MUST 1.9.2 (same source, its own run under MPICH)", score.confusion(rs, score.must_verdict)))
@@ -53,10 +78,16 @@ def e1(name, path):
         inv = [r for r in rs if r["expect"] == "ERROR" and score.verdict(r) == "ERROR" and score.must_verdict(r) != "ERROR"]
         inv_pred = [r for r in inv if score.predicted_verdict(r) == "ERROR" and score.observed_verdict(r) != "ERROR"]
         conf = [r for r in inv if r.get("confirmed") and int(r["confirmed"]) > 0]
+        if key:
+            num(f"n{key}CleanPred", len(inv_pred))
+            num(f"n{key}CleanTemplates", len({"_".join(r["name"].split("_")[:2]) for r in inv_pred}))
+            num(f"n{key}CleanConfirmed", sum(1 for r in inv_pred if r.get("confirmed") and int(r["confirmed"]) > 0))
         out += ["", f"Labelled errors Stretto reports and MUST does not on the same program: **{len(inv)}**, of which",
                 f"predicted on a run that showed nothing itself: **{len(inv_pred)}**, replay-confirmed (a pinned rerun with",
                 f"the pin applied hangs or raises the predicted MPI error): **{len(conf)}**."]
     race = [r for r in rs if r.get("detail") == "MessageRace"]
+    if key:
+        num(f"n{key}race", len(race))
     if race:
         clean = [r for r in race if r["run"] == "FINISHED"]
         flag = [r for r in race if score.flagged(r)]
@@ -100,6 +131,13 @@ def e1(name, path):
                 if matched_col else
                 "recorded before match logging and control reruns: 'confirmed' means the rerun reported its pin applied and "
                 "reached the predicted outcome, which an impossible forced match also does")
+        if key:
+            judged = [r for r in rp if r["verdict"] != "n/a"]
+            num(f"n{key}ReplayFindings", len(judged))
+            num(f"n{key}ReplayRuns", len(runs))
+            num(f"n{key}ReplayPrograms", len(progs))
+            for v, m in (("confirmed", "Confirmed"), ("inconclusive", "Inconclusive"), ("not-confirmed", "NotConfirmed")):
+                num(f"n{key}Replay{m}", sum(1 for r in judged if r["verdict"] == v))
         out += ["", f"Replays: {len(rp)} rows (one per finding and class after removing duplicate pins), {len(runs)} distinct "
                 f"pinned runs, {len(progs)} programs ({rule}):", "",
                 "| class | confirmed | inconclusive | not confirmed | n/a |", "|---|---|---|---|---|"]
@@ -126,7 +164,13 @@ def e2():
     alt = [r for r in rs if r["what"] != "observed"]
     dep = [r for r in alt if r["B0"] != r["Binf"]]
     nonmono = [r for r in rs if r["profile"].startswith("B in ")]
-    out = ["Every alternative and every observed run is checked at every breakpoint (0, each message size, inf);",
+    num("nEtwoTraces", len(obs))
+    num("nEtwoObsBuf", sum(1 for r in obs if r["B0"] == "False"))
+    num("nEtwoAlts", len(alt))
+    num("nEtwoBdep", len(dep))
+    num("nEtwoNonmono", len(nonmono))
+    out = [f"Rows by code commit: {commits(rs)}.", "",
+           "Every alternative and every observed run is checked at every breakpoint (0, each message size, inf);",
            f"profiles that are not monotone in B: {len(nonmono)}.", "",
            "| traces | observed runs infeasible at B=0 (deadlock on a rendezvous implementation) | feasible alternatives | feasible at B=0 | at B=4096 | at B=inf | B-dependent |", "|---|---|---|---|---|---|---|",
            f"| {len(obs)} | {sum(1 for r in obs if r['B0'] == 'False')} | {len(alt)} | {sum(1 for r in alt if r['B0'] == 'True')} | {sum(1 for r in alt if r['B4096'] == 'True')} | {sum(1 for r in alt if r['Binf'] == 'True')} | {len(dep)} |"]
@@ -140,6 +184,14 @@ def e2():
                 "bytes inline on the MPI_Send and MPI_Isend paths whatever the shared-memory limit is:", "",
                 "| setting | path | mpirun arguments | largest eager payload (bytes) | smallest rendezvous payload |", "|---|---|---|---|---|"]
         out += [f"| {r['setting']} | {r.get('path', 'send')} | `{r['mpirun_args'] or '-'}` | {r['eager_max_bytes']} | {r['rendezvous_min_bytes']} |" for r in bi]
+        for r in bi:
+            path_ = r.get("path") or "send"
+            if r["setting"] == "openmpi-default" and path_ == "send":
+                num("BimplOMPI", int(r["eager_max_bytes"]))          # the default eager payload
+            if r["setting"] == "openmpi-forced-rendezvous" and path_ == "send":
+                num("BminOMPI", int(r["eager_max_bytes"]))           # the inline sends the forced limit leaves
+            if r["setting"] == "openmpi-tcp-64" and path_ == "send":
+                num("BtcpOMPI", int(r["eager_max_bytes"]))           # the TCP limit minus its header
     rp = rows(os.path.join(RES, "e2_replay.csv"))
     if rp:
         new = any(r["setting"] in ("below the bound", "at the bound") for r in rp)
@@ -150,6 +202,13 @@ def e2():
             ok = lambda rs: sum(1 for r in rs if r["verdict"] == "as predicted")
             unt = [r for r in below if r["verdict"] == "untestable"]
             bad = [r for r in rp if r["verdict"] == "not as predicted"]
+            num("nEtwoReplayPrograms", len(dflt))
+            num("nEtwoReplayDefaultOK", ok(dflt))
+            num("nEtwoReplayBelowOK", ok(below))
+            num("nEtwoReplayBelowTestable", len(below) - len(unt))
+            num("nEtwoReplayAtOK", ok(at))
+            num("nEtwoReplayAt", len(at))
+            num("nEtwoReplayBad", len(bad))
             out += ["", f"Replays of the {len(dflt)} programs whose observed run finished and is realisable only from a threshold on",
                     "(`e2_buffering.py --replay`): with the default limits the run must finish again; on the TCP transport, whose",
                     "every send path buffers the eager limit minus its header, it must hang with the threshold one byte below the",
@@ -170,7 +229,7 @@ def e2():
     return "\n".join(out) + "\n"
 
 
-def stress(name, path):
+def stress(name, path, key=None):
     """The stress-testing baseline (experiments/stress_baseline.py) against Stretto's one run."""
     st = rows(os.path.join(os.path.dirname(path), "stress.csv"))
     if not st:
@@ -187,6 +246,15 @@ def stress(name, path):
     fp = [r for r in ok if r["first_failure"]]
     firsts = sorted(int(r["first_failure"]) for r in found)
     med = firsts[len(firsts) // 2] if firsts else "-"
+    if key:
+        num(f"n{key}StressRuns", runs)
+        num(f"n{key}StressErr", len(err))
+        num(f"n{key}StressFound", len(found))
+        num(f"n{key}StressLater", len(later))
+        num(f"n{key}StressMedian", med if isinstance(med, str) else int(med))
+        num(f"n{key}StressPred", len(pred))
+        num(f"n{key}StressPredMissed", len(pred_missed))
+        num(f"n{key}StressFP", len(fp))
     return "\n".join([
         f"### Stress-testing baseline: {name}", "",
         f"Up to {runs} runs per program with random send and receive delays per rank, stopping at the first run that",
@@ -214,6 +282,118 @@ def hypre():
     return "\n".join(out)
 
 
+def hypre_campaign():
+    """How often one trace exposes HYPRE's race, and how often stress testing hits it
+    (experiments/hypre/campaign.sh: predict.csv and stress.csv)."""
+    d = os.path.join(RES, "hypre")
+    pr = rows(os.path.join(d, "predict.csv"))
+    st = rows(os.path.join(d, "stress.csv"))
+    if not pr and not st:
+        return "_no results_\n"
+    out = []
+    if pr:
+        out += [f"Traced runs of `ij -solver 8 -pout 0`; for each, every probe alternative of the request exchange (tag 222) whose",
+                "reported message is the other exchange's request (a different size), replayed with the pins of its whole horizon",
+                f"and with its control (`experiments/hypre/predict.py`). Rows by code commit: {commits(pr)}.", "",
+                "| ranks | traced runs | runs exposing the race | alternatives | replay hangs | replay finishes | required pins matched | controls finish | finished replays with the control's residual |",
+                "|---|---|---|---|---|---|---|---|---|"]
+        for np_ in sorted({r["np"] for r in pr}, key=int):
+            sel = [r for r in pr if r["np"] == np_]
+            runs = {r["run"] for r in sel}
+            bad = {r["run"] for r in sel if (r.get("replay") or "").startswith("traced run")}
+            exposed = {r["run"] for r in sel if r.get("alternatives") not in (None, "", "0")}
+            alts = [r for r in sel if r.get("pin")]
+            hang = [r for r in alts if r.get("replay") == "TIMEOUT"]
+            fin = [r for r in alts if r.get("replay") == "FINISHED"]
+            matched = [r for r in alts if r.get("matched") == "True"]
+            ctl = [r for r in alts if r.get("control") == "FINISHED"]
+            same = [r for r in fin if r.get("residual") and r.get("residual") == r.get("control_residual")]
+            res_known = [r for r in fin if r.get("residual") is not None and "residual" in r]
+            out.append(f"| {np_} | {len(runs) - len(bad)} (+{len(bad)} failed) | {len(exposed)} | {len(alts)} | {len(hang)} | {len(fin)} | "
+                       f"{len(matched)}/{len(alts)} | {len(ctl)}/{len(alts)} | {f'{len(same)}/{len(fin)}' if res_known else 'not recorded'} |")
+            k = f"Hypre{'Four' if np_ == '4' else 'Eight' if np_ == '8' else np_}"
+            num(f"n{k}Runs", len(runs) - len(bad))
+            num(f"n{k}Exposed", len(exposed))
+            num(f"n{k}Alts", len(alts))
+            num(f"n{k}Hang", len(hang))
+            num(f"n{k}Finish", len(fin))
+            num(f"n{k}Matched", len(matched))
+            num(f"n{k}Controls", len(ctl))
+            if res_known:
+                num(f"n{k}SameResidual", len(same))
+        sites = collections.Counter(r.get("site") for r in pr if r.get("pin") and r.get("site"))
+        if sites:
+            out += ["", "Changed probes by call site: " + ", ".join(f"`{s}` {n}" for s, n in sites.most_common()) + "."]
+    if st:
+        out += ["", "Untraced runs, each with a 60 s timeout: plain, and with random send and receive delays of 0 to 50 ms",
+                f"per rank from the replay library (no pin). Rows by code commit: {commits(st)}.", "",
+                "| ranks | setting | runs | finished | timed out | other |", "|---|---|---|---|---|---|"]
+        for np_ in sorted({r["np"] for r in st}, key=int):
+            for setting in ("plain", "delays"):
+                sel = [r for r in st if r["np"] == np_ and r["setting"] == setting]
+                if not sel:
+                    continue
+                f_ = sum(1 for r in sel if r["result"] == "FINISHED")
+                t_ = sum(1 for r in sel if r["result"] == "TIMEOUT")
+                out.append(f"| {np_} | {setting} | {len(sel)} | {f_} | {t_} | {len(sel) - f_ - t_} |")
+        num("nHypreStressRuns", len(st))
+        num("nHypreStressHang", sum(1 for r in st if r["result"] == "TIMEOUT"))
+    return "\n".join(out) + "\n"
+
+
+def amg_sample():
+    """A sample of AMG's alternatives replayed with horizon pins and controls (replay_sample.py)."""
+    rs = rows(os.path.join(RES, "amg", "replay_sample.csv"))
+    if not rs:
+        return ""
+    c = collections.Counter((r.get("replay"), r.get("control")) for r in rs)
+    matched = sum(1 for r in rs if r.get("matched") == "True")
+    num("nAMGsample", len(rs))
+    num("nAMGsampleFinish", sum(1 for r in rs if r.get("replay") == "FINISHED"))
+    num("nAMGsampleMatched", matched)
+    num("nAMGsampleControls", sum(1 for r in rs if r.get("control") == "FINISHED"))
+    return "\n".join(["", f"A random sample of {len(rs)} alternatives replayed with the pins of their horizon and a control",
+                       f"(`experiments/replay_sample.py`); required pins matched in {matched}. Rows by code commit: {commits(rs)}.", "",
+                       "| replay | control | alternatives |", "|---|---|---|"] +
+                      [f"| {k[0]} | {k[1]} | {v} |" for k, v in sorted(c.items(), key=str)]) + "\n"
+
+
+def write_paper_numbers():
+    """paper/generated/numbers.tex: one macro per number of this run (macros not computed here
+    keep their provisional values from STATIC); paper/generated/rq2.tex: the effectiveness table body."""
+    gen = os.path.join(ROOT, "paper", "generated")
+    os.makedirs(gen, exist_ok=True)
+    lines = ["% Written by experiments/tables.py from the CSV files under experiments/results/. Do not edit.", ""]
+    for k in sorted(NUM):
+        lines.append(f"\\newcommand{{\\{k}}}{{{NUM[k]}\\xspace}}")
+    lines += ["", "% Not produced by this run: provisional values, marked as such in the draft."]
+    for k, v in STATIC.items():
+        if k not in NUM:
+            lines.append(f"\\newcommand{{\\{k}}}{{\\prov{{{v}}}\\xspace}}")
+    open(os.path.join(gen, "numbers.tex"), "w").write("\n".join(lines) + "\n")
+    body = []
+    labels = (("union", "\\tool, observed or predicted"), ("observed", "\\tool, observed in the run"),
+              ("predicted", "\\tool, predicted"), ("MUST", "\\MUST, a timeout not counted"), ("MUSTsym", "\\MUST, a timeout counted as an error"))
+    for key, title in (("MBI", "MBI"), ("MBB", "\\MBB level~2")):
+        if not any((key, l) in CONF for l, _ in labels):
+            continue
+        body.append(f"\\multicolumn{{6}}{{@{{}}l}}{{\\emph{{{title}, \\n{key}progs programs}}}} \\\\")
+        for l, text in labels:
+            c = CONF.get((key, l))
+            if c:
+                body.append(f"{text} & {c['tp']} & {c['fp']} & {c['fn']} & {c['tn']} & {c['f1']:.2f} \\\\")
+        body.append("\\midrule")
+    if body and body[-1] == "\\midrule":
+        body.pop()
+    open(os.path.join(gen, "rq2.tex"), "w").write("% Written by experiments/tables.py. Do not edit.\n" + "\n".join(body) + "\n")
+    print("wrote", os.path.join(gen, "numbers.tex"), "and rq2.tex")
+
+
+# numbers the corpus rerun does not produce: the timing leg, Nekbone and the exposure study
+STATIC = {"TraceOverhead": "0.99--1.07", "nAMGalts": "3\\,263", "AMGtime": "13.2", "nNekAlts": "10\\,000", "nNekRejected": "8\\,759",
+          "NekRecords": "10.4", "NekMinutes": "63", "NekGB": "33", "nProxyWild": "4", "nProxyAnySource": "3", "nProxy": "14"}
+
+
 def e6():
     rs = rows(os.path.join(RES, "e6_checker_vs_explorer.csv"))
     if not rs:
@@ -236,6 +416,17 @@ def e6():
         traces = len({r["trace"] for r in sel})
         ev = max((int(r["events"]) for r in sel if r.get("events")), default=0)
         out.append(f"| {label} ({traces}) | {len(sel)} | {c['agree']} | {c['UNSOUND']} | {c['incomplete']} | {c['skip']} | {exact} | {ev} | {tc:.0f} ms | {te:.0f} ms |")
+    c = collections.Counter(r["kind"] for r in rs)
+    t7 = collections.Counter(r.get("l1_deadlock", "") for r in rs)
+    num("nEsixPairs", len(rs))
+    num("nEsixUnsound", c["UNSOUND"])
+    num("nEsixIncomplete", c["incomplete"])
+    num("nEsixMaxEvents", max((int(r["events"]) for r in rs if r.get("events")), default=0))
+    num("nEsixTraces", len({r["trace"] for r in rs}))
+    num("nEsixLdead", t7["ok"])
+    num("nEsixLdeadUnsound", t7["UNSOUND"])
+    out += ["", f"Contained deadlocks (theorem T7, class 1d at L1) among the accepted pairs: {t7['ok']} confirmed by the explorer,",
+            f"{t7['UNSOUND']} not. Rows by code commit: {commits(rs)}."]
     return "\n".join(out) + "\n"
 
 
@@ -318,35 +509,32 @@ def nekbone():
 
 
 def main():
-    doc = ["# Results", "", "Generated by `experiments/tables.py` from the CSV files under `experiments/results/`. The corpus",
-           "runs, their replays, E2, the E3 and E7 inputs and the AMG trace come from one run of",
-           "`experiments/run_remaining.sh` on the second, shared machine (80 threads; the container in",
-           "`experiments/container/`, 12 cores of one NUMA node, 24 GB), followed by MUST 1.9.2 with MPICH in",
-           "MPI-BugBench's own container on the same machine, with the same timeout per program. Five MBI",
-           "replays were redone there with `run_mbi.py --replay-only` after the replay classification learned",
-           "that a kill past the timeout is a hang. E6 was run on the development host (same Ubuntu 24.04",
-           "userland, Open MPI 4.1.6, MPICH 4.2.0) with the code of commit 028cb16 (where its CSV was committed),",
-           "which postdates the corpus run by one horizon rule and a loader fix; four later analysis commits",
-           "(e37baa6, 470d4c1, b2788c5, 2f66592) are not reflected in it. The E4 times and the AMG analysis",
-           "time come from one announced timed leg on the second machine at commit 404927c",
-           "(`experiments/timing_leg.sh`); they are the only timing claims. The numbers here predate the",
-           "fixes of the audit of 20 Oct 2026 (see the status note in `gate.md`).",
+    doc = ["# Results", "", "Generated by `experiments/tables.py` from the CSV files under `experiments/results/`; each table",
+           "names the code commits its rows were produced with (the `commit` column). The corpus runs, their replays,",
+           "E2, E6, the E3 and E7 inputs, the AMG trace and its replay sample come from `experiments/run_remaining.sh`",
+           "on the second, shared machine (the container of `experiments/container/`, 12 cores of one NUMA node);",
+           "the HYPRE campaign from `experiments/hypre/campaign.sh` there. The MUST verdicts are carried over from",
+           "MUST 1.9.2 runs under MPICH in MPI-BugBench's own container, with the same timeout per program. The E4",
+           "times and the AMG analysis time come from one announced timed leg at commit 404927c",
+           "(`experiments/timing_leg.sh`); they are the only timing claims, and they predate the current tracer.",
            "", "## E1: predictions vs benchmark labels", "",
-           e1("MPI Bugs Initiative (MBI): message-race, tag-matching, probe and buffering programs", os.path.join(RES, "mbi", "mbi.csv")),
-           e1("MPI-BugBench level 2: point-to-point and collective call-ordering, missing-call, local-concurrency and correct programs", os.path.join(RES, "mbb", "mbb.csv")),
-           stress("MBI", os.path.join(RES, "mbi", "mbi.csv")),
-           stress("MPI-BugBench level 2", os.path.join(RES, "mbb", "mbb.csv")),
+           e1("MPI Bugs Initiative (MBI): message-race, tag-matching, probe and buffering programs", os.path.join(RES, "mbi", "mbi.csv"), "MBI"),
+           e1("MPI-BugBench level 2: point-to-point and collective call-ordering, missing-call, local-concurrency and correct programs", os.path.join(RES, "mbb", "mbb.csv"), "MBB"),
+           stress("MBI", os.path.join(RES, "mbi", "mbi.csv"), "MBI"),
+           stress("MPI-BugBench level 2", os.path.join(RES, "mbb", "mbb.csv"), "MBB"),
            "## E2: buffering ablation", "", e2(),
            "## E3: level ablation", "", e3(),
            "## E4: tracer overhead and analysis cost (NPB 3.4.3, MPICH build)", "", e4(),
-           "## E5: real application (AMG)", "", e5(),
+           "## E5: real application (AMG)", "", e5() + amg_sample(),
            "## E5b: real application (Nekbone)", "", nekbone(),
            "## E5c: a real bug (HYPRE 2.10.1, ParaSails)", "", hypre(),
+           "### How often one trace exposes it, and how often testing hits it", "", hypre_campaign(),
            "## E6: polynomial checker vs exhaustive explorer", "", e6(),
            "## E7: the value skeleton on MBI (level L2)", "", e7()]
     path = os.path.join(ROOT, "docs", "results.md")
     open(path, "w").write("\n".join(doc))
     print("wrote", path)
+    write_paper_numbers()
 
 
 if __name__ == "__main__":
