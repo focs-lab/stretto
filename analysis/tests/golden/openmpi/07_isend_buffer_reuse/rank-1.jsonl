@@ -1,0 +1,6 @@
+{"r":1,"seq":0,"op":"init","np":2,"thread":0}
+{"r":1,"seq":1,"op":"comm","name":"world","parent":0,"id":0,"ranks":[0,1],"gord":0}
+{"r":1,"seq":2,"op":"comm","name":"self","parent":0,"id":1,"ranks":[1],"gord":0}
+{"r":1,"seq":3,"op":"begin","call":"recv","src":0,"tag":8,"comm":0,"count":16,"tsize":4,"tsig":"MPI_INT"}
+{"r":1,"seq":4,"op":"recv","src":0,"tag":8,"comm":0,"count":16,"tsize":4,"tsig":"MPI_INT","msrc":0,"mtag":8,"mcount":16}
+{"r":1,"seq":5,"op":"finalize"}

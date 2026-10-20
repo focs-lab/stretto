@@ -284,31 +284,41 @@ def trace_from_execution(prog: Program, matching: Dict[Tuple[int, int], Tuple[in
 
 
 def random_matched_program(rng: random.Random, nranks: int, rounds: Tuple[int, int] = (2, 4),
-                           msgs_per_round: Tuple[int, int] = (2, 5), wildcard: float = 0.6) -> Tuple[Program, Dict[int, List[int]]]:
-    """A straight-line program that completes under infinite buffering, with races: in every
-    round each rank first issues its sends (standard or buffered, blocking or not), then posts
-    its receives (blocking, or nonblocking waited at the end of the round), one per message
-    addressed to it, most of them wildcards; a round may end with a collective of some shape on
-    comm 0 or on comm 1 (the first two ranks). Every message has a receiver, so an execution
-    that ends with every receive matched exists, and the explorer finds one."""
+                           msgs_per_round: Tuple[int, int] = (2, 5), wildcard: float = 0.6,
+                           mixed: bool = False) -> Tuple[Program, Dict[int, List[int]]]:
+    """A straight-line program with races: in every round each rank issues its sends
+    (standard or buffered, blocking or not) and posts its receives (blocking, or nonblocking
+    and waited later in the round), one per message addressed to it, most of them
+    wildcards; a round may end with a collective of some shape on comm 0 or on comm 1 (the
+    first two ranks). Every message has a receiver.
+
+    mixed=False issues each rank's sends before its receives and waits at the end of the
+    round, so an execution that ends with every receive matched exists under infinite
+    buffering. mixed=True also uses synchronous and ready sends, interleaves each rank's
+    sends and receives in a random order and places each wait anywhere after its request:
+    a nonblocking wildcard may then stay pending while later receives complete and the rank
+    sends again, which is the shape a re-matched pending receive constrains (docs/model.md
+    §2, match nodes). Such a program can deadlock or fail; the caller keeps the ones whose
+    explorer finds a clean execution."""
     prog: Program = {r: [] for r in range(nranks)}
     comms = {0: list(range(nranks)), 1: [0, 1]}
     nreq = 0
+    modes = ["std", "bsend", "isend", "isend"] + (["ssend", "rsend", "isend"] if mixed else [])
     for _ in range(rng.randint(*rounds)):
         msgs = []
         for _ in range(rng.randint(*msgs_per_round)):
             comm = 1 if nranks > 2 and rng.random() < 0.25 else 0
             src, dst = rng.sample(comms[comm], 2)
             msgs.append((src, dst, rng.choice([1, 1, 2]), rng.choice([4, 64, 4096]), comm))
-        waits: Dict[int, List[str]] = {r: [] for r in range(nranks)}
+        sends: Dict[int, List[tuple]] = {r: [] for r in range(nranks)}    # (op, request or None)
+        recvs: Dict[int, List[tuple]] = {r: [] for r in range(nranks)}
         for src, dst, tag, size, comm in msgs:
-            mode = rng.choice(["std", "bsend", "isend", "isend"])
+            mode = rng.choice(modes)
             if mode == "isend":
                 name = f"q{nreq}"; nreq += 1
-                prog[src].append(Isend(dst, tag, size, req=name, comm=comm))
-                waits[src].append(name)
+                sends[src].append((Isend(dst, tag, size, req=name, comm=comm), name))
             else:
-                prog[src].append(Send(dst, tag, size, comm, mode=mode))
+                sends[src].append((Send(dst, tag, size, comm, mode=mode), None))
         by_dst: Dict[int, List] = {}
         for m in msgs:
             by_dst.setdefault(m[1], []).append(m)
@@ -317,15 +327,35 @@ def random_matched_program(rng: random.Random, nranks: int, rounds: Tuple[int, i
             for src, _, tag, size, comm in lst:
                 wsrc = ANY if rng.random() < wildcard else src
                 wtag = ANY if rng.random() < wildcard / 3 else tag
-                if rng.random() < 0.4:
+                if rng.random() < (0.5 if mixed else 0.4):
                     name = f"q{nreq}"; nreq += 1
-                    prog[dst].append(Irecv(wsrc, wtag, 4096, req=name, comm=comm))
-                    waits[dst].append(name)
+                    recvs[dst].append((Irecv(wsrc, wtag, 4096, req=name, comm=comm), name))
                 else:
-                    prog[dst].append(Recv(wsrc, wtag, 4096, comm))
+                    recvs[dst].append((Recv(wsrc, wtag, 4096, comm), None))
         for r in range(nranks):
-            for name in waits[r]:
-                prog[r].append(Wait(name))
+            if not mixed:
+                ops = sends[r] + recvs[r]
+                prog[r].extend(op for op, _ in ops)
+                prog[r].extend(Wait(name) for _, name in ops if name)
+                continue
+            # a random merge of the rank's sends and receives, each list in its own order, with
+            # each wait at a random later position
+            seq, i, j = [], 0, 0
+            while i < len(sends[r]) or j < len(recvs[r]):
+                if j >= len(recvs[r]) or (i < len(sends[r]) and rng.random() < 0.5):
+                    seq.append(sends[r][i]); i += 1
+                else:
+                    seq.append(recvs[r][j]); j += 1
+            body: List[Op] = []
+            pending: List[str] = []
+            for op, name in seq:
+                body.append(op)
+                if name:
+                    pending.append(name)
+                if pending and rng.random() < 0.3:
+                    body.append(Wait(pending.pop(rng.randrange(len(pending)))))
+            body.extend(Wait(name) for name in pending)
+            prog[r].extend(body)
         if rng.random() < 0.5:
             comm = 1 if nranks > 2 and rng.random() < 0.3 else 0
             name = rng.choice(COLLS)

@@ -93,16 +93,20 @@ def cmd_oracle(args):
 def cmd_confirm(args):
     t, rep = _analyze(args)
     res = confirm_mod.confirm(rep, args.np or t.np, args.exe, args.args, timeout=args.timeout, mpi=args.mpi,
-                              only_errors=not args.all)
+                              only_errors=not args.all, t=t)
     if args.json:
         print(json.dumps([{"cls": c.finding.cls, "level": c.finding.level, "title": c.finding.title, "pin": c.pin,
-                           "result": c.result, "pin_applied": c.pin_applied, "verdict": c.verdict} for c in res], indent=1))
+                           "result": c.result, "pin_applied": c.pin_applied, "pin_matched": c.pin_matched,
+                           "control": c.control, "verdict": c.verdict} for c in res], indent=1))
     else:
         for c in res:
-            print(f"[{c.finding.cls:>12}] {c.finding.level:<6} {c.pin:<28} -> {c.result:<14} {'pin applied' if c.pin_applied else 'pin NOT applied':<16} {c.verdict}")
+            print(f"[{c.finding.cls:>12}] {c.finding.level:<6} {c.pin:<28} -> {c.result:<14} "
+                  f"{'matched' if c.pin_matched else 'applied' if c.pin_applied else 'pin NOT applied':<16} "
+                  f"control {c.control or '-':<10} {c.verdict}")
         n = sum(1 for c in res if c.verdict == "confirmed")
         m = sum(1 for c in res if c.verdict == "not-confirmed")
-        print(f"confirmed {n}, not confirmed {m}, informational {len(res) - n - m}")
+        k = sum(1 for c in res if c.verdict == "inconclusive")
+        print(f"confirmed {n}, not confirmed {m}, inconclusive {k}, informational {len(res) - n - m - k}")
     return 0
 
 
@@ -121,7 +125,7 @@ def main(argv=None) -> int:
     p = argparse.ArgumentParser(prog="rematch", description="sound prediction of alternative MPI matchings")
     sub = p.add_subparsers(dest="cmd", required=True)
     a = sub.add_parser("show", help="print events and the observed matching"); a.add_argument("tracedir"); a.set_defaults(fn=cmd_show)
-    a = sub.add_parser("analyze", help="predict alternatives and classify them; exit status 1 if an error class is found")
+    a = sub.add_parser("analyze", help="predict alternatives and classify them; exit status 0 none found, 1 an error class found, 2 the trace cannot be loaded, 3 internal error")
     a.add_argument("tracedir"); _analysis_options(a); a.add_argument("--json", action="store_true")
     a.add_argument("-v", "--verbose", action="store_true", help="also list rejected alternatives"); a.set_defaults(fn=cmd_analyze)
     a = sub.add_parser("candidates", help="list every candidate alternative with its verdict"); a.add_argument("tracedir")
@@ -139,3 +143,7 @@ def main(argv=None) -> int:
     except LoadError as e:
         print(f"rematch: {e}", file=sys.stderr)
         return 2
+    except Exception:   # noqa: BLE001 - an internal error must not read as "an error class was found" (1)
+        import traceback
+        traceback.print_exc()
+        return 3

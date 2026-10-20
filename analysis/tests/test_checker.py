@@ -650,6 +650,27 @@ def fast_equals_generic(tc, t):
             tc.assertEqual((g.feasible, g.cut if g.feasible else None), (f.feasible, f.cut if f.feasible else None), f"wait {rec.idx} at B={B}")
 
 
+def closure_equals_fixpoint(tc, t):
+    """The worklist closure (horizon.compute_cut) against the rescanning reference
+    (compute_cut_fixpoint): same cut, same issued sends, same hang reasons per rank, for the
+    observed matching in SP mode and for every candidate alternative and probe alternative in
+    L1 mode, at every breakpoint."""
+    from rematch.horizon import compute_cut, compute_cut_fixpoint
+    alts = candidates_full(t)[0]
+    probes = probe_candidates(t)
+    for B in breakpoints(t) + [None]:
+        items = [(t.observed, set(), "SP", {}, None)]
+        items += [(a.M, a.changed, mode, {}, None) for a in alts for mode in ("L1", "SP")]
+        items += [(t.observed, set(), "L1", {p.key: s.key}, p.key) for p, s in probes]
+        for M, changed, mode, palt, pk in items:
+            res = []
+            for f in (compute_cut, compute_cut_fixpoint):
+                issued, hangs = {}, {}
+                cut = f(t, M, set(changed), B, mode, {pk} if pk else set(), hangs, set(), issued, palt)
+                res.append((cut, issued, set(hangs)))
+            tc.assertEqual(res[0], res[1], f"B={B} mode={mode} changed={changed} probe={pk}")
+
+
 class C_FastEqualsGeneric(unittest.TestCase):
     def test_traces_of_this_module(self):
         # every in-memory trace the other tests build, re-created here
@@ -673,6 +694,225 @@ class C_FastEqualsGeneric(unittest.TestCase):
         for i, t in enumerate(traces):
             with self.subTest(trace=i):
                 fast_equals_generic(self, t)
+                closure_equals_fixpoint(self, t)
+
+
+class C_MatchNodes(unittest.TestCase):
+    """The audit's counterexamples to T1 (20 Oct 2026). Matching order binds the *match* of a
+    later receive, not its completion: with the order edges attached to completions, a
+    pending nonblocking receive could be overtaken (first case) and a rendezvous send could be
+    matched after its own completion (second case)."""
+
+    def stale_order_trace(self):
+        # rank 0: Irecv r(ANY); Recv r3(ANY) <- 3; Send x -> 2; Wait r <- 1.
+        # rank 2: Recv x; Send sC -> 0 (never received in the run).  ranks 1, 3: one send each.
+        return mk({
+            0: [irecv(T.ANY, 0, 10), recv(T.ANY, 0, 3, 0), send(2, 5), wait((10, 1, 0))],
+            1: [send(0, 0)],
+            2: [recv(0, 5, 0, 5), send(0, 0)],
+            3: [send(0, 0)],
+        })
+
+    def test_pending_receive_is_not_overtaken(self):
+        """r <- sC needs sC before r3 is matched (r is posted before r3 and accepts r3's
+        message), and sC needs x, which needs r3 complete: a cycle. Before the fix the edge
+        into r3 came from r's observed send and the steal was accepted."""
+        t = self.stale_order_trace()
+        alts = [a for a in candidates_full(t)[0] if a.recv == (0, 0) and a.send == (2, 0)]
+        self.assertEqual(len(alts), 1, [a.describe(t) for a in candidates_full(t)[0]])
+        a = alts[0]
+        for B in (0, None):
+            g = check(t, a.M, a.changed, B, "L1")
+            self.assertFalse(g.feasible, f"generic at B={B}: {g.reason}")
+            f = fast.Observed(t, B).check_alternative(a)
+            if f is not None:
+                self.assertFalse(f.feasible, f"fast at B={B}: {f.reason}")
+
+    def test_pending_receive_case_in_the_report(self):
+        t = self.stale_order_trace()
+        rep = analyze(t, with_sp=False)
+        self.assertNotIn(((0, 0), (2, 0)), [(f.recv, f.send) for f in rep.findings])
+
+    def rendezvous_order_trace(self):
+        # rank 0: Irecv r1(ANY); Irecv r2(ANY); Waitall (r1 <- 1, r2 <- 2).
+        # rank 2: Send sC -> 0 (4000 B); Send x -> 1.  rank 1: Recv x; Send sB -> 0.
+        return mk({
+            0: [irecv(T.ANY, 0, 10), irecv(T.ANY, 0, 11), wait((10, 1, 0), (11, 2, 0), kind="waitall")],
+            1: [recv(2, 5, 2, 5), send(0, 0)],
+            2: [send(0, 0, count=1000), send(1, 5)],
+        })
+
+    def test_rendezvous_send_is_matched_before_it_completes(self):
+        """At B = 0 sC completes only once matched, and it is matched while r1 is still
+        pending (sB needs x, which needs sC complete), so r1 would take it: the recorded run
+        is realisable only for B >= 4000. Before the fix the order edge ended at the Waitall
+        and B = 0 was accepted."""
+        t = self.rendezvous_order_trace()
+        self.assertFalse(observed_feasible_at(t, 0).feasible)
+        self.assertFalse(observed_feasible_at(t, 3999).feasible)
+        self.assertTrue(observed_feasible_at(t, 4000).feasible)
+        self.assertTrue(observed_feasible_at(t, None).feasible)
+        ob = fast.Observed(t, 0)
+        self.assertFalse(ob.observed_verdict().feasible)
+        rep = analyze(t, with_sp=False)
+        self.assertEqual([f.B for f in rep.by_class("2-buffering")], ["B < 4000"])
+
+    def test_both_in_the_fast_equals_generic_set(self):
+        for t in (self.stale_order_trace(), self.rendezvous_order_trace()):
+            fast_equals_generic(self, t)
+            closure_equals_fixpoint(self, t)
+
+
+class C_ProbesReadyRoots(unittest.TestCase):
+    """Rules the audit of 20 Oct 2026 found missing (docs/model.md §2b, gap c)."""
+
+    def test_rootless_bcast_synchronises_everyone(self):
+        # without a recorded root a root-shaped collective is a barrier in the graph too, as it
+        # is in the horizon and in the explorer
+        t = mk({0: [send(1, 1, 250), coll("bcast")],
+                1: [coll("bcast"), recv(0, 1, 0, 1, 250)]})
+        self.assertIsNone(t.colls[0].root)
+        self.assertFalse(observed_feasible_at(t, 0).feasible)
+        self.assertFalse(fast.Observed(t, 0).observed_verdict().feasible)
+        self.assertTrue(observed_feasible_at(t, None).feasible)
+
+    def probe_trace(self):
+        pr = {"op": "probe", "kind": "probe", "src": 0, "anysrc": 1, "tag": 1, "comm": 0, "flag": 1, "msrc": 3, "mtag": 1}
+        return mk({0: [irecv(T.ANY, 1, 10), irecv(T.ANY, 1, 11), pr, recv(3, 1, 3, 1),
+                       wait((10, 1, 1), (11, 2, 1), kind="waitall")],
+                   1: [send(0, 1)], 2: [send(0, 1)], 3: [send(0, 1)]})
+
+    def test_pending_receive_deprives_a_later_probe(self):
+        """r <- s2 leaves the second Irecv without a message; it stays pending and would take
+        rank 3's message, so the probe after it cannot report that message: rule 6 cuts at
+        the probe, not only at the receive after it."""
+        t = self.probe_trace()
+        alts = [a for a in candidates_full(t)[0] if a.recv == (0, 0) and a.send == (2, 0) and a.kind == "steal"]
+        self.assertEqual(len(alts), 1)
+        a = alts[0]
+        probe_idx = next(p.idx for p in t.probes.values())
+        for B in (0, None):
+            v = check(t, a.M, a.changed, B, "L1")
+            self.assertTrue(v.feasible, v.reason)
+            self.assertEqual(v.cut[0], probe_idx)
+        fast_equals_generic(self, t)
+
+    def test_ready_send_without_its_receive_is_cut(self):
+        """Stealing the second sender's message for rank 1's first receive leaves rank 0's ready
+        send without a posted receive inside the horizon: rule 7 cuts it."""
+        t = mk({0: [send(1, 1, mode="rsend")], 2: [send(1, 1)],
+                1: [recv(T.ANY, 1, 0, 1, widx=0), recv(T.ANY, 1, 2, 1, widx=1)]})
+        alts = [a for a in candidates_full(t)[0] if a.recv == (1, 0) and a.send == (2, 0) and a.kind == "steal"]
+        self.assertEqual(len(alts), 1)
+        v = check(t, alts[0].M, alts[0].changed, None, "L1")
+        self.assertTrue(v.feasible, v.reason)
+        self.assertEqual(v.cut[0], t.sends[(0, 0)].idx)
+        fast_equals_generic(self, t)
+
+
+class C_MonotoneAboveB0(unittest.TestCase):
+    def test_profile_dips_below_the_observed_threshold(self):
+        """Theorem T2 holds from B0 on, the least threshold at which the recorded run is
+        realisable, and not below it (audit of 20 Oct 2026). Rank 3 sends 148 bytes to rank 0
+        after the changed receive, then exchanges 400 bytes head to head with rank 4. Below
+        148 the cut of rank 3 removes the exchange; at 148 the exchange is kept and cyclic;
+        from 400 on it is buffered. The report bisects from B0 = 400 and states the interval
+        over the realisable thresholds only."""
+        t = mk({0: [recv(T.ANY, 1, 2, 1, widx=0), recv(3, 2, 3, 2, count=37), recv(1, 1, 1, 1)],
+                1: [send(0, 1)], 2: [send(0, 1)],
+                3: [send(0, 2, count=37), send(4, 3, count=100), recv(4, 3, 4, 3, count=100)],
+                4: [send(3, 3, count=100), recv(3, 3, 3, 3, count=100)]})
+        self.assertEqual([B for B in (0, 4, 148, 400, None) if observed_feasible_at(t, B).feasible], [400, None])
+        a = next(a for a in candidates_full(t)[0] if a.recv == (0, 0) and a.kind == "steal")
+        full = feasible_profile(t, a.M, a.changed, full=True)
+        self.assertEqual(full, {0: True, 4: True, 148: False, 400: True, None: True})
+        self.assertEqual(feasible_profile(t, a.M, a.changed, full=False, floor=400), {0: False, 4: False, 148: False, 400: True, None: True})
+        rep = analyze(t, with_sp=False)
+        f = next(f for f in rep.findings if f.recv == (0, 0))
+        self.assertEqual(f.B, "any B")
+        self.assertTrue(any("left out: B in 0,4,148" in d for d in f.detail), f.detail)
+
+
+class C_Unmodelled(unittest.TestCase):
+    def test_unmodelled_call_keeps_the_report_to_observed_findings(self):
+        """A call outside the modelled fragment means the trace is not a complete record of the
+        run's communication (the premise of T1): no alternative is predicted."""
+        t = mk({0: [recv(T.ANY, 1, 1, 1, widx=0), recv(T.ANY, 1, 2, 1, widx=1)], 1: [send(0, 1)],
+                2: [{"op": "unmodelled", "call": "Win_create"}, send(0, 1)]})
+        self.assertEqual(t.unmodelled, [(2, "Win_create")])
+        rep = analyze(t, with_sp=False)
+        self.assertEqual([f for f in rep.findings if f.level != "observed"], [])
+        self.assertTrue(any("outside the modelled fragment" in n for n in rep.notes), rep.notes)
+
+
+class C_ContainedDeadlock(unittest.TestCase):
+    """Theorem T7: a deadlock contained in the horizon is certified at L1, without the
+    single-path assumption, when a changed rank stops before its changed receive completes."""
+
+    def test_nonblocking_wildcard_then_specific_receive(self):
+        # rank 0: Irecv r(ANY); Recv r3 from 1; Wait r. Ranks 1 and 2 send once each; in the
+        # run r took rank 2's message. If r takes rank 1's, r3 has nothing left to take and rank
+        # 0 stops before its wait, whatever the program does after r: a deadlock at L1.
+        t = mk({0: [irecv(T.ANY, 1, 10), recv(1, 1, 1, 1), wait((10, 2, 1))],
+                1: [send(0, 1)], 2: [send(0, 1)]})
+        rep = analyze(t, with_sp=True)
+        l1d = [f for f in rep.findings if f.cls == "1d" and f.level == "L1"]
+        self.assertEqual([(f.recv, f.send) for f in l1d], [((0, 0), (1, 0))], [str(f) for f in rep.findings])
+        self.assertIn("rank 0 stops at recv", l1d[0].detail[0])
+        # ground truth: every execution of the straight-line program with that match deadlocks
+        prog = dsl.program_from_trace(t)
+        for B in (0, None):
+            res = explore.explore(prog, B, force={(0, 0): (1, 0)}, comms=t.comm_members)
+            outs = res.outcomes_with((0, 0), (1, 0))
+            self.assertTrue(outs and all(o.kind == "deadlock" for o in outs), [str(o) for o in outs])
+
+    def test_blocking_wildcard_is_not_contained(self):
+        # the same with a blocking wildcard: rank 0 is cut right after it (rule 1), so its next
+        # receive is beyond the horizon and the deadlock is a single-path claim only
+        t = mk({0: [recv(T.ANY, 1, 2, 1, widx=0), recv(1, 1, 1, 1)], 1: [send(0, 1)], 2: [send(0, 1)]})
+        rep = analyze(t, with_sp=True)
+        self.assertEqual([f for f in rep.findings if f.cls == "1d" and f.level == "L1"], [])
+        self.assertTrue([f for f in rep.findings if f.cls == "1d" and f.level == "L1+SP"])
+
+    def test_a_later_message_of_the_partner_breaks_it(self):
+        # rank 1 sends a second message, which the stranded receive can take
+        t = mk({0: [irecv(T.ANY, 1, 10), recv(1, 1, 1, 1), wait((10, 2, 1)), recv(1, 1, 1, 1)],
+                1: [send(0, 1), send(0, 1)], 2: [send(0, 1)]})
+        rep = analyze(t, with_sp=False)
+        self.assertEqual([f for f in rep.findings if f.cls == "1d" and f.level == "L1"], [])
+
+
+class C_LoaderRejectsDamagedTraces(unittest.TestCase):
+    def write(self, d, rank, lines):
+        with open(os.path.join(d, f"rank-{rank}.jsonl"), "w") as fh:
+            fh.write("\n".join(lines) + "\n")
+
+    def test_gaps_bad_lines_and_mixed_runs(self):
+        import json
+        import tempfile
+        ok = [{"r": 0, "seq": 0, "op": "init", "np": 2}, {"r": 0, "seq": 1, "op": "finalize"}]
+        one = [{"r": 1, "seq": 0, "op": "init", "np": 2}, {"r": 1, "seq": 1, "op": "finalize"}]
+        cases = {
+            "gap": ([{"r": 0, "seq": 0, "op": "init", "np": 2}, {"r": 0, "seq": 2, "op": "finalize"}], one, "missing"),
+            "wrong rank": ([{"r": 1, "seq": 0, "op": "init", "np": 2}, {"r": 1, "seq": 1, "op": "finalize"}], one, "belongs"),
+            "np": (ok, [{"r": 1, "seq": 0, "op": "init", "np": 4}, {"r": 1, "seq": 1, "op": "finalize"}], "disagree"),
+        }
+        for name, (r0, r1, msg) in cases.items():
+            with self.subTest(name), tempfile.TemporaryDirectory() as d:
+                self.write(d, 0, [json.dumps(x) for x in r0])
+                self.write(d, 1, [json.dumps(x) for x in r1])
+                with self.assertRaisesRegex(ValueError, msg):
+                    T.load(d)
+        with tempfile.TemporaryDirectory() as d:
+            self.write(d, 0, [json.dumps(ok[0]), "{not json", json.dumps(ok[1])])
+            self.write(d, 1, [json.dumps(x) for x in one])
+            with self.assertRaisesRegex(ValueError, "unparseable"):
+                T.load(d)
+        with tempfile.TemporaryDirectory() as d:          # a partial last line is the killed rank's: tolerated
+            self.write(d, 0, [json.dumps(ok[0]), '{"r": 0, "seq": 1, "op": "fin'])
+            self.write(d, 1, [json.dumps(x) for x in one])
+            t = T.load(d)
+            self.assertIn(0, t.truncated)
 
 
 class C_TracerRecords(unittest.TestCase):
@@ -685,6 +925,16 @@ class C_TracerRecords(unittest.TestCase):
                 1: [send(0, 1)], 2: [recv(0, 9, 0, 9)]})
         self.assertEqual(t.blocked_calls(), [])
         self.assertEqual(t.threads[0], 2)
+
+    def test_side_record_inside_a_wait_is_not_a_blocked_call(self):
+        # an Idup completed by a Waitall registers its communicator between the begin and the
+        # wait record; that is not the wait being blocked
+        t = mk({0: [irecv(1, 1, 10),
+                    {"op": "begin", "call": "wait", "kind": "waitall", "reqs": [10, 11]},
+                    {"op": "comm", "name": "idup", "parent": 0, "id": 2, "ranks": [0, 1], "gord": 1},
+                    wait((10, 1, 1), kind="waitall")],
+                1: [send(0, 1)]})
+        self.assertEqual(t.blocked_calls(), [])
 
     def test_thread_multiple_gives_observed_findings_only(self):
         t = mk({0: [{"op": "init", "np": 3, "thread": 3}, {**recv(T.ANY, 1, 1, 1, widx=0), "tid": 1}, {**recv(T.ANY, 1, 2, 1, widx=1), "tid": 2}],

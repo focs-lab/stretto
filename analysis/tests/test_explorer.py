@@ -12,7 +12,7 @@ import random
 import unittest
 
 from rematch.dsl import ANY, Coll, If, Irecv, Isend, Recv, Send, Wait, Waitany
-from rematch.explore import ExploreError, explore
+from rematch.explore import ExploreError, StateCapReached, explore
 
 from idioms_dsl import ALL
 
@@ -239,16 +239,20 @@ class T10_Differential(unittest.TestCase):
 
     def test_random(self):
         rng = random.Random(20260905)
+        compared = 0
         for i in range(200):
             prog, comms = random_program(rng, rng.choice([2, 3]))
             for B in BS:
                 try:
                     self._same(prog, B, comms=comms)
-                except RuntimeError:
+                    compared += 1
+                except StateCapReached:
                     pass  # state-space cap on the unreduced side
+        # the cap must not swallow the test: most programs are compared
+        self.assertGreater(compared, len(BS) * 150, f"only {compared} comparisons")
 
 
-class T11_CollectiveShapes(unittest.TestCase):
+class T13_CollectiveShapes(unittest.TestCase):
     """A collective completes for a member when the members its shape requires have issued."""
 
     def test_bcast_root_returns_before_the_others_issue(self):
@@ -272,7 +276,7 @@ class T11_CollectiveShapes(unittest.TestCase):
         self.assertIn("collective-mismatch", kinds(prog, None))
 
 
-class T12_ReadyMode(unittest.TestCase):
+class T14_ReadyMode(unittest.TestCase):
     def test_rsend_before_the_receive_is_an_error_on_the_path(self):
         prog = {0: [Send(1, 1, mode="rsend")], 1: [Recv(0, 1)]}
         res = explore(prog, None)

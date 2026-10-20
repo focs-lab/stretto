@@ -16,6 +16,7 @@ class Verdict:
     cut: Optional[Dict[int, int]] = None
     cycle: Optional[list] = None
     hangs: Dict[int, str] = field(default_factory=dict)   # SP mode: ranks that never complete an operation
+    issued: Dict[int, int] = field(default_factory=dict)  # rank -> a blocking send cut at its own record, issued
 
     @property
     def ok(self) -> bool:
@@ -40,15 +41,20 @@ def check(t: Trace, M: Dict[Key, Key], changed, B: Optional[int], mode: str = "L
         seen[sk] = rk
     hangs: Dict[int, str] = {}
     issued: Dict[int, int] = {}
-    cut = compute_cut(t, M, set(changed), B, mode, changed_probes, hangs, changed_events, issued)
+    cut = compute_cut(t, M, set(changed), B, mode, changed_probes, hangs, changed_events, issued, probe_alt)
     # SP mode only: the continuation is fixed, so a cut operation is one its rank never completes.
     # The matching may still be realisable (the run then deadlocks): feasible says the former,
     # hangs the latter, ok both.
     hang_text = "hang under the single-path assumption: " + "; ".join(hangs[r] for r in sorted(hangs)) if hangs else ""
     for pk, sk in (probe_alt or {}).items():
-        s = t.sends[sk]
+        s, p = t.sends[sk], t.probes[pk]
         if s.idx >= cut[s.rank] and issued.get(s.rank) != s.idx:
             return Verdict(False, "the message the probe would observe is never issued within the horizon", cut)
+        for x in t.recvs_of(p.rank):
+            if x.idx >= p.idx:
+                break
+            if x.key not in M and not x.cancelled and not x.mrecv and x.accepts(s):
+                return Verdict(False, f"receiver order: earlier {x} accepts {s} and has no message in this matching", cut)
     for sk in must_issue:
         s = t.sends[sk]
         if s.idx >= cut[s.rank] and issued.get(s.rank) != s.idx:
@@ -68,8 +74,8 @@ def check(t: Trace, M: Dict[Key, Key], changed, B: Optional[int], mode: str = "L
     g = build_graph(t, M, cut, B, extra_edges, strong_only, probe_alt, issued)
     cyc = g.find_cycle()
     if cyc:
-        return Verdict(False, "constraint cycle", cut, cyc, hangs)
-    return Verdict(True, hang_text or "ok", cut, None, hangs)
+        return Verdict(False, "constraint cycle", cut, cyc, hangs, issued)
+    return Verdict(True, hang_text or "ok", cut, None, hangs, issued)
 
 
 def observed_feasible_at(t: Trace, B: Optional[int], strong_only: bool = True) -> Verdict:
@@ -82,25 +88,41 @@ def breakpoints(t: Trace) -> List[int]:
     return [0] + t.message_sizes()
 
 
-def feasible_profile(t: Trace, M: Dict[Key, Key], changed, mode: str = "L1", full: bool = True, **kw) -> Dict[Optional[int], bool]:
+def feasible_profile(t: Trace, M: Dict[Key, Key], changed, mode: str = "L1", full: bool = True,
+                     floor: Optional[int] = 0, **kw) -> Dict[Optional[int], bool]:
     """Feasibility at the breakpoints {0} U message sizes U {inf}: Verdict.ok, so in SP mode
     a threshold at which a rank hangs counts as infeasible. The default judges every
     breakpoint: this is the generic checker's profile, which the E2 harness and the tests
     use as the evidence for theorem T2 (docs/model.md) and as the reference for the
     bisected profile of report._profiles_fast. full=False checks the two ends and bisects
-    between them, exact when feasibility is monotone in B (T2)."""
+    between them, exact when feasibility is monotone in B (T2). floor (B0 of T2, None for
+    infinity) is the least threshold at which the observed run is realisable: the bisection
+    starts there, and the breakpoints below it are set infeasible, since T2 says nothing
+    about them and the report states intervals over the realisable thresholds only."""
     bps = breakpoints(t)
     prof: Dict[Optional[int], bool] = {}
     if full or len(bps) <= 3:
         for B in bps + [None]:
             prof[B] = check(t, M, changed, B, mode, **kw).ok
         return prof
+    if floor is None or floor > 0:
+        below = [B for B in bps if floor is None or B < floor]
+        for B in below:
+            prof[B] = False
+        bps = [B for B in bps if B not in below]
+        if not bps:
+            prof[None] = check(t, M, changed, None, mode, **kw).ok
+            return prof
     lo, hi = bps[0], None
     prof[lo] = check(t, M, changed, lo, mode, **kw).ok
     prof[hi] = check(t, M, changed, hi, mode, **kw).ok
     if prof[lo] == prof[hi]:
         for B in bps[1:]:
             prof[B] = prof[lo]
+        return prof
+    if prof[lo] and not prof[hi]:
+        for B in bps[1:]:                       # contradicts T2: judge everything
+            prof[B] = check(t, M, changed, B, mode, **kw).ok
         return prof
     # find the smallest breakpoint that is feasible
     sizes = bps[1:]

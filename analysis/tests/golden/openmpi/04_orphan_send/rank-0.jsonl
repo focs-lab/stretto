@@ -1,0 +1,8 @@
+{"r":0,"seq":0,"op":"init","np":3,"thread":0}
+{"r":0,"seq":1,"op":"comm","name":"world","parent":0,"id":0,"ranks":[0,1,2],"gord":0}
+{"r":0,"seq":2,"op":"comm","name":"self","parent":0,"id":1,"ranks":[0],"gord":0}
+{"r":0,"seq":3,"op":"begin","call":"recv","src":-1,"anysrc":1,"tag":4,"comm":0,"count":1,"tsize":4,"tsig":"MPI_INT","widx":0}
+{"r":0,"seq":4,"op":"recv","src":-1,"anysrc":1,"tag":4,"comm":0,"count":1,"tsize":4,"tsig":"MPI_INT","widx":0,"msrc":1,"mtag":4,"mcount":1}
+{"r":0,"seq":5,"op":"begin","call":"recv","src":2,"tag":4,"comm":0,"count":1,"tsize":4,"tsig":"MPI_INT"}
+{"r":0,"seq":6,"op":"recv","src":2,"tag":4,"comm":0,"count":1,"tsize":4,"tsig":"MPI_INT","msrc":2,"mtag":4,"mcount":1}
+{"r":0,"seq":7,"op":"finalize"}

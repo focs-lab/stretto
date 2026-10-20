@@ -15,13 +15,17 @@ echo "== replay $(basename "$dir") with REMATCH_PIN=$pin (timeout ${TIMEOUT}s)"
 mpi_run "$np" "REMATCH_PIN=$pin" "LD_PRELOAD=$PINLIB" -- "${margs[@]}" "$dir/bin/$MPI/main" "$@" > "$out" 2> "$err"
 rc=$?
 head -5 "$out"
-grep '^\[rematch-pin\]' "$err"        # which pins were applied, or left unused
+grep '^\[rematch-pin\]' "$err"        # which pins were applied, matched, or left unused
 res="$(classify_rc $rc "$err")"
-applied=$(grep -c '^\[rematch-pin\] rank [0-9]*: applied' "$err")
+# every pin of the spec must have matched: "applied" only says the source argument was set,
+# and forcing an impossible match also hangs. The control rerun (the observed senders pinned)
+# is rematch confirm's job; this script shows one replay.
+npins=$(tr ',' '\n' <<< "$pin" | grep -c .)
+matched=$(grep -c '^\[rematch-pin\] rank [0-9]*: matched' "$err")
 case "$res" in
-  FINISHED)   echo "   result: FINISHED with $applied pin(s) applied (no hang under this matching)";;
-  TIMEOUT)    if [ "$applied" -gt 0 ]; then echo "   result: HANG with $applied pin(s) applied (deadlock confirmed by replay)";
-              else echo "   result: HANG but no pin was applied (not a confirmation)"; fi;;
-  *)          echo "   result: $res ($applied pin(s) applied)";;
+  FINISHED)   echo "   result: FINISHED with $matched of $npins pin(s) matched (no hang under this matching)";;
+  TIMEOUT)    if [ "$matched" -ge "$npins" ]; then echo "   result: HANG after all $npins pinned receive(s) matched (a deadlock under this matching; confirm against a control with rematch confirm)";
+              else echo "   result: HANG with $matched of $npins pin(s) matched (not a confirmation: a pinned receive may be waiting for an impossible match)"; fi;;
+  *)          echo "   result: $res ($matched of $npins pin(s) matched)";;
 esac
 rm -f "$out" "$err"

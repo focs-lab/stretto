@@ -98,6 +98,20 @@ class Graph:
         return None
 
 
+def match_node(r: Recv) -> Node:
+    """The node at which r is matched. A blocking receive is matched in its own call and
+    nothing else of its rank happens between its issue and its completion, so its completion
+    node serves (with the issue node and the match as its only predecessors, reachability is
+    unchanged); a nonblocking receive completes at a later wait and gets a node of its own."""
+    if r.blocking:
+        return (r.rank, r.idx, "c")
+    return (r.rank, r.idx, "m")
+
+
+def is_match(n: Node) -> bool:
+    return n[2] == "m"
+
+
 def send_blocks(s: Send, B: Optional[int]) -> bool:
     """Does the send's request complete only once matched, under threshold B?"""
     if s.rendezvous_always:
@@ -141,39 +155,71 @@ def build_graph(t: Trace, M: Dict[Key, Key], cut: Optional[Dict[int, int]], B: O
     def both(a: Optional[Node], b: Optional[Node]) -> bool:
         return a is not None and b is not None and a in node_set and b in node_set
 
+    # matches: a node per pair whose receive is posted and whose send is issued inside the
+    # prefix (docs/model.md §2). Matching order binds the match, not a completion: a
+    # nonblocking receive is matched long before its wait, a rendezvous send before its own
+    # completion, so the order edges run between match nodes.
+    mnode: Dict[Key, Node] = {}
     for rk, sk in M.items():
         r, s = t.recvs[rk], t.sends[sk]
-        rc, sc = r.complete_node(), s.complete_node()
-        if both(s.issue_node(), rc):
-            g.add(s.issue_node(), rc)                         # delivery
-        if send_blocks(s, B) and both(r.issue_node(), sc):
-            g.add(r.issue_node(), sc)                         # rendezvous
-        if s.ready_mode and both(r.issue_node(), s.issue_node()):
+        if r.issue_node() in node_set and s.issue_node() in node_set:
+            m = match_node(r)
+            if m not in node_set:
+                nodes.append(m)
+                node_set.add(m)
+            mnode[rk] = m
+    recv_of = {sk: rk for rk, sk in M.items()} if mnode else {}
+    for rk, m in mnode.items():
+        r, s = t.recvs[rk], t.sends[M[rk]]
+        g.add(s.issue_node(), m)                              # the message is issued first
+        if m[2] == "m":
+            g.add(r.issue_node(), m)                          # the receive is posted first
+            rc = r.complete_node()
+            if rc is not None and rc in node_set:
+                g.add(m, rc)                                  # it completes after the match
+        if send_blocks(s, B):
+            sc = s.complete_node()
+            if sc is not None and sc in node_set:
+                g.add(m, sc)                                  # rendezvous: the send completes after it
+        if s.ready_mode:
             g.add(r.issue_node(), s.issue_node())             # ready send: receive posted first
-        # receiver-side order: an earlier-posted receive that accepts s must have taken its
-        # own message before s arrives (same-source pairs are covered by FIFO). Cached for
-        # pairs that are unchanged from the observed matching.
-        if t.observed.get(rk) == sk:
-            for a, b in t.rs_edges_observed(rk):
-                if both(a, b):
-                    g.add(a, b)
-        else:
-            for r2 in t.wild_recvs_of(r.rank):
-                if r2.idx >= r.idx:
-                    break
-                if r2.accepts(s) and r2.key in M:
-                    s2 = t.sends[M[r2.key]]
-                    if s2.rank != s.rank and both(s2.issue_node(), rc):
-                        g.add(s2.issue_node(), rc)
+        # receiver side: an earlier receive that accepts s is matched before r takes s
+        for r2 in t.earlier_competitors(r, s):
+            m2 = mnode.get(r2.key)
+            if m2 is not None:
+                g.add(m2, m)
+        # sender side: an earlier message of s's channel that r accepts is matched first
+        for s2 in t.earlier_sends(r, s):
+            r2k = recv_of.get(s2.key)
+            m2 = mnode.get(r2k) if r2k is not None else None
+            if m2 is not None:
+                g.add(m2, m)
     probe_alt = probe_alt or {}
     for p in t.probes.values():
         sk = probe_alt.get(p.key, p.seen if not strong_only else None)
-        if sk is not None and both(t.sends[sk].issue_node(), p.complete_node()):
-            g.add(t.sends[sk].issue_node(), p.complete_node())   # the probed message was issued first
+        if sk is None or not both(t.sends[sk].issue_node(), p.complete_node()):
+            continue
+        pc = p.complete_node()
+        g.add(t.sends[sk].issue_node(), pc)                  # the probed message was issued first
+        # and no earlier receive or earlier message of its channel could have taken its place:
+        # their matches come before the probe reports it (the probe sees what a receive posted
+        # at that point would take)
+        s = t.sends[sk]
+        for r2 in t.earlier_competitors(p, s):
+            m2 = mnode.get(r2.key)
+            if m2 is not None:
+                g.add(m2, pc)
+        for s2 in t.earlier_sends(p, s):
+            r2k = recv_of.get(s2.key) if mnode else None
+            m2 = mnode.get(r2k) if r2k is not None else None
+            if m2 is not None:
+                g.add(m2, pc)
     for cs in t.coll_sets():
         shape, known = coll_shape(cs[0].name)
         if strong_only and not known:
             continue
+        if shape in ("root-out", "root-in") and any(c.root is None for c in cs):
+            shape = "all"          # no recorded root: synchronise everyone, as the horizon and the explorer do
         members = t.comm_members.get(cs[0].comm, [])
         pos = {r: i for i, r in enumerate(members)}
         comm, k = cs[0].comm, cs[0].ordinal
@@ -433,14 +479,21 @@ def matching_order_ok(t: Trace, M: Dict[Key, Key], kept_recv, ranks: Optional[Se
         comm) accepted by r is matched to a receive at dst posted before r;
     (b) receiver-side order: every receive r' at dst posted before r that accepts s is
         matched (a never-completed receive posted before r would take s), and if it is
-        matched to a send from the same source, that send precedes s."""
+        matched to a send from the same source, that send precedes s.
+    Each pair costs a constant number of lookups (and one per tag of the channel for an
+    ANY_TAG receive): the latest earlier send of each tag stands for the earlier sends of that
+    tag, the latest earlier receive of each envelope class for its class, since the pairs of
+    the rank are all checked and each obligation chains through them (Trace.earlier_sends,
+    Trace.earlier_competitors); an unmatched receive is found by the earliest one per class."""
     post_idx: Dict[Key, int] = {rk: t.recvs[rk].idx for rk in M}
     matched_send: Dict[Key, Key] = {sk: rk for rk, sk in M.items()}
-    # receives without a message in M, per rank (few): an earlier one that accepts s would take it
-    unmatched_by_rank: Dict[int, List[Recv]] = {}
+    # the earliest receive without a message in M, per (rank, comm, source or ANY, tag or ANY)
+    first_unmatched: Dict[Tuple[int, int, int, int], int] = {}
     for r in t.recvs.values():
-        if r.key not in M and not r.cancelled and (ranks is None or r.rank in ranks):
-            unmatched_by_rank.setdefault(r.rank, []).append(r)
+        if r.key not in M and not r.cancelled and not r.mrecv and (ranks is None or r.rank in ranks):
+            k = (r.rank, r.comm, r.src, r.tag)
+            if r.idx < first_unmatched.get(k, 10**18):
+                first_unmatched[k] = r.idx
     for rk, sk in M.items():
         r, s = t.recvs[rk], t.sends[sk]
         if ranks is not None and r.rank not in ranks:
@@ -450,27 +503,22 @@ def matching_order_ok(t: Trace, M: Dict[Key, Key], kept_recv, ranks: Optional[Se
         if not r.accepts(s):
             return f"{r} does not accept {s}"
         # (a) sender-side FIFO
-        for s2 in t.sends_to(s.rank, s.dst, s.comm):
-            if s2.idx >= s.idx:
-                break
-            if s2.available_to(r):
-                r2k = matched_send.get(s2.key)
-                if r2k is None or post_idx[r2k] > r.idx:
-                    return f"non-overtaking: {s2} would reach {r} before {s}"
-        # (b) receiver-side order: earlier unmatched receives, then earlier wildcard-source receives
-        for r2 in unmatched_by_rank.get(r.rank, ()):
-            if r2.idx < r.idx and r2.accepts(s):
-                return f"receiver order: earlier {r2} accepts {s} and has no message in this matching"
-        for r2 in t.wild_recvs_of(r.rank):
-            if r2.idx >= r.idx:
-                break
-            if not r2.accepts(s) or r2.key not in M:
+        for s2 in t.earlier_sends(r, s):
+            r2k = matched_send.get(s2.key)
+            if r2k is None or post_idx[r2k] > r.idx:
+                return f"non-overtaking: {s2} would reach {r} before {s}"
+        # (b) receiver-side order: an earlier receive without a message, then earlier receives
+        # matched to a later message of s's channel
+        for src in (s.rank, ANY):
+            for tag in (s.tag, ANY):
+                if first_unmatched.get((r.rank, r.comm, src, tag), 10**18) < r.idx:
+                    return f"receiver order: an earlier receive of rank {r.rank} accepts {s} and has no message in this matching"
+        for r2 in t.earlier_competitors(r, s):
+            if r2.key not in M:
                 continue
             s2 = t.sends[M[r2.key]]
             if s2.rank == s.rank and s2.dst == s.dst and s2.comm == s.comm and s2.idx > s.idx:
                 return f"receiver order: earlier {r2} would take {s} before {s2}"
-        # a specific-source earlier receive matched to a later send from s's own source is the
-        # mirror of (a) for that receive's pair and is caught there
     return None
 
 

@@ -5,7 +5,8 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from rematch.confirm import classify_rc, expected_outcomes, pins_applied  # noqa: E402
+from rematch.confirm import classify_rc, control_pin, expected_outcomes, pins_applied, pins_matched  # noqa: E402
+from rematch import trace as T  # noqa: E402
 from rematch.report import Finding  # noqa: E402
 
 APPLIED = ("[rematch-pin] rank 0: 2 pin(s) active\n[rematch-pin] rank 0: applied widx=0 src=2 (world 2) tag=5\n"
@@ -40,6 +41,30 @@ class PinsApplied(unittest.TestCase):
     def test_probe_pins(self):
         self.assertTrue(pins_applied("REMATCH_PIN_PROBE=1:0:2", APPLIED))
         self.assertFalse(pins_applied("REMATCH_PIN_PROBE=1:1:2", APPLIED))
+
+
+class PinsMatched(unittest.TestCase):
+    """'applied' is printed when the source argument is rewritten; only 'matched', printed when
+    the pinned receive completes, shows that the forced match happened (an impossible forced
+    match also hangs, with every pin applied)."""
+
+    def test_applied_is_not_matched(self):
+        self.assertFalse(pins_matched("REMATCH_PIN=0:0:2", APPLIED))
+        matched = APPLIED + "[rematch-pin] rank 0: matched widx=0 src=2\n"
+        self.assertTrue(pins_matched("REMATCH_PIN=0:0:2", matched))
+        self.assertFalse(pins_matched("REMATCH_PIN=0:0:2,0:1:1", matched))      # widx 1 applied, never matched
+        self.assertTrue(pins_matched("REMATCH_PIN_PROBE=1:0:2", APPLIED))        # a probe pin reports when it found its message
+
+    def test_control_pins_the_observed_senders(self):
+        t = T.Trace()
+        T._build(t, {0: [{"op": "init", "np": 3},
+                         {"op": "recv", "src": 0, "anysrc": 1, "tag": 1, "comm": 0, "count": 1, "tsize": 4, "msrc": 1, "mtag": 1, "mcount": 1, "widx": 0},
+                         {"op": "recv", "src": 0, "anysrc": 1, "tag": 1, "comm": 0, "count": 1, "tsize": 4, "msrc": 2, "mtag": 1, "mcount": 1, "widx": 1},
+                         {"op": "finalize"}],
+                     1: [{"op": "init", "np": 3}, {"op": "send", "mode": "std", "dst": 0, "tag": 1, "comm": 0, "count": 1, "tsize": 4}, {"op": "finalize"}],
+                     2: [{"op": "init", "np": 3}, {"op": "send", "mode": "std", "dst": 0, "tag": 1, "comm": 0, "count": 1, "tsize": 4}, {"op": "finalize"}]})
+        self.assertEqual(control_pin(t, "REMATCH_PIN=0:0:2,0:1:1"), "REMATCH_PIN=0:0:1,0:1:2")
+        self.assertIsNone(control_pin(t, "REMATCH_PIN=0:7:2"))                  # no such receive: nothing to pin
 
 
 if __name__ == "__main__":

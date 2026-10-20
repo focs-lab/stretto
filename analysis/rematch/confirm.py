@@ -1,8 +1,12 @@
 """Confirming replay: rerun the program with each finding's REMATCH_PIN and classify the
-outcome (hang / MPI error / finished). A finding is confirmed only if the replay library
-reported every pin applied and the outcome is the predicted one; a hang with a pin that
-never took effect confirms nothing. Prediction stays single-run; this only separates true
-predictions from model or tool divergence."""
+outcome (hang / MPI error / finished). A finding is confirmed only if (1) every pinned
+receive *matched* in the rerun (the replay library prints "matched" when a pinned receive
+completes, which with its source rewritten means it took the pinned sender; "applied" only
+says the argument was set, and forcing an impossible match also hangs), (2) the outcome is
+the predicted one, and (3) a control rerun that pins the same receives to their observed
+senders finishes, so that the outcome is the alternative's and not the program's anyway.
+A finding whose control does not finish is inconclusive. Prediction stays single-run; this
+only separates true predictions from model or tool divergence."""
 from __future__ import annotations
 import os
 import re
@@ -24,6 +28,8 @@ class Confirmation:
     verdict: str         # confirmed | not-confirmed | n/a
     stderr_tail: str = ""
     pin_applied: bool = False   # every pin of the spec reported itself applied in the rerun
+    pin_matched: bool = False   # every pinned receive completed, i.e. took its pinned sender
+    control: str = ""           # result of the control rerun (observed senders pinned), "" if none
 
 
 def classify_rc(rc: int, stderr: str, elapsed: Optional[float] = None, timeout: Optional[int] = None) -> str:
@@ -63,6 +69,45 @@ def pins_applied(pin: str, stderr: str) -> bool:
     return True
 
 
+def pins_matched(pin: str, stderr: str) -> bool:
+    """Did every pinned receive complete? '[rematch-pin] rank R: matched widx=W src=S' per
+    receive pin; a probe pin counts when the probe found its message ('applied probe pidx=P',
+    printed only then)."""
+    name, _, spec = pin.partition("=")
+    probe = name == "REMATCH_PIN_PROBE"
+    for tok in spec.split(","):
+        parts = tok.split(":")
+        if len(parts) < 3:
+            return False
+        rank, idx = parts[0], parts[1]
+        pat = rf"\[rematch-pin\] rank {rank}: " + (rf"applied probe pidx={idx}\b" if probe else rf"matched widx={idx}\b")
+        if not re.search(pat, stderr):
+            return False
+    return True
+
+
+def control_pin(t, pin: str) -> Optional[str]:
+    """The same receives (or probes) pinned to the senders they took in the recorded run.
+    Receives that never completed there are left unpinned. None if no pin remains."""
+    name, _, spec = pin.partition("=")
+    probe = name == "REMATCH_PIN_PROBE"
+    toks = []
+    for tok in spec.split(","):
+        parts = tok.split(":")
+        if len(parts) < 3:
+            continue
+        rank, idx = int(parts[0]), int(parts[1])
+        if probe:
+            x = next((p for p in t.probes.values() if p.rank == rank and p.pidx == idx), None)
+            src = t.sends[x.seen].rank if x is not None and x.seen is not None else None
+        else:
+            x = next((r for r in t.recvs.values() if r.rank == rank and r.widx == idx), None)
+            src = x.msrc if x is not None else None
+        if src is not None:
+            toks.append(f"{rank}:{idx}:{src}")
+    return f"{name}={','.join(toks)}" if toks else None
+
+
 def expected_outcomes(f: Finding) -> set:
     """Which replay results confirm a finding of this class, provided its pins were applied."""
     if f.cls in ("1a",):
@@ -91,9 +136,21 @@ def run_pinned(np: int, exe: str, args: List[str], pin: Optional[str], timeout: 
 
 
 def confirm(rep: Report, np: int, exe: str, args: List[str] = (), timeout: int = 20, mpi: str = "openmpi",
-            only_errors: bool = True) -> List[Confirmation]:
+            only_errors: bool = True, t=None) -> List[Confirmation]:
+    """t, the trace, gives the control reruns; without it no finding can be confirmed."""
     out = []
     seen = set()
+    controls: dict = {}
+
+    def control(pin: str) -> str:
+        cp = control_pin(t, pin) if t is not None else None
+        if t is None:
+            return ""
+        if cp not in controls:
+            r = run_pinned(np, exe, list(args), cp, timeout, mpi)
+            controls[cp] = classify_rc(r.returncode, r.stderr, r.elapsed, timeout)
+        return controls[cp]
+
     for f in rep.findings:
         if f.level == "observed":
             continue
@@ -114,7 +171,14 @@ def confirm(rep: Report, np: int, exe: str, args: List[str] = (), timeout: int =
         r = run_pinned(np, exe, list(args), pin, timeout, mpi)
         res = classify_rc(r.returncode, r.stderr, r.elapsed, timeout)
         applied = pins_applied(pin, r.stderr)
+        matched = pins_matched(pin, r.stderr)
         want = expected_outcomes(f)
-        verdict = "n/a" if not want else ("confirmed" if res in want and applied else "not-confirmed")
-        out.append(Confirmation(f, pin, res, verdict, r.stderr[-300:], applied))
+        ctl = control(pin) if want and res in want and matched else ""
+        if not want:
+            verdict = "n/a"
+        elif res not in want or not matched:
+            verdict = "not-confirmed"
+        else:
+            verdict = "confirmed" if ctl == "FINISHED" else "inconclusive"
+        out.append(Confirmation(f, pin, res, verdict, r.stderr[-300:], applied, matched, ctl))
     return out

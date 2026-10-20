@@ -1,0 +1,6 @@
+{"r":2,"seq":0,"op":"init","np":4,"thread":0}
+{"r":2,"seq":1,"op":"comm","name":"world","parent":0,"id":0,"ranks":[0,1,2,3],"gord":0}
+{"r":2,"seq":2,"op":"comm","name":"self","parent":0,"id":1,"ranks":[2],"gord":0}
+{"r":2,"seq":3,"op":"begin","call":"send","mode":"std","dst":0,"tag":13,"comm":0,"count":1,"tsize":16,"tsig":"MPI_INT*4"}
+{"r":2,"seq":4,"op":"send","mode":"std","dst":0,"tag":13,"comm":0,"count":1,"tsize":16,"tsig":"MPI_INT*4"}
+{"r":2,"seq":5,"op":"finalize"}

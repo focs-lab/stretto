@@ -24,6 +24,7 @@ encode ANY as -1.
 from __future__ import annotations
 import json
 import os
+from bisect import bisect_left
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
@@ -230,6 +231,7 @@ class Trace:
     missing: List[int] = field(default_factory=list)     # ranks without a trace file
     bad_lines: int = 0
     warnings: List[str] = field(default_factory=list)
+    unmodelled: List[Tuple[int, str]] = field(default_factory=list)   # (rank, call) outside the modelled fragment
 
     # ---------------------------------------------------------------- helpers
     def recv_by_req(self, rank: int, req: int) -> Optional[Recv]:
@@ -254,24 +256,42 @@ class Trace:
         """Ranks with at least one send to dst on comm, ascending."""
         return self._sources_to.get((dst, comm), [])
 
-    def rs_edges_observed(self, rk: Key):
-        """Receiver-side ordering edges for an observed pair (cached)."""
-        if rk in self._rs_cache:
-            return self._rs_cache[rk]
-        r = self.recvs[rk]
-        s = self.sends[self.observed[rk]]
-        rc = r.complete_node()
-        edges = []
-        if rc is not None:
-            for r2 in self.wild_recvs_of(r.rank):     # a specific-source r2 is matched to s's own source: no edge
-                if r2.idx >= r.idx:
-                    break
-                if r2.accepts(s) and r2.key in self.observed:
-                    s2 = self.sends[self.observed[r2.key]]
-                    if s2.rank != s.rank:
-                        edges.append((s2.issue_node(), rc))
-        self._rs_cache[rk] = edges
-        return edges
+    def earlier_competitors(self, r: Recv, s: Send) -> List[Recv]:
+        """Receiver side of matching order (docs/model.md §2, condition 3'): for each envelope
+        class that accepts s, the latest receive of r's rank posted before r. Every earlier
+        receive that accepts s lies in one of the four classes (source s.rank or ANY, tag
+        s.tag or ANY), and inside a class each receive accepts whatever a later one does, so
+        the order reaches the rest of the class through the class members' own pairs."""
+        out = []
+        for src in (s.rank, ANY):
+            for tag in (s.tag, ANY):
+                key = (r.rank, r.comm, src, tag)
+                idx = self._recv_class_idx.get(key)
+                if idx:
+                    j = bisect_left(idx, r.idx)
+                    if j:
+                        out.append(self._recv_class[key][j - 1])
+        return out
+
+    def earlier_sends(self, r: Recv, s: Send) -> List[Send]:
+        """Sender side of matching order (condition 2): for each tag r accepts, the latest
+        send of s's channel issued before s that r could take. A receive that accepts one of
+        a tag's sends accepts all of them, so the order chains through that send's own pair."""
+        q = (s.rank, s.dst, s.comm)
+        tags = (r.tag,) if r.tag != ANY else self._tags_on.get(q, ())
+        out = []
+        for tag in tags:
+            key = q + (tag,)
+            idx = self._send_tag_idx.get(key)
+            if not idx:
+                continue
+            j = bisect_left(idx, s.idx) - 1
+            sends = self._send_tag[key]
+            while j >= 0 and not sends[j].available_to(r):   # removed by an earlier matched probe
+                j -= 1
+            if j >= 0:
+                out.append(sends[j])
+        return out
 
     def observed_send(self, r: Recv) -> Optional[Send]:
         k = self.observed.get(r.key)
@@ -320,7 +340,22 @@ class Trace:
         self._sources_to = {}
         for src, dst, comm in sorted(self._queues):
             self._sources_to.setdefault((dst, comm), []).append(src)
-        self._rs_cache = {}
+        # matching-order indexes: receives by (rank, comm, source or ANY, tag or ANY) in
+        # posting order (cancelled ones never match and an Mrecv takes the message its
+        # probe removed, so neither competes), and sends by (channel, tag) in issue order
+        self._recv_class = {}
+        for r in sorted(self.recvs.values(), key=lambda r: r.idx):
+            if not r.cancelled and not r.mrecv:
+                self._recv_class.setdefault((r.rank, r.comm, r.src, r.tag), []).append(r)
+        self._recv_class_idx = {k: [r.idx for r in v] for k, v in self._recv_class.items()}
+        self._send_tag = {}
+        for s in sorted(self.sends.values(), key=lambda s: s.idx):
+            if not s.cancelled:
+                self._send_tag.setdefault((s.rank, s.dst, s.comm, s.tag), []).append(s)
+        self._send_tag_idx = {k: [s.idx for s in v] for k, v in self._send_tag.items()}
+        self._tags_on = {}
+        for src, dst, comm, tag in sorted(self._send_tag):
+            self._tags_on.setdefault((src, dst, comm), []).append(tag)
 
 
 # ---------------------------------------------------------------------- loading
@@ -346,10 +381,34 @@ def load(tracedir: str) -> Trace:
                 if i == len(lines) - 1 or (i == len(lines) - 2 and not lines[-1].strip()):
                     t.warnings.append(f"rank {rank}: discarded a partial trailing record")
                 else:
-                    t.bad_lines += 1
+                    # a record lost in the middle shifts every later ordinal of the rank:
+                    # findings from such a trace would name the wrong operations
+                    raise ValueError(f"{f}: unparseable record at line {i + 1}")
+        check_records(f, rank, recs)
         raw_ranks[rank] = recs
+    nps = {r: next((x.get("np") for x in recs if x.get("op") == "init"), None) for r, recs in raw_ranks.items()}
+    if len({v for v in nps.values() if v is not None}) > 1:
+        raise ValueError(f"ranks disagree on the number of processes {nps}: files from different runs?")
     _build(t, raw_ranks)
     return t
+
+
+def check_records(fname: str, rank: int, recs: List[dict]) -> None:
+    """Every record names its file's rank and the sequence numbers run without a gap (the
+    tracer numbers each record of a rank, failed polls summarised by pollrepeat included)."""
+    prev = None
+    for k, r in enumerate(recs):
+        if "r" in r and r["r"] != rank:
+            raise ValueError(f"{fname}: record {k} belongs to rank {r['r']}")
+        q = r.get("seq")
+        if q is None:
+            continue
+        if prev is not None and q != prev + 1:
+            raise ValueError(f"{fname}: records missing between sequence numbers {prev} and {q}")
+        prev = q
+
+
+SIDE_RECORDS = ("comm", "overflow")
 
 
 def _fold_begins(raw: List[dict]) -> List[dict]:
@@ -359,12 +418,15 @@ def _fold_begins(raw: List[dict]) -> List[dict]:
     repeated n times) carry no event of their own and are dropped: the failed poll they
     repeat is already in the trace once."""
     raw = [r for r in raw if r.get("op") != "pollrepeat"]
-    # the next record of each thread, found in one backward pass (a scan per begin is quadratic)
+    # the next record of each thread, found in one backward pass (a scan per begin is quadratic).
+    # Side records the tracer writes while a call is in progress (the communicator an Idup
+    # completion registers, a table overflow) are not the call's completion and are skipped.
     following: List[Optional[dict]] = [None] * len(raw)
     last: Dict[Optional[int], dict] = {}
     for i in range(len(raw) - 1, -1, -1):
         following[i] = last.get(raw[i].get("tid"))
-        last[raw[i].get("tid")] = raw[i]
+        if raw[i].get("op") not in SIDE_RECORDS:
+            last[raw[i].get("tid")] = raw[i]
     out = []
     for i, r in enumerate(raw):
         if r.get("op") != "begin":
@@ -391,6 +453,8 @@ def _build(t: Trace, raw_ranks: Dict[int, List[dict]]) -> None:
                 t.thread_level = max(t.thread_level, r.get("thread", 0))
             elif r["op"] == "overflow":
                 t.warnings.append(f"rank {rank}: the tracer's {r.get('what')} overflowed; later records of that kind may be incomplete")
+            elif r["op"] == "unmodelled":
+                t.unmodelled.append((rank, r.get("call", "?")))
         if not any(r["op"] == "finalize" for r in recs):
             t.truncated.append(rank)
     if t.np:

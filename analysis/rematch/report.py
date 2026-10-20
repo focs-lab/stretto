@@ -9,6 +9,7 @@ from .feasible import Verdict, breakpoints, check, feasible_profile, observed_fe
 from .matching import candidates_full, observed_hb, probe_candidates
 from .trace import ANY, Key, Probe, Recv, Send, Trace
 from . import types
+from .deadlock import contained_deadlock
 
 
 # classes that make a program's verdict ERROR (the warnings 1b, 1f, probe-alt and
@@ -178,6 +179,15 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
     if t.thread_level >= 3 and multi:
         rep.notes.append(f"MPI_THREAD_MULTIPLE with several calling threads on ranks {multi}: per-rank program order is not total, alternatives are not predicted (observed findings only)")
         return rep
+    # ---- communication outside the modelled fragment (one-sided, neighbourhood collectives,
+    # dynamic processes, MPI-4 calls the tracer does not model): the trace is not a complete
+    # record of the run's communication, which theorem T1 assumes
+    if t.unmodelled:
+        calls = sorted({c for _, c in t.unmodelled})
+        ranks = sorted({r for r, _ in t.unmodelled})
+        rep.notes.append(f"calls outside the modelled fragment on ranks {ranks}: {', '.join(calls)}; "
+                         "alternatives are not predicted (observed findings only)")
+        return rep
 
     # ---- profiles over the breakpoints: the observed run and every alternative (receive,
     # probe, completion order) judged at each threshold, threshold-major so that one
@@ -234,6 +244,26 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
         f = Finding("1", cls, "L1", alt.describe(t), details, B=brange, recv=alt.recv, send=alt.send,
                     pin=pin_spec(r, s))
         rep.findings.append(f)
+        # a deadlock contained in the horizon (theorem T7): possible only when a changed rank
+        # stops before its changed receive completes, i.e. at a nonblocking changed receive
+        if any(not t.recvs[k].blocking for k in alt.changed):
+            held = []
+            for B in dict.fromkeys([minB, None] if at_inf else [minB]):
+                v = check(t, alt.M, alt.changed, B, "L1")
+                if v.feasible:
+                    D = contained_deadlock(t, alt.M, alt.changed, v.cut, v.issued, B)
+                    if D:
+                        held.append((B, D))
+            if held:
+                D = held[-1][1]
+                rep.findings.append(Finding(
+                    "1", "1d", "L1", f"deadlock after {r} takes {s}, contained in the horizon",
+                    ["; ".join(f"rank {R} stops at {op}" for R, op in D.items()),
+                     "every rank that could complete these operations stops too or has terminated, so the deadlock "
+                     "holds for every program consistent with the trace up to them (theorem T7, no single-path assumption)",
+                     "judged at B in " + ",".join(_fmt_B(B) for B, _ in held)],
+                    B="B in " + ",".join(_fmt_B(B) for B, _ in held), recv=alt.recv, send=alt.send,
+                    pin=pin_spec(r, s), certainty="all"))
         if alt.kind == "steal" or (alt.recv, alt.send) not in sp_pairs:
             sp_targets.append((alt.recv, alt.send, f))
             sp_pairs.add((alt.recv, alt.send))
@@ -252,14 +282,14 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
             for B in (0, None):
                 try:
                     base[B] = explore.explore(prog, B, max_states=max_states, comms=t.comm_members)
-                except (RuntimeError, explore.ExploreError) as e:
+                except (explore.StateCapReached, explore.ExploreError) as e:
                     base[B] = None
                     rep.notes.append(f"L1+SP baseline at B={_fmt_B(B)} not explored ({e}): consequences are not compared with the observed run")
             for rk, sk, f in sp_targets:
                 for B in (0, None):
                     try:
                         res = explore.explore(prog, B, force={rk: sk}, max_states=max_states, comms=t.comm_members)
-                    except RuntimeError:
+                    except explore.StateCapReached:
                         rep.notes.append(f"L1+SP explorer hit the state cap ({max_states}) for {t.recvs[rk]} <- {t.sends[sk]} at B={_fmt_B(B)}")
                         f.detail.append(f"L1+SP at B={_fmt_B(B)}: state space too large, not explored")
                         continue
@@ -344,7 +374,7 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
             for B in (0, None):
                 try:
                     res = explore.explore(twin, B, force={rk: sk}, max_states=max_states, comms=t.comm_members)
-                except (RuntimeError, explore.ExploreError) as e:
+                except (explore.StateCapReached, explore.ExploreError) as e:
                     f.detail.append(f"L2 at B={_fmt_B(B)}: twin not explored ({e})")
                     continue
                 outs = res.outcomes_with(rk, sk)
@@ -460,11 +490,15 @@ def _profiles_fast(t: Trace, alts, probes, waits, full: bool = False) -> _Profil
             ob = obs[B] = fast.Observed(t, B, ix)
         return ob
 
-    def profile(prof: Dict[Optional[int], bool], verdict, value, what: str = "") -> Dict[Optional[int], Verdict]:
-        """Fill prof over bps from verdict(B); value(Verdict) is the bool profiled. Returns
-        the verdicts actually computed, by threshold. Feasible at B = 0 and infeasible at
-        B = inf contradicts T2; the item is then judged at every breakpoint (the exact
-        profile) and the report says so, since the bisection would be wrong."""
+    def profile(prof: Dict[Optional[int], bool], verdict, value, what: str = "", floor: int = 0,
+                full_item: bool = False) -> Dict[Optional[int], Verdict]:
+        """Fill prof over bps[floor:] from verdict(B); value(Verdict) is the bool profiled.
+        Returns the verdicts actually computed, by threshold. floor is the index of the
+        least breakpoint at which the observed run is realisable: theorem T2 holds from there
+        on, so the bisection starts there and the thresholds below are not stated. Feasible
+        at the floor and infeasible at B = inf contradicts T2; the item is then judged at
+        every breakpoint (the exact profile) and the report says so. full_item judges every
+        breakpoint for an item T2 does not cover (a swap re-matches two receives)."""
         seen: Dict[Optional[int], Verdict] = {}
 
         def judge(B: Optional[int]) -> bool:
@@ -472,18 +506,20 @@ def _profiles_fast(t: Trace, alts, probes, waits, full: bool = False) -> _Profil
             prof[B] = value(v)
             return prof[B]
 
-        if full:
-            for B in bps:
+        for B in bps[:floor]:
+            prof[B] = False             # below the observed run's threshold: not stated (T2's hypothesis)
+        if full or full_item:
+            for B in bps[floor:]:
                 judge(B)
             return seen
-        lo, hi = judge(bps[0]), judge(None)
-        sizes = bps[1:-1]
+        lo, hi = judge(bps[floor]), judge(None)
+        sizes = bps[floor + 1:-1]
         if lo == hi:
             for B in sizes:
                 prof[B] = lo
             return seen
         if lo and not hi:
-            pr.notes.append(f"profile of {what} is not monotone in B (feasible at 0, infeasible at inf), judged at every breakpoint; theorem T2 does not cover it")
+            pr.notes.append(f"profile of {what} is not monotone in B (feasible at B={bps[floor]}, infeasible at inf), judged at every breakpoint; theorem T2 does not cover it")
             for B in sizes:
                 judge(B)
             return seen
@@ -501,35 +537,47 @@ def _profiles_fast(t: Trace, alts, probes, waits, full: bool = False) -> _Profil
     pr = _Profiles({}, None, [dict() for _ in alts], [""] * len(alts), [dict() for _ in probes], [""] * len(probes),
                    [dict() for _ in waits], [""] * len(waits))
     pr.obs0 = profile(pr.obs, lambda B: at(B).observed_verdict(), lambda v: v.ok, "the observed run")[0]
+    floor = observed_floor(bps, pr.obs)
     for i, a in enumerate(alts):
         def alt_at(B, a=a):
             fv = at(B).check_alternative(a)
-            return fv if fv is not None else check(t, a.M, a.changed, B, "L1")   # a swap: the generic check judges it
-        pr.alt_reason[i] = profile(pr.alt[i], alt_at, lambda v: v.feasible, a.describe(t))[None].reason
+            return fv if fv is not None else check(t, a.M, a.changed, B, "L1")   # a swap or a nonblocking receive
+        pr.alt_reason[i] = profile(pr.alt[i], alt_at, lambda v: v.feasible, a.describe(t), floor, a.kind != "steal")[None].reason
     for j, (p, s) in enumerate(probes):
         pr.probe_reason[j] = profile(pr.probe[j], lambda B, p=p, s=s: at(B).check_probe(p, s), lambda v: v.feasible,
-                                     f"{p} sees {s}")[None].reason
+                                     f"{p} sees {s}", floor)[None].reason
     for k, (rec, j, r_j, s_j) in enumerate(waits):
         pr.wait_reason[k] = profile(pr.wait[k], lambda B, rec=rec, s_j=s_j: at(B).check_event(rec.rank, rec.idx, s_j),
-                                    lambda v: v.feasible, f"completion order of rank {rec.rank} #{rec.idx} index {j}")[None].reason
+                                    lambda v: v.feasible, f"completion order of rank {rec.rank} #{rec.idx} index {j}", floor)[None].reason
     return pr
 
 
+def observed_floor(bps: List[Optional[int]], obs: Dict[Optional[int], bool]) -> int:
+    """Index in bps of the least breakpoint at which the observed run is realisable (B0 of
+    theorem T2), or 0 when it is realisable nowhere (the report then says so)."""
+    for i, B in enumerate(bps):
+        if obs.get(B):
+            return i
+    return 0
+
+
 def _profiles_generic(t: Trace, alts, probes, waits) -> _Profiles:
-    """The generic checker (feasible.check), profiling each item at the two ends of the range
-    and bisecting between them."""
+    """The generic checker (feasible.check), profiling each item from the observed run's
+    threshold B0 to infinity and bisecting between them (T2); swaps in full."""
     pr = _Profiles(feasible_profile(t, t.observed, set(), mode="SP", full=False, strong_only=True),
                    observed_feasible_at(t, 0), [], [], [], [], [], [])
+    bps = breakpoints(t) + [None]
+    B0 = bps[observed_floor(bps, pr.obs)]
     for a in alts:
-        pr.alt.append(feasible_profile(t, a.M, a.changed, mode="L1", full=False))
+        pr.alt.append(feasible_profile(t, a.M, a.changed, mode="L1", full=a.kind != "steal", floor=B0))
         pr.alt_reason.append(check(t, a.M, a.changed, None, "L1").reason)
     for p, s in probes:
         kw = dict(changed_probes={p.key}, probe_alt={p.key: s.key})
-        pr.probe.append(feasible_profile(t, t.observed, set(), mode="L1", full=False, **kw))
+        pr.probe.append(feasible_profile(t, t.observed, set(), mode="L1", full=False, floor=B0, **kw))
         pr.probe_reason.append(check(t, t.observed, set(), None, "L1", **kw).reason)
     for rec, j, r_j, s_j in waits:
         kw = dict(extra_edges=[(s_j.issue_node(), rec.complete)], changed_events={(rec.rank, rec.idx)}, must_issue=[s_j.key])
-        pr.wait.append(feasible_profile(t, t.observed, set(), mode="L1", full=False, **kw))
+        pr.wait.append(feasible_profile(t, t.observed, set(), mode="L1", full=False, floor=B0, **kw))
         pr.wait_reason.append(check(t, t.observed, set(), None, "L1", **kw).reason)
     return pr
 

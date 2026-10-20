@@ -164,6 +164,11 @@ class ExploreError(Exception):
     pass
 
 
+class StateCapReached(RuntimeError):
+    """The exploration stopped at max_states: not an error of the program or of the explorer.
+    A subclass of RuntimeError, which callers caught before this class existed."""
+
+
 # ------------------------------------------------------------------ helpers
 
 def _env(p: PState) -> dict:
@@ -241,7 +246,7 @@ def explore(prog: Program, B: Optional[int] = None, force: Optional[Dict[Key, Ke
         seen.add(st)
         res.states += 1
         if res.states > max_states:
-            raise RuntimeError("state space too large")
+            raise StateCapReached("state space too large")
         succs, outs = ctx.successors(st)
         res.outcomes.extend(outs)
         if succs:

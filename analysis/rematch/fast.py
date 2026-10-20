@@ -11,11 +11,13 @@ from indexes built once per trace and once per threshold:
   * matching order follows from the kernel that enumerated the candidate (the send is the
     earliest unconsumed one of its source), so only the receives of the changed rank need a
     look;
-  * acyclicity reduces to reachability in the observed graph of the threshold, since the
-    closure removes every node an added edge could otherwise return through, and that
-    reachability comes from vector clocks computed once per threshold.
+  * for a steal at a blocking receive, acyclicity reduces to reachability in the observed
+    graph of the threshold (vector clocks computed once per threshold): rule 1 cuts the
+    rank right after the receive, so a cycle through the new match must leave it through
+    a rendezvous send's completion and return through one of its predecessors.
 
-The generic check stays as the reference; the tests compare the two on every alternative.
+Steals at nonblocking receives and swaps go to the generic check. The generic check stays as
+the reference; the tests compare the two on every alternative.
 """
 from __future__ import annotations
 from bisect import bisect_left, bisect_right
@@ -23,7 +25,7 @@ from typing import Dict, Iterable, List, Optional, Set, Tuple
 
 from .feasible import Verdict
 from .horizon import coll_can_complete
-from .matching import Alternative, build_graph, is_hub, send_blocks
+from .matching import Alternative, build_graph, is_hub, is_match, match_node, send_blocks
 from .trace import ANY, Coll, Key, Probe, Recv, Send, Trace
 
 INF = 10 ** 9
@@ -74,6 +76,7 @@ class Indexes:
                 self.unmatched.setdefault(r.rank, []).append(r)
         self.unmatched_completed = [r for v in self.unmatched.values() for r in v if r.completed]
         self.orphans = [s for s in t.sends.values() if s.key not in self.recv_of0 and s.completed]
+        self.orphan_ready = [s for s in t.sends.values() if s.ready_mode and s.key not in self.recv_of0]
         # posting indexes of every receive of a rank, so that a scan of the receives posted
         # after a given one starts by bisection and not from the rank's first receive
         self.recv_idx: Dict[int, List[int]] = {rank: [r.idx for r in t.recvs_of(rank)] for rank in t.ranks}
@@ -133,13 +136,26 @@ class Indexes:
             v.sort()
         self.r6_idx = {k: [i for i, _ in v] for k, v in self.r6.items()}
         self.recv_at: Dict[Tuple[int, int], Recv] = {(r.rank, r.idx): r for r in t.recvs.values()}
+        # rule 6 for probes: the probes that report a message, by the same patterns of that
+        # message, so that a pending receive finds the first later probe it would deprive
+        self.p6: Dict[Tuple[int, int, int, int], List[int]] = {}
+        for p in t.probes.values():
+            if p.completed and p.flag and p.seen is not None:
+                sp = t.sends[p.seen]
+                for src in (ANY, sp.rank):
+                    for tag in (ANY, sp.tag):
+                        self.p6.setdefault((p.rank, p.comm, src, tag), []).append(p.idx)
+        for v in self.p6.values():
+            v.sort()
         comp: Dict[Key, int] = {}
         for v in self.rq.values():
             for r in v:
-                lst = self.r6_idx.get((r.rank, r.comm, r.src, r.tag))
-                j = bisect_right(lst, r.idx) if lst else 0
-                comp[r.key] = lst[j] if lst and j < len(lst) else INF
+                comp[r.key] = self.first_competitor(r, self.p6)
         self.comp0 = comp
+        # rule 7: per (R, S), the receives on R matched to sends from S; value = the send's
+        # index if it is a ready send (cut when its receive is no longer posted), INF otherwise
+        self.r7 = {k: Suffix2([t.sends[t.observed[r.key]].idx if t.sends[t.observed[r.key]].ready_mode else INF for r in v])
+                   for k, v in self.rq.items()}
         if self._sends is None:
             self._build_sends()
         r0 = self.recv_of0
@@ -158,6 +174,25 @@ class Indexes:
         for R, comm in sorted(self.colls_of):
             self.comms_of.setdefault(R, []).append(comm)
         self._colls = True
+
+    def first_competitor(self, r: Recv, p6, skip_probes=frozenset()) -> int:
+        """The posting index of the first receive or probe of r's rank after r that takes or
+        reports a message r accepts (INF if none): where rule 6 cuts when r stays pending."""
+        key = (r.rank, r.comm, r.src, r.tag)
+        best = INF
+        lst = self.r6_idx.get(key)
+        if lst:
+            j = bisect_right(lst, r.idx)
+            if j < len(lst):
+                best = lst[j]
+        lst = p6.get(key)
+        if lst:
+            j = bisect_right(lst, r.idx)
+            while j < len(lst) and (r.rank, lst[j]) in skip_probes:
+                j += 1
+            if j < len(lst) and lst[j] < best:
+                best = lst[j]
+        return best
 
     def acyclic_at_zero(self) -> bool:
         """Is the observed matching's full constraint graph acyclic at B = 0? Rendezvous
@@ -234,6 +269,7 @@ class Observed:
         issued: Dict[int, int] = {}
         work: List[Tuple[int, int]] = []
         probe_ranks = {p.rank: p.idx for p in changed_probes}
+        changed_probe_at = {(p.rank, p.idx) for p in changed_probes}
         dropped_keys = {r.key for r in dropped_recvs}
         # receives whose M' message differs from the observed one, by (rank, idx): the
         # rule-6 index names them as competitors by their observed message, which is stale
@@ -242,7 +278,14 @@ class Observed:
         record = hangs is not None and mode == "SP"
 
         def lower(rank: int, idx: int, why=None, issue_kept: bool = False) -> None:
-            """why: a callable producing the reason text, formatted only when hangs are recorded."""
+            """why: a callable producing the reason text, formatted only when hangs are recorded.
+            A rule that removes the issue kept at the current cut still applies (horizon.compute_cut)."""
+            if idx == cut[rank] and issued.get(rank) == idx and not issue_kept:
+                issued.pop(rank, None)
+                work.append((rank, idx))
+                if record and rank not in hangs:
+                    hangs[rank] = why() if why else ""
+                return
             if idx < cut[rank]:
                 work.append((rank, idx))
                 cut[rank] = idx
@@ -272,8 +315,15 @@ class Observed:
             for rk2, sk2 in new_pairs.items():
                 if rk2[0] == rank and r.idx < t.recvs[rk2].idx < best and r.accepts(t.sends[sk2]):
                     best, best_r = t.recvs[rk2].idx, rk2
+            pl = ix.p6.get(key)
+            if pl:
+                j = bisect_right(pl, r.idx)
+                while j < len(pl) and (rank, pl[j]) in changed_probe_at:
+                    j += 1
+                if j < len(pl) and pl[j] < best:
+                    best, best_r = pl[j], ("probe", pl[j])
             if best_r is not None:
-                lower(rank, best, lambda r=r, rk2=best_r: f"{t.recvs[rk2]} never gets {t.sends[new_pairs.get(rk2) or t.observed[rk2]]}: {r}, posted before it and still pending, takes the message")
+                lower(rank, best, lambda r=r, rk2=best_r, best=best: f"{ix.probe_at[(rank, best)] if rk2[0] == 'probe' else t.recvs[rk2]} is deprived: {r}, posted before it and still pending, takes the message")
 
         if mode == "L1":
             for rk in changed:
@@ -284,7 +334,7 @@ class Observed:
             for rank, idx in changed_events:
                 lower(rank, idx + 1)
         new_by_send = {sk: rk for rk, sk in new_pairs.items()}
-        if changed or changed_probes or changed_events or ix.unmatched_completed or dropped_recvs or self.orphans_blocking or dropped_sends:
+        if changed or changed_probes or changed_events or ix.unmatched_completed or dropped_recvs or self.orphans_blocking or dropped_sends or ix.orphan_ready:
             ix.ready()
         for r in ix.unmatched_completed:
             if r.key not in new_pairs:
@@ -298,6 +348,10 @@ class Observed:
         for s in dropped_sends:
             if s.completed and send_blocks(s, B):
                 lower(s.rank, _cidx(s), lambda s=s: f"{s} never completes: rendezvous with no posted receive", _cidx(s) == s.idx)
+        # rule 7: ready sends without a receive
+        for s in ix.orphan_ready + [s for s in dropped_sends if s.ready_mode]:
+            if s.key not in new_by_send:
+                lower(s.rank, s.idx, lambda s=s: f"{s} is a ready send whose receive is never posted")
         for r in ix.unmatched_completed:
             if r.key not in new_pairs and r.idx < cut[r.rank]:
                 rule6(r)
@@ -358,6 +412,17 @@ class Observed:
                 r, s = t.recvs[rk], t.sends[sk]
                 if r.rank == R and r.idx >= new and s.completed and send_blocks(s, B):
                     lower(s.rank, _cidx(s), lambda s=s: f"{s} never completes: rendezvous with no posted receive", _cidx(s) == s.idx)
+                if r.rank == R and r.idx >= new and s.ready_mode:
+                    lower(s.rank, s.idx, lambda s=s: f"{s} is a ready send whose receive is never posted")
+            # rule 7: ready sends whose receive on R is no longer posted
+            for S in ix.senders_to.get(R, ()):
+                key = (R, S)
+                i = bisect_left(ix.rq_idx[key], new)
+                if i < len(ix.rq_idx[key]):
+                    ex = exclude3[2] if exclude3 is not None and exclude3[0] == R and exclude3[1] == S else -1
+                    v, pos = ix.r7[key].query(i, ex)
+                    if v < INF:
+                        lower(S, v, lambda S=S, v=v: f"a ready send of rank {S} at {v} loses its posted receive")
             # rule 4: collectives R no longer issues; each member completes only if the
             # members its shape requires still issue it
             for comm in ix.comms_of.get(R, ()):
@@ -405,7 +470,8 @@ class Observed:
         return not self._cycle
 
     def reaches(self, a, b) -> bool:
-        """a happens-before b in every execution with the observed matching at this B."""
+        """a happens-before b in every execution with the observed matching at this B. a is an
+        issue or completion node; b may also be a match node."""
         if self._vc is None:
             self._build_vc()
         vb = self._vc.get(b)
@@ -434,7 +500,7 @@ class Observed:
                 for i in range(P):
                     if va[i] > v[i]:
                         v[i] = va[i]
-            if not is_hub(n):
+            if not is_hub(n) and not is_match(n):   # hubs and match nodes are no rank's events
                 v[self._rank_pos[n[0]]] = 2 * n[1] + (1 if n[2] == "c" else 0)
             vc[n] = v
             for b in g.succ.get(n, ()):
@@ -453,11 +519,17 @@ class Observed:
 
     # ------------------------------------------------------------------- checks
     def check_alternative(self, alt: Alternative) -> Optional[Verdict]:
-        """Verdict for a steal alternative; None for a swap, which the generic check judges."""
+        """Verdict for a steal at a blocking receive; None for a swap or a nonblocking
+        receive, which the generic check judges. A blocking receive is matched in its own
+        call and rule 1 cuts its rank right after it, so the only kept successor of its match
+        is the completion of a rendezvous send, and a cycle through the new match exists iff
+        that completion reaches one of the match's predecessors (docs/model.md §2)."""
         if alt.kind != "steal":
             return None
         t, B = self.t, self.B
         r, s = t.recvs[alt.recv], t.sends[alt.send]
+        if not r.blocking:
+            return None
         s_obs = t.observed_send(r)
         r2 = t.recvs[alt.stolen_from] if alt.stolen_from is not None else None
         if not self.acyclic():
@@ -475,8 +547,18 @@ class Observed:
         why = self._order(r, s, r2, cut)
         if why:
             return Verdict(False, why, cut)
-        if send_blocks(s, B) and s.completed and _cidx(s) < cut[s.rank] and self.reaches(s.complete_node(), r.issue_node()):
-            return Verdict(False, "constraint cycle", cut)
+        if send_blocks(s, B) and s.completed and _cidx(s) < cut[s.rank]:
+            sc = s.complete_node()
+            # the match's predecessors: r's issue, and the matches that must precede it
+            # (earlier receives of r's rank that accept s, receivers of the earlier messages
+            # of s's channel that r accepts), all posted before r and unchanged
+            preds = [r.issue_node()]
+            preds += [match_node(x) for x in t.earlier_competitors(r, s) if x.key in t.observed]
+            preds += [match_node(t.recvs[self.ix.recv_of0[s2.key]]) for s2 in t.earlier_sends(r, s) if s2.key in self.ix.recv_of0]
+            if any(self.reaches(sc, n) for n in preds):
+                return Verdict(False, "constraint cycle", cut)
+        if s.ready_mode and self.reaches(s.issue_node(), r.issue_node()):
+            return Verdict(False, "constraint cycle", cut)      # a ready send needs the receive posted first
         return Verdict(True, "ok", cut)
 
     def _order(self, r: Recv, s: Send, r2: Optional[Recv], cut: Dict[int, int]) -> Optional[str]:
@@ -512,13 +594,29 @@ class Observed:
         return None
 
     def check_probe(self, p: Probe, s: Send) -> Verdict:
+        """The probe reports s instead of what it saw. Its completion has no kept successor
+        (the closure cuts right after it), so no cycle can pass through the new edges; what
+        remains is that s be issued and that no earlier receive of the probe's rank be
+        pending with s acceptable to it (rule 6)."""
         if not self.acyclic():
             return Verdict(False, "constraint cycle", None, self._cycle)
+        t = self.t
         cut, issued = self.closure(changed_probes=[p])
         if p.idx >= cut[p.rank]:
             return Verdict(False, "witness cut by the horizon closure", cut)
         if s.idx >= cut[s.rank] and issued.get(s.rank) != s.idx:
             return Verdict(False, "the message the probe would observe is never issued within the horizon", cut)
+        for x in self.ix.unmatched.get(p.rank, ()):
+            if x.idx >= p.idx:
+                break
+            if not x.cancelled and not x.mrecv and x.accepts(s):
+                return Verdict(False, f"receiver order: earlier {x} accepts {s} and has no message in this matching", cut)
+        for x in t.earlier_competitors(p, s):
+            sk = t.observed.get(x.key)
+            if sk is not None:
+                sx = t.sends[sk]
+                if sx.idx >= cut[sx.rank] and issued.get(sx.rank) != sx.idx:
+                    return Verdict(False, "witness cut by the horizon closure", cut)    # x stays pending and takes s
         return Verdict(True, "ok", cut)
 
     def check_event(self, rank: int, idx: int, must_issue: Send) -> Verdict:
