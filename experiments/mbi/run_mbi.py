@@ -42,6 +42,8 @@ TRACER = os.path.join(ROOT, "tracer", "bin", "openmpi", "librematch-trace.so")
 sys.path.insert(0, os.path.join(ROOT, "analysis"))
 from rematch import confirm as confirm_mod, report, trace  # noqa: E402
 from rematch.confirm import classify_rc  # noqa: E402
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from provenance import code_commit  # noqa: E402
 
 
 def parse_header(path: str) -> dict:
@@ -148,31 +150,33 @@ def analyse(row: dict, out: str, exe: str, tracedir: str, args) -> None:
         row["wildcard_recvs"] = sum(1 for x in t.recvs.values() if x.wildcard)
         row["events"] = sum(len(v) for v in t.ranks.values())
         row["notes"] = "; ".join(rep.notes)[:300]
+        row["commit"] = code_commit()
         with open(os.path.join(out, "report.txt"), "w") as fh:
             fh.write(report.format_report(t, rep, show_infeasible=True))
         with open(os.path.join(out, "report.json"), "w") as fh:
             json.dump(report.to_json(t, rep), fh, default=str, indent=1)
         if args.confirm:
-            res = confirm_mod.confirm(rep, row["np"], exe, timeout=args.timeout)
+            res = confirm_mod.confirm(rep, row["np"], exe, timeout=args.timeout, t=t)
             row["confirmed"] = sum(1 for c in res if c.verdict == "confirmed")
-            row["not_confirmed"] = sum(1 for c in res if c.verdict == "not-confirmed")
+            row["not_confirmed"] = sum(1 for c in res if c.verdict in ("not-confirmed", "inconclusive"))
             # pins written with "/" separators: "1d 1/0/0/0 -> TIMEOUT" (colon runs read as IPv6 literals)
             row["replays"] = "; ".join(f"{c.finding.cls} {pin_label(c.pin)} -> {c.result}" for c in res)[:300]
             row["_replays"] = [{"program": row["name"], "cls": c.finding.cls, "level": c.finding.level,
                                 "certainty": c.finding.certainty, "pin": pin_label(c.pin), "result": c.result,
-                                "pin_applied": c.pin_applied, "verdict": c.verdict,
+                                "pin_applied": c.pin_applied, "pin_matched": c.pin_matched, "control": c.control,
+                                "verdict": c.verdict, "commit": code_commit(),
                                 "stderr_tail": " ".join(c.stderr_tail.split())[-200:]} for c in res]
     except Exception as e:  # noqa: BLE001
         row.update(classes="", findings=0, notes=f"analysis failed: {e}"[:300])
 
 
-REPLAY_KEYS = ["program", "cls", "level", "certainty", "pin", "result", "pin_applied", "verdict", "stderr_tail"]
+REPLAY_KEYS = ["program", "cls", "level", "certainty", "pin", "result", "pin_applied", "pin_matched", "control", "verdict", "stderr_tail", "commit"]
 
 
 def replay_only(args) -> int:
     rp = os.path.join(os.path.dirname(args.out), "replays.csv")
     rows = list(csv.DictReader(open(args.out)))
-    keys = list(rows[0].keys())
+    keys = list(rows[0].keys()) + ([] if "commit" in rows[0] else ["commit"])
     replays = list(csv.DictReader(open(rp))) if os.path.exists(rp) else []
     todo = [r for r in rows if r["build"] == "ok" and re.search(args.select, r["name"])]
     with ThreadPoolExecutor(max_workers=args.jobs) as ex:
@@ -233,8 +237,15 @@ def main() -> int:
             rows.append(row)
             print(f"[{i}/{len(names)}] {row['name']:<50} {row.get('run', ''):<22} {row.get('classes', '')}", flush=True)
     rows.sort(key=lambda r: r["name"])
+    # MUST runs separately (run_must.py, docker on the host): a rerun of the corpus keeps the
+    # MUST verdicts of the previous table, since MUST's own run does not depend on this code
+    if os.path.exists(args.out):
+        prev = {r["name"]: r.get("must", "") for r in csv.DictReader(open(args.out))}
+        for r in rows:
+            if not r.get("must") and prev.get(r["name"]):
+                r["must"] = prev[r["name"]]
     keys = ["name", "category", "expect", "detail", "can_deadlock", "np", "anysrc", "anytag", "probe", "persistent", "waitany",
-            "build", "run", "wildcard_recvs", "events", "findings", "l1_alternatives", "classes", "levels", "confirmed", "not_confirmed", "replays", "must", "notes"]
+            "build", "run", "wildcard_recvs", "events", "findings", "l1_alternatives", "classes", "levels", "confirmed", "not_confirmed", "replays", "must", "notes", "commit"]
     with open(args.out, "w", newline="") as fh:
         w = csv.DictWriter(fh, fieldnames=keys, extrasaction="ignore", lineterminator="\n")
         w.writeheader()

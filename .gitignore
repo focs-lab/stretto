@@ -44,3 +44,5 @@ experiments/results/*/must.log
 experiments/results/must.done
 experiments/results/nekbone/*
 !experiments/results/nekbone/summary8.txt
+# the commit the sync writes on the experiment machine
+/COMMIT

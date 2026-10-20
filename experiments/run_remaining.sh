@@ -4,7 +4,7 @@
 # under experiments/results/ and logs to experiments/results/run-remaining.log. MUST runs are
 # separate (experiments/mbi/run_must.py, experiments/amg/must.sh): they need docker on the host.
 #
-# usage: experiments/run_remaining.sh [step ...]     steps: build tests mbi mbb e2 e6 amg e4 e3
+# usage: experiments/run_remaining.sh [step ...]     steps: build tests mbi mbb stress e2 e6 amg e4 e3
 #        (no step: all of them, in that order)
 #   JOBS     parallel programs in the corpus steps (default 6)
 #   TIMEOUT  per program run and per replay, seconds (default 60); MUST gets the same
@@ -12,6 +12,9 @@ set -uo pipefail
 R="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$R"
 export PYTHONPATH="$R/analysis" OMPI_MCA_rmaps_base_oversubscribe=1 OMPI_MCA_hwloc_base_binding_policy=none
+# the commit every CSV row records (experiments/provenance.py); the copy here may have no .git,
+# so the sync writes it to COMMIT (RUNBOOK.md)
+export REMATCH_COMMIT="${REMATCH_COMMIT:-$(cat "$R/COMMIT" 2>/dev/null || echo unknown)}"
 JOBS="${JOBS:-6}"
 TIMEOUT="${TIMEOUT:-60}"
 log() { echo "== $(date '+%F %T') $*"; }
@@ -35,6 +38,12 @@ step_mbb() {
         --select '^(P2P|COLL)/(CallOrdering|MissingCall|LocalConcurrency|Correct)' \
         --jobs "$JOBS" --timeout "$TIMEOUT" --confirm --max-states 30000 --sp-max-events 600
 }
+step_stress() {
+    # the baseline: up to 30 runs per program with random delays, until one does not finish
+    python3 experiments/stress_baseline.py experiments/results/mbi/mbi.csv --runs 30 --jobs "$JOBS" --timeout "$TIMEOUT"
+    python3 experiments/stress_baseline.py experiments/results/mbb/mbb.csv --runs 30 --jobs "$JOBS" --timeout "$TIMEOUT" \
+        --select '^(P2P|COLL)/(CallOrdering|Correct)'
+}
 step_e2() {
     python3 experiments/b_impl.py
     python3 experiments/e2_buffering.py --max-events 3000 --replay --timeout "$TIMEOUT"
@@ -55,7 +64,7 @@ step_e3() {
 }
 
 steps=("$@")
-[ ${#steps[@]} -eq 0 ] && steps=(build tests mbi mbb e2 e6 amg e4 e3)
+[ ${#steps[@]} -eq 0 ] && steps=(build tests mbi mbb stress e2 e6 amg e4 e3)
 for s in "${steps[@]}"; do
     log "start $s"
     "step_$s"

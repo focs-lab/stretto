@@ -17,8 +17,9 @@ Each pair also records whether some execution realises M' in full (explorer_exac
 single-change checker does not claim: the receives beyond the horizon are not its business.
 
 Besides the corpus traces, --synthetic N adds N random straight-line programs that complete
-(dsl.random_matched_program: rounds of sends then receives, mostly wildcards, standard and
-buffered and nonblocking sends, sub-communicators, shaped collectives) whose execution the
+(dsl.random_matched_program: rounds of sends and receives, mostly wildcards, standard and
+buffered and nonblocking sends, sub-communicators, shaped collectives; with --mixed, a share of
+them interleave sends, receives and waits and use synchronous and ready sends) whose execution the
 explorer chose is written back as a trace (dsl.trace_from_execution), so that the comparison
 also covers traces with more events and several wildcard receives per rank.
 """
@@ -36,6 +37,8 @@ sys.path.insert(0, os.path.join(ROOT, "analysis"))
 from rematch import dsl, explore, trace  # noqa: E402
 from rematch.feasible import check  # noqa: E402
 from rematch.matching import candidates_full  # noqa: E402
+from rematch.deadlock import contained_deadlock  # noqa: E402
+from provenance import code_commit  # noqa: E402
 
 
 def judged(t, M, cut):
@@ -73,13 +76,17 @@ def compare(t, name, args, rows, counts, times):
                 # receive itself claims its new match cannot happen within what the trace determines)
                 reach_kept_exact = any(all(om.get(rk) == a.M.get(rk) for rk in keys) for om in outs)
                 reach_exact = any(om == a.M for om in outs)
+                # theorem T7: a contained deadlock means every execution with the changed match deadlocks
+                dl = contained_deadlock(t, a.M, a.changed, v.cut, v.issued, B) if v.feasible else None
+                with_pair = res.outcomes_with(a.recv, a.send)
+                t7 = "" if not dl else ("ok" if with_pair and all(o.kind == "deadlock" for o in with_pair) else "UNSOUND")
                 exp_err = ""
-            except RuntimeError:
+            except explore.StateCapReached:
                 reach_prefix = reach_kept_exact = reach_exact = None
-                exp_err = "state-space"
+                exp_err, t7 = "state-space", ""
             except explore.ExploreError as e:
                 reach_prefix = reach_kept_exact = reach_exact = None
-                exp_err = str(e)
+                exp_err, t7 = str(e), ""
             t2 = time.perf_counter()
             times[0] += t1 - t0
             times[1] += t2 - t1
@@ -92,10 +99,13 @@ def compare(t, name, args, rows, counts, times):
             else:
                 kind = "agree"
             counts[kind] += 1
+            if t7:
+                counts["t7_" + t7] += 1
             rows.append({"trace": name, "events": sum(len(v_) for v_ in t.ranks.values()), "alt": f"{a.recv}<-{a.send} [{a.kind}]",
                          "B": "inf" if B is None else B, "checker": v.feasible, "checker_reason": v.reason,
                          "explorer_prefix": reach_prefix, "explorer_kept_exact": reach_kept_exact, "explorer_exact": reach_exact,
-                         "note": exp_err, "t_checker_ms": round((t1 - t0) * 1000, 2), "t_explorer_ms": round((t2 - t1) * 1000, 2), "kind": kind})
+                         "note": exp_err, "t_checker_ms": round((t1 - t0) * 1000, 2), "t_explorer_ms": round((t2 - t1) * 1000, 2), "kind": kind,
+                         "l1_deadlock": t7, "commit": code_commit()})
 
 
 def synthetic(args, rows, counts, times) -> int:
@@ -106,10 +116,10 @@ def synthetic(args, rows, counts, times) -> int:
     while made < args.synthetic and attempts < args.synthetic * 20:
         attempts += 1
         nranks = rng.choice([3, 4, 4, 5])
-        prog, comms = dsl.random_matched_program(rng, nranks)
+        prog, comms = dsl.random_matched_program(rng, nranks, mixed=rng.random() < args.mixed)
         try:
             res = explore.explore(prog, None, comms=comms, max_states=args.max_states)
-        except (RuntimeError, explore.ExploreError):
+        except (explore.StateCapReached, explore.ExploreError):
             continue
         done = [o for o in res.outcomes if o.kind == "done" and not o.leaked and not o.errors]
         if not done:
@@ -130,13 +140,15 @@ def main() -> int:
     ap.add_argument("--max-events", type=int, default=2000)
     ap.add_argument("--max-states", type=int, default=300000)
     ap.add_argument("--synthetic", type=int, default=0, help="also compare on N random straight-line programs")
+    ap.add_argument("--mixed", type=float, default=0.5,
+                    help="share of synthetic programs that interleave sends, receives and waits and use ssend/rsend")
     ap.add_argument("--seed", type=int, default=20261016)
     ap.add_argument("--out", default=os.path.join(ROOT, "experiments", "results", "e6_checker_vs_explorer.csv"))
     args = ap.parse_args()
     dirs = args.dirs or sorted(glob.glob(os.path.join(ROOT, "traces", "openmpi", "*")) +
                                glob.glob(os.path.join(ROOT, "experiments", "results", "*", "*", "trace")))
     rows: list = []
-    counts = {"agree": 0, "UNSOUND": 0, "incomplete": 0, "skip": 0}
+    counts = {"agree": 0, "UNSOUND": 0, "incomplete": 0, "skip": 0, "t7_ok": 0, "t7_UNSOUND": 0}
     times = [0.0, 0.0]
     skipped = 0
     for d in dirs:
@@ -151,13 +163,14 @@ def main() -> int:
     made = synthetic(args, rows, counts, times) if args.synthetic else 0
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
     keys = ["trace", "events", "alt", "B", "checker", "checker_reason", "explorer_prefix", "explorer_kept_exact", "explorer_exact",
-            "note", "t_checker_ms", "t_explorer_ms", "kind"]
+            "note", "t_checker_ms", "t_explorer_ms", "kind", "l1_deadlock", "commit"]
     with open(args.out, "w", newline="") as fh:
         w = csv.DictWriter(fh, fieldnames=keys, lineterminator="\n")
         w.writeheader()
         w.writerows(rows)
     ev = [r["events"] for r in rows]
     print(f"pairs={len(rows)} agree={counts['agree']} unsound={counts['UNSOUND']} incomplete={counts['incomplete']} "
+          f"l1-deadlocks ok={counts['t7_ok']} unsound={counts['t7_UNSOUND']} "
           f"skipped-traces={skipped} synthetic-programs={made} events max={max(ev) if ev else 0} "
           f"checker-time={times[0]:.2f}s explorer-time={times[1]:.2f}s ratio={times[1] / times[0] if times[0] else 0:.1f}x")
     print(f"wrote {args.out}")

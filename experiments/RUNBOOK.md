@@ -33,7 +33,8 @@ Variables the scripts read (all optional):
 | `REMATCH_TRACE_DIR` | tracer | where the ranks write `rank-N.jsonl` (`./traces`) |
 | `REMATCH_PIN`, `REMATCH_PIN_PROBE` | replay library | `rank:ordinal:world-src[:tag],...` for wildcard receives and probes (`replay/pin.h`) |
 | `REMATCH_SEND_DELAY_MS`, `REMATCH_RECV_DELAY_MS`, `REMATCH_DELAY_AT` | replay library | sleeps before sends/receives, per rank or at the k-th one (`replay/pin.h`) |
-| `REMATCH_REQUIRE_TRACES` | tests | `1`: idiom tests fail instead of skipping without traces |
+| `REMATCH_REQUIRE_TRACES` | tests | `1`: idiom tests fail instead of skipping without traces (Open MPI idioms fall back to `analysis/tests/golden`) |
+| `REMATCH_COMMIT` | experiment scripts | the code commit written into every CSV row; `run_remaining.sh` reads it from `COMMIT`, else git is asked (`experiments/provenance.py`) |
 | `MUST_IMAGE`, `MUST_CPUS`, `MUST_KEEP` | `scripts/must_run.sh`, `experiments/amg/must.sh` | image (`mbb-must:latest`), cpuset, keep the work directory |
 | `MUST_ARGS` | `experiments/amg/must.sh` | MUST layout (default `--must:distributed`; empty for the centralised one) |
 | `REMATCH_MACHINE_LOCK`, `REMATCH_CPUS` | `scripts/heavy.sh` | the shared-host lock file and the processors a heavy job may use |
@@ -60,6 +61,7 @@ over ssh on a freshly booted machine is gone before the next ssh command.
 # (a relative DIR, for example rematch, is taken from the remote home directory)
 git ls-files > /tmp/files.txt
 rsync -a --files-from=/tmp/files.txt . $REMOTE:$DIR/
+git rev-parse --short HEAD | ssh $REMOTE "cat > $DIR/COMMIT"   # the commit every CSV row records
 rsync -a --relative --exclude bin/ study/apps/MBI/gencodes third_party/mpi-bugbench/scripts/gencodes $REMOTE:$DIR/
 rsync -a --relative study/apps/AMG/test/amg third_party/apps/NPB-mpich/bin tracer/bin replay/bin $REMOTE:$DIR/
 rsync -a --relative study/apps/Nekbone $REMOTE:$DIR/      # sources: nekbone/run.sh build runs inside the container

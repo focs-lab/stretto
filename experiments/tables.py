@@ -32,7 +32,8 @@ def e1(name, path):
            "only what the run itself showed (a blocked or spinning rank, a collective mismatch, a message never",
            "received), which any observational tool sees; the *predicted* row only what Rematch says about other",
            "runs (a mismatch certain from the trace, a deadlock or orphan under the single-path assumption, a",
-           "finished run that would deadlock below a threshold); the union is the tool's verdict.", "",
+           "finished run that would deadlock below a threshold); a 2-buffering finding on a run that did not",
+           "finish is the hang itself and counts as observed. The union is the tool's verdict.", "",
            "| | TP | FP | FN | TN | precision | recall | F1 |", "|---|---|---|---|---|---|---|---|",
            conf_row("Rematch (union)", score.confusion(rs, score.verdict)),
            conf_row("Rematch, observed in the run", score.confusion(rs, score.observed_verdict)),
@@ -40,9 +41,15 @@ def e1(name, path):
     if any(r.get("must") for r in rs):
         kinds = collections.Counter(score.must_kind(r) for r in rs)
         out.append(conf_row("MUST 1.9.2 (same source, its own run under MPICH)", score.confusion(rs, score.must_verdict)))
-        out += ["", "MUST verdicts: " + ", ".join(f"{k or 'none'} {v}" for k, v in sorted(kinds.items())) + ". A MUST run that timed out,",
-                "crashed or did not compile counts as no error reported, as a Rematch run without a finding does.",
-                "Both tools ran each program once, with the same timeout; MUST under MPICH, Rematch under Open MPI."]
+        out.append(conf_row("MUST 1.9.2, a timeout counted as an error", score.confusion(rs, score.must_verdict_hangs)))
+        out += ["", "MUST verdicts: " + ", ".join(f"{k or 'none'} {v}" for k, v in sorted(kinds.items())) + ". In the first MUST row a run",
+                "that timed out, crashed or did not compile counts as no error reported. A Rematch run that the harness",
+                "killed at the timeout is reported as a blocked rank (2-blocked), an error, so the second MUST row credits",
+                "MUST's timeouts the same way; the two rows bracket the comparison. Both tools ran each program once, with",
+                "the same timeout; MUST under MPICH, Rematch under Open MPI, so they did not see the same run."]
+        failed = [r["name"] for r in rs if score.analysis_failed(r)]
+        if failed:
+            out += ["", f"Analysis failed on {len(failed)} program(s), counted as no error: {', '.join(failed)}."]
         inv = [r for r in rs if r["expect"] == "ERROR" and score.verdict(r) == "ERROR" and score.must_verdict(r) != "ERROR"]
         inv_pred = [r for r in inv if score.predicted_verdict(r) == "ERROR" and score.observed_verdict(r) != "ERROR"]
         conf = [r for r in inv if r.get("confirmed") and int(r["confirmed"]) > 0]
@@ -85,14 +92,25 @@ def e1(name, path):
     rp = score.replay_rows(path)
     if rp:
         c = collections.Counter((r["cls"], r["verdict"]) for r in rp)
-        out += ["", "Replays, one per error finding (a finding is confirmed only if the rerun reported its pin applied and",
-                "reached the predicted outcome):", "", "| class | confirmed | not confirmed | n/a |", "|---|---|---|---|"]
+        runs = {(r["program"], r["pin"]) for r in rp if r["verdict"] != "n/a"}
+        progs = {r["program"] for r in rp if r["verdict"] != "n/a"}
+        matched_col = "pin_matched" in rp[0]
+        rule = ("a finding is confirmed only if every pinned receive matched in the rerun, the rerun reached the predicted "
+                "outcome, and a control rerun with the observed senders pinned finished; inconclusive when the control did not finish"
+                if matched_col else
+                "recorded before match logging and control reruns: 'confirmed' means the rerun reported its pin applied and "
+                "reached the predicted outcome, which an impossible forced match also does")
+        out += ["", f"Replays: {len(rp)} rows (one per finding and class after removing duplicate pins), {len(runs)} distinct "
+                f"pinned runs, {len(progs)} programs ({rule}):", "",
+                "| class | confirmed | inconclusive | not confirmed | n/a |", "|---|---|---|---|---|"]
         for cls in sorted({r["cls"] for r in rp}):
-            out.append(f"| {cls} | {c[(cls, 'confirmed')]} | {c[(cls, 'not-confirmed')]} | {c[(cls, 'n/a')]} |")
-        nc = [r for r in rp if r["verdict"] == "not-confirmed"]
+            out.append(f"| {cls} | {c[(cls, 'confirmed')]} | {c[(cls, 'inconclusive')]} | {c[(cls, 'not-confirmed')]} | {c[(cls, 'n/a')]} |")
+        nc = [r for r in rp if r["verdict"] in ("not-confirmed", "inconclusive")]
         if nc:
-            out += ["", "Not confirmed:", "", "| program | class | certainty | pin | result | pin applied |", "|---|---|---|---|---|---|"]
-            out += [f"| {r['program']} | {r['cls']} | {r.get('certainty', '')} | {r['pin']} | {r['result']} | {r.get('pin_applied', '')} |" for r in nc]
+            out += ["", "Not confirmed or inconclusive:", "", "| program | class | certainty | pin | result | pin applied | pin matched | control |",
+                    "|---|---|---|---|---|---|---|---|"]
+            out += [f"| {r['program']} | {r['cls']} | {r.get('certainty', '')} | {r['pin']} | {r['result']} | {r.get('pin_applied', '')} "
+                    f"| {r.get('pin_matched', '')} | {r.get('control', '')} |" for r in nc]
     c = collections.Counter((r["expect"], r["detail"], r["run"].split(":")[0], r["classes"], score.must_kind(r)) for r in rs)
     out += ["", "| label | detail | observed run | Rematch classes | MUST | programs |", "|---|---|---|---|---|---|"]
     for k, v in sorted(c.items()):
@@ -122,20 +140,58 @@ def e2():
         out += [f"| {r['setting']} | `{r['mpirun_args'] or '-'}` | {r['eager_max_bytes']} | {r['rendezvous_min_bytes']} |" for r in bi]
     rp = rows(os.path.join(RES, "e2_replay.csv"))
     if rp:
+        fe = next((int(r["eager_max_bytes"]) for r in bi if r["setting"] == "openmpi-forced-rendezvous"), None) if bi else None
+        for r in rp:
+            # rows recorded before 20 Oct 2026 call a bound below the forced eager size
+            # "untestable"; the run must still finish there, so judge it by that
+            if r["verdict"] == "untestable":
+                r["verdict"] = "as predicted" if r["result"] == "FINISHED" else "not as predicted"
         dflt = [r for r in rp if r["setting"] == "default"]
         forced = [r for r in rp if r["setting"] == "forced-rendezvous"]
-        testable = [r for r in forced if r["verdict"] != "untestable"]
-        out += ["", f"Replays of the {len(dflt)} programs whose observed run finished and is realisable only above a threshold:",
-                "each rerun with the default eager limits (it should finish again) and with the limits forced down (it should",
-                f"hang when its bound is above the forced eager size). As predicted: default {sum(1 for r in dflt if r['verdict'] == 'as predicted')}/{len(dflt)}, forced",
-                f"{sum(1 for r in testable if r['verdict'] == 'as predicted')}/{len(testable)} among the bounds the forced limit gets under; the other {len(forced) - len(testable)} bounds are below",
-                "the smallest eager size the transport accepts and cannot be tested on this implementation.", "",
+        below = [r for r in forced if fe is not None and int(r["bound"]) > fe]
+        above = [r for r in forced if r not in below]
+        bad = [r for r in rp if r["verdict"] != "as predicted"]
+        out += ["", f"Replays of the {len(dflt)} programs whose observed run finished and is realisable only above a threshold,",
+                "each rerun with the default eager limits and with the limits forced down. With the default limits the run",
+                f"must finish again: as predicted {sum(1 for r in dflt if r['verdict'] == 'as predicted')}/{len(dflt)}. Forced down, a run whose bound is above the",
+                f"forced eager size must hang: as predicted {sum(1 for r in below if r['verdict'] == 'as predicted')}/{len(below)}; a run whose bound is at or below it",
+                f"must still finish, which tests the prediction on the other side of the bound: as predicted",
+                f"{sum(1 for r in above if r['verdict'] == 'as predicted')}/{len(above)}. Not as predicted: {len(bad)}"
+                + (" (" + ", ".join(f"{r['trace'].split('/')[-2]} {r['setting']} {r['result']}" for r in bad) + ")" if bad else "") + ".", "",
                 "| trace | bound | default | forced rendezvous |", "|---|---|---|---|"]
         by = {}
         for r in rp:
             by.setdefault((r["trace"], r["bound"]), {})[r["setting"]] = f"{r['result']} ({r['verdict']})"
         out += [f"| {k[0]} | B < {k[1]} | {v.get('default', '')} | {v.get('forced-rendezvous', '')} |" for k, v in sorted(by.items())]
     return "\n".join(out) + "\n"
+
+
+def stress(name, path):
+    """The stress-testing baseline (experiments/stress_baseline.py) against Rematch's one run."""
+    st = rows(os.path.join(os.path.dirname(path), "stress.csv"))
+    if not st:
+        return ""
+    by = {r["name"]: r for r in score.compiled(rows(path))}
+    err = [r for r in st if r["expect"] == "ERROR" and r["program"] in by]
+    ok = [r for r in st if r["expect"] == "OK" and r["program"] in by]
+    found = [r for r in err if r["first_failure"]]
+    later = [r for r in found if int(r["first_failure"]) > 1]
+    runs = max((int(r["runs"]) for r in st), default=0)
+    rem = [r for r in err if score.verdict(by[r["program"]]) == "ERROR"]
+    pred = [r for r in err if score.predicted_verdict(by[r["program"]]) == "ERROR"]
+    pred_missed = [r for r in pred if not r["first_failure"]]
+    fp = [r for r in ok if r["first_failure"]]
+    firsts = sorted(int(r["first_failure"]) for r in found)
+    med = firsts[len(firsts) // 2] if firsts else "-"
+    return "\n".join([
+        f"### Stress-testing baseline: {name}", "",
+        f"Up to {runs} runs per program with random send and receive delays per rank, stopping at the first run that",
+        "does not finish (`experiments/stress_baseline.py`).", "",
+        f"Labelled-error programs: {len(err)}. Stress testing makes {len(found)} fail (median run of the first failure {med};",
+        f"{len(later)} only after the first run). Rematch reports {len(rem)} from one run, {len(pred)} of them predicted from a",
+        f"run that finished; stress testing never makes {len(pred_missed)} of those fail"
+        + (f" ({', '.join(r['program'] for r in pred_missed)})" if pred_missed else "") + ".",
+        f"Correct programs that failed under stress (a hang under load or a delay): {len(fp)}.", ""])
 
 
 def e6():
@@ -168,9 +224,9 @@ def e4():
     if not rs:
         return "_no results_\n"
     out = ["Plain, traced and analysis times from one timed leg (`experiments/timing_leg.sh`, log in",
-           "`experiments/results/timing-leg.log`) on the second machine with the whole host idle, announced",
+           "`experiments/results/timing-leg.log`) on the second machine, announced",
            "to the other lanes: 16 ranks on the container's 12 cores (24 hardware threads), the analysis",
-           "one process, final code. The 4-rank rows are the leg's rerun of that set after a 6 s configure",
+           "one process, at commit 404927c (before b2788c5 and 2f66592). The 4-rank rows are the leg's rerun of that set after a 6 s configure",
            "step of another lane overlapped the first pass; both passes are in the log.", "",
            "| benchmark | class | np | plain (s) | traced (s) | slowdown | trace (MB) | events | wildcards | analysis (s) | findings |", "|---|---|---|---|---|---|---|---|---|---|---|"]
     for r in rs:
@@ -233,10 +289,11 @@ def nekbone():
                       "message-volume and tree-reduction tests reach the `MPI_ANY_SOURCE` wrappers of `comm_mpi.f`",
                       "(`experiments/nekbone/run.sh`, analysis with `--no-sp`, one process, run on the second machine",
                       "while another lane's jobs ran on the host, so the time is an upper bound). Every finding is a",
-                      "1f at the binary-tree global operation (`gop`, `comm_mpi.f` line 994, `study/sites.csv`): the",
-                      "inner nodes 0 and 4 receive their children's contributions with one tag and `MPI_ANY_SOURCE`, so",
-                      "the children can arrive in either order; the ping-pong tests, whose tags make the sender unique,",
-                      "produce no finding. Rejected alternatives are the candidate senders the checker refuses.", "",
+                      "1f at the binary-tree global operation `gp2` (`comm_mpi.f` line 994, `study/sites.csv`), which only",
+                      "the suite's `gp2_test` calls (the solver's `gop` is an `MPI_Allreduce`): the inner nodes 0 and 4",
+                      "receive their children's contributions with one tag and `MPI_ANY_SOURCE`, so the children can arrive",
+                      "in either order; the ping-pong tests, whose tags make the sender unique, produce no finding. Rejected",
+                      "alternatives are the candidate senders the checker refuses.", "",
                       "```", open(p).read().strip(), "```", ""])
 
 
@@ -248,14 +305,17 @@ def main():
            "MPI-BugBench's own container on the same machine, with the same timeout per program. Five MBI",
            "replays were redone there with `run_mbi.py --replay-only` after the replay classification learned",
            "that a kill past the timeout is a hang. E6 was run on the development host (same Ubuntu 24.04",
-           "userland, Open MPI 4.1.6, MPICH 4.2.0) with the final analysis code, which postdates the corpus",
-           "run by one horizon rule that changes no corpus table and by a loader fix. The E4 times and the",
-           "AMG analysis time come from one announced timed leg on the second machine with the host idle",
-           "(`experiments/timing_leg.sh`); they are the only timing claims. Every number in `gate.md` names",
-           "the table it comes from.",
+           "userland, Open MPI 4.1.6, MPICH 4.2.0) with the code of commit 028cb16 (where its CSV was committed),",
+           "which postdates the corpus run by one horizon rule and a loader fix; four later analysis commits",
+           "(e37baa6, 470d4c1, b2788c5, 2f66592) are not reflected in it. The E4 times and the AMG analysis",
+           "time come from one announced timed leg on the second machine at commit 404927c",
+           "(`experiments/timing_leg.sh`); they are the only timing claims. The numbers here predate the",
+           "fixes of the audit of 20 Oct 2026 (see the status note in `gate.md`).",
            "", "## E1: predictions vs benchmark labels", "",
            e1("MPI Bugs Initiative (MBI): message-race, tag-matching, probe and buffering programs", os.path.join(RES, "mbi", "mbi.csv")),
            e1("MPI-BugBench level 2: point-to-point and collective call-ordering, missing-call, local-concurrency and correct programs", os.path.join(RES, "mbb", "mbb.csv")),
+           stress("MBI", os.path.join(RES, "mbi", "mbi.csv")),
+           stress("MPI-BugBench level 2", os.path.join(RES, "mbb", "mbb.csv")),
            "## E2: buffering ablation", "", e2(),
            "## E3: level ablation", "", e3(),
            "## E4: tracer overhead and analysis cost (NPB 3.4.3, MPICH build)", "", e4(),

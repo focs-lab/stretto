@@ -24,7 +24,7 @@ from typing import Dict, Iterable, List
 ERROR = {"1a", "1c", "1d", "2-buffering", "2-collective", "2-blocked"}
 WARN = {"1b", "1f", "probe-alt", "waitany-order"}
 OBSERVED = {"observed:1c", "observed:2-blocked", "observed:2-collective"}
-PREDICTED = {"L1:1a", "L1+SP:1a", "L1+SP:1c", "L1+SP:1d", "observed:2-buffering"}
+PREDICTED = {"L1:1a", "L1+SP:1a", "L1+SP:1c", "L1+SP:1d", "observed:2-buffering"}   # 2-buffering on finished runs only
 FLAGGED = {"L1:1a", "L1:1b", "L1:1f"}            # a wildcard alternative found from the trace alone
 CERTIFIED = {"L1:1a", "L1+SP:1a", "L1+SP:1c", "L1+SP:1d"}   # an error consequence of a predicted alternative
 
@@ -46,12 +46,29 @@ def verdict(r: dict) -> str:
     return "ERROR" if set(r.get("classes", "").split()) & ERROR else "OK"
 
 
+def finished(r: dict) -> bool:
+    return (r.get("run") or "").startswith("FINISHED")
+
+
 def observed_verdict(r: dict) -> str:
-    return "ERROR" if levels(r) & OBSERVED else "OK"
+    """What the run itself showed. A 2-buffering finding on a run that did not finish is the
+    hang itself, so it is observed, not predicted."""
+    lv = levels(r)
+    if "observed:2-buffering" in lv and not finished(r):
+        return "ERROR"
+    return "ERROR" if lv & OBSERVED else "OK"
 
 
 def predicted_verdict(r: dict) -> str:
-    return "ERROR" if levels(r) & PREDICTED else "OK"
+    """Claims about other runs: 1a, L1+SP 1c/1d, and 2-buffering on a run that finished."""
+    lv = levels(r)
+    if not finished(r):
+        lv = lv - {"observed:2-buffering"}
+    return "ERROR" if lv & PREDICTED else "OK"
+
+
+def analysis_failed(r: dict) -> bool:
+    return (r.get("notes") or "").startswith("analysis failed")
 
 
 def flagged(r: dict) -> bool:
@@ -71,6 +88,12 @@ def must_kind(r: dict) -> str:
 
 def must_verdict(r: dict) -> str:
     return "ERROR" if must_kind(r) == "ERROR" else "OK"
+
+
+def must_verdict_hangs(r: dict) -> str:
+    """MUST with a hang the harness observed credited as an error, as Rematch's run that the
+    harness killed is (a blocked rank, 2-blocked)."""
+    return "ERROR" if must_kind(r) in ("ERROR", "TIMEOUT") else "OK"
 
 
 def confusion(rs: Iterable[dict], judge) -> Dict[str, float]:
@@ -109,6 +132,11 @@ def main(path: str, md: bool = False) -> int:
         c = confusion(rs, must_verdict)
         kinds = collections.Counter(must_kind(r) for r in rs)
         print(f"MUST      TP={c['tp']} FP={c['fp']} FN={c['fn']} TN={c['tn']} F1={c['f1']:.2f}  verdict kinds {dict(kinds)}")
+        c = confusion(rs, must_verdict_hangs)
+        print(f"MUST+hang TP={c['tp']} FP={c['fp']} FN={c['fn']} TN={c['tn']} F1={c['f1']:.2f}  (a timeout counts as an error, as for Rematch)")
+    failed = [r["name"] for r in rs if analysis_failed(r)]
+    if failed:
+        print(f"analysis failed (counted as no error): {len(failed)}: {', '.join(failed)}")
     race = [r for r in rs if r.get("detail") == "MessageRace"]
     if race:
         clean = [r for r in race if r.get("run") == "FINISHED"]

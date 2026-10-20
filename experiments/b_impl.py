@@ -13,6 +13,8 @@ import os
 import subprocess
 import sys
 import tempfile
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from provenance import code_commit  # noqa: E402
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 MPICC, MPIRUN = "/usr/bin/mpicc.openmpi", "/usr/bin/mpirun.openmpi"
@@ -73,9 +75,9 @@ def main() -> int:
             print(f"{name}: eager up to {lo} bytes, rendezvous from {hi}", flush=True)
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
     with open(args.out, "w", newline="") as fh:
-        w = csv.DictWriter(fh, fieldnames=["setting", "mpirun_args", "eager_max_bytes", "rendezvous_min_bytes"], lineterminator="\n")
+        w = csv.DictWriter(fh, fieldnames=["setting", "mpirun_args", "eager_max_bytes", "rendezvous_min_bytes", "commit"], lineterminator="\n")
         w.writeheader()
-        w.writerows(rows)
+        w.writerows({**r, "commit": code_commit()} for r in rows)
     print("wrote", args.out)
     return 0
 
