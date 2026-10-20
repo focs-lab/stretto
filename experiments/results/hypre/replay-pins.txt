@@ -1,0 +1,6 @@
+1:2:2,benign
+1:2:0,control
+2:2:1,benign
+2:2:3,control
+2:3:3,alternative
+2:3:1,control

@@ -1,0 +1,32 @@
+Running with these driver parameters:
+  solver ID    = 8
+
+  Laplacian:
+    (nx, ny, nz) = (10, 10, 10)
+    (Px, Py, Pz) = (1, 4, 1)
+    (cx, cy, cz) = (1.000000, 1.000000, 1.000000)
+
+=============================================
+IJ Matrix Setup:
+=============================================
+Spatial operator:
+  wall clock time = 0.000000 seconds
+  wall MFLOPS     = 0.000000
+  cpu clock time  = 0.000370 seconds
+  cpu MFLOPS      = 0.000000
+
+  RHS vector has unit components
+  Initial guess is 0
+=============================================
+IJ Vector Setup:
+=============================================
+RHS and Initial Guess:
+  wall clock time = 0.000000 seconds
+  wall MFLOPS     = 0.000000
+  cpu clock time  = 0.000053 seconds
+  cpu MFLOPS      = 0.000000
+
+Solver: ParaSails-PCG
+HYPRE_ParCSRPCGGetPrecond got good precond
+[rematch-pin] rank 2: applied probe pidx=3
+mpirun.openmpi: Forwarding signal 18 to job

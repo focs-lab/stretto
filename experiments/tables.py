@@ -136,33 +136,37 @@ def e2():
     bi = rows(os.path.join(RES, "b_impl.csv"))
     if bi:
         out += ["", "Eager threshold of the implementation (`experiments/b_impl.py`: a head-to-head exchange of n bytes finishes",
-                "when the message is eager and hangs when it is rendezvous):", "", "| setting | mpirun arguments | largest eager payload (bytes) | smallest rendezvous payload |", "|---|---|---|---|"]
-        out += [f"| {r['setting']} | `{r['mpirun_args'] or '-'}` | {r['eager_max_bytes']} | {r['rendezvous_min_bytes']} |" for r in bi]
+                "when the message is eager and hangs when it is rendezvous), per send path, since Open MPI sends up to 256",
+                "bytes inline on the MPI_Send and MPI_Isend paths whatever the shared-memory limit is:", "",
+                "| setting | path | mpirun arguments | largest eager payload (bytes) | smallest rendezvous payload |", "|---|---|---|---|---|"]
+        out += [f"| {r['setting']} | {r.get('path', 'send')} | `{r['mpirun_args'] or '-'}` | {r['eager_max_bytes']} | {r['rendezvous_min_bytes']} |" for r in bi]
     rp = rows(os.path.join(RES, "e2_replay.csv"))
     if rp:
-        fe = next((int(r["eager_max_bytes"]) for r in bi if r["setting"] == "openmpi-forced-rendezvous"), None) if bi else None
-        for r in rp:
-            # rows recorded before 20 Oct 2026 call a bound below the forced eager size
-            # "untestable"; the run must still finish there, so judge it by that
-            if r["verdict"] == "untestable":
-                r["verdict"] = "as predicted" if r["result"] == "FINISHED" else "not as predicted"
-        dflt = [r for r in rp if r["setting"] == "default"]
-        forced = [r for r in rp if r["setting"] == "forced-rendezvous"]
-        below = [r for r in forced if fe is not None and int(r["bound"]) > fe]
-        above = [r for r in forced if r not in below]
-        bad = [r for r in rp if r["verdict"] != "as predicted"]
-        out += ["", f"Replays of the {len(dflt)} programs whose observed run finished and is realisable only above a threshold,",
-                "each rerun with the default eager limits and with the limits forced down. With the default limits the run",
-                f"must finish again: as predicted {sum(1 for r in dflt if r['verdict'] == 'as predicted')}/{len(dflt)}. Forced down, a run whose bound is above the",
-                f"forced eager size must hang: as predicted {sum(1 for r in below if r['verdict'] == 'as predicted')}/{len(below)}; a run whose bound is at or below it",
-                f"must still finish, which tests the prediction on the other side of the bound: as predicted",
-                f"{sum(1 for r in above if r['verdict'] == 'as predicted')}/{len(above)}. Not as predicted: {len(bad)}"
-                + (" (" + ", ".join(f"{r['trace'].split('/')[-2]} {r['setting']} {r['result']}" for r in bad) + ")" if bad else "") + ".", "",
-                "| trace | bound | default | forced rendezvous |", "|---|---|---|---|"]
-        by = {}
-        for r in rp:
-            by.setdefault((r["trace"], r["bound"]), {})[r["setting"]] = f"{r['result']} ({r['verdict']})"
-        out += [f"| {k[0]} | B < {k[1]} | {v.get('default', '')} | {v.get('forced-rendezvous', '')} |" for k, v in sorted(by.items())]
+        new = any(r["setting"] in ("below the bound", "at the bound") for r in rp)
+        if new:
+            dflt = [r for r in rp if r["setting"] == "default"]
+            below = [r for r in rp if r["setting"] == "below the bound"]
+            at = [r for r in rp if r["setting"] == "at the bound"]
+            ok = lambda rs: sum(1 for r in rs if r["verdict"] == "as predicted")
+            unt = [r for r in below if r["verdict"] == "untestable"]
+            bad = [r for r in rp if r["verdict"] == "not as predicted"]
+            out += ["", f"Replays of the {len(dflt)} programs whose observed run finished and is realisable only from a threshold on",
+                    "(`e2_buffering.py --replay`): with the default limits the run must finish again; on the TCP transport, whose",
+                    "every send path buffers the eager limit minus its header, it must hang with the threshold one byte below the",
+                    "bound and finish with it at the bound. As predicted: default "
+                    f"{ok(dflt)}/{len(dflt)}, below the bound {ok(below)}/{len(below) - len(unt)} ({len(unt)} untestable: self-sends,",
+                    f"which the self transport sends inline up to 256 bytes), at the bound {ok(at)}/{len(at)}. Not as predicted: {len(bad)}"
+                    + (" (" + ", ".join(f"{r['trace'].split('/')[-2]} {r['setting']} {r['result']}" for r in bad) + ")" if bad else "") + ".", "",
+                    "| trace | bound | default | below the bound | at the bound |", "|---|---|---|---|---|"]
+            by = {}
+            for r in rp:
+                by.setdefault((r["trace"], r["bound"]), {})[r["setting"]] = f"{r['result']} ({r['verdict']})"
+            out += [f"| {k[0]} | B < {k[1]} | {v.get('default', '')} | {v.get('below the bound', '')} | {v.get('at the bound', '')} |"
+                    for k, v in sorted(by.items())]
+        else:
+            out += ["", "Replays recorded before 20 Oct 2026 with the shared-memory limit forced down; that setting leaves the",
+                    "MPI_Send and MPI_Isend paths eager up to 256 bytes and moves only persistent sends, so it is superseded by",
+                    "the TCP setting (`b_impl.py`)."]
     return "\n".join(out) + "\n"
 
 
@@ -192,6 +196,22 @@ def stress(name, path):
         f"run that finished; stress testing never makes {len(pred_missed)} of those fail"
         + (f" ({', '.join(r['program'] for r in pred_missed)})" if pred_missed else "") + ".",
         f"Correct programs that failed under stress (a hang under load or a delay): {len(fp)}.", ""])
+
+
+def hypre():
+    """The real bug: HYPRE 2.10.1's ParaSails hang (experiments/hypre/run.sh)."""
+    d = os.path.join(RES, "hypre")
+    rp = rows(os.path.join(d, "replays.csv"))
+    summ = os.path.join(d, "summary.txt")
+    if not rp or not os.path.exists(summ):
+        return "_no results_\n"
+    out = ["HYPRE 2.10.1, ParaSails-PCG through `test/ij -solver 8 -pout 0`, 4 ranks, MPICH build, one traced run per",
+           "version; the probe alternatives of the request exchange (tag 222) replayed with a probe pin, each with a",
+           "control that pins the same probe to the sender it saw (`experiments/hypre/run.sh`, `summary.txt`).", "",
+           "| pin | role | result | probe found the pinned message | final residual |", "|---|---|---|---|---|"]
+    out += [f"| {r['pin']} | {r['role']} | {r['result']} | {'yes' if r['probe_found'] not in ('', '0') else 'no'} | {r['residual'] or '-'} |" for r in rp]
+    out += ["", "```", open(summ).read().strip(), "```", ""]
+    return "\n".join(out)
 
 
 def e6():
@@ -321,6 +341,7 @@ def main():
            "## E4: tracer overhead and analysis cost (NPB 3.4.3, MPICH build)", "", e4(),
            "## E5: real application (AMG)", "", e5(),
            "## E5b: real application (Nekbone)", "", nekbone(),
+           "## E5c: a real bug (HYPRE 2.10.1, ParaSails)", "", hypre(),
            "## E6: polynomial checker vs exhaustive explorer", "", e6(),
            "## E7: the value skeleton on MBI (level L2)", "", e7()]
     path = os.path.join(ROOT, "docs", "results.md")

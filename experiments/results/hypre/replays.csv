@@ -1,0 +1,7 @@
+pin,role,result,seconds,probe_found,residual,commit
+1:2:2,benign,FINISHED,4,1,6.788872e-09,77f6241
+1:2:0,control,FINISHED,5,1,6.788872e-09,77f6241
+2:2:1,benign,FINISHED,4,1,6.788872e-09,77f6241
+2:2:3,control,FINISHED,4,1,6.788872e-09,77f6241
+2:3:3,alternative,TIMEOUT,61,1,,77f6241
+2:3:1,control,FINISHED,5,1,6.788872e-09,77f6241

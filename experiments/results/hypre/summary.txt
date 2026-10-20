@@ -1,0 +1,31 @@
+HYPRE ParaSails hang, predicted from one clean run (experiments/hypre/run.sh, 20 Oct 2026, a-p13,
+MPICH 4.2 in the experiment container, 4 ranks, test/ij -solver 8 -pout 0)
+
+Versions: 2.10.1 (the bug) and 2.11.0 (the fix, upstream commit bc3158ee, which gives the pruned-rows
+and stored-rows requests different tags), archives checked by sha256 in run.sh.
+
+Traced runs: both finished (Final Relative Residual Norm = 6.788872e-09, 19 iterations), 2788 and
+2752 records.
+
+Analysis (report4.txt, report4-211.txt): 25 and 24 probe alternatives, all class probe-alt (a
+warning) at level L1. On 2.10.1, one of them, at rank 2's second probe of the pruned-rows
+exchange (probe(2, 3), tag 222), reports that the probe could have observed rank 3's 800-byte
+request (rank 3's next tag-222 message, the stored-rows request of the next exchange) instead of
+rank 1's 400-byte pruned-rows request, feasible for B >= 3444; the other tag-222 alternatives
+have the same shape (a pruned-rows request from the other neighbour). On 2.11.0 the pruned-rows
+probes use tag 221 and only the same-shape alternatives remain.
+
+Replays (replays.csv; each 60 s at most, the pin from the same run's report, each alternative with a
+control pinning the same probe to the sender it saw):
+  2:3:3  the other exchange's request   TIMEOUT  the probe found its message; the run hangs
+  2:3:1  control                        FINISHED same residual
+  1:2:2, 2:2:1  same-shape reorderings  FINISHED same residual
+  1:2:0, 2:2:3  their controls          FINISHED same residual
+
+An earlier trace of the same configuration (not committed; its pins differ, since probe ordinals
+belong to the run) had the cross-exchange alternative at both rank 1 and rank 2; both replays hung
+and both controls finished.
+
+Which alternatives a trace shows depends on the order it recorded: the cross-exchange alternative
+exists at a probe only if the next neighbour's pruned-rows request was taken earlier and answered,
+so that the neighbour can move on to the stored-rows exchange while this rank still probes.

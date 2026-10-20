@@ -27,7 +27,7 @@ from rematch.feasible import feasible_profile, profile_summary  # noqa: E402
 from rematch.matching import candidates_full  # noqa: E402
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from provenance import code_commit  # noqa: E402
-from b_impl import FORCED  # noqa: E402
+from b_impl import tcp  # noqa: E402
 
 
 def profile_at(prof, B):
@@ -46,18 +46,18 @@ def main() -> int:
     ap.add_argument("dirs", nargs="*")
     ap.add_argument("--out", default=os.path.join(ROOT, "experiments", "results", "e2_buffering.csv"))
     ap.add_argument("--max-events", type=int, default=3000)
-    ap.add_argument("--replay", action="store_true", help="rerun 2-buffering programs with default and forced-rendezvous eager limits")
+    ap.add_argument("--replay", action="store_true", help="rerun 2-buffering programs with the default limits and with the eager threshold set just below and at their bound")
     ap.add_argument("--timeout", type=int, default=20)
     args = ap.parse_args()
     replays = []
-    forced_eager = 0          # the largest payload the forced setting still sends eagerly
+    header = None             # the TCP transport's header: threshold B = eager limit - header
     bi = os.path.join(os.path.dirname(args.out), "b_impl.csv")
     if not os.path.exists(bi):
         bi = os.path.join(ROOT, "experiments", "results", "b_impl.csv")
     if os.path.exists(bi):
         for r in csv.DictReader(open(bi)):
-            if r["setting"] == "openmpi-forced-rendezvous":
-                forced_eager = int(r["eager_max_bytes"])
+            if r["setting"] == "openmpi-tcp-64" and r.get("path") == "persistent" and int(r["eager_max_bytes"]) >= 0:
+                header = 64 - int(r["eager_max_bytes"])
     dirs = args.dirs or sorted(glob.glob(os.path.join(ROOT, "traces", "openmpi", "*")) +
                                glob.glob(os.path.join(ROOT, "experiments", "results", "*", "*", "trace")))
     rows = []
@@ -79,20 +79,21 @@ def main() -> int:
         if len(parts) == 3 and parts[0] == "traces":
             exe = os.path.join(ROOT, "idioms", parts[2], "bin", parts[1], "main")
         finished = not t.truncated and not t.blocked_calls()
-        if args.replay and finished and at_inf and minB and minB > 0 and os.path.exists(exe):
-            # a run that finished and is realisable only above minB bytes: it finishes again with
-            # the default limits and hangs when the eager size is forced below minB; a bound the
-            # forced size cannot get under (256 bytes on Open MPI, experiments/b_impl.py) is untestable
-            for setting, margs in (("default", []), ("forced-rendezvous", FORCED)):
+        if args.replay and finished and at_inf and minB and minB > 0 and os.path.exists(exe) and header is not None:
+            # a run that finished and is realisable only from minB bytes on: it finishes again with
+            # the default limits; on the TCP transport, whose every send path buffers L - header
+            # bytes for eager limit L, it hangs with the threshold at minB - 1 and finishes with it at
+            # minB. A self-send goes through the self transport, which sends up to 256 bytes inline
+            # whatever its limit, so below the bound a program with one is untestable.
+            self_send = any(x.dst == x.rank for x in t.sends.values())
+            for setting, margs in (("default", []), ("below the bound", tcp(minB - 1 + header)), ("at the bound", tcp(minB + header))):
                 r = run_pinned(t.np, exe, [], None, timeout=args.timeout, mpirun_args=margs)
                 res = classify_rc(r.returncode, r.stderr, r.elapsed, args.timeout)
-                if setting == "default" or minB <= forced_eager:
-                    # the eager size in force is at least the bound: the run must finish (when the
-                    # forced size cannot get under the bound, the deadlock below it is untested,
-                    # but the prediction above it still is)
-                    verdict = "as predicted" if res == "FINISHED" else "not as predicted"
+                if setting == "below the bound":
+                    verdict = ("untestable" if self_send and minB <= 256 else
+                               "as predicted" if res in ("TIMEOUT", "KILLED") else "not as predicted")
                 else:
-                    verdict = "as predicted" if res in ("TIMEOUT", "KILLED") else "not as predicted"
+                    verdict = "as predicted" if res == "FINISHED" else "not as predicted"
                 replays.append({"trace": name, "bound": minB, "setting": setting, "result": res, "verdict": verdict})
                 print(f"{name}: B < {minB}: {setting} -> {res} ({verdict})", flush=True)
         alts, _ = candidates_full(t)
