@@ -247,6 +247,12 @@ def stress(name, path, key=None):
     firsts = sorted(int(r["first_failure"]) for r in found)
     med = firsts[len(firsts) // 2] if firsts else "-"
     if key:
+        tp, fn_ = len(found), len(err) - len(found)
+        fpn, tn = len(fp), len(ok) - len(fp)
+        prec = tp / (tp + fpn) if tp + fpn else 0.0
+        rec = tp / (tp + fn_) if tp + fn_ else 0.0
+        CONF[(key, "stress")] = {"tp": tp, "fp": fpn, "fn": fn_, "tn": tn, "f1": 2 * prec * rec / (prec + rec) if prec + rec else 0.0}
+        num(f"{key}fonestress", CONF[(key, "stress")]["f1"])
         num(f"n{key}StressRuns", runs)
         num(f"n{key}StressErr", len(err))
         num(f"n{key}StressFound", len(found))
@@ -292,38 +298,61 @@ def hypre_campaign():
         return "_no results_\n"
     out = []
     if pr:
-        out += [f"Traced runs of `ij -solver 8 -pout 0`; for each, every probe alternative of the request exchange (tag 222) whose",
-                "reported message is the other exchange's request (a different size), replayed with the pins of its whole horizon",
-                f"and with its control (`experiments/hypre/predict.py`). Rows by code commit: {commits(pr)}.", "",
-                "| ranks | traced runs | runs exposing the race | alternatives | replay hangs | replay finishes | required pins matched | controls finish | finished replays with the control's residual |",
-                "|---|---|---|---|---|---|---|---|---|"]
+        out += ["Traced runs of `ij -solver 8 -pout 0`; for each, every probe alternative of the request exchanges (tag 222),",
+                "replayed with the pins of its whole horizon and with its control (`experiments/hypre/predict.py`). An alternative",
+                "is *cross* if the probe would take a request of the other exchange (the race), *same* if another neighbour's",
+                "request of the same exchange; rows from before that classification selected requests of a different size and",
+                f"count as cross. Rows by code commit: {commits(pr)}.", "",
+                "| ranks | kind | traced runs | runs with one | runs with a hanging replay | alternatives | replay hangs | replay finishes | required pins matched | controls finish | finished with the control's residual |",
+                "|---|---|---|---|---|---|---|---|---|---|---|"]
+        for r in pr:
+            r.setdefault("kind", "cross")
+            r["kind"] = r["kind"] or "cross"
         for np_ in sorted({r["np"] for r in pr}, key=int):
             sel = [r for r in pr if r["np"] == np_]
             runs = {r["run"] for r in sel}
             bad = {r["run"] for r in sel if (r.get("replay") or "").startswith("traced run")}
-            exposed = {r["run"] for r in sel if r.get("alternatives") not in (None, "", "0")}
-            alts = [r for r in sel if r.get("pin")]
-            hang = [r for r in alts if r.get("replay") == "TIMEOUT"]
-            fin = [r for r in alts if r.get("replay") == "FINISHED"]
-            matched = [r for r in alts if r.get("matched") == "True"]
-            ctl = [r for r in alts if r.get("control") == "FINISHED"]
-            same = [r for r in fin if r.get("residual") and r.get("residual") == r.get("control_residual")]
-            res_known = [r for r in fin if r.get("residual") is not None and "residual" in r]
-            out.append(f"| {np_} | {len(runs) - len(bad)} (+{len(bad)} failed) | {len(exposed)} | {len(alts)} | {len(hang)} | {len(fin)} | "
-                       f"{len(matched)}/{len(alts)} | {len(ctl)}/{len(alts)} | {f'{len(same)}/{len(fin)}' if res_known else 'not recorded'} |")
             k = f"Hypre{'Four' if np_ == '4' else 'Eight' if np_ == '8' else np_}"
             num(f"n{k}Runs", len(runs) - len(bad))
-            num(f"n{k}Exposed", len(exposed))
-            num(f"n{k}Alts", len(alts))
-            num(f"n{k}Hang", len(hang))
-            num(f"n{k}Finish", len(fin))
-            num(f"n{k}Matched", len(matched))
-            num(f"n{k}Controls", len(ctl))
-            if res_known:
-                num(f"n{k}SameResidual", len(same))
+            for kind, macro in (("cross", ""), ("same", "Local")):
+                alts = [r for r in sel if r.get("pin") and r["kind"] == kind]
+                if kind == "same" and not alts:
+                    continue
+                hang = [r for r in alts if r.get("replay") == "TIMEOUT"]
+                fin = [r for r in alts if r.get("replay") == "FINISHED"]
+                matched = [r for r in alts if r.get("matched") == "True"]
+                ctl = [r for r in alts if r.get("control") == "FINISHED"]
+                same_res = [r for r in fin if r.get("residual") and r.get("residual") == r.get("control_residual")]
+                res_known = "residual" in sel[0]
+                with_one = {r["run"] for r in alts}
+                hang_runs = {r["run"] for r in hang}
+                res_col = f"{len(same_res)}/{len(fin)}" if res_known and fin else "-" if res_known else "not recorded"
+                out.append(f"| {np_} | {kind} | {len(runs) - len(bad)} (+{len(bad)} failed) | {len(with_one)} | {len(hang_runs)} | {len(alts)} | "
+                           f"{len(hang)} | {len(fin)} | {len(matched)}/{len(alts)} | {len(ctl)}/{len(alts)} | {res_col} |")
+                num(f"n{k}{macro}{'Exposed' if kind == 'cross' else 'Runs'}", len(with_one))
+                num(f"n{k}{macro}HangRuns", len(hang_runs))
+                num(f"n{k}{macro}Alts", len(alts))
+                num(f"n{k}{macro}Hang", len(hang))
+                num(f"n{k}{macro}Finish", len(fin))
+                num(f"n{k}{macro}Matched", len(matched))
+                num(f"n{k}{macro}Controls", len(ctl))
+                if res_known and fin:
+                    num(f"n{k}{macro}SameResidual", len(same_res))
         sites = collections.Counter(r.get("site") for r in pr if r.get("pin") and r.get("site"))
         if sites:
             out += ["", "Changed probes by call site: " + ", ".join(f"`{s}` {n}" for s, n in sites.most_common()) + "."]
+        # the pin is rank:probe ordinal:source; the probe is the same program point across runs
+        # of one configuration only as far as the ranks probe in the same order, which they do here
+        by_probe = collections.defaultdict(collections.Counter)
+        for r in pr:
+            if r.get("pin"):
+                rank, idx, _src = r["pin"].split("=", 1)[1].split(":")
+                by_probe[(int(r["np"]), int(rank), int(idx), r["kind"])][r.get("replay")] += 1
+        if by_probe:
+            out += ["", "By changed probe (rank, ordinal of its probe):", "",
+                    "| ranks | probe | kind | alternatives | replay hangs | replay finishes |", "|---|---|---|---|---|---|"]
+            for (np_, rank, idx, kind), c in sorted(by_probe.items()):
+                out.append(f"| {np_} | {rank}:{idx} | {kind} | {sum(c.values())} | {c['TIMEOUT']} | {c['FINISHED']} |")
     if st:
         out += ["", "Untraced runs, each with a 60 s timeout: plain, and with random send and receive delays of 0 to 50 ms",
                 f"per rank from the replay library (no pin). Rows by code commit: {commits(st)}.", "",
@@ -373,7 +402,8 @@ def write_paper_numbers():
     open(os.path.join(gen, "numbers.tex"), "w").write("\n".join(lines) + "\n")
     body = []
     labels = (("union", "\\tool, observed or predicted"), ("observed", "\\tool, observed in the run"),
-              ("predicted", "\\tool, predicted"), ("MUST", "\\MUST, a timeout not counted"), ("MUSTsym", "\\MUST, a timeout counted as an error"))
+              ("predicted", "\\tool, predicted"), ("MUST", "\\MUST, a timeout not counted"), ("MUSTsym", "\\MUST, a timeout counted as an error"),
+              ("stress", "random delays, up to \\n{key}StressRuns runs"))
     for key, title in (("MBI", "MBI"), ("MBB", "\\MBB level~2")):
         if not any((key, l) in CONF for l, _ in labels):
             continue
@@ -381,7 +411,10 @@ def write_paper_numbers():
         for l, text in labels:
             c = CONF.get((key, l))
             if c:
-                body.append(f"{text} & {c['tp']} & {c['fp']} & {c['fn']} & {c['tn']} & {c['f1']:.2f} \\\\")
+                label = text.replace("{key}", key)
+                if l == "stress":       # the baseline runs a subset of the corpus (stress_baseline.py --select)
+                    label += f" ({c['tp'] + c['fp'] + c['fn'] + c['tn']} programs)"
+                body.append(f"{label} & {c['tp']} & {c['fp']} & {c['fn']} & {c['tn']} & {c['f1']:.2f} \\\\")
         body.append("\\midrule")
     if body and body[-1] == "\\midrule":
         body.pop()
