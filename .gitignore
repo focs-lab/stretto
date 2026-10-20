@@ -34,6 +34,7 @@ experiments/results/e4/*.report.txt
 experiments/results/amg/*
 !experiments/results/amg/summary8.txt
 !experiments/results/amg/confirm8.txt
+!experiments/results/amg/replay_sample.csv
 !experiments/results/amg/must8-*/
 experiments/results/amg/must8-*/*
 !experiments/results/amg/must8-*/verdict.txt

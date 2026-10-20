@@ -8,12 +8,14 @@ pinned to what it took in the run, the changed probe to the alternative) and wit
 
 usage: predict.py <hypre test dir> [--runs N] [--np 4 8] [--timeout S]
 Writes experiments/results/hypre/predict.csv: np, run, records, cross-exchange alternatives,
-pin of the changed probe, replay result, every pin matched, control result, commit.
+pin and call site of the changed probe, replay result, every required pin matched, its final
+residual, control result, control matched, control residual, commit.
 """
 from __future__ import annotations
 import argparse
 import csv
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -23,11 +25,19 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 sys.path.insert(0, os.path.join(ROOT, "analysis"))
 sys.path.insert(0, os.path.join(ROOT, "experiments"))
 from stretto import trace  # noqa: E402
-from stretto.confirm import all_matched, classify_rc, horizon_pins, run_pinned  # noqa: E402
+from stretto.confirm import all_matched, classify_rc, horizon_pins, required_matches, run_pinned  # noqa: E402
 from stretto.report import analyze  # noqa: E402
 from provenance import code_commit  # noqa: E402
 
 ARGS = ["-solver", "8", "-pout", "0"]
+RESIDUAL = re.compile(r"Final Relative Residual Norm = (\S+)")
+
+
+def residual(out: str) -> str:
+    """The solver's final relative residual as printed, "" if the run printed none: a replay
+    that finishes with another residual than its control took a different numerical path."""
+    m = RESIDUAL.search(out)
+    return m.group(1) if m else ""
 TRACER = os.path.join(ROOT, "tracer", "bin", "mpich", "libstretto-trace.so")
 
 
@@ -71,19 +81,20 @@ def main() -> int:
             for f in found:
                 hp = horizon_pins(t, f)
                 if hp is None:
-                    rows.append({**row, "pin": f.pin, "replay": "no horizon"})
+                    rows.append({**row, "pin": f.pin, "site": f.site, "replay": "no horizon"})
                     continue
                 alt, ctl = hp
-                ra = run_pinned(np, exe, [], alt, args.timeout, mpi="mpich")
-                rc = run_pinned(np, exe, [], ctl, args.timeout, mpi="mpich")
-                rows.append({**row, "pin": f.pin, "replay": classify_rc(ra.returncode, ra.stderr, ra.elapsed, args.timeout),
-                             "matched": all_matched(alt, ra.stderr),
+                ra = run_pinned(np, exe, ARGS, alt, args.timeout, mpi="mpich", cwd=args.testdir)
+                rc = run_pinned(np, exe, ARGS, ctl, args.timeout, mpi="mpich", cwd=args.testdir)
+                rows.append({**row, "pin": f.pin, "site": f.site, "replay": classify_rc(ra.returncode, ra.stderr, ra.elapsed, args.timeout),
+                             "matched": all_matched(alt, ra.stderr, required_matches(t, f)), "residual": residual(ra.stdout),
                              "control": classify_rc(rc.returncode, rc.stderr, rc.elapsed, args.timeout),
-                             "control_matched": all_matched(ctl, rc.stderr)})
+                             "control_matched": all_matched(ctl, rc.stderr), "control_residual": residual(rc.stdout)})
                 print(rows[-1], flush=True)
             shutil.rmtree(d, ignore_errors=True)
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
-    keys = ["np", "run", "records", "alternatives", "pin", "replay", "matched", "control", "control_matched", "commit"]
+    keys = ["np", "run", "records", "alternatives", "pin", "site", "replay", "matched", "residual", "control", "control_matched",
+            "control_residual", "commit"]
     with open(args.out, "w", newline="") as fh:
         w = csv.DictWriter(fh, fieldnames=keys, extrasaction="ignore", lineterminator="\n")
         w.writeheader()
