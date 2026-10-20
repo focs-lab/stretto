@@ -34,7 +34,7 @@ runs that finished; MUST is scored both with its timeouts as no error and as err
 testing is a second baseline. The HYPRE race is predicted from 35 of 40 single finished runs; every
 predicted cross-exchange alternative hangs when replayed, and testing never hit it (E5c).
 Still open: AMG and Nekbone are analysed with `--no-sp`, so they
-cannot show a 1c or 1d; the timing leg predates the current tracer; Nekbone was not rerun.
+cannot show a 1c or 1d; Nekbone was not rerun.
 
 ## Criterion 1: ≥ 3 benchmark bugs predicted from a run in which MUST reports nothing, confirmed by replay
 
@@ -182,23 +182,25 @@ the self transport does inline up to 256 bytes); on TCP with the threshold at th
 
 ## Scale (E4, E5, E5b)
 
-Results table "E4" (NPB 3.4.3, MPICH build), from one timed leg on the second machine,
-announced to the other lanes (`experiments/timing_leg.sh`, `experiments/results/timing-leg.log`;
-the log records a load of 1.82 at the start and another lane's configure step during the first
-pass). The
-traced run takes between 0.99 and 1.07 times the plain one (most runs last about 4.5 s,
-mostly launcher start-up; the 1.07 is lu.A at 16 ranks, whose 380 MB trace is written
-during the run). Analysis, one process: lu.A at 16 ranks, 3 049 812 events, 50.0 s (49.3 s in
-the leg's second pass); lu.A at 4 ranks, 508 376 events, 7.9 s; cg.A at 16 ranks, 235 680
-events, 3.5 s. That is about 16 µs per event on traces without wildcard receives, where the
-cost is loading and the observed-run checks.
+Results table "E4" (NPB 3.4.3, MPICH build), from the timed leg at 576e917 on the second
+machine, 2026-10-20 22:41-23:06 UTC by that host's clock (26 minutes behind the development
+host's), announced to the other lanes, with the host otherwise idle (load 0.28 at the start;
+`experiments/timing_leg.sh`, `experiments/results/timing-leg.log`). Five repetitions of the whole
+set, each row the median. By NPB's own timer, on the rows whose plain timed section lasts at
+least 1 s (ep.A and lu.A at 4 ranks, lu.A at 16), the traced section takes 1.01 to 1.17 times
+the plain one; the 1.17 is lu.A at 16 ranks, which writes a 406 MB trace. Shorter sections, a
+few hundredths of a second, give larger and noisier ratios (up to 5 on cg.S and lu.S at 16
+ranks). In wall time, which includes about 4.5 s of launcher start-up, every row is within
+0.99 to 1.08. Analysis, one process: lu.A at 16 ranks, 3 049 940 events, 55 s; lu.A at 4 ranks,
+508 408 events, 8.7 s; cg.A at 16 ranks, 235 792 events, 4.1 s; about 18 µs per event on
+traces without wildcard receives, where the cost is loading and the observed-run checks.
 
-Results section "E5" (AMG, 8 ranks, `summary8.txt`, rerun at c27c793): 39 643 sends, 53
-wildcard receives, 8 936 probes (10 978 in the trace of the timed leg). The analysis reports
-5 racing receives (1f) and 3263 probe alternatives, all at L1, at two call sites inside
-HYPRE's MPI wrappers (`hypre_MPI_Iprobe`, `hypre_MPI_Recv`); in 13.2 s with a peak of 0.56 GB
-in the timed leg (13.0 s in its second pass;
-9.3 s on the development host, not committed). The 3263 probe alternatives are profiled at
+Results section "E5" (AMG, 8 ranks, `summary8.txt`, traced and analysed in the timed leg at
+576e917): 39 643 sends, 53 wildcard receives, 8 936 probes, as in the corpus rerun's trace. The
+analysis reports 5 racing receives (1f) and 3263 probe alternatives, all at L1, at two call
+sites inside HYPRE's MPI wrappers (`hypre_MPI_Iprobe`, `hypre_MPI_Recv`); in 15.5 s with a peak
+of 0.56 GB (15.6 s and 15.5 s in the leg's two further passes; 13.2 s in the leg at 404927c,
+on the code before the audit fixes). The 3263 probe alternatives are profiled at
 the two ends of the B range and bisected between them (exact by corollary T2' for
 B ≥ B0); judging all of the about 260 breakpoints (`--full-profile`) gave the same findings
 in 300 s and 1.2 GB on the development host (not committed). A pinned replay of the first probe alternative

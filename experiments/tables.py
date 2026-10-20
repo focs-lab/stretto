@@ -64,7 +64,10 @@ def e1(name, path, key=None):
                 continue
             c = CONF[(key, label)] = score.confusion(rs, judge)
             num(f"{key}fone{label}", c["f1"])
+            num(f"n{key}tp{label}", c["tp"])
         num(f"n{key}fp", CONF[(key, "union")]["fp"])
+        num(f"n{key}errors", sum(1 for r in rs if r["expect"] == "ERROR"))
+        num(f"n{key}fnunion", CONF[(key, "union")]["fn"])
     if any(r.get("must") for r in rs):
         kinds = collections.Counter(score.must_kind(r) for r in rs)
         out.append(conf_row("MUST 1.9.2 (same source, its own run under MPICH)", score.confusion(rs, score.must_verdict)))
@@ -352,6 +355,13 @@ def hypre_campaign():
                     num(f"n{k}{macro}ControlsFailed", len(alts) - len(ctl))
                     if res_known and fin:
                         num(f"n{k}{macro}SameResidual", len(same_res))
+            # over both process counts, for the abstract and the introduction
+            ok = [r for r in vrows if not (r.get("replay") or "").startswith("traced run")]
+            cross = [r for r in ok if r.get("pin") and r["kind"] == "cross"]
+            num(f"n{prefix}Traced", len({(r["np"], r["run"]) for r in ok}))
+            num(f"n{prefix}Exposed", len({(r["np"], r["run"]) for r in cross}))
+            num(f"n{prefix}CrossAlts", len(cross))
+            num(f"n{prefix}CrossHang", sum(1 for r in cross if r.get("replay") == "TIMEOUT"))
         sites = collections.Counter(r.get("site") for r in pr if r.get("pin") and r.get("site"))
         if sites:
             num("nHypreSites", len(sites))
@@ -439,9 +449,9 @@ def write_paper_numbers():
     print("wrote", os.path.join(gen, "numbers.tex"), "and rq2.tex")
 
 
-# numbers the corpus rerun does not produce: the timing leg, Nekbone and the exposure study
+# fallbacks, printed as provisional, for numbers whose source is missing or predates its macro
 STATIC = {"TraceOverhead": "0.99--1.07", "nAMGalts": "3\\,263", "AMGtime": "13.2", "nNekAlts": "10\\,000", "nNekRejected": "8\\,759",
-          "NekRecords": "10.4", "NekMinutes": "63", "NekGB": "33", "nProxyWild": "4", "nProxyAnySource": "3", "nProxy": "14"}
+          "NekRecords": "10.4", "NekMinutes": "63", "NekGB": "33"}
 
 
 def e6():

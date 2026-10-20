@@ -279,34 +279,36 @@ which the self transport sends inline up to 256 bytes), at the bound 17/17. Not 
 
 ## E4: tracer overhead and analysis cost (NPB 3.4.3, MPICH build)
 
-Plain, traced and analysis times from one timed leg (`experiments/timing_leg.sh`, log in
-`experiments/results/timing-leg.log`) on the second machine, announced
-to the other lanes: 16 ranks on the container's 12 cores (24 hardware threads), the analysis
-one process, at commit 404927c (before b2788c5 and 2f66592). The 4-rank rows are the leg's rerun of that set after a 6 s configure
-step of another lane overlapped the first pass; both passes are in the log.
+Plain, traced and analysis times from the timed leg (`experiments/timing_leg.sh`, log in
+`experiments/results/timing-leg.log`) on the second machine, announced to the other lanes, the
+analysis one process; 5 repetition(s) of the whole set, each row the median over them. The
+wall times include the launcher's start-up; NPB's own timer covers the benchmark's timed section.
+Rows by code commit: 576e917 (100).
 
-| benchmark | class | np | plain (s) | traced (s) | slowdown | trace (MB) | events | wildcards | analysis (s) | findings |
-|---|---|---|---|---|---|---|---|---|---|---|
-| is | S | 4 | 4.43 | 4.42 | .99 | 1 | 323 | 0 | 0.1 | 0  |
-| is | A | 4 | 4.88 | 4.85 | .99 | 1 | 323 | 0 | 0.1 | 0  |
-| ep | S | 4 | 4.52 | 4.53 | 1.00 | 1 | 64 | 0 | 0.1 | 0  |
-| ep | A | 4 | 5.48 | 5.58 | 1.01 | 1 | 64 | 0 | 0.1 | 0  |
-| cg | S | 4 | 4.48 | 4.49 | 1.00 | 4 | 33640 | 0 | 0.4 | 0  |
-| cg | A | 4 | 4.72 | 4.71 | .99 | 4 | 33640 | 0 | 0.4 | 0  |
-| mg | S | 4 | 4.43 | 4.44 | 1.00 | 2 | 9712 | 0 | 0.2 | 0  |
-| mg | A | 4 | 5.00 | 4.99 | .99 | 2 | 15112 | 0 | 0.2 | 0  |
-| lu | S | 4 | 4.45 | 4.47 | 1.00 | 3 | 18712 | 0 | 0.3 | 0  |
-| lu | A | 4 | 12.39 | 12.62 | 1.01 | 64 | 508376 | 0 | 7.9 | 0  |
-| is | S | 16 | 4.58 | 4.57 | .99 | 1 | 1307 | 0 | 0.1 | 0  |
-| is | A | 16 | 4.75 | 4.73 | .99 | 1 | 1307 | 0 | 0.1 | 0  |
-| ep | S | 16 | 4.59 | 4.60 | 1.00 | 1 | 256 | 0 | 0.1 | 0  |
-| ep | A | 16 | 5.01 | 4.99 | .99 | 1 | 256 | 0 | 0.1 | 0  |
-| cg | S | 16 | 4.60 | 4.61 | 1.00 | 26 | 235680 | 0 | 3.5 | 0  |
-| cg | A | 16 | 4.74 | 4.80 | 1.01 | 26 | 235680 | 0 | 3.5 | 0  |
-| mg | S | 16 | 4.58 | 4.57 | .99 | 5 | 36848 | 0 | 0.5 | 0  |
-| mg | A | 16 | 5.09 | 5.07 | .99 | 7 | 58448 | 0 | 0.7 | 0  |
-| lu | S | 16 | 4.59 | 4.63 | 1.00 | 14 | 111828 | 0 | 1.5 | 0  |
-| lu | A | 16 | 9.03 | 9.70 | 1.07 | 380 | 3049812 | 0 | 50.0 | 0  |
+| benchmark | class | np | plain (s) | traced (s) | slowdown | NPB plain (s) | NPB traced (s) | NPB slowdown (range) | trace (MB) | events | wildcards | analysis (s) | findings |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| is | S | 4 | 4.44 | 4.45 | 1.00 | 0.00 | 0.00 | - (-) | 1 | 360 | 0 | 0.1 | 0  |
+| is | A | 4 | 4.86 | 4.86 | 1.00 | 0.15 | 0.15 | 1.000 (1.00-1.00) | 1 | 360 | 0 | 0.1 | 0  |
+| ep | S | 4 | 4.55 | 4.53 | 1.00 | 0.11 | 0.10 | 0.909 (0.83-1.10) | 1 | 80 | 0 | 0.1 | 0  |
+| ep | A | 4 | 5.52 | 5.54 | 1.00 | 1.10 | 1.13 | 1.009 (0.99-1.05) | 1 | 80 | 0 | 0.1 | 0  |
+| cg | S | 4 | 4.45 | 4.49 | 1.01 | 0.02 | 0.05 | 2.500 (2.00-2.50) | 4 | 33668 | 0 | 0.5 | 0  |
+| cg | A | 4 | 4.72 | 4.72 | 1.00 | 0.21 | 0.22 | 1.047 (0.88-1.28) | 4 | 33668 | 0 | 0.5 | 0  |
+| mg | S | 4 | 4.45 | 4.47 | 1.00 | 0.00 | 0.01 | - (-) | 2 | 9744 | 0 | 0.2 | 0  |
+| mg | A | 4 | 4.99 | 5.02 | 1.01 | 0.34 | 0.35 | 1.029 (0.97-1.03) | 2 | 15144 | 0 | 0.3 | 0  |
+| lu | S | 4 | 4.46 | 4.47 | 1.00 | 0.02 | 0.03 | 1.500 (1.00-3.00) | 3 | 18744 | 0 | 0.3 | 0  |
+| lu | A | 4 | 12.36 | 12.55 | 1.02 | 7.77 | 7.97 | 1.023 (1.02-1.03) | 68 | 508408 | 0 | 8.7 | 0  |
+| is | S | 16 | 4.57 | 4.55 | 1.00 | 0.00 | 0.00 | - (-) | 1 | 1464 | 0 | 0.1 | 0  |
+| is | A | 16 | 4.74 | 4.73 | 1.00 | 0.09 | 0.09 | 1.000 (1.00-1.00) | 1 | 1464 | 0 | 0.1 | 0  |
+| ep | S | 16 | 4.61 | 4.59 | 1.00 | 0.03 | 0.03 | 1.000 (1.00-1.00) | 1 | 320 | 0 | 0.1 | 0  |
+| ep | A | 16 | 5.01 | 4.97 | 0.99 | 0.43 | 0.43 | 1.000 (1.00-1.00) | 1 | 320 | 0 | 0.1 | 0  |
+| cg | S | 16 | 4.58 | 4.65 | 1.01 | 0.01 | 0.05 | 5.000 (4.00-7.00) | 28 | 235792 | 0 | 4.1 | 0  |
+| cg | A | 16 | 4.74 | 4.76 | 1.00 | 0.13 | 0.17 | 1.307 (1.31-1.38) | 28 | 235792 | 0 | 4.1 | 0  |
+| mg | S | 16 | 4.59 | 4.58 | 1.00 | 0.00 | 0.01 | - (-) | 5 | 36976 | 0 | 0.5 | 0  |
+| mg | A | 16 | 5.03 | 5.02 | 1.00 | 0.29 | 0.30 | 1.034 (1.00-1.03) | 7 | 58576 | 0 | 0.9 | 0  |
+| lu | S | 16 | 4.60 | 4.61 | 1.00 | 0.01 | 0.05 | 5.000 (5.00-5.00) | 15 | 111956 | 0 | 1.7 | 0  |
+| lu | A | 16 | 8.95 | 9.71 | 1.08 | 4.33 | 5.08 | 1.173 (1.17-1.19) | 406 | 3049940 | 0 | 55.2 | 0  |
+
+NPB slowdown range in the text: rows whose plain timed section lasts at least 1 s.
 
 ## E5: real application (AMG)
 
@@ -315,7 +317,8 @@ AMG (LLNL), 8 ranks, `-P 2 2 2 -n 16 16 16 -problem 1`, traced with Open MPI (`e
 ```
 trace: 8 ranks, 39643 sends, 39643 receives, 53 wildcard receives, 8936 probes, 1180 collective records, 10 communicators
 findings by class: 1f 5, probe-alt 3263
-host: a-p13, one process; analysis 15.57 s, 564648 KB
+host: a-p13, one process; analysis 15.53 s, 563888 KB
+timed leg: 2026-10-20T23:06:38Z
 ```
 
 Replay of the first probe alternative with its pin (`confirm8.txt`):
@@ -344,8 +347,8 @@ A random sample of 30 alternatives replayed with the pins of their horizon and a
 
 Nekbone (test/nek_comm, `PPLIST=NEKCOMM`), 8 ranks, MPICH build, the program whose ping-pong,
 message-volume and tree-reduction tests reach the `MPI_ANY_SOURCE` wrappers of `comm_mpi.f`
-(`experiments/nekbone/run.sh`, analysis with `--no-sp`, one process, run on the second machine
-while another lane's jobs ran on the host, so the time is an upper bound). Every finding is a
+(`experiments/nekbone/run.sh`, analysis with `--no-sp`, one process, outside a timed leg, so
+the time is indicative). Every finding is a
 1f at the binary-tree global operation `gp2` (`comm_mpi.f` line 994, `study/sites.csv`), which only
 the suite's `gp2_test` calls (the solver's `gop` is an `MPI_Allreduce`): the inner nodes 0 and 4
 receive their children's contributions with one tag and `MPI_ANY_SOURCE`, so the children can arrive

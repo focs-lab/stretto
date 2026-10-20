@@ -93,8 +93,11 @@ development host needs `--cgroup-parent=docker.slice` (`DOCKER_BUILD_ARGS`).
 ## Timed leg
 
 `experiments/timing_leg.sh`, inside the container on the second machine, measures the E4
-plain, traced and analysis times (`e4_overhead.sh`) and the AMG analysis (`amg/run.sh
-analyse`), then repeats the analyses once for the log. The whole host is idle for it: the
+plain, traced and analysis times (`e4_overhead.sh`, `REPS` repetitions of the whole set,
+default 5, with NPB's own timer next to the wall time) and the AMG analysis (`amg/run.sh
+analyse`, tracing AMG first if its trace is missing), then runs the AMG analysis twice more
+for the log and marks the summary as written by the leg. The leg of 20 Oct (UTC) took 25
+minutes on `CPUS=0-11,40-51`. The whole host is idle for it: the
 leg is announced to the other lanes with a START and an END message, nothing of theirs runs
 in between, and anything that did run is written into `experiments/results/timing-leg.log`
 next to the rows it may have touched (which are then rerun inside the window). `MACHINE=<name>`
@@ -102,10 +105,13 @@ on `container/run.sh` sets the host name the summaries print.
 
 ## Second application: Nekbone
 
-`experiments/nekbone/run.sh [build|trace|analyse|summary|all]` builds Nekbone's
+`experiments/nekbone/run.sh [build|trace|analyse|summary|sample|all]` builds Nekbone's
 communication suite (`test/nek_comm`, `PPLIST=NEKCOMM`, the build that reaches the
-`MPI_ANY_SOURCE` wrappers of `comm_mpi.f`) with the MPICH wrappers, traces it at 8 ranks and
-analyses the trace; `experiments/results/nekbone/summary8.txt` is committed. The trace is
+`MPI_ANY_SOURCE` wrappers of `comm_mpi.f`) with the MPICH wrappers, traces it at 8 ranks,
+analyses the trace and replays a sample of 30 alternatives with controls
+(`experiments/replay_sample.py`, which analyses the trace again);
+`experiments/results/nekbone/{summary8.txt,replay_sample.csv}` are committed. `amg/run.sh
+sample` does the same for AMG in a few minutes. The trace is
 10 million records (1.1 GB) and the analysis needs about 33 GB and an hour in one process:
 run it in a container with a memory cap of at least 40 GB (`MEMORY=48g` on
 `container/run.sh`). A `docker run
@@ -113,6 +119,20 @@ run it in a container with a memory cap of at least 40 GB (`MEMORY=48g` on
 `docker events` beyond create and start; sample `docker stats` into a file to see the peak.
 MACSio's one wildcard site lies in `src-stuff/`, outside the built program, so MACSio is not
 traced.
+
+## Real bug: HYPRE
+
+`experiments/hypre/run.sh` fetches HYPRE 2.10.1 and 2.11.0 (sha256-checked) and builds both
+with MPICH; `HYPRE_DIR` points the scripts at that directory (on the second machine
+`~/rematch-hypre`, mounted as `/h`). `experiments/hypre/campaign.sh [predict|stress|all]`
+traces `RUNS` runs of `test/ij -solver 8 -pout 0` at 4 and 8 ranks, replays every
+request-probe alternative with its horizon pins and control (`JOBS` at a time; the 2.10.1
+campaign took about four hours at `JOBS=4`, most of it in the 60 s timeouts of hanging
+replays), and runs the untraced stress baseline; `HYPRE_VERSION=2.11.0` runs the same on the
+fix (`predict-2.11.0.csv`). Replays or controls that neither finish nor time out leave their
+output under `experiments/results/hypre/failed/`. Keep a few processors of the node outside a
+long campaign's `--cpuset-cpus` for short jobs (tables, LaTeX): two bursts of runs that exited
+with status 15 coincided with such jobs on the campaign's own processors.
 
 ## Shared-host protocol on the development host
 
