@@ -38,14 +38,22 @@
                windows, neighbourhood collectives, dynamic processes, generalised requests,
                MPI-4 Isendrecv, partitioned and large-count calls, the Start of a persistent
                collective); the analysis then reports observed findings only
+     site      id, obj, addr, base: a call site met for the first time, written just before
+               the first record from it; records from user code carry site:id. obj is the
+               object holding the return address of the MPI call (the executable or a library,
+               such as a language binding), addr that address and base the object's load
+               address, so addr - base is the same in every process
      abort     code
      finalize  [truncated]
    A record of kind wait with kind getstatus (MPI_Request_get_status) completes nothing.
    Ranks in send/recv records are comm-local; the loader translates them. */
 #define _GNU_SOURCE
 #include <mpi.h>
+#include <dlfcn.h>
+#include <limits.h>
 #include <pthread.h>
 #include <stdarg.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -81,9 +89,9 @@ static groupent *g_groups = NULL;
 static int g_ngroups = 0, g_capgroups = 0;
 
 /* --------------------------------------------------------------- records */
-typedef struct { char *p; size_t len, cap; } rec_t;
+typedef struct { char *p; size_t len, cap; void *site; } rec_t;
 
-static void rb_init(rec_t *b) { b->cap = 256; b->len = 0; b->p = malloc(b->cap); b->p[0] = 0; }
+static void rb_init(rec_t *b) { b->cap = 256; b->len = 0; b->p = malloc(b->cap); b->p[0] = 0; b->site = NULL; }
 static void rb_printf(rec_t *b, const char *fmt, ...) {
     va_list ap;
     for (;;) {
@@ -111,6 +119,62 @@ static void flush_poll_locked(void) {
 }
 #endif
 
+#ifndef STRETTO_PIN_ONLY
+/* Call sites: the return address of the MPI call, taken in the wrapper's own frame by REC.
+   A site is resolved once (dladdr) and written as a site record; later records name its id.
+   The helpers that write a call's record are always inlined into its wrapper, so that the
+   address is the caller's; records written from other helpers carry no site. */
+#define SITE_SLOTS 8192
+static struct { void *ra; int id; } g_sitetab[SITE_SLOTS];
+static int g_nsites = 0, g_sites_full = 0;
+static void *g_self_base = NULL;
+
+static void json_str(FILE *f, const char *s) {
+    fputc('"', f);
+    for (; *s; s++) {
+        if (*s == '"' || *s == '\\') fputc('\\', f);
+        if ((unsigned char)*s >= 0x20) fputc(*s, f);
+    }
+    fputc('"', f);
+}
+
+static int site_id_locked(void *ra) {
+    if (!ra || g_sites_full) return -1;
+    size_t h = ((uintptr_t)ra >> 2) % SITE_SLOTS;
+    for (size_t k = 0; k < SITE_SLOTS; k++) {
+        size_t i = (h + k) % SITE_SLOTS;
+        if (g_sitetab[i].ra == ra) return g_sitetab[i].id;
+        if (g_sitetab[i].ra != NULL) continue;
+        if (g_nsites + 1 >= SITE_SLOTS / 2) {          /* keep probing short: stop naming new sites */
+            g_sites_full = 1;
+            fprintf(g_out, "{\"r\":%d,\"seq\":%ld,\"op\":\"overflow\",\"what\":\"site table\"}\n", g_rank, g_seq++);
+            return -1;
+        }
+        Dl_info di;
+        int id = -1;
+        if (dladdr(ra, &di) && di.dli_fbase != g_self_base) {
+            char path[PATH_MAX];
+            const char *obj = di.dli_fname ? di.dli_fname : "";
+            if (obj[0] != '/') {                            /* the executable, named as it was started */
+                if (!(obj[0] && realpath(obj, path))) {
+                    ssize_t n = readlink("/proc/self/exe", path, sizeof path - 1);
+                    path[n > 0 ? n : 0] = 0;
+                }
+                obj = path;
+            }
+            id = g_nsites++;
+            fprintf(g_out, "{\"r\":%d,\"seq\":%ld,\"op\":\"site\",\"id\":%d,\"obj\":", g_rank, g_seq++, id);
+            json_str(g_out, obj);
+            fprintf(g_out, ",\"addr\":%lu,\"base\":%lu}\n", (unsigned long)(uintptr_t)ra, (unsigned long)(uintptr_t)di.dli_fbase);
+        }
+        g_sitetab[i].ra = ra;
+        g_sitetab[i].id = id;
+        return id;
+    }
+    return -1;
+}
+#endif
+
 static void rb_emit_kind(rec_t *b, int failed_poll) {
 #ifndef STRETTO_PIN_ONLY
     pthread_mutex_lock(&g_mu);
@@ -124,11 +188,13 @@ static void rb_emit_kind(rec_t *b, int failed_poll) {
         flush_poll_locked();
         free(g_poll_body);
         g_poll_body = failed_poll ? strdup(b->p) : NULL;
+        int site = site_id_locked(b->site);
         char head[96];
         if (g_multi) snprintf(head, sizeof head, "{\"r\":%d,\"seq\":%ld,\"tid\":%ld,", g_rank, g_seq++, (long)gettid());
         else snprintf(head, sizeof head, "{\"r\":%d,\"seq\":%ld,", g_rank, g_seq++);
         fwrite(head, 1, strlen(head), g_out);
         fwrite(b->p, 1, b->len, g_out);
+        if (site >= 0) fprintf(g_out, ",\"site\":%d", site);
         fwrite("}\n", 1, 2, g_out);
         fflush(g_out);
     }
@@ -139,7 +205,7 @@ static void rb_emit_kind(rec_t *b, int failed_poll) {
     free(b->p);
 }
 static void rb_emit(rec_t *b) { rb_emit_kind(b, 0); }
-#define REC(b, op) rec_t b; rb_init(&b); rb_printf(&b, "\"op\":\"%s\"", op)
+#define REC(b, op) rec_t b; rb_init(&b); b.site = __builtin_return_address(0); rb_printf(&b, "\"op\":\"%s\"", op)
 
 /* ------------------------------------------------------------ small utils */
 static int tsize(MPI_Datatype dt) { int s = 0; if (dt != MPI_DATATYPE_NULL) PMPI_Type_size(dt, &s); return s; }
@@ -383,13 +449,20 @@ static int req_start(MPI_Request r, int *kind, MPI_Datatype *dt) {
 static void open_trace(int provided) {
     PMPI_Comm_rank(MPI_COMM_WORLD, &g_rank);
 #ifndef STRETTO_PIN_ONLY
+    Dl_info self;
+    if (dladdr((void *)open_trace, &self)) g_self_base = self.dli_fbase;
     const char *dir = getenv("STRETTO_TRACE_DIR");
     if (!dir) dir = "traces";
     mkdir(dir, 0777);
     char path[1024];
     snprintf(path, sizeof path, "%s/rank-%d.jsonl", dir, g_rank);
     g_out = fopen(path, "w");
-    if (!g_out) { perror("stretto tracer: fopen"); g_out = stderr; }
+    if (!g_out) {
+        /* no trace for this rank: the loader reports the rank as missing, and nothing is
+           written into the program's own output */
+        fprintf(stderr, "stretto tracer: rank %d: cannot write %s: ", g_rank, path);
+        perror(NULL);
+    }
 #endif
     stretto_pin_init(g_rank);
     g_multi = provided == MPI_THREAD_MULTIPLE;
@@ -398,13 +471,19 @@ static void open_trace(int provided) {
     comm_register("world", MPI_COMM_WORLD, MPI_COMM_WORLD);   /* local id 0 */
     comm_register("self", MPI_COMM_WORLD, MPI_COMM_SELF);     /* local id 1 */
 }
-int MPI_Init(int *argc, char ***argv) { int rc = PMPI_Init(argc, argv); open_trace(MPI_THREAD_SINGLE); return rc; }
+int MPI_Init(int *argc, char ***argv) {
+    int rc = PMPI_Init(argc, argv), provided = MPI_THREAD_SINGLE;
+    PMPI_Query_thread(&provided);      /* an implementation may provide more than MPI_Init asks */
+    open_trace(provided);
+    return rc;
+}
 int MPI_Init_thread(int *argc, char ***argv, int req, int *prov) { int rc = PMPI_Init_thread(argc, argv, req, prov); open_trace(*prov); return rc; }
 int MPI_Finalize(void) {
     stretto_pin_finalize();
     REC(b, "finalize"); if (g_truncated) rb_printf(&b, ",\"truncated\":1"); rb_emit(&b);
     pthread_mutex_lock(&g_mu);
-    if (g_out && g_out != stderr) fclose(g_out);
+    if (g_out && (ferror(g_out) | fclose(g_out)))
+        fprintf(stderr, "stretto tracer: rank %d: writing the trace failed; it is incomplete\n", g_rank);
     g_out = NULL;
     pthread_mutex_unlock(&g_mu);
     return PMPI_Finalize();
@@ -443,7 +522,7 @@ NONBLOCKING_SEND(MPI_Issend, "issend")
 NONBLOCKING_SEND(MPI_Ibsend, "ibsend")
 NONBLOCKING_SEND(MPI_Irsend, "irsend")
 
-static void unmodelled(const char *call);
+static inline __attribute__((always_inline)) void unmodelled(const char *call);
 /* persistent: *_init registers; Start emits the operation */
 typedef struct { int count; MPI_Datatype dt; int peer, tag; MPI_Comm comm; const char *mode; void *buf; } pinfo;
 static pinfo *g_pinfo = NULL; static MPI_Request *g_preq = NULL; static int g_npers = 0, g_cappers = 0;
@@ -499,7 +578,7 @@ static void restore_shadow(MPI_Request *slot, MPI_Request before) {
     if (*slot == before) PMPI_Request_free(slot);
     *slot = original;
 }
-static void start_one(MPI_Request *rp) {
+static inline __attribute__((always_inline)) void start_one(MPI_Request *rp) {
     MPI_Request r = *rp;
     int kind; MPI_Datatype dt;
     int id = req_start(r, &kind, &dt);
@@ -577,7 +656,7 @@ int MPI_Irecv(void *buf, int count, MPI_Datatype dt, int src, int tag, MPI_Comm 
     rb_emit(&b);
     return rc;
 }
-static int sendrecv_common(int scount, MPI_Datatype sdt, int dst, int stag, int rcount, MPI_Datatype rdt, int *src, int *rtag, MPI_Comm comm, int *widx, int *reqid) {
+static inline __attribute__((always_inline)) int sendrecv_common(int scount, MPI_Datatype sdt, int dst, int stag, int rcount, MPI_Datatype rdt, int *src, int *rtag, MPI_Comm comm, int *widx, int *reqid) {
     /* Modelled as Isend + Recv + Wait. */
     stretto_pin_before_send();
     pthread_mutex_lock(&g_mu); *reqid = g_next_req++; pthread_mutex_unlock(&g_mu);
@@ -587,7 +666,7 @@ static int sendrecv_common(int scount, MPI_Datatype sdt, int dst, int stag, int 
     { REC(b, "begin"); rb_printf(&b, ",\"call\":\"recv\""); recv_args(&b, osrc, otag, comm, rcount, rdt, *widx); rb_emit(&b); }
     return pinned;
 }
-static void sendrecv_finish(int rcount, MPI_Datatype rdt, int osrc, int otag, int src, int rtag, MPI_Comm comm, MPI_Status *st, int rc, int widx, int pinned, int reqid) {
+static inline __attribute__((always_inline)) void sendrecv_finish(int rcount, MPI_Datatype rdt, int osrc, int otag, int src, int rtag, MPI_Comm comm, MPI_Status *st, int rc, int widx, int pinned, int reqid) {
     if (pinned && rc == MPI_SUCCESS) stretto_pin_matched(widx, st->MPI_SOURCE);
     { REC(b, "recv"); recv_args(&b, osrc, otag, comm, rcount, rdt, widx); status_fields(&b, st, rdt, rc == MPI_SUCCESS);
       if (pinned) rb_printf(&b, ",\"pinned\":{\"src\":%d,\"tag\":%d}", src, rtag);
@@ -649,7 +728,7 @@ int MPI_Request_get_status(MPI_Request req, int *flag, MPI_Status *st) {
     REC(b, "wait"); rb_printf(&b, ",\"kind\":\"getstatus\",\"flag\":%d", *flag); reqs_list(&b, 1, &req); rb_printf(&b, ",\"done\":[]"); rb_emit_kind(&b, !*flag);
     return rc;
 }
-static void begin_wait(const char *kind, int n, MPI_Request reqs[]) {
+static inline __attribute__((always_inline)) void begin_wait(const char *kind, int n, MPI_Request reqs[]) {
     REC(b, "begin"); rb_printf(&b, ",\"call\":\"wait\",\"kind\":\"%s\"", kind); reqs_list(&b, n, reqs); rb_emit(&b);
 }
 int MPI_Wait(MPI_Request *req, MPI_Status *st) {
@@ -775,7 +854,7 @@ static int msg_take(MPI_Message m, int *comm, int *src, int *tag) {
     pthread_mutex_unlock(&g_mu);
     return found;
 }
-static void probe_rec(const char *kind, int src, int tag, MPI_Comm comm, int flag, MPI_Status *st, int rc, int pidx, int pinned, int psrc) {
+static inline __attribute__((always_inline)) void probe_rec(const char *kind, int src, int tag, MPI_Comm comm, int flag, MPI_Status *st, int rc, int pidx, int pinned, int psrc) {
     REC(b, "probe");
     rb_printf(&b, ",\"kind\":\"%s\"", kind); rb_src(&b, src); rb_tag(&b, tag); rb_printf(&b, ",\"comm\":%d,\"flag\":%d", comm_id(comm), flag);
     if (flag && pidx >= 0) rb_printf(&b, ",\"pidx\":%d", pidx);
@@ -830,7 +909,7 @@ int MPI_Imrecv(void *buf, int count, MPI_Datatype dt, MPI_Message *msg, MPI_Requ
 }
 
 /* ------------------------------------------------------------ collectives */
-static void coll_rec(const char *name, MPI_Comm comm, int root, int count, MPI_Datatype dt, int reqid, int begin) {
+static inline __attribute__((always_inline)) void coll_rec(const char *name, MPI_Comm comm, int root, int count, MPI_Datatype dt, int reqid, int begin) {
     REC(b, begin ? "begin" : "coll");
     if (begin) rb_printf(&b, ",\"call\":\"coll\"");
     rb_printf(&b, ",\"name\":\"%s\",\"comm\":%d,\"root\":%d", name, comm_id(comm), root); rb_type(&b, count, dt);
@@ -903,7 +982,7 @@ int MPI_Comm_dup_with_info(MPI_Comm c, MPI_Info info, MPI_Comm *n) { int rc = PM
    "unmodelled" record, so that the loader knows the trace is not a complete record of the
    run's communication and the analysis reports observed findings only (the premise of
    theorem T1 in docs/model.md). */
-static void unmodelled(const char *call) { REC(b, "unmodelled"); rb_printf(&b, ",\"call\":\"%s\"", call); rb_emit(&b); }
+static inline __attribute__((always_inline)) void unmodelled(const char *call) { REC(b, "unmodelled"); rb_printf(&b, ",\"call\":\"%s\"", call); rb_emit(&b); }
 #define UNMODELLED(name, call) do { unmodelled(name); return call; } while (0)
 int MPI_Win_create(void *base, MPI_Aint size, int du, MPI_Info info, MPI_Comm comm, MPI_Win *win) { UNMODELLED("Win_create", PMPI_Win_create(base, size, du, info, comm, win)); }
 int MPI_Win_allocate(MPI_Aint size, int du, MPI_Info info, MPI_Comm comm, void *base, MPI_Win *win) { UNMODELLED("Win_allocate", PMPI_Win_allocate(size, du, info, comm, base, win)); }
