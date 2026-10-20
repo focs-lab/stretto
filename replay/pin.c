@@ -127,6 +127,12 @@ HIDDEN int rematch_pin_recv(int *src, int *tag, MPI_Comm comm, int *widx) {
     return 0;
 }
 
+/* A pinned receive completed: it can only have matched the pinned source, so this line is
+   the evidence that the forced match happened ("applied" only says the argument was set). */
+HIDDEN void rematch_pin_matched(int widx, int comm_src) {
+    fprintf(stderr, "[rematch-pin] rank %d: matched widx=%d src=%d\n", g_rank, widx, comm_src);
+}
+
 static int g_pinned_probe = -1;   /* the pidx whose pin was applied by the last peek */
 
 HIDDEN int rematch_pin_probe(int *src, int *tag, MPI_Comm comm, int *pidx) {

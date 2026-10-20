@@ -34,6 +34,10 @@
                local group, members = both sorted (its identity across ranks)
      bufattach size | bufdetach
      overflow  what: a fixed table filled up and later records may be incomplete
+     unmodelled call: a call whose communication the analysis does not model (one-sided
+               windows, neighbourhood collectives, dynamic processes, generalised requests,
+               MPI-4 Isendrecv, partitioned and large-count calls, the Start of a persistent
+               collective); the analysis then reports observed findings only
      abort     code
      finalize  [truncated]
    A record of kind wait with kind getstatus (MPI_Request_get_status) completes nothing.
@@ -64,7 +68,7 @@ static void *xrealloc(void *p, size_t n) {
     return q;
 }
 
-typedef struct { MPI_Request req; int id; int kind; MPI_Datatype dt; int persistent; int active; int cancel_req; } reqent; /* kind: 0 send, 1 recv, 2 coll, 3 idup */
+typedef struct { MPI_Request req; int id; int kind; MPI_Datatype dt; int persistent; int active; int cancel_req; int pin1; } reqent; /* kind: 0 send, 1 recv, 2 coll, 3 idup; pin1: 1 + the widx of a pinned receive, 0 if none */
 static reqent *g_reqs = NULL;
 static int g_nreqs = 0, g_capreqs = 0, g_next_req = 0;
 
@@ -337,13 +341,13 @@ static int comm_id(MPI_Comm c) {
 static int req_add(MPI_Request r, int kind, MPI_Datatype dt, int persistent) {
     pthread_mutex_lock(&g_mu);
     for (int i = 0; i < g_nreqs; i++) if (g_reqs[i].req == r) {   /* recycled handle */
-        g_reqs[i].id = g_next_req++; g_reqs[i].kind = kind; g_reqs[i].dt = dt; g_reqs[i].persistent = persistent; g_reqs[i].active = !persistent; g_reqs[i].cancel_req = 0;
+        g_reqs[i].id = g_next_req++; g_reqs[i].kind = kind; g_reqs[i].dt = dt; g_reqs[i].persistent = persistent; g_reqs[i].active = !persistent; g_reqs[i].cancel_req = 0; g_reqs[i].pin1 = 0;
         int id = g_reqs[i].id; pthread_mutex_unlock(&g_mu); return id;
     }
     if (g_nreqs == g_capreqs) { g_capreqs = g_capreqs ? g_capreqs * 2 : 64; g_reqs = xrealloc(g_reqs, sizeof *g_reqs * g_capreqs); }
     int id = g_next_req++;
     g_reqs[g_nreqs].req = r; g_reqs[g_nreqs].id = id; g_reqs[g_nreqs].kind = kind; g_reqs[g_nreqs].dt = dt;
-    g_reqs[g_nreqs].persistent = persistent; g_reqs[g_nreqs].active = !persistent; g_reqs[g_nreqs].cancel_req = 0; g_nreqs++;
+    g_reqs[g_nreqs].persistent = persistent; g_reqs[g_nreqs].active = !persistent; g_reqs[g_nreqs].cancel_req = 0; g_reqs[g_nreqs].pin1 = 0; g_nreqs++;
     pthread_mutex_unlock(&g_mu);
     return id;
 }
@@ -351,6 +355,10 @@ static reqent *req_find_locked(MPI_Request r) {
     if (r == MPI_REQUEST_NULL) return NULL;
     for (int i = 0; i < g_nreqs; i++) if (g_reqs[i].req == r) return &g_reqs[i];
     return NULL;
+}
+/* A pinned nonblocking receive reports its match when the completion call returns it. */
+static void req_set_pin(MPI_Request r, int widx) {
+    pthread_mutex_lock(&g_mu); reqent *e = req_find_locked(r); if (e) e->pin1 = widx + 1; pthread_mutex_unlock(&g_mu);
 }
 static int req_id(MPI_Request r) {
     pthread_mutex_lock(&g_mu); reqent *e = req_find_locked(r); int id = e ? e->id : -1; pthread_mutex_unlock(&g_mu); return id;
@@ -435,6 +443,7 @@ NONBLOCKING_SEND(MPI_Issend, "issend")
 NONBLOCKING_SEND(MPI_Ibsend, "ibsend")
 NONBLOCKING_SEND(MPI_Irsend, "irsend")
 
+static void unmodelled(const char *call);
 /* persistent: *_init registers; Start emits the operation */
 typedef struct { int count; MPI_Datatype dt; int peer, tag; MPI_Comm comm; const char *mode; void *buf; } pinfo;
 static pinfo *g_pinfo = NULL; static MPI_Request *g_preq = NULL; static int g_npers = 0, g_cappers = 0;
@@ -495,7 +504,7 @@ static void start_one(MPI_Request *rp) {
     int kind; MPI_Datatype dt;
     int id = req_start(r, &kind, &dt);
     pthread_mutex_lock(&g_mu); pinfo *pi = pers_find(r); pinfo copy; if (pi) copy = *pi; pthread_mutex_unlock(&g_mu);
-    if (!pi) return;
+    if (!pi) { unmodelled("Start of an untracked persistent request"); return; }   /* persistent collective, partitioned */
     if (kind == 0) {
         rematch_pin_before_send();
         REC(b, "send"); send_fields(&b, copy.mode, copy.count, copy.dt, copy.peer, copy.tag, copy.comm);
@@ -509,7 +518,7 @@ static void start_one(MPI_Request *rp) {
             if (PMPI_Recv_init(copy.buf, copy.count, copy.dt, src, tag, copy.comm, &shadow) == MPI_SUCCESS) {
                 pthread_mutex_lock(&g_mu);
                 if (g_nreqs == g_capreqs) { g_capreqs = g_capreqs ? g_capreqs * 2 : 64; g_reqs = xrealloc(g_reqs, sizeof *g_reqs * g_capreqs); }
-                g_reqs[g_nreqs++] = (reqent){shadow, id, 1, copy.dt, 1, 1, 0};
+                g_reqs[g_nreqs++] = (reqent){shadow, id, 1, copy.dt, 1, 1, 0, widx + 1};
                 pthread_mutex_unlock(&g_mu);
                 shadow_add(shadow, r);
                 *rp = shadow;
@@ -549,6 +558,7 @@ int MPI_Recv(void *buf, int count, MPI_Datatype dt, int src, int tag, MPI_Comm c
     MPI_Status mine;
     if (st == MPI_STATUS_IGNORE) st = &mine;
     int rc = PMPI_Recv(buf, count, dt, src, tag, comm, st);
+    if (pinned && rc == MPI_SUCCESS) rematch_pin_matched(widx, st->MPI_SOURCE);
     REC(b, "recv"); recv_args(&b, osrc, otag, comm, count, dt, widx);
     status_fields(&b, st, dt, rc == MPI_SUCCESS);
     if (pinned) rb_printf(&b, ",\"pinned\":{\"src\":%d,\"tag\":%d}", src, tag);
@@ -561,6 +571,7 @@ int MPI_Irecv(void *buf, int count, MPI_Datatype dt, int src, int tag, MPI_Comm 
     int pinned = rematch_pin_recv(&src, &tag, comm, &widx);
     int rc = PMPI_Irecv(buf, count, dt, src, tag, comm, req);
     int id = rc == MPI_SUCCESS ? req_add(*req, 1, dt, 0) : -1;
+    if (pinned && id >= 0) req_set_pin(*req, widx);
     REC(b, "irecv"); recv_args(&b, osrc, otag, comm, count, dt, widx); if (id >= 0) rb_printf(&b, ",\"req\":%d", id);
     if (pinned) rb_printf(&b, ",\"pinned\":{\"src\":%d,\"tag\":%d}", src, tag);
     rb_emit(&b);
@@ -577,6 +588,7 @@ static int sendrecv_common(int scount, MPI_Datatype sdt, int dst, int stag, int 
     return pinned;
 }
 static void sendrecv_finish(int rcount, MPI_Datatype rdt, int osrc, int otag, int src, int rtag, MPI_Comm comm, MPI_Status *st, int rc, int widx, int pinned, int reqid) {
+    if (pinned && rc == MPI_SUCCESS) rematch_pin_matched(widx, st->MPI_SOURCE);
     { REC(b, "recv"); recv_args(&b, osrc, otag, comm, rcount, rdt, widx); status_fields(&b, st, rdt, rc == MPI_SUCCESS);
       if (pinned) rb_printf(&b, ",\"pinned\":{\"src\":%d,\"tag\":%d}", src, rtag);
       rb_emit(&b); }
@@ -612,6 +624,7 @@ static void done_entry(rec_t *b, int first, MPI_Request before, MPI_Status *st, 
     pthread_mutex_lock(&g_mu);
     reqent *e = req_find_locked(before);
     int id = e ? e->id : -1, kind = e ? e->kind : -1, persistent = e ? e->persistent : 0, cancel_req = e ? e->cancel_req : 0;
+    int pin1 = e ? e->pin1 : 0;
     MPI_Datatype dt = e ? e->dt : MPI_DATATYPE_NULL;
     if (e && !persistent) { *e = g_reqs[--g_nreqs]; }
     else if (e) { e->active = 0; e->cancel_req = 0; }
@@ -620,6 +633,10 @@ static void done_entry(rec_t *b, int first, MPI_Request before, MPI_Status *st, 
     if (id < 0) { rb_printf(b, "%s{\"req\":null}", first ? "" : ","); return; }
     rb_printf(b, "%s{\"req\":%d", first ? "" : ",", id);
     if (kind == 1) status_fields(b, st, dt, ok);
+    if (kind == 1 && pin1 && ok && st) {
+        int cancelled = 0; PMPI_Test_cancelled(st, &cancelled);
+        if (!cancelled) rematch_pin_matched(pin1 - 1, st->MPI_SOURCE);
+    }
     else if (kind == 0 && cancel_req) {          /* a send that was cancelled: did the cancel succeed? */
         int cancelled = 0; if (ok && st) PMPI_Test_cancelled(st, &cancelled);
         rb_printf(b, ",\"cancelled\":%d", cancelled);
@@ -878,6 +895,54 @@ int MPI_Dist_graph_create_adjacent(MPI_Comm c, int indeg, const int *sources, co
 int MPI_Intercomm_create(MPI_Comm local, int lleader, MPI_Comm peer, int rleader, int tag, MPI_Comm *n) {
     int rc = PMPI_Intercomm_create(local, lleader, peer, rleader, tag, n); REG("intercomm", local, n); return rc; }
 int MPI_Intercomm_merge(MPI_Comm inter, int high, MPI_Comm *n) { int rc = PMPI_Intercomm_merge(inter, high, n); REG("merge", inter, n); return rc; }
+int MPI_Comm_dup_with_info(MPI_Comm c, MPI_Info info, MPI_Comm *n) { int rc = PMPI_Comm_dup_with_info(c, info, n); REG("dup", c, n); return rc; }
+
+/* ------------------------------------------------------- outside the model
+   Communication the analysis does not model: one-sided windows, neighbourhood collectives,
+   dynamic processes, generalised requests and the MPI-4 calls below. Each call writes an
+   "unmodelled" record, so that the loader knows the trace is not a complete record of the
+   run's communication and the analysis reports observed findings only (the premise of
+   theorem T1 in docs/model.md). */
+static void unmodelled(const char *call) { REC(b, "unmodelled"); rb_printf(&b, ",\"call\":\"%s\"", call); rb_emit(&b); }
+#define UNMODELLED(name, call) do { unmodelled(name); return call; } while (0)
+int MPI_Win_create(void *base, MPI_Aint size, int du, MPI_Info info, MPI_Comm comm, MPI_Win *win) { UNMODELLED("Win_create", PMPI_Win_create(base, size, du, info, comm, win)); }
+int MPI_Win_allocate(MPI_Aint size, int du, MPI_Info info, MPI_Comm comm, void *base, MPI_Win *win) { UNMODELLED("Win_allocate", PMPI_Win_allocate(size, du, info, comm, base, win)); }
+int MPI_Win_allocate_shared(MPI_Aint size, int du, MPI_Info info, MPI_Comm comm, void *base, MPI_Win *win) { UNMODELLED("Win_allocate_shared", PMPI_Win_allocate_shared(size, du, info, comm, base, win)); }
+int MPI_Win_create_dynamic(MPI_Info info, MPI_Comm comm, MPI_Win *win) { UNMODELLED("Win_create_dynamic", PMPI_Win_create_dynamic(info, comm, win)); }
+int MPI_Neighbor_allgather(const void *s, int sn, MPI_Datatype sdt, void *r, int rn, MPI_Datatype rdt, MPI_Comm comm) { UNMODELLED("Neighbor_allgather", PMPI_Neighbor_allgather(s, sn, sdt, r, rn, rdt, comm)); }
+int MPI_Neighbor_allgatherv(const void *s, int sn, MPI_Datatype sdt, void *r, const int rc_[], const int d[], MPI_Datatype rdt, MPI_Comm comm) { UNMODELLED("Neighbor_allgatherv", PMPI_Neighbor_allgatherv(s, sn, sdt, r, rc_, d, rdt, comm)); }
+int MPI_Neighbor_alltoall(const void *s, int sn, MPI_Datatype sdt, void *r, int rn, MPI_Datatype rdt, MPI_Comm comm) { UNMODELLED("Neighbor_alltoall", PMPI_Neighbor_alltoall(s, sn, sdt, r, rn, rdt, comm)); }
+int MPI_Neighbor_alltoallv(const void *s, const int sc[], const int sd[], MPI_Datatype sdt, void *r, const int rc_[], const int rd[], MPI_Datatype rdt, MPI_Comm comm) { UNMODELLED("Neighbor_alltoallv", PMPI_Neighbor_alltoallv(s, sc, sd, sdt, r, rc_, rd, rdt, comm)); }
+int MPI_Neighbor_alltoallw(const void *s, const int sc[], const MPI_Aint sd[], const MPI_Datatype sdt[], void *r, const int rc_[], const MPI_Aint rd[], const MPI_Datatype rdt[], MPI_Comm comm) { UNMODELLED("Neighbor_alltoallw", PMPI_Neighbor_alltoallw(s, sc, sd, sdt, r, rc_, rd, rdt, comm)); }
+int MPI_Ineighbor_allgather(const void *s, int sn, MPI_Datatype sdt, void *r, int rn, MPI_Datatype rdt, MPI_Comm comm, MPI_Request *req) { UNMODELLED("Ineighbor_allgather", PMPI_Ineighbor_allgather(s, sn, sdt, r, rn, rdt, comm, req)); }
+int MPI_Ineighbor_allgatherv(const void *s, int sn, MPI_Datatype sdt, void *r, const int rc_[], const int d[], MPI_Datatype rdt, MPI_Comm comm, MPI_Request *req) { UNMODELLED("Ineighbor_allgatherv", PMPI_Ineighbor_allgatherv(s, sn, sdt, r, rc_, d, rdt, comm, req)); }
+int MPI_Ineighbor_alltoall(const void *s, int sn, MPI_Datatype sdt, void *r, int rn, MPI_Datatype rdt, MPI_Comm comm, MPI_Request *req) { UNMODELLED("Ineighbor_alltoall", PMPI_Ineighbor_alltoall(s, sn, sdt, r, rn, rdt, comm, req)); }
+int MPI_Ineighbor_alltoallv(const void *s, const int sc[], const int sd[], MPI_Datatype sdt, void *r, const int rc_[], const int rd[], MPI_Datatype rdt, MPI_Comm comm, MPI_Request *req) { UNMODELLED("Ineighbor_alltoallv", PMPI_Ineighbor_alltoallv(s, sc, sd, sdt, r, rc_, rd, rdt, comm, req)); }
+int MPI_Ineighbor_alltoallw(const void *s, const int sc[], const MPI_Aint sd[], const MPI_Datatype sdt[], void *r, const int rc_[], const MPI_Aint rd[], const MPI_Datatype rdt[], MPI_Comm comm, MPI_Request *req) { UNMODELLED("Ineighbor_alltoallw", PMPI_Ineighbor_alltoallw(s, sc, sd, sdt, r, rc_, rd, rdt, comm, req)); }
+int MPI_Comm_spawn(const char *cmd, char *argv[], int maxprocs, MPI_Info info, int root, MPI_Comm comm, MPI_Comm *inter, int errs[]) { UNMODELLED("Comm_spawn", PMPI_Comm_spawn(cmd, argv, maxprocs, info, root, comm, inter, errs)); }
+int MPI_Comm_spawn_multiple(int count, char *cmds[], char **argvs[], const int maxprocs[], const MPI_Info infos[], int root, MPI_Comm comm, MPI_Comm *inter, int errs[]) { UNMODELLED("Comm_spawn_multiple", PMPI_Comm_spawn_multiple(count, cmds, argvs, maxprocs, infos, root, comm, inter, errs)); }
+int MPI_Comm_connect(const char *port, MPI_Info info, int root, MPI_Comm comm, MPI_Comm *n) { UNMODELLED("Comm_connect", PMPI_Comm_connect(port, info, root, comm, n)); }
+int MPI_Comm_accept(const char *port, MPI_Info info, int root, MPI_Comm comm, MPI_Comm *n) { UNMODELLED("Comm_accept", PMPI_Comm_accept(port, info, root, comm, n)); }
+int MPI_Comm_join(int fd, MPI_Comm *inter) { UNMODELLED("Comm_join", PMPI_Comm_join(fd, inter)); }
+int MPI_Grequest_start(MPI_Grequest_query_function *q, MPI_Grequest_free_function *f, MPI_Grequest_cancel_function *c, void *extra, MPI_Request *req) { UNMODELLED("Grequest_start", PMPI_Grequest_start(q, f, c, extra, req)); }
+#if MPI_VERSION >= 4
+int MPI_Isendrecv(const void *sb, int sn, MPI_Datatype sdt, int dst, int stag, void *rb, int rn, MPI_Datatype rdt, int src, int rtag, MPI_Comm comm, MPI_Request *req) { UNMODELLED("Isendrecv", PMPI_Isendrecv(sb, sn, sdt, dst, stag, rb, rn, rdt, src, rtag, comm, req)); }
+int MPI_Isendrecv_replace(void *buf, int n, MPI_Datatype dt, int dst, int stag, int src, int rtag, MPI_Comm comm, MPI_Request *req) { UNMODELLED("Isendrecv_replace", PMPI_Isendrecv_replace(buf, n, dt, dst, stag, src, rtag, comm, req)); }
+int MPI_Psend_init(const void *buf, int parts, MPI_Count n, MPI_Datatype dt, int dst, int tag, MPI_Comm comm, MPI_Info info, MPI_Request *req) { UNMODELLED("Psend_init", PMPI_Psend_init(buf, parts, n, dt, dst, tag, comm, info, req)); }
+int MPI_Precv_init(void *buf, int parts, MPI_Count n, MPI_Datatype dt, int src, int tag, MPI_Comm comm, MPI_Info info, MPI_Request *req) { UNMODELLED("Precv_init", PMPI_Precv_init(buf, parts, n, dt, src, tag, comm, info, req)); }
+int MPI_Comm_create_from_group(MPI_Group g, const char *stag, MPI_Info info, MPI_Errhandler eh, MPI_Comm *n) { UNMODELLED("Comm_create_from_group", PMPI_Comm_create_from_group(g, stag, info, eh, n)); }
+int MPI_Send_c(const void *b, MPI_Count n, MPI_Datatype dt, int dst, int tag, MPI_Comm comm) { UNMODELLED("Send_c", PMPI_Send_c(b, n, dt, dst, tag, comm)); }
+int MPI_Ssend_c(const void *b, MPI_Count n, MPI_Datatype dt, int dst, int tag, MPI_Comm comm) { UNMODELLED("Ssend_c", PMPI_Ssend_c(b, n, dt, dst, tag, comm)); }
+int MPI_Bsend_c(const void *b, MPI_Count n, MPI_Datatype dt, int dst, int tag, MPI_Comm comm) { UNMODELLED("Bsend_c", PMPI_Bsend_c(b, n, dt, dst, tag, comm)); }
+int MPI_Rsend_c(const void *b, MPI_Count n, MPI_Datatype dt, int dst, int tag, MPI_Comm comm) { UNMODELLED("Rsend_c", PMPI_Rsend_c(b, n, dt, dst, tag, comm)); }
+int MPI_Isend_c(const void *b, MPI_Count n, MPI_Datatype dt, int dst, int tag, MPI_Comm comm, MPI_Request *req) { UNMODELLED("Isend_c", PMPI_Isend_c(b, n, dt, dst, tag, comm, req)); }
+int MPI_Issend_c(const void *b, MPI_Count n, MPI_Datatype dt, int dst, int tag, MPI_Comm comm, MPI_Request *req) { UNMODELLED("Issend_c", PMPI_Issend_c(b, n, dt, dst, tag, comm, req)); }
+int MPI_Ibsend_c(const void *b, MPI_Count n, MPI_Datatype dt, int dst, int tag, MPI_Comm comm, MPI_Request *req) { UNMODELLED("Ibsend_c", PMPI_Ibsend_c(b, n, dt, dst, tag, comm, req)); }
+int MPI_Irsend_c(const void *b, MPI_Count n, MPI_Datatype dt, int dst, int tag, MPI_Comm comm, MPI_Request *req) { UNMODELLED("Irsend_c", PMPI_Irsend_c(b, n, dt, dst, tag, comm, req)); }
+int MPI_Recv_c(void *b, MPI_Count n, MPI_Datatype dt, int src, int tag, MPI_Comm comm, MPI_Status *st) { UNMODELLED("Recv_c", PMPI_Recv_c(b, n, dt, src, tag, comm, st)); }
+int MPI_Irecv_c(void *b, MPI_Count n, MPI_Datatype dt, int src, int tag, MPI_Comm comm, MPI_Request *req) { UNMODELLED("Irecv_c", PMPI_Irecv_c(b, n, dt, src, tag, comm, req)); }
+int MPI_Sendrecv_c(const void *sb, MPI_Count sn, MPI_Datatype sdt, int dst, int stag, void *rb, MPI_Count rn, MPI_Datatype rdt, int src, int rtag, MPI_Comm comm, MPI_Status *st) { UNMODELLED("Sendrecv_c", PMPI_Sendrecv_c(sb, sn, sdt, dst, stag, rb, rn, rdt, src, rtag, comm, st)); }
+#endif
 /* MPI_Comm_idup: the new communicator is valid once the request completes; it is
    registered then (done_entry), under the name "idup". */
 typedef struct { MPI_Request req; MPI_Comm parent; MPI_Comm *out; } idupent;
