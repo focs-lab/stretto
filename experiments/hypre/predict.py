@@ -73,6 +73,16 @@ def request_alternatives(t, rep, tags=(222,)):
             yield f, "same" if same else "cross"
 
 
+def keep_output(outdir, np, run, pin, role, r):
+    """A replay or control that neither finished nor timed out ended for a reason the table
+    cannot show (some 8-rank runs exited with status 15, replays and controls alike); its
+    output goes to failed/ next to the table, which is not committed."""
+    os.makedirs(outdir, exist_ok=True)
+    name = f"{np}-{run}-{pin.split('=', 1)[-1].replace(':', '-')}-{role}.txt"
+    with open(os.path.join(outdir, name), "w") as fh:
+        fh.write(f"rc={r.returncode} elapsed={r.elapsed:.1f}\n--- stdout\n{r.stdout}\n--- stderr\n{r.stderr}")
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("testdir")
@@ -83,6 +93,7 @@ def main() -> int:
     ap.add_argument("--tags", type=int, nargs="+", default=[222], help="tags of the row requests")
     ap.add_argument("--out", default=os.path.join(ROOT, "experiments", "results", "hypre", "predict.csv"))
     args = ap.parse_args()
+    failed = os.path.join(os.path.dirname(os.path.abspath(args.out)), "failed")
     exe = os.path.join(args.testdir, "ij")
     rows = []
     for np in args.np:
@@ -111,10 +122,14 @@ def main() -> int:
                 alt, ctl = hp
                 ra = run_pinned(np, exe, ARGS, alt, args.timeout, mpi="mpich", cwd=args.testdir)
                 rc = run_pinned(np, exe, ARGS, ctl, args.timeout, mpi="mpich", cwd=args.testdir)
-                return {**row, "pin": f.pin, "kind": kind, "site": f.site, "replay": classify_rc(ra.returncode, ra.stderr, ra.elapsed, args.timeout),
-                        "matched": all_matched(alt, ra.stderr, required_matches(t, f)), "residual": residual(ra.stdout),
-                        "control": classify_rc(rc.returncode, rc.stderr, rc.elapsed, args.timeout),
-                        "control_matched": all_matched(ctl, rc.stderr), "control_residual": residual(rc.stdout)}
+                res = {**row, "pin": f.pin, "kind": kind, "site": f.site, "replay": classify_rc(ra.returncode, ra.stderr, ra.elapsed, args.timeout),
+                       "matched": all_matched(alt, ra.stderr, required_matches(t, f)), "residual": residual(ra.stdout),
+                       "control": classify_rc(rc.returncode, rc.stderr, rc.elapsed, args.timeout),
+                       "control_matched": all_matched(ctl, rc.stderr), "control_residual": residual(rc.stdout)}
+                for role, r in (("replay", ra), ("control", rc)):
+                    if res[role] not in ("FINISHED", "TIMEOUT"):
+                        keep_output(failed, np, i, f.pin, role, r)
+                return res
 
             # replays of one trace are independent runs; a hanging one waits out its timeout
             with concurrent.futures.ThreadPoolExecutor(max_workers=args.jobs) as pool:

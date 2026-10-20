@@ -7,6 +7,7 @@ import collections
 import csv
 import os
 import re
+import statistics
 import subprocess
 import sys
 
@@ -348,6 +349,7 @@ def hypre_campaign():
                     num(f"n{k}{macro}Other", sum(other.values()))
                     num(f"n{k}{macro}Matched", len(matched))
                     num(f"n{k}{macro}Controls", len(ctl))
+                    num(f"n{k}{macro}ControlsFailed", len(alts) - len(ctl))
                     if res_known and fin:
                         num(f"n{k}{macro}SameResidual", len(same_res))
         sites = collections.Counter(r.get("site") for r in pr if r.get("pin") and r.get("site"))
@@ -384,17 +386,18 @@ def hypre_campaign():
     return "\n".join(out) + "\n"
 
 
-def amg_sample():
-    """A sample of AMG's alternatives replayed with horizon pins and controls (replay_sample.py)."""
-    rs = rows(os.path.join(RES, "amg", "replay_sample.csv"))
+def app_sample(app="amg", prefix="AMG"):
+    """A sample of an application's alternatives replayed with horizon pins and controls
+    (replay_sample.py, experiments/<app>/run.sh sample)."""
+    rs = rows(os.path.join(RES, app, "replay_sample.csv"))
     if not rs:
         return ""
     c = collections.Counter((r.get("replay"), r.get("control")) for r in rs)
     matched = sum(1 for r in rs if r.get("matched") == "True")
-    num("nAMGsample", len(rs))
-    num("nAMGsampleFinish", sum(1 for r in rs if r.get("replay") == "FINISHED"))
-    num("nAMGsampleMatched", matched)
-    num("nAMGsampleControls", sum(1 for r in rs if r.get("control") == "FINISHED"))
+    num(f"n{prefix}sample", len(rs))
+    num(f"n{prefix}sampleFinish", sum(1 for r in rs if r.get("replay") == "FINISHED"))
+    num(f"n{prefix}sampleMatched", matched)
+    num(f"n{prefix}sampleControls", sum(1 for r in rs if r.get("control") == "FINISHED"))
     return "\n".join(["", f"A random sample of {len(rs)} alternatives replayed with the pins of their horizon and a control",
                        f"(`experiments/replay_sample.py`); required pins matched in {matched}. Rows by code commit: {commits(rs)}.", "",
                        "| replay | control | alternatives |", "|---|---|---|"] +
@@ -478,17 +481,57 @@ def e6():
 
 
 def e4():
+    """E4 from the timed leg: per row the median over its repetitions, with the range of the
+    slowdown; NPB's own timer where the log has one."""
     rs = rows(os.path.join(RES, "e4", "e4.csv"))
     if not rs:
         return "_no results_\n"
-    out = ["Plain, traced and analysis times from one timed leg (`experiments/timing_leg.sh`, log in",
-           "`experiments/results/timing-leg.log`) on the second machine, announced",
-           "to the other lanes: 16 ranks on the container's 12 cores (24 hardware threads), the analysis",
-           "one process, at commit 404927c (before b2788c5 and 2f66592). The 4-rank rows are the leg's rerun of that set after a 6 s configure",
-           "step of another lane overlapped the first pass; both passes are in the log.", "",
-           "| benchmark | class | np | plain (s) | traced (s) | slowdown | trace (MB) | events | wildcards | analysis (s) | findings |", "|---|---|---|---|---|---|---|---|---|---|---|"]
+    groups = collections.OrderedDict()
     for r in rs:
-        out.append(f"| {r['benchmark']} | {r['class']} | {r['np']} | {float(r['plain_s']):.2f} | {float(r['traced_s']):.2f} | {r['slowdown']} | {r['trace_MB']} | {r['events']} | {r['wildcards']} | {float(r['analysis_s']):.1f} | {r['findings']} {r['classes']} |")
+        groups.setdefault((r["benchmark"], r["class"], r["np"]), []).append(r)
+    reps = max(len(g) for g in groups.values())
+
+    def med(g, key):
+        v = sorted(float(r[key]) for r in g if r.get(key))
+        return statistics.median(v) if v else None
+
+    def rng(g, key):
+        v = sorted(float(r[key]) for r in g if r.get(key))
+        return f"{v[0]:.2f}-{v[-1]:.2f}" if len(v) > 1 else (f"{v[0]:.2f}" if v else "-")
+
+    out = ["Plain, traced and analysis times from the timed leg (`experiments/timing_leg.sh`, log in",
+           "`experiments/results/timing-leg.log`) on the second machine, announced to the other lanes, the",
+           f"analysis one process; {reps} repetition(s) of the whole set, each row the median over them. The",
+           "wall times include the launcher's start-up; NPB's own timer covers the benchmark's timed section.",
+           f"Rows by code commit: {commits(rs)}.", "",
+           "| benchmark | class | np | plain (s) | traced (s) | slowdown | NPB plain (s) | NPB traced (s) | NPB slowdown (range) | trace (MB) | events | wildcards | analysis (s) | findings |",
+           "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
+    npb_sd, wall_sd = [], []
+    for (b, c, n), g in groups.items():
+        pl, tr, an = med(g, "plain_s"), med(g, "traced_s"), med(g, "analysis_s")
+        pn, tn = med(g, "plain_npb_s"), med(g, "traced_npb_s")
+        sd = tr / pl if pl else None
+        nsd = med(g, "npb_slowdown")
+        wall_sd.append(sd)
+        if nsd is not None and pn is not None and pn >= 1.0:
+            npb_sd.append(nsd)
+        f = g[0]
+        cell = lambda x, fmt: (fmt.format(x) if x is not None else "-")
+        out.append(f"| {b} | {c} | {n} | {cell(pl, '{:.2f}')} | {cell(tr, '{:.2f}')} | {cell(sd, '{:.2f}')} | {cell(pn, '{:.2f}')} | "
+                   f"{cell(tn, '{:.2f}')} | {cell(nsd, '{:.3f}')} ({rng(g, 'npb_slowdown')}) | {f['trace_MB']} | {f['events']} | {f['wildcards']} | "
+                   f"{cell(an, '{:.1f}')} | {f['findings']} {f['classes']} |")
+    if "rep" in rs[0]:
+        num("nEfourReps", reps)
+        if npb_sd:
+            num("TraceOverhead", f"{min(npb_sd):.2f}--{max(npb_sd):.2f}")
+        wall = [x for x in wall_sd if x is not None]
+        if wall:
+            num("TraceOverheadWall", f"{min(wall):.2f}--{max(wall):.2f}")
+        lu = groups.get(("lu", "A", "16"))
+        if lu:
+            num("LuAnalysis", f"{med(lu, 'analysis_s'):.0f}")
+            num("LuEvents", f"{int(lu[0]['events']) / 1e6:.2f}")
+        out += ["", "NPB slowdown range in the text: rows whose plain timed section lasts at least 1 s."]
     return "\n".join(out) + "\n"
 
 
@@ -509,6 +552,10 @@ def e5():
     if found:
         num("nAMGalts", found.get("probe-alt", 0))
         num("nAMGrecvAlts", sum(v for k, v in found.items() if k != "probe-alt"))
+    # a timing claim only when the timed leg wrote the summary (timing_leg.sh marks it)
+    m = re.search(r"analysis ([0-9.]+) s, (\d+) KB", summary)
+    if m and "timed leg:" in summary:
+        num("AMGtime", f"{float(m.group(1)):.1f}")
     conf = os.path.join(RES, "amg", "confirm8.txt")
     c = open(conf).read().strip() if os.path.exists(conf) else ""
     must = []
@@ -553,10 +600,25 @@ def nekbone():
     p = os.path.join(RES, "nekbone", "summary8.txt")
     if not os.path.exists(p):
         return "_no results_\n"
+    summary = open(p).read()
+    line = next((ln for ln in summary.splitlines() if ln.startswith("findings by class:")), "")
+    found = {k: int(v) for k, v in re.findall(r"(\S+) (\d+)", line.split(":", 1)[-1])}
+    if found:
+        num("nNekAlts", sum(found.values()))
+    m = re.search(r"rejected alternatives: (\d+)", summary)
+    if m:
+        num("nNekRejected", int(m.group(1)))
+    m = re.search(r"records: (\d+)", summary)
+    if m:
+        num("NekRecords", f"{int(m.group(1)) / 1e6:.1f}")
+    m = re.search(r"analysis ([0-9.]+) s, (\d+) KB", summary)
+    if m:
+        num("NekMinutes", f"{float(m.group(1)) / 60:.0f}")
+        num("NekGB", f"{int(m.group(2)) / 1e6:.0f}")
     return "\n".join(["Nekbone (test/nek_comm, `PPLIST=NEKCOMM`), 8 ranks, MPICH build, the program whose ping-pong,",
                       "message-volume and tree-reduction tests reach the `MPI_ANY_SOURCE` wrappers of `comm_mpi.f`",
-                      "(`experiments/nekbone/run.sh`, analysis with `--no-sp`, one process, run on the second machine",
-                      "while another lane's jobs ran on the host, so the time is an upper bound). Every finding is a",
+                      "(`experiments/nekbone/run.sh`, analysis with `--no-sp`, one process, outside a timed leg, so",
+                      "the time is indicative). Every finding is a",
                       "1f at the binary-tree global operation `gp2` (`comm_mpi.f` line 994, `study/sites.csv`), which only",
                       "the suite's `gp2_test` calls (the solver's `gop` is an `MPI_Allreduce`): the inner nodes 0 and 4",
                       "receive their children's contributions with one tag and `MPI_ANY_SOURCE`, so the children can arrive",
@@ -582,8 +644,8 @@ def main():
            "## E2: buffering ablation", "", e2(),
            "## E3: level ablation", "", e3(),
            "## E4: tracer overhead and analysis cost (NPB 3.4.3, MPICH build)", "", e4(),
-           "## E5: real application (AMG)", "", e5() + amg_sample(),
-           "## E5b: real application (Nekbone)", "", nekbone(),
+           "## E5: real application (AMG)", "", e5() + app_sample("amg", "AMG"),
+           "## E5b: real application (Nekbone)", "", nekbone() + app_sample("nekbone", "Nek"),
            "## E5c: a real bug (HYPRE 2.10.1, ParaSails)", "", hypre(),
            "### How often one trace exposes it, and how often testing hits it", "", hypre_campaign(),
            "## E6: polynomial checker vs exhaustive explorer", "", e6(),

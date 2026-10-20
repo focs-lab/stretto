@@ -31,6 +31,8 @@ experiments/results/*.log
 experiments/results/e4/*.log
 experiments/results/e4/*.err
 experiments/results/e4/*.report.txt
+experiments/results/hypre/predict*.log
+experiments/results/hypre/stress*.log
 experiments/results/amg/*
 !experiments/results/amg/summary8.txt
 !experiments/results/amg/confirm8.txt
@@ -45,5 +47,6 @@ experiments/results/*/must.log
 experiments/results/must.done
 experiments/results/nekbone/*
 !experiments/results/nekbone/summary8.txt
+!experiments/results/nekbone/replay_sample.csv
 # the commit the sync writes on the experiment machine
 /COMMIT
