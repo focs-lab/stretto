@@ -446,10 +446,13 @@ class Observed:
                         elif not coll_can_complete(c, have, need, pos):
                             lower(c.rank, _cidx(c), lambda c=c: f"collective {c.name} #{c.ordinal} on comm {c.comm} never completes: a participant never reaches it")
                             pending.discard(c.rank)
-            # rule 5: probes that observed a send of R now removed
+            # rule 5: probes that observed a send of R now removed (a send cut at its own
+            # record with its issue kept is still issued, so a probe can still see it)
             for Q in ix.targets.get(R, ()):
                 key = (R, Q)
                 i = bisect_left(ix.sq_idx[key], new)
+                if i < len(ix.sq_idx[key]) and issued.get(R) == ix.sq_idx[key][i]:
+                    i += 1
                 if i < len(ix.sq_idx[key]):
                     v, pos = ix.r5[key].query(i)
                     if v < INF and probe_ranks.get(Q) != v:
@@ -520,7 +523,9 @@ class Observed:
     # ------------------------------------------------------------------- checks
     def check_alternative(self, alt: Alternative) -> Optional[Verdict]:
         """Verdict for a steal at a blocking receive; None for a swap or a nonblocking
-        receive, which the generic check judges. A blocking receive is matched in its own
+        receive, which the generic check judges, and None whenever the observed graph at B is
+        cyclic (below the observed run's threshold), since the cycle need not lie in the
+        horizon (proof appendix, conservative step 1). A blocking receive is matched in its own
         call and rule 1 cuts its rank right after it, so the only kept successor of its match
         is the completion of a rendezvous send, and a cycle through the new match exists iff
         that completion reaches one of the match's predecessors (docs/model.md §2)."""
@@ -533,7 +538,7 @@ class Observed:
         s_obs = t.observed_send(r)
         r2 = t.recvs[alt.stolen_from] if alt.stolen_from is not None else None
         if not self.acyclic():
-            return Verdict(False, "constraint cycle", None, self._cycle)
+            return None          # the cycle may lie outside the horizon: the generic check decides
         self.ix.ready()
         exclude2 = (s_obs.rank, r.rank, self.ix.sq_pos[s_obs.key]) if s_obs is not None else None
         exclude3 = (r2.rank, s.rank, self.ix.rq_pos[r2.key]) if r2 is not None else None
@@ -593,13 +598,13 @@ class Observed:
                     return f"receiver order: earlier {r2} accepts {t.sends[sk]} and has no message in this matching"
         return None
 
-    def check_probe(self, p: Probe, s: Send) -> Verdict:
+    def check_probe(self, p: Probe, s: Send) -> Optional[Verdict]:
         """The probe reports s instead of what it saw. Its completion has no kept successor
         (the closure cuts right after it), so no cycle can pass through the new edges; what
         remains is that s be issued and that no earlier receive of the probe's rank be
         pending with s acceptable to it (rule 6)."""
         if not self.acyclic():
-            return Verdict(False, "constraint cycle", None, self._cycle)
+            return None
         t = self.t
         cut, issued = self.closure(changed_probes=[p])
         if p.idx >= cut[p.rank]:
@@ -619,9 +624,9 @@ class Observed:
                     return Verdict(False, "witness cut by the horizon closure", cut)    # x stays pending and takes s
         return Verdict(True, "ok", cut)
 
-    def check_event(self, rank: int, idx: int, must_issue: Send) -> Verdict:
+    def check_event(self, rank: int, idx: int, must_issue: Send) -> Optional[Verdict]:
         if not self.acyclic():
-            return Verdict(False, "constraint cycle", None, self._cycle)
+            return None
         cut, issued = self.closure(changed_events=[(rank, idx)])
         if idx >= cut[rank]:
             return Verdict(False, "witness cut by the horizon closure", cut)

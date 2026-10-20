@@ -24,6 +24,7 @@ encode ANY as -1.
 from __future__ import annotations
 import json
 import os
+from array import array
 from bisect import bisect_left
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
@@ -232,6 +233,20 @@ class Trace:
     bad_lines: int = 0
     warnings: List[str] = field(default_factory=list)
     unmodelled: List[Tuple[int, str]] = field(default_factory=list)   # (rank, call) outside the modelled fragment
+    sites: Dict[Tuple[int, int], dict] = field(default_factory=dict)    # (rank, site id) -> the tracer's site record
+    _site_ids: Dict[int, "array"] = field(default_factory=dict, repr=False)   # rank -> site id per record, -1 if none
+
+    def site_of(self, rank: int, idx: int) -> Optional[Tuple[str, int]]:
+        """The call site of record idx of rank as (object path, offset in the object), the
+        same in every process of the run; None if the tracer recorded none."""
+        ids = self._site_ids.get(rank)
+        sid = ids[idx] if ids is not None and idx < len(ids) else -1
+        s = self.sites.get((rank, sid)) if sid >= 0 else None
+        return None if s is None else (s.get("obj", "?"), s.get("addr", 0) - s.get("base", 0))
+
+    def site_label(self, rank: int, idx: int) -> Optional[str]:
+        s = self.site_of(rank, idx)
+        return None if s is None else f"{os.path.basename(s[0])}+{s[1]:#x}"
 
     # ---------------------------------------------------------------- helpers
     def recv_by_req(self, rank: int, req: int) -> Optional[Recv]:
@@ -442,8 +457,12 @@ def _fold_begins(raw: List[dict]) -> List[dict]:
 
 
 def _build(t: Trace, raw_ranks: Dict[int, List[dict]]) -> None:
-    # pass 0: fold begin/end, np, communicators
-    folded = {rank: _fold_begins(recs) for rank, recs in raw_ranks.items()}
+    # pass 0: call-site records are a table, not events; fold begin/end, np, communicators
+    for rank, recs in raw_ranks.items():
+        for r in recs:
+            if r.get("op") == "site":
+                t.sites[(rank, r.get("id"))] = r
+    folded = {rank: _fold_begins([r for r in recs if r.get("op") != "site"]) for rank, recs in raw_ranks.items()}
     for rank, recs in folded.items():
         t.ranks[rank] = [Rec(rank, i, r["op"], r) for i, r in enumerate(recs)]
         t.threads[rank] = len({r.get("tid") for r in recs} - {None}) or 1
@@ -596,6 +615,15 @@ def _build(t: Trace, raw_ranks: Dict[int, List[dict]]) -> None:
                 t.colls.append(c)
     t.index()
     _reconstruct_observed(t)
+    # call sites, 4 bytes per record, before the dictionaries that name them go
+    if t.sites:
+        for rank, recs in t.ranks.items():
+            ids = array("i", [-1]) * len(recs)
+            for rec in recs:
+                sid = rec.raw.get("site") if rec.raw is not None else None
+                if sid is not None:
+                    ids[rec.idx] = sid
+            t._site_ids[rank] = ids
     # the bulk of a trace is point-to-point and collective records whose fields now live in
     # Send/Recv/Coll objects: drop their dictionaries (a third of the memory on large traces).
     # Blocked calls, waits, probes and the rest keep theirs; the report reads them.

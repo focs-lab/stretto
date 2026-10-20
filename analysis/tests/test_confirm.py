@@ -5,7 +5,8 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from stretto.confirm import classify_rc, control_pin, expected_outcomes, horizon_pins, pins_applied, pins_matched  # noqa: E402
+from stretto.confirm import (all_matched, classify_rc, control_pin, expected_outcomes, horizon_pins, pins_applied,  # noqa: E402
+                             pins_matched, required_matches)
 from stretto import trace as T  # noqa: E402
 from stretto.report import Finding  # noqa: E402
 
@@ -90,6 +91,30 @@ class HorizonPins(unittest.TestCase):
         self.assertEqual(ctl, ["STRETTO_PIN=0:0:1,0:1:2"])
         self.assertTrue(pins_matched(alt[0], "[stretto-pin] rank 0: matched widx=0 src=1\n[stretto-pin] rank 0: matched widx=1 src=3\n"))
         self.assertFalse(pins_matched(alt[0], "[stretto-pin] rank 0: matched widx=1 src=3\n"))
+
+    def test_receive_left_without_a_message_is_not_pinned(self):
+        """MBI's MessageRace_Gather_Send_Irecv_nok: rank 1 posts Irecv r(ANY, any tag), joins a
+        gather, posts Irecv r'(from 0, any tag), then waits for r and r'. In the run r took rank
+        2's message and r' rank 0's. The steal r <- rank 0 leaves r' without a message, so the
+        alternative pins r only (pinning r' to rank 0 asks for a match the alternative
+        excludes, and the replay could never show it), and only r, which completes inside the
+        horizon, must show its match. The control pins both to what they took."""
+        coll = {"op": "coll", "name": "gather", "comm": 0, "root": 0, "count": 1, "tsize": 4}
+        send = {"op": "send", "mode": "std", "dst": 1, "tag": 0, "comm": 0, "count": 1, "tsize": 4}
+        irecv = lambda **kw: {"op": "irecv", "src": 0, "tag": 0, "anytag": 1, "comm": 0, "count": 1, "tsize": 4, **kw}
+        wait = lambda q, src: {"op": "wait", "kind": "wait", "reqs": [q], "done": [{"req": q, "msrc": src, "mtag": 0, "mcount": 1}]}
+        init, fin = {"op": "init", "np": 4}, {"op": "finalize"}
+        t = T.Trace()
+        T._build(t, {0: [init, coll, send, fin], 2: [init, coll, send, fin], 3: [init, coll, fin],
+                     1: [init, irecv(anysrc=1, req=3, widx=0), coll, irecv(req=4, widx=1), wait(3, 2), wait(4, 0), fin]})
+        f = Finding("1", "1d", "L1+SP", "", recv=(1, 0), send=(0, 0))
+        alt, ctl = horizon_pins(t, f)
+        self.assertEqual(alt, ["STRETTO_PIN=1:0:0:0"])
+        self.assertEqual(ctl, ["STRETTO_PIN=1:0:2:0,1:1:0:0"])
+        req = required_matches(t, f)
+        self.assertEqual(req, {("recv", 1, 0)})
+        self.assertTrue(all_matched(alt, "[stretto-pin] rank 1: matched widx=0 src=0\n", req))
+        self.assertFalse(all_matched(alt, "[stretto-pin] rank 1: applied widx=0\n", req))
 
 
 if __name__ == "__main__":

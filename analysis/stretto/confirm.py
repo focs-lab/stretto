@@ -13,9 +13,10 @@ import re
 import subprocess
 import time
 from dataclasses import dataclass
-from typing import List, Optional, Tuple
+from typing import List, Optional, Set, Tuple
 
 from .report import Finding, Report
+from .horizon import _cidx
 from .trace import ANY
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -114,11 +115,28 @@ def horizon_pins(t, f: Finding, B=None) -> Optional[Tuple[List[str], List[str]]]
     control: every wildcard receive (STRETTO_PIN) and every wildcard probe that found a message
     (STRETTO_PIN_PROBE) posted inside the horizon is pinned to the sender it took in the run,
     and the changed one to the alternative's (the control keeps the observed sender there too).
-    Pinning the changed operation alone leaves the earlier wildcard operations free to match
-    differently in the rerun, and then neither the alternative nor its control is the execution
-    theorem T1 constructs. Returns (alternative, control) as lists of VAR=value, or None if the
-    finding names no single change or the alternative is not feasible at B."""
+    The receive a steal leaves without a message is not pinned in the alternative: it has no
+    sender there, and pinning it to its observed one would ask for a match the alternative
+    excludes. Pinning the changed operation alone leaves the earlier wildcard operations free
+    to match differently in the rerun, and then neither the alternative nor its control is the
+    execution theorem T1 constructs. Returns (alternative, control) as lists of VAR=value, or
+    None if the finding names no single change or the alternative is not feasible at B."""
+    h = _horizon(t, f, B)
+    return None if h is None else (h[0], h[1])
+
+
+def required_matches(t, f: Finding, B=None) -> Optional[Set[Tuple[str, int, int]]]:
+    """The pins of horizon_pins(t, f, B) whose match a replay must show: ("recv", rank, widx)
+    for a pinned receive whose completion lies inside the horizon, ("probe", rank, pidx) for a
+    pinned probe. A receive posted inside the horizon but completed beyond it is pinned to steer
+    the run, yet its wait may lie after the predicted hang, where its match cannot be logged."""
+    h = _horizon(t, f, B)
+    return None if h is None else h[2]
+
+
+def _horizon(t, f: Finding, B=None):
     from .feasible import check
+    victim = None
     if f.probe is not None and f.send is not None:
         chk = check(t, t.observed, set(), B, "L1", changed_probes={f.probe}, probe_alt={f.probe: f.send})
         change = ("probe", f.probe, f.send)
@@ -135,17 +153,20 @@ def horizon_pins(t, f: Finding, B=None) -> Optional[Tuple[List[str], List[str]]]
     if not chk.feasible or chk.cut is None:
         return None
     cut = chk.cut
+    required: Set[Tuple[str, int, int]] = set()
 
     def specs(alternative: bool) -> List[str]:
         rtok, ptok = [], []
         for r in sorted(t.recvs.values(), key=lambda r: (r.rank, r.idx)):
-            if r.widx is None or r.idx >= cut[r.rank]:
+            if r.widx is None or r.idx >= cut[r.rank] or (alternative and r.key == victim):
                 continue
             sk = change[2] if alternative and change[0] == "recv" and change[1] == r.key else t.observed.get(r.key)
             if sk is None:
                 continue
             m = t.sends[sk]
             rtok.append(f"{r.rank}:{r.widx}:{m.rank}" + (f":{m.tag}" if r.tag == ANY else ""))
+            if alternative and r.completed and _cidx(r) < cut[r.rank]:
+                required.add(("recv", r.rank, r.widx))
         for q in sorted(t.probes.values(), key=lambda q: (q.rank, q.idx)):
             if q.pidx is None or not q.flag or q.idx >= cut[q.rank]:
                 continue
@@ -154,6 +175,8 @@ def horizon_pins(t, f: Finding, B=None) -> Optional[Tuple[List[str], List[str]]]
                 continue
             m = t.sends[sk]
             ptok.append(f"{q.rank}:{q.pidx}:{m.rank}" + (f":{m.tag}" if q.tag == ANY else ""))
+            if alternative:
+                required.add(("probe", q.rank, q.pidx))
         out = []
         if rtok:
             out.append("STRETTO_PIN=" + ",".join(rtok))
@@ -161,11 +184,18 @@ def horizon_pins(t, f: Finding, B=None) -> Optional[Tuple[List[str], List[str]]]
             out.append("STRETTO_PIN_PROBE=" + ",".join(ptok))
         return out
 
-    return specs(True), specs(False)
+    return specs(True), specs(False), required
 
 
-def all_matched(pins: List[str], stderr: str) -> bool:
-    return all(pins_matched(p, stderr) for p in pins)
+def all_matched(pins: List[str], stderr: str, required: Optional[Set[Tuple[str, int, int]]] = None) -> bool:
+    """Every pin matched (pins_matched), or, given required (required_matches), every required one."""
+    if required is None:
+        return all(pins_matched(p, stderr) for p in pins)
+    for kind, rank, idx in required:
+        pat = rf"\[stretto-pin\] rank {rank}: " + (rf"applied probe pidx={idx}\b" if kind == "probe" else rf"matched widx={idx}\b")
+        if not re.search(pat, stderr):
+            return False
+    return True
 
 
 def expected_outcomes(f: Finding) -> set:
@@ -178,8 +208,10 @@ def expected_outcomes(f: Finding) -> set:
 
 
 def run_pinned(np: int, exe: str, args: List[str], pin, timeout: int = 20, mpi: str = "openmpi",
-               mpirun_args: Optional[List[str]] = None, extra_env: Optional[dict] = None) -> subprocess.CompletedProcess:
-    """pin: one "STRETTO_PIN=..." assignment, a list of them, or None."""
+               mpirun_args: Optional[List[str]] = None, extra_env: Optional[dict] = None,
+               cwd: Optional[str] = None) -> subprocess.CompletedProcess:
+    """pin: one "STRETTO_PIN=..." assignment, a list of them, or None. args and cwd must be
+    those of the traced run: the pins number the wildcard operations of that execution."""
     pinlib = os.path.join(ROOT, "replay", "bin", mpi, "libstretto-pin.so")
     env_args = ["-x", f"LD_PRELOAD={pinlib}"]
     for assignment in ([pin] if isinstance(pin, str) else (pin or [])):
@@ -190,7 +222,7 @@ def run_pinned(np: int, exe: str, args: List[str], pin, timeout: int = 20, mpi: 
     cmd = ["/usr/bin/timeout", "-k", "5", str(timeout), "/usr/bin/mpirun.openmpi", "-np", str(np),
            *(mpirun_args or []), *env_args, exe, *args]
     t0 = time.monotonic()
-    r = subprocess.run(cmd, capture_output=True, text=True, stdin=subprocess.DEVNULL,
+    r = subprocess.run(cmd, capture_output=True, text=True, stdin=subprocess.DEVNULL, cwd=cwd,
                        env={**os.environ, "OMPI_MCA_rmaps_base_oversubscribe": "1"})
     r.elapsed = time.monotonic() - t0   # for classify_rc: a SIGKILL past the timeout is the timeout's
     return r
@@ -225,9 +257,10 @@ def confirm(rep: Report, np: int, exe: str, args: List[str] = (), timeout: int =
             # SP findings share the pin of their L1 parent (same recv/send)
             parent = next((g for g in rep.findings if g.pin and g.recv == f.recv and g.send == f.send), None)
             pin = parent.pin if parent else None
-        hp = horizon_pins(t, f) if t is not None and f.certainty != "some" else None
+        hp = _horizon(t, f) if t is not None and f.certainty != "some" else None
+        required = None
         if hp is not None:
-            pins, ctl_pins = hp
+            pins, ctl_pins, required = hp
         elif pin is not None:
             pins = [pin]
             cp = control_pin(t, pin) if t is not None else None
@@ -242,7 +275,7 @@ def confirm(rep: Report, np: int, exe: str, args: List[str] = (), timeout: int =
         r = run_pinned(np, exe, list(args), pins, timeout, mpi)
         res = classify_rc(r.returncode, r.stderr, r.elapsed, timeout)
         applied = all(pins_applied(x, r.stderr) for x in pins)
-        matched = all_matched(pins, r.stderr)
+        matched = all_matched(pins, r.stderr, required)
         want = expected_outcomes(f)
         ctl = control(ctl_pins) if want and res in want and matched else ""
         if not want:

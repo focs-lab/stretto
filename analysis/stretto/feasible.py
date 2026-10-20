@@ -64,9 +64,16 @@ def check(t: Trace, M: Dict[Key, Key], changed, B: Optional[int], mode: str = "L
         return Verdict(False, "witness cut by the horizon closure" if mode == "L1" else
                        "witness unreachable: an earlier receive on its rank can never complete", cut)
 
-    def kept_recv(rk: Key) -> bool:      # posting index: matching order is decided at posting
+    def kept_recv(rk: Key) -> bool:
+        """Judged: posted in the horizon (matching order is decided at posting) with its
+        message issued there. A posted receive whose message is not issued stays pending;
+        rule 6 has removed the later receives it would deprive, and its own obligations
+        concern a match outside the horizon."""
         r = t.recvs[rk]
-        return r.idx < cut[r.rank]
+        if r.idx >= cut[r.rank]:
+            return False
+        s = t.sends[M[rk]]
+        return s.idx < cut[s.rank] or issued.get(s.rank) == s.idx
 
     def kept_probe(q) -> bool:
         return q.idx < cut[q.rank]

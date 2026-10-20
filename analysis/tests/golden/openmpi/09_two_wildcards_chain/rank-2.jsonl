@@ -1,6 +1,8 @@
 {"r":2,"seq":0,"op":"init","np":3,"thread":0}
 {"r":2,"seq":1,"op":"comm","name":"world","parent":0,"id":0,"ranks":[0,1,2],"gord":0}
 {"r":2,"seq":2,"op":"comm","name":"self","parent":0,"id":1,"ranks":[2],"gord":0}
-{"r":2,"seq":3,"op":"begin","call":"send","mode":"std","dst":0,"tag":32,"comm":0,"count":1,"tsize":4,"tsig":"MPI_INT"}
-{"r":2,"seq":4,"op":"send","mode":"std","dst":0,"tag":32,"comm":0,"count":1,"tsize":4,"tsig":"MPI_INT"}
-{"r":2,"seq":5,"op":"finalize"}
+{"r":2,"seq":3,"op":"site","id":0,"obj":"/w/idioms/09_two_wildcards_chain/bin/openmpi/main","addr":94009866667188,"base":94009866661888}
+{"r":2,"seq":4,"op":"begin","call":"send","mode":"std","dst":0,"tag":32,"comm":0,"count":1,"tsize":4,"tsig":"MPI_INT","site":0}
+{"r":2,"seq":5,"op":"send","mode":"std","dst":0,"tag":32,"comm":0,"count":1,"tsize":4,"tsig":"MPI_INT","site":0}
+{"r":2,"seq":6,"op":"site","id":1,"obj":"/w/idioms/09_two_wildcards_chain/bin/openmpi/main","addr":94009866667193,"base":94009866661888}
+{"r":2,"seq":7,"op":"finalize","site":1}

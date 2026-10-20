@@ -30,6 +30,7 @@ class Finding:
     pin: Optional[str] = None   # ready-to-use STRETTO_PIN spec for replay
     certainty: str = ""         # L1+SP: 'all' (every execution with the pair) or 'some'
     probe: Optional[Key] = None  # probe alternatives: the probe whose report changes (send = what it reports)
+    site: Optional[str] = None   # call site of the changed receive or probe (object+offset), if traced
 
     def __str__(self):
         b = f" [{self.B}]" if self.B else ""
@@ -55,6 +56,17 @@ class Report:
 
     def has_error(self) -> bool:
         return any(f.cls in ERROR_CLASSES for f in self.findings)
+
+    def by_site(self) -> List[Tuple[str, Dict[str, int]]]:
+        """Findings about a changed receive or probe grouped by its call site: one line of the
+        report per site and class, however many ranks and senders the site has."""
+        groups: Dict[str, Dict[str, int]] = {}
+        for f in self.findings:
+            if f.site is not None and f.level != "observed":
+                g = groups.setdefault(f.site, {})
+                k = f"{f.level}:{f.cls}"
+                g[k] = g.get(k, 0) + 1
+        return sorted(groups.items(), key=lambda kv: -sum(kv[1].values()))
 
 
 def _fmt_B(B: Optional[int]) -> str:
@@ -435,6 +447,10 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
                                     f"{kind} at rank {rec.rank} #{rec.idx} could complete index {j} ({r_j} <- {s_j}) first",
                                     [f"L1: continuation of rank {rec.rank} is undetermined if it depends on the index",
                                      "no replay mechanism for completion order: not confirmable by pin"], B=brange))
+    for f in rep.findings:
+        x = t.probes.get(f.probe) if f.probe is not None else t.recvs.get(f.recv) if f.recv is not None else None
+        if x is not None:
+            f.site = t.site_label(x.rank, x.idx)
     return rep
 
 
@@ -474,6 +490,9 @@ class _Profiles:
     notes: List[str] = field(default_factory=list)  # profiles that had to be judged in full
 
 
+CONFIRM_LIMIT = 200_000     # records up to which the generic check confirms the fast check's cycle rejections
+
+
 def _profiles_fast(t: Trace, alts, probes, waits, full: bool = False) -> _Profiles:
     """The indexed checker (stretto.fast). Each item is judged at the two ends of the B range
     and, when the verdicts differ, bisected over the breakpoints between them: theorem T2
@@ -484,6 +503,12 @@ def _profiles_fast(t: Trace, alts, probes, waits, full: bool = False) -> _Profil
     bps = breakpoints(t) + [None]
     ix = t.fast_indexes()
     obs: Dict[Optional[int], fast.Observed] = {}
+    # the fast check decides reachability in the observed graph, which also holds events beyond
+    # an alternative's horizon, so a rejection by a cycle can be one the rules do not make
+    # (proof appendix, conservative step 2); on traces up to CONFIRM_LIMIT records the generic
+    # check, which meets theorem T6, confirms each such rejection
+    confirm_rejections = sum(len(v) for v in t.ranks.values()) <= CONFIRM_LIMIT
+    unconfirmed = [0]
 
     def at(B: Optional[int]) -> fast.Observed:
         ob = obs.get(B)
@@ -542,17 +567,38 @@ def _profiles_fast(t: Trace, alts, probes, waits, full: bool = False) -> _Profil
     for i, a in enumerate(alts):
         def alt_at(B, a=a):
             fv = at(B).check_alternative(a)
-            return fv if fv is not None else check(t, a.M, a.changed, B, "L1")   # a swap or a nonblocking receive
+            if fv is None:
+                return check(t, a.M, a.changed, B, "L1")   # a swap, a nonblocking receive, a cyclic observed graph
+            if not fv.feasible and fv.reason == "constraint cycle":
+                if confirm_rejections:
+                    g = check(t, a.M, a.changed, B, "L1")
+                    if g.feasible:
+                        pr.notes.append(f"{a.describe(t)} at B={'inf' if B is None else B}: the fast check's cycle lies outside the horizon; the generic check accepts")
+                    return g
+                unconfirmed[0] += 1
+            return fv
         # T2 covers steals at blocking receives: a swap re-matches two receives, and at a
         # nonblocking receive the judged receives can change with B (proof appendix)
         exact = a.kind == "steal" and t.recvs[a.recv].blocking
         pr.alt_reason[i] = profile(pr.alt[i], alt_at, lambda v: v.feasible, a.describe(t), floor, not exact)[None].reason
+    def probe_at(B, p, s):
+        fv = at(B).check_probe(p, s)
+        return fv if fv is not None else check(t, t.observed, set(), B, "L1", changed_probes={p.key}, probe_alt={p.key: s.key})
+
+    def wait_at(B, rec, s_j):
+        fv = at(B).check_event(rec.rank, rec.idx, s_j)
+        return fv if fv is not None else check(t, t.observed, set(), B, "L1", extra_edges=[(s_j.issue_node(), rec.complete)],
+                                               changed_events={(rec.rank, rec.idx)}, must_issue=[s_j.key])
+
     for j, (p, s) in enumerate(probes):
-        pr.probe_reason[j] = profile(pr.probe[j], lambda B, p=p, s=s: at(B).check_probe(p, s), lambda v: v.feasible,
+        pr.probe_reason[j] = profile(pr.probe[j], lambda B, p=p, s=s: probe_at(B, p, s), lambda v: v.feasible,
                                      f"{p} sees {s}", floor)[None].reason
     for k, (rec, j, r_j, s_j) in enumerate(waits):
-        pr.wait_reason[k] = profile(pr.wait[k], lambda B, rec=rec, s_j=s_j: at(B).check_event(rec.rank, rec.idx, s_j),
+        pr.wait_reason[k] = profile(pr.wait[k], lambda B, rec=rec, s_j=s_j: wait_at(B, rec, s_j),
                                     lambda v: v.feasible, f"completion order of rank {rec.rank} #{rec.idx} index {j}", floor)[None].reason
+    if unconfirmed[0]:
+        pr.notes.append(f"{unconfirmed[0]} rejection(s) by the fast check's reachability not confirmed by the generic check "
+                        f"(trace above {CONFIRM_LIMIT} records): they may include alternatives the rules accept")
     return pr
 
 
@@ -635,6 +681,11 @@ def format_report(t: Trace, rep: Report, show_infeasible: bool = False) -> str:
         lines.append("no findings")
     for f in rep.findings:
         lines.append(str(f))
+    sites = rep.by_site()
+    if sites:
+        lines.append(f"findings by call site of the changed receive or probe ({len(sites)} sites):")
+        for site, counts in sites:
+            lines.append(f"  {site}: " + ", ".join(f"{k} {n}" for k, n in sorted(counts.items())))
     if show_infeasible and rep.infeasible:
         lines.append("rejected alternatives:")
         for d, why in rep.infeasible:

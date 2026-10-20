@@ -642,11 +642,15 @@ def fast_equals_generic(tc, t):
         for p, s in probes:
             g = check(t, t.observed, set(), B, "L1", changed_probes={p.key}, probe_alt={p.key: s.key})
             f = ob.check_probe(p, s)
+            if f is None:
+                continue
             tc.assertEqual((g.feasible, g.cut if g.feasible else None), (f.feasible, f.cut if f.feasible else None), f"{p} sees {s} at B={B}")
         for rec, j, r_j, s_j in waits:
             g = check(t, t.observed, set(), B, "L1", extra_edges=[(s_j.issue_node(), rec.complete)],
                       changed_events={(rec.rank, rec.idx)}, must_issue=[s_j.key])
             f = ob.check_event(rec.rank, rec.idx, s_j)
+            if f is None:
+                continue
             tc.assertEqual((g.feasible, g.cut if g.feasible else None), (f.feasible, f.cut if f.feasible else None), f"wait {rec.idx} at B={B}")
 
 
@@ -831,6 +835,88 @@ class C_MonotoneAboveB0(unittest.TestCase):
         f = next(f for f in rep.findings if f.recv == (0, 0))
         self.assertEqual(f.B, "any B")
         self.assertTrue(any("left out: B in 0,4,148" in d for d in f.detail), f.detail)
+
+
+class C_CompletenessSteps(unittest.TestCase):
+    """Conservative steps of the implementation removed so that it meets theorem T6
+    (completeness relative to the horizon; proof appendix, steps 1, 4 and 5)."""
+
+    def test_obligations_only_for_judged_receives(self):
+        """The first witness of the monotonicity appendix. Rank 0: Irecv r(ANY), Irecv r'(from
+        1), Wait r, Wait r', Recv r3(ANY); rank 1 sends s_o then s_1, rank 2 sends s. The steal
+        r <- s releases s_o. At B = 0, s_o blocks and stays issued, s_1 is never issued, so r'
+        is posted but not judged and its obligation concerns a match outside the horizon: the
+        steal is realisable there (rank 0 posts r and r', r takes s, Wait r returns). From
+        B = 4 on, s_1 is issued, r' is judged, and r' accepts the unmatched s_o sent before
+        s_1: infeasible. Checking r' at B = 0 too used to reject a realisable alternative."""
+        t = mk({0: [irecv(T.ANY, 1, 10), irecv(1, 1, 11), wait((10, 1, 1)), wait((11, 1, 1)), recv(T.ANY, 1, 2, 1, widx=1)],
+                1: [send(0, 1), send(0, 1)], 2: [send(0, 1)]})
+        self.assertTrue(observed_feasible_at(t, 0).feasible)
+        a = next(a for a in candidates_full(t)[0] if a.recv == (0, 0) and a.send == (2, 0) and a.kind == "steal")
+        self.assertTrue(check(t, a.M, a.changed, 0, "L1").feasible, check(t, a.M, a.changed, 0, "L1").reason)
+        v = check(t, a.M, a.changed, None, "L1")
+        self.assertFalse(v.feasible)
+        self.assertIn("non-overtaking", v.reason)
+        self.assertEqual(feasible_profile(t, a.M, a.changed, full=True), {0: True, 4: False, None: False})
+        rep = analyze(t, with_sp=False)
+        self.assertIn(((0, 0), (2, 0)), [(f.recv, f.send) for f in rep.findings])
+
+    def probe_on_blocked_send_trace(self):
+        # rank 0: Probe(from 1) sees s1; Recv r(ANY) <- s1; Recv(ANY) <- s2. ranks 1, 2: one send each
+        pr = {"op": "probe", "kind": "probe", "src": 1, "tag": 1, "comm": 0, "flag": 1, "msrc": 1, "mtag": 1}
+        return mk({0: [pr, recv(T.ANY, 1, 1, 1, widx=0), recv(T.ANY, 1, 2, 1, widx=1)],
+                   1: [send(0, 1)], 2: [send(0, 1)]})
+
+    def test_probe_sees_a_send_that_is_issued_but_blocked(self):
+        """r <- s2 leaves s1 without a receive. At B = 0 rule 3 removes the completion of s1 but
+        keeps its call, so the probe that saw s1 can still see it (rule 5 asks for the send to
+        be issued, not completed). The probe used to be removed with s1's record, which cut
+        rank 0 before r and rejected the steal at B = 0."""
+        t = self.probe_on_blocked_send_trace()
+        a = next(a for a in candidates_full(t)[0] if a.recv == (0, 0) and a.send == (2, 0) and a.kind == "steal")
+        for B in (0, None):
+            v = check(t, a.M, a.changed, B, "L1")
+            self.assertTrue(v.feasible, f"B={B}: {v.reason}")
+            f = fast.Observed(t, B).check_alternative(a)
+            self.assertIsNotNone(f)
+            self.assertTrue(f.feasible, f"fast at B={B}: {f.reason}")
+        fast_equals_generic(self, t)
+        closure_equals_fixpoint(self, t)
+
+    def test_fast_check_defers_when_the_observed_graph_is_cyclic(self):
+        """Below the recorded run's own threshold the observed graph has a cycle; it need not
+        lie in an alternative's horizon, so the fast check leaves the verdict to the generic
+        one instead of rejecting (the trace of C_MonotoneAboveB0: feasible at B = 0)."""
+        t = mk({0: [recv(T.ANY, 1, 2, 1, widx=0), recv(3, 2, 3, 2, count=37), recv(1, 1, 1, 1)],
+                1: [send(0, 1)], 2: [send(0, 1)],
+                3: [send(0, 2, count=37), send(4, 3, count=100), recv(4, 3, 4, 3, count=100)],
+                4: [send(3, 3, count=100), recv(3, 3, 3, 3, count=100)]})
+        a = next(a for a in candidates_full(t)[0] if a.recv == (0, 0) and a.kind == "steal")
+        self.assertFalse(fast.Observed(t, 0).acyclic())
+        self.assertIsNone(fast.Observed(t, 0).check_alternative(a))
+        self.assertTrue(check(t, a.M, a.changed, 0, "L1").feasible)
+
+
+class C_CallSites(unittest.TestCase):
+    def test_findings_grouped_by_the_site_of_the_changed_receive(self):
+        """The tracer writes a site record the first time a call site appears and tags later
+        records with its id. Processes load the program at different addresses, so a site is
+        its object and its offset from the load address; the loader keeps the table out of
+        the events, and the report counts findings per site, not per rank and sender."""
+        site = lambda base: {"op": "site", "id": 0, "obj": "/opt/app/solver", "addr": base + 0x1a2b, "base": base}
+        rw = lambda msrc: dict(recv(T.ANY, 1, msrc, 1, widx=0), site=0)
+        t = mk({0: [site(0x5000), rw(2)], 1: [site(0x9000), rw(3)],
+                2: [send(0, 1), send(1, 1)], 3: [send(0, 1), send(1, 1)]})
+        self.assertEqual(len(t.sites), 2)
+        self.assertNotIn("site", [r.op for recs in t.ranks.values() for r in recs])
+        self.assertEqual(t.site_label(0, t.recvs[(0, 0)].idx), "solver+0x1a2b")
+        self.assertEqual(t.site_of(1, t.recvs[(1, 0)].idx), ("/opt/app/solver", 0x1a2b))
+        rep = analyze(t, with_sp=False)
+        changed = [f for f in rep.findings if f.recv is not None and f.level == "L1"]
+        self.assertTrue(changed)
+        self.assertEqual({f.site for f in changed}, {"solver+0x1a2b"})
+        self.assertEqual([s for s, _ in rep.by_site()], ["solver+0x1a2b"])
+        self.assertEqual(sum(rep.by_site()[0][1].values()), len([f for f in rep.findings if f.site]))
 
 
 class C_Unmodelled(unittest.TestCase):

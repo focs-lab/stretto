@@ -195,6 +195,8 @@ def compute_cut(t: Trace, M: Dict[Key, Key], changed: Set[Key], B: Optional[int]
                     if not (idx == lo and kept_issue):
                         rule6(t.recvs[rk])                   # rule 6 for its issue
                 for p in probes_seeing.get(s.key, ()):        # rule 5: the probe saw a message now gone
+                    if idx == lo and kept_issue:
+                        break                                # the send's call is kept: still issued
                     if kept(p.rank, p.idx):
                         lower(p.rank, p.idx, lambda p=p, s=s: f"{p} observes another message: {s} is never issued")
             x = recv_at.get((rank, idx))
@@ -338,7 +340,7 @@ def compute_cut_fixpoint(t: Trace, M: Dict[Key, Key], changed: Set[Key], B: Opti
             if not kept(p.rank, p.idx):
                 continue
             seen = t.sends[p.seen]
-            if not kept(seen.rank, seen.idx):
+            if not kept(seen.rank, seen.idx) and issued.get(seen.rank) != seen.idx:
                 moved |= lower(p.rank, p.idx, f"{p} observes another message: {seen} is never issued")
         if not moved:
             break

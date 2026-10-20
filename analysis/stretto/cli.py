@@ -110,6 +110,19 @@ def cmd_confirm(args):
     return 0
 
 
+def cmd_sites(args):
+    from . import sites as sites_mod
+    t = _load(args.tracedir)
+    names = {label: where for label, where, _ in sites_mod.sites(t)}
+    for label, where, n in sites_mod.sites(t):
+        print(f"{label:<28} {n:>8} records  {where}")
+    if args.findings:
+        _, rep = _analyze(args)
+        for site, counts in rep.by_site():
+            print(f"{site:<28} {names.get(site, ''):<40} " + ", ".join(f"{k} {n}" for k, n in sorted(counts.items())))
+    return 0
+
+
 def _analysis_options(a):
     a.add_argument("--no-sp", action="store_true", help="skip the single-path explorer")
     a.add_argument("--sp-max-events", type=int, default=2000, help="skip the explorer on traces with more events")
@@ -128,6 +141,9 @@ def main(argv=None) -> int:
     a = sub.add_parser("analyze", help="predict alternatives and classify them; exit status 0 none found, 1 an error class found, 2 the trace cannot be loaded, 3 internal error")
     a.add_argument("tracedir"); _analysis_options(a); a.add_argument("--json", action="store_true")
     a.add_argument("-v", "--verbose", action="store_true", help="also list rejected alternatives"); a.set_defaults(fn=cmd_analyze)
+    a = sub.add_parser("sites", help="list the call sites of the trace, named in the source when possible")
+    a.add_argument("tracedir"); _analysis_options(a)
+    a.add_argument("--findings", action="store_true", help="also analyse and count the findings per site"); a.set_defaults(fn=cmd_sites)
     a = sub.add_parser("candidates", help="list every candidate alternative with its verdict"); a.add_argument("tracedir")
     a.add_argument("--mode", default="L1", choices=["L1", "SP"]); a.set_defaults(fn=cmd_candidates)
     a = sub.add_parser("confirm", help="replay each finding with its STRETTO_PIN and classify the outcome")
