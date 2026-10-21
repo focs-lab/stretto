@@ -12,9 +12,10 @@ same timeout as the traced run, and its verdict is recorded. Output: one CSV row
 program plus per-program logs under results/<corpus>/<name>/. With --replay-only the
 selected programs are neither rebuilt nor rerun: their kept trace is analysed again and only
 the replays are redone, so a replay fix does not cost a new corpus run; the other rows of the
-table and of replays.csv are kept.
+table and of replays.csv are kept. With --guard the traced run has the tracer's buffer guard on
+(STRETTO_GUARD=1), which adds the local-concurrency findings (class 3-local).
 
-usage: run_mbi.py [--corpus mbi|mbb] [--select REGEX] [--limit N] [--confirm] [--must] [--timeout S] [--jobs J]
+usage: run_mbi.py [--corpus mbi|mbb] [--select REGEX] [--limit N] [--confirm] [--must] [--guard] [--timeout S] [--jobs J]
        run_mbi.py --replay-only [--select REGEX] [--timeout S] ...   (implies --confirm)
 """
 from __future__ import annotations
@@ -113,7 +114,7 @@ def run_one(name: str, args) -> dict:
     tracedir = os.path.join(out, "trace")
     shutil.rmtree(tracedir, ignore_errors=True)
     os.makedirs(tracedir)
-    env = ["-x", f"STRETTO_TRACE_DIR={tracedir}", "-x", f"LD_PRELOAD={TRACER}"]
+    env = ["-x", f"STRETTO_TRACE_DIR={tracedir}", "-x", f"LD_PRELOAD={TRACER}"] + (["-x", "STRETTO_GUARD=1"] if args.guard else [])
     cmd = ["/usr/bin/timeout", "-k", "5", str(args.timeout), MPIRUN, "-np", str(row["np"]), *env, exe]
     t0 = time.monotonic()
     r = subprocess.run(cmd, capture_output=True, text=True, stdin=subprocess.DEVNULL,
@@ -204,6 +205,7 @@ def main() -> int:
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--must", action="store_true")
     ap.add_argument("--confirm", action="store_true", help="replay every error finding with its pin")
+    ap.add_argument("--guard", action="store_true", help="trace with the buffer guard on (STRETTO_GUARD=1)")
     ap.add_argument("--timeout", type=int, default=60)
     ap.add_argument("--jobs", type=int, default=8)
     ap.add_argument("--no-sp", action="store_true")

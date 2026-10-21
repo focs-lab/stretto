@@ -168,12 +168,14 @@ class ReportClasses(unittest.TestCase):
     """The README expectation of each traced idiom, as classes."""
     EXPECT = {1: {"1f", "1d", "1c"}, 2: {"waitany-order"}, 3: {"2-buffering"}, 4: {"1f", "1c", "1d"},
               5: {"1a", "1c", "1d"}, 6: {"1f", "1c", "1d"}, 7: set(), 8: {"1b", "1c", "1d"}, 9: {"1b", "1c", "1d"}, 10: set()}
+    GUARDED = {7: {"3-local"}}     # added when the trace was made with the buffer guard (STRETTO_GUARD=1)
 
     def _classes(self, n):
         t = trace.load(need_trace(self, n))
         rep = analyze(t)
         got = set(rep.classes())
-        self.assertEqual(got, self.EXPECT[n], f"idiom {n}: classes {got}")
+        expect = self.EXPECT[n] | (self.GUARDED.get(n, set()) if any(t.guard.values()) else set())
+        self.assertEqual(got, expect, f"idiom {n}: classes {got}")
         if n == 9:
             self.assertEqual(len([f for f in rep.findings if f.level == "L1"]), 1)
 
