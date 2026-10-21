@@ -35,9 +35,8 @@ possible kept successor, a rendezvous completion. Acyclicity therefore reduces t
 reachability queries in the graph of the recorded run, answered by vector clocks computed
 once per threshold. Steals at nonblocking receives and swaps go to a generic check, which
 builds the horizon and the graph from scratch. The generic check is the reference, and the
-tests compare the two on every alternative of every traced idiom. The \LoneSP explorer runs below a size limit. Two-change
-alternatives on different ranks are available on request.
-On Nekbone's trace of \NekRecords million records an alternative costs about \NekPerAlt\,s
+tests compare the two on every alternative of every traced idiom. The \LoneSP explorer runs
+below a size limit. On Nekbone's trace of \NekRecords million records a check costs about \NekPerAlt\,s
 (\cref{sec:eval}). The vector clocks cost $O(p)$ per node and threshold; tree
 clocks~\citep{mathur22treeclock} would reduce that.
 
