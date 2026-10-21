@@ -101,7 +101,7 @@ static void *xrealloc(void *p, size_t n) {
     return q;
 }
 
-typedef struct { MPI_Request req; int id; int kind; MPI_Datatype dt; int persistent; int active; int cancel_req; int pin1; } reqent; /* kind: 0 send, 1 recv, 2 coll, 3 idup; pin1: 1 + the widx of a pinned receive, 0 if none */
+typedef struct { MPI_Request req; int id; int kind; MPI_Datatype dt; int persistent; int active; int cancel_req; int pin1; MPI_Request *slot; } reqent; /* kind: 0 send, 1 recv, 2 coll, 3 idup, 4 partitioned (guard only); pin1: 1 + the widx of a pinned receive, 0 if none; slot: where the program received the handle */
 static reqent *g_reqs = NULL;
 static int g_nreqs = 0, g_capreqs = 0, g_next_req = 0;
 
@@ -1038,41 +1038,58 @@ static int comm_id(MPI_Comm c) {
     return comm_register("unknown", MPI_COMM_WORLD, c);   /* created through an unwrapped call */
 }
 
-/* ---------------------------------------------------------- request table */
-static int req_add(MPI_Request r, int kind, MPI_Datatype dt, int persistent) {
+/* ---------------------------------------------------------- request table
+   Pending requests can share a handle: for a send that completed at once the library may
+   return one shared request (Open MPI's empty request for an inline send, MPICH's
+   lightweight requests). Entries are therefore told apart by the variable the program
+   received the handle in (slot), which it hands back at the completion, and else by age:
+   the oldest entry of the handle goes first. A new request in the slot and with the handle
+   of a pending one replaces it, since the program can no longer name the old one. */
+static int req_add(MPI_Request *slot, int kind, MPI_Datatype dt, int persistent) {
+    MPI_Request r = *slot;
+    int dropped = -1;
+    reqent *e = NULL;
     pthread_mutex_lock(&g_mu);
-    for (int i = 0; i < g_nreqs; i++) if (g_reqs[i].req == r) {   /* recycled handle */
-        g_reqs[i].id = g_next_req++; g_reqs[i].kind = kind; g_reqs[i].dt = dt; g_reqs[i].persistent = persistent; g_reqs[i].active = !persistent; g_reqs[i].cancel_req = 0; g_reqs[i].pin1 = 0;
-        int id = g_reqs[i].id; pthread_mutex_unlock(&g_mu); return id;
+    for (int i = 0; i < g_nreqs && !e; i++)
+        if (g_reqs[i].req == r && (g_reqs[i].persistent || g_reqs[i].slot == slot)) e = &g_reqs[i];   /* recycled handle */
+    if (e && !e->persistent) dropped = e->id;
+    if (!e) {
+        if (g_nreqs == g_capreqs) { g_capreqs = g_capreqs ? g_capreqs * 2 : 64; g_reqs = xrealloc(g_reqs, sizeof *g_reqs * g_capreqs); }
+        e = &g_reqs[g_nreqs++];
     }
-    if (g_nreqs == g_capreqs) { g_capreqs = g_capreqs ? g_capreqs * 2 : 64; g_reqs = xrealloc(g_reqs, sizeof *g_reqs * g_capreqs); }
     int id = g_next_req++;
-    g_reqs[g_nreqs].req = r; g_reqs[g_nreqs].id = id; g_reqs[g_nreqs].kind = kind; g_reqs[g_nreqs].dt = dt;
-    g_reqs[g_nreqs].persistent = persistent; g_reqs[g_nreqs].active = !persistent; g_reqs[g_nreqs].cancel_req = 0; g_reqs[g_nreqs].pin1 = 0; g_nreqs++;
+    *e = (reqent){r, id, kind, dt, persistent, !persistent, 0, 0, slot};
     pthread_mutex_unlock(&g_mu);
+    guard_done(dropped, 0);
     return id;
 }
-static reqent *req_find_locked(MPI_Request r) {
+static reqent *req_find_locked(MPI_Request r, MPI_Request *slot) {
     if (r == MPI_REQUEST_NULL) return NULL;
-    for (int i = 0; i < g_nreqs; i++) if (g_reqs[i].req == r) return &g_reqs[i];
-    return NULL;
+    reqent *oldest = NULL;
+    for (int i = 0; i < g_nreqs; i++) {
+        if (g_reqs[i].req != r) continue;
+        if (slot && g_reqs[i].slot == slot) return &g_reqs[i];
+        if (!oldest || g_reqs[i].id < oldest->id) oldest = &g_reqs[i];
+    }
+    return oldest;
 }
 /* A pinned nonblocking receive reports its match when the completion call returns it. */
-static void req_set_pin(MPI_Request r, int widx) {
-    pthread_mutex_lock(&g_mu); reqent *e = req_find_locked(r); if (e) e->pin1 = widx + 1; pthread_mutex_unlock(&g_mu);
+static void req_set_pin(MPI_Request *slot, int widx) {
+    pthread_mutex_lock(&g_mu); reqent *e = req_find_locked(*slot, slot); if (e) e->pin1 = widx + 1; pthread_mutex_unlock(&g_mu);
 }
-static int req_id(MPI_Request r) {
-    pthread_mutex_lock(&g_mu); reqent *e = req_find_locked(r); int id = e ? e->id : -1; pthread_mutex_unlock(&g_mu); return id;
+static int req_id(MPI_Request r, MPI_Request *slot) {
+    pthread_mutex_lock(&g_mu); reqent *e = req_find_locked(r, slot); int id = e ? e->id : -1; pthread_mutex_unlock(&g_mu); return id;
 }
-static void req_remove(MPI_Request r) {
+static void req_remove(MPI_Request r, MPI_Request *slot) {
     pthread_mutex_lock(&g_mu);
-    for (int i = 0; i < g_nreqs; i++) if (g_reqs[i].req == r) { g_reqs[i] = g_reqs[--g_nreqs]; break; }
+    reqent *e = req_find_locked(r, slot);
+    if (e) *e = g_reqs[--g_nreqs];
     pthread_mutex_unlock(&g_mu);
 }
 /* A persistent request gets a fresh id at every Start (each start is a new operation). */
 static int req_start(MPI_Request r, int *kind, MPI_Datatype *dt) {
     pthread_mutex_lock(&g_mu);
-    reqent *e = req_find_locked(r);
+    reqent *e = req_find_locked(r, NULL);
     int id = -1;
     if (e) { e->id = g_next_req++; e->active = 1; id = e->id; *kind = e->kind; *dt = e->dt; }
     else *kind = -1;
@@ -1160,7 +1177,7 @@ BLOCKING_SEND(MPI_Rsend, "rsend")
 #define NONBLOCKING_SEND(NAME, MODE) \
 int NAME(const void *buf, int count, MPI_Datatype dt, int dst, int tag, MPI_Comm comm, MPI_Request *req) { \
     GUARD; stretto_pin_before_send(); int rc = P##NAME(buf, count, dt, dst, tag, comm, req); \
-    int id = rc == MPI_SUCCESS ? req_add(*req, 0, dt, 0) : -1; \
+    int id = rc == MPI_SUCCESS ? req_add(req, 0, dt, 0) : -1; \
     REC(b, "send"); send_fields(&b, MODE, count, dt, dst, tag, comm); if (id >= 0) rb_printf(&b, ",\"req\":%d", id); \
     rb_send_data(&b, dst, buf, count, dt); rb_emit(&b); \
     if (id >= 0 && dst != MPI_PROC_NULL) GUARD_BUF(id, #NAME, buf, count, dt, 0, 0); \
@@ -1217,7 +1234,7 @@ static gbuf part_buf(const partent *p, int i) {
 #define PERSISTENT_SEND(NAME, MODE) \
 int NAME(const void *buf, int count, MPI_Datatype dt, int dst, int tag, MPI_Comm comm, MPI_Request *req) { \
     GUARD; int rc = P##NAME(buf, count, dt, dst, tag, comm, req); if (rc != MPI_SUCCESS) return rc; \
-    req_add(*req, 0, dt, 1); pers_add(*req, count, dt, dst, tag, comm, MODE, (void *)buf); return rc; }
+    req_add(req, 0, dt, 1); pers_add(*req, count, dt, dst, tag, comm, MODE, (void *)buf); return rc; }
 PERSISTENT_SEND(MPI_Send_init,  "isend")
 PERSISTENT_SEND(MPI_Ssend_init, "issend")
 PERSISTENT_SEND(MPI_Bsend_init, "ibsend")
@@ -1225,7 +1242,7 @@ PERSISTENT_SEND(MPI_Rsend_init, "irsend")
 int MPI_Recv_init(void *buf, int count, MPI_Datatype dt, int src, int tag, MPI_Comm comm, MPI_Request *req) {
     GUARD;
     int rc = PMPI_Recv_init(buf, count, dt, src, tag, comm, req); if (rc != MPI_SUCCESS) return rc;
-    req_add(*req, 1, dt, 1); pers_add(*req, count, dt, src, tag, comm, "irecv", buf); return rc;
+    req_add(req, 1, dt, 1); pers_add(*req, count, dt, src, tag, comm, "irecv", buf); return rc;
 }
 /* A pinned Start of a persistent wildcard receive cannot change the request's source, so
    it starts a shadow request created with the pinned source instead: the caller's handle
@@ -1250,7 +1267,7 @@ static int shadow_pop(MPI_Request shadow, MPI_Request *original) {
 static void restore_shadow(MPI_Request *slot, MPI_Request before) {
     MPI_Request original;
     if (before == MPI_REQUEST_NULL || !shadow_pop(before, &original)) return;
-    req_remove(before);
+    req_remove(before, slot);
     if (*slot == before) PMPI_Request_free(slot);
     *slot = original;
 }
@@ -1287,7 +1304,7 @@ static inline __attribute__((always_inline)) void start_one(MPI_Request *rp, voi
             if (PMPI_Recv_init(copy.buf, copy.count, copy.dt, src, tag, copy.comm, &shadow) == MPI_SUCCESS) {
                 pthread_mutex_lock(&g_mu);
                 if (g_nreqs == g_capreqs) { g_capreqs = g_capreqs ? g_capreqs * 2 : 64; g_reqs = xrealloc(g_reqs, sizeof *g_reqs * g_capreqs); }
-                g_reqs[g_nreqs++] = (reqent){shadow, id, 1, copy.dt, 1, 1, 0, widx + 1};
+                g_reqs[g_nreqs++] = (reqent){shadow, id, 1, copy.dt, 1, 1, 0, widx + 1, rp};
                 pthread_mutex_unlock(&g_mu);
                 shadow_add(shadow, r);
                 *rp = shadow;
@@ -1341,8 +1358,8 @@ int MPI_Irecv(void *buf, int count, MPI_Datatype dt, int src, int tag, MPI_Comm 
     int osrc = src, otag = tag, widx = -1;
     int pinned = stretto_pin_recv(&src, &tag, comm, &widx);
     int rc = PMPI_Irecv(buf, count, dt, src, tag, comm, req);
-    int id = rc == MPI_SUCCESS ? req_add(*req, 1, dt, 0) : -1;
-    if (pinned && id >= 0) req_set_pin(*req, widx);
+    int id = rc == MPI_SUCCESS ? req_add(req, 1, dt, 0) : -1;
+    if (pinned && id >= 0) req_set_pin(req, widx);
     REC(b, "irecv"); recv_args(&b, osrc, otag, comm, count, dt, widx); if (id >= 0) rb_printf(&b, ",\"req\":%d", id);
     if (pinned) rb_printf(&b, ",\"pinned\":{\"src\":%d,\"tag\":%d}", src, tag);
     rb_emit(&b);
@@ -1396,15 +1413,15 @@ int MPI_Sendrecv_replace(void *buf, int count, MPI_Datatype dt, int dst, int sta
 
 /* -------------------------------------------------------------- completion */
 static void idup_complete(MPI_Request before);
-static void reqs_list(rec_t *b, int n, MPI_Request before[]) {
+static void reqs_list(rec_t *b, int n, MPI_Request before[], MPI_Request *slots) {   /* slots: the program's requests, NULL if not passed */
     rb_printf(b, ",\"reqs\":[");
-    for (int i = 0; i < n; i++) { int id = req_id(before[i]); if (id >= 0) rb_printf(b, "%s%d", i ? "," : "", id); else rb_printf(b, "%snull", i ? "," : ""); }
+    for (int i = 0; i < n; i++) { int id = req_id(before[i], slots ? &slots[i] : NULL); if (id >= 0) rb_printf(b, "%s%d", i ? "," : "", id); else rb_printf(b, "%snull", i ? "," : ""); }
     rb_printf(b, "]");
 }
-static void done_entry(rec_t *b, int first, MPI_Request before, MPI_Status *st, int ok) {
+static void done_entry(rec_t *b, int first, MPI_Request before, MPI_Request *slot, MPI_Status *st, int ok) {
     if (before == MPI_REQUEST_NULL) return;
     pthread_mutex_lock(&g_mu);
-    reqent *e = req_find_locked(before);
+    reqent *e = req_find_locked(before, slot);
     int id = e ? e->id : -1, kind = e ? e->kind : -1, persistent = e ? e->persistent : 0, cancel_req = e ? e->cancel_req : 0;
     int pin1 = e ? e->pin1 : 0;
     MPI_Datatype dt = e ? e->dt : MPI_DATATYPE_NULL;
@@ -1430,18 +1447,18 @@ static void done_entry(rec_t *b, int first, MPI_Request before, MPI_Status *st, 
 int MPI_Request_get_status(MPI_Request req, int *flag, MPI_Status *st) {
     GUARD;
     int rc = PMPI_Request_get_status(req, flag, st);
-    REC(b, "wait"); rb_printf(&b, ",\"kind\":\"getstatus\",\"flag\":%d", *flag); reqs_list(&b, 1, &req); rb_printf(&b, ",\"done\":[]"); rb_emit_kind(&b, !*flag);
+    REC(b, "wait"); rb_printf(&b, ",\"kind\":\"getstatus\",\"flag\":%d", *flag); reqs_list(&b, 1, &req, NULL); rb_printf(&b, ",\"done\":[]"); rb_emit_kind(&b, !*flag);
     return rc;
 }
-static inline __attribute__((always_inline)) void begin_wait(const char *kind, int n, MPI_Request reqs[]) {
-    REC(b, "begin"); rb_printf(&b, ",\"call\":\"wait\",\"kind\":\"%s\"", kind); reqs_list(&b, n, reqs); rb_emit(&b);
+static inline __attribute__((always_inline)) void begin_wait(const char *kind, int n, MPI_Request reqs[], MPI_Request *slots) {
+    REC(b, "begin"); rb_printf(&b, ",\"call\":\"wait\",\"kind\":\"%s\"", kind); reqs_list(&b, n, reqs, slots); rb_emit(&b);
 }
 int MPI_Wait(MPI_Request *req, MPI_Status *st) {
     GUARD;
     MPI_Request before = *req; MPI_Status mine; if (st == MPI_STATUS_IGNORE) st = &mine;
-    begin_wait("wait", 1, &before);
+    begin_wait("wait", 1, &before, req);
     int rc = PMPI_Wait(req, st);
-    REC(b, "wait"); rb_printf(&b, ",\"kind\":\"wait\""); reqs_list(&b, 1, &before); rb_printf(&b, ",\"done\":["); done_entry(&b, 1, before, st, rc == MPI_SUCCESS); rb_printf(&b, "]"); rb_emit(&b);
+    REC(b, "wait"); rb_printf(&b, ",\"kind\":\"wait\""); reqs_list(&b, 1, &before, req); rb_printf(&b, ",\"done\":["); done_entry(&b, 1, before, req, st, rc == MPI_SUCCESS); rb_printf(&b, "]"); rb_emit(&b);
     restore_shadow(req, before);
     return rc;
 }
@@ -1449,10 +1466,10 @@ int MPI_Wait(MPI_Request *req, MPI_Status *st) {
 #define OWN_STATUSES(n, sts) MPI_Status *mine = (sts == MPI_STATUSES_IGNORE) ? malloc(sizeof(MPI_Status) * ((n) > 0 ? (n) : 1)) : NULL; if (mine) sts = mine
 int MPI_Waitall(int n, MPI_Request reqs[], MPI_Status sts[]) {
     GUARD; COPY_REQS(n, reqs); OWN_STATUSES(n, sts);
-    begin_wait("waitall", n, before);
+    begin_wait("waitall", n, before, reqs);
     int rc = PMPI_Waitall(n, reqs, sts);
-    REC(b, "wait"); rb_printf(&b, ",\"kind\":\"waitall\""); reqs_list(&b, n, before); rb_printf(&b, ",\"done\":[");
-    int first = 1; for (int i = 0; i < n; i++) if (before[i] != MPI_REQUEST_NULL) { done_entry(&b, first, before[i], &sts[i], rc == MPI_SUCCESS); first = 0; }
+    REC(b, "wait"); rb_printf(&b, ",\"kind\":\"waitall\""); reqs_list(&b, n, before, reqs); rb_printf(&b, ",\"done\":[");
+    int first = 1; for (int i = 0; i < n; i++) if (before[i] != MPI_REQUEST_NULL) { done_entry(&b, first, before[i], &reqs[i], &sts[i], rc == MPI_SUCCESS); first = 0; }
     rb_printf(&b, "]"); rb_emit(&b);
     for (int i = 0; i < n; i++) restore_shadow(&reqs[i], before[i]);
     free(before); free(mine);
@@ -1460,10 +1477,10 @@ int MPI_Waitall(int n, MPI_Request reqs[], MPI_Status sts[]) {
 }
 int MPI_Waitany(int n, MPI_Request reqs[], int *idx, MPI_Status *st) {
     GUARD; COPY_REQS(n, reqs); MPI_Status mine; if (st == MPI_STATUS_IGNORE) st = &mine;
-    begin_wait("waitany", n, before);
+    begin_wait("waitany", n, before, reqs);
     int rc = PMPI_Waitany(n, reqs, idx, st);
-    REC(b, "wait"); rb_printf(&b, ",\"kind\":\"waitany\",\"idx\":%d", *idx); reqs_list(&b, n, before); rb_printf(&b, ",\"done\":[");
-    if (*idx != MPI_UNDEFINED) done_entry(&b, 1, before[*idx], st, rc == MPI_SUCCESS);
+    REC(b, "wait"); rb_printf(&b, ",\"kind\":\"waitany\",\"idx\":%d", *idx); reqs_list(&b, n, before, reqs); rb_printf(&b, ",\"done\":[");
+    if (*idx != MPI_UNDEFINED) done_entry(&b, 1, before[*idx], &reqs[*idx], st, rc == MPI_SUCCESS);
     rb_printf(&b, "]"); rb_emit(&b);
     if (*idx != MPI_UNDEFINED) restore_shadow(&reqs[*idx], before[*idx]);
     free(before);
@@ -1471,10 +1488,10 @@ int MPI_Waitany(int n, MPI_Request reqs[], int *idx, MPI_Status *st) {
 }
 int MPI_Waitsome(int n, MPI_Request reqs[], int *outcount, int idx[], MPI_Status sts[]) {
     GUARD; COPY_REQS(n, reqs); OWN_STATUSES(n, sts);
-    begin_wait("waitsome", n, before);
+    begin_wait("waitsome", n, before, reqs);
     int rc = PMPI_Waitsome(n, reqs, outcount, idx, sts);
-    REC(b, "wait"); rb_printf(&b, ",\"kind\":\"waitsome\""); reqs_list(&b, n, before); rb_printf(&b, ",\"done\":[");
-    if (*outcount != MPI_UNDEFINED) for (int i = 0; i < *outcount; i++) done_entry(&b, i == 0, before[idx[i]], &sts[i], rc == MPI_SUCCESS);
+    REC(b, "wait"); rb_printf(&b, ",\"kind\":\"waitsome\""); reqs_list(&b, n, before, reqs); rb_printf(&b, ",\"done\":[");
+    if (*outcount != MPI_UNDEFINED) for (int i = 0; i < *outcount; i++) done_entry(&b, i == 0, before[idx[i]], &reqs[idx[i]], &sts[i], rc == MPI_SUCCESS);
     rb_printf(&b, "]"); rb_emit(&b);
     if (*outcount != MPI_UNDEFINED) for (int i = 0; i < *outcount; i++) restore_shadow(&reqs[idx[i]], before[idx[i]]);
     free(before); free(mine);
@@ -1484,8 +1501,8 @@ int MPI_Test(MPI_Request *req, int *flag, MPI_Status *st) {
     GUARD;
     MPI_Request before = *req; MPI_Status mine; if (st == MPI_STATUS_IGNORE) st = &mine;
     int rc = PMPI_Test(req, flag, st);
-    REC(b, "wait"); rb_printf(&b, ",\"kind\":\"test\",\"flag\":%d", *flag); reqs_list(&b, 1, &before); rb_printf(&b, ",\"done\":[");
-    if (*flag) done_entry(&b, 1, before, st, rc == MPI_SUCCESS);
+    REC(b, "wait"); rb_printf(&b, ",\"kind\":\"test\",\"flag\":%d", *flag); reqs_list(&b, 1, &before, req); rb_printf(&b, ",\"done\":[");
+    if (*flag) done_entry(&b, 1, before, req, st, rc == MPI_SUCCESS);
     rb_printf(&b, "]"); rb_emit_kind(&b, !*flag);
     if (*flag) restore_shadow(req, before);
     return rc;
@@ -1493,8 +1510,8 @@ int MPI_Test(MPI_Request *req, int *flag, MPI_Status *st) {
 int MPI_Testall(int n, MPI_Request reqs[], int *flag, MPI_Status sts[]) {
     GUARD; COPY_REQS(n, reqs); OWN_STATUSES(n, sts);
     int rc = PMPI_Testall(n, reqs, flag, sts);
-    REC(b, "wait"); rb_printf(&b, ",\"kind\":\"testall\",\"flag\":%d", *flag); reqs_list(&b, n, before); rb_printf(&b, ",\"done\":[");
-    if (*flag) { int first = 1; for (int i = 0; i < n; i++) if (before[i] != MPI_REQUEST_NULL) { done_entry(&b, first, before[i], &sts[i], rc == MPI_SUCCESS); first = 0; } }
+    REC(b, "wait"); rb_printf(&b, ",\"kind\":\"testall\",\"flag\":%d", *flag); reqs_list(&b, n, before, reqs); rb_printf(&b, ",\"done\":[");
+    if (*flag) { int first = 1; for (int i = 0; i < n; i++) if (before[i] != MPI_REQUEST_NULL) { done_entry(&b, first, before[i], &reqs[i], &sts[i], rc == MPI_SUCCESS); first = 0; } }
     rb_printf(&b, "]"); rb_emit_kind(&b, !*flag);
     if (*flag) for (int i = 0; i < n; i++) restore_shadow(&reqs[i], before[i]);
     free(before); free(mine);
@@ -1503,8 +1520,8 @@ int MPI_Testall(int n, MPI_Request reqs[], int *flag, MPI_Status sts[]) {
 int MPI_Testany(int n, MPI_Request reqs[], int *idx, int *flag, MPI_Status *st) {
     GUARD; COPY_REQS(n, reqs); MPI_Status mine; if (st == MPI_STATUS_IGNORE) st = &mine;
     int rc = PMPI_Testany(n, reqs, idx, flag, st);
-    REC(b, "wait"); rb_printf(&b, ",\"kind\":\"testany\",\"flag\":%d,\"idx\":%d", *flag, *idx); reqs_list(&b, n, before); rb_printf(&b, ",\"done\":[");
-    if (*flag && *idx != MPI_UNDEFINED) done_entry(&b, 1, before[*idx], st, rc == MPI_SUCCESS);
+    REC(b, "wait"); rb_printf(&b, ",\"kind\":\"testany\",\"flag\":%d,\"idx\":%d", *flag, *idx); reqs_list(&b, n, before, reqs); rb_printf(&b, ",\"done\":[");
+    if (*flag && *idx != MPI_UNDEFINED) done_entry(&b, 1, before[*idx], &reqs[*idx], st, rc == MPI_SUCCESS);
     rb_printf(&b, "]"); rb_emit_kind(&b, !*flag);
     if (*flag && *idx != MPI_UNDEFINED) restore_shadow(&reqs[*idx], before[*idx]);
     free(before);
@@ -1513,8 +1530,8 @@ int MPI_Testany(int n, MPI_Request reqs[], int *idx, int *flag, MPI_Status *st) 
 int MPI_Testsome(int n, MPI_Request reqs[], int *outcount, int idx[], MPI_Status sts[]) {
     GUARD; COPY_REQS(n, reqs); OWN_STATUSES(n, sts);
     int rc = PMPI_Testsome(n, reqs, outcount, idx, sts);
-    REC(b, "wait"); rb_printf(&b, ",\"kind\":\"testsome\",\"flag\":%d", *outcount > 0); reqs_list(&b, n, before); rb_printf(&b, ",\"done\":[");
-    if (*outcount != MPI_UNDEFINED) for (int i = 0; i < *outcount; i++) done_entry(&b, i == 0, before[idx[i]], &sts[i], rc == MPI_SUCCESS);
+    REC(b, "wait"); rb_printf(&b, ",\"kind\":\"testsome\",\"flag\":%d", *outcount > 0); reqs_list(&b, n, before, reqs); rb_printf(&b, ",\"done\":[");
+    if (*outcount != MPI_UNDEFINED) for (int i = 0; i < *outcount; i++) done_entry(&b, i == 0, before[idx[i]], &reqs[idx[i]], &sts[i], rc == MPI_SUCCESS);
     rb_printf(&b, "]"); rb_emit_kind(&b, *outcount == 0);
     if (*outcount != MPI_UNDEFINED) for (int i = 0; i < *outcount; i++) restore_shadow(&reqs[idx[i]], before[idx[i]]);
     free(before); free(mine);
@@ -1522,14 +1539,14 @@ int MPI_Testsome(int n, MPI_Request reqs[], int *outcount, int idx[], MPI_Status
 }
 int MPI_Request_free(MPI_Request *req) {
     GUARD;
-    int id = req_id(*req);
+    int id = req_id(*req, req);
     REC(b, "reqfree"); rb_printf(&b, ",\"req\":%d", id); rb_emit(&b);
     guard_done(id, 0);      /* the operation completes unobserved: its buffers are no longer followed */
     MPI_Request original;
     if (shadow_pop(*req, &original)) {     /* freed while a pinned start was in flight: free both */
-        req_remove(*req); PMPI_Request_free(req); *req = original;
+        req_remove(*req, req); PMPI_Request_free(req); *req = original;
     }
-    req_remove(*req);
+    req_remove(*req, req);
     pthread_mutex_lock(&g_mu); pers_remove(*req);
 #if MPI_VERSION >= 4
     part_remove(*req);
@@ -1539,8 +1556,8 @@ int MPI_Request_free(MPI_Request *req) {
 }
 int MPI_Cancel(MPI_Request *req) {
     GUARD;
-    pthread_mutex_lock(&g_mu); reqent *e = req_find_locked(*req); if (e) e->cancel_req = 1; pthread_mutex_unlock(&g_mu);
-    REC(b, "cancel"); rb_printf(&b, ",\"req\":%d", req_id(*req)); rb_emit(&b);
+    pthread_mutex_lock(&g_mu); reqent *e = req_find_locked(*req, req); if (e) e->cancel_req = 1; pthread_mutex_unlock(&g_mu);
+    REC(b, "cancel"); rb_printf(&b, ",\"req\":%d", req_id(*req, req)); rb_emit(&b);
     return PMPI_Cancel(req);
 }
 
@@ -1617,7 +1634,7 @@ int MPI_Imrecv(void *buf, int count, MPI_Datatype dt, MPI_Message *msg, MPI_Requ
     GUARD;
     int comm = 0, src = -1, tag = -1, noproc = *msg == MPI_MESSAGE_NO_PROC; msg_take(*msg, &comm, &src, &tag);
     int rc = PMPI_Imrecv(buf, count, dt, msg, req);
-    int id = rc == MPI_SUCCESS ? req_add(*req, 1, dt, 0) : -1;
+    int id = rc == MPI_SUCCESS ? req_add(req, 1, dt, 0) : -1;
     REC(b, "irecv"); rb_printf(&b, ",\"src\":%d,\"tag\":%d,\"comm\":%d,\"mrecv\":1", src, tag, comm); rb_type(&b, count, dt);
     if (id >= 0) rb_printf(&b, ",\"req\":%d", id);
     rb_emit(&b);
@@ -1656,7 +1673,7 @@ static int coll_me(MPI_Comm comm, int *np) {
     GUARD_COLL(-1, #NAME, gc); \
     coll_rec(name, comm, root, count, dt, -1, 1, NULL); int rc = call; coll_rec(name, comm, root, count, dt, -1, 0, D); return rc;
 #define NBL(NAME, name, root, count, dt, call, gc) \
-    GUARD; int rc = call; int id_ = rc == MPI_SUCCESS ? req_add(*req, 2, dt, 0) : -1; coll_rec(name, comm, root, count, dt, id_, 0, NULL); \
+    GUARD; int rc = call; int id_ = rc == MPI_SUCCESS ? req_add(req, 2, dt, 0) : -1; coll_rec(name, comm, root, count, dt, id_, 0, NULL); \
     if (id_ >= 0) GUARD_COLL(id_, #NAME, gc); \
     return rc;
 /* the payload of a fixed-size collective: D is the cdata, built from me and np */
@@ -1798,18 +1815,18 @@ int MPI_Isendrecv_replace(void *buf, int n, MPI_Datatype dt, int dst, int stag, 
 int MPI_Psend_init(const void *buf, int parts, MPI_Count n, MPI_Datatype dt, int dst, int tag, MPI_Comm comm, MPI_Info info, MPI_Request *req) {
     GUARD; unmodelled("Psend_init");
     int rc = PMPI_Psend_init(buf, parts, n, dt, dst, tag, comm, info, req);
-    if (rc == MPI_SUCCESS && g_guard && dst != MPI_PROC_NULL) { req_add(*req, 4, dt, 1); part_add(*req, buf, parts, n, dt, 0); }
+    if (rc == MPI_SUCCESS && g_guard && dst != MPI_PROC_NULL) { req_add(req, 4, dt, 1); part_add(*req, buf, parts, n, dt, 0); }
     return rc;
 }
 int MPI_Precv_init(void *buf, int parts, MPI_Count n, MPI_Datatype dt, int src, int tag, MPI_Comm comm, MPI_Info info, MPI_Request *req) {
     GUARD; unmodelled("Precv_init");
     int rc = PMPI_Precv_init(buf, parts, n, dt, src, tag, comm, info, req);
-    if (rc == MPI_SUCCESS && g_guard && src != MPI_PROC_NULL) { req_add(*req, 4, dt, 1); part_add(*req, buf, parts, n, dt, 1); }
+    if (rc == MPI_SUCCESS && g_guard && src != MPI_PROC_NULL) { req_add(req, 4, dt, 1); part_add(*req, buf, parts, n, dt, 1); }
     return rc;
 }
 /* partitions [lo, hi) of a partitioned send (or those in list) become MPI's */
 static void pready(int lo, int hi, const int *list, MPI_Request req, void *ra) {
-    partent p; int id = req_id(req);
+    partent p; int id = req_id(req, NULL);
     if (!g_guard || id < 0 || !part_find(req, &p) || p.recv) return;
     for (int k = lo; k < hi; k++) {
         int i = list ? list[k] : k;
@@ -1825,7 +1842,7 @@ int MPI_Parrived(MPI_Request req, int i, int *flag) {
     GUARD; partent p;
     int rc = PMPI_Parrived(req, i, flag);
     if (rc == MPI_SUCCESS && *flag && g_guard && part_find(req, &p) && p.recv && i >= 0 && i < p.parts)
-        guard_release(req_id(req), (uintptr_t)part_buf(&p, i).buf);
+        guard_release(req_id(req, NULL), (uintptr_t)part_buf(&p, i).buf);
     return rc;
 }
 int MPI_Comm_create_from_group(MPI_Group g, const char *stag, MPI_Info info, MPI_Errhandler eh, MPI_Comm *n) { UNMODELLED("Comm_create_from_group", PMPI_Comm_create_from_group(g, stag, info, eh, n)); }
@@ -1849,7 +1866,7 @@ int MPI_Comm_idup(MPI_Comm c, MPI_Comm *n, MPI_Request *req) {
     GUARD;
     int rc = PMPI_Comm_idup(c, n, req);
     if (rc != MPI_SUCCESS) return rc;
-    req_add(*req, 3, MPI_DATATYPE_NULL, 0);
+    req_add(req, 3, MPI_DATATYPE_NULL, 0);
     pthread_mutex_lock(&g_mu);
     if (g_nidups == g_capidups) { g_capidups = g_capidups ? g_capidups * 2 : 4; g_idups = xrealloc(g_idups, sizeof *g_idups * g_capidups); }
     g_idups[g_nidups++] = (idupent){*req, c, n};
