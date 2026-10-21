@@ -1,0 +1,123 @@
+corpus,program,np,run,reference,alternative,B,ref,all,one,cmp_all,cmp_one,commit
+mbi,MessageRace_Irecv_Isend_nok.0,4,FINISHED,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(1, 0)->0 tag=42 4B",0,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Irecv_Isend_nok.0,4,FINISHED,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(1, 0)->0 tag=42 4B",inf,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Irecv_Isend_nok.0,4,FINISHED,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(3, 0)->0 tag=42 4B",0,abort-every abort-some,abort-every abort-some,abort-every abort-some,same,same,31e57af
+mbi,MessageRace_Irecv_Isend_nok.0,4,FINISHED,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(3, 0)->0 tag=42 4B",inf,abort-every abort-some,abort-every abort-some,abort-every abort-some,same,same,31e57af
+mbi,MessageRace_Irecv_Isend_nok.0,4,FINISHED,twin,"recv(0, 1) src=ANY tag=ANY cap=4B <- send(3, 0)->0 tag=42 4B",0,abort-every abort-some,abort-every abort-some,abort-every abort-some,same,same,31e57af
+mbi,MessageRace_Irecv_Isend_nok.0,4,FINISHED,twin,"recv(0, 1) src=ANY tag=ANY cap=4B <- send(3, 0)->0 tag=42 4B",inf,abort-every abort-some,abort-every abort-some,abort-every abort-some,same,same,31e57af
+mbi,MessageRace_Irecv_Isend_nok.1,4,SIGNAL:6,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(1, 0)->0 tag=42 4B",0,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Irecv_Isend_nok.1,4,SIGNAL:6,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(1, 0)->0 tag=42 4B",inf,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Irecv_Isend_nok.1,4,SIGNAL:6,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(2, 0)->0 tag=42 4B",0,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Irecv_Isend_nok.1,4,SIGNAL:6,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(2, 0)->0 tag=42 4B",inf,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Irecv_Isend_nok.1,4,SIGNAL:6,twin,"recv(0, 1) src=ANY tag=ANY cap=4B <- send(2, 0)->0 tag=42 4B",0,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Irecv_Isend_nok.1,4,SIGNAL:6,twin,"recv(0, 1) src=ANY tag=ANY cap=4B <- send(2, 0)->0 tag=42 4B",inf,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Irecv_Isend_nok.2,4,SIGNAL:6,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(2, 0)->0 tag=42 4B",0,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Irecv_Isend_nok.2,4,SIGNAL:6,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(2, 0)->0 tag=42 4B",inf,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Irecv_Isend_nok.2,4,SIGNAL:6,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(3, 0)->0 tag=42 4B",0,abort-every abort-some,abort-every abort-some,abort-every abort-some,same,same,31e57af
+mbi,MessageRace_Irecv_Isend_nok.2,4,SIGNAL:6,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(3, 0)->0 tag=42 4B",inf,abort-every abort-some,abort-every abort-some,abort-every abort-some,same,same,31e57af
+mbi,MessageRace_Irecv_Isend_nok.2,4,SIGNAL:6,twin,"recv(0, 1) src=ANY tag=ANY cap=4B <- send(2, 0)->0 tag=42 4B",0,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Irecv_Isend_nok.2,4,SIGNAL:6,twin,"recv(0, 1) src=ANY tag=ANY cap=4B <- send(2, 0)->0 tag=42 4B",inf,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Irecv_Isend_nok.3,4,FINISHED,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(2, 0)->0 tag=42 4B",0,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Irecv_Isend_nok.3,4,FINISHED,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(2, 0)->0 tag=42 4B",inf,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Irecv_Isend_nok.3,4,FINISHED,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(3, 0)->0 tag=42 4B",0,abort-every abort-some,abort-every abort-some,abort-every abort-some,same,same,31e57af
+mbi,MessageRace_Irecv_Isend_nok.3,4,FINISHED,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(3, 0)->0 tag=42 4B",inf,abort-every abort-some,abort-every abort-some,abort-every abort-some,same,same,31e57af
+mbi,MessageRace_Irecv_Isend_nok.3,4,FINISHED,twin,"recv(0, 1) src=ANY tag=ANY cap=4B <- send(3, 0)->0 tag=42 4B",0,abort-every abort-some,abort-every abort-some,abort-every abort-some,same,same,31e57af
+mbi,MessageRace_Irecv_Isend_nok.3,4,FINISHED,twin,"recv(0, 1) src=ANY tag=ANY cap=4B <- send(3, 0)->0 tag=42 4B",inf,abort-every abort-some,abort-every abort-some,abort-every abort-some,same,same,31e57af
+mbi,MessageRace_Irecv_Isend_nok.4,4,TIMEOUT,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(1, 0)->0 tag=42 4B",0,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Irecv_Isend_nok.4,4,TIMEOUT,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(1, 0)->0 tag=42 4B",inf,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Irecv_Isend_nok.4,4,TIMEOUT,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(2, 0)->0 tag=42 4B",0,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Irecv_Isend_nok.4,4,TIMEOUT,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(2, 0)->0 tag=42 4B",inf,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Irecv_Isend_nok.4,4,TIMEOUT,twin,"recv(0, 1) src=ANY tag=ANY cap=4B <- send(2, 0)->0 tag=42 4B",0,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Irecv_Isend_nok.4,4,TIMEOUT,twin,"recv(0, 1) src=ANY tag=ANY cap=4B <- send(2, 0)->0 tag=42 4B",inf,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Irecv_Isend_nok.4,4,TIMEOUT,twin,"recv(0, 2) src=ANY tag=ANY cap=4B <- send(2, 0)->0 tag=42 4B",0,abort-every abort-some,abort-every abort-some,abort-every abort-some,same,same,31e57af
+mbi,MessageRace_Irecv_Isend_nok.4,4,TIMEOUT,twin,"recv(0, 2) src=ANY tag=ANY cap=4B <- send(2, 0)->0 tag=42 4B",inf,abort-every abort-some,abort-every abort-some,abort-every abort-some,same,same,31e57af
+mbi,MessageRace_Irecv_Send_nok.0,4,FINISHED,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(1, 0)->0 tag=42 4B",0,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Irecv_Send_nok.0,4,FINISHED,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(1, 0)->0 tag=42 4B",inf,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Irecv_Send_nok.0,4,FINISHED,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(3, 0)->0 tag=42 4B",0,abort-every abort-some,abort-every abort-some,abort-every abort-some,same,same,31e57af
+mbi,MessageRace_Irecv_Send_nok.0,4,FINISHED,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(3, 0)->0 tag=42 4B",inf,abort-every abort-some,abort-every abort-some,abort-every abort-some,same,same,31e57af
+mbi,MessageRace_Irecv_Send_nok.0,4,FINISHED,twin,"recv(0, 1) src=ANY tag=ANY cap=4B <- send(3, 0)->0 tag=42 4B",0,abort-every abort-some,abort-every abort-some,abort-every abort-some,same,same,31e57af
+mbi,MessageRace_Irecv_Send_nok.0,4,FINISHED,twin,"recv(0, 1) src=ANY tag=ANY cap=4B <- send(3, 0)->0 tag=42 4B",inf,abort-every abort-some,abort-every abort-some,abort-every abort-some,same,same,31e57af
+mbi,MessageRace_Irecv_Send_nok.1,4,FINISHED,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(1, 0)->0 tag=42 4B",0,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Irecv_Send_nok.1,4,FINISHED,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(1, 0)->0 tag=42 4B",inf,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Irecv_Send_nok.1,4,FINISHED,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(3, 0)->0 tag=42 4B",0,abort-every abort-some,abort-every abort-some,abort-every abort-some,same,same,31e57af
+mbi,MessageRace_Irecv_Send_nok.1,4,FINISHED,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(3, 0)->0 tag=42 4B",inf,abort-every abort-some,abort-every abort-some,abort-every abort-some,same,same,31e57af
+mbi,MessageRace_Irecv_Send_nok.1,4,FINISHED,twin,"recv(0, 1) src=ANY tag=ANY cap=4B <- send(3, 0)->0 tag=42 4B",0,abort-every abort-some,abort-every abort-some,abort-every abort-some,same,same,31e57af
+mbi,MessageRace_Irecv_Send_nok.1,4,FINISHED,twin,"recv(0, 1) src=ANY tag=ANY cap=4B <- send(3, 0)->0 tag=42 4B",inf,abort-every abort-some,abort-every abort-some,abort-every abort-some,same,same,31e57af
+mbi,MessageRace_Irecv_Send_nok.2,4,SIGNAL:6,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(1, 0)->0 tag=42 4B",0,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Irecv_Send_nok.2,4,SIGNAL:6,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(1, 0)->0 tag=42 4B",inf,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Irecv_Send_nok.2,4,SIGNAL:6,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(2, 0)->0 tag=42 4B",0,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Irecv_Send_nok.2,4,SIGNAL:6,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(2, 0)->0 tag=42 4B",inf,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Irecv_Send_nok.2,4,SIGNAL:6,twin,"recv(0, 1) src=ANY tag=ANY cap=4B <- send(2, 0)->0 tag=42 4B",0,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Irecv_Send_nok.2,4,SIGNAL:6,twin,"recv(0, 1) src=ANY tag=ANY cap=4B <- send(2, 0)->0 tag=42 4B",inf,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Irecv_Send_nok.3,4,FINISHED,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(2, 0)->0 tag=42 4B",0,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Irecv_Send_nok.3,4,FINISHED,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(2, 0)->0 tag=42 4B",inf,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Irecv_Send_nok.3,4,FINISHED,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(3, 0)->0 tag=42 4B",0,abort-every abort-some,abort-every abort-some,abort-every abort-some,same,same,31e57af
+mbi,MessageRace_Irecv_Send_nok.3,4,FINISHED,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(3, 0)->0 tag=42 4B",inf,abort-every abort-some,abort-every abort-some,abort-every abort-some,same,same,31e57af
+mbi,MessageRace_Irecv_Send_nok.3,4,FINISHED,twin,"recv(0, 1) src=ANY tag=ANY cap=4B <- send(3, 0)->0 tag=42 4B",0,abort-every abort-some,abort-every abort-some,abort-every abort-some,same,same,31e57af
+mbi,MessageRace_Irecv_Send_nok.3,4,FINISHED,twin,"recv(0, 1) src=ANY tag=ANY cap=4B <- send(3, 0)->0 tag=42 4B",inf,abort-every abort-some,abort-every abort-some,abort-every abort-some,same,same,31e57af
+mbi,MessageRace_Irecv_Send_nok.4,4,SIGNAL:6,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(1, 0)->0 tag=42 4B",0,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Irecv_Send_nok.4,4,SIGNAL:6,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(1, 0)->0 tag=42 4B",inf,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Irecv_Send_nok.4,4,SIGNAL:6,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(2, 0)->0 tag=42 4B",0,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Irecv_Send_nok.4,4,SIGNAL:6,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(2, 0)->0 tag=42 4B",inf,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Irecv_Send_nok.4,4,SIGNAL:6,twin,"recv(0, 1) src=ANY tag=ANY cap=4B <- send(2, 0)->0 tag=42 4B",0,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Irecv_Send_nok.4,4,SIGNAL:6,twin,"recv(0, 1) src=ANY tag=ANY cap=4B <- send(2, 0)->0 tag=42 4B",inf,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Recv_Isend_nok.0,4,SIGNAL:6,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(1, 0)->0 tag=42 4B",0,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Recv_Isend_nok.0,4,SIGNAL:6,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(1, 0)->0 tag=42 4B",inf,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Recv_Isend_nok.0,4,SIGNAL:6,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(2, 0)->0 tag=42 4B",0,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Recv_Isend_nok.0,4,SIGNAL:6,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(2, 0)->0 tag=42 4B",inf,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Recv_Isend_nok.0,4,SIGNAL:6,twin,"recv(0, 1) src=ANY tag=ANY cap=4B <- send(2, 0)->0 tag=42 4B",0,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Recv_Isend_nok.0,4,SIGNAL:6,twin,"recv(0, 1) src=ANY tag=ANY cap=4B <- send(2, 0)->0 tag=42 4B",inf,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Recv_Isend_nok.1,4,FINISHED,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(2, 0)->0 tag=42 4B",0,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Recv_Isend_nok.1,4,FINISHED,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(2, 0)->0 tag=42 4B",inf,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Recv_Isend_nok.1,4,FINISHED,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(3, 0)->0 tag=42 4B",0,abort-every abort-some,abort-every abort-some,abort-every abort-some,same,same,31e57af
+mbi,MessageRace_Recv_Isend_nok.1,4,FINISHED,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(3, 0)->0 tag=42 4B",inf,abort-every abort-some,abort-every abort-some,abort-every abort-some,same,same,31e57af
+mbi,MessageRace_Recv_Isend_nok.1,4,FINISHED,twin,"recv(0, 1) src=ANY tag=ANY cap=4B <- send(3, 0)->0 tag=42 4B",0,abort-every abort-some,abort-every abort-some,abort-every abort-some,same,same,31e57af
+mbi,MessageRace_Recv_Isend_nok.1,4,FINISHED,twin,"recv(0, 1) src=ANY tag=ANY cap=4B <- send(3, 0)->0 tag=42 4B",inf,abort-every abort-some,abort-every abort-some,abort-every abort-some,same,same,31e57af
+mbi,MessageRace_Recv_Isend_nok.2,4,SIGNAL:6,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(1, 0)->0 tag=42 4B",0,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Recv_Isend_nok.2,4,SIGNAL:6,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(1, 0)->0 tag=42 4B",inf,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Recv_Isend_nok.2,4,SIGNAL:6,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(2, 0)->0 tag=42 4B",0,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Recv_Isend_nok.2,4,SIGNAL:6,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(2, 0)->0 tag=42 4B",inf,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Recv_Isend_nok.2,4,SIGNAL:6,twin,"recv(0, 1) src=ANY tag=ANY cap=4B <- send(1, 0)->0 tag=42 4B",0,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Recv_Isend_nok.2,4,SIGNAL:6,twin,"recv(0, 1) src=ANY tag=ANY cap=4B <- send(1, 0)->0 tag=42 4B",inf,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Recv_Isend_nok.3,4,SIGNAL:6,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(1, 0)->0 tag=42 4B",0,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Recv_Isend_nok.3,4,SIGNAL:6,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(1, 0)->0 tag=42 4B",inf,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Recv_Isend_nok.3,4,SIGNAL:6,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(2, 0)->0 tag=42 4B",0,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Recv_Isend_nok.3,4,SIGNAL:6,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(2, 0)->0 tag=42 4B",inf,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Recv_Isend_nok.3,4,SIGNAL:6,twin,"recv(0, 1) src=ANY tag=ANY cap=4B <- send(1, 0)->0 tag=42 4B",0,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Recv_Isend_nok.3,4,SIGNAL:6,twin,"recv(0, 1) src=ANY tag=ANY cap=4B <- send(1, 0)->0 tag=42 4B",inf,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Recv_Isend_nok.4,4,FINISHED,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(1, 0)->0 tag=42 4B",0,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Recv_Isend_nok.4,4,FINISHED,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(1, 0)->0 tag=42 4B",inf,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Recv_Isend_nok.4,4,FINISHED,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(3, 0)->0 tag=42 4B",0,abort-every abort-some,abort-every abort-some,abort-every abort-some,same,same,31e57af
+mbi,MessageRace_Recv_Isend_nok.4,4,FINISHED,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(3, 0)->0 tag=42 4B",inf,abort-every abort-some,abort-every abort-some,abort-every abort-some,same,same,31e57af
+mbi,MessageRace_Recv_Isend_nok.4,4,FINISHED,twin,"recv(0, 1) src=ANY tag=ANY cap=4B <- send(3, 0)->0 tag=42 4B",0,abort-every abort-some,abort-every abort-some,abort-every abort-some,same,same,31e57af
+mbi,MessageRace_Recv_Isend_nok.4,4,FINISHED,twin,"recv(0, 1) src=ANY tag=ANY cap=4B <- send(3, 0)->0 tag=42 4B",inf,abort-every abort-some,abort-every abort-some,abort-every abort-some,same,same,31e57af
+mbi,MessageRace_Recv_Send_nok.0,4,SIGNAL:6,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(1, 0)->0 tag=42 4B",0,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Recv_Send_nok.0,4,SIGNAL:6,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(1, 0)->0 tag=42 4B",inf,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Recv_Send_nok.0,4,SIGNAL:6,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(3, 0)->0 tag=42 4B",0,abort-every abort-some,abort-every abort-some,abort-every abort-some,same,same,31e57af
+mbi,MessageRace_Recv_Send_nok.0,4,SIGNAL:6,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(3, 0)->0 tag=42 4B",inf,abort-every abort-some,abort-every abort-some,abort-every abort-some,same,same,31e57af
+mbi,MessageRace_Recv_Send_nok.0,4,SIGNAL:6,twin,"recv(0, 1) src=ANY tag=ANY cap=4B <- send(1, 0)->0 tag=42 4B",0,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Recv_Send_nok.0,4,SIGNAL:6,twin,"recv(0, 1) src=ANY tag=ANY cap=4B <- send(1, 0)->0 tag=42 4B",inf,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Recv_Send_nok.1,4,FINISHED,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(2, 0)->0 tag=42 4B",0,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Recv_Send_nok.1,4,FINISHED,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(2, 0)->0 tag=42 4B",inf,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Recv_Send_nok.1,4,FINISHED,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(3, 0)->0 tag=42 4B",0,abort-every abort-some,abort-every abort-some,abort-every abort-some,same,same,31e57af
+mbi,MessageRace_Recv_Send_nok.1,4,FINISHED,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(3, 0)->0 tag=42 4B",inf,abort-every abort-some,abort-every abort-some,abort-every abort-some,same,same,31e57af
+mbi,MessageRace_Recv_Send_nok.1,4,FINISHED,twin,"recv(0, 1) src=ANY tag=ANY cap=4B <- send(3, 0)->0 tag=42 4B",0,abort-every abort-some,abort-every abort-some,abort-every abort-some,same,same,31e57af
+mbi,MessageRace_Recv_Send_nok.1,4,FINISHED,twin,"recv(0, 1) src=ANY tag=ANY cap=4B <- send(3, 0)->0 tag=42 4B",inf,abort-every abort-some,abort-every abort-some,abort-every abort-some,same,same,31e57af
+mbi,MessageRace_Recv_Send_nok.2,4,FINISHED,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(1, 0)->0 tag=42 4B",0,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Recv_Send_nok.2,4,FINISHED,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(1, 0)->0 tag=42 4B",inf,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Recv_Send_nok.2,4,FINISHED,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(3, 0)->0 tag=42 4B",0,abort-every abort-some,abort-every abort-some,abort-every abort-some,same,same,31e57af
+mbi,MessageRace_Recv_Send_nok.2,4,FINISHED,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(3, 0)->0 tag=42 4B",inf,abort-every abort-some,abort-every abort-some,abort-every abort-some,same,same,31e57af
+mbi,MessageRace_Recv_Send_nok.2,4,FINISHED,twin,"recv(0, 1) src=ANY tag=ANY cap=4B <- send(3, 0)->0 tag=42 4B",0,abort-every abort-some,abort-every abort-some,abort-every abort-some,same,same,31e57af
+mbi,MessageRace_Recv_Send_nok.2,4,FINISHED,twin,"recv(0, 1) src=ANY tag=ANY cap=4B <- send(3, 0)->0 tag=42 4B",inf,abort-every abort-some,abort-every abort-some,abort-every abort-some,same,same,31e57af
+mbi,MessageRace_Recv_Send_nok.3,4,FINISHED,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(1, 0)->0 tag=42 4B",0,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Recv_Send_nok.3,4,FINISHED,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(1, 0)->0 tag=42 4B",inf,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Recv_Send_nok.3,4,FINISHED,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(3, 0)->0 tag=42 4B",0,abort-every abort-some,abort-every abort-some,abort-every abort-some,same,same,31e57af
+mbi,MessageRace_Recv_Send_nok.3,4,FINISHED,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(3, 0)->0 tag=42 4B",inf,abort-every abort-some,abort-every abort-some,abort-every abort-some,same,same,31e57af
+mbi,MessageRace_Recv_Send_nok.3,4,FINISHED,twin,"recv(0, 1) src=ANY tag=ANY cap=4B <- send(3, 0)->0 tag=42 4B",0,abort-every abort-some,abort-every abort-some,abort-every abort-some,same,same,31e57af
+mbi,MessageRace_Recv_Send_nok.3,4,FINISHED,twin,"recv(0, 1) src=ANY tag=ANY cap=4B <- send(3, 0)->0 tag=42 4B",inf,abort-every abort-some,abort-every abort-some,abort-every abort-some,same,same,31e57af
+mbi,MessageRace_Recv_Send_nok.4,4,SIGNAL:6,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(2, 0)->0 tag=42 4B",0,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Recv_Send_nok.4,4,SIGNAL:6,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(2, 0)->0 tag=42 4B",inf,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Recv_Send_nok.4,4,SIGNAL:6,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(3, 0)->0 tag=42 4B",0,abort-every abort-some,abort-every abort-some,abort-every abort-some,same,same,31e57af
+mbi,MessageRace_Recv_Send_nok.4,4,SIGNAL:6,twin,"recv(0, 0) src=ANY tag=ANY cap=4B <- send(3, 0)->0 tag=42 4B",inf,abort-every abort-some,abort-every abort-some,abort-every abort-some,same,same,31e57af
+mbi,MessageRace_Recv_Send_nok.4,4,SIGNAL:6,twin,"recv(0, 1) src=ANY tag=ANY cap=4B <- send(2, 0)->0 tag=42 4B",0,abort-some,abort-some,abort-some,same,same,31e57af
+mbi,MessageRace_Recv_Send_nok.4,4,SIGNAL:6,twin,"recv(0, 1) src=ANY tag=ANY cap=4B <- send(2, 0)->0 tag=42 4B",inf,abort-some,abort-some,abort-some,same,same,31e57af
