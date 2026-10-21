@@ -3,17 +3,15 @@
 
 \paragraph{Limitations.} The model covers point-to-point communication, probes,
 completion calls and collectives by shape. RMA, neighbourhood collectives, partitioned
-communication and memory accesses are outside it. Buffer reuse before a nonblocking
-operation completes is reported only when the run does it, by the optional guard.
+communication and memory accesses are outside it. The optional guard reports buffer reuse
+during a nonblocking operation when the run does it.
 Under \texttt{MPI\_THREAD\_MULTIPLE} we report observed findings only. Consequences beyond
-\Lone come from the single-path explorer on small traces, or from replays. Skeletons are
-written by hand. Our experiments use one node.
+\Lone come from the single-path explorer on small traces, replays, or hand-written twins.
 
 \paragraph{Conclusion.} One recorded run of an MPI program determines more than the run itself.
 Over the horizon, the part of the trace every consistent program repeats, an alternative
-matching is feasible iff a constraint graph with match nodes is acyclic. Each certificate comes with its buffering thresholds, a level for its
-consequence, and a pin that forces it. On \nMBIprogs MBI programs, \tool finds \nMBItpunion of
-\nMBIerrors labelled errors with no false error report: \nMBItpobserved shown by the traced
-run, \nMBItpPredBuf buffering thresholds and \nMBItpPredSP single-path consequences. From one
-clean run, certified alternatives and their forced replays expose a production race in HYPRE
-and a documented bug in NPB MG.
+matching is feasible iff a constraint graph with match nodes is acyclic. Each certificate
+carries its buffering thresholds, a level for its consequence, and a pin that forces it. On
+MBI, \tool finds \nMBItpunion of \nMBIerrors labelled errors with no false error report, here
+and in \nRepsRuns repeated runs. From one clean run, forced certified alternatives expose a
+production race in HYPRE and documented bugs in NPB MG and deal.II.
