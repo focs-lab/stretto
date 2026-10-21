@@ -247,14 +247,20 @@ def main() -> int:
             print(f"[{i}/{len(names)}] {row['name']:<50} {row.get('run', ''):<22} {row.get('classes', '')}", flush=True)
     rows.sort(key=lambda r: r["name"])
     # MUST runs separately (run_must.py, docker on the host): a rerun of the corpus keeps the
-    # MUST verdicts of the previous table, since MUST's own run does not depend on this code
+    # MUST verdicts of the previous table, since MUST's own run does not depend on this code;
+    # so are the columns of other MUST versions (run_must.py --column must...)
+    other_must = []
     if os.path.exists(args.out):
-        prev = {r["name"]: r.get("must", "") for r in csv.DictReader(open(args.out))}
+        prev_rows = list(csv.DictReader(open(args.out)))
+        other_must = [k for k in (prev_rows[0].keys() if prev_rows else []) if k.startswith("must") and k != "must"]
+        prev = {r["name"]: r for r in prev_rows}
         for r in rows:
-            if not r.get("must") and prev.get(r["name"]):
-                r["must"] = prev[r["name"]]
+            for k in ["must"] + other_must:
+                if not r.get(k) and prev.get(r["name"], {}).get(k):
+                    r[k] = prev[r["name"]][k]
     keys = ["name", "category", "expect", "detail", "can_deadlock", "np", "anysrc", "anytag", "probe", "persistent", "waitany",
             "build", "run", "wildcard_recvs", "events", "findings", "l1_alternatives", "classes", "levels", "confirmed", "not_confirmed", "replays", "must", "notes", "commit"]
+    keys += other_must
     with open(args.out, "w", newline="") as fh:
         w = csv.DictWriter(fh, fieldnames=keys, extrasaction="ignore", lineterminator="\n")
         w.writeheader()
