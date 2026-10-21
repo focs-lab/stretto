@@ -98,13 +98,13 @@ def readme(root: str, num: dict) -> None:
         (f"MBI: message races, probes, buffering ({t('nMBIprogs')} programs)", [
             ("Stretto, one run", v("MBIfoneunion"), BLUE),
             ("MUST 1.9.2", v("MBIfoneMUST"), GREY),
-            ("MUST, a timeout as an error", v("MBIfoneMUSTsym"), GREY),
+            ("MUST, a timeout or crash as an error", v("MBIfoneMUSTsym"), GREY),
             (f"stress testing, up to {t('nMBIStressRuns')} runs", v("MBIfonestress"), ORANGE)]),
         (f"MPI-BugBench level 2 ({t('nMBBprogs')} programs)", [
             ("Stretto, one run", v("MBBfoneunion"), BLUE),
             ("Stretto with the buffer guard", v("MBBfoneguard"), BLUE),
             ("MUST 1.9.2", v("MBBfoneMUST"), GREY),
-            ("MUST, a timeout as an error", v("MBBfoneMUSTsym"), GREY)]),
+            ("MUST, a timeout or crash as an error", v("MBBfoneMUSTsym"), GREY)]),
     ])
     fractions(os.path.join(figs, "hypre.svg"), "HYPRE 2.10.1, ParaSails: a documented hang, predicted from one run", [
         ("Traced runs that predict it", "one clean run each, 4 and 8 processes", v("nHypreExposed"), v("nHypreTraced"), BLUE),

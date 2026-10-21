@@ -47,7 +47,7 @@ def e1(name, path, key=None):
     rs = score.compiled(rs)
     skipped = f" Not compiled with Open MPI 4.1.6 and left out: {len(ce)} ({', '.join(sorted(r['name'] for r in ce))})." if ce else ""
     out = [f"### {name}", "", f"Programs: {len(rs)}.{skipped} {commit_note}", "",
-           "A program's verdict is ERROR iff a finding of class 1a/1c/1d/2-buffering/2-collective/2-blocked/3-local is",
+           "A program's verdict is ERROR iff a finding of class 1a/1c/1d/2-buffering/2-collective/2-blocked/3-local/abort is",
            "present; 1b, 1f, probe-alt and waitany-order are warnings and never count. The *observed* row uses",
            "only what the run itself showed (a blocked or spinning rank, a collective mismatch, a message never",
            "received), which any observational tool sees; the *predicted* row only what Stretto says about other",
@@ -91,11 +91,12 @@ def e1(name, path, key=None):
     if any(r.get("must") for r in rs):
         kinds = collections.Counter(score.must_kind(r) for r in rs)
         out.append(conf_row("MUST 1.9.2 (same source, its own run under MPICH)", score.confusion(rs, score.must_verdict)))
-        out.append(conf_row("MUST 1.9.2, a timeout counted as an error", score.confusion(rs, score.must_verdict_hangs)))
+        out.append(conf_row("MUST 1.9.2, a timeout or a run without a report counted as an error", score.confusion(rs, score.must_verdict_hangs)))
         out += ["", "MUST verdicts: " + ", ".join(f"{k or 'none'} {v}" for k, v in sorted(kinds.items())) + ". In the first MUST row a run",
                 "that timed out, crashed or did not compile counts as no error reported. A Stretto run that the harness",
-                "killed at the timeout is reported as a blocked rank (2-blocked), an error, so the second MUST row credits",
-                "MUST's timeouts the same way; the two rows bracket the comparison. Both tools ran each program once, with",
+                "killed at the timeout is reported as a blocked rank (2-blocked) and one whose rank stopped before MPI_Finalize",
+                "as an abort, both errors, so the second MUST row credits MUST's timeouts and its runs that ended without a",
+                "report (RE) the same way; the two rows bracket the comparison. Both tools ran each program once, with",
                 "the same timeout; MUST under MPICH, Stretto under Open MPI, so they did not see the same run."]
         failed = [r["name"] for r in rs if score.analysis_failed(r)]
         if failed:
@@ -525,7 +526,7 @@ def write_paper_numbers():
     open(os.path.join(gen, "numbers.tex"), "w").write("\n".join(lines) + "\n")
     body = []
     labels = (("union", "\\tool, observed or predicted"), ("observed", "\\tool, observed in the run"),
-              ("predicted", "\\tool, predicted"), ("guard", "\\tool with the buffer guard"), ("MUST", "\\MUST, a timeout not counted"), ("MUSTsym", "\\MUST, a timeout counted as an error"),
+              ("predicted", "\\tool, predicted"), ("guard", "\\tool with the buffer guard"), ("MUST", "\\MUST, a timeout not counted"), ("MUSTsym", "\\MUST, a timeout or failed run counted as an error"),
               ("stress", "random delays, up to \\n{key}StressRuns runs"))
     for key, title in (("MBI", "MBI"), ("MBB", "\\MBB level~2")):
         if not any((key, l) in CONF for l, _ in labels):

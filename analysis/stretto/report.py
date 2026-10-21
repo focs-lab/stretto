@@ -14,13 +14,13 @@ from .deadlock import contained_deadlock
 
 # classes that make a program's verdict ERROR (the warnings 1b, 1f, probe-alt and
 # waitany-order do not); experiments/mbi/score.py uses the same set
-ERROR_CLASSES = frozenset({"1a", "1c", "1d", "2-buffering", "2-collective", "2-blocked", "3-local"})
+ERROR_CLASSES = frozenset({"1a", "1c", "1d", "2-buffering", "2-collective", "2-blocked", "3-local", "abort"})
 
 
 @dataclass
 class Finding:
-    family: str                 # '1' message race, '2' deadlock/ordering, '3' local concurrency, 'waitany', 'probe'
-    cls: str                    # '1a'..'1f', '2-buffering', '2-collective', '3-local', 'waitany-order', 'probe-alt'
+    family: str                 # '1' message race, '2' deadlock/ordering, '3' local concurrency, 'run', 'waitany', 'probe'
+    cls: str                    # '1a'..'1f', '2-buffering', '2-collective', '3-local', 'abort', 'waitany-order', 'probe-alt'
     level: str                  # 'L1', 'L1+SP', 'observed'
     title: str
     detail: List[str] = field(default_factory=list)
@@ -153,7 +153,9 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
             detail.append(f"blocking send to {rec.raw.get('dst')} tag {rec.raw.get('tag')} never matched (rendezvous or no receive)")
         rep.findings.append(Finding("2", "2-blocked", "observed", what + " when the run ended", detail))
 
-    # ---- observed: ranks killed while spinning in a polling loop (a livelock, not a blocked call)
+    # ---- observed: ranks killed while spinning in a polling loop (a livelock, not a blocked call),
+    # and ranks that stopped outside MPI before MPI_Finalize (the run aborted)
+    blocked = {rec.rank for rec in t.blocked_calls()}
     for rank in t.truncated:
         recs = [r for r in t.ranks.get(rank, []) if r.op != "guard"]
         if not recs:
@@ -164,6 +166,13 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
             rep.findings.append(Finding("2", "2-blocked", "observed",
                                         f"rank {rank} was spinning in {what} when the run ended",
                                         ["a polling loop whose condition never became true: the run cannot finish"]))
+        elif recs[-1].op == "abort":
+            rep.findings.append(Finding("run", "abort", "observed", f"rank {rank} called MPI_Abort" + (f" with code {last['code']}" if "code" in last else ""),
+                                        ["the program ended the run on its own check"]))
+        elif rank not in blocked:
+            rep.findings.append(Finding("run", "abort", "observed", f"rank {rank} stopped outside MPI before MPI_Finalize",
+                                        [f"its last record is #{recs[-1].idx} ({recs[-1].op}): the program aborted, crashed or "
+                                         "exited without finalising, or the run was killed while the rank computed"]))
 
     # ---- observed: messages sent but never received (pending at MPI_Finalize is erroneous)
     received = set(t.observed.values())

@@ -65,8 +65,8 @@ judges the run it sees) and stress testing with random delays.
 
 | corpus | programs | Stretto, one run | false positives | MUST 1.9.2 | stress testing |
 |---|---:|---:|---:|---:|---:|
-| MBI (message races, probes, buffering) | 115 | **0.97** | 0 | 0.83–0.87 | 0.90 |
-| MPI-BugBench level 2 | 388 | **0.95**, 0.99 with the buffer guard | 4 | 0.94–0.95 | – |
+| MBI (message races, probes, buffering) | 115 | **0.97** | 0 | 0.83–0.89 | 0.90 |
+| MPI-BugBench level 2 | 388 | **0.95**, 0.99 with the buffer guard | 4 | 0.94–0.94 | – |
 
 Every MBI error that stress testing never exposes (12 programs, the
 buffering-dependent deadlocks) is predicted from a run that finished. The MPI-BugBench misses
@@ -186,6 +186,7 @@ describes how the runs were made.
 | probe-alt | a wildcard probe could have observed another message | L1 |
 | 2-collective | ranks disagree on a collective (name or participation) | observed |
 | 2-blocked | the run ended with a rank blocked in a call or spinning in a polling loop | observed |
+| abort | a rank stopped before MPI_Finalize outside any MPI call, or called MPI_Abort | observed |
 | 3-local | the program touched a buffer that a pending nonblocking operation owns, or two pending operations own overlapping bytes (buffer guard, `STRETTO_GUARD=1`) | observed |
 
 L1 findings hold for every program consistent with the trace. "L1+SP" findings also assume the

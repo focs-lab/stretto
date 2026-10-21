@@ -16,7 +16,7 @@ trace; the leg's times are the only timing claims.
 
 Programs: 115. Rows by code commit: 96dd241 (115).
 
-A program's verdict is ERROR iff a finding of class 1a/1c/1d/2-buffering/2-collective/2-blocked/3-local is
+A program's verdict is ERROR iff a finding of class 1a/1c/1d/2-buffering/2-collective/2-blocked/3-local/abort is
 present; 1b, 1f, probe-alt and waitany-order are warnings and never count. The *observed* row uses
 only what the run itself showed (a blocked or spinning rank, a collective mismatch, a message never
 received), which any observational tool sees; the *predicted* row only what Stretto says about other
@@ -34,12 +34,13 @@ finish is the hang itself and counts as observed. The union is the tool's verdic
 Buffer guard run: 115 programs (rows by code commit: 7117573 (115)); 3-local in 0 of the 0 local-concurrency programs and in 0 others.
 
 | MUST 1.9.2 (same source, its own run under MPICH) | 46 | 0 | 19 | 50 | 1.00 | 0.71 | 0.83 |
-| MUST 1.9.2, a timeout counted as an error | 50 | 0 | 15 | 50 | 1.00 | 0.77 | 0.87 |
+| MUST 1.9.2, a timeout or a run without a report counted as an error | 52 | 0 | 13 | 50 | 1.00 | 0.80 | 0.89 |
 
 MUST verdicts: ERROR 46, OK 63, RE 2, TIMEOUT 4. In the first MUST row a run
 that timed out, crashed or did not compile counts as no error reported. A Stretto run that the harness
-killed at the timeout is reported as a blocked rank (2-blocked), an error, so the second MUST row credits
-MUST's timeouts the same way; the two rows bracket the comparison. Both tools ran each program once, with
+killed at the timeout is reported as a blocked rank (2-blocked) and one whose rank stopped before MPI_Finalize
+as an abort, both errors, so the second MUST row credits MUST's timeouts and its runs that ended without a
+report (RE) the same way; the two rows bracket the comparison. Both tools ran each program once, with
 the same timeout; MUST under MPICH, Stretto under Open MPI, so they did not see the same run.
 
 Labelled errors Stretto reports and MUST does not on the same program: **15**, of which
@@ -127,7 +128,7 @@ Not confirmed or inconclusive:
 
 Programs: 388. Not compiled with Open MPI 4.1.6 and left out: 8 (P2P__CallOrdering-unmatched-mpi_precv_init-001, P2P__CallOrdering-unmatched-mpi_psend_init-001, P2P__Correct-mpi_precv_init-001, P2P__Correct-mpi_precv_init-002, P2P__Correct-mpi_psend_init-001, P2P__Correct-mpi_psend_init-002, P2P__LocalConcurrency-receive-mpi_precv_init-001, P2P__LocalConcurrency-send-mpi_psend_init-001). Rows by code commit: 96dd241 (388), unrecorded (8).
 
-A program's verdict is ERROR iff a finding of class 1a/1c/1d/2-buffering/2-collective/2-blocked/3-local is
+A program's verdict is ERROR iff a finding of class 1a/1c/1d/2-buffering/2-collective/2-blocked/3-local/abort is
 present; 1b, 1f, probe-alt and waitany-order are warnings and never count. The *observed* row uses
 only what the run itself showed (a blocked or spinning rank, a collective mismatch, a message never
 received), which any observational tool sees; the *predicted* row only what Stretto says about other
@@ -145,12 +146,13 @@ finish is the hang itself and counts as observed. The union is the tool's verdic
 Buffer guard run: 388 programs (rows by code commit: 7117573 (388)); 3-local in 20 of the 20 local-concurrency programs and in 0 others.
 
 | MUST 1.9.2 (same source, its own run under MPICH) | 213 | 4 | 23 | 148 | 0.98 | 0.90 | 0.94 |
-| MUST 1.9.2, a timeout counted as an error | 218 | 5 | 18 | 147 | 0.98 | 0.92 | 0.95 |
+| MUST 1.9.2, a timeout or a run without a report counted as an error | 219 | 9 | 17 | 143 | 0.96 | 0.93 | 0.94 |
 
 MUST verdicts: ERROR 217, OK 160, RE 5, TIMEOUT 6. In the first MUST row a run
 that timed out, crashed or did not compile counts as no error reported. A Stretto run that the harness
-killed at the timeout is reported as a blocked rank (2-blocked), an error, so the second MUST row credits
-MUST's timeouts the same way; the two rows bracket the comparison. Both tools ran each program once, with
+killed at the timeout is reported as a blocked rank (2-blocked) and one whose rank stopped before MPI_Finalize
+as an abort, both errors, so the second MUST row credits MUST's timeouts and its runs that ended without a
+report (RE) the same way; the two rows bracket the comparison. Both tools ran each program once, with
 the same timeout; MUST under MPICH, Stretto under Open MPI, so they did not see the same run.
 
 Labelled errors Stretto reports and MUST does not on the same program: **6**, of which

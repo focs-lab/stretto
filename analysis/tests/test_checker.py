@@ -1230,5 +1230,38 @@ class C_BufferGuard(unittest.TestCase):
         self.assertEqual((score.verdict(row), score.observed_verdict(row), score.predicted_verdict(row)), ("ERROR", "ERROR", "OK"))
 
 
+class C_Abort(unittest.TestCase):
+    """A rank that stops before MPI_Finalize outside any MPI call, or calls MPI_Abort, gives an
+    observed abort finding; a rank that stopped inside a blocking call stays 2-blocked."""
+
+    def build(self, raw):
+        t = T.Trace()
+        T._build(t, {r: [{"op": "init", "np": len(raw)}] + recs for r, recs in raw.items()})
+        return t
+
+    def test_rank_stops_after_a_completed_receive(self):
+        # MBI MessageRace_Recv_Send_nok: rank 0 receives the wrong message and calls abort()
+        t = self.build({0: [recv(T.ANY, 1, 1, 1)], 1: [send(0, 1), {"op": "finalize"}]})
+        rep = analyze(t, with_sp=False)
+        ab = rep.by_class("abort")
+        self.assertEqual(len(ab), 1)
+        self.assertEqual(ab[0].level, "observed")
+        self.assertIn("rank 0 stopped outside MPI before MPI_Finalize", ab[0].title)
+        self.assertIn("observed:abort", rep.levels())
+        self.assertTrue(rep.has_error())
+
+    def test_mpi_abort(self):
+        t = self.build({0: [{"op": "abort", "code": 3}], 1: [{"op": "finalize"}]})
+        ab = analyze(t, with_sp=False).by_class("abort")
+        self.assertEqual([f.title for f in ab], ["rank 0 called MPI_Abort with code 3"])
+
+    def test_blocked_rank_is_not_an_abort(self):
+        t = self.build({0: [{"op": "begin", "call": "recv", "src": 1, "tag": 1, "comm": 0, "count": 1, "tsize": 4}],
+                        1: [{"op": "finalize"}]})
+        rep = analyze(t, with_sp=False)
+        self.assertEqual(rep.by_class("abort"), [])
+        self.assertEqual(len(rep.by_class("2-blocked")), 1)
+
+
 if __name__ == "__main__":
     unittest.main()
