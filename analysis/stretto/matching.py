@@ -371,8 +371,9 @@ def candidates_full(t: Trace, hb=None) -> Tuple[List[Alternative], List[Tuple[st
     non-overtaking kernel: for a receive r and a source, only the earliest send that r
     accepts and that no receive posted before r has taken can be matched to r (a later one
     would overtake it), so there is at most one candidate per source. Sends that causally
-    follow the receive's completion in the observed run are pruned and listed. hb is
-    observed_hb(t), passed in when the caller already has it."""
+    follow the receive's completion in the observed run, by a path the alternative keeps
+    (_follows), are pruned and listed. hb is observed_hb(t), passed in when the caller
+    already has it."""
     hb = hb or observed_hb(t)
     sender_of: Dict[Key, Key] = {sk: rk for rk, sk in t.observed.items()}
     out: List[Alternative] = []
@@ -401,10 +402,10 @@ def candidates_full(t: Trace, hb=None) -> Tuple[List[Alternative], List[Tuple[st
                     continue
                 if s_obs is not None and s.key == s_obs.key:
                     break                           # the observed message is this source's head
-                if rc is not None and hb(rc, s.issue_node()):
+                r2k = sender_of.get(s.key)
+                if rc is not None and _follows(hb, rc, s, r2k):
                     pruned.append((f"{r} <- {s}", "send causally follows the receive's completion"))
                     break
-                r2k = sender_of.get(s.key)
                 M = Overlay(t.observed, {r.key: s.key})
                 if r2k is not None:
                     r2 = t.recvs[r2k]
@@ -415,6 +416,23 @@ def candidates_full(t: Trace, hb=None) -> Tuple[List[Alternative], List[Tuple[st
                     out.append(Alternative(r.key, s.key, M, "steal", {r.key}, None))
                 break
     return out, pruned
+
+
+def _follows(hb, rc: Node, s: Send, r2k: Optional[Key]) -> bool:
+    """Does issue(s) follow rc, the completion of the receive that would take s, in the
+    observed graph by a path that an alternative giving s to that receive keeps? r2k is the
+    receive that took s in the run, if any. The alternative drops the observed graph's edges
+    of the pairs it changes, and of those only one matters here: the ready-send edge
+    issue(r2k) -> issue(s), which it replaces by one from the new receive. The others touch
+    a node that follows issue(s) or precedes rc, which no path from rc into issue(s) passes
+    (the graph is acyclic), or leave rc itself, at a blocking receive, for a node that the
+    alternative's horizon removes, so that the pruned pair loses its witness all the same
+    (docs/model.md, section 2, pruning). A path that counts therefore enters issue(s) by
+    program order."""
+    if not s.ready_mode or r2k is None:
+        return hb(rc, s.issue_node())
+    prev = (s.rank, s.idx - 1, "c")             # program-order predecessor of issue(s)
+    return s.idx > 0 and (prev == rc or hb(rc, prev))
 
 
 def _cidx(x) -> int:

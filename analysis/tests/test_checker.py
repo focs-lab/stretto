@@ -10,7 +10,7 @@ import unittest
 
 from stretto import dsl, explore, fast, trace as T, types
 from stretto.feasible import breakpoints
-from stretto.matching import Overlay, probe_candidates
+from stretto.matching import Overlay, build_graph, observed_hb, probe_candidates
 from stretto.report import _completion_alternatives
 from stretto.feasible import check, feasible_profile, observed_feasible_at, profile_summary
 from stretto.matching import candidates_full
@@ -628,6 +628,10 @@ class C_Kernel(unittest.TestCase):
                 1: [send(0, 1), send(0, 2)], 2: [send(0, 5)]})
         self._same(t)
 
+    def test_steal_of_a_ready_send(self):
+        for through_rank0 in (False, True):
+            self._same(ready_steal_trace(through_rank0))
+
 
 def fast_equals_generic(tc, t):
     """Every alternative of t judged by the fast checks and by the generic checker alike, at
@@ -1151,6 +1155,144 @@ class C_TwoChanges(unittest.TestCase):
         self.assertTrue(check(t, ks[0].M, ks[0].changed, None, "L1").feasible)
         rep = analyze(t, with_sp=False, changes=2)
         self.assertTrue([f for f in rep.findings if f.title.startswith("two changes")])
+
+
+def ready_steal_trace(through_rank0: bool = False):
+    """Rank 1 posts r = Irecv(ANY, tag 1), which takes rank 2's message, waits for it, then
+    posts r2 = Irecv(ANY, tag 1), which takes rank 0's ready send s. In the run s needs r2
+    posted, which follows r's wait. With through_rank0, rank 1 also sends x to rank 0 after
+    the wait, and rank 0 receives x before its ready send."""
+    r0, r1 = [send(1, 1, mode="rsend")], [irecv(T.ANY, 1, 10), wait((10, 2, 1))]
+    if through_rank0:
+        r0.insert(0, recv(1, 5, 1, 5))
+        r1.append(send(0, 5))
+    r1 += [irecv(T.ANY, 1, 11), wait((11, 0, 1))]
+    return mk({0: r0, 1: r1, 2: [send(1, 1)]})
+
+
+class C_PruneOnKeptEdges(unittest.TestCase):
+    """candidates_full prunes a head s of a wildcard receive r when the completion of r
+    reaches issue(s) in the observed graph. The path may not use an edge the alternative
+    removes: E8b's synthetic program 037 (experiments/e8_hb.py) lost a steal that the check
+    accepts and the explorer realises, because its only path entered issue(s) through the
+    ready-send edge from s's observed receive, which posts after r completes; the steal
+    gives s to r and replaces that edge by one from r. This is that shape, reduced."""
+
+    def test_steal_through_the_ready_edge_is_enumerated(self):
+        t = ready_steal_trace()
+        r, s = (1, 0), (0, 0)
+        self.assertEqual(t.observed, {r: (2, 0), (1, 1): s})
+        self.assertTrue(observed_hb(t)(t.recvs[r].complete_node(), t.sends[s].issue_node()))
+        for hb in (None, fast.Observed(t, None).reaches):
+            alts, pruned = candidates_full(t, hb)
+            self.assertIn((r, s, "steal"), [(a.recv, a.send, a.kind) for a in alts], pruned)
+        a = next(a for a in candidates_full(t)[0] if a.recv == r and a.send == s)
+        for B in (0, None):
+            v = check(t, a.M, a.changed, B, "L1")
+            self.assertTrue(v.feasible, f"B={B}: {v.reason}")
+        for generic in (False, True):
+            self.assertIn((r, s), [(f.recv, f.send) for f in analyze(t, with_sp=False, generic=generic).findings])
+        res = explore.explore(dsl.program_from_trace(t), None, force={r: s}, comms=t.comm_members)
+        self.assertTrue([o for o in res.outcomes if dict(o.matching).get(r) == s and "rsend-no-receive" not in o.error_kinds])
+        self.assertEqual(realised_but_pruned(t, 20000), [])
+        fast_equals_generic(self, t)
+        closure_equals_fixpoint(self, t)
+
+    def test_program_order_into_the_send_still_prunes(self):
+        """With rank 0 waiting for rank 1's message after r before its ready send, issue(s)
+        follows r's completion by program order: the pair stays pruned, and the steal it
+        would give has its witness cut by the horizon at every threshold."""
+        t = ready_steal_trace(through_rank0=True)
+        r, s = (1, 0), (0, 0)
+        for hb in (None, fast.Observed(t, None).reaches):
+            alts, pruned = candidates_full(t, hb)
+            self.assertNotIn((r, s), [(a.recv, a.send) for a in alts])
+            self.assertTrue(any("causally follows" in why for _, why in pruned), pruned)
+        M = Overlay(t.observed, {r: s}, [(1, 1)])
+        for B in breakpoints(t) + [None]:
+            self.assertEqual(check(t, M, {r}, B, "L1").reason, "witness cut by the horizon closure", f"B={B}")
+        self.assertEqual(realised_but_pruned(t, 20000), [])
+
+
+def realised_but_pruned(t, max_states: int):
+    """The kernel alternatives (steals and swaps) that candidates_full prunes, with the generic
+    graph or with the report's vector clocks, and that the explorer realises at B = inf as a
+    single change: every changed receive is posted inside the alternative's horizon and its
+    new message issued there (otherwise the trace does not determine the change, and the
+    check would reject it whatever the order), and some execution of the trace as a
+    straight-line program has every pair of the alternative that the horizon judges, with no
+    ready send issued while no receive for it is posted (the explorer's rsend-no-receive,
+    erroneous by MPI 4.1 section 3.4). Pairs
+    whose exploration exceeds max_states are left out, and so is a trace whose observed graph
+    is cyclic at B = inf: the model cannot realise its run at any threshold, the pruning's
+    argument (docs/model.md, section 2) needs the graph acyclic, and the report has no
+    vector clocks for it. (The explorer accepts a ready send while any receive that accepts
+    it is posted, the model only once the receive it is matched to is, so E6's generator
+    yields such traces.)"""
+    from stretto.horizon import compute_cut
+    if build_graph(t, t.observed, None, None).find_cycle() is not None:
+        return []
+    kept = [{(a.recv, a.send) for a in candidates_full(t, hb)[0]} for hb in (None, fast.Observed(t, None).reaches)]
+    prog, out = None, []
+    for a in candidates_full(t, lambda x, y: False)[0]:
+        if all((a.recv, a.send) in k for k in kept):
+            continue
+        issued: dict = {}
+        cut = compute_cut(t, a.M, set(a.changed), None, "L1", set(), {}, set(), issued, None)
+
+        def judged(rk) -> bool:
+            sk = a.M.get(rk)
+            return (t.recvs[rk].idx < cut[rk[0]] and sk is not None
+                    and (t.sends[sk].idx < cut[sk[0]] or issued.get(sk[0]) == t.sends[sk].idx))
+
+        if not all(judged(rk) for rk in a.changed):
+            continue
+        pairs = {rk: sk for rk, sk in a.M.items() if judged(rk)}
+        prog = prog or dsl.program_from_trace(t)
+        try:
+            res = explore.explore(prog, None, force={a.recv: a.send}, max_states=max_states, comms=t.comm_members)
+        except (explore.StateCapReached, explore.ExploreError):
+            continue
+        if any("rsend-no-receive" not in o.error_kinds and all(dict(o.matching).get(rk) == sk for rk, sk in pairs.items())
+               for o in res.outcomes):
+            out.append(a.describe(t))
+    return out
+
+
+class C_EnumerationComplete(unittest.TestCase):
+    """Every pair the explorer realises as a single change is enumerated (realised_but_pruned),
+    on the random programs of E6 (experiments/e6_checker_vs_explorer.py --synthetic: the same
+    generator, seed and share of programs with synchronous and ready sends interleaved with
+    receives and waits), the first PROGRAMS of them with a smaller state cap so that the test
+    stays fast. None of E6's 200 programs has a pair that the pruning lost before it set the
+    ready edge aside; of E8b's 100, all mixed, program 037 has one (C_PruneOnKeptEdges)."""
+    PROGRAMS, MAX_STATES = 40, 5000
+
+    def test_e6_programs(self):
+        rng = __import__("random").Random(20261016)
+        made = attempts = pruned = 0
+        while made < self.PROGRAMS and attempts < self.PROGRAMS * 20:
+            attempts += 1
+            nranks = rng.choice([3, 4, 4, 5])
+            prog, comms = dsl.random_matched_program(rng, nranks, mixed=rng.random() < 0.5)
+            try:
+                res = explore.explore(prog, None, comms=comms, max_states=self.MAX_STATES)
+            except (explore.StateCapReached, explore.ExploreError):
+                continue
+            done = [o for o in res.outcomes if o.kind == "done" and not o.leaked and not o.errors]
+            if not done:
+                continue
+            o = rng.choice(done)
+            t = T.Trace()
+            T._build(t, dsl.trace_from_execution(prog, dict(o.matching), comms))
+            if not any(r.wildcard for r in t.recvs.values()):
+                continue
+            made += 1
+            pruned += len(candidates_full(t)[1])
+            with self.subTest(program=made):
+                self.assertEqual(realised_but_pruned(t, self.MAX_STATES), [])
+        self.assertEqual(made, self.PROGRAMS)
+        self.assertGreater(pruned, 0)
 
 
 class C_BufferGuard(unittest.TestCase):
