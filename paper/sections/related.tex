@@ -23,25 +23,25 @@ over the horizon for the bug; the template covers locks under multicopy-atomic m
 message passing. Our witness is uniform over the programs consistent on $\Hpre$.
 
 \paragraph{Message races and reachability testing.} Race analysis of
-traces~\citep{tai97race} and reachability testing~\citep{lei06reachability} compute, from one
-trace of a message-passing program, the race set of each receive: the sends not causally after
+traces~\citep{tai97race} and reachability testing~\citep{lei06reachability} compute from one
+message-passing trace the race set of each receive: the sends not causally after
 it that are the earliest unconsumed message of their source, as our steals are. A race variant
 changes receives to members of their race sets and removes what a changed receive may
-control, which for blocking traffic corresponds to our horizon. Removing that part is what makes
+control, which for blocking traffic is our horizon. Removing it is what makes
 a variant feasible ``regardless of the program's control and data
-flow''~\citep[p.\,390]{lei06reachability}, and each variant is executed by prefix-based replay.
-The first paper of the line proves feasibility for the read--write sequences of shared
+flow''~\citep[p.\,390]{lei06reachability}, and each variant is run by prefix-based replay.
+The line's first paper proves feasibility for the read--write sequences of shared
 memory~\citep{hwang94apsec}; for message passing we found it asserted, not proved. The model has no
 nonblocking receives, probes, collectives or buffering threshold, and happens-before
 concurrency suffices there; for MPI it does not (\cref{sec:graph}). Trace race detection covers
 nonblocking operations~\citep{cypher95race} and first and unaffected
 races~\citep{netzer96msgrace,park04unaffected,park07mpirace}. The MAD
 environment computed the racing messages of MPI programs with the same one-per-source bound,
-cut the trace at the causal future of an exchanged message, and replayed the rest with the
+cut the trace at the causal future of an exchanged message, and replayed the rest with
 other wildcards pinned~\citep{kranzlmueller00thesis,kranzlmueller00mad}. For MPI's semantics,
 \tool proves the feasibility these works assert or test.
 
-\paragraph{Prediction for MPI.} Trace-based prediction of alternative matchings began with SMT
+\paragraph{Prediction for MPI\@.} Trace-based prediction of alternative matchings began with SMT
 encodings for MCAPI that search the arrival orders of a trace for assertion
 violations~\citep{elwakil10padtad,huang13ase}, a problem shown NP-complete~\citep{huang13ase},
 and with a predictor of orphaning deadlocks from one PMPI trace~\citep{sharma12maaped}.

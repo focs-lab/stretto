@@ -166,9 +166,9 @@ the prediction.
 \Ltwo twin finishes. The MBI races that \tool misses abort unless the payload, the sender's
 rank, is~3; the single path has no branch to reach the abort, and their \Ltwo twins, written
 knowing the labels, certify it (\cls{1e}) in every case. Without read bounds no corpus program has a contained deadlock
-(\cref{thm:l1dead}). With the bounds the static analysis computes from the sources, the
+(\cref{thm:l1dead}). With the bounds computed statically from the sources, the
 consequences of \nReadsMoved erroneous programs, \nReadsMovedClean with a clean run, move from
-\LoneSP to \Lone, through deadlocks contained in the longer horizon or witnesses that respect
+\LoneSP to \Lone, through deadlocks contained in the longer horizon or witnesses within
 the bounds (\cref{thm:firstread}); \Lone alone then scores F1 \nReadsFoneLOne instead of
 \nReadsFoneLOneBase, with \nReadsNewFP new false positives. The value-checking programs read
 the payload first and stay at \Ltwo.
@@ -188,6 +188,14 @@ events, and \AMGtime\,s for AMG with its \nAMGalts probe alternatives. On Nekbon
 communication suite, \NekRecords million records, it took \NekMinutes minutes and \NekGB\,GB,
 outside the timed leg, to check \nNekChecked receive alternatives, \nNekAlts of them accepted:
 about \NekPerAlt\,s per check against the whole graph (\cref{thm:cost}).
+Also outside it, from \nScaleNpMin to \nScaleNpMax processes (oversubscribed above 24
+hardware threads), AMG's analysis grows from \ScaleAMGSixteenTime\,s and \ScaleAMGSixteenGB\,GB to
+\ScaleAMGSixtyFourTime\,s and \ScaleAMGSixtyFourGB\,GB and its probe alternatives from
+\nScaleAMGSixteenProbeAlts to \nScaleAMGSixtyFourProbeAlts, each costing time about linear in the
+trace (\ScaleAMGSixteenPerAlt to \ScaleAMGSixtyFourPerAlt\,ms); HYPRE's grows from
+\ScaleHypreSixteenTime to \ScaleHypreSixtyFourTime\,s, LU's \ScaleLuTimeRatio-fold for a
+\ScaleLuRecordsRatio-fold trace. All \nScaleSample sampled replays and their controls matched
+their pins and finished.
 
 \subsection{RQ6: real applications}
 
@@ -222,11 +230,11 @@ fix, no trace has a cross alternative, and its same alternatives finish too:
 \nHypreFixedFourLocalFinish of \nHypreFixedFourLocalAlts on four processes and
 \nHypreFixedEightLocalFinish of \nHypreFixedEightLocalAlts on eight. Its other
 \nHypreFixedEightLocalOther replays and \nHypreFixedEightLocalControlsFailed controls, and the
-remaining replay of version~2.10.1, exited with status~15 without finishing; plain runs launched
+remaining replay of 2.10.1, exited with status~15 without finishing; plain runs launched
 the same way never did, their output was not kept, and we count them as neither hanging nor
 finishing.
 Stress testing never hit the hang: \nHypreStressRuns untraced runs of
-version~2.10.1, half of them with random delays, all finished. NINJA, built for this race,
+version~2.10.1, half with random delays, all finished. NINJA, built for this race,
 hangs it in \nNinjaHypreEightAppHangSetup of \nNinjaHypreEightAppRuns runs on eight processes
 in its application-centric mode and in \nNinjaHypreEightRandomShortHangSetup of
 \nNinjaHypreEightRandomShortRuns with 10\% of sends delayed by 50\,ms; on four processes only
@@ -314,27 +322,27 @@ hit: \nDealStressDelayChanged of \nDealStressDelayRuns runs with random delays p
 \paragraph{Wildcard-heavy correct code.} AMG's solver exchanges its matrix data with probes on
 any source. One traced run on eight processes, with \nAMGsends messages, \nAMGwild wildcard
 receives and \nAMGprobes probes, gives \nAMGalts probe alternatives and \nAMGrecvAlts
-same-shape receive alternatives. All of them are warnings or information, and none is a
-contained deadlock. The sample of RQ1 finished under every pin. In Nekbone, every finding is a \cls{1f} at the binary-tree reduction \texttt{gp2}, whose inner
+same-shape receive alternatives. All are warnings or information, none a
+contained deadlock. RQ1's sample finished under every pin. In Nekbone, every finding is a \cls{1f} at the binary-tree reduction \texttt{gp2}, whose inner
 nodes take their children's contributions with one tag from any source. Only the
 communication suite's timing test calls it; the solver sums with \mpicall{Allreduce}. The
 check accepts \nNekAlts alternatives there, the same four at each of the test's calls, and
-rejects \nNekRejected for a single reason: the
+rejects \nNekRejected for one reason: the
 other sender's next message with that tag is sent only after the receive completes, so no
-execution delivers it to that receive. Its sample in RQ1 finished under every pin as well.
+execution delivers it there. Its RQ1 sample finished under every pin too.
 
 \subsection{Threats to validity}
 
-All runs used one node, at the process counts given above, and the corpora's programs are
+All runs used one node and at most \nScaleNpMax processes, and the corpora's programs are
 small; the exhaustive comparison of RQ1 reaches \nEsixMaxEvents events. Of
 \cref{tab:rq2}'s runs only MBI's were repeated, without \MUST. The \Ltwo twins are
 written knowing the labels, and the HYPRE campaign replays only the probe whose tag the documented fix
-changed. \MUST sees a run of its own under MPICH, not the traced execution,
-and the harness's timeout decides what counts as a hang for both.
-Stress testing and NINJA ran at the default eager limits with one setting per mode; other
-settings or a lower limit may find more. The model assumes a
-complete trace of the modelled fragment (a call outside it restricts the report to observed
+changed. \MUST sees its own run under MPICH, not the traced one,
+and for both the harness's timeout decides what is a hang.
+Stress testing and NINJA ran at the default eager limits, one setting per mode; others
+or a lower limit may find more. The model assumes a
+complete trace of the modelled fragment (a call outside it limits the report to observed
 findings), one threshold for all standard sends of a run, and an angelic choice in
-\mpicall{Waitany}. The HYPRE campaign uses one input and two process counts, the MG campaign
-one class and one count, the deal.II campaign one test. We did not run MPI-PRV~\citep{yao26mpiprv}, which keeps every
+\mpicall{Waitany}. The HYPRE campaign uses one input and two process counts, MG's
+one class and one count, deal.II's one test. We did not run MPI-PRV~\citep{yao26mpiprv}, which keeps every
 wildcard match fixed.
