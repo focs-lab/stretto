@@ -35,7 +35,7 @@ class & level & meaning & counts as \\
 the changed pair alone. A count or type mismatch is an error whatever the program does
 next. The consequences that happen later, a message nobody receives or a deadlock,
 depend on what the changed rank does after its receive. The horizon deliberately removes
-exactly that part.
+exactly that part. Each finding therefore names the assumption it rests on.
 
 \subsection{Deadlocks inside the horizon}
 \label{sec:l1dead}
@@ -79,8 +79,12 @@ come from a rank of $D$ after its own $\kappa_j$ returned, which has not happene
 of $\kappa_i$ is cut, a program consistent on $\Hpre$ could issue a different call there, for
 instance a send that releases another rank of $D$. A wildcard receive belongs to a contained
 deadlock only if every rank of its communicator is in $D$ or terminates, because any other
-rank might still send. This is the analogue of sync-preserving deadlock
-prediction~\citep{tunc23spd} for message matching.
+rank might still send. The closest statement in shared memory is the theorem that
+deadlocked threads are stuck~\citep{kalhauge18sound}. Sync-preserving deadlock
+prediction~\citep{tunc23spd} characterises deadlocks by a closure but never changes a
+read, and for Go channels a replay that is completely stuck implies a deadlock with every
+partner fixed~\citep{sulzmann18go}. Here the deadlock follows a changed match, and an MPI
+deadlock is the absence of any future partner, hence \ref{D:closed}.
 
 By \ref{D:changed}, a contained deadlock never needs the changed rank's continuation. A
 blocking changed receive is the last record of its rank in $\Hpre$, so a rank that waits on
@@ -100,8 +104,16 @@ looks for contained deadlocks only after nonblocking changed receives.
 \subsection{Single-path consequences}
 
 Most deadlocks and orphans an alternative causes do involve the changed rank. Earlier
-predictors handle them by assuming that every rank issues the recorded calls whatever
-it receives~\citep{forejt17mopper,huang20ase}. In our terms, they analyse $\SP(\trace)$.
+predictors handle them by stating their guarantees for single-path programs, which issue
+the same calls whatever they receive and, in MOPPER's definition, from whichever
+sender~\citep{forejt17mopper,huang20ase}. In our terms, they analyse $\SP(\trace)$. The
+restriction is stated, and its limits are known: an early MPI predictor named programs that
+decode the status object unsupported~\citep{sharma12maaped}, racing-message testing assumed
+that a race cannot change a process's future communication~\citep{kilgore97racing}, a Go
+analysis models runs as straight-line code~\citep{sulzmann17hvc}, and Hermes replaces the
+restriction by recorded path conditions~\citep{khanna18hermes}. In shared memory, symbolic
+prediction keeps the recorded branch conditions~\citep{wang09ctp}, and deadlock prediction
+that ignores data flow is unsound~\citep{kalhauge18sound}.
 At level \LoneSP, \tool explores $\SP(\trace)$ exhaustively with the changed match forced,
 using a persistent-set reduction in which only wildcard matches and \mpicall{Waitany}
 choices branch. It compares the outcomes with the unforced exploration, so that a hang
@@ -121,8 +133,11 @@ that terminates.
 Let $\prog_2$ be the real program, which replies to \texttt{status.MPI\_SOURCE}, and let
 $\prog_1=\SP(\trace)$, which replies to the recorded destination. Both are consistent
 with the recorded run. Under the alternative, $\SP(\trace)$ deadlocks and the real program
-does not. A \LoneSP finding is therefore a claim about the recorded call sequence, not
-about the program, and \tool labels it as such.
+does not. The lemma is narrow, and that is its point: the master depends on no payload and
+takes no branch, only a destination from the status, which a definition of single path as
+``does not decode messages for control flow''~\citep{huang23tpds} does not exclude. A
+\LoneSP finding is therefore a claim about the recorded call sequence, not about the
+program, and \tool labels it as such.
 
 \subsection{Skeletons}
 
@@ -130,15 +145,22 @@ Level \Ltwo replaces $\SP(\trace)$ by a \emph{twin}: the recorded program with i
 dependencies on message metadata made explicit. A destination can be computed from
 \texttt{MPI\_SOURCE}. A branch can guard a collective. A payload can mirror the sender's
 rank. The explorer over the twin decides \cls{1c}, \cls{1d} and \cls{1e} for programs
-that agree with the twin. Twins are written by hand in this paper. A static check that a
+that agree with the twin. A twin plays the role of the branch events of
+RVPredict~\citep{huang14rvpredict} and of the recorded guards of symbolic predictive
+analysis~\citep{wang09ctp}, which a trace of MPI calls lacks. Twins are written by hand here;
+the artifact prototypes building them by re-executing one rank on the recorded results. A
+static check that a
 continuation does not depend on message metadata would make \LoneSP findings sound where it
-passes; we leave it to future work.
+passes; static dependence analysis already relaxes value constraints in maximal causality
+reduction~\citep{huang17mcrsdg}. We leave such a check to future work.
 
 \subsection{Confirmation by replay}
 \label{sec:replay}
 
 A theorem certifies the model; the tool can still diverge from it. Every receive and
-probe finding therefore carries a pin. A pin names, per rank, a wildcard receive or probe by
+probe finding therefore carries a pin. Forcing a predicted match in a re-execution is
+standard (\cref{sec:related}); what is specific here is which operations are pinned and when
+a forced run counts as a confirmation. A pin names, per rank, a wildcard receive or probe by
 its ordinal and the sender it must take. The replay library rewrites that operation's source
 before the call, translating world ranks into its communicator. After the operation
 completes, it logs the source it actually matched or reported. Pinning only the changed
