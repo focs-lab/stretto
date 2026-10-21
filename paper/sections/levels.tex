@@ -25,6 +25,7 @@ class & level & meaning & counts as \\
 \cls{2-buffering} & observed & the recorded run is not realisable at $\Bt=0$ & error \\
 \cls{2-collective} & observed & ranks disagree on a collective & error \\
 \cls{2-blocked} & observed & the run ended with a rank blocked or spinning & error \\
+\cls{2-ready} & observed & a ready send was started before its receive was posted & error \\
 \cls{3-local} & observed & the run touched a buffer a pending operation owns (buffer guard) & error \\
 \cls{probe-alt} & \Lone & a wildcard probe could have reported another message & warning \\
 \cls{waitany-order} & \Lone & another request could have completed first & warning \\

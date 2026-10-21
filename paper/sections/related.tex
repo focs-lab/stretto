@@ -100,15 +100,15 @@ testing and MAD replay a prefix with the other wildcards pinned, ISP and DAMPI r
 receives into specific ones~\citep{gopalakrishnan11cacm}, MOPPER can rerun a predicted matching
 under ISP~\citep{forejt17mopper}, and MPIWiz~\citep{xue09mpiwiz} and record and
 replay~\citep{netzer92replay,sato15rempi} reproduce recorded sources. Specific to \tool are pins
-from a certificate whose horizon also follows rendezvous and ordering dependences, a log of each
-pinned match, a control replay that must finish, and confirmation per buffering threshold.
+over a horizon that follows rendezvous and ordering dependences, a log of each
+pinned match, a control replay that must finish, and confirmation per threshold.
 
 \paragraph{Runtime checkers and benchmarks.} \MUST~\citep{hilbrich12must} checks the observed
 run online for argument, resource and type errors and for deadlocks. It treats standard sends
-as unbuffered, and when a run stalls at a pending wildcard receive it tries that receive's
-other matching sends. Since version 1.10 it checks MPI buffers through
+as unbuffered and, when a run stalls at a wildcard receive, tries its other matching sends.
+Since version 1.10 it checks MPI buffers through
 ThreadSanitizer~\citep{jenke23tsanfibers}. PARCOACH~\citep{saillard14parcoach} checks
-collective ordering statically and dynamically. NINJA~\citep{sato17ninja} injects network
-noise to make message races manifest and reproduced the HYPRE race that we predict;
+collective ordering. NINJA~\citep{sato17ninja} injects network
+noise to expose message races and reproduced the HYPRE race we predict;
 \cref{sec:eval} compares \tool with \MUST and NINJA. MBI~\citep{laurent21mbi} and
 \MBB~\citep{jammer24mbb} are the standard corpora.
