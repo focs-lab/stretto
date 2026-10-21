@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="476" viewBox="0 0 960 476" role="img" aria-label="One program, two runs: in run A rank 1's message reaches the wildcard receive first and the program finishes; in run B rank 2's message is taken by the wildcard receive, the receive from rank 2 waits forever and rank 1's message is lost. Stretto reads run A and predicts run B.">
+  <defs>
+    <marker id="ab" orient="auto" markerWidth="8" markerHeight="8" refX="6" refY="4"><path d="M0 0 L8 4 L0 8 Z" fill="#1F5FA8"/></marker>
+    <marker id="ao" orient="auto" markerWidth="8" markerHeight="8" refX="6" refY="4"><path d="M0 0 L8 4 L0 8 Z" fill="#E8873A"/></marker>
+  </defs>
+  <g font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+    <rect x="1" y="1" width="958" height="474" rx="16" fill="#F7F5F0" stroke="#E2DDD2" stroke-width="2"/>
+    <rect x="20" y="18" width="920" height="46" rx="10" fill="#14213D"/>
+    <g font-family="'SFMono-Regular', Menlo, Consolas, monospace" font-size="16" fill="#F7F5F0">
+      <text x="44" y="47">rank 0: recv(ANY); recv(from 2)</text>
+      <text x="420" y="47">rank 1: send(to 0)</text>
+      <text x="660" y="47">rank 2: send(to 0)</text>
+    </g>
+
+    <!-- run A: the recorded run -->
+    <rect x="20" y="82" width="450" height="320" rx="14" fill="#FFFDF8" stroke="#E2DDD2" stroke-width="2"/>
+    <text x="40" y="116" font-size="19" font-weight="600" fill="#1F5FA8">Run A · the recorded run: finishes</text>
+    <g font-family="'SFMono-Regular', Menlo, Consolas, monospace" font-size="14" fill="#14213D">
+      <text x="38" y="196">rank 0</text><text x="38" y="286">rank 1</text><text x="38" y="376">rank 2</text>
+    </g>
+    <line x1="110" y1="191" x2="430" y2="191" stroke="#9AA3B2" stroke-width="3" stroke-linecap="round"/>
+    <line x1="110" y1="281" x2="450" y2="281" stroke="#9AA3B2" stroke-width="3" stroke-linecap="round"/>
+    <line x1="110" y1="371" x2="450" y2="371" stroke="#9AA3B2" stroke-width="3" stroke-linecap="round"/>
+    <path d="M168 281 L222 202" stroke="#1F5FA8" stroke-width="3" fill="none" marker-end="url(#ab)"/>
+    <path d="M150 371 L342 202" stroke="#1F5FA8" stroke-width="3" fill="none" marker-end="url(#ab)"/>
+    <circle cx="168" cy="281" r="7" fill="#1F5FA8"/><circle cx="150" cy="371" r="7" fill="#1F5FA8"/>
+    <circle cx="230" cy="191" r="9" fill="#FFFDF8" stroke="#E8873A" stroke-width="4"/>
+    <circle cx="350" cy="191" r="7" fill="#1F5FA8"/>
+    <g font-family="'SFMono-Regular', Menlo, Consolas, monospace" font-size="14">
+      <text x="230" y="166" text-anchor="middle" fill="#B4561A">recv(ANY)</text>
+      <text x="350" y="166" text-anchor="middle" fill="#1F5FA8">recv(2)</text>
+    </g>
+    <circle cx="442" cy="191" r="13" fill="#1F5FA8"/>
+    <path d="M435 191 L440 197 L450 185" stroke="#FFFDF8" stroke-width="3" fill="none" stroke-linecap="round"/>
+
+    <!-- run B: the alternative Stretto predicts -->
+    <rect x="490" y="82" width="450" height="320" rx="14" fill="#FFFDF8" stroke="#E8873A" stroke-width="2"/>
+    <text x="510" y="116" font-size="19" font-weight="600" fill="#B4561A">Run B · predicted from run A: hangs</text>
+    <g font-family="'SFMono-Regular', Menlo, Consolas, monospace" font-size="14" fill="#14213D">
+      <text x="508" y="196">rank 0</text><text x="508" y="286">rank 1</text><text x="508" y="376">rank 2</text>
+    </g>
+    <line x1="580" y1="191" x2="820" y2="191" stroke="#9AA3B2" stroke-width="3" stroke-linecap="round"/>
+    <line x1="820" y1="191" x2="920" y2="191" stroke="#E8873A" stroke-width="8" stroke-linecap="round"/>
+    <line x1="580" y1="281" x2="920" y2="281" stroke="#9AA3B2" stroke-width="3" stroke-linecap="round"/>
+    <line x1="580" y1="371" x2="920" y2="371" stroke="#9AA3B2" stroke-width="3" stroke-linecap="round"/>
+    <path d="M620 371 L693 203" stroke="#E8873A" stroke-width="3" fill="none" marker-end="url(#ao)"/>
+    <path d="M638 281 L760 226" stroke="#E8873A" stroke-width="3" stroke-dasharray="9 7" fill="none" marker-end="url(#ao)"/>
+    <circle cx="638" cy="281" r="7" fill="#1F5FA8"/><circle cx="620" cy="371" r="7" fill="#1F5FA8"/>
+    <circle cx="700" cy="191" r="9" fill="#FFFDF8" stroke="#E8873A" stroke-width="4"/>
+    <circle cx="820" cy="191" r="10" fill="#FFFDF8" stroke="#B4561A" stroke-width="4"/>
+    <g font-family="'SFMono-Regular', Menlo, Consolas, monospace" font-size="14">
+      <text x="700" y="166" text-anchor="middle" fill="#B4561A">recv(ANY)</text>
+      <text x="840" y="166" text-anchor="middle" fill="#B4561A">recv(2): blocked</text>
+    </g>
+    <text x="772" y="236" font-size="14" fill="#B4561A"><tspan x="772">rank 1's message:</tspan><tspan x="772" dy="18">never received</tspan></text>
+
+    <text x="480" y="432" font-size="17" fill="#3F4A5C" text-anchor="middle">A tool that watches run A sees nothing wrong.</text>
+    <text x="480" y="456" font-size="17" font-weight="700" fill="#14213D" text-anchor="middle">Stretto reads run A and predicts run B.</text>
+  </g>
+</svg>

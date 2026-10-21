@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""Compose docs/results.md from the experiment CSVs, and the paper's numbers
+"""Compose docs/results.md from the experiment CSVs, the paper's numbers
 (paper/generated/numbers.tex, one macro per number, and paper/generated/rq2.tex, the body of
-the effectiveness table). Re-run after any experiment."""
+the effectiveness table), and the README's results with their charts (experiments/figures.py).
+Re-run after any experiment."""
 from __future__ import annotations
 import collections
 import csv
@@ -15,6 +16,8 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 RES = os.path.join(ROOT, "experiments", "results")
 sys.path.insert(0, os.path.join(ROOT, "experiments", "mbi"))
 import score  # noqa: E402  (the one definition of verdicts)
+sys.path.insert(0, os.path.join(ROOT, "experiments"))
+import figures  # noqa: E402  (the README's charts and results block)
 
 rows = score.rows
 NUM: dict = {}       # macro name -> text, written to paper/generated/numbers.tex
@@ -694,6 +697,7 @@ def main():
     open(path, "w").write("\n".join(doc))
     print("wrote", path)
     write_paper_numbers()
+    figures.readme(ROOT, NUM)
 
 
 if __name__ == "__main__":
