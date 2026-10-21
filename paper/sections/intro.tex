@@ -108,11 +108,11 @@ skeleton of the program's dependence on message metadata.
   alternative for bounded ranks and tags (\cref{thm:cost}), and a replay library whose pins
   cover the horizon, whose log shows that each forced match happened, and whose confirmations
   need a control replay.
-\item An evaluation on the MPI Bugs Initiative and \MBB against \MUST and against repeated
-  randomised runs, a differential check of soundness against an exhaustive explorer, and
+\item An evaluation on the MPI Bugs Initiative and \MBB against \MUST, repeated randomised runs
+  and noise injection, a differential check of soundness against an exhaustive explorer, and
   real applications. On \nMBIprogs MBI programs about matching, \tool finds \nMBItpunion of
   the \nMBIerrors labelled errors with no false error report (F1 \MBIfoneunion, against
-  \MBIfoneMUST for \MUST and \MBIfonestress for randomised runs); randomised runs never expose
+  \MBIfoneMUST for \MUST and \MBIfonestress for randomised runs); neither those nor noise injection expose
   the \nMBItpPredBuf buffering thresholds among them. From single clean runs of HYPRE~2.10.1, \tool reports the ParaSails race as a probe
   alternative (\Lone), a warning, in \nHypreExposed of \nHypreTraced runs. Replayed at the
   probe whose tag the documented fix changed, all \nHypreCrossAlts such alternatives hang while their

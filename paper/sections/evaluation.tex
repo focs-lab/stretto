@@ -7,7 +7,7 @@ of each row. We ask six questions.
 \item[RQ1, soundness in practice.] Does the check ever accept an alternative that no
   execution realises, and does every replayed finding behave as predicted?
 \item[RQ2, effectiveness.] Which labelled bugs does \tool find from one run, compared
-  with \MUST on the same programs and with repeated randomised runs?
+  with \MUST, repeated randomised runs and noise injection?
 \item[RQ3, buffering.] How many recorded runs and alternatives depend on the threshold,
   and do the predicted thresholds hold on a real implementation?
 \item[RQ4, levels.] Where do \Lone, \LoneSP and \Ltwo disagree, and why?
@@ -25,10 +25,13 @@ Open MPI (\nMBBprogs; \nMBBnotBuilt partitioned-communication programs do not). 
 one run of each corpus program under Open MPI and analyses it. It traces the applications under
 MPICH, except AMG: Open MPI's Fortran bindings bypass the C profiling interface, and
 HYPRE~2.10.1 calls MPI-1 functions that Open MPI~4 removed. The first baseline is
-\MUST~1.9.2, run in \MBB's container with the same timeout; it rebuilds each program with
-MPICH, so it sees a run of its own. The second is stress testing: up to \nMBIStressRuns runs of
-each program with random delays of 0 to 50\,ms before the sends and receives of each rank,
-injected by the replay library, stopping at the first run that does not finish.
+\MUST~1.9.2, run in \MBB's container with the same timeout, and the current release~1.11.2
+in a copy of it; \MUST rebuilds each program with MPICH, so it sees a run of its own. The
+second is stress testing: up to \nMBIStressRuns runs of each program with random delays of 0
+to 50\,ms before the sends and receives of each rank, injected by the replay library, stopping
+at the first run that does not finish. The third is NINJA~\citep{sato17ninja}, which delays
+sends from a helper thread, with the same budget per setting; we repaired two defects of its v1.0.2, under
+which random noise delayed no send and Fortran programs crashed at start-up.
 
 \subsection{RQ1: soundness in practice}
 
@@ -89,7 +92,8 @@ The stress row covers the MBI programs only.}
 
 \Cref{tab:rq2} scores each program once. On MBI, \tool finds \nMBItpunion of the \nMBIerrors labelled errors
 with no false error report (F1 \MBIfoneunion), against \MBIfoneMUST and \MBIfoneMUSTsym for
-\MUST and \MBIfonestress for stress testing; its warnings, which do not count, fall on
+\MUST (1.11.2: \MBIfoneMUSTeleven and \MBIfoneMUSTelevensym, differing from 1.9.2 on message
+races, which \MUST judges in the run it sees) and \MBIfonestress for stress testing; its warnings, which do not count, fall on
 \nMBIcorrectWarned of the \nMBIcorrect correct programs. Neither half alone does it: the
 recorded run shows an error in \nMBItpobserved programs, and prediction adds \nMBItpPredOnly,
 \nMBItpPredBuf buffering thresholds and \nMBItpPredSP consequences under the single-path
@@ -112,7 +116,9 @@ them. \tool predicts each of them from one finished run, as realisable only from
 4~bytes. The replays of RQ3 confirm the threshold for the eight that send to another rank, so
 stress testing with a lower eager limit would expose those too. \MUST reports these programs
 as well, because it treats standard sends as unbuffered~\citep{hilbrich12must}; what \tool
-adds there is the threshold.
+adds there is the threshold. NINJA, in each of its three modes, makes exactly the errors
+fail that stress testing does (F1 \NinjaMBIRandomfone, \NinjaMBISystemfone and
+\NinjaMBIAppfone; its application-centric mode crashes on \nNinjaMBIAppFP correct programs).
 
 \MBB's errors show in the run itself: by design, the error of every incorrect program is
 expected to be observable~\citep{jammer24quality}, so a score on \MBB measures detection, not
@@ -123,7 +129,9 @@ correct-labelled gather and reduce programs whose runs Open MPI ends with \textt
 concurrency errors, a buffer reused while a nonblocking operation is pending, which a matching
 model does not see. With the buffer guard (\cref{sec:implementation}) the run
 itself shows \nMBBLCguard of the \nMBBLC and nothing else (F1 \MBBfoneguard), and under MPICH
-\nGuardLCMPICHfound of \nGuardLCMPICHbuilt; MBI's score does not change.
+\nGuardLCMPICHfound of \nGuardLCMPICHbuilt; MBI's score does not change. \MUST~1.11.2 with its
+ThreadSanitizer analysis~\citep{jenke23tsanfibers} finds \nTsanLCfound of these, none that the
+guard misses.
 
 \subsection{RQ3: buffering}
 
@@ -218,7 +226,12 @@ remaining replay of version~2.10.1, exited with status~15 without finishing; pla
 the same way never did, their output was not kept, and we count them as neither hanging nor
 finishing.
 Stress testing never hit the hang: \nHypreStressRuns untraced runs of
-version~2.10.1, half of them with random delays, all finished.
+version~2.10.1, half of them with random delays, all finished. NINJA, built for this race,
+hangs it in \nNinjaHypreEightAppHangSetup of \nNinjaHypreEightAppRuns runs on eight processes
+in its application-centric mode and in \nNinjaHypreEightRandomShortHangSetup of
+\nNinjaHypreEightRandomShortRuns with 10\% of sends delayed by 50\,ms; on four processes only
+random noise does (\nNinjaHypreFourRandomShortHangSetup of \nNinjaHypreFourRandomShortRuns),
+and never on 2.11.0.
 
 A trace has a cross alternative only if it recorded an order in which a neighbour could reach
 the next exchange while this rank still probes. The run finishes either way: the order is
@@ -284,7 +297,9 @@ the check of version~2.4.1, which accepts an absolute error of $10^{-8}$: most w
 pass it. \nMGControls controls finished, \nMGControlsSame of them with the residual of the
 traced run. Version~3.3.1 has no alternative in its \nMGFixedTraced traces. Random delays
 change the residual as well, in \nMGStressChanged of \nMGStressRuns untraced runs of
-version~2.4.1 on \nMGStressRanks processes, half of them delayed.
+version~2.4.1 on \nMGStressRanks processes, half of them delayed, and NINJA in
+\nNinjaMGSixteenRandomChanged (random noise) and \nNinjaMGSixteenAppChanged
+(application-centric) of \nNinjaMGSixteenRandomRuns runs on 16.
 
 \paragraph{A third documented bug.} deal.II~9.3.0-rc1's \texttt{RemotePointEvaluation} takes
 each call's messages with \mpicall{Probe} on \anysrc under one tag, and nothing separates two
@@ -316,8 +331,8 @@ small; the exhaustive comparison of RQ1 reaches \nEsixMaxEvents events. Of
 written knowing the labels, and the HYPRE campaign replays only the probe whose tag the documented fix
 changed. \MUST sees a run of its own under MPICH, not the traced execution,
 and the harness's timeout decides what counts as a hang for both.
-Stress testing used one delay distribution at Open MPI's default eager limit; another
-distribution, a lower limit or a noise-injection tool may find more. The model assumes a
+Stress testing and NINJA ran at the default eager limits with one setting per mode; other
+settings or a lower limit may find more. The model assumes a
 complete trace of the modelled fragment (a call outside it restricts the report to observed
 findings), one threshold for all standard sends of a run, and an angelic choice in
 \mpicall{Waitany}. The HYPRE campaign uses one input and two process counts, the MG campaign

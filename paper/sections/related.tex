@@ -69,15 +69,13 @@ CIVL~\citep{siegel15civl} verify symbolically. These tools pay for every competi
 give up completeness; we re-execute only to confirm. The stress baseline of \cref{sec:eval} follows
 randomised concurrency testing~\citep{wolff24rff,zhao25surw}.
 
-\paragraph{Complexity of message-passing consistency.} \citet{shi26popl} map the complexity
-of deciding whether an abstract execution of a channel-based program is consistent, with or
-without a fixed reads-from relation; our check is their VCh-rf problem for MPI's channels.
-Their hardness comes from channels with several producers and from count capacities, and MPI
-has neither: a queue has one producer per (source, destination, communicator), and blocking
-is a per-message threshold. Given the whole matching, every constraint is a conjunction and
-the check an acyclicity test, for mixed eager and rendezvous traffic too; in shared memory
-keeping a read's writer is a disjunction, and predicting a race that needs one reversed
-critical section is W[1]-hard~\citep{mathur21syncp}.
+\paragraph{Complexity of message-passing consistency.} Our check is the VCh-rf problem
+of \citet{shi26popl} for MPI's channels. Their hardness comes from channels with several
+producers and from count capacities; an MPI queue has one producer per (source, destination,
+communicator) and blocking is a per-message threshold, so given the whole matching every
+constraint is a conjunction and the check an acyclicity test. In shared memory keeping a read's
+writer is a disjunction, and predicting a race that needs one reversed critical section is
+W[1]-hard~\citep{mathur21syncp}.
 
 \paragraph{Buffering.} Slack elasticity holds for deterministic programs~\citep{manohar98slack}.
 For MPI programs with wildcards, adding buffering can add deadlocks, and neither zero nor
@@ -86,8 +84,7 @@ deadlock-free iff it is deadlock-free with zero buffering~\citep{siegel05ppopp,s
 Aislinn verifies programs under the eager and rendezvous threshold we
 model~\citep{bohm16aislinn}.
 
-\paragraph{Message passing beyond MPI\@.} Go channels and MPI matching are incomparable, and our
-results apply to their common fragment. Trace analyses of Go report alternative
+\paragraph{Message passing beyond MPI\@.} Trace analyses of Go report alternative
 communications under a straight-line model~\citep{sulzmann17hvc} or by vector
 clocks~\citep{sulzmann18go}, and AdvocateGo replays alternative partners found by
 happens-before~\citep{advocatego}. Race variants for Erlang's selective
@@ -95,27 +92,23 @@ receive~\citep{vidal22racevariants} are our steal and horizon without blocking, 
 on non-redundancy; Bita~\citep{tasharofi13bita}, DCatch~\citep{liu17dcatch} and
 dl$^2$~\citep{gao25dl2} force, trigger or observe such bugs. None proves an alternative feasible.
 
-\paragraph{Confirmation by re-execution.} In shared memory, deadlocks are confirmed by controlled
-scheduling~\citep{bensalem06confirmation,joshi09deadlockfuzzer} and races by directed random
-testing~\citep{sen08racefuzzer}; PENELOPE replays the observed prefix exactly before forcing a
-violation~\citep{sorrentino10penelope}, ExceptioNULL re-executes every
-prediction~\citep{farzan12exceptionull}, and maximal causality reduction re-executes seed
-interleavings that force a read to a new value~\citep{huang15mcr}. In message passing,
-reachability testing replays a variant's prefix~\citep{lei06reachability}, the MAD debugger
-pins the wildcards outside the causal future of the exchange~\citep{kranzlmueller00thesis},
-ISP and DAMPI rewrite wildcard receives into specific ones~\citep{gopalakrishnan11cacm},
-MOPPER can rerun a predicted matching under ISP~\citep{forejt17mopper}, and
-MPIWiz~\citep{xue09mpiwiz} and record and replay~\citep{netzer92replay,sato15rempi} reproduce
-recorded sources. Specific to \tool are pins from a certificate whose horizon also follows
-rendezvous and ordering dependences, a log of each pinned match, a control replay that must
-finish, and confirmation per buffering threshold.
+\paragraph{Confirmation by re-execution.} In shared memory, predictions are confirmed by
+controlled scheduling~\citep{bensalem06confirmation,joshi09deadlockfuzzer}, directed random
+testing~\citep{sen08racefuzzer}, exact replay of the observed prefix~\citep{sorrentino10penelope}
+or re-execution~\citep{farzan12exceptionull,huang15mcr}. In message passing, reachability
+testing and MAD replay a prefix with the other wildcards pinned, ISP and DAMPI rewrite wildcard
+receives into specific ones~\citep{gopalakrishnan11cacm}, MOPPER can rerun a predicted matching
+under ISP~\citep{forejt17mopper}, and MPIWiz~\citep{xue09mpiwiz} and record and
+replay~\citep{netzer92replay,sato15rempi} reproduce recorded sources. Specific to \tool are pins
+from a certificate whose horizon also follows rendezvous and ordering dependences, a log of each
+pinned match, a control replay that must finish, and confirmation per buffering threshold.
 
 \paragraph{Runtime checkers and benchmarks.} \MUST~\citep{hilbrich12must} checks the observed
 run online for argument, resource and type errors and for deadlocks. It treats standard sends
 as unbuffered, and when a run stalls at a pending wildcard receive it tries that receive's
-other matching sends. Version 1.10, newer than the 1.9.2 we compare with, adds checks of MPI
-buffers through ThreadSanitizer~\citep{jenke23tsanfibers}. PARCOACH~\citep{saillard14parcoach}
-checks collective ordering statically and dynamically. NINJA~\citep{sato17ninja} injects
-network noise to make message races manifest, and reproduced the HYPRE race that we predict
-(\cref{sec:eval}); our stress baseline is in its spirit. MBI~\citep{laurent21mbi} and
+other matching sends. Since version 1.10 it checks MPI buffers through
+ThreadSanitizer~\citep{jenke23tsanfibers}. PARCOACH~\citep{saillard14parcoach} checks
+collective ordering statically and dynamically. NINJA~\citep{sato17ninja} injects network
+noise to make message races manifest and reproduced the HYPRE race that we predict;
+\cref{sec:eval} compares \tool with \MUST and NINJA. MBI~\citep{laurent21mbi} and
 \MBB~\citep{jammer24mbb} are the standard corpora.

@@ -3,14 +3,13 @@
 
 \paragraph{Limitations.} The model covers point-to-point communication, probes,
 completion calls and collectives by shape. RMA, neighbourhood collectives, partitioned
-communication and memory accesses are outside it. The optional guard reports buffer reuse
+communication and memory accesses are outside it; the optional guard reports buffer reuse
 during a nonblocking operation when the run does it.
 Under \texttt{MPI\_THREAD\_MULTIPLE} we report observed findings only. Read bounds need C
 sources; other consequences come from the single-path explorer, replays or twins.
 
-\paragraph{Conclusion.} One recorded run of an MPI program determines more than the run itself.
-Over the horizon, an alternative matching is feasible iff a constraint graph with match nodes
-is acyclic, and up to the first read of a changed result the recorded calls still hold. On
-MBI, \tool finds \nMBItpunion of \nMBIerrors labelled errors with no false error report, here
-and in \nRepsRuns repeated runs; from one clean run, forced alternatives expose a production
-race in HYPRE and documented bugs in NPB MG and deal.II.
+\paragraph{Conclusion.} One recorded run of an MPI program determines more than the run
+itself: over the horizon, an alternative matching is feasible iff a constraint graph with match
+nodes is acyclic, and up to the first read of a changed result the recorded calls still hold.
+From single clean runs, forced alternatives expose a production race in HYPRE and documented
+bugs in NPB MG and deal.II.
