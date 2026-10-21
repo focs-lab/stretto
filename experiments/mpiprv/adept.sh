@@ -85,16 +85,15 @@ step_summary() {
     for g in guard:src guard-fixed:fixed; do
         local name=${g%%:*} dir=${g#*:} t="$W/${g%%:*}.trace"
         cat "$t"/rank-*.jsonl | grep '"op":"guard"' > "$W/$name-records.jsonl"
-        echo "# $name: Adept Kernel MPI ($dir), -a overlapped $ARGS, 4 ranks, Stretto's tracer with STRETTO_GUARD=1; commit $COMMIT"
+        echo "# $name: Adept Kernel MPI ($dir), -a overlapped $ARGS, 4 ranks, Stretto's tracer with STRETTO_GUARD=1; run at $(sed -n 's/.*; commit \([^;]*\);.*/commit \1/p' "$LOG/$name.log" | head -1), summarised at commit $COMMIT"
         echo "# guard records: count, site (module+offset), function and source line (addr2line -f -i)"
-        grep -oE '"site":"[^"]+"' "$W/$name-records.jsonl" | sort | uniq -c | while read -r n s; do
-            s=${s#\"site\":\"}; s=${s%\"}
-            echo "$n $s $(addr2line -f -i -e "$W/$dir/kernel" "${s#*+}" 2>/dev/null | sed "s|$W/$dir/||" | paste -sd ' ')"
-        done
+        python3 experiments/mpiprv/adept.py --sites "$t" "$W/$dir/kernel"
         echo "# guard records by kind"
         grep -oE '"what":"[a-z]+"(,"req":[0-9]+)?(,"kind":"[a-z]+")?' "$W/$name-records.jsonl" | sed -E 's/,"req":[0-9]+//' | sort | uniq -c
-        echo "# stretto analyze --no-sp"
-        PYTHONPATH="$R/analysis" python3 -m stretto analyze --no-sp "$t" 2>&1 | head -40
+        echo "# stretto analyze --no-sp: the findings by class, then the first two"
+        PYTHONPATH="$R/analysis" python3 -m stretto analyze --no-sp "$t" > "$W/$name-report.txt" 2>&1
+        grep -oE "^\[ *[0-9a-z-]+ *\]" "$W/$name-report.txt" | tr -d "[] " | sort | uniq -c
+        head -9 "$W/$name-report.txt"
         echo
     done > "$RES/adept-guard.txt"
     python3 experiments/mpiprv/adept.py "$LOG" "$W" > "$RES/adept.csv"

@@ -11,12 +11,16 @@
   guard      the buffer guard's records (STRETTO_GUARD=1), by kind and by the operation that
              owns the buffer, read from the guard runs' traces
 
-usage: adept.py <log dir> <work dir with guard.trace/ and guard-fixed.trace/>  (CSV on stdout)"""
+A row's commit is the one its run's log names.
+
+usage: adept.py <log dir> <work dir with guard.trace/ and guard-fixed.trace/>  (CSV on stdout)
+       adept.py --sites <trace dir> <binary>   (the guard records by instruction and source line)"""
 import collections
 import hashlib
 import json
 import os
 import re
+import subprocess
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
@@ -83,28 +87,50 @@ def late_sends(ev):
     return after_marker, after_loop, total
 
 
-def guard_summary(tdir):
-    owner, recs = {}, []
+def records(tdir):
+    """(rank, record) of every rank file of a trace directory."""
     for f in sorted(os.listdir(tdir)) if os.path.isdir(tdir) else []:
         m = re.match(r"rank-(\d+)\.jsonl", f)
         if not m:
             continue
         for line in open(os.path.join(tdir, f)):
             try:
-                r = json.loads(line)
+                yield int(m.group(1)), json.loads(line)
             except ValueError:
                 continue
-            if r.get("op") == "guard":
-                recs.append((int(m.group(1)), r))
-            elif "req" in r and r.get("op") in ("isend", "irecv"):
-                owner.setdefault((int(m.group(1)), r["req"]), r["op"])
+
+
+def guard_summary(tdir):
+    """The guard records by kind and by the operation whose buffer they touched."""
+    owner, recs = {}, []
+    for rank, r in records(tdir):
+        if r.get("op") == "guard":
+            recs.append((rank, r))
+        elif "req" in r and r.get("op") in ("send", "irecv"):
+            owner.setdefault((rank, r["req"]), r.get("mode") or r["op"])
     c = collections.Counter()
     for rank, r in recs:
         c[f"{r.get('what')}:{r.get('kind', '-')}:{owner.get((rank, r.get('req')), '?')}"] += 1
     return len(recs), " ".join(f"{k}*{v}" for k, v in sorted(c.items()))
 
 
+def guard_sites(tdir, binary):
+    """The guard records by the instruction that made the access, with its function and source line."""
+    where, c = {}, collections.Counter()
+    for rank, r in records(tdir):
+        if r.get("op") == "site":
+            where[(rank, r["id"])] = (os.path.basename(r["obj"]), r["addr"] - r["base"])
+        elif r.get("op") == "guard":
+            c[where.get((rank, r.get("site")), ("?", 0))] += 1
+    for (obj, off), n in sorted(c.items()):
+        a2l = subprocess.run(["addr2line", "-f", "-i", "-e", binary, hex(off)], capture_output=True, text=True).stdout
+        line = " ".join(x.split("/")[-1] for x in a2l.split())
+        print(f"{n} {obj}+{off:#x} {line}")
+
+
 def main():
+    if sys.argv[1] == "--sites":
+        return guard_sites(sys.argv[2], sys.argv[3])
     logs, work = sys.argv[1], sys.argv[2]
     ref = None
     print("run,command,rc,duration_s,ranks_hashed,result_id,same_result_as_normal,"
@@ -121,8 +147,9 @@ def main():
         am, al, total = late_sends(ev) if ev else ("-", "-", "-")
         g, gk = guard_summary(os.path.join(work, name + ".trace")) if name.startswith("guard") else ("-", "")
         cmd = head.split(";")[0].split(": ", 1)[-1].replace(",", " ")
+        m = re.search(r"; commit (\S+);", head)       # the commit the run was made with
         print(f"{name},\"{cmd}\",{rc},{dur},{len(hashes)},{rid},{same},{am},{al},{total},{g},\"{gk}\","
-              f"{provenance.code_commit()}")
+              f"{m.group(1) if m else provenance.code_commit()}")
 
 
 if __name__ == "__main__":
