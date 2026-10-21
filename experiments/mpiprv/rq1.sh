@@ -69,14 +69,14 @@ step_rq2() {
     # /usr/bin/time), plus what those scripts drop: whether the pattern was reported. Their
     # table writes the result column as a constant.
     local B=/home/ubuntu/RQ2-3
-    echo "app,np,pattern,events,result,matched,analysis_s,peak_kb,artifact_events,artifact_s,artifact_result,commit" > "$OUT/rq2.csv"
+    echo "app,np,pattern,events,absent,result,matched,analysis_s,peak_kb,artifact_events,artifact_s,artifact_result,commit" > "$OUT/rq2.csv"
     : > "$OUT/rq2.log"
     for d in DTG integrate diffusion2d Gauss_elim image-manip Congrad poisson_mpi Heat adept-kernel-mpi kf-ray/src \
              clustalW ParMETIS/build/Linux-x86_64/programs MiniAMR/ref; do
         local dir="$B/MPIBenchmark/$d" app=${d%%/*}
         local pat; pat=$(sed -n 's/^Pattern : {\(.*\)}/\1/p' "$dir/MPIaspect/Pattern.txt" | tr ',' ' ')
         for np in $(sed -n 's/^PROCESS_LIST=(\([^)]*\)).*/\1/p' "$dir/testMPIPRV-all.sh"); do
-            [ -f "$dir/output-$np.txt" ] || { echo "$app,$np,$pat,,missing trace,,,,,,,$COMMIT" >> "$OUT/rq2.csv"; continue; }
+            [ -f "$dir/output-$np.txt" ] || { echo "$app,$np,$pat,,,missing trace,,,,,,,$COMMIT" >> "$OUT/rq2.csv"; continue; }
             (cd "$dir" && /usr/bin/time -f "TIME %e %M" MPI-PRV -trace "output-$np.txt" -pattern ./MPIaspect/Pattern.txt -np "$np") > "$W.rq2" 2>&1
             { echo "### $app $np"; grep -v '^$' "$W.rq2" | tail -6; } >> "$OUT/rq2.log"
             local res=none m="" t k ev
@@ -84,8 +84,10 @@ step_rq2() {
             grep -q "Pattern Not Matched!" "$W.rq2" || [ $res = matched ] || res=error
             read -r t k < <(sed -n 's/^TIME //p' "$W.rq2")
             ev=$(grep -c '^event' "$dir/output-$np.txt")
+            # the pattern's events that never occur in the trace: then nothing can match
+            local absent="" e; for e in $pat; do grep -q "^event: {$e," "$dir/output-$np.txt" || absent="$absent $e"; done
             local art; art=$(grep "^$app,$np," "$B/MPIPRV_result.csv" | head -1 | awk -F, '{print $6 "," $3 "," $7}')
-            echo "$app,$np,$pat,$ev,$res,\"$m\",$t,$k,${art:-,,},$COMMIT" >> "$OUT/rq2.csv"
+            echo "$app,$np,$pat,$ev,${absent# },$res,\"$m\",$t,$k,${art:-,,},$COMMIT" >> "$OUT/rq2.csv"
         done
     done
 }
