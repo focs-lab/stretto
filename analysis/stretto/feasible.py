@@ -93,7 +93,9 @@ def check(t: Trace, M: Dict[Key, Key], changed, B: Optional[int], mode: str = "L
 
 def observed_feasible_at(t: Trace, B: Optional[int], strong_only: bool = True) -> Verdict:
     """Is the observed matching itself realisable under buffering threshold B? A cycle
-    (over guaranteed edges only) means: with eager limit <= B the same run deadlocks."""
+    over guaranteed edges only (strong_only) means: with eager limit <= B the same run
+    deadlocks. Over every edge, which adds the probes' reports and collectives of unknown
+    shape, the least such B is B0 of theorem T2, where the profiles start."""
     return check(t, t.observed, set(), B, mode="SP", strong_only=strong_only)
 
 

@@ -13,7 +13,8 @@ Every cut descends from the changed receives, so a contained deadlock needs a ch
 that stops *before* its changed receive completes: a nonblocking wildcard receive whose rank
 then blocks on another operation before the wait. A blocking changed receive cuts its rank by
 rule 1 right after it, and every rank that waits on that rank waits on an unknown
-continuation.
+continuation. This holds from B0 on, where the report looks (proof appendix, the proposition
+on contained deadlocks): below B0 a send that no receive accepts can block on its own.
 """
 from __future__ import annotations
 from typing import Dict, List, Optional, Set, Tuple

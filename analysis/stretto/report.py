@@ -216,11 +216,22 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
     # ---- family 2: is the observed run itself buffering-dependent?
     prof_obs = pr.obs
     minB_obs, at_inf, _ = profile_summary(prof_obs)
-    # thresholds at which the observed run is realisable: an alternative's interval is stated
-    # over these, so that a deadlock of unrelated ranks at small B (which the whole-prefix
-    # acyclicity check sees) is not mistaken for a property of the alternative
-    realisable = {B for B, ok in prof_obs.items() if ok} or set(prof_obs)
-    unrealisable = sorted((B for B in prof_obs if B not in realisable), key=lambda B: (B is None, B))
+    # thresholds at which the observed run is realisable over every edge (from B0 of theorem
+    # T2 on): an alternative's interval is stated over these, so that a deadlock of unrelated
+    # ranks at small B (which the whole-prefix acyclicity check sees) is not mistaken for a
+    # property of the alternative
+    realisable = {B for B, ok in pr.real.items() if ok} or set(pr.real)
+    unrealisable = sorted((B for B in pr.real if B not in realisable), key=lambda B: (B is None, B))
+    deadlocked = [B for B in unrealisable if not prof_obs.get(B, False)]
+    ordered = [B for B in unrealisable if prof_obs.get(B, False)]
+    if ordered:
+        rep.notes.append("the observed run is realisable only from B=" + _fmt_B(min(realisable, key=lambda B: (B is None, B)))
+                         + " when its probes report what they reported and collectives of unknown shape synchronise: "
+                         "below that it need not deadlock, and no interval is stated at B in "
+                         + ",".join(_fmt_B(B) for B in ordered))
+    elif not any(pr.real.values()) and any(prof_obs.values()):
+        rep.notes.append("the observed run is realisable at no B when its probes report what they reported and "
+                         "collectives of unknown shape synchronise: intervals are stated without theorem T2's hypothesis")
     if not at_inf:
         rep.findings.append(Finding("2", "2-buffering", "observed",
                                     "observed matching infeasible even with infinite buffering (trace inconsistent or unsupported operations)"))
@@ -247,9 +258,12 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
         cls, why = classify(r, s, s_obs)
         details = [why,
                    f"L1: the continuation of rank {r.rank} after {r} is undetermined by the trace (horizon)"]
-        if unrealisable:
+        if deadlocked:
             details.append("thresholds at which the observed run itself deadlocks are left out: B in "
-                           + ",".join(_fmt_B(B) for B in unrealisable) + " (see 2-buffering)")
+                           + ",".join(_fmt_B(B) for B in deadlocked) + " (see 2-buffering)")
+        if ordered:
+            details.append("thresholds at which the observed run is not realisable are left out: B in "
+                           + ",".join(_fmt_B(B) for B in ordered) + " (see the notes)")
         if alt.kind == "swap":
             details.append(f"swap variant: {t.recvs[alt.stolen_from]} then takes {s_obs}; certified at L1 only up to the first changed receive")
         elif alt.stolen_from is not None:
@@ -479,7 +493,7 @@ def _completion_alternatives(t: Trace, hb) -> List[Tuple]:
 
 @dataclass
 class _Profiles:
-    obs: Dict[Optional[int], bool]
+    obs: Dict[Optional[int], bool]                 # the observed run over guaranteed edges (2-buffering)
     obs0: object                                   # Verdict of the observed run at B = 0
     alt: List[Dict[Optional[int], bool]]
     alt_reason: List[str]                          # why rejected at B = inf
@@ -488,6 +502,10 @@ class _Profiles:
     wait: List[Dict[Optional[int], bool]]
     wait_reason: List[str]
     notes: List[str] = field(default_factory=list)  # profiles that had to be judged in full
+    # the observed run over every edge: realisable from B0 of theorem T2 on, where the
+    # profiles start (a probe's report or a collective of unknown shape can raise B0 above
+    # the threshold below which the run certainly deadlocks)
+    real: Dict[Optional[int], bool] = field(default_factory=dict)
 
 
 CONFIRM_LIMIT = 200_000     # records up to which the generic check confirms the fast check's cycle rejections
@@ -563,7 +581,8 @@ def _profiles_fast(t: Trace, alts, probes, waits, full: bool = False) -> _Profil
     pr = _Profiles({}, None, [dict() for _ in alts], [""] * len(alts), [dict() for _ in probes], [""] * len(probes),
                    [dict() for _ in waits], [""] * len(waits))
     pr.obs0 = profile(pr.obs, lambda B: at(B).observed_verdict(), lambda v: v.ok, "the observed run")[0]
-    floor = observed_floor(bps, pr.obs)
+    profile(pr.real, lambda B: at(B).observed_verdict(strong=False), lambda v: v.ok, "the observed run over every edge")
+    floor = observed_floor(bps, pr.real)
     for i, a in enumerate(alts):
         def alt_at(B, a=a):
             fv = at(B).check_alternative(a)
@@ -615,9 +634,10 @@ def _profiles_generic(t: Trace, alts, probes, waits) -> _Profiles:
     """The generic checker (feasible.check), profiling each item from the observed run's
     threshold B0 to infinity and bisecting between them (T2); swaps in full."""
     pr = _Profiles(feasible_profile(t, t.observed, set(), mode="SP", full=False, strong_only=True),
-                   observed_feasible_at(t, 0), [], [], [], [], [], [])
+                   observed_feasible_at(t, 0), [], [], [], [], [], [],
+                   real=feasible_profile(t, t.observed, set(), mode="SP", full=False))
     bps = breakpoints(t) + [None]
-    B0 = bps[observed_floor(bps, pr.obs)]
+    B0 = bps[observed_floor(bps, pr.real)]
     for a in alts:
         pr.alt.append(feasible_profile(t, a.M, a.changed, mode="L1", full=not (a.kind == "steal" and t.recvs[a.recv].blocking), floor=B0))
         pr.alt_reason.append(check(t, a.M, a.changed, None, "L1").reason)

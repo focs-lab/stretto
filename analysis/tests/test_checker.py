@@ -836,6 +836,32 @@ class C_MonotoneAboveB0(unittest.TestCase):
         self.assertEqual(f.B, "any B")
         self.assertTrue(any("left out: B in 0,4,148" in d for d in f.detail), f.detail)
 
+    def test_probe_report_raises_the_floor(self):
+        """B0 is taken over every edge of the observed graph, the probes' reports included,
+        and not over the guaranteed edges that decide 2-buffering (proof appendix,
+        conventions). Rank 0 probes for rank 1's tag-2 message, then receives rank 1's
+        400-byte tag-1 message and the probed one. Below 400 bytes the tag-1 send waits for
+        a receive posted after the probe returns, and the probe needs the tag-2 message
+        that follows that send: the recorded run is realisable only from 400 on. Without
+        the probe's report it need not deadlock, so there is no 2-buffering finding, but
+        the race on rank 2 is stated from 400 on, where theorem T2 holds."""
+        pr = {"op": "probe", "kind": "probe", "src": 1, "tag": 2, "comm": 0, "flag": 1, "msrc": 1, "mtag": 2}
+        t = mk({0: [pr, recv(1, 1, 1, 1, count=100), recv(1, 2, 1, 2)],
+                1: [send(0, 1, count=100), send(0, 2)],
+                2: [recv(T.ANY, 7, 3, 7, widx=0), recv(T.ANY, 7, 4, 7, widx=1)],
+                3: [send(2, 7)], 4: [send(2, 7)]})
+        bps = (0, 4, 400, None)
+        self.assertEqual([B for B in bps if observed_feasible_at(t, B).ok], [0, 4, 400, None])
+        self.assertEqual([B for B in bps if observed_feasible_at(t, B, strong_only=False).ok], [400, None])
+        for generic in (False, True):
+            rep = analyze(t, with_sp=False, generic=generic)
+            self.assertEqual(rep.by_class("2-buffering"), [])
+            f = next(f for f in rep.findings if f.recv == (2, 0))
+            self.assertEqual(f.B, "any B")
+            self.assertTrue(any("not realisable are left out: B in 0,4" in d for d in f.detail), f.detail)
+            self.assertTrue(any("realisable only from B=400" in n for n in rep.notes), rep.notes)
+        fast_equals_generic(self, t)
+
 
 class C_CompletenessSteps(unittest.TestCase):
     """Conservative steps of the implementation removed so that it meets theorem T6

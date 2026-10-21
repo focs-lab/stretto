@@ -234,7 +234,8 @@ class Observed:
         self._cycle: Optional[list] = None
         self._vc = None
         self._rank_pos: Dict[int, int] = {}
-        self._observed: Optional[Verdict] = None
+        self._obs_closure = None
+        self._observed: Dict[bool, Verdict] = {}
 
     def r3(self, key: Tuple[int, int]) -> Suffix2:
         """Rule-3 index for the receives on key[0] matched to sends from key[1]: value =
@@ -635,20 +636,27 @@ class Observed:
             return Verdict(False, "the message that would complete first is never issued within the horizon", cut)
         return Verdict(True, "ok", cut)
 
-    def observed_verdict(self) -> Verdict:
-        """feasible.observed_feasible_at(t, B): the observed matching under the single-path
-        assumption over guaranteed edges only; hangs are the ranks the closure removes."""
-        if self._observed is None:
-            hangs: Dict[int, str] = {}
-            cut, issued = self.closure(mode="SP", hangs=hangs)
-            if self.ix.strong_acyclic_at_zero():
+    def observed_verdict(self, strong: bool = True) -> Verdict:
+        """feasible.observed_feasible_at(t, B, strong): the observed matching under the
+        single-path assumption, over guaranteed edges only (strong: a cycle is a certain
+        deadlock, the 2-buffering finding) or over every edge (B0 of theorem T2, from which
+        the profiles start); hangs are the ranks the closure removes."""
+        v = self._observed.get(strong)
+        if v is None:
+            if self._obs_closure is None:
+                hangs: Dict[int, str] = {}
+                cut, issued = self.closure(mode="SP", hangs=hangs)
+                self._obs_closure = cut, issued, hangs
+            cut, issued, hangs = self._obs_closure
+            if self.ix.strong_acyclic_at_zero() if strong else self.ix.acyclic_at_zero():
                 cyc = None
             else:
-                g = build_graph(self.t, self.t.observed, cut, self.B, strong_only=True, issued=issued)
+                g = build_graph(self.t, self.t.observed, cut, self.B, strong_only=strong, issued=issued)
                 cyc = g.find_cycle()
             text = "hang under the single-path assumption: " + "; ".join(hangs[r] for r in sorted(hangs)) if hangs else ""
             if cyc:
-                self._observed = Verdict(False, "constraint cycle", cut, cyc, hangs)
+                v = Verdict(False, "constraint cycle", cut, cyc, hangs)
             else:
-                self._observed = Verdict(True, text or "ok", cut, None, hangs)
-        return self._observed
+                v = Verdict(True, text or "ok", cut, None, hangs)
+            self._observed[strong] = v
+        return v
