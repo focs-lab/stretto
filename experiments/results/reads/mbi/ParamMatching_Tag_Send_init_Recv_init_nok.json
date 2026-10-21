@@ -1,0 +1,24 @@
+{
+ "format": "stretto-firstread 1",
+ "units": ["/w/study/apps/MBI/gencodes/ParamMatching_Tag_Send_init_Recv_init_nok.c"],
+ "sites": [
+  {"id": 0, "file": "/w/study/apps/MBI/gencodes/ParamMatching_Tag_Send_init_Recv_init_nok.c", "line": 41, "col": 3, "function": "main", "call": "MPI_Init"},
+  {"id": 1, "file": "/w/study/apps/MBI/gencodes/ParamMatching_Tag_Send_init_Recv_init_nok.c", "line": 42, "col": 3, "function": "main", "call": "MPI_Comm_size"},
+  {"id": 2, "file": "/w/study/apps/MBI/gencodes/ParamMatching_Tag_Send_init_Recv_init_nok.c", "line": 43, "col": 3, "function": "main", "call": "MPI_Comm_rank"},
+  {"id": 3, "file": "/w/study/apps/MBI/gencodes/ParamMatching_Tag_Send_init_Recv_init_nok.c", "line": 57, "col": 5, "function": "main", "call": "MPI_Send_init"},
+  {"id": 4, "file": "/w/study/apps/MBI/gencodes/ParamMatching_Tag_Send_init_Recv_init_nok.c", "line": 58, "col": 5, "function": "main", "call": "MPI_Start"},
+  {"id": 5, "file": "/w/study/apps/MBI/gencodes/ParamMatching_Tag_Send_init_Recv_init_nok.c", "line": 59, "col": 5, "function": "main", "call": "MPI_Wait"},
+  {"id": 6, "file": "/w/study/apps/MBI/gencodes/ParamMatching_Tag_Send_init_Recv_init_nok.c", "line": 61, "col": 5, "function": "main", "call": "MPI_Recv_init"},
+  {"id": 7, "file": "/w/study/apps/MBI/gencodes/ParamMatching_Tag_Send_init_Recv_init_nok.c", "line": 62, "col": 5, "function": "main", "call": "MPI_Start"},
+  {"id": 8, "file": "/w/study/apps/MBI/gencodes/ParamMatching_Tag_Send_init_Recv_init_nok.c", "line": 63, "col": 5, "function": "main", "call": "MPI_Wait"},
+  {"id": 9, "file": "/w/study/apps/MBI/gencodes/ParamMatching_Tag_Send_init_Recv_init_nok.c", "line": 65, "col": 32, "function": "main", "call": "MPI_Request_free"},
+  {"id": 10, "file": "/w/study/apps/MBI/gencodes/ParamMatching_Tag_Send_init_Recv_init_nok.c", "line": 66, "col": 32, "function": "main", "call": "MPI_Request_free"},
+  {"id": 11, "file": "/w/study/apps/MBI/gencodes/ParamMatching_Tag_Send_init_Recv_init_nok.c", "line": 68, "col": 3, "function": "main", "call": "MPI_Finalize"}
+ ],
+ "results": [
+  {"post": null, "complete": 5, "free": [9, 10, 11], "objects": []},
+  {"post": null, "complete": 8, "free": [9, 10, 11], "objects": []}
+ ],
+ "notes": [],
+ "compiler": "clang-18"
+}

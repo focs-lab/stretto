@@ -1,0 +1,28 @@
+{
+ "format": "stretto-firstread 1",
+ "units": ["/w/study/apps/MBI/gencodes/MessageRace_Loop_Send_Recv_ok.c"],
+ "sites": [
+  {"id": 0, "file": "/w/study/apps/MBI/gencodes/MessageRace_Loop_Send_Recv_ok.c", "line": 44, "col": 3, "function": "main", "call": "MPI_Init"},
+  {"id": 1, "file": "/w/study/apps/MBI/gencodes/MessageRace_Loop_Send_Recv_ok.c", "line": 45, "col": 3, "function": "main", "call": "MPI_Comm_size"},
+  {"id": 2, "file": "/w/study/apps/MBI/gencodes/MessageRace_Loop_Send_Recv_ok.c", "line": 46, "col": 3, "function": "main", "call": "MPI_Comm_rank"},
+  {"id": 3, "file": "/w/study/apps/MBI/gencodes/MessageRace_Loop_Send_Recv_ok.c", "line": 70, "col": 7, "function": "main", "call": "MPI_Recv"},
+  {"id": 4, "file": "/w/study/apps/MBI/gencodes/MessageRace_Loop_Send_Recv_ok.c", "line": 74, "col": 5, "function": "main", "call": "MPI_Recv"},
+  {"id": 5, "file": "/w/study/apps/MBI/gencodes/MessageRace_Loop_Send_Recv_ok.c", "line": 76, "col": 5, "function": "main", "call": "MPI_Recv"},
+  {"id": 6, "file": "/w/study/apps/MBI/gencodes/MessageRace_Loop_Send_Recv_ok.c", "line": 81, "col": 7, "function": "main", "call": "MPI_Send"},
+  {"id": 7, "file": "/w/study/apps/MBI/gencodes/MessageRace_Loop_Send_Recv_ok.c", "line": 85, "col": 5, "function": "main", "call": "MPI_Send"},
+  {"id": 8, "file": "/w/study/apps/MBI/gencodes/MessageRace_Loop_Send_Recv_ok.c", "line": 89, "col": 5, "function": "main", "call": "MPI_Recv"},
+  {"id": 9, "file": "/w/study/apps/MBI/gencodes/MessageRace_Loop_Send_Recv_ok.c", "line": 91, "col": 5, "function": "main", "call": "MPI_Send"},
+  {"id": 10, "file": "/w/study/apps/MBI/gencodes/MessageRace_Loop_Send_Recv_ok.c", "line": 94, "col": 5, "function": "main", "call": "MPI_Recv"},
+  {"id": 11, "file": "/w/study/apps/MBI/gencodes/MessageRace_Loop_Send_Recv_ok.c", "line": 96, "col": 5, "function": "main", "call": "MPI_Send"},
+  {"id": 12, "file": "/w/study/apps/MBI/gencodes/MessageRace_Loop_Send_Recv_ok.c", "line": 110, "col": 3, "function": "main", "call": "MPI_Finalize"}
+ ],
+ "results": [
+  {"post": 3, "complete": 3, "free": [3, 4, 5, 12], "objects": ["buf0a", "sta0a"]},
+  {"post": 4, "complete": 4, "free": [5, 12], "objects": ["buf0b", "sta0b"]},
+  {"post": 5, "complete": 5, "free": [12], "objects": ["buf0c", "sta0c"]},
+  {"post": 8, "complete": 8, "free": [9, 10, 11, 12], "objects": ["buf3a", "sta3a"]},
+  {"post": 10, "complete": 10, "free": [11, 12], "objects": ["buf3c", "sta3c"]}
+ ],
+ "notes": [],
+ "compiler": "clang-18"
+}

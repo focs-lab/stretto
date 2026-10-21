@@ -1,0 +1,17 @@
+{
+ "format": "stretto-firstread 1",
+ "units": ["/w/study/apps/MBI/gencodes/MessageRace_Recv_Send_nok.c"],
+ "sites": [
+  {"id": 0, "file": "/w/study/apps/MBI/gencodes/MessageRace_Recv_Send_nok.c", "line": 41, "col": 3, "function": "main", "call": "MPI_Init"},
+  {"id": 1, "file": "/w/study/apps/MBI/gencodes/MessageRace_Recv_Send_nok.c", "line": 42, "col": 3, "function": "main", "call": "MPI_Comm_size"},
+  {"id": 2, "file": "/w/study/apps/MBI/gencodes/MessageRace_Recv_Send_nok.c", "line": 43, "col": 3, "function": "main", "call": "MPI_Comm_rank"},
+  {"id": 3, "file": "/w/study/apps/MBI/gencodes/MessageRace_Recv_Send_nok.c", "line": 59, "col": 7, "function": "main", "call": "MPI_Recv"},
+  {"id": 4, "file": "/w/study/apps/MBI/gencodes/MessageRace_Recv_Send_nok.c", "line": 68, "col": 5, "function": "main", "call": "MPI_Send"},
+  {"id": 5, "file": "/w/study/apps/MBI/gencodes/MessageRace_Recv_Send_nok.c", "line": 73, "col": 3, "function": "main", "call": "MPI_Finalize"}
+ ],
+ "results": [
+  {"post": 3, "complete": 3, "free": [3], "objects": ["buf1", "sta1"]}
+ ],
+ "notes": [],
+ "compiler": "clang-18"
+}

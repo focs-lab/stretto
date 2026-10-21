@@ -1,0 +1,36 @@
+{
+ "format": "stretto-firstread 1",
+ "units": ["/w/study/apps/MBI/gencodes/P2PBuffering_SameProcess_Isend_Irecv_nok.c"],
+ "sites": [
+  {"id": 0, "file": "/w/study/apps/MBI/gencodes/P2PBuffering_SameProcess_Isend_Irecv_nok.c", "line": 42, "col": 3, "function": "main", "call": "MPI_Init"},
+  {"id": 1, "file": "/w/study/apps/MBI/gencodes/P2PBuffering_SameProcess_Isend_Irecv_nok.c", "line": 43, "col": 3, "function": "main", "call": "MPI_Comm_size"},
+  {"id": 2, "file": "/w/study/apps/MBI/gencodes/P2PBuffering_SameProcess_Isend_Irecv_nok.c", "line": 44, "col": 3, "function": "main", "call": "MPI_Comm_rank"},
+  {"id": 3, "file": "/w/study/apps/MBI/gencodes/P2PBuffering_SameProcess_Isend_Irecv_nok.c", "line": 57, "col": 5, "function": "main", "call": "MPI_Isend"},
+  {"id": 4, "file": "/w/study/apps/MBI/gencodes/P2PBuffering_SameProcess_Isend_Irecv_nok.c", "line": 58, "col": 5, "function": "main", "call": "MPI_Wait"},
+  {"id": 5, "file": "/w/study/apps/MBI/gencodes/P2PBuffering_SameProcess_Isend_Irecv_nok.c", "line": 59, "col": 5, "function": "main", "call": "MPI_Irecv"},
+  {"id": 6, "file": "/w/study/apps/MBI/gencodes/P2PBuffering_SameProcess_Isend_Irecv_nok.c", "line": 60, "col": 6, "function": "main", "call": "MPI_Wait"},
+  {"id": 7, "file": "/w/study/apps/MBI/gencodes/P2PBuffering_SameProcess_Isend_Irecv_nok.c", "line": 63, "col": 5, "function": "main", "call": "MPI_Isend"},
+  {"id": 8, "file": "/w/study/apps/MBI/gencodes/P2PBuffering_SameProcess_Isend_Irecv_nok.c", "line": 64, "col": 5, "function": "main", "call": "MPI_Wait"},
+  {"id": 9, "file": "/w/study/apps/MBI/gencodes/P2PBuffering_SameProcess_Isend_Irecv_nok.c", "line": 65, "col": 5, "function": "main", "call": "MPI_Irecv"},
+  {"id": 10, "file": "/w/study/apps/MBI/gencodes/P2PBuffering_SameProcess_Isend_Irecv_nok.c", "line": 66, "col": 6, "function": "main", "call": "MPI_Wait"},
+  {"id": 11, "file": "/w/study/apps/MBI/gencodes/P2PBuffering_SameProcess_Isend_Irecv_nok.c", "line": 74, "col": 32, "function": "main", "call": "MPI_Request_free"},
+  {"id": 12, "file": "/w/study/apps/MBI/gencodes/P2PBuffering_SameProcess_Isend_Irecv_nok.c", "line": 75, "col": 32, "function": "main", "call": "MPI_Request_free"},
+  {"id": 13, "file": "/w/study/apps/MBI/gencodes/P2PBuffering_SameProcess_Isend_Irecv_nok.c", "line": 77, "col": 3, "function": "main", "call": "MPI_Finalize"}
+ ],
+ "results": [
+  {"post": null, "complete": 4, "free": [5, 6, 11, 12, 13], "objects": []},
+  {"post": 5, "complete": 4, "free": [5, 6, 11, 12, 13], "objects": ["buf2"]},
+  {"post": 9, "complete": 4, "free": [5, 6, 11, 12, 13], "objects": ["buf2"]},
+  {"post": null, "complete": 6, "free": [11, 12, 13], "objects": []},
+  {"post": 5, "complete": 6, "free": [11, 12, 13], "objects": ["buf2"]},
+  {"post": 9, "complete": 6, "free": [11, 12, 13], "objects": ["buf2"]},
+  {"post": null, "complete": 8, "free": [9, 10, 11, 12, 13], "objects": []},
+  {"post": 5, "complete": 8, "free": [9, 10, 11, 12, 13], "objects": ["buf2"]},
+  {"post": 9, "complete": 8, "free": [9, 10, 11, 12, 13], "objects": ["buf2"]},
+  {"post": null, "complete": 10, "free": [11, 12, 13], "objects": []},
+  {"post": 5, "complete": 10, "free": [11, 12, 13], "objects": ["buf2"]},
+  {"post": 9, "complete": 10, "free": [11, 12, 13], "objects": ["buf2"]}
+ ],
+ "notes": [],
+ "compiler": "clang-18"
+}
