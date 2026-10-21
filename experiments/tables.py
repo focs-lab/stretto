@@ -77,7 +77,16 @@ def e1(name, path, key=None):
             num(f"n{key}LCguard", len(found))
     if key:
         num(f"n{key}progs", len(rs))
+        num(f"n{key}notBuilt", len(ce))
         num(f"n{key}correct", sum(1 for r in rs if r["expect"] == "OK"))
+        num(f"n{key}correctWarned", score.noise(r for r in rs if r["expect"] == "OK")["with_warnings"])
+        # the true positives the run did not show, by what predicts them: a consequence of an
+        # alternative (1a, or 1c/1d under the single-path assumption) or a buffering threshold alone
+        pred_only = [r for r in rs if r["expect"] == "ERROR" and score.predicted_verdict(r) == "ERROR"
+                     and score.observed_verdict(r) != "ERROR"]
+        num(f"n{key}tpPredOnly", len(pred_only))
+        num(f"n{key}tpPredSP", sum(1 for r in pred_only if score.certified(r)))
+        num(f"n{key}tpPredBuf", sum(1 for r in pred_only if not score.certified(r)))
         for label, judge in (("union", score.verdict), ("observed", score.observed_verdict), ("predicted", score.predicted_verdict),
                              ("MUST", score.must_verdict), ("MUSTsym", score.must_verdict_hangs)):
             if label.startswith("MUST") and not any(r.get("must") for r in rs):
@@ -206,6 +215,17 @@ def e2():
     num("nEtwoAlts", len(alt))
     num("nEtwoBdep", len(dep))
     num("nEtwoNonmono", len(nonmono))
+    # the recorded runs infeasible at B=0, by how the run ended: realisable at no threshold, or
+    # finished (a corpus run's outcome; an idiom's, whether it was replayed as finished), or not
+    run = {f"experiments/results/{c}/{r['name']}/trace": r["run"] for c in ("mbi", "mbb")
+           for r in rows(os.path.join(RES, c, f"{c}.csv"))}
+    replayed = {r["trace"] for r in rows(os.path.join(RES, "e2_replay.csv"))}
+    obsbuf = [r for r in obs if r["B0"] == "False"]
+    never = [r for r in obsbuf if r["at_inf"] != "True"]
+    fin = [r for r in obsbuf if r not in never and (run[r["trace"]].startswith("FINISHED") if r["trace"] in run else r["trace"] in replayed)]
+    num("nEtwoObsBufNever", len(never))
+    num("nEtwoObsBufFinished", len(fin))
+    num("nEtwoObsBufStopped", len(obsbuf) - len(never) - len(fin))
     out = [f"Rows by code commit: {commits(rs)}.", "",
            "Every alternative and every observed run is checked at every breakpoint (0, each message size, inf);",
            f"profiles that are not monotone in B: {len(nonmono)}.", "",
@@ -300,6 +320,11 @@ def stress(name, path, key=None):
         num(f"n{key}StressPred", len(pred))
         num(f"n{key}StressPredMissed", len(pred_missed))
         num(f"n{key}StressFP", len(fp))
+        # the errors Stretto predicts from a clean run and MUST does not report (CleanPred in
+        # e1): how many of them stress testing makes fail as well
+        clean = {n for n, r in by.items() if r["expect"] == "ERROR" and score.must_verdict(r) != "ERROR"
+                 and score.predicted_verdict(r) == "ERROR" and score.observed_verdict(r) != "ERROR"}
+        num(f"n{key}CleanPredStress", sum(1 for r in found if r["program"] in clean))
     return "\n".join([
         f"### Stress-testing baseline: {name}", "",
         f"Up to {runs} runs per program with random send and receive delays per rank, stopping at the first run that",
@@ -323,6 +348,14 @@ def hypre():
            "control that pins the same probe to the sender it saw (`experiments/hypre/run.sh`, `summary.txt`).", "",
            "| pin | role | result | probe found the pinned message | final residual |", "|---|---|---|---|---|"]
     out += [f"| {r['pin']} | {r['role']} | {r['result']} | {'yes' if r['probe_found'] not in ('', '0') else 'no'} | {r['residual'] or '-'} |" for r in rp]
+    # the buffering profile of the cross alternative in that trace: a request probe (tag 222)
+    # that could report a request of another size, feasible from a threshold on
+    rep = os.path.join(d, "report4.txt")
+    prof = re.findall(r"^\[ *probe-alt *\].* tag=222 (\d+)B instead of .* tag=222 (\d+)B \[B >= (\d+)\]$",
+                      open(rep).read() if os.path.exists(rep) else "", re.M)
+    cross = sorted({int(b) for new, old, b in prof if new != old})
+    if cross:
+        num("BHypreCross", cross[0])
     out += ["", "```", open(summ).read().strip(), "```", ""]
     return "\n".join(out)
 
@@ -490,6 +523,7 @@ def npbmg():
                 out.append(f"| {np} | {setting} | {len(rs)} | {sum(r['result'] == 'FINISHED' for r in rs)} | {len(ch)} | {len(fl)} |")
         num("nMGStressRuns", len(st))
         num("nMGStressChanged", sum(1 for r in st if base and r.get("norm") and r["norm"] != base))
+        num("nMGStressRanks", " and ".join(str(n) for n in sorted({int(r["np"]) for r in st})))
     return "\n".join(out) + "\n"
 
 
@@ -509,6 +543,28 @@ def app_sample(app="amg", prefix="AMG"):
                        f"(`experiments/replay_sample.py`); required pins matched in {matched}. Rows by code commit: {commits(rs)}.", "",
                        "| replay | control | alternatives |", "|---|---|---|"] +
                       [f"| {k[0]} | {k[1]} | {v} |" for k, v in sorted(c.items(), key=str)]) + "\n"
+
+
+def pin_log():
+    """What the log of pinned matches decided in the application replays (HYPRE, MG, and the
+    AMG and Nekbone samples): pinned runs, replays and controls alike, that left a pin
+    unmatched, and how those runs ended."""
+    runs = []
+    for f in ("hypre/predict.csv", "hypre/predict-2.11.0.csv", "npbmg/predict-2.4.1.csv", "npbmg/predict-3.3.1.csv",
+              "amg/replay_sample.csv", "nekbone/replay_sample.csv"):
+        for r in rows(os.path.join(RES, f)):
+            if r.get("pin"):
+                runs += [(r.get("replay"), r.get("matched")), (r.get("control"), r.get("control_matched"))]
+    runs = [(res, m) for res, m in runs if res]
+    unmatched = [res for res, m in runs if m != "True"]
+    ended = [res for res in unmatched if res in ("TIMEOUT", "FINISHED")]
+    num("nPinRuns", len(runs))
+    num("nPinUnmatched", len(unmatched))
+    num("nPinUnmatchedEnded", len(ended))
+    other = collections.Counter(res for res in unmatched if res not in ("TIMEOUT", "FINISHED"))
+    return (f"\nPin logs of the application replays (HYPRE, MG, AMG and Nekbone samples), replays and controls: {len(runs)} pinned "
+            f"runs, {len(unmatched)} with a pin unmatched, of which {len(ended)} hung or finished"
+            + (" (the others: " + ", ".join(f"{n} {res}" for res, n in sorted(other.items())) + ")" if other else "") + ".\n")
 
 
 def write_paper_numbers():
@@ -738,6 +794,7 @@ def nekbone():
         num("NekMinutes", f"{float(m.group(1)) / 60:.0f}")
         num("NekGB", f"{int(m.group(2)) * 1024 / 1e9:.0f}")   # /usr/bin/time's %M is in KiB
         judged = sum(found.values()) + rejected
+        num("nNekChecked", judged)
         if judged:
             # every alternative judged, accepted or rejected, is one check over the whole graph
             num("NekPerAlt", f"{float(m.group(1)) / judged:.2f}")
@@ -821,7 +878,7 @@ def main():
            "## E5b: real application (Nekbone)", "", nekbone() + app_sample("nekbone", "Nek"),
            "## E5c: a real bug (HYPRE 2.10.1, ParaSails)", "", hypre(),
            "### How often one trace exposes it, and how often testing hits it", "", hypre_campaign(),
-           "## E5d: a second documented bug (NPB MG 2.4.1, a message of another exchange)", "", npbmg(),
+           "## E5d: a second documented bug (NPB MG 2.4.1, a message of another exchange)", "", npbmg() + pin_log(),
            "## E6: polynomial checker vs exhaustive explorer", "", e6(),
            "## E7: the value skeleton on MBI (level L2)", "", e7(),
            "## E8: the buffer guard (local concurrency, class 3-local)", "", guard()]

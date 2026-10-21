@@ -28,16 +28,16 @@ NUMBERS = os.path.join(ROOT, "paper", "generated", "numbers.tex")
 
 # which research question a macro belongs to, by name; the first match wins
 RQ_OF = [
-    (1, r"^nEsix|^nMBIReplay|^nAMGsample|^nNeksample"),
-    (2, r"^(MBI|MBB)fone|^n(MBI|MBB)(tp|fn|fp|progs|correct|errors|race|Stress|Clean|OnlyStretto|LC)|^n?Guard"),
+    (1, r"^nEsix|^nMBIReplay|^nAMGsample|^nNeksample|^nPin"),
+    (2, r"^(MBI|MBB)fone|^n(MBI|MBB)(tp|fn|fp|progs|notBuilt|correct|errors|race|Stress|Clean|OnlyStretto|LC)|^n?Guard"),
     (3, r"^nEtwo|^B[a-z]+OMPI$"),
     (4, r"^n(MBI|MBB)(one|sp|obs)[A-Z]"),
     (5, r"^TraceOverhead|^LuAnalysis|^LuEvents|^AMGtime|^Nek(GB|Minutes|PerAlt|Records)|^nEfour"),
-    (6, r"^nHypre|^nAMG|^nNek"),
+    (6, r"^nHypre|^BHypre|^nAMG|^nNek"),
 ]
 # numbers the inputs fix: a difference there is unexpected; every other number is a time or a
 # count taken from recorded runs, which depends on their schedule
-FIXED = re.compile(r"^n(MBI|MBB)(progs|correct|errors|race)$|^B[a-z]+OMPI$|^n(AMG|Nek)sample$|^nEfourReps$"
+FIXED = re.compile(r"^n(MBI|MBB)(progs|notBuilt|correct|errors|race)$|^B[a-z]+OMPI$|^n(AMG|Nek)sample$|^nEfourReps$"
                    r"|^nMBIStressRuns$|^nHypre(Fixed)?(Traced|(Four|Eight)(Local)?Runs)$|^nHypreStressRuns$"
                    r"|^nMBBLC$|^nGuardLC(OMPI|MPICH)built$|^nGuardCases$|^nGuardAppRuns$")
 
@@ -84,7 +84,11 @@ def claims(n: dict) -> list:
         claim(1, f"{app} sample: every replay matched its pins and finished, every control finished",
               [f"n{app}sample", f"n{app}sampleMatched", f"n{app}sampleFinish", f"n{app}sampleControls"],
               lambda s, m, f, c: s > 0 and s == m == f == c)
+    claim(1, "every application replay or control that hung or finished matched its pins",
+          ["nPinRuns", "nPinUnmatchedEnded"], lambda r, e: r > 0 and e == 0)
     claim(2, "no false positive on MBI", ["nMBIfp"], lambda x: x == 0)
+    claim(2, "every MBI error Stretto finds was shown by the run, or predicted by a consequence or a threshold",
+          ["nMBItpunion", "nMBItpobserved", "nMBItpPredSP", "nMBItpPredBuf"], lambda u, o, s, b: u == o + s + b)
     claim(2, "Stretto's F1 on MBI is above MUST's, under both scorings, and above stress testing",
           ["MBIfoneunion", "MBIfoneMUST", "MBIfoneMUSTsym", "MBIfonestress"],
           lambda s, m, ms, st: s > max(m, ms, st))
@@ -99,6 +103,10 @@ def claims(n: dict) -> list:
           ["nGuardLCMPICHbuilt", "nGuardLCMPICHfound"], lambda b, f: b > 0 and b == f)
     claim(2, "the guard records nothing on NPB LU, HYPRE and AMG, and every run finishes",
           ["nGuardAppRuns", "nGuardAppBad"], lambda r, b: r > 0 and b == 0)
+    claim(3, "every recorded run infeasible at B=0 needs no threshold, finished, or did not finish",
+          ["nEtwoObsBuf", "nEtwoObsBufNever", "nEtwoObsBufFinished", "nEtwoObsBufStopped"], lambda a, n, f, s: a == n + f + s)
+    claim(3, "the runs that finished and need a threshold are the ones replayed",
+          ["nEtwoObsBufFinished", "nEtwoReplayPrograms"], lambda f, p: f == p)
     claim(3, "no buffering replay goes against the prediction", ["nEtwoReplayBad"], lambda b: b == 0)
     claim(3, "with the default limits every replayed program finishes again",
           ["nEtwoReplayPrograms", "nEtwoReplayDefaultOK"], lambda p, ok: p > 0 and p == ok)

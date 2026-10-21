@@ -537,6 +537,8 @@ Untraced runs of MG 2.4.1, plain and with random send and receive delays from th
 | 32 | plain | 20 | 20 | 0 | 0 |
 | 32 | delays | 20 | 20 | 4 | 4 |
 
+Pin logs of the application replays (HYPRE, MG, AMG and Nekbone samples), replays and controls: 2700 pinned runs, 10 with a pin unmatched, of which 0 hung or finished (the others: 10 APP-ERROR:15).
+
 ## E6: polynomial checker vs exhaustive explorer
 
 The checker in L1 mode (the claim the report makes) against exhaustive exploration of the trace as a
