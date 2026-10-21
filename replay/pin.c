@@ -11,7 +11,8 @@
 
 static int g_rank = -1;
 static int g_nwild = 0, g_nsend = 0, g_nrecv = 0, g_nprobe = 0;
-static struct { int idx, src, tag; } *g_pins = NULL, *g_ppins = NULL;
+struct pin { int idx, src, tag; };
+static struct pin *g_pins = NULL, *g_ppins = NULL;
 static int g_npins = 0, g_nppins = 0;
 static int g_send_delay_ms = 0, g_recv_delay_ms = 0;
 static struct { int is_send, k, ms; } *g_at = NULL;
@@ -36,41 +37,58 @@ static int parse_rank_ms(const char *spec, int rank) {
     return ms;
 }
 
+/* The value of a pin variable: the variable itself, or, if it starts with '@', the file it
+   names. A horizon of thousands of wildcard receives does not fit into one environment
+   string (Linux limits each to 128 KiB), so long specs go to a file. A file that cannot be
+   read ends the run: replaying with no pins would look like a replay of the alternative. */
+static char *pin_spec(const char *name, int rank) {
+    const char *v = getenv(name);
+    if (!v) return NULL;
+    if (v[0] != '@') return strdup(v);
+    FILE *f = fopen(v + 1, "r");
+    char *buf = NULL;
+    long n = -1;
+    if (f && fseek(f, 0, SEEK_END) == 0 && (n = ftell(f)) >= 0 && fseek(f, 0, SEEK_SET) == 0) {
+        buf = malloc(n + 1);
+        if (buf && fread(buf, 1, n, f) != (size_t)n) { free(buf); buf = NULL; }
+    }
+    if (f) fclose(f);
+    if (!buf) {
+        fprintf(stderr, "[stretto-pin] rank %d: cannot read %s from %s\n", rank, name, v + 1);
+        PMPI_Abort(MPI_COMM_WORLD, 3);
+    }
+    buf[n] = '\0';
+    return buf;
+}
+
+/* rank:idx:src[:tag] tokens separated by commas (or whitespace, in a file); those of this
+   rank are kept. */
+static int parse_pins(const char *name, int rank, struct pin **out) {
+    char *copy = pin_spec(name, rank), *save = NULL;
+    int n = 0, cap = 0;
+    *out = NULL;
+    if (!copy) return 0;
+    for (char *tok = strtok_r(copy, ", \n", &save); tok; tok = strtok_r(NULL, ", \n", &save)) {
+        int r, idx, src, tag = MPI_ANY_TAG;
+        int k = sscanf(tok, "%d:%d:%d:%d", &r, &idx, &src, &tag);
+        if (k >= 3 && r == rank) {
+            if (n == cap) { cap = cap ? 2 * cap : 16; *out = realloc(*out, sizeof **out * cap); }
+            (*out)[n].idx = idx; (*out)[n].src = src; (*out)[n].tag = (k == 4) ? tag : MPI_ANY_TAG;
+            n++;
+        }
+    }
+    free(copy);
+    return n;
+}
+
 HIDDEN void stretto_pin_init(int rank) {
     g_rank = rank;
     g_nwild = g_nsend = g_nrecv = 0;
-    g_npins = 0;
-    const char *spec = getenv("STRETTO_PIN");
-    if (spec) {
-        char *copy = strdup(spec), *save = NULL;
-        for (char *tok = strtok_r(copy, ",", &save); tok; tok = strtok_r(NULL, ",", &save)) {
-            int r, idx, src, tag = MPI_ANY_TAG;
-            int n = sscanf(tok, "%d:%d:%d:%d", &r, &idx, &src, &tag);
-            if (n >= 3 && r == rank) {
-                g_pins = realloc(g_pins, sizeof *g_pins * (g_npins + 1));
-                g_pins[g_npins].idx = idx; g_pins[g_npins].src = src; g_pins[g_npins].tag = (n == 4) ? tag : MPI_ANY_TAG;
-                g_npins++;
-            }
-        }
-        free(copy);
-        if (g_npins)
-            fprintf(stderr, "[stretto-pin] rank %d: %d pin(s) active\n", rank, g_npins);
-    }
-    const char *pspec = getenv("STRETTO_PIN_PROBE");
-    g_nppins = 0; g_nprobe = 0;
-    if (pspec) {
-        char *copy = strdup(pspec), *save = NULL;
-        for (char *tok = strtok_r(copy, ",", &save); tok; tok = strtok_r(NULL, ",", &save)) {
-            int r, idx, src, tag = MPI_ANY_TAG;
-            int n = sscanf(tok, "%d:%d:%d:%d", &r, &idx, &src, &tag);
-            if (n >= 3 && r == rank) {
-                g_ppins = realloc(g_ppins, sizeof *g_ppins * (g_nppins + 1));
-                g_ppins[g_nppins].idx = idx; g_ppins[g_nppins].src = src; g_ppins[g_nppins].tag = (n == 4) ? tag : MPI_ANY_TAG;
-                g_nppins++;
-            }
-        }
-        free(copy);
-    }
+    g_npins = parse_pins("STRETTO_PIN", rank, &g_pins);
+    if (g_npins)
+        fprintf(stderr, "[stretto-pin] rank %d: %d pin(s) active\n", rank, g_npins);
+    g_nprobe = 0;
+    g_nppins = parse_pins("STRETTO_PIN_PROBE", rank, &g_ppins);
     g_send_delay_ms = parse_rank_ms(getenv("STRETTO_SEND_DELAY_MS"), rank);
     g_recv_delay_ms = parse_rank_ms(getenv("STRETTO_RECV_DELAY_MS"), rank);
     const char *at = getenv("STRETTO_DELAY_AT");

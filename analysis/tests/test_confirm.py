@@ -1,12 +1,13 @@
 """The replay classifier and the pin-applied check, without running MPI."""
 import os
 import sys
+import tempfile
 import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from stretto.confirm import (all_matched, classify_rc, control_pin, expected_outcomes, horizon_pins, pins_applied,  # noqa: E402
-                             pins_matched, required_matches)
+from stretto.confirm import (PIN_INLINE_MAX, all_matched, classify_rc, control_pin, expected_outcomes, horizon_pins,  # noqa: E402
+                             pin_assignment, pins_applied, pins_matched, required_matches)
 from stretto import trace as T  # noqa: E402
 from stretto.report import Finding  # noqa: E402
 
@@ -115,6 +116,36 @@ class HorizonPins(unittest.TestCase):
         self.assertEqual(req, {("recv", 1, 0)})
         self.assertTrue(all_matched(alt, "[stretto-pin] rank 1: matched widx=0 src=0\n", req))
         self.assertFalse(all_matched(alt, "[stretto-pin] rank 1: applied widx=0\n", req))
+
+
+
+class PinFile(unittest.TestCase):
+    """A spec longer than one environment string may be (128 KiB on Linux) reaches the ranks
+    as NAME=@file; the replay library reads the file."""
+
+    def test_short_specs_stay_inline(self):
+        with tempfile.TemporaryDirectory() as d:
+            self.assertEqual(pin_assignment("STRETTO_PIN=0:0:2", d), "STRETTO_PIN=0:0:2")
+            self.assertEqual(os.listdir(d), [])
+
+    def test_long_specs_go_through_a_file(self):
+        spec = ",".join(f"{i % 8}:{i // 8}:{(i + 1) % 8}" for i in range(40000))
+        self.assertGreater(len(spec), PIN_INLINE_MAX)
+        with tempfile.TemporaryDirectory() as d:
+            a = pin_assignment("STRETTO_PIN_PROBE=" + spec, d)
+            name, _, value = a.partition("=")
+            self.assertEqual(name, "STRETTO_PIN_PROBE")
+            self.assertTrue(value.startswith("@" + d))
+            with open(value[1:]) as fh:
+                self.assertEqual(fh.read(), spec)
+
+    def test_many_reported_pins(self):
+        n = 20000
+        pin = "STRETTO_PIN=" + ",".join(f"0:{i}:1" for i in range(n))
+        out = "".join(f"[stretto-pin] rank 0: matched widx={i} src=1\n" for i in range(n))
+        self.assertTrue(pins_matched(pin, out))
+        self.assertFalse(pins_matched(pin + ",0:20000:1", out))
+        self.assertTrue(all_matched([pin], out, {("recv", 0, i) for i in range(0, n, 7)}))
 
 
 if __name__ == "__main__":

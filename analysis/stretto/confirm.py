@@ -11,6 +11,7 @@ from __future__ import annotations
 import os
 import re
 import subprocess
+import tempfile
 import time
 from dataclasses import dataclass
 from typing import List, Optional, Set, Tuple
@@ -71,21 +72,32 @@ def pins_applied(pin: str, stderr: str) -> bool:
     return True
 
 
+_REPORTED = re.compile(r"\[stretto-pin\] rank (\d+): (matched widx|applied probe pidx)=(\d+)\b")
+
+
+def _reported(stderr: str) -> Set[Tuple[str, int, int]]:
+    """The pins a replay reported as taken: ("recv", rank, widx) for each 'matched widx=W',
+    ("probe", rank, pidx) for each 'applied probe pidx=P'. Read once per run: a horizon can
+    pin tens of thousands of receives, and a search of the whole output per pin is quadratic."""
+    return {("probe" if m.group(2).startswith("applied") else "recv", int(m.group(1)), int(m.group(3)))
+            for m in _REPORTED.finditer(stderr)}
+
+
+def _taken(pin: str, reported: Set[Tuple[str, int, int]]) -> bool:
+    name, _, spec = pin.partition("=")
+    kind = "probe" if name == "STRETTO_PIN_PROBE" else "recv"
+    for tok in spec.split(","):
+        parts = tok.split(":")
+        if len(parts) < 3 or (kind, int(parts[0]), int(parts[1])) not in reported:
+            return False
+    return True
+
+
 def pins_matched(pin: str, stderr: str) -> bool:
     """Did every pinned receive complete? '[stretto-pin] rank R: matched widx=W src=S' per
     receive pin; a probe pin counts when the probe found its message ('applied probe pidx=P',
     printed only then)."""
-    name, _, spec = pin.partition("=")
-    probe = name == "STRETTO_PIN_PROBE"
-    for tok in spec.split(","):
-        parts = tok.split(":")
-        if len(parts) < 3:
-            return False
-        rank, idx = parts[0], parts[1]
-        pat = rf"\[stretto-pin\] rank {rank}: " + (rf"applied probe pidx={idx}\b" if probe else rf"matched widx={idx}\b")
-        if not re.search(pat, stderr):
-            return False
-    return True
+    return _taken(pin, _reported(stderr))
 
 
 def control_pin(t, pin: str) -> Optional[str]:
@@ -189,13 +201,10 @@ def _horizon(t, f: Finding, B=None):
 
 def all_matched(pins: List[str], stderr: str, required: Optional[Set[Tuple[str, int, int]]] = None) -> bool:
     """Every pin matched (pins_matched), or, given required (required_matches), every required one."""
+    reported = _reported(stderr)
     if required is None:
-        return all(pins_matched(p, stderr) for p in pins)
-    for kind, rank, idx in required:
-        pat = rf"\[stretto-pin\] rank {rank}: " + (rf"applied probe pidx={idx}\b" if kind == "probe" else rf"matched widx={idx}\b")
-        if not re.search(pat, stderr):
-            return False
-    return True
+        return all(_taken(p, reported) for p in pins)
+    return required <= reported
 
 
 def expected_outcomes(f: Finding) -> set:
@@ -214,18 +223,35 @@ def run_pinned(np: int, exe: str, args: List[str], pin, timeout: int = 20, mpi: 
     those of the traced run: the pins number the wildcard operations of that execution."""
     pinlib = os.path.join(ROOT, "replay", "bin", mpi, "libstretto-pin.so")
     env_args = ["-x", f"LD_PRELOAD={pinlib}"]
-    for assignment in ([pin] if isinstance(pin, str) else (pin or [])):
-        env_args += ["-x", assignment]   # "STRETTO_PIN=..." or "STRETTO_PIN_PROBE=..."
-    for k, v in (extra_env or {}).items():
-        env_args += ["-x", f"{k}={v}"]
-    # no --foreground: timeout then signals the whole process group, so the ranks go with mpirun
-    cmd = ["/usr/bin/timeout", "-k", "5", str(timeout), "/usr/bin/mpirun.openmpi", "-np", str(np),
-           *(mpirun_args or []), *env_args, exe, *args]
-    t0 = time.monotonic()
-    r = subprocess.run(cmd, capture_output=True, text=True, stdin=subprocess.DEVNULL, cwd=cwd,
-                       env={**os.environ, "OMPI_MCA_rmaps_base_oversubscribe": "1"})
-    r.elapsed = time.monotonic() - t0   # for classify_rc: a SIGKILL past the timeout is the timeout's
+    with tempfile.TemporaryDirectory(prefix="stretto-pin-") as d:
+        for assignment in ([pin] if isinstance(pin, str) else (pin or [])):
+            env_args += ["-x", pin_assignment(assignment, d)]   # "STRETTO_PIN=..." or "STRETTO_PIN_PROBE=..."
+        for k, v in (extra_env or {}).items():
+            env_args += ["-x", f"{k}={v}"]
+        # no --foreground: timeout then signals the whole process group, so the ranks go with mpirun
+        cmd = ["/usr/bin/timeout", "-k", "5", str(timeout), "/usr/bin/mpirun.openmpi", "-np", str(np),
+               *(mpirun_args or []), *env_args, exe, *args]
+        t0 = time.monotonic()
+        r = subprocess.run(cmd, capture_output=True, text=True, stdin=subprocess.DEVNULL, cwd=cwd,
+                           env={**os.environ, "OMPI_MCA_rmaps_base_oversubscribe": "1"})
+        r.elapsed = time.monotonic() - t0   # for classify_rc: a SIGKILL past the timeout is the timeout's
     return r
+
+
+PIN_INLINE_MAX = 16 * 1024
+
+
+def pin_assignment(assignment: str, d: str) -> str:
+    """The assignment as passed to the ranks: unchanged if short, else NAME=@file with the
+    value written to a file in d. Linux limits one environment string to 128 KiB, and the
+    horizon of a late alternative in a wildcard-heavy run pins tens of thousands of receives."""
+    name, _, value = assignment.partition("=")
+    if len(value) <= PIN_INLINE_MAX:
+        return assignment
+    path = os.path.join(d, name.lower())
+    with open(path, "w") as fh:
+        fh.write(value)
+    return f"{name}=@{path}"
 
 
 def confirm(rep: Report, np: int, exe: str, args: List[str] = (), timeout: int = 20, mpi: str = "openmpi",
