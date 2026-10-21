@@ -198,9 +198,9 @@ describes how the runs were made.
 |---|---|---|
 | 1a | alternative message does not fit the receive (count/type) | L1, trace only |
 | 1b | alternative message is from another logical channel (tag) | L1, trace only |
-| 1c | a send is left unmatched | L1+SP (single-path assumption) |
+| 1c | a send is left unmatched | L1+SP (single-path assumption), or L1 with read bounds |
 | 1c | a send was never received in the observed run | observed |
-| 1d | deadlock under the alternative | L1+SP, or L1 when contained in the horizon |
+| 1d | deadlock under the alternative | L1+SP, or L1 when contained in the horizon or with read bounds |
 | 1e | the twin's continuation diverges from the trace, or the twin aborts on the program's own check | L2 (twin: hand-written, or the program re-executed) |
 | 1f | same shape as observed; benign unless the continuation depends on it | L1 |
 | 2-buffering | the observed run itself deadlocks below an eager threshold | observed |
@@ -219,6 +219,13 @@ trace made with `STRETTO_PAYLOAD=<bytes>` and `stretto analyze --rerun ./a.out` 
 whose results change alone under a shim that serves it the recorded messages
 ([`docs/l2-auto.md`](docs/l2-auto.md)).
 
+Code that never reads what a receive returned needs no skeleton. `python3 -m stretto.firstread
+-o reads.json prog.c` finds, from the C sources and clang 18's IR, which MPI calls a program can
+only make before it reads a receive's buffer, status, flag or index; with `stretto analyze
+--reads reads.json`, the horizon keeps those calls after a changed receive, and a deadlock or
+lost message whose single-path witness stays within them is an L1 finding
+([`docs/firstread.md`](docs/firstread.md)).
+
 ## Repository
 
 | path | what |
@@ -230,7 +237,7 @@ whose results change alone under a shim that serves it the recorded messages
 | [`idioms/`](idioms/) | thirteen small MPI programs, each with the prediction it should give |
 | [`experiments/`](experiments/) | the corpus harness (MBI, MPI-BugBench), the applications, the image, the results |
 | [`artifact/`](artifact/) | one reproduction target per research question, and the claims check |
-| [`docs/`](docs/) | the model, the results, the feasibility gate, the proposal |
+| [`docs/`](docs/) | the model, the first-read bounds, the results, the feasibility gate, the proposal |
 | [`paper/`](paper/) | the paper's sources; every number comes from `paper/generated/numbers.tex` |
 | [`scripts/`](scripts/), [`study/`](study/) | idiom scripts; the survey of wildcard sites in proxy applications |
 

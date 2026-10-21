@@ -34,6 +34,17 @@ on), once in the default container and once with `DOCKER_ARGS="--cap-add SYS_PTR
 lets the MPI libraries use single-copy transfers. Its tables are in `experiments/results/guard/`;
 `experiments/tables.py` adds the corpus rows with the guard to E1 and the checks to E8.
 
+Read bounds (rule H1', `docs/firstread.md`, E3b) are outside that sequence too. The image of
+`experiments/container/Dockerfile.firstread` (the experiment image plus clang 18 from the same
+archive snapshot) runs `experiments/mbi/reads_maps.py experiments/results/mbi/mbi.csv`, which
+writes the first-read map of every MBI program to `experiments/results/reads/mbi/`. The
+experiment image then reanalyses the corpus run with them (`experiments/mbi/reanalyze.py
+experiments/results/mbi/mbi.csv --reads experiments/results/reads/mbi --out
+experiments/results/reads/mbi.csv`), replays the programs whose levels change with the witness
+pins (`run_mbi.py --replay-only --reads ... --out <a copy of that table>`, whose `replays.csv`
+becomes `experiments/results/reads/replays.csv`), and compares rule H1' with the explorer
+(`run_remaining.sh e6reads`, `experiments/results/e6_reads_{never,random}.csv`).
+
 Variables the scripts read (all optional):
 
 | variable | script | meaning (default) |
