@@ -17,6 +17,8 @@ Each configuration runs from a copy of its directory:
             a control (`stretto confirm`, with Open MPI's default eager limits); the error
             predictions of the plain trace that hold only below the eager threshold (B=0, B < n)
             again under rendezvous for every message above 8 bytes (column rendezvous)
+Replays and confirmations need a control that finishes, so they are skipped when the traced run
+itself did not end with status 0 (kf-ray's rank 0 ends with a segmentation fault).
 Writes experiments/results/mpiprv/apps.csv and apps-replays.csv; the runs stay under
 experiments/mpiprv/work/apps/ (git-ignored).
 
@@ -190,7 +192,11 @@ def main():
             alts = [f for f in fs if f["level"] == "L1" and f.get("send") is not None
                     and (f.get("probe") is not None or f.get("recv") is not None)]
             row["alternatives"] = len(alts)
-            if alts:
+            # a replay is judged by its control, which cannot finish when the traced run itself did not
+            replayable = row["run"] == "rc=0"
+            if not replayable:
+                row["replay_results"] = f"not replayed: the traced run ended with {row['run']}"
+            if alts and replayable:
                 rcsv = os.path.join(d, "replays.csv")
                 rc, out, err = run([sys.executable, os.path.join(ROOT, "experiments", "replay_sample.py"), "--out", rcsv,
                                     "--sample", "30", "--timeout", str(args.replay_timeout),
@@ -210,7 +216,7 @@ def main():
             row["guard_local"] = sum(1 for f in gfs if f["cls"] == "3-local")
             # the error findings of either trace that carry a pin, replayed by `stretto confirm`
             for tag, t, found in (("", "trace", fs), ("guard_", "trace-guard", gfs)):
-                if any(f["cls"] in ERROR_CLASSES and f.get("pin") for f in found):
+                if replayable and any(f["cls"] in ERROR_CLASSES and f.get("pin") for f in found):
                     rc, out, err = run([sys.executable, "-m", "stretto", "confirm", "--json", *ANALYSE, "--np", str(np_),
                                         "--timeout", str(args.replay_timeout), os.path.join(d, t), exe, "--", *a.split()], d,
                                        40 * (2 * args.replay_timeout + 30), env={"PYTHONPATH": os.path.join(ROOT, "analysis")})
@@ -221,7 +227,8 @@ def main():
                         cs = []
                     row[tag + "confirmed"] = " ".join(f"{k}*{v}" for k, v in sorted(collections.Counter(
                         f"{c['cls']}:{c['verdict']}" for c in cs).items())) or f"error rc={rc}"
-            row["rendezvous"] = rendezvous_replays(d, exe, a, np_, os.path.join(d, "trace"), args.replay_timeout)
+            if replayable:
+                row["rendezvous"] = rendezvous_replays(d, exe, a, np_, os.path.join(d, "trace"), args.replay_timeout)
             os.environ.clear()
             os.environ.update(saved)
             rows.append(row)
