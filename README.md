@@ -60,7 +60,9 @@ Third-party pieces (git-ignored, fetched by scripts): MUST (1.11.2 built by `thi
 hangs under this host's Open MPI, so every result uses MUST 1.9.2 in the MPI-BugBench container
 built from `third_party/mpi-bugbench/Dockerfile.must`), MPI-BugBench, NPB 3.4.3, AMG, MBI, MPI-CorrBench.
 
-Pin syntax: `STRETTO_PIN="rank:idx:src[:tag],..."` pins the idx-th wildcard receive of a rank.
+Pin syntax: `STRETTO_PIN="rank:idx:src[:tag],..."` pins the idx-th wildcard receive of a rank;
+`STRETTO_PIN_PROBE` does the same for wildcard probes. `STRETTO_PIN=@file` reads the list from a
+file, for horizons too long for one environment string (`run_pinned` does this past 16 KiB).
 `STRETTO_SEND_DELAY_MS="rank:ms"` and `STRETTO_RECV_DELAY_MS` skew timing.
 
 ## Report classes

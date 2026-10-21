@@ -8,6 +8,9 @@ AMG with the system Open MPI wrapper, downloads NPB 3.4.3 and builds its kernels
 MPI for the plain reference, MPICH for the traced run, since Open MPI's Fortran bindings bypass
 C interposition), and builds the MUST container image from MPI-BugBench's Dockerfile. Each part
 can be fetched alone (`corpora`, `apps`, `npb`, `must`). Everything it writes is git-ignored.
+Every part but `must`, which needs docker, also runs inside the experiment image
+(`artifact/reproduce.sh inputs`). The image has the tools the generators need, among them the
+clang-format that formatted the paper's MPI-BugBench programs.
 
 ## Steps
 
@@ -34,11 +37,12 @@ Variables the scripts read (all optional):
 | `STRETTO_PIN`, `STRETTO_PIN_PROBE` | replay library | `rank:ordinal:world-src[:tag],...` for wildcard receives and probes (`replay/pin.h`) |
 | `STRETTO_SEND_DELAY_MS`, `STRETTO_RECV_DELAY_MS`, `STRETTO_DELAY_AT` | replay library | sleeps before sends/receives, per rank or at the k-th one (`replay/pin.h`) |
 | `STRETTO_REQUIRE_TRACES` | tests | `1`: idiom tests fail instead of skipping without traces (Open MPI idioms fall back to `analysis/tests/golden`) |
-| `STRETTO_COMMIT` | experiment scripts | the code commit written into every CSV row; `run_remaining.sh` reads it from `COMMIT`, else git is asked (`experiments/provenance.py`) |
+| `STRETTO_COMMIT` | experiment scripts | the code commit written into every CSV row; unset, the `COMMIT` file at the root is read, else git is asked (`experiments/provenance.py`) |
 | `MUST_IMAGE`, `MUST_CPUS`, `MUST_KEEP` | `scripts/must_run.sh`, `experiments/amg/must.sh` | image (`mbb-must:latest`), cpuset, keep the work directory |
 | `MUST_ARGS` | `experiments/amg/must.sh` | MUST layout (default `--must:distributed`; empty for the centralised one) |
 | `STRETTO_MACHINE_LOCK`, `STRETTO_CPUS` | `scripts/heavy.sh` | the shared-host lock file and the processors a heavy job may use |
-| `IMAGE`, `CPUS`, `MEMORY`, `NAME`, `MACHINE` | `experiments/container/run.sh` | container image, cpuset (`0-11,40-51`), memory (`24g`), name, the host name the summaries print (the host's) |
+| `IMAGE`, `CPUS`, `MEMORY`, `NAME`, `MACHINE`, `DETACH` | `experiments/container/run.sh` | container image, cpuset (`0-11,40-51`), memory (`24g`), name, the host name the summaries print (the host's), `0` to run in the foreground (detached) |
+| `CPUS`, `MEMORY`, `JOBS`, `NEKBONE` | `artifact/reproduce.sh` | as above, but `CPUS` defaults to every processor; `NEKBONE=0` leaves Nekbone out |
 | `BENCHMARKS`, `CLASSES`, `CSV` | `experiments/e4_overhead.sh` | which NPB rows to measure and which table to write |
 | `DOCKER_BUILD_ARGS` | `third_party/fetch.sh must` | e.g. `--cgroup-parent=docker.slice` on the development host |
 
@@ -50,6 +54,12 @@ with the development host's userland (`experiments/container/Dockerfile`: Ubuntu
 Open MPI 4.1.6, MPICH 4.2.0, gcc 13, Python 3.12). Traces, replays and analysis are therefore
 comparable across the two. The second machine is shared as well: use it for runs and
 analysis, and for timing claims only inside an announced timed leg (below).
+
+The paper's runs used another image with the same packages. Since 21 Oct 2026 the Dockerfile
+pins its base by digest and its packages by an Ubuntu archive snapshot, and
+`experiments/container/check.sh` compares a built image with `versions.txt`. The package
+versions it shares with that image are identical. `artifact/reproduce.sh` drives the whole
+evaluation through this image (`artifact/README.md`).
 
 The copy goes to `$DIR` on the second machine, a directory on disk. A tmpfs such as
 `/dev/shm` is faster but not durable there: logind's `RemoveIPC=yes` (the default) deletes

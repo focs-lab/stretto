@@ -181,7 +181,11 @@ receive, and with it a later head-to-head 400-byte exchange. At 200 the exchange
 cyclic, so the alternative is infeasible, and at infinity it is feasible again. The step
 "acyclic because σ happened" below holds only for B ≥ B0. The report already states intervals
 over the thresholds at which the observed run is realisable (`realisable` in
-`report.analyze`), so its output follows the corrected statement. Three gaps remain. The
+`report.analyze`), so its output follows the corrected statement. Since 21 Oct 2026 B0 is
+taken over every edge of the observed graph, the probes' reports and collectives of unknown
+shape included, as the proof needs; the 2-buffering finding keeps the guaranteed edges only,
+so its threshold can be lower than B0 (a probe that waits for a message whose sender is
+blocked in a rendezvous send is one case). Three gaps remain. The
 bisection guard (`_profiles_fast`) catches only "feasible at 0, infeasible at infinity". The
 cut on the changed rank is not the same at every B when the changed receive is nonblocking:
 receives posted after it become judged as B grows. And swaps re-match two receives, so they

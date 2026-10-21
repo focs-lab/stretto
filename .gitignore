@@ -50,3 +50,5 @@ experiments/results/nekbone/*
 !experiments/results/nekbone/replay_sample.csv
 # the commit the sync writes on the experiment machine
 /COMMIT
+# what artifact/reproduce.sh writes: logs and the numbers the paper was built with
+/artifact/out/

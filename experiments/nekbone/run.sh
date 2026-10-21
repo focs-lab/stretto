@@ -40,6 +40,7 @@ step_summary() {
     { head -1 "$D/report8.txt"
       echo "findings by class: $(grep -o '^\[ *[0-9a-z-]* *\]' "$D/report8.txt" | tr -d '[] ' | sort | uniq -c | awk '{printf "%s %s, ", $2, $1}' | sed 's/, $//')"
       echo "rejected alternatives: $(grep -c "^  x " "$D/report8.txt")"
+      echo "rejected by reason: $(grep "^  x " "$D/report8.txt" | sed 's/.*: //' | sort | uniq -c | awk '{n=$1; $1=""; printf "%s%s %s", s, substr($0, 2), n; s="; "}')"
       echo "records: $(cat "$D"/trace8/rank-*.jsonl | wc -l)"
       echo "host: $(hostname), one process; $(tail -1 "$D/analyze8.err")"
     } > "$D/summary8.txt"

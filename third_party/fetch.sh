@@ -22,6 +22,7 @@ AMG_COMMIT=3ada8a1      # github.com/LLNL/AMG
 MACSIO_COMMIT=7f19af3   # github.com/LLNL/MACSio
 NEKBONE_COMMIT=8b0cdf1  # github.com/Nek5000/Nekbone
 NPB_URL=https://www.nas.nasa.gov/assets/npb/NPB3.4.3.tar.gz
+NPB_SHA256=a97c03d7e87ab826fba79c754415a13632c5273877abad270c85201db0f86aeb   # the archive of 7 Sep 2026
 
 clone_at() {   # clone_at <url> <dir> <commit>
     if [ ! -d "$2/.git" ]; then git clone --filter=blob:none "$1" "$2"; fi
@@ -32,10 +33,15 @@ clone_at() {   # clone_at <url> <dir> <commit>
 
 corpora() {
     clone_at https://gitlab.com/MpiBugsInitiative/MpiBugsInitiative.git study/apps/MBI "$MBI_COMMIT"
-    [ -d study/apps/MBI/gencodes ] || (cd study/apps/MBI && python3 MBI.py -c generate)
+    # a generator that fails leaves its output directory behind: remove it, so a rerun generates again
+    [ -d study/apps/MBI/gencodes ] || (cd study/apps/MBI && python3 MBI.py -c generate || { rm -rf gencodes; exit 1; })
     echo "MBI programs: $(ls study/apps/MBI/gencodes/*.c | wc -l)"
     clone_at https://git-ce.rwth-aachen.de/hpc-public/mpi-bugbench.git third_party/mpi-bugbench "$MBB_COMMIT"
-    [ -d third_party/mpi-bugbench/scripts/gencodes ] || (cd third_party/mpi-bugbench/scripts && python3 generate.py --generator_dir errors --level 2 --real_world_data ../output.csv)
+    # the generator reads the real-world usage data the repository ships packed (its README)
+    # and formats every program with clang-format, whose version decides the text of the files
+    [ -f third_party/mpi-bugbench/output.csv ] || tar xf third_party/mpi-bugbench/real_world_data.csv.tar.gz -C third_party/mpi-bugbench
+    [ -d third_party/mpi-bugbench/scripts/gencodes ] || (cd third_party/mpi-bugbench/scripts \
+        && python3 generate.py --generator_dir errors --level 2 --real_world_data ../output.csv || { rm -rf gencodes; exit 1; })
     echo "MPI-BugBench level-2 programs: $(find third_party/mpi-bugbench/scripts/gencodes -name '*.c' | wc -l)"
 }
 
@@ -51,6 +57,7 @@ apps() {
 npb() {
     mkdir -p third_party/apps && cd third_party/apps
     [ -f NPB3.4.3.tar.gz ] || wget -q "$NPB_URL"
+    echo "$NPB_SHA256  NPB3.4.3.tar.gz" | sha256sum -c -
     for mpi in openmpi mpich; do
         dir=NPB3.4.3; [ "$mpi" = mpich ] && dir=NPB-mpich
         [ -d "$dir" ] || { mkdir -p "$dir" && tar xzf NPB3.4.3.tar.gz -C "$dir" --strip-components=1; }
