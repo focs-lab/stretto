@@ -19,6 +19,7 @@ __pycache__/
 *.swp
 study/sites.txt
 third_party/must/
+third_party/ninja/
 third_party/mpi-bugbench/
 third_party/venv/
 papers/
