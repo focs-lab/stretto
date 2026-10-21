@@ -21,9 +21,10 @@
 #
 # usage: artifact/reproduce.sh <target> ...         (from any directory)
 #   CPUS     processors the containers may use (default: all of them)
-#   MEMORY   memory limit of a container (default 24g; Nekbone gets 48g)
+#   MEMORY   memory limit of a container (default 24g; Nekbone and the scale step get 48g)
 #   JOBS     programs run at a time in the corpus steps (default 6), replays in HYPRE's (4)
 #   NEKBONE  0: leave Nekbone out of rq1 and rq5 (it needs 48 GB and about an hour)
+#   SCALE    0: leave the runs from 16 to 64 processes out of rq5 (38 GB and about 7 hours)
 set -euo pipefail
 R="$(cd "$(dirname "$0")/.." && pwd)"; cd "$R"
 export IMAGE="${IMAGE:-stretto-exp:24.04}" CPUS="${CPUS:-0-$(($(nproc) - 1))}" DETACH=0
@@ -52,6 +53,14 @@ claims() {   # claims <rq ...>: regenerate the numbers, check the claims, compar
 corpora() { once corpora box corpora experiments/run_remaining.sh build tests mbi mbb; }
 amg() { once amg box amg experiments/amg/run.sh all; }
 nekbone() { [ "${NEKBONE:-1}" = 0 ] || MEMORY=48g once nekbone box nekbone experiments/nekbone/run.sh all; }
+# HYPRE, AMG and NPB LU from 16 to 64 processes; HYPRE is built here unless rq6 built it, and
+# scale/run.sh appends to its table, so the table starts afresh
+scale() {
+    [ "${SCALE:-1}" = 0 ] || MEMORY=48g once scale box scale bash -c \
+        "{ [ -x third_party/apps/hypre/hypre-2.10.1/src/test/ij ] || { experiments/hypre/run.sh fetch \
+        && experiments/hypre/run.sh build; }; } && rm -f experiments/results/scale/scale.csv \
+        && experiments/scale/run.sh all"
+}
 
 t_image() {
     docker build -t "$IMAGE" experiments/container
@@ -91,6 +100,7 @@ t_rq5() {
     # times are claims only on an otherwise idle machine (experiments/RUNBOOK.md, timed leg)
     box rq5 experiments/timing_leg.sh
     nekbone
+    scale
     claims 5
 }
 t_rq6() {
@@ -112,7 +122,7 @@ t_paper() {
         && $P > /dev/null && BIBINPUTS=. bibtex build/main > /dev/null && $P > /dev/null && $P > build/pdflatex.log && ls -l build/main.pdf'
 }
 
-[ $# -gt 0 ] || { sed -n '2,30p' "$0"; exit 2; }
+[ $# -gt 0 ] || { sed -n '2,27p' "$0"; exit 2; }
 for t in "$@"; do
     declare -F "t_$t" > /dev/null || { echo "unknown target: $t" >&2; exit 2; }
     log "start $t"

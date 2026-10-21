@@ -34,7 +34,7 @@ RQ_OF = [
     (2, r"^n?NinjaMBI|^nMBIMUST|^nTsanLC|^(MBI|MBB)fone|^n(MBI|MBB)(tp|fn|fp|progs|notBuilt|correct|errors|race|Stress|Clean|OnlyStretto|LC)|^n?Guard|^n?Reps"),
     (3, r"^nEtwo|^B[a-z]+OMPI$"),
     (4, r"^n(MBI|MBB)(one|sp|obs)[A-Z]"),
-    (5, r"^TraceOverhead|^LuAnalysis|^LuEvents|^AMGtime|^Nek(GB|Minutes|PerAlt|Records)|^nEfour"),
+    (5, r"^TraceOverhead|^LuAnalysis|^LuEvents|^AMGtime|^Nek(GB|Minutes|PerAlt|Records)|^nEfour|^n?Scale"),
     (6, r"^nHypre|^BHypre|^nAMG|^nNek|^nDeal"),
 ]
 # numbers the inputs fix: a difference there is unexpected; every other number is a time or a
@@ -43,7 +43,8 @@ FIXED = re.compile(r"^n(MBI|MBB)(progs|notBuilt|correct|errors|race)$|^B[a-z]+OM
                    r"|^nMBIStressRuns$|^nHypre(Fixed)?(Traced|(Four|Eight)(Local)?Runs)$|^nHypreStressRuns$"
                    r"|^nMBBLC$|^nGuardLC(OMPI|MPICH)built$|^nGuardCases$|^nGuardAppRuns$"
                    r"|^nReps(Runs|Progs|Errors)$|^nDeal(Fixed)?Traced$|^nDealRanks$|^nDealStress(Plain|Delay)?Runs$"
-                   r"|^nNinja(Hypre|Replica|MG)[A-Za-z]*Runs$|^nNinjaMBIerrors$|^nTsanLC$")
+                   r"|^nNinja(Hypre|Replica|MG)[A-Za-z]*Runs$|^nNinjaMBIerrors$|^nTsanLC$"
+                   r"|^nScale(Traces|Sample|NpMin|NpMax)$")
 
 
 def load(path: str) -> dict:
@@ -143,6 +144,11 @@ def claims(n: dict) -> list:
           ["nEtwoReplayBelowTestable", "nEtwoReplayBelowOK"], lambda t, ok: t == ok)
     claim(3, "at the predicted bound every program finishes",
           ["nEtwoReplayAt", "nEtwoReplayAtOK"], lambda a, ok: a == ok)
+    claim(5, "from 16 to 64 processes every traced run and every analysis finished, and every sampled replay "
+             "and its control matched their pins and finished",
+          ["nScaleTraces", "nScaleTracedFinished", "nScaleAnalysed", "nScaleSample", "nScaleSampleMatched",
+           "nScaleSampleFinish", "nScaleSampleControls", "nScaleSampleControlsMatched"],
+          lambda t, tf, a, s, m, f, c, cm: t > 0 and t == tf == a and s > 0 and s == m == f == c == cm)
     claim(6, "HYPRE 2.10.1: every cross alternative hangs when replayed",
           ["nHypreCrossAlts", "nHypreCrossHang"], lambda a, h: a > 0 and a == h)
     for p in ("Four", "Eight"):

@@ -74,7 +74,8 @@ Variables the scripts read (all optional):
 | `STRETTO_MACHINE_LOCK`, `STRETTO_CPUS` | `scripts/heavy.sh` | the shared-host lock file and the processors a heavy job may use |
 | `IMAGE`, `CPUS`, `MEMORY`, `NAME`, `MACHINE`, `DETACH` | `experiments/container/run.sh` | container image, cpuset (`0-11,40-51`), memory (`24g`), name, the host name the summaries print (the host's), `0` to run in the foreground (detached) |
 | `DOCKER_ARGS` | `experiments/container/run.sh` | more `docker run` options; `--cap-add SYS_PTRACE` lets the MPI libraries use single-copy transfers (`experiments/guard/run.sh`) |
-| `CPUS`, `MEMORY`, `JOBS`, `NEKBONE` | `artifact/reproduce.sh` | as above, but `CPUS` defaults to every processor; `NEKBONE=0` leaves Nekbone out |
+| `CPUS`, `MEMORY`, `JOBS`, `NEKBONE`, `SCALE` | `artifact/reproduce.sh` | as above, but `CPUS` defaults to every processor; `NEKBONE=0` leaves Nekbone out, `SCALE=0` the runs from 16 to 64 processes |
+| `NPS`, `SAMPLE`, `TIMEOUT` | `experiments/scale/run.sh` | process counts (`16 32 64`), replays sampled per trace (10), seconds per replay (120) |
 | `BENCHMARKS`, `CLASSES`, `CSV` | `experiments/e4_overhead.sh` | which NPB rows to measure and which table to write |
 | `DOCKER_BUILD_ARGS` | `third_party/fetch.sh must` | e.g. `--cgroup-parent=docker.slice` on the development host |
 

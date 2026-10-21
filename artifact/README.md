@@ -15,7 +15,8 @@ and then checks the paper's claims against the numbers it produced (`artifact/cl
 
 - Linux on x86-64 with Docker (20.10 or later), and a user that may run containers.
 - For the corpora: 12 cores and 24 GB of memory, as in the paper's runs (fewer cores work,
-  only slower). Nekbone needs 48 GB in one process.
+  only slower). Nekbone needs 48 GB in one process, as does AMG's analysis at 64 processes
+  (38 GB).
 - About 10 GB of disk: the experiment image is 0.9 GB, MUST's image 2.8 GB, the TeX image
   for the paper 5.3 GB, Nekbone's trace 1.2 GB.
 - Network access for `image` and `inputs` (the Ubuntu archive snapshot, GitHub, GitLab, the
@@ -61,14 +62,15 @@ used the image `ceb926607397` built on 7 Sep 2026.
 | RQ2, effectiveness (table "Labelled errors found") | F1 on MBI above MUST (1.9.2 and 1.11.2), stress testing and NINJA with no false positive; every error stress testing misses is predicted, and NINJA exposes none of them; on MPI-BugBench at least MUST's F1; with the buffer guard every local-concurrency program found and nothing else changed, and MUST 1.11.2 with ThreadSanitizer finds none the guard misses; MBI run ten times: no false positive in any run, no error the run shows more often than Stretto reports it, and every clean run Stretto predicts nothing from is of a value-check program | `rq2` | 13.5 h, most of it MUST |
 | RQ3, buffering | thresholds measured per send path; every replay at, below and above the predicted bound behaves as predicted | `rq3` | 1.5 h |
 | RQ4, levels | findings per level and class on the corpora | `rq4` | 1 h |
-| RQ5, cost | tracing overhead on NPB, analysis times of lu.A, AMG and Nekbone | `rq5` | 1.5 h, on an idle machine |
+| RQ5, cost | tracing overhead on NPB, analysis times of lu.A, AMG and Nekbone; from 16 to 64 processes every traced run of HYPRE, AMG and NPB LU and every analysis finishes, and every sampled replay and its control match their pins and finish | `rq5` | 8.5 h: 1.5 h for the timed leg (on an idle machine) and Nekbone, 7 h for the runs from 16 to 64 processes |
 | RQ6, real applications (table "HYPRE, ParaSails") | every cross alternative of HYPRE 2.10.1 hangs when replayed and every control finishes; the fix has none; stress testing never hangs; every cross alternative of deal.II 9.3.0-rc1 prints wrong values when replayed and 9.3.0 has none; NINJA hangs HYPRE 2.10.1 in some runs and the fix in none (NPB MG and NINJA's replica are rerun too) | `rq6` | 15 h |
 
 Each target reruns what its question needs, regenerates the tables and prints the claims of
 that question. RQ1 to RQ4 share one traced and analysed run of the corpora, AMG and Nekbone
 run once for RQ1, RQ5 and RQ6: a marker in `artifact/out/` (`corpora.done`, `amg.done`,
-`nekbone.done`) records each, and removing the marker reruns the step. `all` runs every
-question. `NEKBONE=0` leaves Nekbone out.
+`nekbone.done`, and `scale.done` for the runs from 16 to 64 processes of RQ5) records each,
+and removing the marker reruns the step. `all` runs every question. `NEKBONE=0` leaves Nekbone
+out, `SCALE=0` the runs from 16 to 64 processes.
 
 Before `rq1` to `rq6`, fetch and build the inputs:
 
