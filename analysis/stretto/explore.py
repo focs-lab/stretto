@@ -23,7 +23,12 @@ Semantics (parameter B = eager threshold in bytes; None = infinite):
     matching receive is posted => 'rsend-no-receive' (both errors on the path); an Abort op
     ends its rank and makes the outcome 'abort' (the program's own check failed). A program
     with a ready-mode send is explored without the reduction, since receive posting then no
-    longer commutes with the sender's steps.
+    longer commutes with the sender's steps;
+  * a Lazy op is replaced by the ops its function computes from the rank's variables (a
+    local step, like a branch); an Unknown op ends its rank and makes the outcome 'unknown'
+    unless some rank aborted: the rank's continuation is not determined, so the execution is
+    neither finished nor deadlocked. A message carries the payload of its Send, which the
+    receive binds with its metadata.
 
 Exploration is exhaustive over interleavings with memoisation. With reduce=True a
 persistent-set reduction is applied: branch evaluation, send issue, receive posting,
@@ -32,17 +37,21 @@ non-overtaking) commute with every other enabled transition and are taken alone;
 wildcard-source matches and Waitany choices branch. reduce=False enumerates every
 enabled transition and is used as the reference in the differential test.
 
-Outcomes: done | deadlock | abort | force-blocked, with the errors hit on the path
+Outcomes: done | deadlock | abort | unknown | force-blocked, with the errors hit on the path
 (truncate, collective-mismatch, rsend-no-receive), the matching in match order (one witness
 execution), the orphan sends (issued, never matched), the leaked receives (posted, never
-matched), every send issued with its destination and tag, and the collectives issued per
-rank, which is what a skeleton comparison needs.
+matched), every send issued with its destination and tag, the collectives issued per rank,
+which is what a skeleton comparison needs, and the ranks that stopped at an Unknown op.
+
+A program whose ops are computed during the exploration (Lazy) cannot be scanned for
+ready-mode sends beforehand; it may provide dynamic_rsend(), true once one was computed, and
+is then explored again without the reduction.
 """
 from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict, FrozenSet, List, Optional, Set, Tuple, Union
 
-from .dsl import ANY, Abort, Coll, If, Meta, Op, Program, Recv, Send, Wait, Waitany
+from .dsl import ANY, Abort, Coll, If, Lazy, Meta, Op, Program, Recv, Send, Unknown, Wait, Waitany
 from .matching import coll_shape
 
 Key = Tuple[int, int]
@@ -56,6 +65,7 @@ class Msg:
     tag: int
     bytes: int
     comm: int
+    data: Optional[str] = None
 
 
 @dataclass(frozen=True)
@@ -108,6 +118,7 @@ class GState:
     errors: Tuple[str, ...] = ()                   # MPI errors hit on this path (sorted, unique)
     sent: Tuple[Tuple[Key, int, int, int], ...] = ()   # every send issued: (key, dst, tag, comm)
     aborted: Tuple[int, ...] = ()                  # ranks that aborted
+    unknown: Tuple[Tuple[int, str], ...] = ()      # (rank, why) of the ranks stopped at an Unknown op
 
 
 @dataclass
@@ -121,9 +132,10 @@ class Outcome:
     order: Tuple[Tuple[Key, Key], ...] = ()   # the matching in match order: one witness execution
     sent: Tuple[Tuple[Key, int, int, int], ...] = ()   # sends issued on this execution: (key, dst, tag, comm)
     ncoll: Tuple[Tuple[int, int], ...] = ()   # (rank, collectives issued) per rank
+    unknown: Tuple[Tuple[int, str], ...] = ()   # (rank, why): ranks whose continuation is not determined
 
     def sig(self):
-        return (self.kind, self.matching, self.orphans, self.leaked, self.errors)
+        return (self.kind, self.matching, self.orphans, self.leaked, self.errors, self.unknown)
 
     @property
     def error_kinds(self):
@@ -133,8 +145,10 @@ class Outcome:
         m = ", ".join(f"r{r}<-s{s}" for r, s in sorted(self.matching))
         o = ", ".join(f"s{k}" for k in sorted(self.orphans))
         l = ", ".join(f"r{k}" for k in sorted(self.leaked))
+        u = "; ".join(f"rank {r}: {why}" for r, why in self.unknown)
         return (f"{self.kind}: [{m}]" + (f" orphans=[{o}]" if o else "")
-                + (f" leaked=[{l}]" if l else "") + (f" {self.detail}" if self.detail else ""))
+                + (f" leaked=[{l}]" if l else "") + (f" {self.detail}" if self.detail else "")
+                + (f" undetermined: {u}" if u else ""))
 
 
 @dataclass
@@ -228,7 +242,8 @@ def explore(prog: Program, B: Optional[int] = None, force: Optional[Dict[Key, Ke
     ranks = sorted(prog)
     comms = dict(comms or {})
     comms.setdefault(0, list(ranks))
-    if reduce and _has_rsend(prog):
+    dynamic_rsend = getattr(prog, "dynamic_rsend", None)
+    if reduce and (_has_rsend(prog) or (dynamic_rsend is not None and dynamic_rsend())):
         # whether a ready-mode send finds its receive posted depends on the order of the
         # receiver's posting and the sender's issue, so posting no longer commutes with
         # every other step and the persistent-set reduction is unsound: explore unreduced
@@ -253,6 +268,9 @@ def explore(prog: Program, B: Optional[int] = None, force: Optional[Dict[Key, Ke
             stack.extend(succs)
         elif not outs:
             res.outcomes.append(ctx.terminal(st))
+    if reduce and dynamic_rsend is not None and dynamic_rsend():
+        # a ready-mode send was computed during the exploration: the reduction did not apply
+        return explore(prog, B, force, max_states, comms, reduce=False)
     uniq, out = set(), []
     for o in res.outcomes:
         if o.sig() not in uniq:
@@ -297,12 +315,14 @@ class _Ctx:
         """Classify a state with no successors."""
         done = all(self.done_p(i, p) and p.blocked_send is None and p.blocked_recv is None and p.blocked_coll is None
                    for i, p in enumerate(st.procs))
-        kind = "abort" if st.aborted else "done" if done else "deadlock"
+        # an abort stands whatever an undetermined rank would do later (its later steps can be
+        # scheduled after the abort); finished and deadlocked need every rank determined
+        kind = "abort" if st.aborted else "unknown" if st.unknown else "done" if done else "deadlock"
         if kind == "deadlock" and self.force and self._force_starved(st):
             kind = "force-blocked"
         ncoll = tuple((self.ranks[i], sum(n for _, n in p.ncoll)) for i, p in enumerate(st.procs))
         return Outcome(kind, frozenset(st.matched), frozenset(m.key for m in st.pending), "; ".join(st.errors),
-                       frozenset(r.key for r in st.posted), st.errors, st.matched, st.sent, ncoll)
+                       frozenset(r.key for r in st.posted), st.errors, st.matched, st.sent, ncoll, st.unknown)
 
     def _force_starved(self, st: GState) -> bool:
         """Some posted forced receive could match a pending send if the force were lifted."""
@@ -350,11 +370,11 @@ class _Ctx:
         if r.blocking:
             env = _env(q)
             if r.var:
-                env[r.var] = Meta(m.src, m.tag, m.bytes)
+                env[r.var] = Meta(m.src, m.tag, m.bytes, m.data)
             q = _with(q, blocked_recv=None, env=tuple(sorted(env.items())))
             crecv = crecv | {r.key}
         elif r.var:
-            meta = meta + ((r.key, r.var, Meta(m.src, m.tag, m.bytes)),)
+            meta = meta + ((r.key, r.var, Meta(m.src, m.tag, m.bytes, m.data)),)
         procs[pj] = q
         return _gs(st, procs=tuple(procs), pending=tuple(x for x in st.pending if x.key != m.key),
                    posted=tuple(x for x in st.posted if x.key != r.key),
@@ -434,11 +454,17 @@ class _Ctx:
             branch = op.then if op.cond(_env(p)) else op.els
             q = self.advance(p)
             return _gs(st, procs=_procs(st, i, _with(q, inj=tuple(branch) + q.inj)))
+        if isinstance(op, Lazy):
+            q = self.advance(p)
+            return _gs(st, procs=_procs(st, i, _with(q, inj=tuple(op.fn(_env(p))) + q.inj)))
         if isinstance(op, Abort):
             # the rank stops here; the state is terminal for it (others may still run)
             np_ = _with(p, pos=len(self.progs[i]), inj=(), blocked_send=None, blocked_recv=None, blocked_coll=None)
             return _gs(st, procs=_procs(st, i, np_), aborted=tuple(sorted(set(st.aborted) | {rank})),
                        errors=_add_error(st.errors, f"abort: rank {rank} ({op.why})"))
+        if isinstance(op, Unknown):
+            np_ = _with(p, pos=len(self.progs[i]), inj=(), blocked_send=None, blocked_recv=None, blocked_coll=None)
+            return _gs(st, procs=_procs(st, i, np_), unknown=tuple(sorted(set(st.unknown) | {(rank, op.why)})))
         if isinstance(op, Send):
             key = (rank, p.nsend)
             dst = op.dst
@@ -447,7 +473,7 @@ class _Ctx:
             elif isinstance(dst, str):
                 v = _env(p)[dst]
                 dst = v.src if isinstance(v, Meta) else int(v)
-            m = Msg(key, rank, dst, op.tag, op.bytes, op.comm)
+            m = Msg(key, rank, dst, op.tag, op.bytes, op.comm, op.data)
             mode = getattr(op, "mode", "std")
             rendez = mode == "ssend" or (mode != "bsend" and B is not None and op.bytes > B)
             reqs = p.reqs + ((op.req, ("send", key)),) if op.req else p.reqs

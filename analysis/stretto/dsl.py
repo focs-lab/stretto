@@ -1,7 +1,10 @@
 """A tiny abstract-MPI language for idiom twins and for traces under the single-path
 assumption. Programs are {rank: [ops]}. Metadata (source, tag, bytes of a received
 message, index completed by Waitany) is bound to named variables; `If` branches on
-them. Payload never exists in this model: that is the L2 skeleton by construction.
+them. A hand-written twin has no payload: that is the L2 skeleton by construction. A
+message may carry one (`Send.data`, bound as `Meta.data`), which the re-executed ranks of
+stretto.rerun read; `Lazy` computes the rest of a rank's program from its variables when
+the rank gets there, and `Unknown` marks a point beyond which it is not determined.
 
 Sends and receives are identified by (rank, ordinal) exactly as in trace.py.
 """
@@ -21,6 +24,7 @@ class Send:
     comm: int = 0
     req: Optional[str] = None       # set => nonblocking (Isend)
     mode: str = "std"               # std | ssend (always rendezvous) | bsend (never blocks) | rsend
+    data: Optional[str] = None      # the payload, packed, in hexadecimal; None: not modelled
 
 
 @dataclass(frozen=True)
@@ -66,14 +70,33 @@ class Abort:
 
 
 @dataclass(frozen=True)
+class Lazy:
+    """The rest of the rank's program, computed when the rank reaches this point: fn maps the
+    rank's variables to the ops that follow (which may end with another Lazy). key names the
+    continuation: two Lazy ops with equal keys give the same ops for the same variables, so
+    explorer states that differ only in the function object are the same state."""
+    key: object
+    fn: Callable[[dict], Sequence[object]] = field(compare=False, repr=False)
+
+
+@dataclass(frozen=True)
+class Unknown:
+    """What the rank does from here on is not determined. The rank stops; an execution that
+    reaches this point is neither finished nor deadlocked (explorer outcome 'unknown'), while
+    what happened before it, an abort or a call that departs from the trace, stands."""
+    why: str = "undetermined"
+
+
+@dataclass(frozen=True)
 class Meta:
-    """Metadata of a completed receive."""
+    """Metadata of a completed receive, and the payload when the message carries one."""
     src: int
     tag: int
     bytes: int
+    data: Optional[str] = None
 
 
-Op = Union[Send, Recv, Wait, Waitany, Coll, If, Abort]
+Op = Union[Send, Recv, Wait, Waitany, Coll, If, Abort, Lazy, Unknown]
 Program = Dict[int, List[Op]]
 
 
@@ -206,7 +229,7 @@ def trace_from_execution(prog: Program, matching: Dict[Tuple[int, int], Tuple[in
     """Raw tracer records ({rank: [record]}) of a run of a straight-line program (no If, no
     Waitany) whose receives matched as `matching` (recv key -> send key, every receive
     matched). trace._build loads the result like a real trace: ranks are written comm-local,
-    requests get ids, wildcard receives their ordinal."""
+    requests get ids, wildcard receives their ordinal, sends with a payload their data."""
     sends_by_key = {}
     for r, ops in prog.items():
         n = 0
@@ -235,6 +258,8 @@ def trace_from_execution(prog: Program, matching: Dict[Tuple[int, int], Tuple[in
                     rec["req"] = reqid[op.req] = nreq
                     reqkind[op.req] = ("send", (r, nsend))
                     nreq += 1
+                if op.data is not None:
+                    rec["data"] = op.data
                 recs.append(rec)
                 nsend += 1
             elif isinstance(op, Recv):

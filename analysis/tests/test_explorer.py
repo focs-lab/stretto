@@ -11,7 +11,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import random
 import unittest
 
-from stretto.dsl import ANY, Coll, If, Irecv, Isend, Recv, Send, Wait, Waitany
+from stretto.dsl import ANY, Abort, Coll, If, Irecv, Isend, Lazy, Recv, Send, Unknown, Wait, Waitany
 from stretto.explore import ExploreError, StateCapReached, explore
 
 from idioms_dsl import ALL
@@ -211,6 +211,47 @@ class T14_Leaks(unittest.TestCase):
 # ---------------------------------------------------------------- T10 differential
 
 from stretto.dsl import random_program  # noqa: E402
+
+
+class T15_ComputedContinuation(unittest.TestCase):
+    """Lazy ops (the rest of a rank computed from its variables), Unknown ops (a rank whose
+    continuation is not determined) and payloads, which level L2 by re-execution is made of."""
+
+    def test_unknown_is_neither_done_nor_deadlock(self):
+        res = explore({0: [Recv(1, 1)], 1: [Unknown("not determined")]}, 0)
+        self.assertEqual(res.kinds(), {"unknown"})
+        self.assertEqual(res.outcomes[0].unknown, ((1, "not determined"),))
+
+    def test_abort_stands_beside_an_unknown_rank(self):
+        self.assertEqual(kinds({0: [Abort("check")], 1: [Unknown("x")]}, None), {"abort"})
+
+    def test_lazy_reads_the_payload(self):
+        def check(env):
+            return () if env["m"].data == "03000000" else (Abort("not 3"),)
+        for data, want in (("03000000", {"done"}), ("02000000", {"abort"})):
+            prog = {0: [Send(1, 1, data=data)], 1: [Recv(0, 1, into="m"), Lazy("check", check)]}
+            self.assertEqual(kinds(prog, None), want)
+            self.assertEqual(explore(prog, None).sigs(), explore(prog, None, reduce=False).sigs())
+
+    def test_payload_bound_at_completion_of_a_nonblocking_receive(self):
+        prog = {0: [Send(1, 1, req="s", data="07000000"), Wait("s")],
+                1: [Irecv(0, 1, req="r", into="m"), Wait("r"), Lazy("k", lambda env: () if env["m"].data == "07000000" else (Abort(),))]}
+        self.assertEqual(kinds(prog, 0), {"done"})
+
+    def test_ready_send_computed_during_the_exploration(self):
+        class Prog(dict):
+            seen = False
+
+            def dynamic_rsend(self):
+                return Prog.seen
+
+        def cont(env):
+            Prog.seen = True
+            return (Send(1, 1, mode="rsend"),)
+        prog = Prog({0: [Lazy("k", cont)], 1: [Recv(0, 1)]})
+        res = explore(prog, None)
+        # issued before or after the receive is posted: with and without the error, as unreduced
+        self.assertEqual({bool(o.errors) for o in res.outcomes}, {True, False})
 
 
 class T10_Differential(unittest.TestCase):
