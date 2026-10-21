@@ -2,6 +2,7 @@
 from __future__ import annotations
 import argparse
 import json
+import os
 import shlex
 import sys
 
@@ -63,7 +64,21 @@ def _analyze(args):
         twin, label = rerun.Oracle(t, runner).program(), "re-execution"
     return t, report.analyze(t, with_sp=not args.no_sp, sp_max_events=args.sp_max_events,
                              max_states=args.max_states, generic=args.generic, full_profile=args.full_profile,
-                             changes=args.changes, twin=twin, twin_label=label)
+                             changes=args.changes, twin=twin, twin_label=label, reads=read_bounds(args))
+
+
+def read_bounds(args):
+    """The read bounds of --reads (stretto.reads.SiteMap), or None. The trace's call sites are
+    named with addr2line in the object the tracer recorded or, if it has moved, in the one of
+    the same name in --objdir (default: the trace directory's parent)."""
+    if not getattr(args, "reads", None):
+        return None
+    from . import reads
+    objdir = args.objdir or os.path.dirname(os.path.abspath(args.tracedir.rstrip("/")))
+    try:
+        return reads.SiteMap.load(args.reads, reads.addr2line_resolver(objdir))
+    except (OSError, ValueError, KeyError) as e:
+        raise LoadError(f"cannot load the read bounds {args.reads}: {e!r}") from e
 
 
 def cmd_analyze(args):
@@ -148,6 +163,12 @@ def _analysis_options(a):
     a.add_argument("--rerun-timeout", type=float, default=20, help="seconds per re-execution")
     a.add_argument("--rerun-cwd", default=None,
                    help="working directory of the re-executions (default: an empty one; the rank's file writes land here)")
+    a.add_argument("--reads", metavar="FILE", default=None,
+                   help="first-read map of the program (python3 -m stretto.firstread): keep the records a rank issues "
+                        "before it can read a changed receive's result in the horizon (rule H1', docs/firstread.md)")
+    a.add_argument("--objdir", default=None,
+                   help="with --reads: where to find a traced object whose recorded path no longer exists (default: "
+                        "the trace directory's parent)")
 
 
 def main(argv=None) -> int:

@@ -10,11 +10,13 @@ a deadlock happens in every program consistent with the trace up to the operatio
 D stops, so it is a level-L1 claim and needs no single-path assumption.
 
 Every cut descends from the changed receives, so a contained deadlock needs a changed rank
-that stops *before* its changed receive completes: a nonblocking wildcard receive whose rank
+that stops *before* rule 1 cuts it: under rule H1 a nonblocking wildcard receive whose rank
 then blocks on another operation before the wait. A blocking changed receive cuts its rank by
 rule 1 right after it, and every rank that waits on that rank waits on an unknown
-continuation. This holds from B0 on, where the report looks (proof appendix, the proposition
-on contained deadlocks): below B0 a send that no receive accepts can block on its own.
+continuation, unless read bounds (stretto.reads, rule H1') keep the records the rank issues
+before it can read the receive's result: the rank may then stop inside that window. This
+holds from B0 on, where the report looks (proof appendix, the proposition on contained
+deadlocks): below B0 a send that no receive accepts can block on its own.
 """
 from __future__ import annotations
 from typing import Dict, List, Optional, Set, Tuple
@@ -40,11 +42,13 @@ def _completed_at(t: Trace) -> Dict[Tuple[int, int], list]:
 
 
 def contained_deadlock(t: Trace, M, changed: Set[Key], cut: Dict[int, int], issued: Dict[int, int],
-                       B: Optional[int]) -> Optional[Dict[int, str]]:
+                       B: Optional[int], rule1: Optional[Dict[int, int]] = None) -> Optional[Dict[int, str]]:
     """The ranks of a contained deadlock under M at B with horizon (cut, issued), each with the
-    operation it stops at, or None."""
+    operation it stops at, or None. rule1: per rank, where rule 1 cut it, when read bounds
+    moved the cut (stretto.reads.ReadBounds.rule1); right after the changed receive otherwise."""
     lengths = {rank: len(recs) for rank, recs in t.ranks.items()}
-    rule1 = {t.recvs[rk].rank: _cidx(t.recvs[rk]) + 1 for rk in changed}
+    if rule1 is None:
+        rule1 = {t.recvs[rk].rank: _cidx(t.recvs[rk]) + 1 for rk in changed}
 
     def in_h(rank: int, idx: int) -> bool:
         return idx < cut[rank]

@@ -257,6 +257,12 @@ class Trace:
         s = self.sites.get((rank, sid)) if sid >= 0 else None
         return None if s is None else (s.get("obj", "?"), s.get("addr", 0) - s.get("base", 0))
 
+    def site_record(self, rank: int, idx: int) -> Optional[dict]:
+        """The tracer's site record (object, return address, load address) of record idx."""
+        ids = self._site_ids.get(rank)
+        sid = ids[idx] if ids is not None and idx < len(ids) else -1
+        return self.sites.get((rank, sid)) if sid >= 0 else None
+
     def site_label(self, rank: int, idx: int) -> Optional[str]:
         s = self.site_of(rank, idx)
         return None if s is None else f"{os.path.basename(s[0])}+{s[1]:#x}"

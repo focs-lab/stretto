@@ -9,7 +9,9 @@ whatever the result was. H1' keeps the records of the rank between the completio
 receive r and read(r) in the horizon, where read(r) is any *sound lower bound* of the first
 point at which the program may read a result of r; H1 is the case read(r) = completion.
 
-`stretto.firstread` computes such a bound statically from the program's C sources.
+`stretto.firstread` computes such a bound statically from the program's C sources;
+`stretto.reads` turns it into a bound per record of a trace, which `stretto analyze --reads
+FILE` uses.
 
 ## The map
 
@@ -93,6 +95,46 @@ access an object through a pointer to another one (undefined behaviour in C), in
 receiving more data into a local than it holds; signal handlers and other threads do not read
 the result objects (they cannot reach them by rule 1).
 
+## Bounds on a trace
+
+`stretto/reads.py` names each record's call site (the return address the tracer recorded) with
+`addr2line`, and matches it to the static sites with the same function, file name and line
+whose MPI call can produce a record of that kind (`reads.FAMILIES`, from what
+`tracer/mpitrace.c` writes for each call). For a record k that delivers the result of a
+receive r (r's own record if r blocks, the wait or test that completed it otherwise) with
+posting record p, the *bound* is the index of the first later record of the rank that is not
+certified: a record is certified if it has candidate sites and every candidate is free for
+every pair of a candidate site of p and a candidate site of k. A record without a call site or
+without a candidate, and every record after a k whose pair of sites the map does not list, are
+not certified. Without a map the bound is k + 1, rule H1; a receive that never completed in the
+trace keeps that bound, since a later test of its request could deliver its result anywhere.
+
+If every record from k + 1 to j is certified, the program issued them before reading any result
+of r: the site each of them really came from is among its candidates, hence free, and the claim
+above applies to it. One more premise: the traced binary's line table and clang's agree on the
+line of each MPI call (both compile with `-O0 -g`). A call whose line differs finds no
+candidate and ends the window, unless another MPI call of the same kind sits on the line it
+was given.
+
+## Rule H1' in the horizon
+
+With bounds, rule 1 of the horizon (`horizon.compute_cut`, and `fast.Observed.closure`, which
+cuts alike) cuts the rank of a changed receive at its bound instead of right after its
+completion. Probe and completion-order alternatives keep rule H1: a probe's status is read at
+once in every program seen so far, and a matching probe would also re-order the queue the
+window's receives draw from. The indexed acyclicity test relies on the rank ending right after
+the receive, so a steal whose window is longer goes to the generic check.
+
+The other receives of the window keep their observed matches in the alternative, and a longer
+window adds their obligations: a later receive that accepts the message the changed receive
+gave up, and took a later message of the same channel, makes the alternative unrealisable as
+stated, although H1, which says nothing about that receive, accepts it. Both claims are sound
+(H1 is a bound too), so an alternative is judged with H1 and, when H1 rejects it, with H1'; its
+profile over the thresholds is the union, monotone in B as each part is (theorem T2: rule 1
+does not mention B). A deadlock contained in the H1' horizon is an L1 finding (theorem T7,
+`deadlock.contained_deadlock` with the cut of rule 1 at the bound): the ranks of the deadlock
+stop at operations every program consistent with the trace and its bounds issues.
+
 ## Known imprecision
 
 - Objects that are globals, heap memory or parameters, and locals whose address escapes, are
@@ -106,3 +148,8 @@ the result objects (they cannot reach them by rule 1).
   calls tainted.
 - A wait that completes a receive posted in another function (a helper that waits for requests
   it is given) has no pair in the map: H1.
+- Records are matched to sites by line: two MPI calls of the same kind on one line are
+  certified only together. `MPI_Sendrecv` writes a wait record after its receive at its own
+  site, which ends the window unless the call sits in a loop.
+- In the horizon, the window's other receives keep their observed matches; an alternative that
+  is realisable only if they take other messages falls back to H1.

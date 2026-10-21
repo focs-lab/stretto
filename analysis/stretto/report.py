@@ -109,7 +109,7 @@ def classify(r: Recv, s: Send, s_obs: Optional[Send]) -> Tuple[str, str]:
 
 def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_events: int = 2000,
             generic: bool = False, full_profile: bool = False, twin=None, changes: int = 1,
-            twin_label: str = "twin") -> Report:
+            twin_label: str = "twin", reads=None) -> Report:
     """Alternatives are judged by the indexed checker (stretto.fast), each profiled at the
     two ends of the B range and bisected between them (exact by theorem T2); full_profile=True
     judges every breakpoint, generic=True uses the generic checker (feasible.check) instead
@@ -119,7 +119,11 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
     exploration under each L1 alternative yields the L2 findings (1e, abort, deadlock), and an
     alternative after which every execution finishes with the recorded calls is dismissed.
     changes=2 also enumerates alternatives that re-match two wildcard receives on different
-    ranks, judged by the generic checker at every breakpoint."""
+    ranks, judged by the generic checker at every breakpoint. reads: read bounds
+    (stretto.reads, docs/firstread.md); an alternative whose changed receive is followed by
+    records the program issues before it can read the result is judged with those records in
+    the horizon (rule H1') and, if that fails, with rule H1, and a deadlock contained in the
+    H1' horizon is an L1 finding."""
     rep = Report()
     rep.notes.extend(t.warnings)
     if t.truncated:
@@ -229,8 +233,12 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
     rep.infeasible.extend((d, why) for d, why in pruned)
     probes = probe_candidates(t, hb)
     waits = _completion_alternatives(t, hb)
-    pr = _profiles_generic(t, alts, probes, waits) if generic else _profiles_fast(t, alts, probes, waits, full_profile)
+    pr = _profiles_generic(t, alts, probes, waits, reads) if generic else _profiles_fast(t, alts, probes, waits, full_profile, reads)
     rep.notes.extend(pr.notes)
+    if reads is not None:
+        n = sum(1 for a in alts if reads.extends(t, a.changed))
+        rep.notes.append(f"read bounds: {n} of {len(alts)} alternatives keep records of the changed rank after the "
+                         "changed receive completes (rule H1', docs/firstread.md)")
 
     # ---- family 2: is the observed run itself buffering-dependent?
     prof_obs = pr.obs
@@ -287,19 +295,32 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
             details.append(f"swap variant: {t.recvs[alt.stolen_from]} then takes {s_obs}; certified at L1 only up to the first changed receive")
         elif alt.stolen_from is not None:
             details.append(f"steal variant: {t.recvs[alt.stolen_from]} is left without {s}")
+        ext = reads is not None and reads.extends(t, alt.changed)
+        if ext:
+            details.append("read bounds: " + "; ".join(
+                f"rank {R} reads no result of the changed receive " + (f"before its record #{q}" if q < len(t.ranks[R]) else "in the rest of its trace")
+                for R, q in sorted(reads.rule1(t, alt.changed).items())))
         f = Finding("1", cls, "L1", alt.describe(t), details, B=brange, recv=alt.recv, send=alt.send,
                     pin=pin_spec(r, s))
         rep.findings.append(f)
         # a deadlock contained in the horizon (theorem T7): possible only when a changed rank
-        # stops before its changed receive completes, i.e. at a nonblocking changed receive
-        if any(not t.recvs[k].blocking for k in alt.changed):
+        # stops before rule 1 cuts it, i.e. at a nonblocking changed receive, or inside the
+        # window that read bounds keep after a changed receive (rule H1')
+        if any(not t.recvs[k].blocking for k in alt.changed) or ext:
             held = []
+            windowed = False
             for B in dict.fromkeys([minB, None] if at_inf else [minB]):
-                v = check(t, alt.M, alt.changed, B, "L1")
+                v, rule1 = None, None
+                if ext:
+                    v = check(t, alt.M, alt.changed, B, "L1", bounds=reads)
+                    rule1 = reads.rule1(t, alt.changed)
+                if v is None or not v.feasible:
+                    v, rule1 = check(t, alt.M, alt.changed, B, "L1"), None
                 if v.feasible:
-                    D = contained_deadlock(t, alt.M, alt.changed, v.cut, v.issued, B)
+                    D = contained_deadlock(t, alt.M, alt.changed, v.cut, v.issued, B, rule1)
                     if D:
                         held.append((B, D))
+                        windowed = windowed or rule1 is not None
             if held:
                 D = held[-1][1]
                 rep.findings.append(Finding(
@@ -307,7 +328,9 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
                     ["; ".join(f"rank {R} stops at {op}" for R, op in D.items()),
                      "every rank that could complete these operations stops too or has terminated, so the deadlock "
                      "holds for every program consistent with the trace up to them (theorem T7, no single-path assumption)",
-                     "judged at B in " + ",".join(_fmt_B(B) for B, _ in held)],
+                     "judged at B in " + ",".join(_fmt_B(B) for B, _ in held)]
+                    + (["the horizon keeps the records the changed rank issues before it can read the receive's result "
+                        "(rule H1', read bounds)"] if windowed else []),
                     B="B in " + ",".join(_fmt_B(B) for B, _ in held), recv=alt.recv, send=alt.send,
                     pin=pin_spec(r, s), certainty="all"))
         if alt.kind == "steal" or (alt.recv, alt.send) not in sp_pairs:
@@ -601,13 +624,16 @@ class _Profiles:
 CONFIRM_LIMIT = 200_000     # records up to which the generic check confirms the fast check's cycle rejections
 
 
-def _profiles_fast(t: Trace, alts, probes, waits, full: bool = False) -> _Profiles:
+def _profiles_fast(t: Trace, alts, probes, waits, full: bool = False, reads=None) -> _Profiles:
     """The indexed checker (stretto.fast). Each item is judged at the two ends of the B range
     and, when the verdicts differ, bisected over the breakpoints between them: theorem T2
     (docs/model.md) makes the feasibility of a single-change alternative monotone in B, so
     the profile is an interval and the bisection exact. full=True judges every breakpoint
     instead; the tests and the E2 harness compare the two. Observed(t, B) is built on the
-    first check at B and serves every later one at that threshold."""
+    first check at B and serves every later one at that threshold. With read bounds, an
+    alternative that rule H1 rejects is judged again with the longer window of rule H1' (the
+    generic check); either verdict is sound, so the profile is their union, monotone in B as
+    each of them is."""
     bps = breakpoints(t) + [None]
     ix = t.fast_indexes()
     obs: Dict[Optional[int], fast.Observed] = {}
@@ -674,7 +700,7 @@ def _profiles_fast(t: Trace, alts, probes, waits, full: bool = False) -> _Profil
     profile(pr.real, lambda B: at(B).observed_verdict(strong=False), lambda v: v.ok, "the observed run over every edge")
     floor = observed_floor(bps, pr.real)
     for i, a in enumerate(alts):
-        def alt_at(B, a=a):
+        def alt_h1(B, a=a):
             fv = at(B).check_alternative(a)
             if fv is None:
                 return check(t, a.M, a.changed, B, "L1")   # a swap, a nonblocking receive, a cyclic observed graph
@@ -686,6 +712,14 @@ def _profiles_fast(t: Trace, alts, probes, waits, full: bool = False) -> _Profil
                     return g
                 unconfirmed[0] += 1
             return fv
+
+        def alt_at(B, a=a, h1=alt_h1, ext=reads is not None and reads.extends(t, a.changed)):
+            v = h1(B)
+            if ext and not v.feasible:
+                g = check(t, a.M, a.changed, B, "L1", bounds=reads)     # rule H1'
+                if g.feasible:
+                    return g
+            return v
         # T2 covers steals at blocking receives: a swap re-matches two receives, and at a
         # nonblocking receive the judged receives can change with B (proof appendix)
         exact = a.kind == "steal" and t.recvs[a.recv].blocking
@@ -720,16 +754,22 @@ def observed_floor(bps: List[Optional[int]], obs: Dict[Optional[int], bool]) -> 
     return 0
 
 
-def _profiles_generic(t: Trace, alts, probes, waits) -> _Profiles:
+def _profiles_generic(t: Trace, alts, probes, waits, reads=None) -> _Profiles:
     """The generic checker (feasible.check), profiling each item from the observed run's
-    threshold B0 to infinity and bisecting between them (T2); swaps in full."""
+    threshold B0 to infinity and bisecting between them (T2); swaps in full. With read
+    bounds, an alternative's profile is the union of its profiles under rules H1 and H1'."""
     pr = _Profiles(feasible_profile(t, t.observed, set(), mode="SP", full=False, strong_only=True),
                    observed_feasible_at(t, 0), [], [], [], [], [], [],
                    real=feasible_profile(t, t.observed, set(), mode="SP", full=False))
     bps = breakpoints(t) + [None]
     B0 = bps[observed_floor(bps, pr.real)]
     for a in alts:
-        pr.alt.append(feasible_profile(t, a.M, a.changed, mode="L1", full=not (a.kind == "steal" and t.recvs[a.recv].blocking), floor=B0))
+        full = not (a.kind == "steal" and t.recvs[a.recv].blocking)
+        prof = feasible_profile(t, a.M, a.changed, mode="L1", full=full, floor=B0)
+        if reads is not None and reads.extends(t, a.changed):
+            p2 = feasible_profile(t, a.M, a.changed, mode="L1", full=full, floor=B0, bounds=reads)
+            prof = {B: ok or p2.get(B, False) for B, ok in prof.items()}
+        pr.alt.append(prof)
         pr.alt_reason.append(check(t, a.M, a.changed, None, "L1").reason)
     for p, s in probes:
         kw = dict(changed_probes={p.key}, probe_alt={p.key: s.key})

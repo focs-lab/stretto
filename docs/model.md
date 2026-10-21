@@ -303,7 +303,9 @@ set closed under (`horizon.compute_cut`):
 1. for `r ∈ R*`: everything after `complete(r)` in its rank is removed (the payload and metadata
    differ; the trace does not determine the continuation); if r never completes in σ,
    everything after its posting is removed, since a later test of its request could now
-   succeed;
+   succeed. Rule H1' (`stretto analyze --reads`, `docs/firstread.md`) removes instead what
+   follows the receive's read bound, the first record the program may issue after reading a
+   result of r, computed from the program's sources;
 2. a receive whose `M'` send is removed, or which has no `M'` send, does not complete;
 3. a send with bytes > B whose receive is removed or absent does not complete; the receive is
    present when its *posting* is kept, since a rendezvous send matches a posted receive

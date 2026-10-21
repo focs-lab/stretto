@@ -16,8 +16,10 @@ from indexes built once per trace and once per threshold:
     rank right after the receive, so a cycle through the new match must leave it through
     a rendezvous send's completion and return through one of its predecessors.
 
-Steals at nonblocking receives and swaps go to the generic check. The generic check stays as
-the reference; the tests compare the two on every alternative.
+Steals at nonblocking receives, swaps, and steals whose read bounds (stretto.reads) keep records
+of the rank after the receive go to the generic check; the closure applies the bounds like
+horizon.compute_cut. The generic check stays as the reference; the tests compare the two on
+every alternative.
 """
 from __future__ import annotations
 from bisect import bisect_left, bisect_right
@@ -258,13 +260,14 @@ class Observed:
                 dropped_recvs: Iterable[Recv] = (), dropped_sends: Iterable[Send] = (),
                 exclude2: Optional[Tuple[int, int, int]] = None, exclude3: Optional[Tuple[int, int, int]] = None,
                 changed_probes: Iterable[Probe] = (), changed_events: Iterable[Tuple[int, int]] = (),
-                mode: str = "L1", hangs: Optional[Dict[int, str]] = None) -> Tuple[Dict[int, int], Dict[int, int]]:
+                mode: str = "L1", hangs: Optional[Dict[int, str]] = None,
+                bounds=None) -> Tuple[Dict[int, int], Dict[int, int]]:
         """The horizon closure (horizon.compute_cut) for the observed matching with the
         receives in new_pairs re-matched, dropped_recvs left without a send and
         dropped_sends without a receive. exclude2 = (R, Q, position) names a stale entry of
         the rule-2 index (the changed receive's observed send), exclude3 one of the rule-3
-        index (the receive that lost the send now taken by the changed receive). Returns
-        (cut, issued)."""
+        index (the receive that lost the send now taken by the changed receive). bounds: read
+        bounds for rule 1, as in horizon.compute_cut. Returns (cut, issued)."""
         t, ix, B = self.t, self.ix, self.B
         new_pairs = new_pairs or {}
         cut = dict(ix.length)
@@ -330,7 +333,7 @@ class Observed:
         if mode == "L1":
             for rk in changed:
                 r = t.recvs[rk]
-                lower(r.rank, _cidx(r) + 1)
+                lower(r.rank, bounds.recv(t, r) if bounds is not None else _cidx(r) + 1)
             for p in changed_probes:
                 lower(p.rank, p.idx + 1)
             for rank, idx in changed_events:
@@ -523,19 +526,23 @@ class Observed:
         return self._pred.get(n, ())
 
     # ------------------------------------------------------------------- checks
-    def check_alternative(self, alt: Alternative) -> Optional[Verdict]:
+    def check_alternative(self, alt: Alternative, bounds=None) -> Optional[Verdict]:
         """Verdict for a steal at a blocking receive; None for a swap or a nonblocking
         receive, which the generic check judges, and None whenever the observed graph at B is
         cyclic (below the observed run's threshold), since the cycle need not lie in the
         horizon (proof appendix, conservative step 1). A blocking receive is matched in its own
         call and rule 1 cuts its rank right after it, so the only kept successor of its match
         is the completion of a rendezvous send, and a cycle through the new match exists iff
-        that completion reaches one of the match's predecessors (docs/model.md §2)."""
+        that completion reaches one of the match's predecessors (docs/model.md §2). With read
+        bounds that keep records of the rank after the receive (rule H1'), the match has more
+        kept successors and the generic check judges the alternative (None)."""
         if alt.kind != "steal":
             return None
         t, B = self.t, self.B
         r, s = t.recvs[alt.recv], t.sends[alt.send]
         if not r.blocking:
+            return None
+        if bounds is not None and bounds.extends(t, alt.changed):
             return None
         s_obs = t.observed_send(r)
         r2 = t.recvs[alt.stolen_from] if alt.stolen_from is not None else None
