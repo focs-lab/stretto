@@ -27,7 +27,7 @@ traces~\citep{tai97race} and reachability testing~\citep{lei06reachability} comp
 message-passing trace the race set of each receive: the sends not causally after
 it that are the earliest unconsumed message of their source, as our steals are. A race variant
 changes receives to members of their race sets and removes what a changed receive may
-control, which for blocking traffic is our horizon. Removing it is what makes
+control, which for blocking traffic matches our horizon. Removing it makes
 a variant feasible ``regardless of the program's control and data
 flow''~\citep[p.\,390]{lei06reachability}, and each variant is run by prefix-based replay.
 The line's first paper proves feasibility for the read--write sequences of shared
