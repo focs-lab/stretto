@@ -6,7 +6,9 @@ determined by the trace. Rules, iterated to a fixpoint:
   1. a changed receive keeps its completion; everything after it in its rank is cut
      (its payload and metadata differ, so the continuation is unknown). A swap of two
      receives on one rank therefore cuts at the *earlier* one: the second re-match is
-     beyond the L1 horizon by definition and is certified only at L1+SP or L2;
+     beyond the L1 horizon by definition and is certified only at L1+SP or L2. With read
+     bounds (stretto.reads, docs/firstread.md) the cut moves to the receive's bound, the
+     first record the program may issue after reading its result (rule H1');
   2. a receive that completed in the trace but whose M' send is cut, or which has no M'
      send, never completes: cut at its completion (a receive that never completed in the
      trace imposes nothing);
@@ -61,7 +63,8 @@ def _cidx(x) -> int:
 def compute_cut(t: Trace, M: Dict[Key, Key], changed: Set[Key], B: Optional[int], mode: str = "L1",
                 changed_probes: Set[Key] = frozenset(), hangs: Optional[Dict[int, str]] = None,
                 changed_events: Set[Tuple[int, int]] = frozenset(),
-                issued: Optional[Dict[int, int]] = None, probe_alt: Optional[Dict[Key, Key]] = None) -> Dict[int, int]:
+                issued: Optional[Dict[int, int]] = None, probe_alt: Optional[Dict[Key, Key]] = None,
+                bounds=None) -> Dict[int, int]:
     """The horizon closure as a worklist: every rule is evaluated once at the start and then
     only where an input of its condition changed, which happens when a record loses its
     issue (each record does so at most once, since cuts only decrease). The result is the
@@ -72,7 +75,10 @@ def compute_cut(t: Trace, M: Dict[Key, Key], changed: Set[Key], B: Optional[int]
     or a probe, such as a Waitany completing another index; the horizon cuts after them.
     issued, if given, receives rank -> idx of a blocking send that rule 3 cut at its own
     record: the rank never gets past it, but the send *is* issued (a probe can see it).
-    probe_alt maps a changed probe to the send it reports instead of the observed one."""
+    probe_alt maps a changed probe to the send it reports instead of the observed one.
+    bounds (stretto.reads): rule 1 cuts the rank of a changed receive at the receive's read
+    bound instead of right after its completion (H1', docs/firstread.md); probes and events
+    keep rule H1."""
     cut: Dict[int, int] = {rank: len(recs) for rank, recs in t.ranks.items()}
     if issued is None:
         issued = {}
@@ -167,7 +173,7 @@ def compute_cut(t: Trace, M: Dict[Key, Key], changed: Set[Key], B: Optional[int]
     if mode == "L1":
         for rk in changed:
             r = t.recvs[rk]
-            lower(r.rank, _cidx(r) + 1)
+            lower(r.rank, bounds.recv(t, r) if bounds is not None else _cidx(r) + 1)
         for pk in changed_probes:
             p = t.probes[pk]
             lower(p.rank, p.idx + 1)
@@ -214,14 +220,16 @@ def compute_cut(t: Trace, M: Dict[Key, Key], changed: Set[Key], B: Optional[int]
 def compute_cut_fixpoint(t: Trace, M: Dict[Key, Key], changed: Set[Key], B: Optional[int], mode: str = "L1",
                 changed_probes: Set[Key] = frozenset(), hangs: Optional[Dict[int, str]] = None,
                 changed_events: Set[Tuple[int, int]] = frozenset(),
-                issued: Optional[Dict[int, int]] = None, probe_alt: Optional[Dict[Key, Key]] = None) -> Dict[int, int]:
+                issued: Optional[Dict[int, int]] = None, probe_alt: Optional[Dict[Key, Key]] = None,
+                bounds=None) -> Dict[int, int]:
     """The closure by iterating every rule over the whole trace until nothing moves: the
     reference for compute_cut, which reaches the same fixpoint with a worklist (the tests
     compare the two). changed_events: (rank, idx) of records whose outcome changes without being a receive
     or a probe, such as a Waitany completing another index; the horizon cuts after them.
     issued, if given, receives rank -> idx of a blocking send that rule 3 cut at its own
     record: the rank never gets past it, but the send *is* issued (a probe can see it).
-    probe_alt maps a changed probe to the send it reports instead of the observed one."""
+    probe_alt maps a changed probe to the send it reports instead of the observed one.
+    bounds: read bounds for rule 1, as in compute_cut."""
     cut: Dict[int, int] = {rank: len(recs) for rank, recs in t.ranks.items()}
     if issued is None:
         issued = {}
@@ -246,7 +254,7 @@ def compute_cut_fixpoint(t: Trace, M: Dict[Key, Key], changed: Set[Key], B: Opti
     if mode == "L1":
         for rk in changed:
             r = t.recvs[rk]
-            lower(r.rank, _cidx(r) + 1)
+            lower(r.rank, bounds.recv(t, r) if bounds is not None else _cidx(r) + 1)
         for pk in changed_probes:
             p = t.probes[pk]
             lower(p.rank, p.idx + 1)

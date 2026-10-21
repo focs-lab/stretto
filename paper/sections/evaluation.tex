@@ -99,6 +99,12 @@ assumption. Of the \nMBIOnlyStretto errors that \tool reports and \MUST does not
 \nMBICleanTemplates program templates, \nMBICleanConfirmed of them are confirmed by replay,
 and stress testing makes \nMBICleanPredStress of them fail as well. The \nMBIfnunion misses
 are message races whose payload is the sender's rank and whose program checks it (RQ4).
+One run samples one schedule, so we ran MBI \nRepsRuns more times. The run itself shows
+\nRepsObsAlways labelled errors in every run, \nRepsObsSometimes in some and \nRepsObsNever in
+none; \tool reports \nRepsUnionAlways in every run and none less often than the run shows it,
+with no false error report (F1 \RepsUnionFoneMin to \RepsUnionFoneMax). It predicts the error
+from \nRepsCleanPredicted of the \nRepsCleanRuns runs that showed nothing; the rest are of the
+value-checking programs.
 
 Stress testing makes \nMBIStressFound of the \nMBIStressErr fail, mostly in its first run;
 \nMBIStressLater need more than one. The \nMBIStressPredMissed it never makes fail are the buffering programs, which deadlock only if the implementation
@@ -279,15 +285,21 @@ traced run. Version~3.3.1 has no alternative in its \nMGFixedTraced traces. Rand
 change the residual as well, in \nMGStressChanged of \nMGStressRuns untraced runs of
 version~2.4.1 on \nMGStressRanks processes, half of them delayed.
 
+\paragraph{A third documented bug.} deal.II~9.3.0-rc1's \texttt{RemotePointEvaluation} takes
+each call's messages with \mpicall{Probe} on \anysrc under one tag, and nothing separates two
+calls on one cached object; release~9.3.0 added a mutex~\citep{dealii-pr12363}. Each of
+\nDealTraced clean runs of its test \texttt{mapping\_01} on \nDealRanks processes predicts
+probes that take the next call's message, \nDealAlts in all. Forced, all \nDealReplayed finish
+with status~0 and print wrong values in the two consecutive calls the code predicts
+(\nDealMatched report every pin matched); \nDealControlsSame of \nDealControls controls print
+the expected output, and 9.3.0 has no such alternative. Unlike HYPRE's, this race is easy to
+hit: \nDealStressDelayChanged of \nDealStressDelayRuns runs with random delays print wrong values.
+
 \paragraph{Wildcard-heavy correct code.} AMG's solver exchanges its matrix data with probes on
 any source. One traced run on eight processes, with \nAMGsends messages, \nAMGwild wildcard
 receives and \nAMGprobes probes, gives \nAMGalts probe alternatives and \nAMGrecvAlts
 same-shape receive alternatives. All of them are warnings or information, and none is a
-contained deadlock. The sample of RQ1 finished under every pin. By call site the findings fall
-at two sites, the probe and the receive inside HYPRE's MPI wrappers
-(\texttt{hypre\_MPI\_Iprobe}, \texttt{hypre\_MPI\_Recv}); naming their callers needs a deeper
-stack. In
-Nekbone, every finding is a \cls{1f} at the binary-tree reduction \texttt{gp2}, whose inner
+contained deadlock. The sample of RQ1 finished under every pin. In Nekbone, every finding is a \cls{1f} at the binary-tree reduction \texttt{gp2}, whose inner
 nodes take their children's contributions with one tag from any source. Only the
 communication suite's timing test calls it; the solver sums with \mpicall{Allreduce}. The
 check accepts \nNekAlts alternatives there, the same four at each of the test's calls, and
@@ -298,8 +310,8 @@ execution delivers it to that receive. Its sample in RQ1 finished under every pi
 \subsection{Threats to validity}
 
 All runs used one node, at the process counts given above, and the corpora's programs are
-small; the exhaustive comparison of RQ1 reaches \nEsixMaxEvents events. Each corpus program
-was traced once, so we do not estimate how often one run exposes its race. The \Ltwo twins are
+small; the exhaustive comparison of RQ1 reaches \nEsixMaxEvents events. Of
+\cref{tab:rq2}'s runs only MBI's were repeated, without \MUST. The \Ltwo twins are
 written knowing the labels, and the HYPRE campaign replays only the probe whose tag the documented fix
 changed. \MUST sees a run of its own under MPICH, not the traced execution,
 and the harness's timeout decides what counts as a hang for both.
@@ -308,5 +320,5 @@ distribution, a lower limit or a noise-injection tool may find more. The model a
 complete trace of the modelled fragment (a call outside it restricts the report to observed
 findings), one threshold for all standard sends of a run, and an angelic choice in
 \mpicall{Waitany}. The HYPRE campaign uses one input and two process counts, the MG campaign
-one class and one count. We did not run MPI-PRV~\citep{yao26mpiprv}, which keeps every
+one class and one count, the deal.II campaign one test. We did not run MPI-PRV~\citep{yao26mpiprv}, which keeps every
 wildcard match fixed.

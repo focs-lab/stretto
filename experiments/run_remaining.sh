@@ -4,9 +4,9 @@
 # under experiments/results/ and logs to experiments/results/run-remaining.log. MUST runs are
 # separate (experiments/mbi/run_must.py, experiments/amg/must.sh): they need docker on the host.
 #
-# usage: experiments/run_remaining.sh [step ...]     steps: build tests mbi mbb stress e2 e6 amg e4 e3 guard reps
-#        (no step: all but guard and reps, in that order; guard traces the corpora again with the
-#        buffer guard, reps traces MBI REPS more times)
+# usage: experiments/run_remaining.sh [step ...]     steps: build tests mbi mbb stress e2 e6 amg e4 e3 guard reps e6reads
+#        (no step: all but guard, reps and e6reads, in that order; guard traces the corpora again
+#        with the buffer guard, reps traces MBI REPS more times, e6reads runs E6 with read bounds)
 #   JOBS     parallel programs in the corpus steps (default 6)
 #   TIMEOUT  per program run and per replay, seconds (default 60); MUST gets the same
 set -uo pipefail
@@ -70,6 +70,12 @@ step_e2() {
 }
 step_e6() {
     python3 experiments/e6_checker_vs_explorer.py --max-events 2000 --max-states 100000 --synthetic 200
+}
+step_e6reads() {
+    # E6 with read bounds (rule H1', docs/firstread.md): no result ever read, and a random bound
+    # per receive; a straight-line program reads nothing, so both are sound for it
+    python3 experiments/e6_checker_vs_explorer.py --max-events 2000 --max-states 100000 --synthetic 200 --reads never &&
+    python3 experiments/e6_checker_vs_explorer.py --max-events 2000 --max-states 100000 --synthetic 200 --reads random
 }
 step_amg() {
     experiments/amg/run.sh all

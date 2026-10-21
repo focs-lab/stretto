@@ -111,12 +111,13 @@ def Irecv(src, tag, cap=4, req="r", comm=0, into=None):
 _MODE = {"ssend": "ssend", "issend": "ssend", "bsend": "bsend", "ibsend": "bsend", "rsend": "rsend", "irsend": "rsend"}
 
 
-def program_from_trace(t) -> Program:
+def program_from_trace(t, positions: Optional[Dict[int, List[int]]] = None) -> Program:
     """Straight-line DSL program from a trace (single-path assumption), built from the
     loaded Send/Recv/Coll objects: ranks are world ranks, communicator ids are the global
     ones (explore(..., comms=t.comm_members)), ANY is the loaded ANY, and the ordinals are
     trace.py's by construction, since both skip MPI_PROC_NULL operations. A call the rank
-    was blocked in when the run ended is part of the program: the explorer finds the hang."""
+    was blocked in when the run ended is part of the program: the explorer finds the hang.
+    positions, if given, receives per rank the trace record of each op of the program."""
     prog: Program = {}
     colls = {}
     for c in t.colls:
@@ -125,6 +126,7 @@ def program_from_trace(t) -> Program:
         sends = {s.idx: s for s in t.sends_of(rank)}
         recvs = {r.idx: r for r in t.recvs_of(rank)}
         ops: List[Op] = []
+        where: List[int] = []
         for rec in recs:
             raw = rec.raw
             call = raw.get("call") if rec.op == "blocked" else rec.op
@@ -158,7 +160,10 @@ def program_from_trace(t) -> Program:
             elif call == "coll":
                 c = colls[(rank, rec.idx)]
                 ops.append(Coll(c.name, c.comm, f"q{c.req}" if c.req is not None else None, c.root))
+            where.extend([rec.idx] * (len(ops) - len(where)))
         prog[rank] = ops
+        if positions is not None:
+            positions[rank] = where
     return prog
 
 

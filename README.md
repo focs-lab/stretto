@@ -75,6 +75,26 @@ records. The buffer guard (`STRETTO_GUARD=1`) watches those buffers in the run i
 20 of the 20 under Open MPI and 22 of
 22 under MPICH, with no new false positive.
 
+**One run is one schedule.** Run 10 times, MBI's racing programs fail in some runs
+and finish cleanly in others: the run itself shows 26 of the
+65 labelled errors every time, 27 only sometimes and
+12 never. Stretto reports 61 of them in every run (F1
+0.98–1.00, no false positive in any run): of the
+234 runs of an erroneous program that showed nothing, it predicts the error
+from 222. The other 12 are runs of
+4 programs whose error is a check of the received value, which the
+value level (L2) decides.
+
+**Reads.** A program reads the result of a receive later, if at all. A static analysis of the
+C sources (clang, [`docs/firstread.md`](docs/firstread.md)) bounds where; a deadlock or lost
+message the single-path explorer finds then occurs in an execution of every program consistent
+with the trace, if its witness execution issues nothing past those bounds. On MBI, 10
+erroneous programs (7 with a clean run) get such a consequence; F1 counting
+only what needs no single-path assumption rises from 0.00 to
+0.27, with 0 new false positives. The 4
+value checks still need L2. Against the explorer with read bounds, 0 of
+1 648 judged alternatives are unsound.
+
 **A real bug.** HYPRE 2.10.1's ParaSails preconditioner reuses one tag for two exchanges behind
 a wildcard probe; a probe can take a request of the next exchange, and the solver hangs. A
 message race in HYPRE 2.10.1 hung a production code intermittently for 18 months, and
@@ -93,6 +113,18 @@ versions. Testing changes the residual in 8 of 80 runs, and
 nothing in those runs reports it.
 
 <p align="center"><img src="docs/figures/npbmg.svg" width="760" alt="NPB MG results"></p>
+
+**A third documented bug.** deal.II 9.3.0-rc1's `RemotePointEvaluation` takes each call's
+messages with a wildcard probe under one tag, and nothing separates two calls on one cached
+object, so a probe can take a message of the next call; upstream fixed it before 9.3.0 ("fix
+race condition if called multiple times"). Every one of 20 clean runs of
+deal.II's own test predicts it. Forced, all 1 440 replays finish with status 0
+and print wrong values, in the two calls the code predicts; the fix has no such alternative.
+Here testing finds the race too: 42 of 50 runs
+with random delays print wrong values, 1 of 50
+plain runs.
+
+<p align="center"><img src="docs/figures/dealii.svg" width="760" alt="deal.II results"></p>
 
 **Soundness in practice.** Against an exhaustive explorer, 0 of
 826 judged alternatives are unsound. Replays on MBI: 39
@@ -176,9 +208,9 @@ describes how the runs were made.
 |---|---|---|
 | 1a | alternative message does not fit the receive (count/type) | L1, trace only |
 | 1b | alternative message is from another logical channel (tag) | L1, trace only |
-| 1c | a send is left unmatched | L1+SP (single-path assumption) |
+| 1c | a send is left unmatched | L1+SP (single-path assumption), or L1 with read bounds |
 | 1c | a send was never received in the observed run | observed |
-| 1d | deadlock under the alternative | L1+SP, or L1 when contained in the horizon |
+| 1d | deadlock under the alternative | L1+SP, or L1 when contained in the horizon or with read bounds |
 | 1e | the twin's continuation diverges from the trace, or the twin aborts on the program's own check | L2 (twin: hand-written, or the program re-executed) |
 | 1f | same shape as observed; benign unless the continuation depends on it | L1 |
 | 2-buffering | the observed run itself deadlocks below an eager threshold | observed |
@@ -197,6 +229,13 @@ trace made with `STRETTO_PAYLOAD=<bytes>` and `stretto analyze --rerun ./a.out` 
 whose results change alone under a shim that serves it the recorded messages
 ([`docs/l2-auto.md`](docs/l2-auto.md)).
 
+Code that never reads what a receive returned needs no skeleton. `python3 -m stretto.firstread
+-o reads.json prog.c` finds, from the C sources and clang 18's IR, which MPI calls a program can
+only make before it reads a receive's buffer, status, flag or index; with `stretto analyze
+--reads reads.json`, the horizon keeps those calls after a changed receive, and a deadlock or
+lost message whose single-path witness stays within them is an L1 finding
+([`docs/firstread.md`](docs/firstread.md)).
+
 ## Repository
 
 | path | what |
@@ -208,7 +247,7 @@ whose results change alone under a shim that serves it the recorded messages
 | [`idioms/`](idioms/) | thirteen small MPI programs, each with the prediction it should give |
 | [`experiments/`](experiments/) | the corpus harness (MBI, MPI-BugBench), the applications, the image, the results |
 | [`artifact/`](artifact/) | one reproduction target per research question, and the claims check |
-| [`docs/`](docs/) | the model, the results, the feasibility gate, the proposal |
+| [`docs/`](docs/) | the model, the first-read bounds, the results, the feasibility gate, the proposal |
 | [`paper/`](paper/) | the paper's sources; every number comes from `paper/generated/numbers.tex` |
 | [`scripts/`](scripts/), [`study/`](study/) | idiom scripts; the survey of wildcard sites in proxy applications |
 

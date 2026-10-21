@@ -92,7 +92,7 @@ deadlock-free iff it is deadlock-free with zero buffering~\citep{siegel05ppopp,s
 Aislinn verifies programs under the eager and rendezvous threshold we
 model~\citep{bohm16aislinn}.
 
-\paragraph{Message passing beyond MPI.} Go channels and MPI matching are incomparable (any
+\paragraph{Message passing beyond MPI\@.} Go channels and MPI matching are incomparable (any
 goroutine may receive from a channel; MPI has tags, probes and a size threshold), and our
 results apply to their common fragment. Trace analyses of Go report alternative
 communications under a straight-line model~\citep{sulzmann17hvc} or by vector
@@ -127,5 +127,5 @@ other matching sends. Version 1.10, newer than the 1.9.2 we compare with, adds c
 buffers through ThreadSanitizer~\citep{jenke23tsanfibers}. PARCOACH~\citep{saillard14parcoach}
 checks collective ordering statically and dynamically. NINJA~\citep{sato17ninja} injects
 network noise to make message races manifest, and reproduced the HYPRE race that we predict
-(\cref{sec:eval}); our stress baseline is in its spirit. The MPI Bugs
-Initiative~\citep{laurent21mbi} and \MBB~\citep{jammer24mbb} are the standard corpora.
+(\cref{sec:eval}); our stress baseline is in its spirit. MBI~\citep{laurent21mbi} and
+\MBB~\citep{jammer24mbb} are the standard corpora.

@@ -1,0 +1,17 @@
+{
+ "format": "stretto-firstread 1",
+ "units": ["/w/study/apps/MBI/gencodes/ParamMatching_Tag_Ssend_Recv_nok.c"],
+ "sites": [
+  {"id": 0, "file": "/w/study/apps/MBI/gencodes/ParamMatching_Tag_Ssend_Recv_nok.c", "line": 41, "col": 3, "function": "main", "call": "MPI_Init"},
+  {"id": 1, "file": "/w/study/apps/MBI/gencodes/ParamMatching_Tag_Ssend_Recv_nok.c", "line": 42, "col": 3, "function": "main", "call": "MPI_Comm_size"},
+  {"id": 2, "file": "/w/study/apps/MBI/gencodes/ParamMatching_Tag_Ssend_Recv_nok.c", "line": 43, "col": 3, "function": "main", "call": "MPI_Comm_rank"},
+  {"id": 3, "file": "/w/study/apps/MBI/gencodes/ParamMatching_Tag_Ssend_Recv_nok.c", "line": 57, "col": 5, "function": "main", "call": "MPI_Ssend"},
+  {"id": 4, "file": "/w/study/apps/MBI/gencodes/ParamMatching_Tag_Ssend_Recv_nok.c", "line": 61, "col": 5, "function": "main", "call": "MPI_Recv"},
+  {"id": 5, "file": "/w/study/apps/MBI/gencodes/ParamMatching_Tag_Ssend_Recv_nok.c", "line": 68, "col": 3, "function": "main", "call": "MPI_Finalize"}
+ ],
+ "results": [
+  {"post": 4, "complete": 4, "free": [5], "objects": ["buf2", "sta2"]}
+ ],
+ "notes": [],
+ "compiler": "clang-18"
+}

@@ -1,0 +1,22 @@
+{
+ "format": "stretto-firstread 1",
+ "units": ["/w/study/apps/MBI/gencodes/ParamMatching_Tag_Bsend_Recv_init_ok.c"],
+ "sites": [
+  {"id": 0, "file": "/w/study/apps/MBI/gencodes/ParamMatching_Tag_Bsend_Recv_init_ok.c", "line": 41, "col": 3, "function": "main", "call": "MPI_Init"},
+  {"id": 1, "file": "/w/study/apps/MBI/gencodes/ParamMatching_Tag_Bsend_Recv_init_ok.c", "line": 42, "col": 3, "function": "main", "call": "MPI_Comm_size"},
+  {"id": 2, "file": "/w/study/apps/MBI/gencodes/ParamMatching_Tag_Bsend_Recv_init_ok.c", "line": 43, "col": 3, "function": "main", "call": "MPI_Comm_rank"},
+  {"id": 3, "file": "/w/study/apps/MBI/gencodes/ParamMatching_Tag_Bsend_Recv_init_ok.c", "line": 57, "col": 1, "function": "main", "call": "MPI_Buffer_attach"},
+  {"id": 4, "file": "/w/study/apps/MBI/gencodes/ParamMatching_Tag_Bsend_Recv_init_ok.c", "line": 60, "col": 5, "function": "main", "call": "MPI_Bsend"},
+  {"id": 5, "file": "/w/study/apps/MBI/gencodes/ParamMatching_Tag_Bsend_Recv_init_ok.c", "line": 64, "col": 5, "function": "main", "call": "MPI_Recv_init"},
+  {"id": 6, "file": "/w/study/apps/MBI/gencodes/ParamMatching_Tag_Bsend_Recv_init_ok.c", "line": 65, "col": 5, "function": "main", "call": "MPI_Start"},
+  {"id": 7, "file": "/w/study/apps/MBI/gencodes/ParamMatching_Tag_Bsend_Recv_init_ok.c", "line": 66, "col": 5, "function": "main", "call": "MPI_Wait"},
+  {"id": 8, "file": "/w/study/apps/MBI/gencodes/ParamMatching_Tag_Bsend_Recv_init_ok.c", "line": 68, "col": 3, "function": "main", "call": "MPI_Buffer_detach"},
+  {"id": 9, "file": "/w/study/apps/MBI/gencodes/ParamMatching_Tag_Bsend_Recv_init_ok.c", "line": 70, "col": 32, "function": "main", "call": "MPI_Request_free"},
+  {"id": 10, "file": "/w/study/apps/MBI/gencodes/ParamMatching_Tag_Bsend_Recv_init_ok.c", "line": 72, "col": 3, "function": "main", "call": "MPI_Finalize"}
+ ],
+ "results": [
+  {"post": null, "complete": 7, "free": [8, 9, 10], "objects": []}
+ ],
+ "notes": [],
+ "compiler": "clang-18"
+}

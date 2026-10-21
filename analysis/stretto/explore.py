@@ -133,6 +133,10 @@ class Outcome:
     sent: Tuple[Tuple[Key, int, int, int], ...] = ()   # sends issued on this execution: (key, dst, tag, comm)
     ncoll: Tuple[Tuple[int, int], ...] = ()   # (rank, collectives issued) per rank
     unknown: Tuple[Tuple[int, str], ...] = ()   # (rank, why): ranks whose continuation is not determined
+    # (rank, position, blocked) per rank in the witness's final state: the index of its next op
+    # in the program and the kind of op it is parked at ('send', 'recv', 'coll', or ''); not
+    # part of sig, so it is the first witness's of the outcome (stretto.reads reads it)
+    stops: Tuple[Tuple[int, int, str], ...] = ()
 
     def sig(self):
         return (self.kind, self.matching, self.orphans, self.leaked, self.errors, self.unknown)
@@ -321,8 +325,10 @@ class _Ctx:
         if kind == "deadlock" and self.force and self._force_starved(st):
             kind = "force-blocked"
         ncoll = tuple((self.ranks[i], sum(n for _, n in p.ncoll)) for i, p in enumerate(st.procs))
+        stops = tuple((self.ranks[i], p.pos, "send" if p.blocked_send is not None else "recv" if p.blocked_recv is not None
+                       else "coll" if p.blocked_coll is not None else "") for i, p in enumerate(st.procs))
         return Outcome(kind, frozenset(st.matched), frozenset(m.key for m in st.pending), "; ".join(st.errors),
-                       frozenset(r.key for r in st.posted), st.errors, st.matched, st.sent, ncoll, st.unknown)
+                       frozenset(r.key for r in st.posted), st.errors, st.matched, st.sent, ncoll, st.unknown, stops)
 
     def _force_starved(self, st: GState) -> bool:
         """Some posted forced receive could match a pending send if the force were lifted."""

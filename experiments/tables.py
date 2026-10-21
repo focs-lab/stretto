@@ -6,6 +6,8 @@ Re-run after any experiment."""
 from __future__ import annotations
 import collections
 import csv
+import glob
+import json
 import os
 import re
 import statistics
@@ -199,6 +201,84 @@ def e1(name, path, key=None):
     out += ["", "| label | detail | observed run | Stretto classes | MUST | programs |", "|---|---|---|---|---|---|"]
     for k, v in sorted(c.items()):
         out.append(f"| {k[0]} | {k[1]} | {k[2]} | {k[3] or '-'} | {k[4] or '-'} | {v} |")
+    return "\n".join(out) + "\n"
+
+
+def reps():
+    """MBI run again and again (experiments/run_remaining.sh reps): a racing program's run shows
+    one schedule, so one run's verdicts are samples; here every program has as many."""
+    d = os.path.join(RES, "reps")
+    paths = sorted((p for p in (os.listdir(d) if os.path.isdir(d) else []) if re.fullmatch(r"mbi-\d+\.csv", p)),
+                   key=lambda p: int(p[4:-4]))
+    runs = [{r["name"]: r for r in score.compiled(rows(os.path.join(d, p)))} for p in paths]
+    if not runs:
+        return "_no results_\n"
+    n = len(runs)
+    names = sorted(set.intersection(*(set(b) for b in runs)))
+    err = [p for p in names if runs[0][p]["expect"] == "ERROR"]
+    ok = [p for p in names if runs[0][p]["expect"] == "OK"]
+    judges = (("Stretto (union)", "Union", score.verdict), ("Stretto, observed in the run", "Obs", score.observed_verdict),
+              ("Stretto, predicted", "Pred", score.predicted_verdict))
+    out = [f"MBI's programs of E1 run {n} times each with the same harness (`experiments/run_remaining.sh reps`) and",
+           "analysed with the current analysis; MUST and replays are not rerun. One run per program is one schedule:",
+           f"these runs say how often each verdict holds. Programs in every run: {len(names)}, {len(err)} labelled errors.",
+           f"Rows by code commit: {commits([r for b in runs for r in b.values()])}.", "",
+           "| verdict | F1 min | F1 median | F1 max | TP | FP | FN |", "|---|---|---|---|---|---|---|"]
+    num("nRepsRuns", n)
+    num("nRepsProgs", len(names))
+    num("nRepsErrors", len(err))
+    for label, key, judge in judges:
+        cs = [score.confusion([b[p] for p in names], judge) for b in runs]
+        f1 = sorted(c["f1"] for c in cs)
+        rng = lambda k: f"{min(c[k] for c in cs)}–{max(c[k] for c in cs)}"
+        out.append(f"| {label} | {f1[0]:.2f} | {statistics.median(f1):.2f} | {f1[-1]:.2f} | {rng('tp')} | {rng('fp')} | {rng('fn')} |")
+        num(f"Reps{key}FoneMin", f1[0])
+        num(f"Reps{key}FoneMax", f1[-1])
+        num(f"nReps{key}FPmax", max(c["fp"] for c in cs))
+    # per labelled error: in how many runs the run itself failed, and in how many Stretto reported it
+    k_obs = {p: sum(score.observed_verdict(b[p]) == "ERROR" for b in runs) for p in err}
+    k_uni = {p: sum(score.verdict(b[p]) == "ERROR" for b in runs) for p in err}
+    clean = [(p, b) for p in err for b in runs if score.observed_verdict(b[p]) != "ERROR"]
+    clean_pred = [(p, b) for p, b in clean if score.predicted_verdict(b[p]) == "ERROR"]
+    per_run = [sum(1 for p in err if score.observed_verdict(b[p]) != "ERROR" and score.predicted_verdict(b[p]) == "ERROR") for b in runs]
+    vary = [p for p in err if 0 < k_obs[p] < n or 0 < k_uni[p] < n]
+    num("nRepsUnionAlways", sum(1 for p in err if k_uni[p] == n))
+    num("nRepsUnionNever", sum(1 for p in err if k_uni[p] == 0))
+    num("nRepsObsAlways", sum(1 for p in err if k_obs[p] == n))
+    num("nRepsObsNever", sum(1 for p in err if k_obs[p] == 0))
+    num("nRepsObsSometimes", sum(1 for p in err if 0 < k_obs[p] < n))
+    num("nRepsCleanRuns", len(clean))
+    num("nRepsCleanPredicted", len(clean_pred))
+    missed = [(p, b) for p, b in clean if score.predicted_verdict(b[p]) != "ERROR"]
+    num("nRepsCleanMissed", len(missed))
+    num("nRepsCleanMissedProgs", len({p for p, _ in missed}))
+    # the value-check programs of E7, which only the value level decides
+    e7 = os.path.join(RES, "e7.md")
+    l2 = set(re.findall(r"^\| (\w+) \|", open(e7).read(), re.M)) if os.path.exists(e7) else set()
+    num("nRepsCleanMissedNotLtwo", len({p for p, _ in missed} - l2))
+    num("nRepsCleanPredMin", min(per_run))
+    num("nRepsCleanPredMax", max(per_run))
+    num("nRepsUnionAboveObs", sum(1 for p in err if k_uni[p] > k_obs[p]))
+    num("nRepsUnionBelowObs", sum(1 for p in err if k_uni[p] < k_obs[p]))
+    fp_ever = [p for p in ok if any(score.verdict(b[p]) == "ERROR" for b in runs)]
+    num("nRepsFPever", len(fp_ever))
+    out += ["", f"Labelled errors by the number of runs, out of {n}, in which the run itself failed (observed) and in which",
+            "Stretto reported the error (union):", "",
+            "| | in every run | in some runs | in no run |", "|---|---|---|---|",
+            f"| the run failed (observed) | {sum(1 for p in err if k_obs[p] == n)} | {sum(1 for p in err if 0 < k_obs[p] < n)} | {sum(1 for p in err if k_obs[p] == 0)} |",
+            f"| Stretto reported it | {sum(1 for p in err if k_uni[p] == n)} | {sum(1 for p in err if 0 < k_uni[p] < n)} | {sum(1 for p in err if k_uni[p] == 0)} |",
+            "", f"Runs of a labelled-error program that showed nothing themselves: {len(clean)}; Stretto predicted the error from",
+            f"{len(clean_pred)} of them ({min(per_run)} to {max(per_run)} programs per round of runs); the other {len(missed)} are runs of "
+            + ", ".join(sorted({p for p, _ in missed})) + ". Correct programs reported as an",
+            f"error in some run: {len(fp_ever)}" + (f" ({', '.join(fp_ever)})" if fp_ever else "") + ".",
+            "", "Labelled errors whose outcome depends on the run (the run failed or Stretto reported the error in some runs",
+            "and not in others); *predicted from clean runs* counts the runs that finished without showing the error in which",
+            "Stretto predicted it:", "",
+            "| program | the run failed | Stretto reported it | predicted from clean runs |", "|---|---|---|---|"]
+    for p in vary:
+        c = [b for b in runs if score.observed_verdict(b[p]) != "ERROR"]
+        out.append(f"| {p} | {k_obs[p]}/{n} | {k_uni[p]}/{n} | "
+                   f"{sum(score.predicted_verdict(b[p]) == 'ERROR' for b in c)}/{len(c)} |")
     return "\n".join(out) + "\n"
 
 
@@ -527,6 +607,117 @@ def npbmg():
     return "\n".join(out) + "\n"
 
 
+def dealii():
+    """A third documented bug: deal.II 9.3.0-rc1's RemotePointEvaluation can probe a message of
+    the next call (experiments/dealii/run.sh: predict-9.3.0-rc1.csv, predict-9.3.0.csv, stress.csv;
+    experiments/dealii/changes.py: changes.csv)."""
+    d = os.path.join(RES, "dealii")
+    pr, fixed, st = (rows(os.path.join(d, f)) for f in ("predict-9.3.0-rc1.csv", "predict-9.3.0.csv", "stress.csv"))
+    if not pr:
+        return "_no results_\n"
+    tests = "/".join(sorted({r["test"] for r in pr + fixed}))
+    out = [f"Traced runs of deal.II's test `{tests}` (MPICH build); every probe alternative on the tag of",
+           "RemotePointEvaluation is replayed with the pins of its horizon and with its control (`experiments/dealii/predict.py`).",
+           "An alternative is *cross* if the probe would see a message of another call (the race), *same* if another",
+           "rank's message of the same call. A replay *changes the output* when the test's log differs from its",
+           f"control's; the expected log is the test's own `.output` file. Rows by code commit: {commits(pr + fixed + st)}.", "",
+           "| version | ranks | kind | traced runs | traced runs as expected | runs with one | alternatives | replayed | pins matched | finished | output changed | differs from the expected | controls finished | controls as expected |",
+           "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
+    for version, vrows, prefix in (("9.3.0-rc1", pr, "Deal"), ("9.3.0", fixed, "DealFixed")):
+        ok = [r for r in vrows if not (r.get("replay") or "").startswith("traced run")]
+        per_run = {(r["np"], r["run"]): r for r in ok}
+        for np_ in sorted({r["np"] for r in vrows}, key=int):
+            runs = {k: r for k, r in per_run.items() if k[0] == np_}
+            failed = len({r["run"] for r in vrows if r["np"] == np_}) - len(runs)
+            for kind, macro in (("cross", ""), ("same", "Same")):
+                rep = [r for r in ok if r["np"] == np_ and r.get("pin") and r.get("kind") == kind]
+                done = [r for r in rep if r.get("replay") and r["replay"] != "no horizon"]
+                alts = sum(int(r["alternatives" if kind == "cross" else "same_alternatives"] or 0) for r in runs.values())
+                out.append(f"| {version} | {np_} | {kind} | {len(runs)}" + (f" (+{failed} failed)" if failed else "") +
+                           f" | {sum(r.get('traced_expected') == 'True' for r in runs.values())} | {len({r['run'] for r in rep})} | {alts} "
+                           f"| {len(done)} | {sum(r.get('matched') == 'True' for r in done)} | {sum(r.get('replay') == 'FINISHED' for r in done)} "
+                           f"| {sum(r.get('differs_control') == 'True' for r in done)} | {sum(r.get('differs') == 'True' for r in done)} "
+                           f"| {sum(r.get('control') == 'FINISHED' for r in done)} | {sum(r.get('control_expected') == 'True' for r in done)} |")
+        cross = [r for r in ok if r.get("pin") and r.get("kind") == "cross" and r.get("replay") not in (None, "", "no horizon")]
+        same = [r for r in ok if r.get("pin") and r.get("kind") == "same" and r.get("replay") not in (None, "", "no horizon")]
+        num(f"n{prefix}Traced", len(per_run))
+        num(f"n{prefix}TracedExpected", sum(r.get("traced_expected") == "True" for r in per_run.values()))
+        num(f"n{prefix}Exposed", len({(r["np"], r["run"]) for r in ok if r.get("pin") and r.get("kind") == "cross"}))
+        num(f"n{prefix}Alts", sum(int(r.get("alternatives") or 0) for r in per_run.values()))
+        num(f"n{prefix}SameAlts", sum(int(r.get("same_alternatives") or 0) for r in per_run.values()))
+        num(f"n{prefix}OtherAlts", sum(int(r.get("other_alternatives") or 0) for r in per_run.values()))
+        if version == "9.3.0-rc1":
+            num("nDealReplayed", len(cross))
+            num("nDealMatched", sum(r.get("matched") == "True" for r in cross))
+            num("nDealFinished", sum(r.get("replay") == "FINISHED" for r in cross))
+            num("nDealChanged", sum(r.get("differs_control") == "True" for r in cross))
+            num("nDealWrong", sum(r.get("differs") == "True" for r in cross))
+            num("nDealControls", sum(r.get("control") == "FINISHED" for r in cross))
+            num("nDealControlsSame", sum(r.get("control_expected") == "True" for r in cross))
+            num("nDealSameReplayed", len(same))
+            num("nDealSameChanged", sum(r.get("differs_control") == "True" for r in same))
+            num("nDealRanks", "/".join(sorted({r["np"] for r in pr}, key=int)))
+            lines = [int(r["lines"]) for r in cross if r.get("differs") == "True" and r.get("lines")]
+            if lines:
+                num("nDealLinesMin", min(lines))
+                num("nDealLinesMax", max(lines))
+    others = sorted({int(r["other_alternatives"]) for r in pr + fixed if r.get("other_alternatives")})
+    if others:
+        out += ["", f"Every traced run also has {others[0]}" + (f" to {others[-1]}" if len(others) > 1 else "") +
+                " alternatives of probes on other tags (the consensus algorithms and cell exchanges that set up the",
+                "triangulation and the cache), which are not replayed."]
+    if st:
+        out += ["", "Untraced runs of the same test on 9.3.0-rc1, plain and with random send and receive delays of 0 to 20 ms",
+                "per rank from the replay library (no pin); a run *differs* when its log differs from the expected one.", "",
+                "| ranks | setting | runs | finished | differs from the expected |", "|---|---|---|---|---|"]
+        for np_ in sorted({r["np"] for r in st}, key=int):
+            for setting in ("plain", "delays"):
+                rs = [r for r in st if r["np"] == np_ and r["setting"] == setting]
+                out.append(f"| {np_} | {setting} | {len(rs)} | {sum(r['result'] == 'FINISHED' for r in rs)} | {sum(r['differs'] == 'True' for r in rs)} |")
+        num("nDealStressRuns", len(st))
+        num("nDealStressChanged", sum(r["differs"] == "True" for r in st))
+        num("nDealStressPlainChanged", sum(r["differs"] == "True" for r in st if r["setting"] == "plain"))
+        num("nDealStressDelayChanged", sum(r["differs"] == "True" for r in st if r["setting"] == "delays"))
+        num("nDealStressPlainRuns", sum(r["setting"] == "plain" for r in st))
+        num("nDealStressDelayRuns", sum(r["setting"] == "delays" for r in st))
+    ch = rows(os.path.join(d, "changes.csv"))
+    if ch:
+        out += ["", "Where the logs of 9.3.0-rc1 differ from the expected one (`experiments/dealii/changes.py`). The test prints, per rank,",
+                "one line per point and object with one column per call (avg, min, max, insert), so the changed lines name the",
+                "ranks and the changed columns the calls whose values were wrong. Every call sends the same values, so a call is",
+                "right whenever it took one message from each sender. A probe of call k that takes a sender's message of call k+1",
+                "makes its own rank's call k wrong, and one later call of the same object, in which the rank takes the other",
+                "sender twice: k+1, or the object's last call if the sender that ran ahead stays ahead. Rows by code commit:",
+                commits(ch) + ".", "",
+                "| runs | logs that differ | the probing rank's values in two consecutive calls | other ranks' values | two wrong calls per changed rank and object | consecutive ones |",
+                "|---|---|---|---|---|---|"]
+
+        def at_probe(r):
+            """The pinned rank's values are wrong in exactly two consecutive calls of one object."""
+            calls = sorted((int(o), ("avg", "min", "max", "insert").index(c)) for rank, o, c in
+                           (e.split(":") for e in r["evaluations"].split()) if rank == r["pinned_rank"])
+            return len(calls) == 2 and calls[0][0] == calls[1][0] and calls[1][1] - calls[0][1] == 1
+
+        def elsewhere(r):
+            return any(x != r["pinned_rank"] for x in r["ranks"].split())
+
+        for kind, title in (("cross", "cross replays"), ("same", "same replays"), ("control", "controls"),
+                            ("stress-plain", "untraced, plain"), ("stress-delays", "untraced, with delays")):
+            rs = [r for r in ch if r["kind"] == kind]
+            if not rs and kind.startswith("stress"):
+                continue
+            dash = kind.startswith("stress")
+            out.append(f"| {title} | {len(rs)} | {'-' if dash else sum(map(at_probe, rs))} | {'-' if dash else sum(map(elsewhere, rs))} "
+                       f"| {sum(r['pairs'] == 'True' for r in rs)} | {sum(r['consecutive'] == 'True' for r in rs)} |")
+        cr = [r for r in ch if r["kind"] == "cross"]
+        num("nDealChangedAtProbe", sum(map(at_probe, cr)))
+        num("nDealChangedElsewhere", sum(map(elsewhere, cr)))
+        num("nDealSameElsewhere", sum(1 for r in ch if r["kind"] == "same" and elsewhere(r) and not at_probe(r)))
+        num("nDealControlsElsewhere", sum(1 for r in ch if r["kind"] == "control" and elsewhere(r) and not at_probe(r)))
+        num("nDealStressPairs", sum(1 for r in ch if r["kind"].startswith("stress") and r["pairs"] == "True"))
+    return "\n".join(out) + "\n"
+
+
 def app_sample(app="amg", prefix="AMG"):
     """A sample of an application's alternatives replayed with horizon pins and controls
     (replay_sample.py, experiments/<app>/run.sh sample)."""
@@ -772,6 +963,137 @@ def e3():
     return text + "\n"
 
 
+VALUE_CHECKS = {"MessageRace_Recv_Send_nok", "MessageRace_Recv_Isend_nok", "MessageRace_Irecv_Send_nok", "MessageRace_Irecv_Isend_nok"}
+
+
+def reads_section():
+    """E3b: the MBI run analysed again with read bounds (docs/firstread.md): the first-read
+    maps, the levels that change, every verdict with and without the bounds, E6 with read
+    bounds, and the replays of the findings the bounds promote."""
+    base = score.compiled(rows(os.path.join(RES, "mbi", "mbi.csv")))
+    rd = score.compiled(rows(os.path.join(RES, "reads", "mbi.csv")))
+    if not rd:
+        return "_no results_\n"
+    by = {r["name"]: r for r in base}
+    maps = sorted(glob.glob(os.path.join(RES, "reads", "mbi", "*.json")))
+    entries = free = 0
+    why = collections.Counter()
+    for p in maps:
+        for e in json.load(open(p))["results"]:
+            entries += 1
+            free += bool(e["free"])
+            if "why" in e:
+                why[e["why"]] += 1
+    with_map = [r for r in rd if r.get("reads") == "map"]
+    num("nReadsMaps", len(maps))
+    num("nReadsProgs", len(with_map))
+    num("nReadsEntries", entries)
+    num("nReadsEntriesFree", free)
+    out = [f"The corpus run of E1 analysed again from its traces, each program with the first-read map of its",
+           f"source (`experiments/mbi/reads_maps.py`, clang 18 in the image of `experiments/container/Dockerfile.firstread`;",
+           f"`reanalyze.py --reads`). {len(maps)} maps, {len(with_map)} of the {len(rd)} programs analysed with one; the maps",
+           f"have {entries} entries (a call that delivers a receive's result, with its posting call), {free} with free sites"
+           + (", the others empty because " + "; ".join(f"{k} ({v})" for k, v in why.most_common()) if why else ", none empty")
+           + f". Rows by code commit: {commits(rd)}.", ""]
+    # verdicts with and without the bounds
+    out += ["| verdict | without read bounds: TP / FP / FN / TN | F1 | with read bounds: TP / FP / FN / TN | F1 |", "|---|---|---|---|---|"]
+    for label, key, judge in (("union", "Union", score.verdict), ("observed in the run", "Observed", score.observed_verdict),
+                              ("predicted", "Predicted", score.predicted_verdict),
+                              ("certified at L1 only (no single-path assumption)", "LOne", score.l1_verdict)):
+        a, b = score.confusion(base, judge), score.confusion(rd, judge)
+        out.append(f"| {label} | {a['tp']} / {a['fp']} / {a['fn']} / {a['tn']} | {a['f1']:.2f} | {b['tp']} / {b['fp']} / {b['fn']} / {b['tn']} | {b['f1']:.2f} |")
+        num(f"nReadsFone{key}Base", a["f1"])
+        num(f"nReadsFone{key}", b["f1"])
+        num(f"nReadsTp{key}Base", a["tp"])
+        num(f"nReadsTp{key}", b["tp"])
+    # programs whose error consequences now hold at L1
+    moved, kept_sp = [], []
+    for r in rd:
+        b = by.get(r["name"])
+        if b is None:
+            continue
+        before, after = score.levels(b), score.levels(r)
+        gain = sorted((after & score.L1_ONLY) - (before & score.L1_ONLY))
+        if gain:
+            moved.append((r, gain, sorted(after & {"L1+SP:1a", "L1+SP:1c", "L1+SP:1d"})))
+        elif after & {"L1+SP:1a", "L1+SP:1c", "L1+SP:1d"}:
+            kept_sp.append(r)
+    new_fp = [r for r in rd if r["expect"] == "OK" and score.verdict(r) == "ERROR" and score.verdict(by.get(r["name"], {})) != "ERROR"]
+    union_changed = [r for r in rd if score.verdict(r) != score.verdict(by.get(r["name"], {}))]
+    value = [r for r in rd if r["name"] in VALUE_CHECKS]
+    num("nReadsMoved", len(moved))
+    num("nReadsMovedClean", sum(1 for r, _, _ in moved if score.finished(r)))
+    num("nReadsMovedErr", sum(1 for r, _, _ in moved if r["expect"] == "ERROR"))
+    num("nReadsMovedC", sum(1 for _, g, _ in moved if "L1:1c" in g))
+    num("nReadsMovedD", sum(1 for _, g, _ in moved if "L1:1d" in g))
+    num("nReadsMovedAll", sum(1 for _, _, sp in moved if not sp))
+    num("nReadsKeptSP", len(kept_sp))
+    num("nReadsNewFP", len(new_fp))
+    num("nReadsUnionChanged", len(union_changed))
+    num("nReadsValue", len(value))
+    num("nReadsValueMoved", sum(1 for r in value if score.levels(r) & score.L1_ONLY))
+    out += ["", f"Programs with an error consequence certified at L1 with the bounds and not without: **{len(moved)}** "
+            f"({sum(1 for r, _, _ in moved if score.finished(r))} of them with a clean observed run), every one labelled erroneous: "
+            f"{sum(1 for r, _, _ in moved if r['expect'] == 'ERROR')}. Programs that keep a single-path consequence: {len(kept_sp)}. "
+            f"New false positives: {len(new_fp)}; programs whose union verdict changes: {len(union_changed)}. Of the {len(value)} "
+            f"programs whose error is a check of the received value, which they read before `MPI_Finalize`, "
+            f"{sum(1 for r in value if not score.levels(r) & score.L1_ONLY)} keep no L1 consequence (E7 decides them at L2).", "",
+            "| program | observed run | levels without read bounds | levels with read bounds |", "|---|---|---|---|"]
+    for r, _, _ in sorted(moved, key=lambda x: x[0]["name"]):
+        out.append(f"| {r['name']} | {r['run'].split(':')[0]} | {by[r['name']].get('levels', '')} | {r.get('levels', '')} |")
+    hp = os.path.join(RES, "reads", "hypre-2.10.1-parasails.json")
+    if os.path.exists(hp):
+        es = json.load(open(hp))["results"]
+        num("nReadsHypreEntries", len(es))
+        num("nReadsHypreFree", sum(1 for e in es if e["free"]))
+        out += ["", f"HYPRE 2.10.1 (`distributed_ls/ParaSails/ParaSails.c` with the MPI wrappers of `utilities/mpistubs.c`, MPICH "
+                f"headers): {len(es)} entries, {sum(1 for e in es if e['free'])} with free sites. ParaSails calls MPI through the "
+                "wrappers, which hand the status and the buffer to MPI from their parameters, so every bound there is rule H1 and "
+                "the analysis of a HYPRE trace does not change."]
+    # E6 with read bounds
+    e6 = [(kind, rows(os.path.join(RES, f"e6_reads_{kind}.csv"))) for kind in ("never", "random")]
+    e6 = [(k, rs) for k, rs in e6 if rs]
+    if e6:
+        out += ["", "E6 with read bounds (`e6_checker_vs_explorer.py --reads never|random`): the checker judges with rule H1',",
+                "the rest of the changed rank kept up to a bound (never read, or a random bound per receive), against the",
+                "exhaustive explorer of the straight-line program, which reads nothing, so every bound is sound for it.", "",
+                "| bounds | traces | pairs (alternative, B) | with a window after the receive | agree | unsound | incomplete | skipped | contained deadlocks confirmed | not confirmed |",
+                "|---|---|---|---|---|---|---|---|---|---|"]
+        tot = collections.Counter()
+        for kind, rs in e6:
+            c = collections.Counter(r["kind"] for r in rs)
+            t7 = collections.Counter(r.get("l1_deadlock", "") for r in rs)
+            win = sum(1 for r in rs if r.get("window") == "True")
+            out.append(f"| {kind} | {len({r['trace'] for r in rs})} | {len(rs)} | {win} | {c['agree']} | {c['UNSOUND']} | {c['incomplete']} | {c['skip']} | {t7['ok']} | {t7['UNSOUND']} |")
+            tot.update({"pairs": len(rs), "win": win, "unsound": c["UNSOUND"], "ok": t7["ok"], "bad": t7["UNSOUND"]})
+        num("nReadsEsixPairs", tot["pairs"])
+        num("nReadsEsixWindows", tot["win"])
+        num("nReadsEsixUnsound", tot["unsound"])
+        num("nReadsEsixLdead", tot["ok"])
+        num("nReadsEsixLdeadUnsound", tot["bad"])
+        out += ["", f"Rows by code commit: {commits([r for _, rs in e6 for r in rs])}."]
+    # replays of the findings the bounds promote
+    rp = rows(os.path.join(RES, "reads", "replays.csv"))
+    if rp:
+        old = {(r["program"], r["cls"], r["pin"]): r["verdict"] for r in score.replay_rows(os.path.join(RES, "mbi", "mbi.csv"))}
+        l1 = [r for r in rp if r["level"] == "L1" and r["cls"] in ("1c", "1d") and r["verdict"] != "n/a"]
+        c = collections.Counter(r["verdict"] for r in l1)
+        before = collections.Counter(old.get((r["program"], r["cls"], r["pin"]), "not replayed") for r in l1)
+        num("nReadsReplayFindings", len(l1))
+        num("nReadsReplayConfirmed", c["confirmed"])
+        num("nReadsReplayInconclusive", c["inconclusive"])
+        num("nReadsReplayNotConfirmed", c["not-confirmed"])
+        num("nReadsReplaySamePinConfirmed", before["confirmed"])
+        out += ["", f"Replays of the L1 consequences (1c, 1d) of the {len({r['program'] for r in l1})} programs whose levels change, each "
+                "with the pins of its witness (`run_mbi.py --replay-only --reads`, the rule of E1): "
+                f"{c['confirmed']} confirmed, {c['inconclusive']} inconclusive, {c['not-confirmed']} not confirmed, of {len(l1)}. "
+                f"With the same pins in the E1 replays: {before['confirmed']} confirmed, {before['inconclusive']} inconclusive, "
+                f"{before['not-confirmed']} not confirmed, {before['not replayed']} not replayed there (the E1 replay of a "
+                "consequence that holds in every single-path execution pins the horizon, not a witness). Rows by code commit: "
+                f"{commits(rp)}."]
+    return "\n".join(out) + "\n"
+
+
 def nekbone():
     """Nekbone's communication suite (experiments/nekbone/run.sh): summary8.txt only."""
     p = os.path.join(RES, "nekbone", "summary8.txt")
@@ -861,7 +1183,8 @@ def main():
            "names the code commits its rows were produced with (the `commit` column). The corpus runs, their replays,",
            "E2, E6 and the E3 and E7 inputs come from `experiments/run_remaining.sh` on the second, shared machine",
            "(the container of `experiments/container/`, 12 cores of one NUMA node); the HYPRE campaign from",
-           "`experiments/hypre/campaign.sh` and Nekbone from `experiments/nekbone/run.sh` there. The MUST verdicts",
+           "`experiments/hypre/campaign.sh`, the NPB MG and deal.II campaigns from `experiments/npbmg/run.sh` and",
+           "`experiments/dealii/run.sh`, and Nekbone from `experiments/nekbone/run.sh` there. The MUST verdicts",
            "are carried over from MUST 1.9.2 runs under MPICH in MPI-BugBench's own container, with the same timeout",
            "per program. The E4 times, the AMG trace and its analysis time come from one announced timed leg at commit",
            f"{leg_commits()} (`experiments/timing_leg.sh`, the host otherwise idle), and AMG's replay sample from that",
@@ -871,14 +1194,17 @@ def main():
            e1("MPI-BugBench level 2: point-to-point and collective call-ordering, missing-call, local-concurrency and correct programs", os.path.join(RES, "mbb", "mbb.csv"), "MBB"),
            stress("MBI", os.path.join(RES, "mbi", "mbi.csv"), "MBI"),
            stress("MPI-BugBench level 2", os.path.join(RES, "mbb", "mbb.csv"), "MBB"),
+           "### Repeated runs: how often each verdict holds (MBI)", "", reps(),
            "## E2: buffering ablation", "", e2(),
            "## E3: level ablation", "", e3(),
+           "## E3b: read bounds (MBI, docs/firstread.md)", "", reads_section(),
            "## E4: tracer overhead and analysis cost (NPB 3.4.3, MPICH build)", "", e4(),
            "## E5: real application (AMG)", "", e5() + app_sample("amg", "AMG"),
            "## E5b: real application (Nekbone)", "", nekbone() + app_sample("nekbone", "Nek"),
            "## E5c: a real bug (HYPRE 2.10.1, ParaSails)", "", hypre(),
            "### How often one trace exposes it, and how often testing hits it", "", hypre_campaign(),
            "## E5d: a second documented bug (NPB MG 2.4.1, a message of another exchange)", "", npbmg() + pin_log(),
+           "## E5e: a third documented bug (deal.II 9.3.0-rc1, a probe takes a message of the next call)", "", dealii(),
            "## E6: polynomial checker vs exhaustive explorer", "", e6(),
            "## E7: the value skeleton on MBI (level L2)", "", e7(),
            "## E8: the buffer guard (local concurrency, class 3-local)", "", guard()]

@@ -34,6 +34,17 @@ on), once in the default container and once with `DOCKER_ARGS="--cap-add SYS_PTR
 lets the MPI libraries use single-copy transfers. Its tables are in `experiments/results/guard/`;
 `experiments/tables.py` adds the corpus rows with the guard to E1 and the checks to E8.
 
+Read bounds (rule H1', `docs/firstread.md`, E3b) are outside that sequence too. The image of
+`experiments/container/Dockerfile.firstread` (the experiment image plus clang 18 from the same
+archive snapshot) runs `experiments/mbi/reads_maps.py experiments/results/mbi/mbi.csv`, which
+writes the first-read map of every MBI program to `experiments/results/reads/mbi/`. The
+experiment image then reanalyses the corpus run with them (`experiments/mbi/reanalyze.py
+experiments/results/mbi/mbi.csv --reads experiments/results/reads/mbi --out
+experiments/results/reads/mbi.csv`), replays the programs whose levels change with the witness
+pins (`run_mbi.py --replay-only --reads ... --out <a copy of that table>`, whose `replays.csv`
+becomes `experiments/results/reads/replays.csv`), and compares rule H1' with the explorer
+(`run_remaining.sh e6reads`, `experiments/results/e6_reads_{never,random}.csv`).
+
 Variables the scripts read (all optional):
 
 | variable | script | meaning (default) |
@@ -155,6 +166,24 @@ output under `experiments/results/hypre/failed/`. Keep a few processors of the n
 long campaign's `--cpuset-cpus` for short jobs (tables, LaTeX): two bursts of runs that exited
 with status 15 coincided with such jobs on the campaign's own processors.
 
+## Third documented bug: deal.II
+
+`experiments/dealii/run.sh [fetch|build|predict|stress|all]` fetches deal.II 9.3.0-rc1 (the
+race in `Utilities::MPI::RemotePointEvaluation`) and 9.3.0 (the fix), p4est 2.2 and CMake
+3.28.3, which the image lacks, each checked by sha256. The deal.II archives leave `tests/` out,
+so the tests of RemotePointEvaluation and their expected outputs come one by one from the two
+tagged commits. The build step builds p4est and both deal.II versions with the MPICH wrappers
+in Release, `-j8`, about 25 minutes each in a 24 GB container, then the tests as programs;
+`predict` traces `RUNS` runs of `mapping_01` per version at 4 ranks and replays every probe
+alternative on RemotePointEvaluation's tag with its horizon pins and control, `JOBS` at a
+time; `stress` runs the untraced baseline and `changes` locates the values that changed. A
+test's log is compared with its expected output after deal.II's own
+`cmake/scripts/normalize.pl`, which removes the line naming host and date. `DEALII_DIR`
+(default `third_party/apps/dealii`) is where the sources and builds go. Each run of an MPICH
+program under Open MPI's `mpirun` spends about 4 s idle in start-up in the image (an MPICH
+hello world takes 4.4 s), so the campaign of 21 Oct ran `RUNS=20 JOBS=8 predict` (about 3.5
+minutes per trace of 9.3.0-rc1, 2 per trace of 9.3.0) and `RUNS=50 stress`, two hours in all.
+
 ## Shared-host protocol on the development host
 
 Jobs that may exceed 20 GiB or use 8 sustained cores run one at a time through
@@ -170,3 +199,8 @@ operating-system sets. Nothing runs during an announced timed benchmark leg.
   rewritten).
 - Busy-polling loops (`MPI_Iprobe`, `MPI_Test` until a flag is set) are summarised by the
   tracer; before that, single MPI-BugBench programs produced 3 GB traces.
+- Open MPI's `mpirun` merges the ranks' stderr in chunks, so a pin's report line can be split
+  by another rank's line, and a replay then counts a pin as not taken that was. Of the deal.II
+  replays of ten further traces made with their stderr kept (21 Oct), five had pins counted
+  as not taken; all nine of those reports were in the output, cut apart by another rank's
+  line.

@@ -303,7 +303,9 @@ set closed under (`horizon.compute_cut`):
 1. for `r ∈ R*`: everything after `complete(r)` in its rank is removed (the payload and metadata
    differ; the trace does not determine the continuation); if r never completes in σ,
    everything after its posting is removed, since a later test of its request could now
-   succeed;
+   succeed. Rule H1' (`stretto analyze --reads`, `docs/firstread.md`) removes instead what
+   follows the receive's read bound, the first record the program may issue after reading a
+   result of r, computed from the program's sources;
 2. a receive whose `M'` send is removed, or which has no `M'` send, does not complete;
 3. a send with bytes > B whose receive is removed or absent does not complete; the receive is
    present when its *posting* is kept, since a rendezvous send matches a posted receive
@@ -356,7 +358,10 @@ finding says whether *every* execution containing the pair has the consequence o
 *some*, and its pin fixes every wildcard receive of one witness execution, so that a replay
 realises that execution rather than the first changed pair alone. Idioms 01
 and 06 show that this assumption is unsound on metadata-dependent code: the explorer reports a
-deadlock that the real program cannot reach (01) or reaches for a different reason (06).
+deadlock that the real program cannot reach (01) or reaches for a different reason (06). With
+read bounds (`stretto analyze --reads`, `docs/firstread.md`), a consequence one of whose
+witness executions has no rank issue a record past the read bound of a result that differs is
+an L1 finding: every consistent program that respects the bounds has that execution.
 
 Level **L2** is represented by the DSL twins in `analysis/tests/idioms_dsl.py`: the same
 programs with their metadata dependencies (`Send(dst=lambda env: env["st"].src)`,

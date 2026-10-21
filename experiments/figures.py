@@ -133,6 +133,41 @@ nothing in those runs reports it.
 
 <p align="center"><img src="docs/figures/npbmg.svg" width="760" alt="NPB MG results"></p>
 """
+    dealii = ""
+    if v("nDealReplayed"):
+        fractions(os.path.join(figs, "dealii.svg"), "deal.II 9.3.0-rc1: a probe takes a message of the next call, predicted from one run", [
+            ("Traced runs that predict it", f"one clean run each, {t('nDealRanks')} processes", v("nDealExposed"), v("nDealTraced"), BLUE),
+            ("Replays that take the predicted message", "pins of the whole horizon", v("nDealMatched"), v("nDealReplayed"), BLUE),
+            ("Replays that print wrong values", f"{t('nDealControlsSame')} of {t('nDealControls')} controls print the expected ones", v("nDealWrong"), v("nDealReplayed"), RUST),
+            ("Testing runs that print wrong values", "plain runs and runs with random delays", v("nDealStressChanged"), v("nDealStressRuns"), ORANGE),
+            ("Traces of the fix that predict it", "deal.II 9.3.0", v("nDealFixedExposed"), v("nDealFixedTraced"), GREY),
+        ])
+        dealii = f"""
+**A third documented bug.** deal.II 9.3.0-rc1's `RemotePointEvaluation` takes each call's
+messages with a wildcard probe under one tag, and nothing separates two calls on one cached
+object, so a probe can take a message of the next call; upstream fixed it before 9.3.0 ("fix
+race condition if called multiple times"). Every one of {t('nDealTraced')} clean runs of
+deal.II's own test predicts it. Forced, all {t('nDealReplayed')} replays finish with status 0
+and print wrong values, in the two calls the code predicts; the fix has no such alternative.
+Here testing finds the race too: {t('nDealStressDelayChanged')} of {t('nDealStressDelayRuns')} runs
+with random delays print wrong values, {t('nDealStressPlainChanged')} of {t('nDealStressPlainRuns')}
+plain runs.
+
+<p align="center"><img src="docs/figures/dealii.svg" width="760" alt="deal.II results"></p>
+"""
+    reads = ""
+    if v("nReadsProgs"):
+        reads = f"""
+**Reads.** A program reads the result of a receive later, if at all. A static analysis of the
+C sources (clang, [`docs/firstread.md`](docs/firstread.md)) bounds where; a deadlock or lost
+message the single-path explorer finds then occurs in an execution of every program consistent
+with the trace, if its witness execution issues nothing past those bounds. On MBI, {t('nReadsMoved')}
+erroneous programs ({t('nReadsMovedClean')} with a clean run) get such a consequence; F1 counting
+only what needs no single-path assumption rises from {t('nReadsFoneLOneBase')} to
+{t('nReadsFoneLOne')}, with {t('nReadsNewFP')} new false positives. The {t('nReadsValue')}
+value checks still need L2. Against the explorer with read bounds, {t('nReadsEsixUnsound')} of
+{t('nReadsEsixPairs')} judged alternatives are unsound.
+"""
     block = f"""<!-- results:begin -->
 <!-- Written by experiments/tables.py from experiments/results/; do not edit by hand. -->
 
@@ -153,6 +188,16 @@ records. The buffer guard (`STRETTO_GUARD=1`) watches those buffers in the run i
 {t('nMBBLCguard')} of the {t('nMBBLC')} under Open MPI and {t('nGuardLCMPICHfound')} of
 {t('nGuardLCMPICHbuilt')} under MPICH, with no new false positive.
 
+**One run is one schedule.** Run {t('nRepsRuns')} times, MBI's racing programs fail in some runs
+and finish cleanly in others: the run itself shows {t('nRepsObsAlways')} of the
+{t('nRepsErrors')} labelled errors every time, {t('nRepsObsSometimes')} only sometimes and
+{t('nRepsObsNever')} never. Stretto reports {t('nRepsUnionAlways')} of them in every run (F1
+{t('RepsUnionFoneMin')}–{t('RepsUnionFoneMax')}, no false positive in any run): of the
+{t('nRepsCleanRuns')} runs of an erroneous program that showed nothing, it predicts the error
+from {t('nRepsCleanPredicted')}. The other {t('nRepsCleanMissed')} are runs of
+{t('nRepsCleanMissedProgs')} programs whose error is a check of the received value, which the
+value level (L2) decides.
+{reads}
 **A real bug.** HYPRE 2.10.1's ParaSails preconditioner reuses one tag for two exchanges behind
 a wildcard probe; a probe can take a request of the next exchange, and the solver hangs. A
 message race in HYPRE 2.10.1 hung a production code intermittently for 18 months, and
@@ -160,7 +205,7 @@ diagnosing it took 291 jobs and 10,392 compute-node hours (the NINJA noise-injec
 PPoPP 2017); HYPRE's changelog for 2.11.0 places the fix in ParaSails.
 
 <p align="center"><img src="docs/figures/hypre.svg" width="760" alt="HYPRE ParaSails results"></p>
-{mg}
+{mg}{dealii}
 **Soundness in practice.** Against an exhaustive explorer, {t('nEsixUnsound')} of
 {t('nEsixPairs')} judged alternatives are unsound. Replays on MBI: {t('nMBIReplayConfirmed')}
 confirmed, {t('nMBIReplayInconclusive')} inconclusive (the control itself hung),

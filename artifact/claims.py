@@ -28,18 +28,20 @@ NUMBERS = os.path.join(ROOT, "paper", "generated", "numbers.tex")
 
 # which research question a macro belongs to, by name; the first match wins
 RQ_OF = [
-    (1, r"^nEsix|^nMBIReplay|^nAMGsample|^nNeksample|^nPin"),
-    (2, r"^(MBI|MBB)fone|^n(MBI|MBB)(tp|fn|fp|progs|notBuilt|correct|errors|race|Stress|Clean|OnlyStretto|LC)|^n?Guard"),
+    (1, r"^nEsix|^nMBIReplay|^nAMGsample|^nNeksample|^nPin|^nReadsEsix|^nReadsReplay"),
+    (4, r"^nReads"),
+    (2, r"^(MBI|MBB)fone|^n(MBI|MBB)(tp|fn|fp|progs|notBuilt|correct|errors|race|Stress|Clean|OnlyStretto|LC)|^n?Guard|^n?Reps"),
     (3, r"^nEtwo|^B[a-z]+OMPI$"),
     (4, r"^n(MBI|MBB)(one|sp|obs)[A-Z]"),
     (5, r"^TraceOverhead|^LuAnalysis|^LuEvents|^AMGtime|^Nek(GB|Minutes|PerAlt|Records)|^nEfour"),
-    (6, r"^nHypre|^BHypre|^nAMG|^nNek"),
+    (6, r"^nHypre|^BHypre|^nAMG|^nNek|^nDeal"),
 ]
 # numbers the inputs fix: a difference there is unexpected; every other number is a time or a
 # count taken from recorded runs, which depends on their schedule
 FIXED = re.compile(r"^n(MBI|MBB)(progs|notBuilt|correct|errors|race)$|^B[a-z]+OMPI$|^n(AMG|Nek)sample$|^nEfourReps$"
                    r"|^nMBIStressRuns$|^nHypre(Fixed)?(Traced|(Four|Eight)(Local)?Runs)$|^nHypreStressRuns$"
-                   r"|^nMBBLC$|^nGuardLC(OMPI|MPICH)built$|^nGuardCases$|^nGuardAppRuns$")
+                   r"|^nMBBLC$|^nGuardLC(OMPI|MPICH)built$|^nGuardCases$|^nGuardAppRuns$"
+                   r"|^nReps(Runs|Progs|Errors)$|^nDeal(Fixed)?Traced$|^nDealRanks$|^nDealStress(Plain|Delay)?Runs$")
 
 
 def load(path: str) -> dict:
@@ -86,6 +88,18 @@ def claims(n: dict) -> list:
               lambda s, m, f, c: s > 0 and s == m == f == c)
     claim(1, "every application replay or control that hung or finished matched its pins",
           ["nPinRuns", "nPinUnmatchedEnded"], lambda r, e: r > 0 and e == 0)
+    claim(1, "with read bounds, no accepted alternative is unsound against the exhaustive explorer",
+          ["nReadsEsixPairs", "nReadsEsixUnsound"], lambda p, u: p > 0 and u == 0)
+    claim(1, "with read bounds, the explorer confirms every contained deadlock the check reports",
+          ["nReadsEsixLdeadUnsound"], lambda u: u == 0)
+    claim(1, "no replay of an MBI consequence the read bounds certify at L1 contradicts it",
+          ["nReadsReplayFindings", "nReadsReplayNotConfirmed"], lambda f, n: f > 0 and n == 0)
+    claim(4, "read bounds add no false positive on MBI and change no program's verdict",
+          ["nReadsNewFP", "nReadsUnionChanged"], lambda f, c: f == 0 and c == 0)
+    claim(4, "read bounds certify a consequence at L1 only on programs labelled erroneous",
+          ["nReadsMoved", "nReadsMovedErr"], lambda m, e: m > 0 and m == e)
+    claim(4, "the value-check programs keep no L1 consequence with read bounds (they read the value)",
+          ["nReadsValue", "nReadsValueMoved"], lambda v, m: v > 0 and m == 0)
     claim(2, "no false positive on MBI", ["nMBIfp"], lambda x: x == 0)
     claim(2, "every MBI error Stretto finds was shown by the run, or predicted by a consequence or a threshold",
           ["nMBItpunion", "nMBItpobserved", "nMBItpPredSP", "nMBItpPredBuf"], lambda u, o, s, b: u == o + s + b)
@@ -103,6 +117,11 @@ def claims(n: dict) -> list:
           ["nGuardLCMPICHbuilt", "nGuardLCMPICHfound"], lambda b, f: b > 0 and b == f)
     claim(2, "the guard records nothing on NPB LU, HYPRE and AMG, and every run finishes",
           ["nGuardAppRuns", "nGuardAppBad"], lambda r, b: r > 0 and b == 0)
+    claim(2, "repeated MBI runs: no false positive in any run", ["nRepsRuns", "nRepsFPever"], lambda n, f: n > 1 and f == 0)
+    claim(2, "repeated MBI runs: no labelled error the run shows more often than Stretto reports it",
+          ["nRepsUnionBelowObs"], lambda b: b == 0)
+    claim(2, "repeated MBI runs: every clean run Stretto predicts nothing from is of a value-check program (L2)",
+          ["nRepsCleanMissedNotLtwo"], lambda x: x == 0)
     claim(3, "every recorded run infeasible at B=0 needs no threshold, finished, or did not finish",
           ["nEtwoObsBuf", "nEtwoObsBufNever", "nEtwoObsBufFinished", "nEtwoObsBufStopped"], lambda a, n, f, s: a == n + f + s)
     claim(3, "the runs that finished and need a threshold are the ones replayed",
@@ -124,6 +143,10 @@ def claims(n: dict) -> list:
     claim(6, "HYPRE 2.11.0, the fix: no trace has a cross alternative", ["nHypreFixedCrossAlts"], lambda a: a == 0)
     claim(6, "stress testing never hits the HYPRE hang", ["nHypreStressRuns", "nHypreStressHang"],
           lambda r, h: r > 0 and h == 0)
+    claim(6, "deal.II 9.3.0-rc1: every cross alternative is replayed, finishes and prints wrong values",
+          ["nDealAlts", "nDealReplayed", "nDealFinished", "nDealWrong"], lambda a, r, f, w: a > 0 and a == r == f == w)
+    claim(6, "deal.II 9.3.0, the fix: no trace has a cross alternative", ["nDealFixedTraced", "nDealFixedAlts"],
+          lambda t, a: t > 0 and a == 0)
     return out
 
 

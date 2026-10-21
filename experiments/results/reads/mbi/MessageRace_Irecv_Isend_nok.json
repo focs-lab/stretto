@@ -1,0 +1,22 @@
+{
+ "format": "stretto-firstread 1",
+ "units": ["/w/study/apps/MBI/gencodes/MessageRace_Irecv_Isend_nok.c"],
+ "sites": [
+  {"id": 0, "file": "/w/study/apps/MBI/gencodes/MessageRace_Irecv_Isend_nok.c", "line": 41, "col": 3, "function": "main", "call": "MPI_Init"},
+  {"id": 1, "file": "/w/study/apps/MBI/gencodes/MessageRace_Irecv_Isend_nok.c", "line": 42, "col": 3, "function": "main", "call": "MPI_Comm_size"},
+  {"id": 2, "file": "/w/study/apps/MBI/gencodes/MessageRace_Irecv_Isend_nok.c", "line": 43, "col": 3, "function": "main", "call": "MPI_Comm_rank"},
+  {"id": 3, "file": "/w/study/apps/MBI/gencodes/MessageRace_Irecv_Isend_nok.c", "line": 59, "col": 7, "function": "main", "call": "MPI_Irecv"},
+  {"id": 4, "file": "/w/study/apps/MBI/gencodes/MessageRace_Irecv_Isend_nok.c", "line": 60, "col": 8, "function": "main", "call": "MPI_Wait"},
+  {"id": 5, "file": "/w/study/apps/MBI/gencodes/MessageRace_Irecv_Isend_nok.c", "line": 68, "col": 5, "function": "main", "call": "MPI_Isend"},
+  {"id": 6, "file": "/w/study/apps/MBI/gencodes/MessageRace_Irecv_Isend_nok.c", "line": 69, "col": 5, "function": "main", "call": "MPI_Wait"},
+  {"id": 7, "file": "/w/study/apps/MBI/gencodes/MessageRace_Irecv_Isend_nok.c", "line": 73, "col": 3, "function": "main", "call": "MPI_Finalize"}
+ ],
+ "results": [
+  {"post": null, "complete": 4, "free": [3, 4, 7], "objects": []},
+  {"post": 3, "complete": 4, "free": [3, 4], "objects": ["buf1"]},
+  {"post": null, "complete": 6, "free": [7], "objects": []},
+  {"post": 3, "complete": 6, "free": [7], "objects": ["buf1"]}
+ ],
+ "notes": [],
+ "compiler": "clang-18"
+}

@@ -1,0 +1,24 @@
+{
+ "format": "stretto-firstread 1",
+ "units": ["/w/study/apps/MBI/gencodes/CallOrdering_Probe_Recv_Send_ok.c"],
+ "sites": [
+  {"id": 0, "file": "/w/study/apps/MBI/gencodes/CallOrdering_Probe_Recv_Send_ok.c", "line": 42, "col": 3, "function": "main", "call": "MPI_Init"},
+  {"id": 1, "file": "/w/study/apps/MBI/gencodes/CallOrdering_Probe_Recv_Send_ok.c", "line": 43, "col": 3, "function": "main", "call": "MPI_Comm_size"},
+  {"id": 2, "file": "/w/study/apps/MBI/gencodes/CallOrdering_Probe_Recv_Send_ok.c", "line": 44, "col": 3, "function": "main", "call": "MPI_Comm_rank"},
+  {"id": 3, "file": "/w/study/apps/MBI/gencodes/CallOrdering_Probe_Recv_Send_ok.c", "line": 62, "col": 5, "function": "main", "call": "MPI_Send"},
+  {"id": 4, "file": "/w/study/apps/MBI/gencodes/CallOrdering_Probe_Recv_Send_ok.c", "line": 63, "col": 5, "function": "main", "call": "MPI_Probe"},
+  {"id": 5, "file": "/w/study/apps/MBI/gencodes/CallOrdering_Probe_Recv_Send_ok.c", "line": 64, "col": 5, "function": "main", "call": "MPI_Recv"},
+  {"id": 6, "file": "/w/study/apps/MBI/gencodes/CallOrdering_Probe_Recv_Send_ok.c", "line": 70, "col": 5, "function": "main", "call": "MPI_Probe"},
+  {"id": 7, "file": "/w/study/apps/MBI/gencodes/CallOrdering_Probe_Recv_Send_ok.c", "line": 71, "col": 5, "function": "main", "call": "MPI_Recv"},
+  {"id": 8, "file": "/w/study/apps/MBI/gencodes/CallOrdering_Probe_Recv_Send_ok.c", "line": 72, "col": 5, "function": "main", "call": "MPI_Send"},
+  {"id": 9, "file": "/w/study/apps/MBI/gencodes/CallOrdering_Probe_Recv_Send_ok.c", "line": 84, "col": 3, "function": "main", "call": "MPI_Finalize"}
+ ],
+ "results": [
+  {"post": null, "complete": 4, "free": [5, 9], "objects": ["sta"]},
+  {"post": 5, "complete": 5, "free": [9], "objects": ["buf2", "sta2"]},
+  {"post": null, "complete": 6, "free": [7, 8, 9], "objects": ["sta"]},
+  {"post": 7, "complete": 7, "free": [8, 9], "objects": ["buf3", "sta3"]}
+ ],
+ "notes": [],
+ "compiler": "clang-18"
+}

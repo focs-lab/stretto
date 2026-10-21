@@ -27,9 +27,10 @@ class Verdict:
 def check(t: Trace, M: Dict[Key, Key], changed, B: Optional[int], mode: str = "L1",
           extra_edges: Iterable = (), changed_probes: Set[Key] = frozenset(), strong_only: bool = False,
           probe_alt: Optional[Dict[Key, Key]] = None, changed_events: Set[Tuple[int, int]] = frozenset(),
-          must_issue: Iterable[Key] = ()) -> Verdict:
+          must_issue: Iterable[Key] = (), bounds=None) -> Verdict:
     """must_issue: sends the alternative needs issued inside the kept prefix besides those
-    of M (the message a Waitany alternative completes with)."""
+    of M (the message a Waitany alternative completes with). bounds: read bounds
+    (stretto.reads) for rule 1 of the horizon, H1 when None."""
     seen = {}
     for rk, sk in M.items():
         if rk not in t.recvs or sk not in t.sends:
@@ -41,7 +42,7 @@ def check(t: Trace, M: Dict[Key, Key], changed, B: Optional[int], mode: str = "L
         seen[sk] = rk
     hangs: Dict[int, str] = {}
     issued: Dict[int, int] = {}
-    cut = compute_cut(t, M, set(changed), B, mode, changed_probes, hangs, changed_events, issued, probe_alt)
+    cut = compute_cut(t, M, set(changed), B, mode, changed_probes, hangs, changed_events, issued, probe_alt, bounds)
     # SP mode only: the continuation is fixed, so a cut operation is one its rank never completes.
     # The matching may still be realisable (the run then deadlocks): feasible says the former,
     # hangs the latter, ok both.
