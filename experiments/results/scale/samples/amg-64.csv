@@ -1,0 +1,11 @@
+finding,cls,pin,site,pins,replay,matched,control,control_matched,commit
+"iprobe(35, 655) src=ANY tag=1000 could observe send(39, 2154)->35 tag=1000 16B instead of send(44, 1407)->35 tag=1000 16B",probe-alt,STRETTO_PIN_PROBE=35:161:39,amg+0x9fa96,14790,FINISHED,True,FINISHED,True,b7c886f
+"iprobe(25, 115) src=ANY tag=2000 could observe send(20, 563)->25 tag=2000 128B instead of send(42, 841)->25 tag=2000 128B",probe-alt,STRETTO_PIN_PROBE=25:83:20,amg+0x9fa96,3716,FINISHED,True,FINISHED,True,b7c886f
+"iprobe(37, 361) src=ANY tag=1000 could observe send(33, 1290)->37 tag=1000 16B instead of send(32, 869)->37 tag=1000 16B",probe-alt,STRETTO_PIN_PROBE=37:159:33,amg+0x9fa96,6521,FINISHED,True,FINISHED,True,b7c886f
+"iprobe(55, 820) src=ANY tag=1000 could observe send(39, 3011)->55 tag=1000 16B instead of send(29, 2796)->55 tag=1000 16B",probe-alt,STRETTO_PIN_PROBE=55:231:39,amg+0x9fa96,19836,FINISHED,True,FINISHED,True,b7c886f
+"iprobe(0, 1311) src=ANY tag=1000 could observe send(62, 3409)->0 tag=1000 16B instead of send(21, 6248)->0 tag=1000 16B",probe-alt,STRETTO_PIN_PROBE=0:383:62,amg+0x9fa96,32610,FINISHED,True,FINISHED,True,b7c886f
+"iprobe(24, 984) src=ANY tag=2000 could observe send(30, 3725)->24 tag=2000 8B instead of send(25, 4943)->24 tag=2000 8B",probe-alt,STRETTO_PIN_PROBE=24:509:30,amg+0x9fa96,30618,FINISHED,True,FINISHED,True,b7c886f
+"iprobe(25, 1049) src=ANY tag=2000 could observe send(42, 4926)->25 tag=2000 8B instead of send(20, 3518)->25 tag=2000 8B",probe-alt,STRETTO_PIN_PROBE=25:636:42,amg+0x9fa96,30616,FINISHED,True,FINISHED,True,b7c886f
+"iprobe(21, 910) src=ANY tag=1000 could observe send(40, 3007)->21 tag=1000 16B instead of send(15, 1344)->21 tag=1000 16B",probe-alt,STRETTO_PIN_PROBE=21:429:40,amg+0x9fa96,19800,FINISHED,True,FINISHED,True,b7c886f
+"iprobe(40, 544) src=ANY tag=1000 could observe send(54, 2108)->40 tag=1000 16B instead of send(17, 2191)->40 tag=1000 16B",probe-alt,STRETTO_PIN_PROBE=40:250:54,amg+0x9fa96,14798,FINISHED,True,FINISHED,True,b7c886f
+"iprobe(40, 712) src=ANY tag=2000 could observe send(9, 3257)->40 tag=2000 64B instead of send(6, 3067)->40 tag=2000 56B",probe-alt,STRETTO_PIN_PROBE=40:369:9,amg+0x9fa96,22842,FINISHED,True,FINISHED,True,b7c886f

@@ -1,0 +1,11 @@
+finding,cls,pin,site,pins,replay,matched,control,control_matched,commit
+"iprobe(24, 614) src=ANY tag=1000 could observe send(30, 1404)->24 tag=1000 16B instead of send(25, 2118)->24 tag=1000 16B",probe-alt,STRETTO_PIN_PROBE=24:164:30,amg+0x9fa96,5885,FINISHED,True,FINISHED,True,b7c886f
+"iprobe(17, 265) src=ANY tag=1000 could observe send(16, 943)->17 tag=1000 16B instead of send(3, 864)->17 tag=1000 16B",probe-alt,STRETTO_PIN_PROBE=17:151:16,amg+0x9fa96,5877,FINISHED,True,FINISHED,True,b7c886f
+"iprobe(25, 1007) src=ANY tag=2000 could observe send(28, 1358)->25 tag=2000 16B instead of send(3, 1234)->25 tag=2000 64B",probe-alt,STRETTO_PIN_PROBE=25:312:28,amg+0x9fa96,8122,FINISHED,True,FINISHED,True,b7c886f
+"iprobe(0, 884) src=ANY tag=2000 could observe send(1, 2287)->0 tag=2000 24B instead of send(13, 2156)->0 tag=2000 16B",probe-alt,STRETTO_PIN_PROBE=0:212:1,amg+0x9fa96,10475,FINISHED,True,FINISHED,True,b7c886f
+"iprobe(17, 81) src=ANY tag=1000 could observe send(18, 432)->17 tag=1000 16B instead of send(20, 438)->17 tag=1000 16B",probe-alt,STRETTO_PIN_PROBE=17:50:18,amg+0x9fa96,1893,FINISHED,True,FINISHED,True,b7c886f
+"iprobe(18, 812) src=ANY tag=1000 could observe send(23, 1376)->18 tag=1000 16B instead of send(19, 935)->18 tag=1000 16B",probe-alt,STRETTO_PIN_PROBE=18:150:23,amg+0x9fa96,5885,FINISHED,True,FINISHED,True,b7c886f
+"iprobe(13, 4184) src=ANY tag=1000 could observe send(26, 2044)->13 tag=1000 16B instead of send(14, 1410)->13 tag=1000 16B",probe-alt,STRETTO_PIN_PROBE=13:154:26,amg+0x9fa96,5868,FINISHED,True,FINISHED,True,b7c886f
+"iprobe(28, 755) src=ANY tag=2000 could observe send(24, 1313)->28 tag=2000 32B instead of send(9, 2030)->28 tag=2000 8B",probe-alt,STRETTO_PIN_PROBE=28:99:24,amg+0x9fa96,5156,FINISHED,True,FINISHED,True,b7c886f
+"iprobe(28, 934) src=ANY tag=2000 could observe send(15, 1332)->28 tag=2000 56B instead of send(4, 1965)->28 tag=2000 80B",probe-alt,STRETTO_PIN_PROBE=28:163:15,amg+0x9fa96,8122,FINISHED,True,FINISHED,True,b7c886f
+"iprobe(9, 547) src=ANY tag=1000 could observe send(19, 1631)->9 tag=1000 16B instead of send(30, 2205)->9 tag=1000 16B",probe-alt,STRETTO_PIN_PROBE=9:385:19,amg+0x9fa96,9632,FINISHED,True,FINISHED,True,b7c886f

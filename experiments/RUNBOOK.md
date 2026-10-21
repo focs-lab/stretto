@@ -162,6 +162,28 @@ run it in a container with a memory cap of at least 40 GB (`MEMORY=48g` on
 MACSio's one wildcard site lies in `src-stuff/`, outside the built program, so MACSio is not
 traced.
 
+## Scale: 16 to 64 processes (E11)
+
+`experiments/scale/run.sh [hypre|amg|lu|all]`, inside the container after `third_party/fetch.sh
+apps npb` and `experiments/hypre/run.sh build`, traces HYPRE 2.10.1's `ij` with ParaSails
+(MPICH), AMG with 16^3 points per process (Open MPI) and NPB LU class A (MPICH) at each process
+count of `NPS`, analyses each trace in one process under `/usr/bin/time`, and replays `SAMPLE`
+of its alternatives with the pins of their horizon and a control (`experiments/replay_sample.py`,
+which analyses the trace again). One row per trace goes to `experiments/results/scale/scale.csv`;
+`samples/<app>-<np>.{csv,sample,time,run}` hold the sample's rows and log, the analysis time and
+peak memory, and the traced run's output. The reports (`samples/<app>-<np>.report`; AMG's at 64
+processes is 200 MB) are not committed, nor are AMG's run logs. Those are mostly warnings, one
+per single-copy transfer that Open MPI tried and the container refused (`process_vm_readv`),
+each naming host and process; every AMG run still converged in 20 iterations.
+
+The campaign of 21 Oct 2026 ran at commit b7c886f on the second machine, in one container
+(`NAME=stretto-scale CPUS=0-11,40-51 MEMORY=48g`: 12 cores, 24 hardware threads) with
+`NPS="16 32 64" SAMPLE=10`, from 15:08 to 22:17 UTC. AMG at 64 processes took most of those
+7 hours: its analysis 3 hours and 37.5 GB, its sample, which analyses the trace again, nearly 3
+more. It was not a timed leg (other containers ran on the machine's other processors), so its
+times show the cost and are not timing claims; and process counts above 24 oversubscribe the
+container, so the runs measure the analysis, not the traced program's speed.
+
 ## Real bug: HYPRE
 
 `experiments/hypre/run.sh` fetches HYPRE 2.10.1 and 2.11.0 (sha256-checked) and builds both

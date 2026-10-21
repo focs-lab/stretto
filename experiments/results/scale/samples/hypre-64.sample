@@ -1,0 +1,11 @@
+[1/10] FINISHED matched=True control=FINISHED probe(8, 9) src=ANY tag=226 could observe send(7, 19)->8 tag=226 400B instead of send(6, 2
+[2/10] FINISHED matched=True control=FINISHED probe(6, 0) src=ANY tag=226 could observe send(7, 2)->6 tag=226 400B instead of send(5, 3)
+[3/10] FINISHED matched=True control=FINISHED iprobe(11, 0) src=ANY tag=1000 could observe send(2, 38)->11 tag=1000 8B instead of send(0
+[4/10] FINISHED matched=True control=FINISHED iprobe(56, 0) src=ANY tag=1000 could observe send(9, 26)->56 tag=1000 8B instead of send(7
+[5/10] FINISHED matched=True control=FINISHED recv(18, 0) src=ANY tag=17 cap=8B <- send(2, 32)->18 tag=17 8B (observed send(3, 27)->18 t
+[6/10] FINISHED matched=True control=FINISHED iprobe(5, 2946) src=ANY tag=2000 could observe send(6, 53)->5 tag=2000 400B instead of sen
+[7/10] FINISHED matched=True control=FINISHED probe(6, 6) src=ANY tag=222 could observe send(7, 11)->6 tag=222 400B instead of send(8, 1
+[8/10] FINISHED matched=True control=FINISHED probe(5, 0) src=ANY tag=226 could observe send(6, 2)->5 tag=226 400B instead of send(4, 3)
+[9/10] FINISHED matched=True control=FINISHED iprobe(18, 1) src=ANY tag=1000 could observe send(2, 40)->18 tag=1000 8B instead of send(3
+[10/10] FINISHED matched=True control=FINISHED iprobe(18, 1) src=ANY tag=1000 could observe send(4, 34)->18 tag=1000 8B instead of send(3
+alternatives 222, sampled 10; wrote /w/experiments/results/scale/samples/hypre-64.csv

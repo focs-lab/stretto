@@ -1,0 +1,11 @@
+[1/10] FINISHED matched=True control=FINISHED iprobe(11, 464) src=ANY tag=1000 could observe send(5, 1921)->11 tag=1000 16B instead of s
+[2/10] FINISHED matched=True control=FINISHED iprobe(0, 1851) src=ANY tag=1000 could observe send(2, 1661)->0 tag=1000 16B instead of se
+[3/10] FINISHED matched=True control=FINISHED iprobe(11, 400) src=ANY tag=2000 could observe send(13, 1682)->11 tag=2000 88B instead of 
+[4/10] FINISHED matched=True control=FINISHED iprobe(12, 390) src=ANY tag=1000 could observe send(11, 1164)->12 tag=1000 16B instead of 
+[5/10] FINISHED matched=True control=FINISHED iprobe(9, 407) src=ANY tag=2000 could observe send(12, 949)->9 tag=2000 56B instead of sen
+[6/10] FINISHED matched=True control=FINISHED iprobe(6, 1992) src=ANY tag=2000 could observe send(14, 1883)->6 tag=2000 8B instead of se
+[7/10] FINISHED matched=True control=FINISHED iprobe(14, 2280) src=ANY tag=2000 could observe send(10, 1428)->14 tag=2000 88B instead of
+[8/10] FINISHED matched=True control=FINISHED iprobe(12, 333) src=ANY tag=1000 could observe send(4, 958)->12 tag=1000 16B instead of se
+[9/10] FINISHED matched=True control=FINISHED iprobe(12, 420) src=ANY tag=2000 could observe send(14, 1693)->12 tag=2000 80B instead of 
+[10/10] FINISHED matched=True control=FINISHED recv(2, 1333) src=ANY tag=17 cap=16B <- send(3, 868)->2 tag=17 16B (observed send(1, 1362)
+alternatives 16944, sampled 10; wrote /w/experiments/results/scale/samples/amg-16.csv
