@@ -95,8 +95,8 @@ nothing in those runs reports it.
 <p align="center"><img src="docs/figures/npbmg.svg" width="760" alt="NPB MG results"></p>
 
 **Soundness in practice.** Against an exhaustive explorer, 0 of
-826 judged alternatives are unsound. Replays on MBI: 64
-confirmed, 10 inconclusive (the control itself hung),
+826 judged alternatives are unsound. Replays on MBI: 39
+confirmed, 31 inconclusive (the control itself hung),
 0 contradicted. Random samples of 30 alternatives on AMG
 and on Nekbone: every replay matched its pins and finished, and so did every control.
 

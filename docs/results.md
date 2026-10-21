@@ -14,7 +14,7 @@ trace; the leg's times are the only timing claims.
 
 ### MPI Bugs Initiative (MBI): message-race, tag-matching, probe and buffering programs
 
-Programs: 115. Rows by code commit: c27c793 (115).
+Programs: 115. Rows by code commit: 96dd241 (115).
 
 A program's verdict is ERROR iff a finding of class 1a/1c/1d/2-buffering/2-collective/2-blocked/3-local is
 present; 1b, 1f, probe-alt and waitany-order are warnings and never count. The *observed* row uses
@@ -27,8 +27,8 @@ finish is the hang itself and counts as observed. The union is the tool's verdic
 | | TP | FP | FN | TN | precision | recall | F1 |
 |---|---|---|---|---|---|---|---|
 | Stretto (union) | 61 | 0 | 4 | 50 | 1.00 | 0.94 | 0.97 |
-| Stretto, observed in the run | 39 | 0 | 26 | 50 | 1.00 | 0.60 | 0.75 |
-| Stretto, predicted | 23 | 0 | 42 | 50 | 1.00 | 0.35 | 0.52 |
+| Stretto, observed in the run | 42 | 0 | 23 | 50 | 1.00 | 0.65 | 0.79 |
+| Stretto, predicted | 22 | 0 | 43 | 50 | 1.00 | 0.34 | 0.51 |
 | Stretto with the buffer guard (`STRETTO_GUARD=1`), a separate run | 61 | 0 | 4 | 50 | 1.00 | 0.94 | 0.97 |
 
 Buffer guard run: 115 programs (rows by code commit: 7117573 (115)); 3-local in 0 of the 0 local-concurrency programs and in 0 others.
@@ -43,30 +43,30 @@ MUST's timeouts the same way; the two rows bracket the comparison. Both tools ra
 the same timeout; MUST under MPICH, Stretto under Open MPI, so they did not see the same run.
 
 Labelled errors Stretto reports and MUST does not on the same program: **15**, of which
-predicted on a run that showed nothing itself: **8**. With at least one finding replay-confirmed
-(a pinned rerun with every pin matched reaches the predicted outcome and its control finishes): **9** of the
-15, **8** of the 8 predicted ones.
+predicted on a run that showed nothing itself: **4**. With at least one finding replay-confirmed
+(a pinned rerun with every pin matched reaches the predicted outcome and its control finishes): **7** of the
+15, **4** of the 4 predicted ones.
 
 Message-race programs (label `MessageRace`):
 
 | total | clean observed runs | racing receive flagged (L1) | consequence certified (L1+SP) | replay-confirmed | observed deadlock/abort |
 |---|---|---|---|---|---|
-| 34 | 12 | 33 (clean: 12/12) | 11 (clean: 10/12) | 11 | 22 |
+| 34 | 11 | 33 (clean: 11/11) | 10 (clean: 7/11) | 10 | 23 |
 
 Wildcard competition (the w ablation): 80 programs with wildcard receives, 165 wildcard receives,
-146 feasible L1 alternatives, 0.88 per wildcard receive on average, at most 7 in one program.
+145 feasible L1 alternatives, 0.88 per wildcard receive on average, at most 7 in one program.
 
 Correct programs: 50; with warnings (not counted as errors): 29; findings per program
-mean 1.68, max 3.
+mean 1.64, max 3.
 Warnings on correct programs by class: `1b` 1, `1f` 28.
 
-Replays: 76 rows (one per finding and class after removing duplicate pins), 50 distinct pinned runs, 11 programs (a finding is confirmed only if every pinned receive matched in the rerun, the rerun reached the predicted outcome, and a control rerun with the observed senders pinned finished; inconclusive when the control did not finish):
+Replays: 72 rows (one per finding and class after removing duplicate pins), 46 distinct pinned runs, 10 programs (a finding is confirmed only if every pinned receive matched in the rerun, the rerun reached the predicted outcome, and a control rerun with the observed senders pinned finished; inconclusive when the control did not finish):
 
 | class | confirmed | inconclusive | not confirmed | n/a |
 |---|---|---|---|---|
 | 1b | 0 | 0 | 0 | 2 |
-| 1c | 36 | 6 | 0 | 0 |
-| 1d | 28 | 4 | 0 | 0 |
+| 1c | 19 | 19 | 0 | 0 |
+| 1d | 20 | 12 | 0 | 0 |
 
 Not confirmed or inconclusive:
 
@@ -76,27 +76,46 @@ Not confirmed or inconclusive:
 | MessageRace_Loop_Isend_Irecv_nok | 1c | some | 0/0/2,0/1/1,0/2/1,0/3/3 | TIMEOUT | True | True | TIMEOUT |
 | MessageRace_Loop_Isend_Irecv_nok | 1c | some | 0/0/2,0/1/3,0/2/3,0/3/2 | TIMEOUT | True | True | TIMEOUT |
 | MessageRace_Loop_Isend_Irecv_nok | 1c | some | 0/0/3,0/1/3,0/2/2,0/3/2 | TIMEOUT | True | True | TIMEOUT |
-| MessageRace_Loop_Isend_Irecv_nok | 1d | some | 0/0/1,0/1/2,0/2/1,0/3/3 | TIMEOUT | True | True | TIMEOUT |
-| MessageRace_Loop_Isend_Irecv_nok | 1c | some | 0/0/1,0/1/2,0/2/1,0/3/3 | TIMEOUT | True | True | TIMEOUT |
-| MessageRace_Loop_Isend_Irecv_nok | 1c | some | 0/0/3,0/1/2,0/2/3,0/3/2 | TIMEOUT | True | True | TIMEOUT |
+| MessageRace_Loop_Isend_Irecv_nok | 1d | some | 0/0/1,0/1/1,0/2/3,0/3/2 | TIMEOUT | True | True | TIMEOUT |
+| MessageRace_Loop_Isend_Irecv_nok | 1c | some | 0/0/1,0/1/1,0/2/3,0/3/2 | TIMEOUT | True | True | TIMEOUT |
+| MessageRace_Loop_Isend_Irecv_nok | 1c | some | 0/0/1,0/1/1,0/2/3,0/3/3 | TIMEOUT | True | True | TIMEOUT |
+| MessageRace_Loop_Isend_Irecv_nok | 1d | all | 0/0/1,0/1/3 | TIMEOUT | True | True | TIMEOUT |
+| MessageRace_Loop_Isend_Irecv_nok | 1d | some | 0/0/3,0/1/2,0/2/2,0/3/3 | TIMEOUT | True | True | TIMEOUT |
+| MessageRace_Loop_Isend_Irecv_nok | 1c | some | 0/0/3,0/1/2,0/2/2,0/3/3 | TIMEOUT | True | True | TIMEOUT |
 | MessageRace_Loop_Isend_Irecv_nok | 1c | some | 0/0/2,0/1/2,0/2/3,0/3/3 | TIMEOUT | True | True | TIMEOUT |
 | MessageRace_Loop_Isend_Irecv_nok | 1d | some | 0/0/3,0/1/3,0/2/2,0/3/2 | TIMEOUT | True | True | TIMEOUT |
+| MessageRace_Loop_Send_Irecv_nok | 1d | some | 0/0/2,0/1/1,0/2/1,0/3/3 | TIMEOUT | True | True | TIMEOUT |
+| MessageRace_Loop_Send_Irecv_nok | 1c | some | 0/0/2,0/1/1,0/2/1,0/3/3 | TIMEOUT | True | True | TIMEOUT |
+| MessageRace_Loop_Send_Irecv_nok | 1c | some | 0/0/2,0/1/3,0/2/3,0/3/2 | TIMEOUT | True | True | TIMEOUT |
 | MessageRace_Loop_Send_Irecv_nok | 1d | all | 0/0/3 | TIMEOUT | True | True | TIMEOUT |
+| MessageRace_Loop_Send_Irecv_nok | 1c | some | 0/0/3,0/1/3,0/2/2,0/3/2 | TIMEOUT | True | True | TIMEOUT |
+| MessageRace_Loop_Send_Irecv_nok | 1d | some | 0/0/1,0/1/2,0/2/1,0/3/3 | TIMEOUT | True | True | TIMEOUT |
+| MessageRace_Loop_Send_Irecv_nok | 1c | some | 0/0/1,0/1/2,0/2/1,0/3/3 | TIMEOUT | True | True | TIMEOUT |
+| MessageRace_Loop_Send_Irecv_nok | 1c | some | 0/0/3,0/1/2,0/2/3,0/3/2 | TIMEOUT | True | True | TIMEOUT |
+| MessageRace_Loop_Send_Irecv_nok | 1c | some | 0/0/2,0/1/2,0/2/3,0/3/3 | TIMEOUT | True | True | TIMEOUT |
+| MessageRace_Loop_Send_Irecv_nok | 1d | some | 0/0/3,0/1/3,0/2/2,0/3/2 | TIMEOUT | True | True | TIMEOUT |
+| MessageRace_Loop_Send_Recv_nok | 1d | some | 0/0/2,0/1/1,0/2/1,0/3/3 | TIMEOUT | True | True | TIMEOUT |
+| MessageRace_Loop_Send_Recv_nok | 1c | some | 0/0/2,0/1/1,0/2/1,0/3/3 | TIMEOUT | True | True | TIMEOUT |
+| MessageRace_Loop_Send_Recv_nok | 1c | some | 0/0/2,0/1/3,0/2/3,0/3/2 | TIMEOUT | True | True | TIMEOUT |
+| MessageRace_Loop_Send_Recv_nok | 1c | some | 0/0/3,0/1/3,0/2/2,0/3/2 | TIMEOUT | True | True | TIMEOUT |
+| MessageRace_Loop_Send_Recv_nok | 1d | some | 0/0/1,0/1/2,0/2/1,0/3/3 | TIMEOUT | True | True | TIMEOUT |
+| MessageRace_Loop_Send_Recv_nok | 1c | some | 0/0/1,0/1/2,0/2/1,0/3/3 | TIMEOUT | True | True | TIMEOUT |
+| MessageRace_Loop_Send_Recv_nok | 1c | some | 0/0/3,0/1/2,0/2/3,0/3/2 | TIMEOUT | True | True | TIMEOUT |
+| MessageRace_Loop_Send_Recv_nok | 1c | some | 0/0/2,0/1/2,0/2/3,0/3/3 | TIMEOUT | True | True | TIMEOUT |
+| MessageRace_Loop_Send_Recv_nok | 1d | some | 0/0/3,0/1/3,0/2/2,0/3/2 | TIMEOUT | True | True | TIMEOUT |
 
 | label | detail | observed run | Stretto classes | MUST | programs |
 |---|---|---|---|---|---|
 | ERROR | BufferingHazard | FINISHED | 2-buffering | ERROR | 12 |
 | ERROR | CallMatching | TIMEOUT | 2-blocked | TIMEOUT | 4 |
-| ERROR | MessageRace | FINISHED | 1c 1d 1f | ERROR | 2 |
-| ERROR | MessageRace | FINISHED | 1c 1d 1f | OK | 8 |
-| ERROR | MessageRace | FINISHED | 1f | OK | 1 |
-| ERROR | MessageRace | FINISHED | 1f | RE | 1 |
-| ERROR | MessageRace | SIGNAL | 1f | OK | 1 |
-| ERROR | MessageRace | SIGNAL | 1f | RE | 1 |
+| ERROR | MessageRace | FINISHED | 1c 1d 1f | ERROR | 3 |
+| ERROR | MessageRace | FINISHED | 1c 1d 1f | OK | 4 |
+| ERROR | MessageRace | FINISHED | 1f | OK | 2 |
+| ERROR | MessageRace | FINISHED | 1f | RE | 2 |
 | ERROR | MessageRace | TIMEOUT | 1b 1c 2-blocked 2-buffering | ERROR | 1 |
-| ERROR | MessageRace | TIMEOUT | 1c 1d 1f 2-blocked 2-buffering | OK | 1 |
-| ERROR | MessageRace | TIMEOUT | 1c 1f 2-blocked 2-buffering | ERROR | 15 |
-| ERROR | MessageRace | TIMEOUT | 1c 1f 2-blocked 2-buffering | OK | 2 |
+| ERROR | MessageRace | TIMEOUT | 1c 1d 1f 2-blocked 2-buffering | OK | 3 |
+| ERROR | MessageRace | TIMEOUT | 1c 1f 2-blocked 2-buffering | ERROR | 14 |
+| ERROR | MessageRace | TIMEOUT | 1c 1f 2-blocked 2-buffering | OK | 4 |
 | ERROR | MessageRace | TIMEOUT | 1c 2-blocked 2-buffering | ERROR | 1 |
 | ERROR | TagMatching | TIMEOUT | 1c 2-blocked | ERROR | 6 |
 | ERROR | TagMatching | TIMEOUT | 1c 2-blocked 2-buffering | ERROR | 9 |
@@ -106,7 +125,7 @@ Not confirmed or inconclusive:
 
 ### MPI-BugBench level 2: point-to-point and collective call-ordering, missing-call, local-concurrency and correct programs
 
-Programs: 388. Not compiled with Open MPI 4.1.6 and left out: 8 (P2P__CallOrdering-unmatched-mpi_precv_init-001, P2P__CallOrdering-unmatched-mpi_psend_init-001, P2P__Correct-mpi_precv_init-001, P2P__Correct-mpi_precv_init-002, P2P__Correct-mpi_psend_init-001, P2P__Correct-mpi_psend_init-002, P2P__LocalConcurrency-receive-mpi_precv_init-001, P2P__LocalConcurrency-send-mpi_psend_init-001). Rows by code commit: c27c793 (388), unrecorded (8).
+Programs: 388. Not compiled with Open MPI 4.1.6 and left out: 8 (P2P__CallOrdering-unmatched-mpi_precv_init-001, P2P__CallOrdering-unmatched-mpi_psend_init-001, P2P__Correct-mpi_precv_init-001, P2P__Correct-mpi_precv_init-002, P2P__Correct-mpi_psend_init-001, P2P__Correct-mpi_psend_init-002, P2P__LocalConcurrency-receive-mpi_precv_init-001, P2P__LocalConcurrency-send-mpi_psend_init-001). Rows by code commit: 96dd241 (388), unrecorded (8).
 
 A program's verdict is ERROR iff a finding of class 1a/1c/1d/2-buffering/2-collective/2-blocked/3-local is
 present; 1b, 1f, probe-alt and waitany-order are warnings and never count. The *observed* row uses
@@ -168,9 +187,11 @@ mean 0.05, max 2.
 | ERROR | LocalConcurrency | FINISHED | - | OK | 17 |
 | ERROR | MissingCall | TIMEOUT | 2-blocked | ERROR | 3 |
 | OK |  | FINISHED | - | ERROR | 4 |
-| OK |  | FINISHED | - | OK | 143 |
+| OK |  | FINISHED | - | OK | 141 |
+| OK |  | FINISHED | - | RE | 2 |
 | OK |  | FINISHED | - | TIMEOUT | 1 |
-| OK |  | MPI-ERROR | 2-blocked | RE | 4 |
+| OK |  | MPI-ERROR | 2-blocked | OK | 2 |
+| OK |  | MPI-ERROR | 2-blocked | RE | 2 |
 
 ### Stress-testing baseline: MBI
 
@@ -178,21 +199,21 @@ Up to 30 runs per program with random send and receive delays per rank, stopping
 does not finish (`experiments/stress_baseline.py`).
 
 Labelled-error programs: 65. Stress testing makes 53 fail (median run of the first failure 1;
-16 only after the first run). Stretto reports 61 from one run, 23 of them predicted from a
+16 only after the first run). Stretto reports 61 from one run, 22 of them predicted from a
 run that finished; stress testing never makes 12 of those fail (P2PBuffering_Circular_Isend_Irecv_nok, P2PBuffering_Circular_Isend_Recv_nok, P2PBuffering_Circular_Send_Irecv_nok, P2PBuffering_Circular_Send_Recv_nok, P2PBuffering_Isend_Irecv_Isend_Irecv_nok, P2PBuffering_Isend_Recv_Isend_Recv_nok, P2PBuffering_SameProcess_Isend_Irecv_nok, P2PBuffering_SameProcess_Isend_Recv_nok, P2PBuffering_SameProcess_Send_Irecv_nok, P2PBuffering_SameProcess_Send_Recv_nok, P2PBuffering_Send_Irecv_Send_Irecv_nok, P2PBuffering_Send_Recv_Send_Recv_nok).
 Correct programs that failed under stress (a hang under load or a delay): 0.
 
 
 ## E2: buffering ablation
 
-Rows by code commit: c27c793 (671).
+Rows by code commit: 96dd241 (670).
 
 Every alternative and every observed run is checked at every breakpoint (0, each message size, inf);
 profiles that are not monotone in B: 0.
 
 | traces | observed runs infeasible at B=0 (deadlock on a rendezvous implementation) | feasible alternatives | feasible at B=0 | at B=4096 | at B=inf | B-dependent |
 |---|---|---|---|---|---|---|
-| 516 | 51 | 155 | 144 | 155 | 155 | 11 |
+| 516 | 54 | 154 | 143 | 154 | 154 | 11 |
 
 B-dependent alternatives:
 
@@ -200,15 +221,15 @@ B-dependent alternatives:
 |---|---|---|
 | experiments/results/mbi/MessageRace_Loop_Isend_Irecv_nok/trace | (0, 0)<-(3, 0) [steal] | B >= 4 |
 | experiments/results/mbi/MessageRace_Loop_Isend_Irecv_nok/trace | (0, 1)<-(3, 0) [steal] | B >= 4 |
+| experiments/results/mbi/MessageRace_Loop_Isend_Irecv_nok/trace | (0, 2)<-(3, 0) [steal] | B >= 4 |
 | experiments/results/mbi/MessageRace_Loop_Isend_Recv_nok/trace | (0, 0)<-(3, 0) [steal] | B >= 4 |
 | experiments/results/mbi/MessageRace_Loop_Isend_Recv_nok/trace | (0, 1)<-(3, 0) [steal] | B >= 4 |
 | experiments/results/mbi/MessageRace_Loop_Isend_Recv_nok/trace | (0, 2)<-(3, 0) [steal] | B >= 4 |
+| experiments/results/mbi/MessageRace_Loop_Isend_Recv_nok/trace | (0, 3)<-(3, 0) [steal] | B >= 4 |
 | experiments/results/mbi/MessageRace_Loop_Send_Irecv_nok/trace | (0, 0)<-(3, 0) [steal] | B >= 4 |
 | experiments/results/mbi/MessageRace_Loop_Send_Irecv_nok/trace | (0, 1)<-(3, 0) [steal] | B >= 4 |
 | experiments/results/mbi/MessageRace_Loop_Send_Recv_nok/trace | (0, 0)<-(3, 0) [steal] | B >= 4 |
 | experiments/results/mbi/MessageRace_Loop_Send_Recv_nok/trace | (0, 1)<-(3, 0) [steal] | B >= 4 |
-| experiments/results/mbi/MessageRace_Loop_Send_Recv_nok/trace | (0, 2)<-(3, 0) [steal] | B >= 4 |
-| experiments/results/mbi/MessageRace_Loop_Send_Recv_nok/trace | (0, 3)<-(3, 0) [steal] | B >= 4 |
 
 Eager threshold of the implementation (`experiments/b_impl.py`: a head-to-head exchange of n bytes finishes
 when the message is eager and hangs when it is rendezvous), per send path, since Open MPI sends up to 256
@@ -262,12 +283,12 @@ which the self transport sends inline up to 256 bytes), at the bound 17/17. Not 
 | mbb | observed | 2-buffering | 9 | 9 |
 | mbb | observed | 2-collective | 178 | 178 |
 | mbi | L1 | 1b | 2 | 2 |
-| mbi | L1 | 1f | 144 | 60 |
-| mbi | L1+SP | 1c | 47 | 11 |
-| mbi | L1+SP | 1d | 32 | 11 |
-| mbi | observed | 1c | 35 | 35 |
-| mbi | observed | 2-blocked | 46 | 39 |
-| mbi | observed | 2-buffering | 41 | 41 |
+| mbi | L1 | 1f | 143 | 60 |
+| mbi | L1+SP | 1c | 45 | 10 |
+| mbi | L1+SP | 1d | 32 | 10 |
+| mbi | observed | 1c | 38 | 38 |
+| mbi | observed | 2-blocked | 49 | 42 |
+| mbi | observed | 2-buffering | 44 | 44 |
 
 | idiom | L1 classes | L1+SP classes | L2 classes (twin) | L2 twin outcomes | SP spurious? |
 |---|---|---|---|---|---|
@@ -540,10 +561,10 @@ certify a consequence; the twin yields the abort.
 
 | program | label | observed run | L1 | L1+SP | L2 (twin) | L2 findings |
 |---|---|---|---|---|---|---|
-| MessageRace_Irecv_Isend_nok | ERROR MessageRace | SIGNAL:6 | 1f | - | 1e | the program aborts on its own check in some executions |
+| MessageRace_Irecv_Isend_nok | ERROR MessageRace | FINISHED | 1f | - | 1e | the program aborts on its own check in every execution; the program aborts on its own check in some executions |
 | MessageRace_Irecv_Send_nok | ERROR MessageRace | FINISHED | 1f | - | 1e | the program aborts on its own check in every execution; the program aborts on its own check in some executions |
 | MessageRace_Recv_Isend_nok | ERROR MessageRace | FINISHED | 1f | - | 1e | the program aborts on its own check in every execution; the program aborts on its own check in some executions |
-| MessageRace_Recv_Send_nok | ERROR MessageRace | SIGNAL:6 | 1f | - | 1e | the program aborts on its own check in every execution; the program aborts on its own check in some executions |
+| MessageRace_Recv_Send_nok | ERROR MessageRace | FINISHED | 1f | - | 1e | the program aborts on its own check in every execution; the program aborts on its own check in some executions |
 
 
 ## E8: the buffer guard (local concurrency, class 3-local)

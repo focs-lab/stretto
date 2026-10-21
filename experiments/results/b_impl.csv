@@ -1,10 +1,10 @@
 setting,path,mpirun_args,eager_max_bytes,rendezvous_min_bytes,commit
-openmpi-default,send,,4040,4041,c27c793
-openmpi-default,isend,,4040,4041,c27c793
-openmpi-default,persistent,,4040,4041,c27c793
-openmpi-forced-rendezvous,send,"--mca btl self,vader --mca btl_vader_eager_limit 64 --mca btl_self_eager_limit 64 --mca btl_vader_fbox_max 0",256,257,c27c793
-openmpi-forced-rendezvous,isend,"--mca btl self,vader --mca btl_vader_eager_limit 64 --mca btl_self_eager_limit 64 --mca btl_vader_fbox_max 0",256,257,c27c793
-openmpi-forced-rendezvous,persistent,"--mca btl self,vader --mca btl_vader_eager_limit 64 --mca btl_self_eager_limit 64 --mca btl_vader_fbox_max 0",8,9,c27c793
-openmpi-tcp-64,send,"--mca btl self,tcp --mca btl_tcp_if_include lo --mca btl_tcp_eager_limit 64 --mca btl_self_eager_limit 64",8,9,c27c793
-openmpi-tcp-64,isend,"--mca btl self,tcp --mca btl_tcp_if_include lo --mca btl_tcp_eager_limit 64 --mca btl_self_eager_limit 64",8,9,c27c793
-openmpi-tcp-64,persistent,"--mca btl self,tcp --mca btl_tcp_if_include lo --mca btl_tcp_eager_limit 64 --mca btl_self_eager_limit 64",8,9,c27c793
+openmpi-default,send,,4040,4041,96dd241
+openmpi-default,isend,,4040,4041,96dd241
+openmpi-default,persistent,,4040,4041,96dd241
+openmpi-forced-rendezvous,send,"--mca btl self,vader --mca btl_vader_eager_limit 64 --mca btl_self_eager_limit 64 --mca btl_vader_fbox_max 0",256,257,96dd241
+openmpi-forced-rendezvous,isend,"--mca btl self,vader --mca btl_vader_eager_limit 64 --mca btl_self_eager_limit 64 --mca btl_vader_fbox_max 0",256,257,96dd241
+openmpi-forced-rendezvous,persistent,"--mca btl self,vader --mca btl_vader_eager_limit 64 --mca btl_self_eager_limit 64 --mca btl_vader_fbox_max 0",8,9,96dd241
+openmpi-tcp-64,send,"--mca btl self,tcp --mca btl_tcp_if_include lo --mca btl_tcp_eager_limit 64 --mca btl_self_eager_limit 64",8,9,96dd241
+openmpi-tcp-64,isend,"--mca btl self,tcp --mca btl_tcp_if_include lo --mca btl_tcp_eager_limit 64 --mca btl_self_eager_limit 64",8,9,96dd241
+openmpi-tcp-64,persistent,"--mca btl self,tcp --mca btl_tcp_if_include lo --mca btl_tcp_eager_limit 64 --mca btl_self_eager_limit 64",8,9,96dd241
