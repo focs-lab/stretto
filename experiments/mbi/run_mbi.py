@@ -13,7 +13,8 @@ program plus per-program logs under results/<corpus>/<name>/. With --replay-only
 selected programs are neither rebuilt nor rerun: their kept trace is analysed again and only
 the replays are redone, so a replay fix does not cost a new corpus run; the other rows of the
 table and of replays.csv are kept. With --guard the traced run has the tracer's buffer guard on
-(STRETTO_GUARD=1), which adds the local-concurrency findings (class 3-local).
+(STRETTO_GUARD=1), which adds the local-concurrency findings (class 3-local); its table goes to
+results/guard/<corpus>.csv and its programs' directories under results/guard/<corpus>/.
 
 usage: run_mbi.py [--corpus mbi|mbb] [--select REGEX] [--limit N] [--confirm] [--must] [--guard] [--timeout S] [--jobs J]
        run_mbi.py --replay-only [--select REGEX] [--timeout S] ...   (implies --confirm)
@@ -216,8 +217,11 @@ def main() -> int:
     ap.add_argument("--replay-only", action="store_true", help="redo the replays of the selected programs from their kept traces")
     args = ap.parse_args()
     args.gencodes = CORPORA[args.corpus]
-    args.results = os.path.join(ROOT, "experiments", "results", args.corpus)
-    args.out = args.out or os.path.join(args.results, f"{args.corpus}.csv")
+    # a run with the guard keeps its programs' directories apart, so it never replaces the traces
+    # of the plain run that E3 and the replays read
+    base = os.path.join(ROOT, "experiments", "results", *(["guard"] if args.guard else []))
+    args.results = os.path.join(base, args.corpus)
+    args.out = args.out or (os.path.join(base, f"{args.corpus}.csv") if args.guard else os.path.join(args.results, f"{args.corpus}.csv"))
     if args.replay_only:
         args.confirm = True
         return replay_only(args)

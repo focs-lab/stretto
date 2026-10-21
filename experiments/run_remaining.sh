@@ -4,8 +4,8 @@
 # under experiments/results/ and logs to experiments/results/run-remaining.log. MUST runs are
 # separate (experiments/mbi/run_must.py, experiments/amg/must.sh): they need docker on the host.
 #
-# usage: experiments/run_remaining.sh [step ...]     steps: build tests mbi mbb stress e2 e6 amg e4 e3
-#        (no step: all of them, in that order)
+# usage: experiments/run_remaining.sh [step ...]     steps: build tests mbi mbb stress e2 e6 amg e4 e3 guard
+#        (no step: all but guard, in that order; guard traces the corpora again with the buffer guard)
 #   JOBS     parallel programs in the corpus steps (default 6)
 #   TIMEOUT  per program run and per replay, seconds (default 60); MUST gets the same
 set -uo pipefail
@@ -26,17 +26,27 @@ step_tests() {
     scripts/run_all.sh > experiments/results/run-all.log 2>&1
     (cd analysis && STRETTO_REQUIRE_TRACES=1 python3 -m unittest discover -s tests 2>&1 | tail -3)
 }
+# MBI: every wildcard, probe, tag-matching and buffering program (115). MPI-BugBench level 2:
+# point-to-point and collective call-ordering, missing-call and local-concurrency programs, and
+# every correct program (for false positives).
+MBI_SELECT='MessageRace|ANY|Probe|Correct|ParamMatching_Tag|Buffering'
+MBB_SELECT='^(P2P|COLL)/(CallOrdering|MissingCall|LocalConcurrency|Correct)'
 step_mbi() {
-    # MBI: every wildcard, probe, tag-matching and buffering program (115), with replays
-    python3 experiments/mbi/run_mbi.py --corpus mbi --select 'MessageRace|ANY|Probe|Correct|ParamMatching_Tag|Buffering' \
+    python3 experiments/mbi/run_mbi.py --corpus mbi --select "$MBI_SELECT" \
         --jobs "$JOBS" --timeout "$TIMEOUT" --confirm --max-states 30000 --sp-max-events 600
 }
 step_mbb() {
-    # MPI-BugBench level 2: point-to-point and collective call-ordering, missing-call and
-    # local-concurrency programs, and every correct program (for false positives).
-    python3 experiments/mbi/run_mbi.py --corpus mbb \
-        --select '^(P2P|COLL)/(CallOrdering|MissingCall|LocalConcurrency|Correct)' \
+    python3 experiments/mbi/run_mbi.py --corpus mbb --select "$MBB_SELECT" \
         --jobs "$JOBS" --timeout "$TIMEOUT" --confirm --max-states 30000 --sp-max-events 600
+}
+step_guard() {
+    # both corpora traced again with the buffer guard (into experiments/results/guard/), then
+    # the guard's own checks on the real stack (experiments/guard/run.sh)
+    python3 experiments/mbi/run_mbi.py --corpus mbi --guard --select "$MBI_SELECT" \
+        --jobs "$JOBS" --timeout "$TIMEOUT" --max-states 30000 --sp-max-events 600 &&
+    python3 experiments/mbi/run_mbi.py --corpus mbb --guard --select "$MBB_SELECT" \
+        --jobs "$JOBS" --timeout "$TIMEOUT" --max-states 30000 --sp-max-events 600 &&
+    REPS=3 experiments/guard/run.sh all
 }
 step_stress() {
     # the baseline: up to 30 runs per program with random delays, until one does not finish
