@@ -32,7 +32,11 @@ sequence of results it has received so far to its next operation, or to terminat
 
 A rank is thus deterministic given the results of its calls. All nondeterminism comes
 from the MPI library: which message a receive takes, when a request completes, what a
-test or probe observes, and which request \mpicall{Waitany} returns.
+test or probe observes, and which request \mpicall{Waitany} returns. The definition
+excludes programs whose control flow depends on any other source of nondeterminism, such
+as clocks (including \mpicall{Wtime}, which the trace does not record), random numbers,
+input or signals, as the local-determinism axiom excludes them for shared
+memory~\citep{serbanuta12mcm}.
 
 \subsection{Executions}
 
@@ -71,7 +75,9 @@ completion events such that:
 
 Message delays are arbitrary: any interleaving that satisfies the rules is an execution.
 A \mpicall{Waitany} may return any of its completed requests. A send that does not block
-completes at once, so buffering is unbounded below the threshold. An execution
+completes at once, so buffering is unbounded below the threshold. The threshold models an
+implementation's eager protocol: the standard lets any standard-mode send block, which is
+the case $\Bt=0$. An execution
 \emph{deadlocks} if it cannot be extended and some rank has issued an operation that has
 not completed.
 
