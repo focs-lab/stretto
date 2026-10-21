@@ -2,25 +2,28 @@ A receive in an MPI program may name no sender and take whichever matching messa
 arrives first. Which message that is depends on timing, so one program on one input can
 deadlock, lose a message or compute different numbers in one run out of many, and the
 failure is gone when the run is repeated. Runtime checkers judge only the run that
-happened. Exhaustive verifiers enumerate schedules and do not scale. The predictive
-analyses proposed for MPI so far search for deadlocks with a solver and assume that a
-program's calls do not depend on what it receives.
+happened. Exhaustive verifiers enumerate schedules and pay for every competing wildcard.
+Predictive analyses of one MPI trace either keep every wildcard match fixed, or search for
+deadlocks with a solver, under assumptions on how a program's calls depend on what it
+receives.
 
-We carry sound predictive analysis from shared-memory concurrency to message matching.
-From one trace, our tool \tool enumerates the alternative matchings that a program
-consistent with the trace could take. It decides each one with a graph check over a
-causally closed prefix of the trace, profiles it over the buffering threshold of the MPI
-implementation, classifies its consequence, and emits a pin that forces the matching in
-a replay. We prove the check sound for every program consistent with the trace and
-complete for single-change alternatives. We show that feasibility is monotone in the
-buffering threshold above the threshold of the observed run, while deadlock predictions
-are not. We also show that the single-path assumption of earlier predictors is unsound
-when control flow depends on message metadata, and we give a deadlock prediction that
-needs no such assumption.
+We carry sound predictive analysis from shared-memory concurrency to \emph{alternative}
+matchings, in which a wildcard receive, probe or \texttt{Waitany} takes a different message.
+From one trace, our tool \tool enumerates them, decides each one with a graph check over the
+part of the trace the change cannot affect, profiles it over the buffering threshold of the
+MPI implementation, classifies its consequence, and emits a pin that forces it in a replay.
+We prove that an accepted alternative is realisable by every program consistent with the
+trace up to that part, and that the check is complete relative to it. The check covers MPI's
+matching semantics and needs no solver: it takes quasi-linear time per alternative. Above the
+threshold the observed run needs, feasibility of a steal at a blocking receive is monotone in
+the threshold, while deadlock predictions are not. We show that single-path predictions can
+be false when control flow depends only on message metadata, and we give a deadlock
+prediction that needs no single-path assumption.
 From single clean runs of HYPRE~2.10.1, \tool predicts the message race in its ParaSails
 preconditioner that took 10\,392 compute-node hours to diagnose. The race shows in
 \nHypreExposed of \nHypreTraced traced runs; all \nHypreCrossAlts replays that force a
 predicted match hang while their controls finish; randomised testing never hit the hang; and
-the fixed version has no such alternative. On the MPI Bugs Initiative, \tool finds
-\nMBItpunion of \nMBIerrors labelled errors with no false positive (F1~\MBIfoneunion,
-against \MBIfoneMUST for \MUST and \MBIfonestress for randomised runs).
+the fixed version has no such alternative. It also predicts the documented wildcard bug of NPB
+MG~2.4.1. On the MPI Bugs Initiative, \tool finds \nMBItpunion of \nMBIerrors labelled errors
+with no false positive (F1~\MBIfoneunion, against \MBIfoneMUST for \MUST and \MBIfonestress
+for randomised runs).

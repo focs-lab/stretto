@@ -8,8 +8,8 @@ receive names the process it expects a message from. One feature breaks this. A 
 may pass the wildcard \anysrc and accept the first matching message from any sender. Work
 pools use it to serve whichever worker finishes first. Solvers use it when the set of
 neighbours is not known in advance (AMG), and reduction trees use it to collect partial
-sums in arrival order (Nekbone). Wildcard receives appear in 4 of
-14 US exascale proxy applications~\citep{sultana21proxy}.
+sums in arrival order (Nekbone). Source wildcards appear in 3 of 14 US exascale proxy
+applications, and a tag wildcard in a fourth~\citep{sultana21proxy}.
 
 \Cref{fig:tworuns} shows how little it takes for a wildcard to matter. Rank~0 receives
 once from anyone and then once from rank~2. Ranks~1 and~2 each send one message. In
@@ -21,9 +21,10 @@ the load on the node and the MPI library's progress engine. The bad order may ap
 in thousands of test runs, disappear when the test is repeated under a debugger, and
 then surface at scale. A race in a laser--plasma code appeared only at 524\,288 processes
 and took months of debugging with print statements~\citep{laguna15cacm}. A message race
-in the ParaSails preconditioner of the HYPRE solver library hung a production code
-intermittently for 18 months; diagnosing it took 291 jobs and 10\,392 compute-node hours,
-and the fix was ten lines~\citep{sato17ninja}.
+in the HYPRE solver library hung a production code intermittently for 18 months; diagnosing
+it took 291 jobs and 10\,392 compute-node hours, and the fix was ten
+lines~\citep{sato17ninja}. HYPRE's change log places the fix in its ParaSails
+preconditioner~\citep{hypre-changelog}.
 
 \begin{figure}[t]
 \input{figures/tworuns}
@@ -38,55 +39,70 @@ Existing tools cover this poorly. Runtime checkers such as \MUST~\citep{hilbrich
 watch the run that happened. When that run takes the good order, there is nothing for them to
 report. Exhaustive verifiers such as ISP~\citep{vakkalanka08isp},
 DAMPI~\citep{vo10dampi}, MPI-SV~\citep{yu20mpisv} and CIVL~\citep{siegel15civl}
-enumerate the schedules of a program. They pay for the number of competing
-wildcards and stay at small scales. A line of predictive analyses starting with
-MOPPER~\citep{forejt14mopper,forejt17mopper} takes one trace and asks whether some other
-matching deadlocks~\citep{huang20ase,huang23tpds,li24parco}. These analyses target deadlocks
-only and encode each query for a solver. They also assume that the program's sequence of
-calls does not depend on what it receives. We show that this assumption makes them
-unsound on ordinary code, such as a master that replies to whoever sent the last result.
+enumerate the schedules of a program. They pay for every competing wildcard or give up
+completeness. Predictive analyses take one trace. MPI-PRV~\citep{yao26mpiprv} predicts
+violations of temporal properties soundly and without a solver, but it keeps every wildcard
+match of the trace fixed and assumes zero buffering. Reachability
+testing~\citep{tai97race,lei06reachability} changes matches: it derives the messages that
+could have raced for each receive, asserts that the resulting variants are feasible, and runs
+each one. Solver-based predictors~\citep{huang13ase,forejt17mopper,huang20ase,khanna18hermes}
+search other matchings for deadlocks and assertion violations. Their guarantees hold for
+single-path programs, whose calls do not depend on what, or from whom, they receive, or for
+the branch conditions the run recorded. No trace certifies the first, and a destination
+computed from a receive's status is no branch. On a master that replies to whoever sent the
+last result, a single-path prediction reports a deadlock that no execution has.
 
-Shared-memory concurrency faced the same gap and closed it with \emph{sound predictive
-analysis}. From one trace of a multithreaded program, an analysis proves that a
-reordering of the trace is a run of every program consistent with
-it~\citep{kini17wcp,mathur18shb,mathur21syncp,tunc23spd,ang24strong}. It decides this in
-linear time for well-chosen classes of reorderings~\citep{mathur20lics,kulkarni21concur}.
-The soundness of these analyses now has a common
-definition~\citep{liu25soundness}. That machinery does not transfer verbatim. Its
-central object, the reads-from relation, becomes a \emph{matching} of receives to sends.
-A matching is consumed exactly once and constrained by MPI's non-overtaking rule. Whether
-a send completes depends on the buffering threshold of the MPI implementation. And after
-a receive takes a different message, the receiver's control flow may change.
+Shared-memory concurrency has a theory of prediction from one trace. The maximal causal
+model~\citep{serbanuta12mcm}, rooted in feasible program prefixes~\citep{netzer91accuracy},
+considers every program that can produce the trace and stops a thread at its first read
+whose value changes; RVPredict made it algorithmic~\citep{huang14rvpredict}. Later analyses
+prove that a reordering is a run of every such program~\citep{smaragdakis12cp,mathur18shb},
+and decide this in linear time for well-chosen classes of
+reorderings~\citep{kini17wcp,mathur18shb,mathur21syncp,tunc23spd}. Their soundness now has a
+common definition~\citep{liu25soundness}. The frame carries over to message passing, but
+not verbatim. A reordering that keeps every read's writer becomes one that keeps every
+match, which is what MPI-PRV predicts. Changing a match changes a read, with four
+differences: a nonblocking receive's result is observed only at its completion call, long
+after its match; a message is consumed, so the receive that took it in the trace loses it;
+non-overtaking orders matches, not completions; and whether a send completes depends on the
+buffering threshold of the MPI implementation.
 
-\paragraph{This paper.} We define which alternative matchings one trace certifies, prove
-that the certification is sound for every program consistent with the trace, and build
-\tool, a tool that predicts such matchings, classifies their consequences, and confirms
-them by replay. The analysis keeps a causally closed prefix of the trace, the
-\emph{horizon}. Everything in it happens identically under the alternative, and nothing
-after a changed receive is assumed. Inside the horizon an alternative is feasible iff a
-constraint graph over issue, completion and match events is acyclic. Each prediction
-carries the set of buffering thresholds at which it holds. Each finding states its level
-of evidence. \Lone findings follow from the trace alone. \LoneSP findings additionally
-assume the single-path continuation of earlier work. \Ltwo findings use a skeleton of
-the program's dependence on message metadata.
+\paragraph{This paper.} For MPI's matching semantics (wildcard source and tag over
+non-overtaking queues, nonblocking requests whose match precedes their completion, probes,
+completion order, collectives and a per-message eager threshold), we prove which
+alternative matchings one trace certifies for every program consistent with it, up to the
+part of the run the change leaves determined, the \emph{horizon}, and decide them in
+quasi-linear time without a solver. Our tool \tool predicts such matchings, classifies their
+consequences, and confirms them by replay. Everything in the horizon happens identically under
+the alternative, and nothing after a changed receive is assumed. Inside it, an alternative is
+feasible iff a constraint graph over issue, completion and match events is acyclic;
+happens-before concurrency, with which earlier message-race tools select candidates, cannot
+tell feasible from infeasible alternatives once a nonblocking wildcard is pending
+(\cref{sec:graph}). Each prediction carries the buffering thresholds at which it holds, and
+each finding its level of evidence: \Lone findings follow from the trace alone, \LoneSP
+findings also assume the single-path continuation of earlier work, and \Ltwo findings use a
+skeleton of the program's dependence on message metadata.
 
 \paragraph{Contributions.}
 \begin{itemize}[leftmargin=*]
-\item A model of programs consistent with a trace and a constraint graph with match nodes.
-  Its acyclicity over the horizon certifies an alternative matching for every such
-  program (\cref{thm:sound}). For single-change alternatives, the check is also complete
-  relative to the reorderings that keep every other match (\cref{thm:complete}).
-\item The buffering profile. Feasibility of a single-change alternative is monotone in
-  the buffering threshold above the threshold at which the observed run is realisable
-  (\cref{thm:mono}). Deadlock predictions are neither upward- nor downward-closed
-  (\cref{prop:nonmono}), so a prediction must name its thresholds.
-\item Levels of evidence. Single-path prediction is unsound on code whose control flow
-  depends on message metadata (\cref{lem:sp}). Deadlocks contained in the horizon are
-  predicted without that assumption (\cref{thm:l1dead}).
+\item For MPI's matching semantics, the first proof that an alternative matching is
+  realisable by every program consistent with the trace up to the horizon (\cref{thm:sound}),
+  with consistency as in the maximal causal model~\citep{serbanuta12mcm}, and a check by the
+  acyclicity of a constraint graph with match nodes, complete relative to the horizon
+  (\cref{thm:complete}).
+\item Buffering profiles. Above the threshold the recorded run itself needs, feasibility of a
+  steal at a blocking receive is monotone in the eager threshold (\cref{thm:mono}), so its
+  thresholds form an interval found by bisection. Deadlock predictions are not monotone
+  (\cref{prop:nonmono}), the formal counterpart of an observation on slack
+  elasticity~\citep{vakkalanka10slack}.
+\item Levels of evidence, a reporting discipline with shared-memory
+  counterparts~\citep{kalhauge18sound,farzan12exceptionull}. Single-path predictions can be
+  false on code whose control flow depends only on message metadata (\cref{lem:sp}).
+  Deadlocks contained in the horizon after a changed match are predicted without that
+  assumption (\cref{thm:l1dead}).
 \item \tool: a PMPI tracer, an analyser whose check is quasi-linear in the trace per
-  alternative (\cref{thm:cost}), and a replay library. The replay forces a
-  predicted matching, logs that the forced match happened, and is checked against a
-  control run.
+  alternative (\cref{thm:cost}), and a replay library whose pins cover the horizon, whose log
+  shows that each forced match happened, and whose confirmations need a control replay.
 \item An evaluation on the MPI Bugs Initiative and \MBB against \MUST and against repeated
   randomised runs, a differential check of soundness against an exhaustive explorer, and
   real applications. On the MPI Bugs Initiative, \tool finds \nMBItpunion of the
@@ -94,6 +110,8 @@ the program's dependence on message metadata.
   \MBIfonestress for randomised runs, which never expose the \nMBIStressPredMissed buffering
   bugs \tool predicts.
   From single clean runs of HYPRE~2.10.1, \tool finds the ParaSails race as a probe
-  alternative in \nHypreExposed of \nHypreTraced runs. All \nHypreCrossAlts pinned replays
-  hang while their controls finish, and the fixed version has no such alternative.
+  alternative (\Lone) in \nHypreExposed of \nHypreTraced runs. All \nHypreCrossAlts pinned
+  replays hang while their controls finish, and the fixed version has no such alternative.
+  In NPB MG~2.4.1 it predicts the documented wildcard bug of the halo exchange: forced,
+  \nMGChanged of \nMGReplayed replays compute another residual.
 \end{itemize}

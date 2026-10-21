@@ -60,9 +60,9 @@ control run, pinned the same way but with the observed sender at the changed rec
 finishes.
 
 \paragraph{Levels of evidence.} The single-path assumption that turned \cls{1f} into
-\cls{1d} above is the assumption of earlier MPI predictors~\citep{forejt17mopper}, and it
-can be wrong. Consider a master that receives a result from \anysrc and replies to
-\texttt{status.MPI\_SOURCE}, with two workers that each send a result and wait for a
+\cls{1d} above is the restriction under which earlier MPI predictors state their
+guarantees~\citep{forejt17mopper}, and no trace shows that a program meets it. Consider a
+master that receives a result from \anysrc and replies to \texttt{status.MPI\_SOURCE}, with two workers that each send a result and wait for a
 reply. Suppose the master's first receive takes worker~2's result instead of worker~1's.
 The recorded call sequence still sends the first reply to worker~1. Under rendezvous,
 that send waits for worker~1 to post its receive, while worker~1 waits for the master to

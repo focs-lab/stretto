@@ -11,10 +11,9 @@ written by hand. Our experiments use one node.
 \paragraph{Conclusion.} One recorded run of an MPI program determines more than the run
 itself. Over the horizon, which is the part of the trace every consistent program
 repeats, an alternative matching is feasible iff a constraint graph with match nodes is
-acyclic. The certificate holds for every such program. For single changes it is exact
-relative to the reorderings that keep every other match. It comes with the buffering
-thresholds at which it holds, with a level of evidence for its consequence, and with a
-pin that forces it in a replay.
+acyclic. The certificate holds for every such program, and the check is exact relative to
+the horizon. It comes with the buffering thresholds at which it holds, with a level of
+evidence for its consequence, and with a pin that forces it in a replay.
 On benchmarks, \tool finds \nMBItpunion of \nMBIerrors labelled errors with no false
-positive, and from single clean runs of HYPRE it predicts a production race that randomised
-testing did not hit.
+positive. From single clean runs it predicts a production race in HYPRE that randomised
+testing did not hit, and a documented wildcard bug in NPB MG.
