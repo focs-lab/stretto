@@ -30,9 +30,11 @@
 #   stress   RUNS untraced runs of 9.3.0-rc1 per process count with random send and receive
 #            delays from the replay library, and RUNS plain runs; each output compared with
 #            the test's expected output
+#   changes  for every replay, control and stress run whose output differs, the ranks and
+#            calls whose values differ (experiments/dealii/changes.py, mapping_01 at 4 ranks)
 #   all
-# Writes experiments/results/dealii/{predict-9.3.0-rc1,predict-9.3.0,stress}.csv.
-# usage: experiments/dealii/run.sh [fetch|build|predict|stress|all]
+# Writes experiments/results/dealii/{predict-9.3.0-rc1,predict-9.3.0,stress,changes}.csv.
+# usage: experiments/dealii/run.sh [fetch|build|predict|stress|changes|all]
 #        NPS (default 4), RUNS (default 20), JOBS (default 1), TEST (default mapping_01),
 #        DEALII_DIR (default third_party/apps/dealii)
 set -uo pipefail
@@ -190,10 +192,15 @@ step_stress() {
         done
     done
 }
+step_changes() {
+    # the expected output of mapping_01 is the same file in both versions
+    python3 experiments/dealii/changes.py --expected "$D/dealii-9.3.0-rc1/tests/remote_point_evaluation/mapping_01.mpirun=4.output" \
+        --predict "$OUT/predict-9.3.0-rc1.csv" "$OUT/predict-9.3.0.csv" --stress "$OUT/stress.csv" --out "$OUT/changes.csv"
+}
 for step in "${@:-all}"; do
     case "$step" in
-        fetch) step_fetch;; build) step_build;; predict) step_predict;; stress) step_stress;;
-        all) step_fetch && step_build && step_predict && step_stress;;
-        *) echo "usage: $0 [fetch|build|predict|stress|all]" >&2; exit 2;;
+        fetch) step_fetch;; build) step_build;; predict) step_predict;; stress) step_stress;; changes) step_changes;;
+        all) step_fetch && step_build && step_predict && step_stress && step_changes;;
+        *) echo "usage: $0 [fetch|build|predict|stress|changes|all]" >&2; exit 2;;
     esac || exit 1
 done

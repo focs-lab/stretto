@@ -494,7 +494,8 @@ def npbmg():
 
 def dealii():
     """A third documented bug: deal.II 9.3.0-rc1's RemotePointEvaluation can probe a message of
-    the next call (experiments/dealii/run.sh: predict-9.3.0-rc1.csv, predict-9.3.0.csv, stress.csv)."""
+    the next call (experiments/dealii/run.sh: predict-9.3.0-rc1.csv, predict-9.3.0.csv, stress.csv;
+    experiments/dealii/changes.py: changes.csv)."""
     d = os.path.join(RES, "dealii")
     pr, fixed, st = (rows(os.path.join(d, f)) for f in ("predict-9.3.0-rc1.csv", "predict-9.3.0.csv", "stress.csv"))
     if not pr:
@@ -545,6 +546,11 @@ def dealii():
             if lines:
                 num("nDealLinesMin", min(lines))
                 num("nDealLinesMax", max(lines))
+    others = sorted({int(r["other_alternatives"]) for r in pr + fixed if r.get("other_alternatives")})
+    if others:
+        out += ["", f"Every traced run also has {others[0]}" + (f" to {others[-1]}" if len(others) > 1 else "") +
+                " alternatives of probes on other tags (the consensus algorithms and cell exchanges that set up the",
+                "triangulation and the cache), which are not replayed."]
     if st:
         out += ["", "Untraced runs of the same test on 9.3.0-rc1, plain and with random send and receive delays of 0 to 20 ms",
                 "per rank from the replay library (no pin); a run *differs* when its log differs from the expected one.", "",
@@ -557,6 +563,41 @@ def dealii():
         num("nDealStressChanged", sum(r["differs"] == "True" for r in st))
         num("nDealStressPlainChanged", sum(r["differs"] == "True" for r in st if r["setting"] == "plain"))
         num("nDealStressDelayChanged", sum(r["differs"] == "True" for r in st if r["setting"] == "delays"))
+    ch = rows(os.path.join(d, "changes.csv"))
+    if ch:
+        out += ["", "Where the logs of 9.3.0-rc1 differ from the expected one (`experiments/dealii/changes.py`). The test prints, per rank,",
+                "one line per point and object with one column per call (avg, min, max, insert), so the changed lines name the",
+                "ranks and the changed columns the calls whose values were wrong. Every call sends the same values, so a call is",
+                "right whenever it took one message from each sender. A probe of call k that takes a sender's message of call k+1",
+                "makes its own rank's call k wrong, and one later call of the same object, in which the rank takes the other",
+                "sender twice: k+1, or the object's last call if the sender that ran ahead stays ahead. Rows by code commit:",
+                commits(ch) + ".", "",
+                "| runs | logs that differ | the probing rank's values in two consecutive calls | other ranks' values | two wrong calls per changed rank and object | consecutive ones |",
+                "|---|---|---|---|---|---|"]
+
+        def at_probe(r):
+            """The pinned rank's values are wrong in exactly two consecutive calls of one object."""
+            calls = sorted((int(o), ("avg", "min", "max", "insert").index(c)) for rank, o, c in
+                           (e.split(":") for e in r["evaluations"].split()) if rank == r["pinned_rank"])
+            return len(calls) == 2 and calls[0][0] == calls[1][0] and calls[1][1] - calls[0][1] == 1
+
+        def elsewhere(r):
+            return any(x != r["pinned_rank"] for x in r["ranks"].split())
+
+        for kind, title in (("cross", "cross replays"), ("same", "same replays"), ("control", "controls"),
+                            ("stress-plain", "untraced, plain"), ("stress-delays", "untraced, with delays")):
+            rs = [r for r in ch if r["kind"] == kind]
+            if not rs and kind.startswith("stress"):
+                continue
+            dash = kind.startswith("stress")
+            out.append(f"| {title} | {len(rs)} | {'-' if dash else sum(map(at_probe, rs))} | {'-' if dash else sum(map(elsewhere, rs))} "
+                       f"| {sum(r['pairs'] == 'True' for r in rs)} | {sum(r['consecutive'] == 'True' for r in rs)} |")
+        cr = [r for r in ch if r["kind"] == "cross"]
+        num("nDealChangedAtProbe", sum(map(at_probe, cr)))
+        num("nDealChangedElsewhere", sum(map(elsewhere, cr)))
+        num("nDealSameElsewhere", sum(1 for r in ch if r["kind"] == "same" and elsewhere(r) and not at_probe(r)))
+        num("nDealControlsElsewhere", sum(1 for r in ch if r["kind"] == "control" and elsewhere(r) and not at_probe(r)))
+        num("nDealStressPairs", sum(1 for r in ch if r["kind"].startswith("stress") and r["pairs"] == "True"))
     return "\n".join(out) + "\n"
 
 
