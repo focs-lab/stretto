@@ -115,16 +115,20 @@ the send's completion, which for a rendezvous send follows the match. Attaching
 nonblocking wildcard overtaken by a later receive, and a rendezvous send matched after its own
 completion.
 
-For the same reason, happens-before concurrency, with which earlier tools select racing
-messages before re-executing~\citep{lei06reachability,gopalakrishnan11cacm}, cannot decide an
-alternative. Let rank~0 post \mpicall{Irecv($r$, ANY)}, then \mpicall{Recv(ANY)}, which takes
+For the same reason, happens-before concurrency at a fixed point of the receive, with which
+earlier tools select racing messages before
+re-executing~\citep{lei06reachability,gopalakrishnan11cacm}, cannot decide an alternative.
+Let rank~0 post \mpicall{Irecv($r$, ANY)}, then \mpicall{Recv(ANY)}, which takes
 rank~3's message, then send $x$ to rank~2 and wait for $r$, which takes rank~1's message;
 rank~2 receives $x$ and sends $s$ to rank~0. The steal $r\mapsto s$ is impossible: $r$
 accepts rank~3's message, so it must be matched before the second receive, and $s$ is sent
 only after that receive completes (in the graph, a cycle through \ref{G:order} and $x$). Yet
 $s$ is concurrent with the wait of $r$. Placing $r$ at its completion accepts the steal;
 placing it at its posting rejects it, but also every message sent causally after the
-posting, which $r$ may well take.
+posting, which $r$ may well take. DAMPI's protocol gives $r$ its final clock at its wait or at
+a later receive that must be matched after it, which rejects this steal; its theorem shows a
+reported match concurrent with $r$ in that order, not realisable, and it can miss
+matches~\citep{vo11thesis}.
 
 The edges of \ref{G:fifo} and \ref{G:order} need not be quadratic: an edge from the latest
 earlier receive of each of the four envelope classes that accept $s$, and from the latest

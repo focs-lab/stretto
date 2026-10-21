@@ -48,8 +48,9 @@ each one. Solver-based predictors~\citep{huang13ase,forejt17mopper,huang20ase,kh
 search other matchings for deadlocks and assertion violations. Their guarantees hold for
 single-path programs, whose calls do not depend on what, or from whom, they receive, or for
 the branch conditions the run recorded. No trace certifies the first, and a destination
-computed from a receive's status is no branch. On a master that replies to whoever sent the
-last result, a single-path prediction reports a deadlock that no execution has.
+computed from a receive's status is no branch. A master that replies to whoever sent the last
+result is outside the single-path class, yet its trace looks the same, and a single-path
+prediction for it reports a deadlock that no execution has.
 
 Shared-memory concurrency has a theory of prediction from one trace. The maximal causal
 model~\citep{serbanuta12mcm}, rooted in feasible program prefixes~\citep{netzer91accuracy},
@@ -74,21 +75,23 @@ part of the run the change leaves determined, the \emph{horizon}, and decide the
 quasi-linear time without a solver. Our tool \tool predicts such matchings, classifies their
 consequences, and confirms them by replay. Everything in the horizon happens identically under
 the alternative, and nothing after a changed receive is assumed. Inside it, an alternative is
-feasible iff a constraint graph over issue, completion and match events is acyclic;
-happens-before concurrency, with which earlier message-race tools select candidates, cannot
-tell feasible from infeasible alternatives once a nonblocking wildcard is pending
-(\cref{sec:graph}). Each prediction carries the buffering thresholds at which it holds, and
+feasible iff a constraint graph over issue, completion and match events is acyclic.
+Selecting racing messages by happens-before at a receive's posting or at its completion
+either rejects feasible alternatives or accepts infeasible ones once a nonblocking wildcard is
+pending (\cref{sec:graph}). Each prediction carries the buffering thresholds at which it holds, and
 each finding its level of evidence: \Lone findings follow from the trace alone, \LoneSP
 findings also assume the single-path continuation of earlier work, and \Ltwo findings use a
 skeleton of the program's dependence on message metadata.
 
 \paragraph{Contributions.}
 \begin{itemize}[leftmargin=*]
-\item For MPI's matching semantics, the first proof that an alternative matching is
-  realisable by every program consistent with the trace up to the horizon (\cref{thm:sound}),
-  with consistency as in the maximal causal model~\citep{serbanuta12mcm}, and a check by the
-  acyclicity of a constraint graph with match nodes, complete relative to the horizon
-  (\cref{thm:complete}).
+\item For MPI's matching semantics, with nonblocking requests matched before they complete,
+  probes, completion order, collectives and an eager threshold, the first proof that an
+  alternative matching is realisable by every program consistent with the trace up to the
+  horizon (\cref{thm:sound}); for blocking traffic, reachability testing asserts this of its
+  race variants. Consistency is as in the maximal causal model~\citep{serbanuta12mcm}. The
+  acyclicity of a constraint graph with match nodes decides it, completely relative to the
+  horizon (\cref{thm:complete}).
 \item Buffering profiles. Above the threshold the recorded run itself needs, feasibility of a
   steal at a blocking receive is monotone in the eager threshold (\cref{thm:mono}), so its
   thresholds form an interval found by bisection. Deadlock predictions are not monotone

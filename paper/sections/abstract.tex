@@ -3,8 +3,8 @@ arrives first. Which message that is depends on timing, so one program on one in
 deadlock, lose a message or compute different numbers in one run out of many, and the
 failure is gone when the run is repeated. Runtime checkers judge only the run that
 happened. Exhaustive verifiers enumerate schedules and pay for every competing wildcard.
-Predictive analyses of one MPI trace either keep every wildcard match fixed, or search for
-deadlocks with a solver, under assumptions on how a program's calls depend on what it
+Predictive analyses of one MPI trace either keep every wildcard match fixed, or search other
+matchings with a solver, under assumptions on how a program's calls depend on what it
 receives.
 
 We carry sound predictive analysis from shared-memory concurrency to \emph{alternative}

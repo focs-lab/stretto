@@ -30,18 +30,19 @@ traces~\citep{tai97race} and reachability testing~\citep{lei06reachability} comp
 trace of a message-passing program, the race set of each receive: the sends not causally after
 it that are the earliest unconsumed message of their source, as our steals are. A race variant
 changes receives to members of their race sets and removes what a changed receive may
-control, which for blocking traffic corresponds to our horizon. Each variant is asserted
-feasible ``regardless of the program's control and data flow''~\citep[p.\,390]{lei06reachability}
-and executed by prefix-based replay; we found no proof of the assertion. The model has no
+control, which for blocking traffic corresponds to our horizon. Removing that part is what makes
+a variant feasible ``regardless of the program's control and data
+flow''~\citep[p.\,390]{lei06reachability}, and each variant is executed by prefix-based replay.
+The first paper of the line proves feasibility for the read--write sequences of shared
+memory~\citep{hwang94apsec}; for message passing we found it asserted, not proved. The model has no
 nonblocking receives, probes, collectives or buffering threshold, and happens-before
 concurrency suffices there; for MPI it does not (\cref{sec:graph}). Race detection from a trace
 was extended to nonblocking operations~\citep{cypher95race}, and first and unaffected message
 races are detected from a run~\citep{netzer96msgrace,park04unaffected,park07mpirace}. The MAD
 environment computed the racing messages of MPI programs with the same one-per-source bound,
 cut the trace at the causal future of an exchanged message, and replayed the rest with the
-other wildcards pinned~\citep{kranzlmueller00thesis,kranzlmueller00mad}. \tool proves the
-feasibility these works assert or test, for MPI's semantics, and predicts consequences
-without executing.
+other wildcards pinned~\citep{kranzlmueller00thesis,kranzlmueller00mad}. For MPI's semantics,
+\tool proves the feasibility these works assert or test.
 
 \paragraph{Prediction for MPI.} Trace-based prediction of alternative matchings began with SMT
 encodings for MCAPI that search the arrival orders of a trace for assertion
@@ -106,17 +107,17 @@ standard. In shared memory, deadlocks are confirmed by controlled
 scheduling~\citep{bensalem06confirmation,joshi09deadlockfuzzer} and races by directed random
 testing~\citep{sen08racefuzzer}; PENELOPE replays the observed prefix exactly before forcing a
 violation~\citep{sorrentino10penelope}, ExceptioNULL re-executes every
-prediction~\citep{farzan12exceptionull}, Portend runs both orders of a race from one
-checkpoint~\citep{kasikci12portend}, and maximal causality reduction re-executes seed
+prediction~\citep{farzan12exceptionull}, and maximal causality reduction re-executes seed
 interleavings that force a read to a new value~\citep{huang15mcr}. In message passing,
 reachability testing replays a variant's prefix~\citep{lei06reachability}, the MAD debugger
-pins the other wildcards~\citep{kranzlmueller00thesis}, ISP and DAMPI rewrite wildcard
-receives into specific ones~\citep{gopalakrishnan11cacm}, MOPPER can rerun a predicted matching
-under ISP~\citep{forejt17mopper}, and MPIWiz~\citep{xue09mpiwiz} and record and
-replay~\citep{netzer92replay,sato15rempi} reproduce recorded sources. Specific to \tool are
-pins over the whole dependency-closed horizon, taken from the certificate; a log of what each
-pinned operation matched, as positive evidence of the forced match; a control replay that
-must finish, so that a hang caused by an impossible pin does not count; and confirmation per
+pins the wildcards outside the causal future of the exchange~\citep{kranzlmueller00thesis},
+ISP and DAMPI rewrite wildcard receives into specific ones~\citep{gopalakrishnan11cacm},
+MOPPER can rerun a predicted matching under ISP~\citep{forejt17mopper}, and
+MPIWiz~\citep{xue09mpiwiz} and record and replay~\citep{netzer92replay,sato15rempi} reproduce
+recorded sources. Specific to \tool are pins taken from a certificate whose horizon also
+follows rendezvous and ordering dependences, which a causal cut does not; a log of what each
+pinned operation matched, as positive evidence of the forced match; a control replay that must
+finish, so that a hang caused by an impossible pin does not count; and confirmation per
 buffering threshold.
 
 \paragraph{Runtime checkers and benchmarks.} \MUST~\citep{hilbrich12must} checks the observed
