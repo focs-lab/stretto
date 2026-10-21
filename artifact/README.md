@@ -62,7 +62,7 @@ used the image `ceb926607397` built on 7 Sep 2026.
 | RQ3, buffering | thresholds measured per send path; every replay at, below and above the predicted bound behaves as predicted | `rq3` | 1.5 h |
 | RQ4, levels | findings per level and class on the corpora | `rq4` | 1 h |
 | RQ5, cost | tracing overhead on NPB, analysis times of lu.A, AMG and Nekbone | `rq5` | 1.5 h, on an idle machine |
-| RQ6, real applications (table "HYPRE, ParaSails") | every cross alternative of HYPRE 2.10.1 hangs when replayed and every control finishes; the fix has none; stress testing never hangs | `rq6` | 6 h |
+| RQ6, real applications (table "HYPRE, ParaSails") | every cross alternative of HYPRE 2.10.1 hangs when replayed and every control finishes; the fix has none; stress testing never hangs; every cross alternative of deal.II 9.3.0-rc1 prints wrong values when replayed and 9.3.0 has none (NPB MG is rerun too) | `rq6` | 12 h |
 
 Each target reruns what its question needs, regenerates the tables and prints the claims of
 that question. RQ1 to RQ4 share one traced and analysed run of the corpora, AMG and Nekbone

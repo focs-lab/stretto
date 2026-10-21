@@ -86,6 +86,8 @@ t_rq6() {
     box rq6 bash -c "experiments/hypre/run.sh fetch && experiments/hypre/run.sh build \
         && JOBS=${JOBS:-4} experiments/hypre/campaign.sh all \
         && HYPRE_VERSION=2.11.0 JOBS=${JOBS:-4} experiments/hypre/campaign.sh predict"
+    box npbmg experiments/npbmg/run.sh all
+    box dealii bash -c "JOBS=${JOBS:-4} experiments/dealii/run.sh all"
     amg
     nekbone
     claims 6

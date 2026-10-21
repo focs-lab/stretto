@@ -598,6 +598,8 @@ def dealii():
         num("nDealStressChanged", sum(r["differs"] == "True" for r in st))
         num("nDealStressPlainChanged", sum(r["differs"] == "True" for r in st if r["setting"] == "plain"))
         num("nDealStressDelayChanged", sum(r["differs"] == "True" for r in st if r["setting"] == "delays"))
+        num("nDealStressPlainRuns", sum(r["setting"] == "plain" for r in st))
+        num("nDealStressDelayRuns", sum(r["setting"] == "delays" for r in st))
     ch = rows(os.path.join(d, "changes.csv"))
     if ch:
         out += ["", "Where the logs of 9.3.0-rc1 differ from the expected one (`experiments/dealii/changes.py`). The test prints, per rank,",
@@ -970,7 +972,8 @@ def main():
            "names the code commits its rows were produced with (the `commit` column). The corpus runs, their replays,",
            "E2, E6 and the E3 and E7 inputs come from `experiments/run_remaining.sh` on the second, shared machine",
            "(the container of `experiments/container/`, 12 cores of one NUMA node); the HYPRE campaign from",
-           "`experiments/hypre/campaign.sh` and Nekbone from `experiments/nekbone/run.sh` there. The MUST verdicts",
+           "`experiments/hypre/campaign.sh`, the NPB MG and deal.II campaigns from `experiments/npbmg/run.sh` and",
+           "`experiments/dealii/run.sh`, and Nekbone from `experiments/nekbone/run.sh` there. The MUST verdicts",
            "are carried over from MUST 1.9.2 runs under MPICH in MPI-BugBench's own container, with the same timeout",
            "per program. The E4 times, the AMG trace and its analysis time come from one announced timed leg at commit",
            f"{leg_commits()} (`experiments/timing_leg.sh`, the host otherwise idle), and AMG's replay sample from that",

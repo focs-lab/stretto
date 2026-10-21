@@ -94,6 +94,18 @@ nothing in those runs reports it.
 
 <p align="center"><img src="docs/figures/npbmg.svg" width="760" alt="NPB MG results"></p>
 
+**A third documented bug.** deal.II 9.3.0-rc1's `RemotePointEvaluation` takes each call's
+messages with a wildcard probe under one tag, and nothing separates two calls on one cached
+object, so a probe can take a message of the next call; upstream fixed it before 9.3.0 ("fix
+race condition if called multiple times"). Every one of 20 clean runs of
+deal.II's own test predicts it. Forced, all 1 440 replays finish with status 0
+and print wrong values, in the two calls the code predicts; the fix has no such alternative.
+Here testing finds the race too: 42 of 50 runs
+with random delays print wrong values, 1 of 50
+plain runs.
+
+<p align="center"><img src="docs/figures/dealii.svg" width="760" alt="deal.II results"></p>
+
 **Soundness in practice.** Against an exhaustive explorer, 0 of
 826 judged alternatives are unsound. Replays on MBI: 39
 confirmed, 31 inconclusive (the control itself hung),

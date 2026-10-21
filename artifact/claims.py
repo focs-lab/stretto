@@ -33,13 +33,14 @@ RQ_OF = [
     (3, r"^nEtwo|^B[a-z]+OMPI$"),
     (4, r"^n(MBI|MBB)(one|sp|obs)[A-Z]"),
     (5, r"^TraceOverhead|^LuAnalysis|^LuEvents|^AMGtime|^Nek(GB|Minutes|PerAlt|Records)|^nEfour"),
-    (6, r"^nHypre|^BHypre|^nAMG|^nNek"),
+    (6, r"^nHypre|^BHypre|^nAMG|^nNek|^nDeal"),
 ]
 # numbers the inputs fix: a difference there is unexpected; every other number is a time or a
 # count taken from recorded runs, which depends on their schedule
 FIXED = re.compile(r"^n(MBI|MBB)(progs|notBuilt|correct|errors|race)$|^B[a-z]+OMPI$|^n(AMG|Nek)sample$|^nEfourReps$"
                    r"|^nMBIStressRuns$|^nHypre(Fixed)?(Traced|(Four|Eight)(Local)?Runs)$|^nHypreStressRuns$"
-                   r"|^nMBBLC$|^nGuardLC(OMPI|MPICH)built$|^nGuardCases$|^nGuardAppRuns$")
+                   r"|^nMBBLC$|^nGuardLC(OMPI|MPICH)built$|^nGuardCases$|^nGuardAppRuns$"
+                   r"|^nDeal(Fixed)?Traced$|^nDealRanks$|^nDealStress(Plain|Delay)?Runs$")
 
 
 def load(path: str) -> dict:
@@ -124,6 +125,10 @@ def claims(n: dict) -> list:
     claim(6, "HYPRE 2.11.0, the fix: no trace has a cross alternative", ["nHypreFixedCrossAlts"], lambda a: a == 0)
     claim(6, "stress testing never hits the HYPRE hang", ["nHypreStressRuns", "nHypreStressHang"],
           lambda r, h: r > 0 and h == 0)
+    claim(6, "deal.II 9.3.0-rc1: every cross alternative is replayed, finishes and prints wrong values",
+          ["nDealAlts", "nDealReplayed", "nDealFinished", "nDealWrong"], lambda a, r, f, w: a > 0 and a == r == f == w)
+    claim(6, "deal.II 9.3.0, the fix: no trace has a cross alternative", ["nDealFixedTraced", "nDealFixedAlts"],
+          lambda t, a: t > 0 and a == 0)
     return out
 
 
