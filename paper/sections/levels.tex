@@ -157,9 +157,7 @@ reduction~\citep{huang17mcrsdg}. We leave such a check to future work.
 \label{sec:replay}
 
 A theorem certifies the model; the tool can still diverge from it. Every receive and
-probe finding therefore carries a pin. Forcing a predicted match in a re-execution is
-standard (\cref{sec:related}); what is specific here is which operations are pinned and when
-a forced run counts as a confirmation. A pin names, per rank, a wildcard receive or probe by
+probe finding therefore carries a pin. A pin names, per rank, a wildcard receive or probe by
 its ordinal and the sender it must take. The replay library rewrites that operation's source
 before the call, translating world ranks into its communicator. After the operation
 completes, it logs the source it actually matched or reported. Pinning only the changed

@@ -166,8 +166,8 @@ container's 12 cores through hyperthreads. On the kernels whose timed section la
 traced section took \TraceOverhead times as long as the plain one, by NPB's own timer, the most
 for lu.A on sixteen processes, which writes the largest trace. Shorter sections, a few
 hundredths of a second, give larger and noisier ratios. In wall time, which includes the
-launcher's start-up, every traced run took \TraceOverheadWall times as long. The tracer
-flushes one line per call, so that a rank killed while blocked leaves a complete trace.
+launcher's start-up, every traced run took \TraceOverheadWall times as long.
+The tracer flushes one line per call, so that a killed rank leaves a complete trace.
 Analysis in one process took \LuAnalysis\,s for lu.A on sixteen processes, \LuEvents million
 events, and \AMGtime\,s for AMG with its \nAMGalts probe alternatives. On Nekbone's
 communication suite, \NekRecords million records, it took \NekMinutes minutes and \NekGB\,GB,
@@ -301,8 +301,8 @@ All runs used one node, at the process counts given above, and the corpora's pro
 small; the exhaustive comparison of RQ1 reaches \nEsixMaxEvents events. Each corpus program
 was traced once, so we do not estimate how often one run exposes its race. The \Ltwo twins are
 written knowing the labels, and the HYPRE campaign replays only the probe whose tag the documented fix
-changed. \MUST rebuilds each program with MPICH and sees a run of its own, so the tools are not
-compared on one execution, and the harness's timeout decides what counts as a hang for both.
+changed. \MUST sees a run of its own under MPICH, not the traced execution,
+and the harness's timeout decides what counts as a hang for both.
 Stress testing used one delay distribution at Open MPI's default eager limit; another
 distribution, a lower limit or a noise-injection tool may find more. The model assumes a
 complete trace of the modelled fragment (a call outside it restricts the report to observed

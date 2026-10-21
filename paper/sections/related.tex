@@ -71,8 +71,7 @@ thousands of processes by giving up completeness. MPI-SV~\citep{yu20mpisv} and
 CIVL~\citep{siegel15civl} verify symbolically, and Concuerror~\citep{christakis13concuerror}
 explores Erlang programs. These tools pay for every competing wildcard or give up
 completeness; we re-execute only to confirm. The stress baseline of \cref{sec:eval} follows
-randomised concurrency testing~\citep{wolff24rff,zhao25surw}, and state-space estimation for
-DPOR~\citep{balasubramanian26dpor} estimates the exploration a program needs.
+randomised concurrency testing~\citep{wolff24rff,zhao25surw}.
 
 \paragraph{Complexity of message-passing consistency.} \citet{shi26popl} map the complexity
 of deciding whether an abstract execution of a channel-based program is consistent, with or
@@ -83,8 +82,6 @@ communicator), and blocking is a per-message threshold. Given the whole matching
 constraint is therefore a conjunction and the check is an acyclicity test, for mixed eager and
 rendezvous traffic too, whereas in shared memory keeping a read's writer is a disjunction and
 a race that needs one reversed critical section is W[1]-hard to predict~\citep{mathur21syncp}.
-Their evaluation mutates reads-from by swapping two pairs and by redirecting a receive to an
-unreceived send, the two shapes of our alternatives.
 
 \paragraph{Buffering.} Slack elasticity holds for deterministic programs~\citep{manohar98slack}.
 For MPI programs with wildcards, adding buffering can add deadlocks, and neither zero nor
@@ -92,8 +89,7 @@ infinite buffering exposes all of them~\citep{vakkalanka10slack}; Hermes reports
 that exists only with one buffer slot~\citep{khanna18hermes}. Without wildcards, a program is
 deadlock-free iff it is deadlock-free with zero buffering~\citep{siegel05ppopp,siegel07europvm}.
 Aislinn verifies programs under the eager and rendezvous threshold we
-model~\citep{bohm16aislinn}. \Cref{prop:nonmono} is the formal counterpart of the
-slack-elasticity observation; per-alternative profiles and \cref{thm:mono} are new.
+model~\citep{bohm16aislinn}.
 
 \paragraph{Message passing beyond MPI.} Go channels and MPI matching are incomparable (any
 goroutine may receive from a channel; MPI has tags, probes and a size threshold), and our

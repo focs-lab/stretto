@@ -53,8 +53,8 @@ respect to the dependences of $\Malt$.
 Rule~\ref{H:changed} is the rule of the maximal causal model, in which a thread ``is stopped
 once it read a value from the memory different from the one observed
 originally''~\citep{serbanuta12mcm}, and of relaxed correct reorderings~\citep{mathur18shb};
-RVPredict lets the thread run on to its next branch~\citep{huang14rvpredict}. A trace of MPI
-calls records no branches, so \ref{H:changed} is the branch-free instance. MPI adds the
+RVPredict runs on to the next branch~\citep{huang14rvpredict}. A trace of MPI calls records no
+branches, so \ref{H:changed} is the branch-free instance. MPI adds the
 details. A rank keeps issuing recorded operations between a changed nonblocking receive and
 its wait; \ref{H:recv} and \ref{H:pending} handle the receive a stolen message deprives,
 \ref{H:pending} non-overtaking on the matches of pending receives, and \ref{H:send} sends
