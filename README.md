@@ -205,7 +205,7 @@ whose results change alone under a shim that serves it the recorded messages
 | [`analysis/`](analysis/) | the Python package `stretto` (standard library only) and its tests |
 | [`replay/`](replay/) | the pin library, `libstretto-pin.so`: forced sources, delays |
 | [`rerun/`](rerun/) | the re-execution shim, `libstretto-rerun.so`: one rank runs alone on given results (level L2) |
-| [`idioms/`](idioms/) | thirteen small MPI programs, each with the prediction it should give |
+| [`idioms/`](idioms/) | fourteen small MPI programs, each with the prediction it should give |
 | [`experiments/`](experiments/) | the corpus harness (MBI, MPI-BugBench), the applications, the image, the results |
 | [`artifact/`](artifact/) | one reproduction target per research question, and the claims check |
 | [`docs/`](docs/) | the model, the results, the feasibility gate, the proposal |
