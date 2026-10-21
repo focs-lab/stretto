@@ -71,8 +71,18 @@ t_rq2() {
     for c in mbi mbb; do
         MUST_CPUS="$CPUS" python3 experiments/mbi/run_must.py "experiments/results/$c/$c.csv" --jobs 3 --timeout 60 2>&1 | tee -a "$OUT/rq2.log"
     done
+    # MUST 1.11.2, plain and with ThreadSanitizer, in its own image (experiments/RUNBOOK.md)
+    CPUS="$CPUS" experiments/must/build.sh 2>&1 | tee -a "$OUT/rq2.log"
+    for c in mbi mbb; do
+        for tsan in 0 1; do
+            MUST_TSAN=$tsan MUST_IMAGE=stretto-must:1.11.2 MUST_PREFIX=/MBB-builds/MUST1112 MUST_CACHE="$R/$OUT/must-cache" \
+                MUST_CPUS="$CPUS" python3 experiments/mbi/run_must.py "experiments/results/$c/$c.csv" --jobs 3 --timeout 60 \
+                --column "must1112$([ $tsan = 1 ] && echo tsan)" 2>&1 | tee -a "$OUT/rq2.log"
+        done
+    done
     box guard experiments/run_remaining.sh guard
     box reps experiments/run_remaining.sh reps
+    box ninja bash -c "experiments/ninja/build.sh && RAND_DELAYS=50000 experiments/ninja/campaign.sh mbi"
     claims 2
 }
 t_rq3() { corpora; box rq3 experiments/run_remaining.sh e2; claims 3; }
@@ -89,6 +99,8 @@ t_rq6() {
         && HYPRE_VERSION=2.11.0 JOBS=${JOBS:-4} experiments/hypre/campaign.sh predict"
     box npbmg experiments/npbmg/run.sh all
     box dealii bash -c "JOBS=${JOBS:-4} experiments/dealii/run.sh all"
+    box ninja bash -c "experiments/ninja/build.sh && RUNS=10 experiments/ninja/campaign.sh calibrate \
+        && experiments/ninja/campaign.sh hypre && NPS=16 RAND_DELAYS=50000 experiments/ninja/campaign.sh mg"
     amg
     nekbone
     claims 6

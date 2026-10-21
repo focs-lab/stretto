@@ -30,7 +30,8 @@ NUMBERS = os.path.join(ROOT, "paper", "generated", "numbers.tex")
 RQ_OF = [
     (1, r"^nEsix|^nMBIReplay|^nAMGsample|^nNeksample|^nPin|^nReadsEsix|^nReadsReplay"),
     (4, r"^nReads"),
-    (2, r"^(MBI|MBB)fone|^n(MBI|MBB)(tp|fn|fp|progs|notBuilt|correct|errors|race|Stress|Clean|OnlyStretto|LC)|^n?Guard|^n?Reps"),
+    (6, r"^n?Ninja(Hypre|Replica|MG)"),
+    (2, r"^n?NinjaMBI|^nMBIMUST|^nTsanLC|^(MBI|MBB)fone|^n(MBI|MBB)(tp|fn|fp|progs|notBuilt|correct|errors|race|Stress|Clean|OnlyStretto|LC)|^n?Guard|^n?Reps"),
     (3, r"^nEtwo|^B[a-z]+OMPI$"),
     (4, r"^n(MBI|MBB)(one|sp|obs)[A-Z]"),
     (5, r"^TraceOverhead|^LuAnalysis|^LuEvents|^AMGtime|^Nek(GB|Minutes|PerAlt|Records)|^nEfour"),
@@ -41,7 +42,8 @@ RQ_OF = [
 FIXED = re.compile(r"^n(MBI|MBB)(progs|notBuilt|correct|errors|race)$|^B[a-z]+OMPI$|^n(AMG|Nek)sample$|^nEfourReps$"
                    r"|^nMBIStressRuns$|^nHypre(Fixed)?(Traced|(Four|Eight)(Local)?Runs)$|^nHypreStressRuns$"
                    r"|^nMBBLC$|^nGuardLC(OMPI|MPICH)built$|^nGuardCases$|^nGuardAppRuns$"
-                   r"|^nReps(Runs|Progs|Errors)$|^nDeal(Fixed)?Traced$|^nDealRanks$|^nDealStress(Plain|Delay)?Runs$")
+                   r"|^nReps(Runs|Progs|Errors)$|^nDeal(Fixed)?Traced$|^nDealRanks$|^nDealStress(Plain|Delay)?Runs$"
+                   r"|^nNinja(Hypre|Replica|MG)[A-Za-z]*Runs$|^nNinjaMBIerrors$|^nTsanLC$")
 
 
 def load(path: str) -> dict:
@@ -106,6 +108,14 @@ def claims(n: dict) -> list:
     claim(2, "Stretto's F1 on MBI is above MUST's, under both scorings, and above stress testing",
           ["MBIfoneunion", "MBIfoneMUST", "MBIfoneMUSTsym", "MBIfonestress"],
           lambda s, m, ms, st: s > max(m, ms, st))
+    claim(2, "Stretto's F1 on MBI is above MUST 1.11.2's, under both scorings, and above NINJA's in each mode",
+          ["MBIfoneunion", "MBIfoneMUSTeleven", "MBIfoneMUSTelevensym", "NinjaMBIRandomfone", "NinjaMBISystemfone",
+           "NinjaMBIAppfone"], lambda s, *other: s > max(other))
+    claim(2, "no NINJA mode makes an MBI error fail that stress testing never exposes",
+          ["nNinjaMBIRandomStressMissedFound", "nNinjaMBISystemStressMissedFound", "nNinjaMBIAppStressMissedFound"],
+          lambda *found: max(found) == 0)
+    claim(2, "MUST 1.11.2 with ThreadSanitizer finds no local-concurrency program the buffer guard misses",
+          ["nTsanLC", "nTsanLCtsanOnly"], lambda n, t: n > 0 and t == 0)
     claim(2, "every MBI error stress testing never exposes is predicted by Stretto from one run",
           ["nMBIStressErr", "nMBIStressFound", "nMBIStressPredMissed"], lambda e, f, p: e - f == p)
     claim(2, "on MPI-BugBench, Stretto's F1 is at least MUST's",
@@ -145,6 +155,8 @@ def claims(n: dict) -> list:
           lambda r, h: r > 0 and h == 0)
     claim(6, "deal.II 9.3.0-rc1: every cross alternative is replayed, finishes and prints wrong values",
           ["nDealAlts", "nDealReplayed", "nDealFinished", "nDealWrong"], lambda a, r, f, w: a > 0 and a == r == f == w)
+    claim(6, "NINJA hangs HYPRE 2.10.1 in the ParaSails setup in some runs, the fix in none",
+          ["nNinjaHypreHang", "nNinjaHypreFixedRuns", "nNinjaHypreFixedHang"], lambda h, r, f: h > 0 and r > 0 and f == 0)
     claim(6, "deal.II 9.3.0, the fix: no trace has a cross alternative", ["nDealFixedTraced", "nDealFixedAlts"],
           lambda t, a: t > 0 and a == 0)
     return out
