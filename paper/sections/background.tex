@@ -41,6 +41,6 @@ before they receive deadlock exactly when their messages exceed $\Bt$.
 
 \paragraph{Collectives.} Collective operations (\mpicall{Barrier},
 \mpicall{Bcast}, \mpicall{Reduce}, \dots) are called by every rank of a communicator in
-the same order. The standard requires no more synchronisation than their data flow needs: a
-\mpicall{Bcast} root may return before the others enter, and a \mpicall{Reduce} root waits
-for everyone. We model each collective by the synchronisation its \emph{shape} guarantees.
+the same order, with no more synchronisation than their data flow needs: a \mpicall{Bcast}
+root may return before the others enter, a \mpicall{Reduce} root waits for everyone. We model
+each collective by the synchronisation its \emph{shape} guarantees.

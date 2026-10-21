@@ -128,15 +128,40 @@ matches $r$ to $s$ and cannot be extended deadlocks, while $\prog_2$ has an exec
 that matches $r$ to $s$ and terminates.
 \end{lemma}
 
-\noindent The master--worker program of \cref{sec:overview} at $\Bt=0$ is the witness.
-Let $\prog_2$ be the real program, which replies to \texttt{status.MPI\_SOURCE}, and let
-$\prog_1=\SP(\trace)$, which replies to the recorded destination. Both are consistent
-with the recorded run. Under the alternative, $\SP(\trace)$ deadlocks and the real program
-does not. The lemma is narrow, and that is its point: the master depends on no payload and
-takes no branch, only a destination from the status, which a definition of single path as
-``does not decode messages for control flow''~\citep{huang23tpds} does not exclude. A
+\noindent The witness is the master--worker program of \cref{sec:overview} at $\Bt=0$, with
+$\prog_2$ the real master, which replies to \texttt{status.MPI\_SOURCE}, and
+$\prog_1=\SP(\trace)$. The master takes no branch and decodes no payload, which a definition
+of single path as ``does not decode messages for control flow''~\citep{huang23tpds} does not
+exclude. A
 \LoneSP finding is therefore a claim about the recorded call sequence, not about the
 program, and \tool labels it as such.
+
+\subsection{Single path up to the first read}
+\label{sec:firstread}
+
+A rank cannot depend on a result it has not read; the master of \cref{lem:sp} reads its status
+before replying. A \emph{read bound} $q$ gives each record $k$ a later record $q(k)$ of its
+rank, or $\infty$, before which the program reads nothing of $k$'s result. $\prog$ is
+\emph{consistent with $\trace$ under $q$} if each $\prog_i$ yields record $j$, payload
+included, on every result sequence that agrees with $\trace$ on the records $k<j$ with
+$q(k)\le j$. $\SP(\trace)$ is consistent under every $q$, and so is the program that produced
+$\trace$ if $q$ does not exceed its first reads.
+
+\begin{theorem}[Single path up to the first read]
+\label{thm:firstread}
+Let $\prog$ be consistent with $\trace$ under $q$ and $E$ an execution of $\SP(\trace)$ at
+$\Bt$ in which each call of a record $j$ follows on its rank only records that return their
+results in $\trace$ or have $q(k)>j$. Then $E$ is an execution of $\prog$; if $E$ cannot be
+extended and every rank has finalised or is in a call, $E$ cannot be extended for $\prog$.
+\end{theorem}
+
+\noindent An \LoneSP deadlock or orphan whose witness respects $q$ is thus an \Lone finding
+(\cref{app:firstread}). \tool bounds reads statically, as dependence analysis relaxes value
+constraints in maximal causality reduction~\citep{huang17mcrsdg}: a possible load of a
+received buffer, status, flag or index, an escape of its address or a send of the buffer ends
+the window, and what it cannot analyse gets $q(k)=k+1$. Running the horizon of
+\cref{thm:sound} to $q$ would not do: other wildcard receives before the bound may take other
+messages too, which the explorer covers and one alternative matching does not.
 
 \subsection{Skeletons}
 
@@ -147,11 +172,7 @@ rank. The explorer over the twin decides \cls{1c}, \cls{1d} and \cls{1e} for pro
 that agree with the twin. A twin plays the role of the branch events of
 RVPredict~\citep{huang14rvpredict} and of the recorded guards of symbolic predictive
 analysis~\citep{wang09ctp}, which a trace of MPI calls lacks. Twins are written by hand here;
-the artifact prototypes building them by re-executing one rank on the recorded results. A
-static check that a
-continuation does not depend on message metadata would make \LoneSP findings sound where it
-passes; static dependence analysis already relaxes value constraints in maximal causality
-reduction~\citep{huang17mcrsdg}. We leave such a check to future work.
+the artifact prototypes building them by re-executing one rank on the recorded results.
 
 \subsection{Confirmation by replay}
 \label{sec:replay}

@@ -54,11 +54,8 @@ Rule~\ref{H:changed} is the rule of the maximal causal model, in which a thread 
 once it read a value from the memory different from the one observed
 originally''~\citep{serbanuta12mcm}, and of relaxed correct reorderings~\citep{mathur18shb};
 RVPredict runs on to the next branch~\citep{huang14rvpredict}. A trace of MPI calls records no
-branches, so \ref{H:changed} is the branch-free instance. MPI adds the
-details. A rank keeps issuing recorded operations between a changed nonblocking receive and
-its wait; \ref{H:recv} and \ref{H:pending} handle the receive a stolen message deprives,
-\ref{H:pending} non-overtaking on the matches of pending receives, and \ref{H:send} sends
-that block at $\Bt$. For blocking traffic, the horizon of a steal corresponds to a race
+branches, so \ref{H:changed} is the branch-free instance; where the source shows a later first
+read, \cref{thm:firstread} goes further. For blocking traffic, the horizon of a steal corresponds to a race
 variant of reachability testing~\citep{lei06reachability}.
 
 \subsection{The constraint graph}
@@ -253,12 +250,10 @@ reordering omits and whose obligation fails (\cref{app:mono}). The rules
 \ref{H:recv}--\ref{H:probe} and \ref{H:ready} remove only events that no such execution can
 contain. Rule~\ref{H:pending} is stronger than necessary: it removes a deprived receive where
 removing its completion would suffice.
-The generic check meets the theorem. The fast check, which \tool uses for steals at
-blocking receives, decides reachability in the observed graph, which also contains events
-beyond the horizon, so it can reject where the generic check accepts (\cref{app:complete}).
-On traces of up to $2\cdot10^5$ records the generic check confirms every rejection the fast
-check makes by a cycle, so \tool meets the theorem there; above that, the report counts the
-rejections left unconfirmed.
+The generic check meets the theorem. The fast check of steals at blocking receives works in
+the observed graph, which also has events beyond the horizon, so it can reject more
+(\cref{app:complete}); up to $2\cdot10^5$ records the generic check confirms each of its
+rejections by a cycle, and above that the report counts the unconfirmed ones.
 
 \subsection{Cost}
 \label{sec:cost}
@@ -279,15 +274,12 @@ and $\mu$ distinct message sizes, and let $C$ range over its collective sets. Th
 \end{theorem}
 
 \noindent The bound on steals is the non-overtaking kernel: only the earliest unconsumed
-message of each source can be next. The horizon is computed with a worklist. Each record
-loses its issue at most once, because cuts only decrease, and each rule is re-evaluated only
-when an input of its condition changes. Rule~\ref{H:pending} costs one bisection in an index
-of the messages each receive takes. A collective set is rescanned whenever one of its members
-is removed, which gives the term $\sum_C|C|^2$. Each pair and each probe adds a match node and
-at most $4+T$ class-indexed order edges, so the graph has $O(n+(|\Malt|+\pi)\,T)$ edges, and
-cycle detection is linear. The check is therefore quasi-linear in $n$ per alternative and
-threshold when ranks and tags are bounded, for any number of changed receives; a whole trace
-costs that times the number of alternatives, which grows with the number of changed receives.
+message of each source can be next. The horizon is a worklist fixpoint in which each record
+loses its issue at most once and each rule is re-evaluated only when an input changes;
+\ref{H:pending} costs one bisection, and a collective set is rescanned whenever a member is
+removed ($\sum_C|C|^2$). Each pair and each probe adds a match node and at most $4+T$
+class-indexed order edges, and cycle detection is linear. The check is thus quasi-linear in
+$n$ per alternative and threshold for bounded ranks and tags.
 Deciding whether some combination of
 changed matches deadlocks is NP-complete even for single-path programs~\citep{forejt17mopper},
 and placing the choice of changes between polynomial and hard cases parameterised by

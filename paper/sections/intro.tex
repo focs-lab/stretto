@@ -101,7 +101,9 @@ skeleton of the program's dependence on message metadata.
   counterparts~\citep{kalhauge18sound,farzan12exceptionull}. Single-path predictions can be
   false for programs outside the single-path class whose traces look the same, such as one
   that takes a destination from a receive's status (\cref{lem:sp}). Deadlocks contained in
-  the horizon after a changed nonblocking receive need no such assumption (\cref{thm:l1dead}).
+  the horizon after a changed nonblocking receive need no such assumption (\cref{thm:l1dead}),
+  nor do single-path consequences up to the first read of a changed result, which a static
+  analysis bounds (\cref{thm:firstread}).
 \item \tool: a PMPI tracer, an analyser whose check is quasi-linear in the trace per
   alternative for bounded ranks and tags (\cref{thm:cost}), and a replay library whose pins
   cover the horizon, whose log shows that each forced match happened, and whose confirmations
@@ -110,11 +112,8 @@ skeleton of the program's dependence on message metadata.
   randomised runs, a differential check of soundness against an exhaustive explorer, and
   real applications. On \nMBIprogs MBI programs about matching, \tool finds \nMBItpunion of
   the \nMBIerrors labelled errors with no false error report (F1 \MBIfoneunion, against
-  \MBIfoneMUST for \MUST and \MBIfonestress for randomised runs). The traced run shows
-  \nMBItpobserved; \nMBItpPredSP are consequences under the single-path assumption, and
-  \nMBItpPredBuf are buffering thresholds, which randomised runs at Open MPI's default eager
-  limit never expose and \MUST reports by treating sends as unbuffered.
-  From single clean runs of HYPRE~2.10.1, \tool reports the ParaSails race as a probe
+  \MBIfoneMUST for \MUST and \MBIfonestress for randomised runs); randomised runs never expose
+  the \nMBItpPredBuf buffering thresholds among them. From single clean runs of HYPRE~2.10.1, \tool reports the ParaSails race as a probe
   alternative (\Lone), a warning, in \nHypreExposed of \nHypreTraced runs. Replayed at the
   probe whose tag the documented fix changed, all \nHypreCrossAlts such alternatives hang while their
   controls finish, and the fixed version has none.

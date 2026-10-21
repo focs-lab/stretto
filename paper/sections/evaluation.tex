@@ -1,12 +1,9 @@
 \section{Evaluation}
 \label{sec:eval}
 
-Every number in this section is a macro that \texttt{experiments/tables.py} writes from the
-committed result tables, which name the code commit of each row: the corpora ran at one commit,
-the applications and the timed leg at others, and \MUST's verdicts come from earlier runs.
-
-We ask six questions.
-\begin{description}[leftmargin=*,style=nextline]
+Every number below is generated from the committed result tables, which name the code commit
+of each row. We ask six questions.
+\begin{description}[leftmargin=*]
 \item[RQ1, soundness in practice.] Does the check ever accept an alternative that no
   execution realises, and does every replayed finding behave as predicted?
 \item[RQ2, effectiveness.] Which labelled bugs does \tool find from one run, compared

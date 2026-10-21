@@ -8,11 +8,9 @@ profiling interface, and an analyser in Python.
 record per call and rank: the arguments, the result, the request it creates or completes,
 and the communicator as a global identifier with its members' world ranks. Blocking calls
 first emit a \emph{begin} record, so that a rank killed while blocked shows where it was
-blocked. Repeated failed polls (\mpicall{Iprobe}, \mpicall{Test}) with no call in between
-are written once with a count. Each record names its call site as an object and an offset,
+blocked. Each record names its call site as an object and an offset,
 the same in every process, which \texttt{addr2line} maps to the source; the report groups
-findings by the site of the changed receive or probe. Derived datatypes are flattened to their basic type
-signature for the count and type checks of \cls{1a}. The tracer covers all point-to-point
+findings by the site of the changed receive or probe. The tracer covers all point-to-point
 modes, persistent requests, \mpicall{Sendrecv}, every wait and test variant, probes
 including matched probes, cancellation, blocking and nonblocking collectives, and
 communicator and intercommunicator creation. Under \texttt{MPI\_THREAD\_MULTIPLE} records

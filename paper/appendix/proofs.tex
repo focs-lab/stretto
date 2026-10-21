@@ -625,4 +625,44 @@ takes the first message of its channel into the first receive of its rank that a
 
 The \Lone check accepts this steal at $\Bt=0$ (horizon: rank~0 up to $a$, the call of the
 released $s_1$, and $s_2$), and $\{1\}$ is no contained deadlock, as rank~0 is cut by
-\ref{H:changed}.
+\ref{H:changed}. Rank~0 of $\prog_2$ reads the status of $a$ before its first reply, so a read
+bound for it has $q(a)$ at that reply, and the deadlocking execution of $\prog_1$ calls the
+reply after $a$ returned another result: it does not respect $q$, and \cref{thm:firstread} does
+not apply, as it must not.
+
+\subsection{Single path up to the first read}
+\label{app:firstread}
+
+\begin{proof}[Proof of \cref{thm:firstread}]
+Let $\prog$ be consistent with $\trace$ under $q$ and $E$ an execution of $\SP(\trace)$ at
+$\Bt$ that respects $q$ as stated. We show by induction along $E$ that every prefix of $E$ is a
+prefix of an execution of $\prog$, with the same result at each return.
+
+\emph{Calls.} Let the next event be $\evcall_{i,j}$. In $E$ it follows $\evret_{i,j-1}$, as
+\ref{E:po} requires. The records $k<j$ of rank $i$ returned in $E$ the results of $\trace$,
+except records with $q(k)>j$. Consistency under $q$ makes $\prog_i$ yield record $j$, with its
+arguments and payload, so $\prog$ makes the call $\SP(\trace)$ makes.
+
+\emph{Matches and returns.} Rules \ref{E:match}--\ref{E:probe} refer to the operations issued
+so far, their arguments and the order of earlier events. By induction these coincide for
+$\prog$ and $\SP(\trace)$, so the event is allowed for $\prog$. It carries the same result: a
+receive returns the envelope and payload of its matched send, which both programs issued with
+the same arguments; a probe reports the same send; a wait or test returns the same requests and
+flags; a collective's result depends only on the arguments of the members its shape requires
+(P1), which coincide.
+
+So $E$ is an execution of $\prog$ at $\Bt$. Now let $E$ be maximal for $\SP(\trace)$, with
+every rank finalised or inside a call that has not returned. An extension for $\prog$ would
+start with a call, a match or a return. A call needs the rank's previous call to have returned
+and the rank not to have finalised (P2), so no rank can make one. Whether a match or a return
+is allowed depends, as above, only on the calls made and the events so far, which $\prog$ and
+$\SP(\trace)$ share; $\SP(\trace)$ has none, so $\prog$ has none either.
+\end{proof}
+
+The hypothesis on $E$ is checked per witness: for each rank, the first record whose result in
+$E$ differs from $\trace$ (another matched send, hence possibly another source, tag, count or
+payload; another probe report; another flag or index) and every later such record must have a
+bound beyond the last call the rank makes in $E$. A bound that is too large makes the theorem
+inapplicable to the real program, never wrong about $\SP(\trace)$; the static analysis
+therefore over-approximates reads: whatever may observe a result before $q(k)$, including a
+call that passes the buffer on, ends the window at that point.

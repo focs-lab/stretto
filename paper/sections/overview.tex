@@ -58,12 +58,12 @@ control run with the observed sender at the changed receive finishes.
 
 \paragraph{Levels of evidence.} The single-path assumption that turned \cls{1f} into
 \cls{1d} above is the restriction under which earlier MPI predictors state their
-guarantees~\citep{forejt17mopper}, and no trace shows that a program meets it. Consider a
-master that receives a result from \anysrc and replies to \texttt{status.MPI\_SOURCE}, with
-two workers that each send a result and wait for a reply. If the master's first receive takes
-worker~2's result, the recorded call sequence still replies first to worker~1, who under
-rendezvous waits for the master to take its own result: the single-path analysis reports a
-deadlock. The real master replies to worker~2, and the program finishes. \tool reports each
+guarantees~\citep{forejt17mopper}, and no trace shows that a program meets it. A master that
+receives a result from \anysrc and replies to \texttt{status.MPI\_SOURCE} breaks it: if its
+first receive takes worker~2's result, the recorded calls still reply to worker~1 first, which
+deadlocks under rendezvous, while the real master replies to worker~2 and finishes. If instead
+the source shows that rank~0 of \cref{fig:tworuns} reads nothing of $r_0$'s result before its
+second receive, the deadlock above holds for the program itself (\cref{sec:firstread}). \tool reports each
 finding with its level: \Lone (trace only, sound for every consistent program), \LoneSP (adds
 the single-path assumption) or \Ltwo (adds a skeleton of the calls that depend on message
 metadata; \cref{sec:levels}).
