@@ -7,7 +7,8 @@ E2, E6 and the E3 and E7 inputs come from `experiments/run_remaining.sh` on the 
 `experiments/hypre/campaign.sh`, the NPB MG and deal.II campaigns from `experiments/npbmg/run.sh` and
 `experiments/dealii/run.sh`, and Nekbone from `experiments/nekbone/run.sh` there. The MUST verdicts
 are carried over from MUST 1.9.2 runs under MPICH in MPI-BugBench's own container, with the same timeout
-per program. The E4 times, the AMG trace and its analysis time come from one announced timed leg at commit
+per program, and those of MUST 1.11.2 from the image of `experiments/must/`; NINJA's runs come from
+`experiments/ninja/campaign.sh`. The E4 times, the AMG trace and its analysis time come from one announced timed leg at commit
 576e917 (`experiments/timing_leg.sh`, the host otherwise idle), and AMG's replay sample from that
 trace; the leg's times are the only timing claims.
 
@@ -36,6 +37,8 @@ Buffer guard run: 115 programs (rows by code commit: 7117573 (115)); 3-local in 
 
 | MUST 1.9.2 (same source, its own run under MPICH) | 46 | 0 | 19 | 50 | 1.00 | 0.71 | 0.83 |
 | MUST 1.9.2, a timeout or a run without a report counted as an error | 52 | 0 | 13 | 50 | 1.00 | 0.80 | 0.89 |
+| MUST 1.11.2 (same source, its own run under MPICH) | 40 | 0 | 25 | 50 | 1.00 | 0.62 | 0.76 |
+| MUST 1.11.2, a timeout or a run without a report counted as an error | 45 | 0 | 20 | 50 | 1.00 | 0.69 | 0.82 |
 
 MUST verdicts: ERROR 46, OK 63, RE 2, TIMEOUT 4. In the first MUST row a run
 that timed out, crashed or did not compile counts as no error reported. A Stretto run that the harness
@@ -43,6 +46,8 @@ killed at the timeout is reported as a blocked rank (2-blocked) and one whose ra
 as an abort, both errors, so the second MUST row credits MUST's timeouts and its runs that ended without a
 report (RE) the same way; the two rows bracket the comparison. Both tools ran each program once, with
 the same timeout; MUST under MPICH, Stretto under Open MPI, so they did not see the same run.
+
+MUST 1.11.2 verdicts (rows by code commit: 3b8e846 (115)): ERROR 40, OK 70, RE 1, TIMEOUT 4. Labelled errors it reports and MUST 1.9.2 does not: 3 (MessageRace 3); the reverse: 9 (MessageRace 9). Correct programs it reports: 0.
 
 Labelled errors Stretto reports and MUST does not on the same program: **15**, of which
 predicted on a run that showed nothing itself: **4**. With at least one finding replay-confirmed
@@ -727,6 +732,39 @@ Applications at 4 ranks (`apps.txt`, `apps-cma.txt`): 32 runs of amg, hypre, lu.
 
 lu.A by NPB's own timer: 12.50 to 12.57 s with the guard off, 12.51 to 12.59 s on (shared processors, not a timed leg).
 
+### MUST 1.11.2 with ThreadSanitizer on the local-concurrency programs
+
+MPI-BugBench's local-concurrency programs (the program touches a buffer that a pending nonblocking operation owns),
+under MPICH: the buffer guard (`lc.txt`) against MUST's ThreadSanitizer analysis, which since 1.10 models a pending
+operation's buffer accesses as a concurrent thread, and plain MUST runs. A race or a report counts.
+
+| program | buffer guard | MUST 1.11.2 with ThreadSanitizer | MUST 1.11.2 | MUST 1.9.2 |
+|---|---|---|---|---|
+| COLL__LocalConcurrency-mpi_iallreduce-001 | 3-local | ERROR | - | OK |
+| COLL__LocalConcurrency-mpi_ialltoall-001 | 3-local | ERROR | - | OK |
+| COLL__LocalConcurrency-mpi_ibcast-001 | 3-local | ERROR | - | OK |
+| COLL__LocalConcurrency-mpi_igather-001 | 3-local | ERROR | - | OK |
+| COLL__LocalConcurrency-mpi_ireduce-001 | 3-local | ERROR | - | OK |
+| COLL__LocalConcurrency-mpi_iscan-001 | 3-local | ERROR | - | OK |
+| COLL__LocalConcurrency-mpi_iscatter-001 | 3-local | ERROR | - | OK |
+| P2P__LocalConcurrency-mpi_irecv-001 | 3-local | ERROR | - | ERROR |
+| P2P__LocalConcurrency-mpi_irecv-002 | 3-local | ERROR | - | ERROR |
+| P2P__LocalConcurrency-receive-mpi_imrecv-001 | 3-local | ERROR | - | ERROR |
+| P2P__LocalConcurrency-receive-mpi_irecv-001 | 3-local | ERROR | - | OK |
+| P2P__LocalConcurrency-receive-mpi_precv_init-001 | 3-local | OK | - | RE |
+| P2P__LocalConcurrency-receive-mpi_recv_init-001 | 3-local | ERROR | - | OK |
+| P2P__LocalConcurrency-send-mpi_bsend_init-001 | 3-local | ERROR | - | OK |
+| P2P__LocalConcurrency-send-mpi_ibsend-001 | 3-local | ERROR | - | OK |
+| P2P__LocalConcurrency-send-mpi_irsend-001 | 3-local | ERROR | - | OK |
+| P2P__LocalConcurrency-send-mpi_isend-001 | 3-local | ERROR | - | OK |
+| P2P__LocalConcurrency-send-mpi_issend-001 | 3-local | ERROR | - | OK |
+| P2P__LocalConcurrency-send-mpi_psend_init-001 | 3-local | OK | - | RE |
+| P2P__LocalConcurrency-send-mpi_rsend_init-001 | 3-local | ERROR | - | OK |
+| P2P__LocalConcurrency-send-mpi_send_init-001 | 3-local | ERROR | - | OK |
+| P2P__LocalConcurrency-send-mpi_ssend_init-001 | 3-local | ERROR | - | OK |
+
+Programs: 22. The guard reports 22, MUST with ThreadSanitizer 20; both 20, only the guard 2, only MUST 0. The guard run's code commit: 7117573; MUST's rows: 3b8e846 (22).
+
 ## E8b: happens-before candidate selection against the check
 
 Every pair (wildcard receive or probe, send) that a happens-before rule selects or the analysis enumerates,
@@ -873,3 +911,99 @@ Explorer verdicts: hb-only not realised 3, hb-only realised with other matches c
 | 037 | hb-only | realised, judged pairs only | `recv(1, 2) src=ANY tag=1 cap=4096B <- send(0, 2)->1 tag=1 4096B; observed send(2, 0)->1 tag=1 64B` | nonblocking, nothing sent while pending | send causally follows the receive's completion |
 | 013 | stretto-only | realised, judged pairs only | `recv(1, 4) src=ANY tag=1 cap=4096B <- send(2, 6)->1 tag=1 4B; observed send(0, 1)->1 tag=1 4B` | nonblocking, nothing sent while pending | taken in the run by an earlier receive of its rank (a swap) |
 | 056 | stretto-only | realised, judged pairs only | `recv(1, 2) src=ANY tag=1 cap=4096B <- send(0, 1)->1 tag=1 64B; observed send(2, 1)->1 tag=1 4096B` | nonblocking, nothing sent while pending | taken in the run by an earlier receive of its rank (a swap) |
+
+## E10: NINJA (noise injection)
+
+NINJA v1.0.2 (`experiments/ninja/build.sh`), the noise injector of the paper that reported the HYPRE ParaSails race
+(PPoPP 2017), loaded with `LD_PRELOAD`; it delays sends from a helper thread and keeps their order per destination.
+Modes: *random* (NIN_PATTERN=1, a share of the sends delayed by a fixed time; NINJA as shipped reseeds before every
+draw with a value that overflows to one constant, so that it delays no send below a ratio of 100%; the runs use a
+build that takes the low bits instead), *system-centric* (NIN_MODE=0: delays from a model of the network queue),
+and *application-centric* (NIN_MODE=1: from one system-centric learning run, NINJA learns the interval between
+groups of sends with the same tag and delays the earlier group to a random fifth of the ranks by 1.2 times it).
+Every run in its own directory, one at a time for the replica, HYPRE and MG; budget and timeout as for the stress
+baseline (`experiments/ninja/run.py`, `experiments/ninja/campaign.sh`).
+
+### Calibration: NINJA's ParaSails replica
+
+NINJA's replica of the ParaSails race (`test/ninja_test_hypre_parasails.c`; two request exchanges with one tag,
+a one-second pause between them, which as shipped needs 64 processes; here the copy without that check, and
+`replica-fixed`, the same with the second exchange on its own tag as in HYPRE 2.11.0), 5 iterations per run, 60 s
+each. Rows by code commit: 3b8e846 (224).
+
+| program | ranks | noise | runs | finished | hung | other | first hang (run) | hang rate | learning run |
+|---|---|---|---|---|---|---|---|---|---|
+| replica | 4 | none (plain runs) | 10 | 10 | 0 | 0 | - | 0.00 | - |
+| replica | 4 | random, 10% of sends by 1.2 s | 10 | 8 | 2 | 0 | 5 | 0.20 | - |
+| replica | 4 | random, 10% of sends by 1.2 s (as shipped) | 10 | 10 | 0 | 0 | - | 0.00 | - |
+| replica | 4 | random, 10% of sends by 0.05 s | 10 | 10 | 0 | 0 | - | 0.00 | - |
+| replica | 4 | system-centric | 10 | 10 | 0 | 0 | - | 0.00 | - |
+| replica | 4 | application-centric | 10 | 10 | 0 | 0 | - | 0.00 | FINISHED |
+| replica | 8 | none (plain runs) | 10 | 10 | 0 | 0 | - | 0.00 | - |
+| replica | 8 | random, 10% of sends by 1.2 s | 10 | 1 | 9 | 0 | 1 | 0.90 | - |
+| replica | 8 | random, 10% of sends by 1.2 s (as shipped) | 10 | 10 | 0 | 0 | - | 0.00 | - |
+| replica | 8 | random, 10% of sends by 0.05 s | 10 | 10 | 0 | 0 | - | 0.00 | - |
+| replica | 8 | system-centric | 10 | 10 | 0 | 0 | - | 0.00 | - |
+| replica | 8 | application-centric | 10 | 0 | 10 | 0 | 1 | 1.00 | FINISHED |
+| replica-fixed | 4 | none (plain runs) | 10 | 10 | 0 | 0 | - | 0.00 | - |
+| replica-fixed | 4 | random, 10% of sends by 1.2 s | 10 | 10 | 0 | 0 | - | 0.00 | - |
+| replica-fixed | 4 | random, 10% of sends by 0.05 s | 10 | 10 | 0 | 0 | - | 0.00 | - |
+| replica-fixed | 4 | system-centric | 10 | 10 | 0 | 0 | - | 0.00 | - |
+| replica-fixed | 4 | application-centric | 10 | 10 | 0 | 0 | - | 0.00 | FINISHED |
+| replica-fixed | 8 | none (plain runs) | 10 | 10 | 0 | 0 | - | 0.00 | - |
+| replica-fixed | 8 | random, 10% of sends by 1.2 s | 10 | 10 | 0 | 0 | - | 0.00 | - |
+| replica-fixed | 8 | random, 10% of sends by 0.05 s | 10 | 10 | 0 | 0 | - | 0.00 | - |
+| replica-fixed | 8 | system-centric | 10 | 10 | 0 | 0 | - | 0.00 | - |
+| replica-fixed | 8 | application-centric | 10 | 10 | 0 | 0 | - | 0.00 | FINISHED |
+
+### HYPRE 2.10.1 and 2.11.0
+
+`ij -solver 8 -pout 0` as in E5c, 60 s per run. A run that hangs in the ParaSails setup is killed before
+ij prints its setup times (*of which in the setup*); a run killed later was slow, not hung in the race.
+Rows by code commit: 3b8e846 (524).
+
+| program | ranks | noise | runs | finished | hung | of which in the setup | other | first hang in the setup (run) | its rate | learning run |
+|---|---|---|---|---|---|---|---|---|---|---|
+| hypre-2.10.1 | 4 | random, 10% of sends by 1.2 s | 40 | 39 | 1 | 1 | 0 | 30 | 0.03 | - |
+| hypre-2.10.1 | 4 | random, 10% of sends by 0.05 s | 40 | 32 | 8 | 8 | 0 | 2 | 0.20 | - |
+| hypre-2.10.1 | 4 | system-centric | 40 | 40 | 0 | 0 | 0 | - | 0.00 | - |
+| hypre-2.10.1 | 4 | application-centric | 40 | 40 | 0 | 0 | 0 | - | 0.00 | FINISHED |
+| hypre-2.10.1 | 8 | random, 10% of sends by 0.05 s | 40 | 29 | 11 | 11 | 0 | 3 | 0.28 | - |
+| hypre-2.10.1 | 8 | system-centric | 40 | 40 | 0 | 0 | 0 | - | 0.00 | - |
+| hypre-2.10.1 | 8 | application-centric | 40 | 15 | 25 | 25 | 0 | 1 | 0.62 | FINISHED |
+| hypre-2.11.0 | 4 | random, 10% of sends by 0.05 s | 40 | 40 | 0 | 0 | 0 | - | 0.00 | - |
+| hypre-2.11.0 | 4 | system-centric | 40 | 40 | 0 | 0 | 0 | - | 0.00 | - |
+| hypre-2.11.0 | 4 | application-centric | 40 | 40 | 0 | 0 | 0 | - | 0.00 | FINISHED |
+| hypre-2.11.0 | 8 | random, 10% of sends by 0.05 s | 40 | 40 | 0 | 0 | 0 | - | 0.00 | - |
+| hypre-2.11.0 | 8 | system-centric | 40 | 40 | 0 | 0 | 0 | - | 0.00 | - |
+| hypre-2.11.0 | 8 | application-centric | 40 | 40 | 0 | 0 | 0 | - | 0.00 | FINISHED |
+
+### MBI
+
+The programs of the stress baseline, up to 30 runs per program and mode (in application-centric mode
+the learning run is the first), stopping at the first that does not finish, 60 s each. The last columns: of the
+programs Stretto predicts from a run that finished, how many the mode never makes fail; and of the programs
+stress testing never makes fail, how many the mode does. Rows by code commit: 3b8e846 (345).
+
+A failure is any run that does not finish, as in the stress baseline; some are segmentation faults of NINJA
+itself (*of them crashes*: errors made to fail by one, and correct programs failing by one), and the second F1
+does not count them.
+
+| noise | labelled errors | made to fail | median first failure | after the first run | correct programs failing | of them crashes | F1 | F1, crashes not counted | Stretto's predicted errors missed | stress misses found |
+|---|---|---|---|---|---|---|---|---|---|---|
+| random, 10% of sends by 0.05 s | 65 | 53 | 1 | 16 | 0 | 0 / 0 | 0.90 | 0.90 | 12 of 22 | 0 of 12 |
+| system-centric | 65 | 53 | 1 | 9 | 0 | 0 / 0 | 0.90 | 0.90 | 12 of 22 | 0 of 12 |
+| application-centric | 65 | 53 | 1 | 15 | 4 | 3 / 4 | 0.87 | 0.87 | 12 of 22 | 0 of 12 |
+
+### NPB MG 2.4.1
+
+MG class S as in E5d, 120 s per run; a run *changes the result* when its residual norm differs
+from the plain runs' (every plain run printed the same), and fails the relative check of later versions when it is
+more than 1e-8 off the reference. Rows by code commit: 3b8e846 (81).
+
+| ranks | noise | runs | finished | result changed | fails the relative check |
+|---|---|---|---|---|---|
+| 16 | none (plain runs) | 20 | 20 | 0 | 0 |
+| 16 | random, 10% of sends by 0.05 s | 20 | 20 | 8 | 8 |
+| 16 | system-centric | 20 | 20 | 1 | 1 |
+| 16 | application-centric | 20 | 20 | 9 | 9 |

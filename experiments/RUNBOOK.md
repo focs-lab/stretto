@@ -203,6 +203,42 @@ pins make possible. A replay that hangs waits out `--timeout` (corpus programs) 
 --max-states 100000 --jobs 2` in a container on 12 processors; at the explorer's default cap
 the generator keeps larger programs but takes a minute or more for each.
 
+## Baselines: NINJA and MUST 1.11.2
+
+`experiments/ninja/build.sh` (inside the container) clones NINJA v1.0.2 into `third_party/ninja`
+and builds its library for both MPI implementations, as shipped and with the two repairs the
+runs use (random noise, Fortran programs; the script says why), and NINJA's ParaSails replica.
+`experiments/ninja/campaign.sh [calibrate|hypre|mbi|mg]` then runs the replica, HYPRE (mount the
+HYPRE builds and set `HYPRE_DIR`, as for the HYPRE campaign), the MBI corpus (its binaries under
+`experiments/results/mbi/*/main`) and NPB MG 2.4.1 (`NPB_MG_DIR`) under each mode, one run at a
+time except the corpus (`JOBS`), into `experiments/results/ninja/`. The campaign of 21 Oct
+2026 ran on `CPUS=20-25,60-65` (borrowed until 21:19 UTC) at commit 3b8e846: `RUNS=10
+campaign.sh calibrate`, then `hypre` for 2.10.1 at 4 ranks; the rest was cut to fit the window
+and made the same `run.py` calls `campaign.sh` makes, without random noise of 1.2 s: HYPRE 2.10.1
+at 8 ranks and 2.11.0 at 4 and 8, MG at 16 ranks, then the MBI corpus in the application-centric,
+random (50 ms) and system-centric modes. One 8-rank run of 2.10.1 that the first invocation
+recorded before it was stopped (it finished) is not in the table, so that each configuration
+has 40 runs.
+
+`experiments/must/build.sh` builds the MUST 1.11.2 image (`stretto-must:1.11.2`) from MUST's
+release archive in `third_party/must/`, checked by sha256. The two runs per corpus, on the host:
+
+```bash
+export MUST_IMAGE=stretto-must:1.11.2 MUST_PREFIX=/MBB-builds/MUST1112 MUST_CACHE=$HOME/must-cache MUST_CPUS=...
+for c in mbi mbb; do
+  python3 experiments/mbi/run_must.py --jobs 3 --timeout 60 --column must1112 experiments/results/$c/$c.csv
+  MUST_TSAN=1 python3 experiments/mbi/run_must.py --jobs 3 --timeout 60 --column must1112tsan experiments/results/$c/$c.csv
+done
+```
+
+MUST builds the ThreadSanitizer tool layouts at run time into `MUST_CACHE`; run one program
+per process count with `MUST_TSAN=1` first, so that parallel runs do not build the same layout.
+On 21 Oct 2026 the window of `CPUS=20-25,60-65` left room for the plain run on MBI
+(`mbi/must1112.csv`, merged into `mbi.csv`) and for the run with ThreadSanitizer on MPI-BugBench's
+22 local-concurrency programs alone (`run_must.py` on a copy of `mbb.csv` with those rows; its
+table is `mbb/must1112tsan-lc.csv`, which E8 reads); the plain run on MPI-BugBench and both
+corpus runs with ThreadSanitizer are still to do.
+
 ## Shared-host protocol on the development host
 
 Jobs that may exceed 20 GiB or use 8 sustained cores run one at a time through

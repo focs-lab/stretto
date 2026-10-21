@@ -109,6 +109,19 @@ def must_verdict_hangs(r: dict) -> str:
     return "ERROR" if must_kind(r) in ("ERROR", "TIMEOUT", "RE") else "OK"
 
 
+# Other MUST versions and configurations, each in a column of its own in the corpus table
+# (experiments/mbi/run_must.py --column): MUST 1.11.2, and MUST 1.11.2 with its ThreadSanitizer
+# analysis, where a data race counts as an error (scripts/must_run.sh). The column "must" stays 1.9.2's.
+MUST_COLUMNS = (("must1112", "MUST 1.11.2"), ("must1112tsan", "MUST 1.11.2 with ThreadSanitizer"))
+
+
+def must_column_judge(col: str, hangs: bool = False):
+    """must_verdict, or must_verdict_hangs with hangs=True, of the MUST column col."""
+    def judge(r: dict) -> str:
+        return (must_verdict_hangs if hangs else must_verdict)({"must": r.get(col) or ""})
+    return judge
+
+
 def confusion(rs: Iterable[dict], judge) -> Dict[str, float]:
     """TP/FP/FN/TN of judge(row) in {ERROR, OK} against the label, with precision, recall, F1."""
     c = collections.Counter()

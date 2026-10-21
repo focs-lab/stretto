@@ -1,0 +1,225 @@
+label,np,mode,setting,run,result,seconds,reached,value,commit
+replica,4,plain,,1,FINISHED,9.4,,4,3b8e846
+replica,4,plain,,2,FINISHED,9.4,,4,3b8e846
+replica,4,plain,,3,FINISHED,9.4,,4,3b8e846
+replica,4,plain,,4,FINISHED,9.4,,4,3b8e846
+replica,4,plain,,5,FINISHED,9.4,,4,3b8e846
+replica,4,plain,,6,FINISHED,9.4,,4,3b8e846
+replica,4,plain,,7,FINISHED,9.4,,4,3b8e846
+replica,4,plain,,8,FINISHED,9.4,,4,3b8e846
+replica,4,plain,,9,FINISHED,9.4,,4,3b8e846
+replica,4,plain,,10,FINISHED,9.4,,4,3b8e846
+replica,4,random,ratio=10% delay=50000us,1,FINISHED,10.0,,4,3b8e846
+replica,4,random,ratio=10% delay=50000us,2,FINISHED,9.6,,4,3b8e846
+replica,4,random,ratio=10% delay=50000us,3,FINISHED,9.7,,4,3b8e846
+replica,4,random,ratio=10% delay=50000us,4,FINISHED,9.7,,4,3b8e846
+replica,4,random,ratio=10% delay=50000us,5,FINISHED,9.6,,4,3b8e846
+replica,4,random,ratio=10% delay=50000us,6,FINISHED,9.6,,4,3b8e846
+replica,4,random,ratio=10% delay=50000us,7,FINISHED,9.7,,4,3b8e846
+replica,4,random,ratio=10% delay=50000us,8,FINISHED,9.8,,4,3b8e846
+replica,4,random,ratio=10% delay=50000us,9,FINISHED,9.8,,4,3b8e846
+replica,4,random,ratio=10% delay=50000us,10,FINISHED,9.9,,4,3b8e846
+replica,4,random,ratio=10% delay=1200000us,1,FINISHED,16.7,,4,3b8e846
+replica,4,random,ratio=10% delay=1200000us,2,FINISHED,14.3,,4,3b8e846
+replica,4,random,ratio=10% delay=1200000us,3,FINISHED,14.3,,4,3b8e846
+replica,4,random,ratio=10% delay=1200000us,4,FINISHED,19.1,,4,3b8e846
+replica,4,random,ratio=10% delay=1200000us,5,TIMEOUT,61.0,,3,3b8e846
+replica,4,random,ratio=10% delay=1200000us,6,FINISHED,15.5,,4,3b8e846
+replica,4,random,ratio=10% delay=1200000us,7,FINISHED,17.8,,4,3b8e846
+replica,4,random,ratio=10% delay=1200000us,8,TIMEOUT,61.0,,1,3b8e846
+replica,4,random,ratio=10% delay=1200000us,9,FINISHED,14.3,,4,3b8e846
+replica,4,random,ratio=10% delay=1200000us,10,FINISHED,19.1,,4,3b8e846
+replica,4,system,,1,FINISHED,9.5,,4,3b8e846
+replica,4,system,,2,FINISHED,9.5,,4,3b8e846
+replica,4,system,,3,FINISHED,9.5,,4,3b8e846
+replica,4,system,,4,FINISHED,9.5,,4,3b8e846
+replica,4,system,,5,FINISHED,9.5,,4,3b8e846
+replica,4,system,,6,FINISHED,9.5,,4,3b8e846
+replica,4,system,,7,FINISHED,9.6,,4,3b8e846
+replica,4,system,,8,FINISHED,9.6,,4,3b8e846
+replica,4,system,,9,FINISHED,9.5,,4,3b8e846
+replica,4,system,,10,FINISHED,9.5,,4,3b8e846
+replica,4,app,learning run (system-centric),0,FINISHED,9.4,,4,3b8e846
+replica,4,app,,1,FINISHED,10.6,,4,3b8e846
+replica,4,app,,2,FINISHED,13.0,,4,3b8e846
+replica,4,app,,3,FINISHED,14.3,,4,3b8e846
+replica,4,app,,4,FINISHED,11.9,,4,3b8e846
+replica,4,app,,5,FINISHED,10.7,,4,3b8e846
+replica,4,app,,6,FINISHED,9.5,,4,3b8e846
+replica,4,app,,7,FINISHED,9.5,,4,3b8e846
+replica,4,app,,8,FINISHED,9.5,,4,3b8e846
+replica,4,app,,9,FINISHED,10.7,,4,3b8e846
+replica,4,app,,10,FINISHED,9.5,,4,3b8e846
+replica,4,random,ratio=10% delay=1200000us as shipped,1,FINISHED,9.5,,4,3b8e846
+replica,4,random,ratio=10% delay=1200000us as shipped,2,FINISHED,9.5,,4,3b8e846
+replica,4,random,ratio=10% delay=1200000us as shipped,3,FINISHED,9.5,,4,3b8e846
+replica,4,random,ratio=10% delay=1200000us as shipped,4,FINISHED,9.5,,4,3b8e846
+replica,4,random,ratio=10% delay=1200000us as shipped,5,FINISHED,9.5,,4,3b8e846
+replica,4,random,ratio=10% delay=1200000us as shipped,6,FINISHED,9.5,,4,3b8e846
+replica,4,random,ratio=10% delay=1200000us as shipped,7,FINISHED,9.5,,4,3b8e846
+replica,4,random,ratio=10% delay=1200000us as shipped,8,FINISHED,9.4,,4,3b8e846
+replica,4,random,ratio=10% delay=1200000us as shipped,9,FINISHED,9.5,,4,3b8e846
+replica,4,random,ratio=10% delay=1200000us as shipped,10,FINISHED,9.5,,4,3b8e846
+replica,8,plain,,1,FINISHED,9.4,,4,3b8e846
+replica,8,plain,,2,FINISHED,9.4,,4,3b8e846
+replica,8,plain,,3,FINISHED,9.4,,4,3b8e846
+replica,8,plain,,4,FINISHED,9.5,,4,3b8e846
+replica,8,plain,,5,FINISHED,9.5,,4,3b8e846
+replica,8,plain,,6,FINISHED,9.5,,4,3b8e846
+replica,8,plain,,7,FINISHED,9.4,,4,3b8e846
+replica,8,plain,,8,FINISHED,9.5,,4,3b8e846
+replica,8,plain,,9,FINISHED,9.4,,4,3b8e846
+replica,8,plain,,10,FINISHED,9.4,,4,3b8e846
+replica,8,random,ratio=10% delay=50000us,1,FINISHED,10.1,,4,3b8e846
+replica,8,random,ratio=10% delay=50000us,2,FINISHED,10.2,,4,3b8e846
+replica,8,random,ratio=10% delay=50000us,3,FINISHED,10.0,,4,3b8e846
+replica,8,random,ratio=10% delay=50000us,4,FINISHED,10.2,,4,3b8e846
+replica,8,random,ratio=10% delay=50000us,5,FINISHED,10.0,,4,3b8e846
+replica,8,random,ratio=10% delay=50000us,6,FINISHED,10.0,,4,3b8e846
+replica,8,random,ratio=10% delay=50000us,7,FINISHED,10.2,,4,3b8e846
+replica,8,random,ratio=10% delay=50000us,8,FINISHED,10.1,,4,3b8e846
+replica,8,random,ratio=10% delay=50000us,9,FINISHED,10.1,,4,3b8e846
+replica,8,random,ratio=10% delay=50000us,10,FINISHED,10.2,,4,3b8e846
+replica,8,random,ratio=10% delay=1200000us,1,TIMEOUT,61.0,,3,3b8e846
+replica,8,random,ratio=10% delay=1200000us,2,TIMEOUT,61.0,,1,3b8e846
+replica,8,random,ratio=10% delay=1200000us,3,TIMEOUT,61.0,,0,3b8e846
+replica,8,random,ratio=10% delay=1200000us,4,TIMEOUT,61.0,,0,3b8e846
+replica,8,random,ratio=10% delay=1200000us,5,TIMEOUT,61.0,,2,3b8e846
+replica,8,random,ratio=10% delay=1200000us,6,TIMEOUT,61.0,,1,3b8e846
+replica,8,random,ratio=10% delay=1200000us,7,TIMEOUT,61.0,,2,3b8e846
+replica,8,random,ratio=10% delay=1200000us,8,TIMEOUT,61.0,,1,3b8e846
+replica,8,random,ratio=10% delay=1200000us,9,TIMEOUT,61.0,,3,3b8e846
+replica,8,random,ratio=10% delay=1200000us,10,FINISHED,25.1,,4,3b8e846
+replica,8,system,,1,FINISHED,9.6,,4,3b8e846
+replica,8,system,,2,FINISHED,9.5,,4,3b8e846
+replica,8,system,,3,FINISHED,9.5,,4,3b8e846
+replica,8,system,,4,FINISHED,9.5,,4,3b8e846
+replica,8,system,,5,FINISHED,9.5,,4,3b8e846
+replica,8,system,,6,FINISHED,9.5,,4,3b8e846
+replica,8,system,,7,FINISHED,9.5,,4,3b8e846
+replica,8,system,,8,FINISHED,9.5,,4,3b8e846
+replica,8,system,,9,FINISHED,9.5,,4,3b8e846
+replica,8,system,,10,FINISHED,9.5,,4,3b8e846
+replica,8,app,learning run (system-centric),0,FINISHED,9.6,,4,3b8e846
+replica,8,app,,1,TIMEOUT,61.0,,0,3b8e846
+replica,8,app,,2,TIMEOUT,61.0,,1,3b8e846
+replica,8,app,,3,TIMEOUT,61.0,,2,3b8e846
+replica,8,app,,4,TIMEOUT,61.0,,1,3b8e846
+replica,8,app,,5,TIMEOUT,60.0,,3,3b8e846
+replica,8,app,,6,TIMEOUT,61.0,,2,3b8e846
+replica,8,app,,7,TIMEOUT,61.0,,0,3b8e846
+replica,8,app,,8,TIMEOUT,61.0,,1,3b8e846
+replica,8,app,,9,TIMEOUT,61.0,,0,3b8e846
+replica,8,app,,10,TIMEOUT,61.0,,4,3b8e846
+replica,8,random,ratio=10% delay=1200000us as shipped,1,FINISHED,10.4,,4,3b8e846
+replica,8,random,ratio=10% delay=1200000us as shipped,2,FINISHED,10.0,,4,3b8e846
+replica,8,random,ratio=10% delay=1200000us as shipped,3,FINISHED,10.2,,4,3b8e846
+replica,8,random,ratio=10% delay=1200000us as shipped,4,FINISHED,10.0,,4,3b8e846
+replica,8,random,ratio=10% delay=1200000us as shipped,5,FINISHED,10.2,,4,3b8e846
+replica,8,random,ratio=10% delay=1200000us as shipped,6,FINISHED,10.1,,4,3b8e846
+replica,8,random,ratio=10% delay=1200000us as shipped,7,FINISHED,10.2,,4,3b8e846
+replica,8,random,ratio=10% delay=1200000us as shipped,8,FINISHED,10.3,,4,3b8e846
+replica,8,random,ratio=10% delay=1200000us as shipped,9,FINISHED,10.4,,4,3b8e846
+replica,8,random,ratio=10% delay=1200000us as shipped,10,FINISHED,10.2,,4,3b8e846
+replica-fixed,4,plain,,1,FINISHED,9.8,,4,3b8e846
+replica-fixed,4,plain,,2,FINISHED,9.6,,4,3b8e846
+replica-fixed,4,plain,,3,FINISHED,9.5,,4,3b8e846
+replica-fixed,4,plain,,4,FINISHED,9.5,,4,3b8e846
+replica-fixed,4,plain,,5,FINISHED,9.5,,4,3b8e846
+replica-fixed,4,plain,,6,FINISHED,9.6,,4,3b8e846
+replica-fixed,4,plain,,7,FINISHED,9.6,,4,3b8e846
+replica-fixed,4,plain,,8,FINISHED,9.5,,4,3b8e846
+replica-fixed,4,plain,,9,FINISHED,9.5,,4,3b8e846
+replica-fixed,4,plain,,10,FINISHED,9.6,,4,3b8e846
+replica-fixed,4,random,ratio=10% delay=50000us,1,FINISHED,9.9,,4,3b8e846
+replica-fixed,4,random,ratio=10% delay=50000us,2,FINISHED,10.0,,4,3b8e846
+replica-fixed,4,random,ratio=10% delay=50000us,3,FINISHED,9.9,,4,3b8e846
+replica-fixed,4,random,ratio=10% delay=50000us,4,FINISHED,10.0,,4,3b8e846
+replica-fixed,4,random,ratio=10% delay=50000us,5,FINISHED,9.6,,4,3b8e846
+replica-fixed,4,random,ratio=10% delay=50000us,6,FINISHED,9.9,,4,3b8e846
+replica-fixed,4,random,ratio=10% delay=50000us,7,FINISHED,9.8,,4,3b8e846
+replica-fixed,4,random,ratio=10% delay=50000us,8,FINISHED,10.2,,4,3b8e846
+replica-fixed,4,random,ratio=10% delay=50000us,9,FINISHED,10.0,,4,3b8e846
+replica-fixed,4,random,ratio=10% delay=50000us,10,FINISHED,9.9,,4,3b8e846
+replica-fixed,4,random,ratio=10% delay=1200000us,1,FINISHED,15.6,,4,3b8e846
+replica-fixed,4,random,ratio=10% delay=1200000us,2,FINISHED,15.6,,4,3b8e846
+replica-fixed,4,random,ratio=10% delay=1200000us,3,FINISHED,13.3,,4,3b8e846
+replica-fixed,4,random,ratio=10% delay=1200000us,4,FINISHED,15.7,,4,3b8e846
+replica-fixed,4,random,ratio=10% delay=1200000us,5,FINISHED,16.8,,4,3b8e846
+replica-fixed,4,random,ratio=10% delay=1200000us,6,FINISHED,14.6,,4,3b8e846
+replica-fixed,4,random,ratio=10% delay=1200000us,7,FINISHED,12.1,,4,3b8e846
+replica-fixed,4,random,ratio=10% delay=1200000us,8,FINISHED,17.9,,4,3b8e846
+replica-fixed,4,random,ratio=10% delay=1200000us,9,FINISHED,18.0,,4,3b8e846
+replica-fixed,4,random,ratio=10% delay=1200000us,10,FINISHED,13.1,,4,3b8e846
+replica-fixed,4,system,,1,FINISHED,9.8,,4,3b8e846
+replica-fixed,4,system,,2,FINISHED,9.7,,4,3b8e846
+replica-fixed,4,system,,3,FINISHED,9.7,,4,3b8e846
+replica-fixed,4,system,,4,FINISHED,9.6,,4,3b8e846
+replica-fixed,4,system,,5,FINISHED,9.7,,4,3b8e846
+replica-fixed,4,system,,6,FINISHED,9.7,,4,3b8e846
+replica-fixed,4,system,,7,FINISHED,9.6,,4,3b8e846
+replica-fixed,4,system,,8,FINISHED,9.7,,4,3b8e846
+replica-fixed,4,system,,9,FINISHED,9.8,,4,3b8e846
+replica-fixed,4,system,,10,FINISHED,9.7,,4,3b8e846
+replica-fixed,4,app,learning run (system-centric),0,FINISHED,9.7,,4,3b8e846
+replica-fixed,4,app,,1,FINISHED,13.3,,4,3b8e846
+replica-fixed,4,app,,2,FINISHED,12.1,,4,3b8e846
+replica-fixed,4,app,,3,FINISHED,12.1,,4,3b8e846
+replica-fixed,4,app,,4,FINISHED,13.3,,4,3b8e846
+replica-fixed,4,app,,5,FINISHED,9.7,,4,3b8e846
+replica-fixed,4,app,,6,FINISHED,12.1,,4,3b8e846
+replica-fixed,4,app,,7,FINISHED,9.6,,4,3b8e846
+replica-fixed,4,app,,8,FINISHED,10.8,,4,3b8e846
+replica-fixed,4,app,,9,FINISHED,10.9,,4,3b8e846
+replica-fixed,4,app,,10,FINISHED,12.1,,4,3b8e846
+replica-fixed,8,plain,,1,FINISHED,9.9,,4,3b8e846
+replica-fixed,8,plain,,2,FINISHED,9.9,,4,3b8e846
+replica-fixed,8,plain,,3,FINISHED,10.0,,4,3b8e846
+replica-fixed,8,plain,,4,FINISHED,9.8,,4,3b8e846
+replica-fixed,8,plain,,5,FINISHED,9.8,,4,3b8e846
+replica-fixed,8,plain,,6,FINISHED,9.8,,4,3b8e846
+replica-fixed,8,plain,,7,FINISHED,9.9,,4,3b8e846
+replica-fixed,8,plain,,8,FINISHED,9.9,,4,3b8e846
+replica-fixed,8,plain,,9,FINISHED,9.7,,4,3b8e846
+replica-fixed,8,plain,,10,FINISHED,10.0,,4,3b8e846
+replica-fixed,8,random,ratio=10% delay=50000us,1,FINISHED,10.7,,4,3b8e846
+replica-fixed,8,random,ratio=10% delay=50000us,2,FINISHED,10.6,,4,3b8e846
+replica-fixed,8,random,ratio=10% delay=50000us,3,FINISHED,10.7,,4,3b8e846
+replica-fixed,8,random,ratio=10% delay=50000us,4,FINISHED,10.8,,4,3b8e846
+replica-fixed,8,random,ratio=10% delay=50000us,5,FINISHED,10.8,,4,3b8e846
+replica-fixed,8,random,ratio=10% delay=50000us,6,FINISHED,10.8,,4,3b8e846
+replica-fixed,8,random,ratio=10% delay=50000us,7,FINISHED,10.6,,4,3b8e846
+replica-fixed,8,random,ratio=10% delay=50000us,8,FINISHED,11.0,,4,3b8e846
+replica-fixed,8,random,ratio=10% delay=50000us,9,FINISHED,10.7,,4,3b8e846
+replica-fixed,8,random,ratio=10% delay=50000us,10,FINISHED,10.7,,4,3b8e846
+replica-fixed,8,random,ratio=10% delay=1200000us,1,FINISHED,23.5,,4,3b8e846
+replica-fixed,8,random,ratio=10% delay=1200000us,2,FINISHED,24.5,,4,3b8e846
+replica-fixed,8,random,ratio=10% delay=1200000us,3,FINISHED,24.7,,4,3b8e846
+replica-fixed,8,random,ratio=10% delay=1200000us,4,FINISHED,23.5,,4,3b8e846
+replica-fixed,8,random,ratio=10% delay=1200000us,5,FINISHED,22.2,,4,3b8e846
+replica-fixed,8,random,ratio=10% delay=1200000us,6,FINISHED,24.7,,4,3b8e846
+replica-fixed,8,random,ratio=10% delay=1200000us,7,FINISHED,25.9,,4,3b8e846
+replica-fixed,8,random,ratio=10% delay=1200000us,8,FINISHED,22.1,,4,3b8e846
+replica-fixed,8,random,ratio=10% delay=1200000us,9,FINISHED,24.8,,4,3b8e846
+replica-fixed,8,random,ratio=10% delay=1200000us,10,FINISHED,24.4,,4,3b8e846
+replica-fixed,8,system,,1,FINISHED,10.0,,4,3b8e846
+replica-fixed,8,system,,2,FINISHED,10.1,,4,3b8e846
+replica-fixed,8,system,,3,FINISHED,10.0,,4,3b8e846
+replica-fixed,8,system,,4,FINISHED,10.5,,4,3b8e846
+replica-fixed,8,system,,5,FINISHED,10.1,,4,3b8e846
+replica-fixed,8,system,,6,FINISHED,10.1,,4,3b8e846
+replica-fixed,8,system,,7,FINISHED,10.0,,4,3b8e846
+replica-fixed,8,system,,8,FINISHED,10.0,,4,3b8e846
+replica-fixed,8,system,,9,FINISHED,10.1,,4,3b8e846
+replica-fixed,8,system,,10,FINISHED,10.2,,4,3b8e846
+replica-fixed,8,app,learning run (system-centric),0,FINISHED,10.4,,4,3b8e846
+replica-fixed,8,app,,1,FINISHED,20.3,,4,3b8e846
+replica-fixed,8,app,,2,FINISHED,19.1,,4,3b8e846
+replica-fixed,8,app,,3,FINISHED,22.8,,4,3b8e846
+replica-fixed,8,app,,4,FINISHED,16.6,,4,3b8e846
+replica-fixed,8,app,,5,FINISHED,17.7,,4,3b8e846
+replica-fixed,8,app,,6,FINISHED,20.7,,4,3b8e846
+replica-fixed,8,app,,7,FINISHED,22.8,,4,3b8e846
+replica-fixed,8,app,,8,FINISHED,19.0,,4,3b8e846
+replica-fixed,8,app,,9,FINISHED,19.1,,4,3b8e846
+replica-fixed,8,app,,10,FINISHED,20.3,,4,3b8e846
