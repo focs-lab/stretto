@@ -1,0 +1,9 @@
+#include <stdio.h>
+MPI(){
+	event A before(): call(% markA(...)){}
+	event B before(): call(% markB(...)){}
+	pattern :  A B
+        @ match {
+          printf("A before B\n");
+        }
+}
