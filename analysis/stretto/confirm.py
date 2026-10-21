@@ -122,7 +122,7 @@ def control_pin(t, pin: str) -> Optional[str]:
     return f"{name}={','.join(toks)}" if toks else None
 
 
-def horizon_pins(t, f: Finding, B=None) -> Optional[Tuple[List[str], List[str]]]:
+def horizon_pins(t, f: Finding, B=None, infeasible_ok: bool = False, M=None, changed=None) -> Optional[Tuple[List[str], List[str]]]:
     """Pins that force, in a replay, the alternative's execution over its whole horizon, and the
     control: every wildcard receive (STRETTO_PIN) and every wildcard probe that found a message
     (STRETTO_PIN_PROBE) posted inside the horizon is pinned to the sender it took in the run,
@@ -132,37 +132,57 @@ def horizon_pins(t, f: Finding, B=None) -> Optional[Tuple[List[str], List[str]]]
     excludes. Pinning the changed operation alone leaves the earlier wildcard operations free
     to match differently in the rerun, and then neither the alternative nor its control is the
     execution theorem T1 constructs. Returns (alternative, control) as lists of VAR=value, or
-    None if the finding names no single change or the alternative is not feasible at B."""
-    h = _horizon(t, f, B)
+    None if the finding names no single change or the alternative is not feasible at B.
+    infeasible_ok=True also pins an alternative the check rejects, over the horizon its closure
+    computes, with the changed operation pinned even where the closure cuts it: a replay of it
+    tests the rejection (experiments/e8_hb.py). M and changed name another alternative of the
+    finding's receive than its steal, such as a swap (matching.Alternative.M, .changed)."""
+    h = _horizon(t, f, B, infeasible_ok, M, changed)
     return None if h is None else (h[0], h[1])
 
 
-def required_matches(t, f: Finding, B=None) -> Optional[Set[Tuple[str, int, int]]]:
+def required_matches(t, f: Finding, B=None, infeasible_ok: bool = False, M=None, changed=None) -> Optional[Set[Tuple[str, int, int]]]:
     """The pins of horizon_pins(t, f, B) whose match a replay must show: ("recv", rank, widx)
     for a pinned receive whose completion lies inside the horizon, ("probe", rank, pidx) for a
     pinned probe. A receive posted inside the horizon but completed beyond it is pinned to steer
     the run, yet its wait may lie after the predicted hang, where its match cannot be logged."""
-    h = _horizon(t, f, B)
+    h = _horizon(t, f, B, infeasible_ok, M, changed)
     return None if h is None else h[2]
 
 
-def _horizon(t, f: Finding, B=None):
+def changed_pin(t, f: Finding) -> Optional[Tuple[str, int, int]]:
+    """The changed operation's pin as all_matched reports it: ("recv", rank, widx) or ("probe",
+    rank, pidx); None if it has no ordinal."""
+    if f.probe is not None:
+        q = t.probes[f.probe]
+        return None if q.pidx is None else ("probe", q.rank, q.pidx)
+    if f.recv is not None:
+        r = t.recvs[f.recv]
+        return None if r.widx is None else ("recv", r.rank, r.widx)
+    return None
+
+
+def _horizon(t, f: Finding, B=None, infeasible_ok: bool = False, M=None, changed=None):
+    """M and changed, if given, are the alternative matching and its changed receives (a swap);
+    by default the finding is a steal: f.recv takes f.send and the receive that took it in the
+    run is left without a message."""
     from .feasible import check
-    victim = None
     if f.probe is not None and f.send is not None:
-        chk = check(t, t.observed, set(), B, "L1", changed_probes={f.probe}, probe_alt={f.probe: f.send})
+        M = t.observed
+        chk = check(t, M, set(), B, "L1", changed_probes={f.probe}, probe_alt={f.probe: f.send})
         change = ("probe", f.probe, f.send)
     elif f.recv is not None and f.send is not None and f.level in ("L1", "L1+SP"):
-        M = dict(t.observed)
-        victim = next((rk for rk, sk in t.observed.items() if sk == f.send and rk != f.recv), None)
-        if victim is not None:
-            del M[victim]
-        M[f.recv] = f.send
-        chk = check(t, M, {f.recv}, B, "L1")
+        if M is None:
+            M = dict(t.observed)
+            victim = next((rk for rk, sk in t.observed.items() if sk == f.send and rk != f.recv), None)
+            if victim is not None:
+                del M[victim]
+            M[f.recv] = f.send
+        chk = check(t, M, set(changed) if changed else {f.recv}, B, "L1")
         change = ("recv", f.recv, f.send)
     else:
         return None
-    if not chk.feasible or chk.cut is None:
+    if chk.cut is None or not (chk.feasible or infeasible_ok):
         return None
     cut = chk.cut
     required: Set[Tuple[str, int, int]] = set()
@@ -170,9 +190,11 @@ def _horizon(t, f: Finding, B=None):
     def specs(alternative: bool) -> List[str]:
         rtok, ptok = [], []
         for r in sorted(t.recvs.values(), key=lambda r: (r.rank, r.idx)):
-            if r.widx is None or r.idx >= cut[r.rank] or (alternative and r.key == victim):
+            outside = r.idx >= cut[r.rank] and not (change[0] == "recv" and change[1] == r.key)
+            if r.widx is None or outside:
                 continue
-            sk = change[2] if alternative and change[0] == "recv" and change[1] == r.key else t.observed.get(r.key)
+            # the alternative's sender (none for the receive a steal leaves without a message)
+            sk = M.get(r.key) if alternative else t.observed.get(r.key)
             if sk is None:
                 continue
             m = t.sends[sk]
@@ -180,7 +202,8 @@ def _horizon(t, f: Finding, B=None):
             if alternative and r.completed and _cidx(r) < cut[r.rank]:
                 required.add(("recv", r.rank, r.widx))
         for q in sorted(t.probes.values(), key=lambda q: (q.rank, q.idx)):
-            if q.pidx is None or not q.flag or q.idx >= cut[q.rank]:
+            outside = q.idx >= cut[q.rank] and not (change[0] == "probe" and change[1] == q.key)
+            if q.pidx is None or not q.flag or outside:
                 continue
             sk = change[2] if alternative and change[0] == "probe" and change[1] == q.key else q.seen
             if sk is None:
@@ -197,6 +220,27 @@ def _horizon(t, f: Finding, B=None):
         return out
 
     return specs(True), specs(False), required
+
+
+def unpinned_violation(t, finished: bool = True) -> Optional[str]:
+    """Is the recorded run of a pinned replay a run of the program without the pins? A pin
+    rewrites a wildcard receive into one from a given source, so a later receive of its rank can
+    take a message the original receive accepts while the pinned one is still pending, which MPI
+    forbids for the original receive (non-overtaking, MPI 4.1 §3.5), and a probe can report such
+    a message. The pinned run then forces a match that no run of the program has. The tracer
+    records the original envelope of a pinned operation, so t, the replay's own trace, is judged
+    by MPI's matching order on its matches with those envelopes (matching.matching_order_ok
+    over every receive and probe) and by the acyclicity of its constraint graph with infinite
+    buffering, the weakest. Of a run that did not finish only the cycle is judged: a receive
+    still pending at its end may have been matched without its wait returning, which the trace
+    cannot show and the matching order would misread. Returns the violation, None if none."""
+    from .matching import build_graph, matching_order_ok
+    why = matching_order_ok(t, t.observed, lambda rk: True, None, lambda q: True) if finished else None
+    if why:
+        return why
+    if build_graph(t, t.observed, None, None).find_cycle():
+        return "constraint cycle over the run's own matches"
+    return None
 
 
 def all_matched(pins: List[str], stderr: str, required: Optional[Set[Tuple[str, int, int]]] = None) -> bool:
@@ -218,10 +262,12 @@ def expected_outcomes(f: Finding) -> set:
 
 def run_pinned(np: int, exe: str, args: List[str], pin, timeout: int = 20, mpi: str = "openmpi",
                mpirun_args: Optional[List[str]] = None, extra_env: Optional[dict] = None,
-               cwd: Optional[str] = None) -> subprocess.CompletedProcess:
+               cwd: Optional[str] = None, preload: Optional[str] = None) -> subprocess.CompletedProcess:
     """pin: one "STRETTO_PIN=..." assignment, a list of them, or None. args and cwd must be
-    those of the traced run: the pins number the wildcard operations of that execution."""
-    pinlib = os.path.join(ROOT, "replay", "bin", mpi, "libstretto-pin.so")
+    those of the traced run: the pins number the wildcard operations of that execution.
+    preload: the library that applies the pins, the replay library by default; the tracer
+    applies them too and records the replay (with STRETTO_TRACE_DIR in extra_env)."""
+    pinlib = preload or os.path.join(ROOT, "replay", "bin", mpi, "libstretto-pin.so")
     env_args = ["-x", f"LD_PRELOAD={pinlib}"]
     with tempfile.TemporaryDirectory(prefix="stretto-pin-") as d:
         for assignment in ([pin] if isinstance(pin, str) else (pin or [])):

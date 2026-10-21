@@ -5,11 +5,15 @@ import tempfile
 import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from stretto.confirm import (PIN_INLINE_MAX, all_matched, classify_rc, control_pin, expected_outcomes, horizon_pins,  # noqa: E402
-                             pin_assignment, pins_applied, pins_matched, required_matches)
+from stretto.confirm import (PIN_INLINE_MAX, all_matched, changed_pin, classify_rc, control_pin, expected_outcomes,  # noqa: E402
+                             horizon_pins, pin_assignment, pins_applied, pins_matched, required_matches, unpinned_violation)
 from stretto import trace as T  # noqa: E402
+from stretto.matching import candidates_full  # noqa: E402
 from stretto.report import Finding  # noqa: E402
+from test_checker import mk, recv, send, wait  # noqa: E402
+from test_hb import irecv, reply_to_pending_receive, stolen_after_later_receive  # noqa: E402
 
 APPLIED = ("[stretto-pin] rank 0: 2 pin(s) active\n[stretto-pin] rank 0: applied widx=0 src=2 (world 2) tag=5\n"
            "[stretto-pin] rank 0: applied widx=1 src=1 (world 1) tag=5\n[stretto-pin] rank 1: applied probe pidx=0\n")
@@ -117,6 +121,66 @@ class HorizonPins(unittest.TestCase):
         self.assertTrue(all_matched(alt, "[stretto-pin] rank 1: matched widx=0 src=0\n", req))
         self.assertFalse(all_matched(alt, "[stretto-pin] rank 1: applied widx=0\n", req))
 
+
+
+class RejectedAlternatives(unittest.TestCase):
+    """experiments/e8_hb.py replays alternatives the check rejects, to test the rejection, and
+    must not count a pinned run that is no run of the program. The paper's counterexample
+    (test_hb.stolen_after_later_receive): rank 0 posts Irecv r(ANY), Recv r3(ANY) takes rank
+    3's message, rank 0 sends x to rank 2, waits for r (rank 1's message); rank 2 then sends sC.
+    The steal r <- sC is rejected: r is matched before r3 completes, sC follows r3."""
+
+    def test_pins_over_the_closure(self):
+        t = stolen_after_later_receive()
+        f = Finding("1", "1f", "L1", "", recv=(0, 0), send=(2, 0))
+        self.assertIsNone(horizon_pins(t, f))
+        alt, ctl = horizon_pins(t, f, infeasible_ok=True)
+        self.assertEqual(alt, ["STRETTO_PIN=0:0:2,0:1:3"])
+        self.assertEqual(ctl, ["STRETTO_PIN=0:0:1,0:1:3"])
+        self.assertEqual(changed_pin(t, f), ("recv", 0, 0))
+        self.assertIn(("recv", 0, 0), required_matches(t, f, infeasible_ok=True))
+
+    def test_a_swap_pins_both_receives(self):
+        """Two pending Irecv(ANY) completed by one Waitall: r2 <- s1 is a swap (r1 takes s2)."""
+        t = mk({0: [irecv(T.ANY, 0, 10, widx=0), irecv(T.ANY, 0, 11, widx=1), wait((10, 1, 0), (11, 2, 0), kind="waitall")],
+                1: [send(0, 0)], 2: [send(0, 0)]})
+        a = next(a for a in candidates_full(t)[0] if a.recv == (0, 1) and a.send == (1, 0) and a.kind == "swap")
+        f = Finding("1", "1f", "L1", "", recv=a.recv, send=a.send)
+        alt, ctl = horizon_pins(t, f, M=a.M, changed=a.changed)
+        self.assertEqual(alt, ["STRETTO_PIN=0:0:2,0:1:1"])
+        self.assertEqual(ctl, ["STRETTO_PIN=0:0:1,0:1:2"])
+
+    def test_a_pinned_run_that_no_run_of_the_program_is(self):
+        """With r pinned to rank 2, r3 can take rank 3's message while r is pending, and the
+        replay matches every pin. Its own trace keeps r's original envelope and has a cycle;
+        the recorded run has none."""
+        replay = mk({
+            0: [irecv(T.ANY, 0, 10, widx=0), recv(T.ANY, 0, 3, 0, widx=1), send(2, 5), wait((10, 2, 0))],
+            1: [send(0, 0)],
+            2: [recv(0, 5, 0, 5), send(0, 0)],
+            3: [send(0, 0)],
+        })
+        self.assertEqual(replay.observed[(0, 0)], (2, 0))
+        self.assertIsNotNone(unpinned_violation(replay))
+        self.assertIsNotNone(unpinned_violation(replay, finished=False))
+        self.assertIsNone(unpinned_violation(stolen_after_later_receive()))
+
+    def test_a_pinned_run_of_the_program(self):
+        """test_hb.reply_to_pending_receive with r <- s1 forced: a run of the program."""
+        replay = mk({
+            0: [irecv(T.ANY, 0, 10, widx=0), send(1, 5), wait((10, 1, 0)), recv(T.ANY, 0, 2, 0, widx=1)],
+            1: [recv(0, 5, 0, 5), send(0, 0)],
+            2: [send(0, 0)],
+        })
+        self.assertIsNone(unpinned_violation(replay))
+        self.assertIsNone(unpinned_violation(reply_to_pending_receive()))
+
+    def test_a_pending_receive_is_judged_only_in_a_finished_run(self):
+        """A run killed while an Irecv(ANY) was pending: the receive may have been matched
+        without its wait returning, so only the cycle is judged."""
+        cut = mk({0: [irecv(T.ANY, 0, 10, widx=0), recv(T.ANY, 0, 2, 0, widx=1)], 1: [send(0, 0)], 2: [send(0, 0)]})
+        self.assertIsNotNone(unpinned_violation(cut))
+        self.assertIsNone(unpinned_violation(cut, finished=False))
 
 
 class PinFile(unittest.TestCase):
