@@ -127,7 +127,7 @@ plain runs.
 <p align="center"><img src="docs/figures/dealii.svg" width="760" alt="deal.II results"></p>
 
 **Soundness in practice.** Against an exhaustive explorer, 0 of
-826 judged alternatives are unsound. Replays on MBI: 39
+824 judged alternatives are unsound. Replays on MBI: 39
 confirmed, 31 inconclusive (the control itself hung),
 0 contradicted. Random samples of 30 alternatives on AMG
 and on Nekbone: every replay matched its pins and finished, and so did every control.

@@ -45,6 +45,16 @@ pins (`run_mbi.py --replay-only --reads ... --out <a copy of that table>`, whose
 becomes `experiments/results/reads/replays.csv`), and compares rule H1' with the explorer
 (`run_remaining.sh e6reads`, `experiments/results/e6_reads_{never,random}.csv`).
 
+E6 and its runs with read bounds were redone on 22 Oct 2026 (`run_remaining.sh e6 e6reads`, two
+containers on 8 processors, about 10 and 20 minutes, with the idiom traces and the traces of the
+last corpus run mounted read-only at `traces/` and `experiments/results/{mbi,mbb}/`): the
+explorer then began to require a ready send's own receive to be posted before it (docs/model.md
+§2, ready sends). The synthetic generator keeps only executions without errors, and program 017
+had been drawn from one that issues a ready send before the receive that takes it; drawn again,
+it has no alternative, so E6 lost its 2 pairs and every other row is the same. The tables with
+read bounds had come from the traces of an earlier corpus run; their corpus rows now come from
+the traces E6 uses (310 pairs instead of 308).
+
 Variables the scripts read (all optional):
 
 | variable | script | meaning (default) |
@@ -205,7 +215,10 @@ the generator keeps larger programs but takes a minute or more for each. Their s
 were redone on 22 Oct 2026 by `e8_hb.py compare --only synthetic --synthetic 100 --max-states
 100000` with `--out`, `--counts-out` and `--traces-out` elsewhere, put in place of the old
 synthetic rows: a fix of the enumeration's pruning changed the candidates of one synthetic
-program and of no trace (about 25 minutes, one process).
+program and of no trace (about 25 minutes, one process). They were redone the same way later that
+day for the explorer's ready-send rule (docs/model.md §2, ready sends), which can change both the
+executions the generator draws traces from and the ones that decide a disagreement; every
+synthetic row came out as before.
 
 ## Baselines: NINJA and MUST 1.11.2
 

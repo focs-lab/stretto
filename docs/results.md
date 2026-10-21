@@ -18,7 +18,7 @@ trace; the leg's times are the only timing claims.
 
 Programs: 115. Rows by code commit: 96dd241 (115).
 
-A program's verdict is ERROR iff a finding of class 1a/1c/1d/2-buffering/2-collective/2-blocked/3-local/abort is
+A program's verdict is ERROR iff a finding of class 1a/1c/1d/2-buffering/2-collective/2-blocked/2-ready/3-local/abort is
 present; 1b, 1f, probe-alt and waitany-order are warnings and never count. The *observed* row uses
 only what the run itself showed (a blocked or spinning rank, a collective mismatch, a message never
 received), which any observational tool sees; the *predicted* row only what Stretto says about other
@@ -134,7 +134,7 @@ Not confirmed or inconclusive:
 
 Programs: 388. Not compiled with Open MPI 4.1.6 and left out: 8 (P2P__CallOrdering-unmatched-mpi_precv_init-001, P2P__CallOrdering-unmatched-mpi_psend_init-001, P2P__Correct-mpi_precv_init-001, P2P__Correct-mpi_precv_init-002, P2P__Correct-mpi_psend_init-001, P2P__Correct-mpi_psend_init-002, P2P__LocalConcurrency-receive-mpi_precv_init-001, P2P__LocalConcurrency-send-mpi_psend_init-001). Rows by code commit: 96dd241 (388), unrecorded (8).
 
-A program's verdict is ERROR iff a finding of class 1a/1c/1d/2-buffering/2-collective/2-blocked/3-local/abort is
+A program's verdict is ERROR iff a finding of class 1a/1c/1d/2-buffering/2-collective/2-blocked/2-ready/3-local/abort is
 present; 1b, 1f, probe-alt and waitany-order are warnings and never count. The *observed* row uses
 only what the run itself showed (a blocked or spinning rank, a collective mismatch, a message never
 received), which any observational tool sees; the *predicted* row only what Stretto says about other
@@ -411,10 +411,10 @@ exhaustive explorer of the straight-line program, which reads nothing, so every 
 
 | bounds | traces | pairs (alternative, B) | with a window after the receive | agree | unsound | incomplete | skipped | contained deadlocks confirmed | not confirmed |
 |---|---|---|---|---|---|---|---|---|---|
-| never | 197 | 824 | 824 | 823 | 0 | 1 | 0 | 169 | 0 |
-| random | 197 | 824 | 644 | 823 | 0 | 1 | 0 | 124 | 0 |
+| never | 196 | 824 | 824 | 823 | 0 | 1 | 0 | 173 | 0 |
+| random | 196 | 824 | 644 | 823 | 0 | 1 | 0 | 128 | 0 |
 
-Rows by code commit: 0cf26a3 (1648).
+Rows by code commit: 1806722 (1648).
 
 Replays of the L1 consequences (1c, 1d) of the 10 programs whose levels change, each with the pins of its witness (`run_mbi.py --replay-only --reads`, the rule of E1): 25 confirmed, 36 inconclusive, 0 not confirmed, of 61. With the same pins in the E1 replays: 23 confirmed, 29 inconclusive, 0 not confirmed, 9 not replayed there (the E1 replay of a consequence that holds in every single-path execution pins the horizon, not a witness). Rows by code commit: 4121baf (61).
 
@@ -696,15 +696,17 @@ The checker in L1 mode (the claim the report makes) against exhaustive explorati
 straight-line program, at B = 0 and B = inf. Unsound: the checker accepts and no execution realises the
 pairs of the alternative on the receives inside its cut. Incomplete: some execution agrees with the
 alternative on every receive inside the cut and the checker rejects. Exact: some execution realises the
-whole matching, beyond the horizon too, which the single-change checker does not claim.
+whole matching, beyond the horizon too, which the single-change checker does not claim. An execution in which
+a ready send inside the cut, or one issued before a compared pair can match, is not taken by a receive
+posted before its issue is erroneous and counts for none of these.
 
 | traces | pairs (alternative, B) | agree | unsound | incomplete | skipped (explorer cap) | exact as well | events per trace, max | checker time | explorer time |
 |---|---|---|---|---|---|---|---|---|---|
-| corpus and idiom traces (71) | 310 | 310 | 0 | 0 | 0 | 120 | 48 | 41 ms | 194 ms |
-| synthetic traces (126) | 516 | 515 | 0 | 1 | 0 | 73 | 74 | 122 ms | 26623 ms |
+| corpus and idiom traces (71) | 310 | 310 | 0 | 0 | 0 | 120 | 48 | 49 ms | 245 ms |
+| synthetic traces (125) | 514 | 513 | 0 | 1 | 0 | 73 | 74 | 140 ms | 30175 ms |
 
 Contained deadlocks (theorem T7, class 1d at L1) among the accepted pairs: 25 confirmed by the explorer,
-0 not. Rows by code commit: c27c793 (826).
+0 not. Rows by code commit: 1806722 (824).
 
 ## E7: the value skeleton on MBI (level L2)
 
@@ -776,7 +778,7 @@ order (program order, message to the completion that returned it, probes, collec
 exact vector clocks. The rules coincide at blocking receives and probes; they differ only at a
 nonblocking receive whose rank sends or enters a collective while it is pending. *Only (a)*: the rule
 selects the pair and the check rejects it; *check only*: the check accepts it and the rule does not.
-Rows by code commit: 7941c12 (420), a71eb11 (89).
+Rows by code commit: 7941c12 (420), 1806722 (89).
 
 | corpus | traces | records, max | wildcard receives | blocking | nonblocking, nothing sent while pending | nonblocking, pending across a send | nonblocking, never completed | wildcard probes | not analysed |
 |---|---|---|---|---|---|---|---|---|---|
@@ -895,8 +897,9 @@ alike; *realised, judged pairs only*: some execution has every pair the alternat
 leaves unmatched takes a message (what a replay pinned over the horizon tests); *realised with other matches
 changed*: executions match the receive to the send, but only with another receive matched differently,
 which no single-change alternative states; *not realised*: no execution matches them. An execution in which a
-ready send is issued before its receive is posted, which is erroneous and which the check excludes, counts only
-when no other does, and the verdict says so.
+ready send inside the horizon, or one issued before a compared pair can match, is not taken by a receive
+posted before its issue, which is erroneous and which the check excludes, counts only when no other does, and
+the verdict says so.
 
 | | pairs | (a) and check | only (a) | check only, not (a) | (b) and check | only (b) | check only, not (b) | neither |
 |---|---|---|---|---|---|---|---|---|
