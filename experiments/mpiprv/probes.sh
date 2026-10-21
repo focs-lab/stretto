@@ -19,7 +19,8 @@
 #               append their records to the shared trace varies; the twin a second time with
 #               four busy loops on the same processors
 # Writes experiments/results/mpiprv/probes.csv and, for the first repetition of each case,
-# its trace as probes-<case>.trace.
+# its trace as probes-<case>.trace, and when that run gave the expected verdict, the first
+# trace that did not as probes-<case>-unexpected.trace.
 # usage (repository root, on the host): experiments/mpiprv/prv.sh experiments/mpiprv/probes.sh
 set -uo pipefail
 R="$(cd "$(dirname "$0")/../.." && pwd)"; cd "$R"
@@ -30,12 +31,13 @@ P=experiments/mpiprv/probes
 W=/tmp/prv-probes; rm -rf "$W"; mkdir -p "$W"
 cp /home/ubuntu/RQ1/MPI3.mop "$W/MPI3.mop"
 cp $P/*.mop "$W/"
+rm -f "$OUT"/probes-*.trace
 echo "case,source,define,pattern,expected,np,rep,result,matched,events,commit" > "$OUT/probes.csv"
 
 # probe <case> <source> <define-line-from> <define-line-to> <mop> <expected> [np [reps]]
 # (a source without a directory is taken from experiments/mpiprv/probes/)
 probe() {
-    local case=$1 path=$2 from=$3 to=$4 mop=$5 exp=$6 np=${7:-2} reps=${8:-$REPS} d="$W/$1"
+    local case=$1 path=$2 from=$3 to=$4 mop=$5 exp=$6 np=${7:-2} reps=${8:-$REPS} d="$W/$1" first=""
     local src; src=$(basename "$path"); [ "$src" = "$path" ] && path="$P/$src"
     mkdir -p "$d"; rm -f "$d"/*.txt
     sed "s/^$from\$/$to/" "$path" > "$d/$src"
@@ -48,7 +50,11 @@ probe() {
         (cd "$d" && MPI-PRV -trace output.txt -pattern "./${mop%.mop}aspect/Pattern.txt" -np "$np") > "$d/prv$rep.log" 2>&1
         local res=none m=""
         if grep -q "Pattern Matched!" "$d/prv$rep.log"; then res=matched; m=$(grep -A1 "Pattern Matched!" "$d/prv$rep.log" | tail -1 | sed 's/ *$//'); fi
-        [ "$rep" = 1 ] && cp "$d/output.txt" "$OUT/probes-$case.trace"
+        [ "$rep" = 1 ] && { cp "$d/output.txt" "$OUT/probes-$case.trace"; first=$res; }
+        # when the first run gave the expected verdict, the first trace that did not
+        if [ "$res" != "$exp" ] && [ "$first" = "$exp" ] && [ ! -f "$OUT/probes-$case-unexpected.trace" ]; then
+            cp "$d/output.txt" "$OUT/probes-$case-unexpected.trace"
+        fi
         echo "$case,$src,\"$to\",$pat,$exp,$np,$rep,$res,\"$m\",$(grep -c '^event' "$d/output.txt"),$COMMIT" >> "$OUT/probes.csv"
     done
 }
