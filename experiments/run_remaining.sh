@@ -4,8 +4,9 @@
 # under experiments/results/ and logs to experiments/results/run-remaining.log. MUST runs are
 # separate (experiments/mbi/run_must.py, experiments/amg/must.sh): they need docker on the host.
 #
-# usage: experiments/run_remaining.sh [step ...]     steps: build tests mbi mbb stress e2 e6 amg e4 e3 guard
-#        (no step: all but guard, in that order; guard traces the corpora again with the buffer guard)
+# usage: experiments/run_remaining.sh [step ...]     steps: build tests mbi mbb stress e2 e6 amg e4 e3 guard reps
+#        (no step: all but guard and reps, in that order; guard traces the corpora again with the
+#        buffer guard, reps traces MBI REPS more times)
 #   JOBS     parallel programs in the corpus steps (default 6)
 #   TIMEOUT  per program run and per replay, seconds (default 60); MUST gets the same
 set -uo pipefail
@@ -47,6 +48,15 @@ step_guard() {
     python3 experiments/mbi/run_mbi.py --corpus mbb --guard --select "$MBB_SELECT" \
         --jobs "$JOBS" --timeout "$TIMEOUT" --max-states 30000 --sp-max-events 600 &&
     REPS=3 experiments/guard/run.sh all
+}
+step_reps() {
+    # MBI traced again REPS times (default 10), without replays: how often one traced run of
+    # each program shows or predicts its error. Tables in experiments/results/reps/mbi-<k>.csv.
+    for k in $(seq 1 "${REPS:-10}"); do
+        python3 experiments/mbi/run_mbi.py --corpus mbi --select "$MBI_SELECT" --jobs "$JOBS" --timeout "$TIMEOUT" \
+            --max-states 30000 --sp-max-events 600 \
+            --out "experiments/results/reps/mbi-$k.csv" --work "experiments/results/reps/mbi-$k" || return 1
+    done
 }
 step_stress() {
     # the baseline: up to 30 runs per program with random delays, until one does not finish

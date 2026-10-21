@@ -12,7 +12,9 @@ same timeout as the traced run, and its verdict is recorded. Output: one CSV row
 program plus per-program logs under results/<corpus>/<name>/. With --replay-only the
 selected programs are neither rebuilt nor rerun: their kept trace is analysed again and only
 the replays are redone, so a replay fix does not cost a new corpus run; the other rows of the
-table and of replays.csv are kept. With --guard the traced run has the tracer's buffer guard on
+table and of replays.csv are kept. --out and --work put a run's table and its programs'
+directories elsewhere, so that repeated runs keep apart (without --confirm: replays.csv is
+next to the table). With --guard the traced run has the tracer's buffer guard on
 (STRETTO_GUARD=1), which adds the local-concurrency findings (class 3-local); its table goes to
 results/guard/<corpus>.csv and its programs' directories under results/guard/<corpus>/.
 
@@ -214,13 +216,14 @@ def main() -> int:
     ap.add_argument("--max-states", type=int, default=30000, help="explorer state cap per forced alternative")
     ap.add_argument("--corpus", default="mbi", choices=sorted(CORPORA))
     ap.add_argument("--out", default=None)
+    ap.add_argument("--work", default=None, help="directory for the programs' builds, traces and logs (default: next to the table)")
     ap.add_argument("--replay-only", action="store_true", help="redo the replays of the selected programs from their kept traces")
     args = ap.parse_args()
     args.gencodes = CORPORA[args.corpus]
     # a run with the guard keeps its programs' directories apart, so it never replaces the traces
     # of the plain run that E3 and the replays read
     base = os.path.join(ROOT, "experiments", "results", *(["guard"] if args.guard else []))
-    args.results = os.path.join(base, args.corpus)
+    args.results = args.work or os.path.join(base, args.corpus)
     args.out = args.out or (os.path.join(base, f"{args.corpus}.csv") if args.guard else os.path.join(args.results, f"{args.corpus}.csv"))
     if args.replay_only:
         args.confirm = True
