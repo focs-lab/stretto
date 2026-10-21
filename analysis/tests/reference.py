@@ -1,16 +1,32 @@
 """Reference implementations kept for differential tests: the straightforward versions the
 fast ones in stretto replaced. They are correct by construction and slow."""
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
-from stretto.matching import Alternative, observed_hb
+from stretto.matching import Alternative, Graph, Node, build_graph
 from stretto.trace import Key, Trace
 
 
-def candidates_full_slow(t, hb=None) -> Tuple[List[Alternative], List[Tuple[str, str]]]:
+def reaches_without(g: Graph, a: Node, b: Node, skip: Optional[Tuple[Node, Node]]) -> bool:
+    """Is there a path from a to b in g that does not use the edge skip?"""
+    seen, stack = {a}, [a]
+    while stack:
+        x = stack.pop()
+        for y in g.succ.get(x, ()):
+            if (x, y) == skip or y in seen:
+                continue
+            if y == b:
+                return True
+            seen.add(y)
+            stack.append(y)
+    return False
+
+
+def candidates_full_slow(t) -> Tuple[List[Alternative], List[Tuple[str, str]]]:
     """All single-change alternatives at wildcard receives (completed or not). Sends that
-    causally follow the receive's completion in the observed run are pruned and listed.
-    hb is observed_hb(t), passed in when the caller already has it."""
-    hb = hb or observed_hb(t)
+    causally follow the receive's completion in the observed graph at B = inf are pruned and
+    listed; the path may not use the edge the alternative replaces, the ready-send edge from
+    the receive that took the send in the run (matching._follows)."""
+    g = build_graph(t, t.observed, None, None)
     sender_of: Dict[Key, Key] = {sk: rk for rk, sk in t.observed.items()}
     out: List[Alternative] = []
     pruned: List[Tuple[str, str]] = []
@@ -24,10 +40,11 @@ def candidates_full_slow(t, hb=None) -> Tuple[List[Alternative], List[Tuple[str,
                 continue
             if not s.available_to(r):
                 continue
-            if rc is not None and hb(rc, s.issue_node()):
+            r2k = sender_of.get(s.key)
+            skip = (t.recvs[r2k].issue_node(), s.issue_node()) if s.ready_mode and r2k is not None else None
+            if rc is not None and reaches_without(g, rc, s.issue_node(), skip):
                 pruned.append((f"{r} <- {s}", "send causally follows the receive's completion"))
                 continue
-            r2k = sender_of.get(s.key)
             M = dict(t.observed)
             M[r.key] = s.key
             if r2k is not None:
@@ -41,5 +58,3 @@ def candidates_full_slow(t, hb=None) -> Tuple[List[Alternative], List[Tuple[str,
             else:
                 out.append(Alternative(r.key, s.key, M, "steal", {r.key}, None))
     return out, pruned
-
-

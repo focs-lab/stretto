@@ -100,6 +100,27 @@ traced idiom. (Relation to POPL'26 Thm 1.9: with rf fixed and every channel sync
 consistency is acyclicity of the send-receive graph; MPI's per-pair single-producer queues
 keep it linear for mixed regimes.)
 
+Pruning. `matching.candidates_full` drops a kernel head s of a wildcard receive r when the
+completion c(r) reaches issue(s) in the observed graph at B = ∞ (`observed_hb`, or the vector
+clocks of `fast.Observed`): an execution with r ← s has issue(s) → m(r, s) → c(r). The observed
+graph stands in for the alternative's, so the path may not use an edge the alternative drops,
+those of the pairs (r, M₀(r)) and (r₂, s), r₂ the receive that took s in σ. As the observed
+graph is acyclic, an edge into or out of m(r₂, s) follows issue(s) and lies on no path into
+it, and one at m(r, M₀(r)) precedes c(r), except at a blocking r, where m(r, M₀(r)) is c(r)
+itself and the path's first edge may be dropped. That leaves the ready-mode edge
+issue(r₂) → issue(s), which the alternative replaces by issue(r) → issue(s): for a ready send
+matched in σ the query asks whether c(r) reaches the program-order predecessor of issue(s)
+(`matching._follows`). A pair pruned so is one the check rejects at every threshold. Every
+later edge of the path is an edge of the alternative's graph whose source the horizon keeps
+whenever it keeps the target (rules 2–7 are written so), and the first leaves c(r) for a node
+the horizon removes: the next record of r's rank, a later receive or probe there (rule 1), or
+the completion of M₀(r) as a synchronous send that now has no receive (rule 3). So the horizon
+removes issue(s) and the witness is cut; with read bounds (rule H1') the path can lie inside the
+horizon, and then it closes a cycle with issue(s) → m(r, s) → c(r). Before 22 Oct 2026 the
+query did not set the ready edge aside: E8b found a steal of a ready send that the check
+accepts and the explorer realises pruned (synthetic program 037; `C_PruneOnKeptEdges`, and
+`C_EnumerationComplete` over E6's programs).
+
 ## 2b. Theorems
 
 Statements in the form of *Soundness of Predictive Concurrency Analyses* (OOPSLA'25): a trace,
