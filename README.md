@@ -134,6 +134,13 @@ PYTHONPATH=analysis python3 -m stretto sites traces/mine          # findings gro
 Fortran codes are traced through the MPICH wrappers (`MPI=mpich`): Open MPI's Fortran bindings
 call `PMPI_*` directly and bypass the tracer.
 
+`-x STRETTO_GUARD=1` adds the buffer guard (class 3-local): between MPI calls the tracer
+write-protects the pages of buffers that pending nonblocking operations own and records the
+first access the program makes to them, checks each send buffer's checksum at its completion,
+and checks every call's buffers against the pending ones. Stack buffers are checked by the
+checksum only, and reads only on pages that lie wholly inside a point-to-point receive buffer
+(`tracer/mpitrace.c`, "buffer guard", has the rules).
+
 ### Replay and pins
 
 `STRETTO_PIN="rank:idx:src[:tag],..."` pins the idx-th wildcard receive of a rank to a source;
@@ -177,6 +184,7 @@ describes how the runs were made.
 | probe-alt | a wildcard probe could have observed another message | L1 |
 | 2-collective | ranks disagree on a collective (name or participation) | observed |
 | 2-blocked | the run ended with a rank blocked in a call or spinning in a polling loop | observed |
+| 3-local | the program touched a buffer that a pending nonblocking operation owns, or two pending operations own overlapping bytes (buffer guard, `STRETTO_GUARD=1`) | observed |
 
 L1 findings hold for every program consistent with the trace. "L1+SP" findings also assume the
 recorded call sequence does not change after the alternative, which fails on code whose control

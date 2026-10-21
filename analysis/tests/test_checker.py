@@ -1153,5 +1153,82 @@ class C_TwoChanges(unittest.TestCase):
         self.assertTrue([f for f in rep.findings if f.title.startswith("two changes")])
 
 
+class C_BufferGuard(unittest.TestCase):
+    """Family 3: the tracer's buffer guard (STRETTO_GUARD=1) writes a guard record when the
+    program misuses a buffer that a pending operation owns; the report makes it an observed
+    3-local finding, an error class, and the records are side records, not events."""
+
+    def guard(self, what, req, **kw):
+        return {"op": "guard", "what": what, "req": req, **kw}
+
+    def test_write_to_a_pending_send_buffer(self):
+        # MPI-BugBench LocalConcurrency-send-mpi_isend: rank 0 writes buf[2] between Isend and Wait
+        t = mk({0: [send(1, 1, count=10, mode="isend", req=0), self.guard("access", 0, kind="write", off=8),
+                    wait((0, None, None))],
+                1: [recv(0, 1, 0, 1, count=10)]})
+        self.assertEqual(len(t.guards), 1)
+        self.assertEqual(t.observed, {(1, 0): (0, 0)})
+        rep = analyze(t, with_sp=False)
+        local = rep.by_class("3-local")
+        self.assertEqual(len(local), 1)
+        self.assertEqual(local[0].level, "observed")
+        self.assertIn("rank 0 wrote to the send buffer of its pending isend to 1 tag 1", local[0].title)
+        self.assertIn("byte 8", local[0].detail[0])
+        self.assertTrue(rep.has_error())
+        self.assertEqual(rep.levels(), ["observed:3-local"])
+
+    def test_overlapping_receive_buffers(self):
+        # LocalConcurrency-mpi_irecv-001: two Irecvs into one buffer, both pending
+        t = mk({0: [irecv(1, 1, 0), irecv(1, 1, 1), self.guard("overlap", 0, call="MPI_Irecv", **{"with": 1}),
+                    wait((0, 1, 1), (1, 1, 1), kind="waitall")],
+                1: [send(0, 1), send(0, 1)]})
+        local = analyze(t, with_sp=False).by_class("3-local")
+        self.assertEqual(len(local), 1)
+        self.assertIn("the buffer of MPI_Irecv (request 1) overlaps the receive buffer of its pending irecv from 1", local[0].title)
+
+    def test_one_finding_per_operation_and_misuse(self):
+        t = mk({0: [send(1, 1, mode="isend", req=0), self.guard("access", 0, kind="write", off=0),
+                    self.guard("access", 0, kind="write", off=0), self.guard("modified", 0), wait((0, None, None))],
+                1: [recv(0, 1, 0, 1)]})
+        local = analyze(t, with_sp=False).by_class("3-local")
+        self.assertEqual(len(local), 2)
+        self.assertIn("changed the send buffer", local[1].title)
+
+    def test_guard_record_inside_a_call_is_not_a_blocked_call(self):
+        t = mk({0: [irecv(1, 1, 0), {"op": "begin", "call": "wait", "kind": "wait", "reqs": [0]},
+                    self.guard("access", 0, kind="read", off=0), wait((0, 1, 1))],
+                1: [send(0, 1)]})
+        self.assertEqual(t.blocked_calls(), [])
+        rep = analyze(t, with_sp=False)
+        self.assertEqual(rep.classes(), ["3-local"])
+        self.assertIn("rank 0 read the receive buffer of its pending irecv from 1", rep.findings[0].title)
+
+    def test_partitioned_request_is_named_by_its_start(self):
+        # partitioned calls are unmodelled; with the guard on, their Start names the request
+        t = mk({0: [{"op": "unmodelled", "call": "Psend_init"}, {"op": "unmodelled", "call": "Start of a partitioned send", "req": 3},
+                    self.guard("access", 3, kind="write", off=8), {"op": "wait", "kind": "wait", "reqs": [3], "done": [{"req": 3}]}],
+                1: []})
+        rep = analyze(t, with_sp=False)
+        self.assertIn("rank 0 wrote to the buffer of its pending partitioned send", rep.by_class("3-local")[0].title)
+        self.assertTrue(any("outside the modelled fragment" in n for n in rep.notes))
+
+    def test_guard_off_under_thread_multiple(self):
+        t = T.Trace()
+        T._build(t, {0: [{"op": "init", "np": 1, "thread": 3, "guard": 0}, {"op": "finalize"}]})
+        self.assertEqual(t.guard, {0: 0})
+        self.assertTrue(any("buffer guard was asked for but off" in n for n in analyze(t, with_sp=False).notes))
+
+    def test_the_scorer_counts_it_as_an_error(self):
+        import importlib.util
+        from stretto.report import ERROR_CLASSES
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "experiments", "mbi", "score.py")
+        spec = importlib.util.spec_from_file_location("score", path)
+        score = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(score)
+        self.assertEqual(score.ERROR, set(ERROR_CLASSES))
+        row = {"classes": "3-local", "levels": "observed:3-local", "run": "FINISHED"}
+        self.assertEqual((score.verdict(row), score.observed_verdict(row), score.predicted_verdict(row)), ("ERROR", "ERROR", "OK"))
+
+
 if __name__ == "__main__":
     unittest.main()

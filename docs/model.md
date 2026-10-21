@@ -411,6 +411,11 @@ shaped collectives and metadata branches.
   skeleton (`payload == sender rank`) for the benchmark-shaped races. Re-execution
   (`docs/l2-auto.md`) needs none of it written down; what it lacks is probes, tests and
   communicator creation in the shim, and a proof in the paper.
-- Buffer races (family ③): request spans are in the trace; accesses are not.
+- Buffer races (family ③): request spans are in the trace; accesses are not, except the ones
+  the tracer's buffer guard (`STRETTO_GUARD=1`) catches in the run itself: the first access
+  between MPI calls to a pending operation's buffer, a send buffer changed before its
+  completion, two pending operations owning the same bytes. These are observed findings
+  (class 3-local) and outside the model: no matching changes them, and predicting one for
+  another run would need the program's accesses, not its calls.
 - MPI_THREAD_MULTIPLE: per-rank program order is not total; the trace records thread ids and
   the analysis stops at observed findings.

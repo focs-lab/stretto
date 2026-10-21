@@ -14,13 +14,13 @@ from .deadlock import contained_deadlock
 
 # classes that make a program's verdict ERROR (the warnings 1b, 1f, probe-alt and
 # waitany-order do not); experiments/mbi/score.py uses the same set
-ERROR_CLASSES = frozenset({"1a", "1c", "1d", "2-buffering", "2-collective", "2-blocked"})
+ERROR_CLASSES = frozenset({"1a", "1c", "1d", "2-buffering", "2-collective", "2-blocked", "3-local"})
 
 
 @dataclass
 class Finding:
-    family: str                 # '1' message race, '2' deadlock/ordering, 'waitany', 'probe'
-    cls: str                    # '1a'..'1f', '2-buffering', '2-collective', 'waitany-order', 'probe-alt'
+    family: str                 # '1' message race, '2' deadlock/ordering, '3' local concurrency, 'waitany', 'probe'
+    cls: str                    # '1a'..'1f', '2-buffering', '2-collective', '3-local', 'waitany-order', 'probe-alt'
     level: str                  # 'L1', 'L1+SP', 'observed'
     title: str
     detail: List[str] = field(default_factory=list)
@@ -155,7 +155,7 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
 
     # ---- observed: ranks killed while spinning in a polling loop (a livelock, not a blocked call)
     for rank in t.truncated:
-        recs = t.ranks.get(rank, [])
+        recs = [r for r in t.ranks.get(rank, []) if r.op != "guard"]
         if not recs:
             continue
         last = recs[-1].raw or {}            # point-to-point records drop their dictionary after loading
@@ -177,6 +177,13 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
             continue
         rep.findings.append(Finding("1", "1c", "observed", f"{s} was never received in the observed run",
                                     ["a message left unmatched: pending communication at MPI_Finalize, or a receive that never came"]))
+
+    # ---- observed: buffers of pending operations misused (family 3, the tracer's buffer guard)
+    rep.findings.extend(local_findings(t))
+    off = sorted(r for r, on in t.guard.items() if not on)
+    if off:
+        rep.notes.append(f"the buffer guard was asked for but off on ranks {off} (MPI_THREAD_MULTIPLE): "
+                         "no local-concurrency findings from them")
 
     # ---- family 2: observed collective ordering
     for cs in t.coll_sets():
@@ -502,6 +509,66 @@ def _completion_alternatives(t: Trace, hb) -> List[Tuple]:
             if s_j is None or hb(rec.complete, s_j.issue_node()):
                 continue
             out.append((rec, j, r_j, s_j))
+    return out
+
+
+def _operation(x) -> str:
+    if isinstance(x, Send):
+        return f"{x.mode} to {x.dst} tag {x.tag} ({x.bytes} B)"
+    if isinstance(x, Recv):
+        src = "ANY" if x.src == ANY else x.src
+        tag = "ANY" if x.tag == ANY else x.tag
+        return f"{'imrecv' if x.mrecv else 'irecv'} from {src} tag {tag} ({x.capacity} B)"
+    return f"{x.name} on comm {x.comm}"
+
+
+def local_findings(t: Trace) -> List[Finding]:
+    """Family 3 (local concurrency), from the tracer's guard records: the program touched a
+    buffer that a pending nonblocking operation owns (between the call, or a persistent
+    request's Start, and the completion), or two pending operations own overlapping bytes and
+    one writes them. Observed: the run did it; nothing is predicted about other runs. One
+    finding per operation and kind of misuse."""
+    ops, starts = {}, {}
+    for x in list(t.sends.values()) + list(t.recvs.values()) + t.colls:
+        if x.req is not None:
+            ops[(x.rank, x.req)] = x
+    for rank in {g.rank for g in t.guards}:   # an unmodelled operation the guard follows (a partitioned Start) names its request
+        for rec in t.ranks[rank]:
+            if rec.op == "unmodelled" and rec.raw.get("req") is not None:
+                starts[(rank, rec.raw["req"])] = rec.raw.get("call", "?").replace("Start of a ", "")
+    out, seen = [], set()
+    for rec in t.guards:
+        g = rec.raw
+        what, req = g.get("what"), g.get("req")
+        key = (rec.rank, req, what, g.get("kind"), g.get("with"), g.get("call"))
+        if key in seen:
+            continue
+        seen.add(key)
+        x = ops.get((rec.rank, req))
+        op = _operation(x) if x is not None else starts.get((rec.rank, req), f"operation (request {req})")
+        role = "send " if isinstance(x, Send) else "receive " if isinstance(x, Recv) else ""
+        where = t.site_label(rec.rank, rec.idx)
+        if what == "access":
+            verb = "wrote to" if g.get("kind") == "write" else "read"
+            title = f"rank {rec.rank} {verb} the {role}buffer of its pending {op} before the operation completed"
+            detail = [f"{g.get('kind', 'access')} at byte {g.get('off')} of the buffer" + (f", by the instruction at {where}" if where else ""),
+                      "MPI owns the buffer from the call to the completion: a send may carry either value; "
+                      "a receive may overwrite the write, or the program reads data still arriving"]
+        elif what == "modified":
+            title = f"rank {rec.rank} changed the send buffer of its pending {op} before the operation completed"
+            detail = ["the buffer's checksum at the completion differs from the one at the call; the write itself was "
+                      "not caught (its page was not protected, as on the stack, or another access had opened it)"]
+        elif what == "overlap":
+            other = g.get("call", "a call") + (f" (request {g['with']})" if g.get("with") is not None else "")
+            title = f"rank {rec.rank}: the buffer of {other} overlaps the {role}buffer of its pending {op}"
+            detail = ["two operations own the same bytes and at least one of them writes them: the result depends "
+                      "on the order in which MPI moves the data" + (f"; the call is at {where}" if where else "")]
+        else:
+            continue
+        if x is not None:
+            at = t.site_label(x.rank, x.idx)
+            detail.append(f"the operation was issued at record #{x.idx}" + (f" ({at})" if at else ""))
+        out.append(Finding("3", "3-local", "observed", title, detail, site=where))
     return out
 
 

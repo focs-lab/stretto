@@ -24,6 +24,10 @@ encode ANY as -1.
 Payloads: a trace made with STRETTO_PAYLOAD carries the packed contents of every send
 (`Send.data`) and of what each rank gives to and gets from a collective (`Coll.din`,
 `Coll.dout`), in hexadecimal, so that a rank can be rerun alone on the recorded messages.
+
+Guard records (the tracer's STRETTO_GUARD=1) are kept as they are in `Trace.guards`: each
+names the request of a pending operation whose buffer was misused, and the report turns them
+into observed findings of family 3. They are side records, not events.
 """
 from __future__ import annotations
 import json
@@ -240,6 +244,8 @@ class Trace:
     bad_lines: int = 0
     warnings: List[str] = field(default_factory=list)
     unmodelled: List[Tuple[int, str]] = field(default_factory=list)   # (rank, call) outside the modelled fragment
+    guards: List[Rec] = field(default_factory=list)      # the buffer guard's records (misused buffers of pending operations)
+    guard: Dict[int, int] = field(default_factory=dict)  # rank -> 1 guard on, 0 asked for but off (absent: not asked for)
     sites: Dict[Tuple[int, int], dict] = field(default_factory=dict)    # (rank, site id) -> the tracer's site record
     _site_ids: Dict[int, "array"] = field(default_factory=dict, repr=False)   # rank -> site id per record, -1 if none
 
@@ -430,7 +436,7 @@ def check_records(fname: str, rank: int, recs: List[dict]) -> None:
         prev = q
 
 
-SIDE_RECORDS = ("comm", "overflow")
+SIDE_RECORDS = ("comm", "overflow", "guard")
 
 
 def _fold_begins(raw: List[dict]) -> List[dict]:
@@ -477,10 +483,13 @@ def _build(t: Trace, raw_ranks: Dict[int, List[dict]]) -> None:
             if r["op"] == "init":
                 t.np = max(t.np, r.get("np", 0))
                 t.thread_level = max(t.thread_level, r.get("thread", 0))
+                if "guard" in r:
+                    t.guard[rank] = r["guard"]
             elif r["op"] == "overflow":
                 t.warnings.append(f"rank {rank}: the tracer's {r.get('what')} overflowed; later records of that kind may be incomplete")
             elif r["op"] == "unmodelled":
                 t.unmodelled.append((rank, r.get("call", "?")))
+        t.guards.extend(rec for rec in t.ranks[rank] if rec.op == "guard")
         if not any(r["op"] == "finalize" for r in recs):
             t.truncated.append(rank)
     if t.np:
