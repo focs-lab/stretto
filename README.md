@@ -169,7 +169,7 @@ describes how the runs were made.
 | 1c | a send is left unmatched | L1+SP (single-path assumption) |
 | 1c | a send was never received in the observed run | observed |
 | 1d | deadlock under the alternative | L1+SP, or L1 when contained in the horizon |
-| 1e | the twin's continuation diverges from the trace, or the twin aborts on the program's own check | L2 (hand-written twin) |
+| 1e | the twin's continuation diverges from the trace, or the twin aborts on the program's own check | L2 (twin: hand-written, or the program re-executed) |
 | 1f | same shape as observed; benign unless the continuation depends on it | L1 |
 | 2-buffering | the observed run itself deadlocks below an eager threshold | observed |
 | waitany-order | another request could have completed first | L1 |
@@ -180,7 +180,10 @@ describes how the runs were made.
 L1 findings hold for every program consistent with the trace. "L1+SP" findings also assume the
 recorded call sequence does not change after the alternative, which fails on code whose control
 flow depends on received data (idioms 01 and 06 show it); level L2 checks such code against a
-skeleton of its data dependence.
+skeleton of its data dependence. The skeleton is written by hand, or it is the program itself: a
+trace made with `STRETTO_PAYLOAD=<bytes>` and `stretto analyze --rerun ./a.out` rerun each rank
+whose results change alone under a shim that serves it the recorded messages
+([`docs/l2-auto.md`](docs/l2-auto.md)).
 
 ## Repository
 
@@ -189,6 +192,7 @@ skeleton of its data dependence.
 | [`tracer/`](tracer/) | the PMPI tracer, `libstretto-trace.so` |
 | [`analysis/`](analysis/) | the Python package `stretto` (standard library only) and its tests |
 | [`replay/`](replay/) | the pin library, `libstretto-pin.so`: forced sources, delays |
+| [`rerun/`](rerun/) | the re-execution shim, `libstretto-rerun.so`: one rank runs alone on given results (level L2) |
 | [`idioms/`](idioms/) | thirteen small MPI programs, each with the prediction it should give |
 | [`experiments/`](experiments/) | the corpus harness (MBI, MPI-BugBench), the applications, the image, the results |
 | [`artifact/`](artifact/) | one reproduction target per research question, and the claims check |

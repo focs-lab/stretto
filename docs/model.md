@@ -361,7 +361,12 @@ deadlock that the real program cannot reach (01) or reaches for a different reas
 Level **L2** is represented by the DSL twins in `analysis/tests/idioms_dsl.py`: the same
 programs with their metadata dependencies (`Send(dst=lambda env: env["st"].src)`,
 `If(lambda env: env["st"].src == 1, ...)`). The explorer over a twin is the ground truth for
-what a skeleton-aware analysis should predict.
+what a skeleton-aware analysis should predict. The twin can also be the program itself
+(`stretto.rerun`, `docs/l2-auto.md`): each rank follows its trace while its results are the
+recorded ones and is re-executed alone under a shim (`rerun/`) from the first result that
+differs. Its claims are about the traced program under premises R1-R4 there (a rank's calls are
+a function of its results; the shim serves what MPI would; recorded payloads; P1), with no
+horizon: an execution that reaches a continuation the shim cannot determine is `unknown`.
 
 ## 4. Observed run and family ②
 
@@ -403,7 +408,9 @@ shaped collectives and metadata branches.
   question.
 - L2: the minimal skeleton. The twins show what is needed: destination-of-send and
   branch-guarding-a-collective as functions of `MPI_SOURCE` / `Waitany` index; a value
-  skeleton (`payload == sender rank`) for the benchmark-shaped races.
+  skeleton (`payload == sender rank`) for the benchmark-shaped races. Re-execution
+  (`docs/l2-auto.md`) needs none of it written down; what it lacks is probes, tests and
+  communicator creation in the shim, and a proof in the paper.
 - Buffer races (family ③): request spans are in the trace; accesses are not.
 - MPI_THREAD_MULTIPLE: per-rank program order is not total; the trace records thread ids and
   the analysis stops at observed findings.
