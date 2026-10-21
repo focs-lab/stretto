@@ -66,7 +66,7 @@ from typing import Dict, List, Optional, Tuple
 
 from . import fast
 from .feasible import profile_summary
-from .matching import candidates_full, coll_shape, observed_hb, probe_candidates
+from .matching import candidates_full, coll_shape, observed_hb, observed_ready_errors, probe_candidates
 from .report import _profiles_fast, _profiles_generic
 from .trace import Key, Probe, Recv, Send, Trace
 
@@ -275,6 +275,8 @@ def declines(t: Trace) -> Optional[str]:
         return "MPI_THREAD_MULTIPLE with several calling threads"
     if t.unmodelled:
         return "calls outside the modelled fragment"
+    if any(observed_ready_errors(t)):
+        return "a ready send issued before its receive was posted"
     return None
 
 

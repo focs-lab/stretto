@@ -218,6 +218,7 @@ describes how the runs were made.
 | probe-alt | a wildcard probe could have observed another message | L1 |
 | 2-collective | ranks disagree on a collective (name or participation) | observed |
 | 2-blocked | the run ended with a rank blocked in a call or spinning in a polling loop | observed |
+| 2-ready | the run issued a ready-mode send before the receive that takes it was posted (alternatives are then not predicted) | observed |
 | abort | a rank stopped before MPI_Finalize outside any MPI call, or called MPI_Abort | observed |
 | 3-local | the program touched a buffer that a pending nonblocking operation owns, or two pending operations own overlapping bytes (buffer guard, `STRETTO_GUARD=1`) | observed |
 

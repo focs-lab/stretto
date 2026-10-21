@@ -6,7 +6,7 @@ from typing import Dict, List, Optional, Set, Tuple
 from . import dsl, explore
 from . import fast
 from .feasible import Verdict, breakpoints, check, feasible_profile, observed_feasible_at, profile_summary
-from .matching import candidates_full, observed_hb, probe_candidates
+from .matching import candidates_full, observed_hb, observed_ready_errors, probe_candidates
 from .trace import ANY, Key, Probe, Recv, Send, Trace
 from . import types
 from .deadlock import contained_deadlock
@@ -15,13 +15,13 @@ from .reads import witness_respects
 
 # classes that make a program's verdict ERROR (the warnings 1b, 1f, probe-alt and
 # waitany-order do not); experiments/mbi/score.py uses the same set
-ERROR_CLASSES = frozenset({"1a", "1c", "1d", "2-buffering", "2-collective", "2-blocked", "3-local", "abort"})
+ERROR_CLASSES = frozenset({"1a", "1c", "1d", "2-buffering", "2-collective", "2-blocked", "2-ready", "3-local", "abort"})
 
 
 @dataclass
 class Finding:
     family: str                 # '1' message race, '2' deadlock/ordering, '3' local concurrency, 'run', 'waitany', 'probe'
-    cls: str                    # '1a'..'1f', '2-buffering', '2-collective', '3-local', 'abort', 'waitany-order', 'probe-alt'
+    cls: str                    # '1a'..'1f', '2-buffering', '2-collective', '2-blocked', '2-ready', '3-local', 'abort', 'waitany-order', 'probe-alt'
     level: str                  # 'L1', 'L1+SP', 'observed'
     title: str
     detail: List[str] = field(default_factory=list)
@@ -225,6 +225,17 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
         ranks = sorted({r for r, _ in t.unmodelled})
         rep.notes.append(f"calls outside the modelled fragment on ranks {ranks}: {', '.join(calls)}; "
                          "alternatives are not predicted (observed findings only)")
+        return rep
+    # ---- family 2: ready sends the run issued before their receive was posted (erroneous). The
+    # observed graph is then cyclic at every threshold: no B0 for theorem T2, no vector clocks,
+    # and the pruning's argument needs the graph acyclic, so the report stops at the observed
+    # findings
+    certain, others = observed_ready_errors(t)
+    if certain or others:
+        rep.findings.extend(ready_findings(certain, others))
+        rep.notes.append("a ready send of the run was issued before the receive it is matched to was posted (2-ready): "
+                         "every execution with the recorded matching is erroneous and the model realises the run at no "
+                         "threshold; alternatives are not predicted (observed findings only)")
         return rep
 
     # ---- profiles over the breakpoints: the observed run and every alternative (receive,
@@ -551,6 +562,25 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
         if x is not None:
             f.site = t.site_label(x.rank, x.idx)
     return rep
+
+
+def ready_findings(certain: List[Tuple[Recv, Send]], others: List[Send]) -> List[Finding]:
+    """Observed 2-ready findings from matching.observed_ready_errors: one per ready send whose
+    receive every execution with the recorded matching posts after the send's issue, and one for
+    a set of ready sends of which at least one is issued before its receive."""
+    why = ("MPI 4.1 §3.4: a ready-mode send may start only once its matching receive is posted; otherwise the "
+           "program is erroneous (Open MPI and MPICH usually deliver it as a standard send, so the run may finish)")
+    out = []
+    for r, s in certain:
+        out.append(Finding("2", "2-ready", "observed", f"ready send {s} was issued before {r}, the receive that takes it, was posted",
+                           [why, "every execution with the recorded matching posts the receive after it issues the send "
+                            "(program order, delivery, matching order, collectives)"], recv=r.key, send=s.key))
+    if others:
+        out.append(Finding("2", "2-ready", "observed", "of the ready sends " + ", ".join(str(s) for s in others)
+                           + ", at least one was issued before the receive that takes it was posted",
+                           [why, "in every execution with the recorded matching one of these receives is posted after the "
+                            "issue of its ready send: their ready-mode orders close a cycle"]))
+    return out
 
 
 def _completion_alternatives(t: Trace, hb) -> List[Tuple]:

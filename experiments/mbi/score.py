@@ -3,13 +3,14 @@
 what a verdict is. experiments/tables.py imports it; on its own it prints the summary.
 
 A program's Stretto verdict is ERROR iff a finding of an error class is present:
-  error classes   : 1a 1c 1d 2-buffering 2-collective 2-blocked 3-local abort
+  error classes   : 1a 1c 1d 2-buffering 2-collective 2-blocked 2-ready 3-local abort
   warning classes : 1b 1f probe-alt waitany-order   (reported, never counted as errors)
 Findings are qualified by the level that established them ("levels" column: observed:2-blocked,
 L1:1f, L1+SP:1d, ...), which separates what any observational tool sees in the run from
 what Stretto predicts about other runs:
-  observed  : observed:1c, observed:2-blocked, observed:2-collective, observed:3-local,
-              observed:abort (the run itself; 3-local only from runs traced with the buffer
+  observed  : observed:1c, observed:2-blocked, observed:2-collective, observed:2-ready,
+              observed:3-local, observed:abort (the run itself; 2-ready when it issued a ready
+              send before its receive was posted; 3-local only from runs traced with the buffer
               guard, STRETTO_GUARD=1; abort when a rank stopped outside MPI before MPI_Finalize)
   predicted : L1:1a (a mismatch certain from the trace), L1+SP:1a/1c/1d (consequences
               under the single-path assumption), L1:1c/1d (a deadlock contained in the horizon,
@@ -26,9 +27,10 @@ import os
 import sys
 from typing import Dict, Iterable, List
 
-ERROR = {"1a", "1c", "1d", "2-buffering", "2-collective", "2-blocked", "3-local", "abort"}
+ERROR = {"1a", "1c", "1d", "2-buffering", "2-collective", "2-blocked", "2-ready", "3-local", "abort"}
 WARN = {"1b", "1f", "probe-alt", "waitany-order"}
-OBSERVED = {"observed:1c", "observed:2-blocked", "observed:2-collective", "observed:3-local", "observed:abort"}
+OBSERVED = {"observed:1c", "observed:2-blocked", "observed:2-collective", "observed:2-ready", "observed:3-local",
+            "observed:abort"}
 PREDICTED = {"L1:1a", "L1:1c", "L1:1d", "L1+SP:1a", "L1+SP:1c", "L1+SP:1d", "observed:2-buffering"}   # 2-buffering on finished runs only
 FLAGGED = {"L1:1a", "L1:1b", "L1:1f"}            # a wildcard alternative found from the trace alone
 CERTIFIED = {"L1:1a", "L1:1c", "L1:1d", "L1+SP:1a", "L1+SP:1c", "L1+SP:1d"}   # an error consequence of a predicted alternative

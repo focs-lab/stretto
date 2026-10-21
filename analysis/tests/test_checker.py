@@ -1309,7 +1309,9 @@ def ready_before_receive_trace():
 class C_ReadySendBeforeItsReceive(unittest.TestCase):
     """A ready send needs the receive it is matched to posted before its issue (MPI 4.1 §3.4,
     the edge issue(r) -> issue(s) and horizon rule 7). Before 22 Oct 2026 the explorer accepted
-    one whenever some receive that accepts it was posted."""
+    one whenever some receive that accepts it was posted, and the report failed with a
+    ValueError on a run that issued one before its receive (its observed graph is cyclic: no
+    vector clocks)."""
 
     def test_explorer_needs_the_matched_receive_posted(self):
         t = ready_before_receive_trace()
@@ -1328,6 +1330,56 @@ class C_ReadySendBeforeItsReceive(unittest.TestCase):
                 1: [send(0, 1, mode="rsend"), send(0, 1), send(0, 9)]})
         res = explore.explore(dsl.program_from_trace(t), None, comms=t.comm_members)
         self.assertTrue(any(not explore.ready_errors(o) for o in res.outcomes))
+        self.assertEqual(analyze(t, with_sp=False).by_class("2-ready"), [])
+
+    def test_report_states_the_observed_error(self):
+        t = ready_before_receive_trace()
+        self.assertIsNotNone(build_graph(t, t.observed, None, None).find_cycle())
+        for generic in (False, True):
+            rep = analyze(t, generic=generic)
+            f = rep.by_class("2-ready")
+            self.assertEqual([(x.level, x.recv, x.send) for x in f], [("observed", (0, 2), (1, 1))], generic)
+            self.assertTrue(rep.has_error())
+            self.assertEqual({x.level for x in rep.findings}, {"observed"})
+            self.assertTrue(any("not predicted" in n for n in rep.notes), rep.notes)
+
+    def test_wildcard_trace_does_not_fail(self):
+        """With a wildcard receive the enumeration asks the observed graph for reachability: the
+        fast checks used to raise ValueError there. Rank 0 issues its ready send, then y, which
+        rank 1's wildcard takes before it posts the receive for the ready send."""
+        t = mk({0: [send(1, 1, mode="rsend"), send(1, 2)], 2: [send(1, 2)],
+                1: [recv(T.ANY, 2, 0, 2, widx=0), recv(0, 1, 0, 1), recv(2, 2, 2, 2)]})
+        for generic in (False, True):
+            rep = analyze(t, generic=generic)
+            self.assertEqual([(x.recv, x.send) for x in rep.by_class("2-ready")], [((1, 1), (0, 0))])
+            self.assertEqual({x.level for x in rep.findings}, {"observed"})
+        ob, hb = fast.Observed(t, None), observed_hb(t)
+        rc = t.recvs[(1, 0)].complete_node()
+        for s in t.sends.values():
+            self.assertEqual(ob.reaches(rc, s.issue_node()), hb(rc, s.issue_node()))
+        fast_equals_generic(self, t)
+        closure_equals_fixpoint(self, t)
+
+    def test_head_to_head_ready_sends(self):
+        """Each rank issues a ready send, then posts the receive for the other's: no single
+        send is to blame, but one of the two was issued before its receive."""
+        t = mk({0: [send(1, 1, mode="rsend"), recv(1, 1, 1, 1)], 1: [send(0, 1, mode="rsend"), recv(0, 1, 0, 1)]})
+        from stretto.matching import observed_ready_errors
+        certain, others = observed_ready_errors(t)
+        self.assertEqual((certain, sorted(s.key for s in others)), ([], [(0, 0), (1, 0)]))
+        rep = analyze(t)
+        self.assertEqual(len(rep.by_class("2-ready")), 1)
+        self.assertIn("at least one", rep.by_class("2-ready")[0].title)
+        fast_equals_generic(self, t)
+        # the explorer agrees: no execution has both receives posted before the ready sends
+        res = explore.explore(dsl.program_from_trace(t), None, comms=t.comm_members)
+        self.assertTrue(all(explore.ready_errors(o) for o in res.outcomes))
+
+    def test_ready_send_after_its_receive_is_not_reported(self):
+        from stretto.matching import observed_ready_errors
+        t = ready_steal_trace()
+        self.assertEqual(observed_ready_errors(t), ([], []))
+        self.assertEqual(analyze(t, with_sp=False).by_class("2-ready"), [])
 
 
 class C_BufferGuard(unittest.TestCase):

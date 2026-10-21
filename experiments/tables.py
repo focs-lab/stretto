@@ -49,7 +49,7 @@ def e1(name, path, key=None):
     rs = score.compiled(rs)
     skipped = f" Not compiled with Open MPI 4.1.6 and left out: {len(ce)} ({', '.join(sorted(r['name'] for r in ce))})." if ce else ""
     out = [f"### {name}", "", f"Programs: {len(rs)}.{skipped} {commit_note}", "",
-           "A program's verdict is ERROR iff a finding of class 1a/1c/1d/2-buffering/2-collective/2-blocked/3-local/abort is",
+           "A program's verdict is ERROR iff a finding of class 1a/1c/1d/2-buffering/2-collective/2-blocked/2-ready/3-local/abort is",
            "present; 1b, 1f, probe-alt and waitany-order are warnings and never count. The *observed* row uses",
            "only what the run itself showed (a blocked or spinning rank, a collective mismatch, a message never",
            "received), which any observational tool sees; the *predicted* row only what Stretto says about other",

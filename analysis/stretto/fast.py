@@ -235,6 +235,7 @@ class Observed:
         self._graph = None
         self._cycle: Optional[list] = None
         self._vc = None
+        self._reach: Dict = {}         # reachability by source node, when the graph is cyclic
         self._rank_pos: Dict[int, int] = {}
         self._obs_closure = None
         self._observed: Dict[bool, Verdict] = {}
@@ -479,8 +480,17 @@ class Observed:
 
     def reaches(self, a, b) -> bool:
         """a happens-before b in every execution with the observed matching at this B. a is an
-        issue or completion node; b may also be a match node."""
+        issue or completion node; b may also be a match node. A cyclic graph (a run the model
+        cannot realise at this B: a ready send issued before its receive, a collective of
+        unknown shape that did not synchronise) has no vector clocks; the answer is then the
+        graph's own reachability, as matching.observed_hb gives it."""
         if self._vc is None:
+            self.graph()
+            if self._cycle:
+                reach = self._reach.get(a)
+                if reach is None:
+                    reach = self._reach[a] = self._graph.reach_set(a)
+                return b in reach
             self._build_vc()
         vb = self._vc.get(b)
         if vb is None or a not in self._vc:

@@ -139,6 +139,16 @@ horizon keeps or that must be issued before a pair they compare is matched (such
 beyond the horizon when the check rejects the alternative; `model_executions` in
 `experiments/e6_checker_vs_explorer.py`); any other ready send is not the claim's business.
 Tests `C_ReadySendBeforeItsReceive` and `T14_ReadyMode`.
+A recorded run whose every execution with the observed matching posts r₂ after issuing s (over
+guaranteed edges at B = ∞, the graph without ready edges reaches issue(r₂) from issue(s)) did
+issue the ready send before its receive; Open MPI and MPICH usually deliver such a send, so the
+run may finish. Its observed graph is cyclic at every threshold: theorem T2 has no B0, the
+pruning no acyclic graph to argue on, the fast checks no vector clocks. The report states an
+observed finding of class 2-ready, or one for a set of ready sends whose edges close a cycle
+together and of which at least one is erroneous, and predicts nothing else
+(`matching.observed_ready_errors`). Before 22 Oct 2026 it failed there with a ValueError; on a
+graph cyclic for another reason `fast.Observed.reaches` now answers by search, as `observed_hb`
+does.
 
 ## 2b. Theorems
 

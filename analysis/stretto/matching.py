@@ -271,6 +271,35 @@ def observed_hb(t: Trace, B: Optional[int] = None):
     return build_graph(t, t.observed, cut=None, B=B).reaches
 
 
+def observed_ready_errors(t: Trace) -> Tuple[List[Tuple[Recv, Send]], List[Send]]:
+    """Ready-mode sends that the recorded run issued before the receive it matched them to was
+    posted. Such a run is erroneous (MPI 4.1 §3.4; Open MPI and MPICH usually deliver the send
+    all the same), and the edge issue(r) -> issue(s) closes a cycle in its observed graph at
+    every threshold. Judged over guaranteed edges at B = inf, what every execution with the
+    observed matching has, it returns (certain, others): the pairs (r, s) whose receive every
+    such execution posts after issuing s (the graph without ready edges reaches issue(r) from
+    issue(s)), and the ready sends of a cycle that remains once the ready edges of those pairs
+    are left out, at least one of which is issued before its receive. Both are empty when the
+    graph is acyclic, or cyclic without any ready edge (inconsistent for another reason). A
+    trace whose matched sends include no ready send costs one pass over its matching."""
+    ready = {sk: rk for rk, sk in t.observed.items() if t.sends[sk].ready_mode}
+    if not ready or build_graph(t, t.observed, None, None, strong_only=True).find_cycle() is None:
+        return [], []
+    bare = build_graph(t, t.observed, None, None, strong_only=True, ready=())
+    if bare.find_cycle() is not None:
+        return [], []
+    certain = [(t.recvs[rk], t.sends[sk]) for sk, rk in sorted(ready.items())
+               if bare.reaches(t.sends[sk].issue_node(), t.recvs[rk].issue_node())]
+    rest = set(ready) - {s.key for _, s in certain}
+    cyc = build_graph(t, t.observed, None, None, strong_only=True, ready=rest).find_cycle() if rest else None
+    others: List[Send] = []
+    if cyc:
+        edges = set(zip(cyc, cyc[1:] + cyc[:1]))
+        others = [t.sends[sk] for sk in sorted(rest)
+                  if (t.recvs[ready[sk]].issue_node(), t.sends[sk].issue_node()) in edges]
+    return certain, others
+
+
 # --------------------------------------------------------------- candidates
 
 class Overlay(Mapping):
