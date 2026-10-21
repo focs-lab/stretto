@@ -299,6 +299,21 @@ class Verdicts(unittest.TestCase):
         self.assertEqual(parse_pins(None), ({}, {}))
 
 
+class SampleRows(unittest.TestCase):
+    """experiments/replay_sample.py --from-csv replays the alternatives an earlier sample names."""
+
+    def test_findings_of_sample_rows(self):
+        sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "experiments"))
+        from replay_sample import finding_of
+        f = finding_of("iprobe(5, 501) src=ANY tag=2000 could observe send(6, 580)->5 tag=2000 40B instead of send(1, 573)->5 tag=2000 144B",
+                       "probe-alt", "STRETTO_PIN_PROBE=5:62:6")
+        self.assertEqual((f.probe, f.send, f.recv, f.level, f.pin), ((5, 501), (6, 580), None, "L1", "STRETTO_PIN_PROBE=5:62:6"))
+        f = finding_of("recv(4, 4344) src=ANY tag=9172 cap=28576B <- send(6, 2896)->4 tag=9172 28576B (observed send(5, 1448)->4 "
+                       "tag=9172 28576B); recv(4, 4345) src=ANY tag=9172 cap=28", "1f")
+        self.assertEqual((f.recv, f.send, f.probe, f.cls), ((4, 4344), (6, 2896), None, "1f"))
+        self.assertIsNone(finding_of("deadlock in some executions after recv(0, 0)"))
+
+
 class PinFile(unittest.TestCase):
     """A spec longer than one environment string may be (128 KiB on Linux) reaches the ranks
     as NAME=@file; the replay library reads the file."""

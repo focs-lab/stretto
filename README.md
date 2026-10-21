@@ -48,6 +48,9 @@ says about the runs it did not see.
 5. **Consequence and replay.** Each accepted alternative is classified, and confirmed by a
    rerun that pins every wildcard receive of its horizon (`replay/`), with a control rerun that
    pins the observed matches; a confirmation needs every pin matched and the control to finish.
+   A pin turns a wildcard receive into a receive from one rank, which is another program, so
+   the rerun runs under the tracer, and its own trace must also be a run of the program without
+   the pins, up to where it ended.
 
 The theory (soundness, monotonicity in the buffering limit, completeness relative to the
 horizon, cost) is in [`docs/model.md`](docs/model.md) and in the paper under

@@ -6,13 +6,16 @@ outcome and detail), build it with the system mpicc, run it once under the Stret
 with the header's np, analyse the trace, and record the Stretto classes, qualified by the
 level that established them. With --confirm every error finding is replayed with its pin
 and the outcome of each replay goes to replays.csv next to the table (one row per finding:
-class, level, certainty, pin, result, whether the pin was applied, verdict). With --must,
+class, level, certainty, pin, result, whether the pin was applied, verdict; with the tracer
+built, replays and controls run under it, and the row says whether each is a run of the
+program without its pins and gives the strict verdict, stretto.confirm). With --must,
 MUST runs on the same source (scripts/must_run.sh: its own MPICH build and run) with the
 same timeout as the traced run, and its verdict is recorded. Output: one CSV row per
 program plus per-program logs under results/<corpus>/<name>/. With --replay-only the
 selected programs are neither rebuilt nor rerun: their kept trace is analysed again and only
 the replays are redone, so a replay fix does not cost a new corpus run; the other rows of the
-table and of replays.csv are kept. --out and --work put a run's table and its programs'
+table and of replays.csv are kept (with --replays-out the new replays go to that file and
+neither is rewritten). --out and --work put a run's table and its programs'
 directories elsewhere, so that repeated runs keep apart (without --confirm: replays.csv is
 next to the table). With --guard the traced run has the tracer's buffer guard on
 (STRETTO_GUARD=1), which adds the local-concurrency findings (class 3-local); its table goes to
@@ -21,7 +24,7 @@ results/guard/<corpus>.csv and its programs' directories under results/guard/<co
 docs/firstread.md), if there is one.
 
 usage: run_mbi.py [--corpus mbi|mbb] [--select REGEX] [--limit N] [--confirm] [--must] [--guard] [--timeout S] [--jobs J] [--reads DIR]
-       run_mbi.py --replay-only [--select REGEX] [--timeout S] ...   (implies --confirm)
+       run_mbi.py --replay-only [--select REGEX] [--timeout S] [--replays-out CSV] ...   (implies --confirm)
 """
 from __future__ import annotations
 import argparse
@@ -169,19 +172,23 @@ def analyse(row: dict, out: str, exe: str, tracedir: str, args) -> None:
         if args.confirm:
             res = confirm_mod.confirm(rep, row["np"], exe, timeout=args.timeout, t=t)
             row["confirmed"] = sum(1 for c in res if c.verdict == "confirmed")
+            row["confirmed_strict"] = sum(1 for c in res if c.strict == "confirmed")
             row["not_confirmed"] = sum(1 for c in res if c.verdict in ("not-confirmed", "inconclusive"))
             # pins written with "/" separators: "1d 1/0/0/0 -> TIMEOUT" (colon runs read as IPv6 literals)
             row["replays"] = "; ".join(f"{c.finding.cls} {pin_label(c.pin)} -> {c.result}" for c in res)[:300]
             row["_replays"] = [{"program": row["name"], "cls": c.finding.cls, "level": c.finding.level,
                                 "certainty": c.finding.certainty, "pin": pin_label(c.pin), "result": c.result,
                                 "pin_applied": c.pin_applied, "pin_matched": c.pin_matched, "control": c.control,
-                                "verdict": c.verdict, "commit": code_commit(),
+                                "verdict": c.verdict, "run_valid": c.run_valid, "violation": c.violation[:300],
+                                "control_valid": c.control_valid, "control_violation": c.control_violation[:300],
+                                "strict_verdict": c.strict, "commit": code_commit(),
                                 "stderr_tail": " ".join(c.stderr_tail.split())[-200:]} for c in res]
     except Exception as e:  # noqa: BLE001
         row.update(classes="", findings=0, notes=f"analysis failed: {e}"[:300])
 
 
-REPLAY_KEYS = ["program", "cls", "level", "certainty", "pin", "result", "pin_applied", "pin_matched", "control", "verdict", "stderr_tail", "commit"]
+REPLAY_KEYS = ["program", "cls", "level", "certainty", "pin", "result", "pin_applied", "pin_matched", "control", "verdict",
+               "run_valid", "violation", "control_valid", "control_violation", "strict_verdict", "stderr_tail", "commit"]
 
 
 def replay_only(args) -> int:
@@ -194,6 +201,16 @@ def replay_only(args) -> int:
         for i, f in enumerate(as_completed([ex.submit(replay_one, r, args) for r in todo]), 1):
             row = f.result()
             print(f"[{i}/{len(todo)}] {row['name']:<50} {row.get('replays', '')}", flush=True)
+    if args.replays_out:
+        # the replays alone, of the selected programs; the table and its replays stay as they were
+        os.makedirs(os.path.dirname(os.path.abspath(args.replays_out)), exist_ok=True)
+        with open(args.replays_out, "w", newline="") as fh:
+            w = csv.DictWriter(fh, fieldnames=REPLAY_KEYS, lineterminator="\n")
+            w.writeheader()
+            for r in rows:
+                w.writerows(r.get("_replays", []))
+        print(f"wrote {args.replays_out} ({len(todo)} programs replayed again)")
+        return 0
     done = {r["name"] for r in todo}
     with open(args.out, "w", newline="") as fh:
         w = csv.DictWriter(fh, fieldnames=keys, extrasaction="ignore", lineterminator="\n")
@@ -225,6 +242,9 @@ def main() -> int:
     ap.add_argument("--out", default=None)
     ap.add_argument("--work", default=None, help="directory for the programs' builds, traces and logs (default: next to the table)")
     ap.add_argument("--replay-only", action="store_true", help="redo the replays of the selected programs from their kept traces")
+    ap.add_argument("--replays-out", default=None,
+                    help="with --replay-only: write the new replays of the selected programs to this CSV and leave the table "
+                         "and its replays.csv as they are")
     ap.add_argument("--reads", default=None,
                     help="directory of first-read maps, DIR/<name>.json (reads_maps.py): analyse with read bounds (docs/firstread.md)")
     args = ap.parse_args()
@@ -263,7 +283,8 @@ def main() -> int:
             if not r.get("must") and prev.get(r["name"]):
                 r["must"] = prev[r["name"]]
     keys = ["name", "category", "expect", "detail", "can_deadlock", "np", "anysrc", "anytag", "probe", "persistent", "waitany",
-            "build", "run", "wildcard_recvs", "events", "findings", "l1_alternatives", "classes", "levels", "confirmed", "not_confirmed", "replays", "must", "notes", "commit"]
+            "build", "run", "wildcard_recvs", "events", "findings", "l1_alternatives", "classes", "levels", "confirmed", "confirmed_strict",
+            "not_confirmed", "replays", "must", "notes", "commit"]
     with open(args.out, "w", newline="") as fh:
         w = csv.DictWriter(fh, fieldnames=keys, extrasaction="ignore", lineterminator="\n")
         w.writeheader()
