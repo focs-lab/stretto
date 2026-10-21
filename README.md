@@ -99,7 +99,7 @@ value checks still need L2. Against the explorer with read bounds, 0 of
 a wildcard probe; a probe can take a request of the next exchange, and the solver hangs. A
 message race in HYPRE 2.10.1 hung a production code intermittently for 18 months, and
 diagnosing it took 291 jobs and 10,392 compute-node hours (the NINJA noise-injection paper,
-PPoPP 2017); HYPRE's changelog for 2.11.0 places the fix in ParaSails.
+PPoPP 2017); HYPRE's changelog for 2.11.0 places the fix in ParaSails. NINJA, the noise injector of that paper, hangs it in 25 of 40 runs at 8 processes (its application-centric mode) and in 11 of 40 with random noise, and never on the fix.
 
 <p align="center"><img src="docs/figures/hypre.svg" width="760" alt="HYPRE ParaSails results"></p>
 

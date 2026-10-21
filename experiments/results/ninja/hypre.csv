@@ -1,0 +1,525 @@
+label,np,mode,setting,run,result,seconds,reached,value,commit
+hypre-2.10.1,4,random,ratio=10% delay=50000us,1,FINISHED,5.8,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=50000us,2,TIMEOUT,61.0,,,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=50000us,3,FINISHED,6.0,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=50000us,4,FINISHED,5.1,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=50000us,5,FINISHED,5.9,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=50000us,6,FINISHED,5.9,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=50000us,7,FINISHED,5.4,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=50000us,8,FINISHED,5.5,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=50000us,9,TIMEOUT,61.0,,,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=50000us,10,TIMEOUT,61.0,,,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=50000us,11,FINISHED,5.3,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=50000us,12,TIMEOUT,61.0,,,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=50000us,13,FINISHED,5.5,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=50000us,14,FINISHED,6.3,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=50000us,15,FINISHED,5.9,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=50000us,16,FINISHED,5.2,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=50000us,17,FINISHED,5.3,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=50000us,18,FINISHED,5.4,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=50000us,19,TIMEOUT,61.0,,,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=50000us,20,FINISHED,5.5,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=50000us,21,FINISHED,5.3,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=50000us,22,FINISHED,5.5,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=50000us,23,FINISHED,5.5,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=50000us,24,FINISHED,5.7,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=50000us,25,FINISHED,6.1,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=50000us,26,FINISHED,5.4,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=50000us,27,FINISHED,5.3,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=50000us,28,FINISHED,5.5,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=50000us,29,FINISHED,5.5,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=50000us,30,FINISHED,6.2,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=50000us,31,FINISHED,5.2,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=50000us,32,FINISHED,5.3,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=50000us,33,FINISHED,5.5,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=50000us,34,FINISHED,5.2,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=50000us,35,FINISHED,5.3,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=50000us,36,FINISHED,6.2,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=50000us,37,TIMEOUT,61.0,,,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=50000us,38,TIMEOUT,61.0,,,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=50000us,39,FINISHED,5.3,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=50000us,40,TIMEOUT,60.0,,,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=1200000us,1,FINISHED,24.3,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=1200000us,2,FINISHED,21.4,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=1200000us,3,FINISHED,26.3,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=1200000us,4,FINISHED,22.3,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=1200000us,5,FINISHED,27.1,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=1200000us,6,FINISHED,22.4,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=1200000us,7,FINISHED,24.8,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=1200000us,8,FINISHED,22.1,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=1200000us,9,FINISHED,27.0,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=1200000us,10,FINISHED,28.5,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=1200000us,11,FINISHED,22.9,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=1200000us,12,FINISHED,26.0,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=1200000us,13,FINISHED,20.7,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=1200000us,14,FINISHED,23.1,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=1200000us,15,FINISHED,24.3,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=1200000us,16,FINISHED,28.3,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=1200000us,17,FINISHED,17.2,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=1200000us,18,FINISHED,23.5,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=1200000us,19,FINISHED,22.0,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=1200000us,20,FINISHED,25.1,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=1200000us,21,FINISHED,25.9,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=1200000us,22,FINISHED,24.5,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=1200000us,23,FINISHED,22.9,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=1200000us,24,FINISHED,26.1,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=1200000us,25,FINISHED,23.6,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=1200000us,26,FINISHED,33.7,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=1200000us,27,FINISHED,21.9,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=1200000us,28,FINISHED,26.9,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=1200000us,29,FINISHED,18.9,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=1200000us,30,TIMEOUT,60.0,,,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=1200000us,31,FINISHED,21.1,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=1200000us,32,FINISHED,23.3,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=1200000us,33,FINISHED,23.3,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=1200000us,34,FINISHED,27.6,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=1200000us,35,FINISHED,23.7,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=1200000us,36,FINISHED,22.0,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=1200000us,37,FINISHED,26.7,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=1200000us,38,FINISHED,22.2,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=1200000us,39,FINISHED,22.0,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,random,ratio=10% delay=1200000us,40,FINISHED,25.1,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,system,,1,FINISHED,5.3,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,system,,2,FINISHED,5.5,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,system,,3,FINISHED,5.2,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,system,,4,FINISHED,5.3,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,system,,5,FINISHED,5.2,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,system,,6,FINISHED,5.2,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,system,,7,FINISHED,5.7,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,system,,8,FINISHED,5.2,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,system,,9,FINISHED,5.3,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,system,,10,FINISHED,5.3,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,system,,11,FINISHED,5.1,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,system,,12,FINISHED,5.1,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,system,,13,FINISHED,5.3,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,system,,14,FINISHED,5.4,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,system,,15,FINISHED,5.2,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,system,,16,FINISHED,5.3,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,system,,17,FINISHED,5.2,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,system,,18,FINISHED,5.5,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,system,,19,FINISHED,5.2,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,system,,20,FINISHED,5.3,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,system,,21,FINISHED,5.2,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,system,,22,FINISHED,5.1,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,system,,23,FINISHED,5.1,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,system,,24,FINISHED,5.0,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,system,,25,FINISHED,5.2,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,system,,26,FINISHED,5.2,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,system,,27,FINISHED,5.2,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,system,,28,FINISHED,5.2,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,system,,29,FINISHED,5.2,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,system,,30,FINISHED,5.2,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,system,,31,FINISHED,5.2,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,system,,32,FINISHED,5.7,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,system,,33,FINISHED,5.4,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,system,,34,FINISHED,7.2,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,system,,35,FINISHED,5.1,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,system,,36,FINISHED,5.2,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,system,,37,FINISHED,5.0,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,system,,38,FINISHED,5.2,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,system,,39,FINISHED,5.0,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,system,,40,FINISHED,5.2,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,app,learning run (system-centric),0,FINISHED,5.2,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,app,,1,FINISHED,5.2,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,app,,2,FINISHED,5.1,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,app,,3,FINISHED,5.2,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,app,,4,FINISHED,7.3,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,app,,5,FINISHED,5.1,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,app,,6,FINISHED,5.2,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,app,,7,FINISHED,5.3,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,app,,8,FINISHED,5.1,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,app,,9,FINISHED,6.1,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,app,,10,FINISHED,5.0,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,app,,11,FINISHED,5.2,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,app,,12,FINISHED,5.2,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,app,,13,FINISHED,5.2,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,app,,14,FINISHED,5.2,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,app,,15,FINISHED,5.4,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,app,,16,FINISHED,5.3,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,app,,17,FINISHED,5.5,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,app,,18,FINISHED,5.3,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,app,,19,FINISHED,5.5,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,app,,20,FINISHED,5.2,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,app,,21,FINISHED,5.2,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,app,,22,FINISHED,5.2,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,app,,23,FINISHED,5.3,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,app,,24,FINISHED,5.1,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,app,,25,FINISHED,5.5,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,app,,26,FINISHED,5.2,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,app,,27,FINISHED,6.3,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,app,,28,FINISHED,5.2,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,app,,29,FINISHED,5.3,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,app,,30,FINISHED,5.5,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,app,,31,FINISHED,5.3,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,app,,32,FINISHED,5.4,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,app,,33,FINISHED,5.2,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,app,,34,FINISHED,5.2,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,app,,35,FINISHED,5.2,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,app,,36,FINISHED,5.6,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,app,,37,FINISHED,6.1,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,app,,38,FINISHED,5.2,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,app,,39,FINISHED,5.2,solved,6.788872e-09,3b8e846
+hypre-2.10.1,4,app,,40,FINISHED,5.1,solved,6.788872e-09,3b8e846
+hypre-2.10.1,8,random,ratio=10% delay=50000us,1,FINISHED,5.7,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,random,ratio=10% delay=50000us,2,FINISHED,5.7,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,random,ratio=10% delay=50000us,3,TIMEOUT,61.0,,,3b8e846
+hypre-2.10.1,8,random,ratio=10% delay=50000us,4,FINISHED,5.6,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,random,ratio=10% delay=50000us,5,FINISHED,5.6,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,random,ratio=10% delay=50000us,6,FINISHED,5.7,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,random,ratio=10% delay=50000us,7,TIMEOUT,61.0,,,3b8e846
+hypre-2.10.1,8,random,ratio=10% delay=50000us,8,FINISHED,5.8,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,random,ratio=10% delay=50000us,9,FINISHED,5.8,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,random,ratio=10% delay=50000us,10,FINISHED,5.7,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,random,ratio=10% delay=50000us,11,FINISHED,5.6,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,random,ratio=10% delay=50000us,12,FINISHED,5.8,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,random,ratio=10% delay=50000us,13,FINISHED,5.4,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,random,ratio=10% delay=50000us,14,FINISHED,5.7,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,random,ratio=10% delay=50000us,15,TIMEOUT,61.0,,,3b8e846
+hypre-2.10.1,8,random,ratio=10% delay=50000us,16,TIMEOUT,61.0,,,3b8e846
+hypre-2.10.1,8,random,ratio=10% delay=50000us,17,TIMEOUT,61.0,,,3b8e846
+hypre-2.10.1,8,random,ratio=10% delay=50000us,18,FINISHED,5.7,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,random,ratio=10% delay=50000us,19,FINISHED,5.7,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,random,ratio=10% delay=50000us,20,FINISHED,5.4,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,random,ratio=10% delay=50000us,21,FINISHED,5.5,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,random,ratio=10% delay=50000us,22,FINISHED,5.6,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,random,ratio=10% delay=50000us,23,FINISHED,5.5,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,random,ratio=10% delay=50000us,24,FINISHED,5.3,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,random,ratio=10% delay=50000us,25,FINISHED,5.0,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,random,ratio=10% delay=50000us,26,FINISHED,5.4,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,random,ratio=10% delay=50000us,27,FINISHED,5.8,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,random,ratio=10% delay=50000us,28,TIMEOUT,61.0,,,3b8e846
+hypre-2.10.1,8,random,ratio=10% delay=50000us,29,TIMEOUT,61.0,,,3b8e846
+hypre-2.10.1,8,random,ratio=10% delay=50000us,30,FINISHED,5.6,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,random,ratio=10% delay=50000us,31,FINISHED,5.5,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,random,ratio=10% delay=50000us,32,TIMEOUT,61.0,,,3b8e846
+hypre-2.10.1,8,random,ratio=10% delay=50000us,33,FINISHED,5.9,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,random,ratio=10% delay=50000us,34,TIMEOUT,61.0,,,3b8e846
+hypre-2.10.1,8,random,ratio=10% delay=50000us,35,FINISHED,5.7,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,random,ratio=10% delay=50000us,36,FINISHED,5.7,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,random,ratio=10% delay=50000us,37,TIMEOUT,61.0,,,3b8e846
+hypre-2.10.1,8,random,ratio=10% delay=50000us,38,FINISHED,5.6,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,random,ratio=10% delay=50000us,39,FINISHED,5.5,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,random,ratio=10% delay=50000us,40,TIMEOUT,61.0,,,3b8e846
+hypre-2.10.1,8,system,,1,FINISHED,4.6,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,system,,2,FINISHED,4.5,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,system,,3,FINISHED,4.6,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,system,,4,FINISHED,4.6,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,system,,5,FINISHED,4.6,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,system,,6,FINISHED,4.5,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,system,,7,FINISHED,4.5,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,system,,8,FINISHED,4.5,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,system,,9,FINISHED,4.5,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,system,,10,FINISHED,4.6,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,system,,11,FINISHED,4.6,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,system,,12,FINISHED,4.5,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,system,,13,FINISHED,4.6,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,system,,14,FINISHED,4.5,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,system,,15,FINISHED,4.5,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,system,,16,FINISHED,4.5,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,system,,17,FINISHED,4.6,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,system,,18,FINISHED,4.6,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,system,,19,FINISHED,4.5,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,system,,20,FINISHED,4.5,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,system,,21,FINISHED,4.6,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,system,,22,FINISHED,4.6,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,system,,23,FINISHED,4.5,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,system,,24,FINISHED,4.6,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,system,,25,FINISHED,4.6,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,system,,26,FINISHED,4.5,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,system,,27,FINISHED,4.5,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,system,,28,FINISHED,4.5,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,system,,29,FINISHED,4.6,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,system,,30,FINISHED,4.5,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,system,,31,FINISHED,4.7,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,system,,32,FINISHED,4.6,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,system,,33,FINISHED,4.5,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,system,,34,FINISHED,4.6,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,system,,35,FINISHED,4.5,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,system,,36,FINISHED,4.6,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,system,,37,FINISHED,4.6,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,system,,38,FINISHED,4.6,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,system,,39,FINISHED,4.5,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,system,,40,FINISHED,4.6,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,app,learning run (system-centric),0,FINISHED,4.6,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,app,,1,TIMEOUT,61.0,,,3b8e846
+hypre-2.10.1,8,app,,2,TIMEOUT,61.0,,,3b8e846
+hypre-2.10.1,8,app,,3,TIMEOUT,61.0,,,3b8e846
+hypre-2.10.1,8,app,,4,FINISHED,4.5,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,app,,5,FINISHED,4.5,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,app,,6,FINISHED,4.5,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,app,,7,TIMEOUT,61.0,,,3b8e846
+hypre-2.10.1,8,app,,8,TIMEOUT,61.0,,,3b8e846
+hypre-2.10.1,8,app,,9,FINISHED,4.5,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,app,,10,TIMEOUT,61.0,,,3b8e846
+hypre-2.10.1,8,app,,11,FINISHED,4.5,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,app,,12,TIMEOUT,61.0,,,3b8e846
+hypre-2.10.1,8,app,,13,FINISHED,4.6,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,app,,14,TIMEOUT,61.0,,,3b8e846
+hypre-2.10.1,8,app,,15,FINISHED,4.6,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,app,,16,FINISHED,4.5,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,app,,17,TIMEOUT,61.0,,,3b8e846
+hypre-2.10.1,8,app,,18,FINISHED,4.5,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,app,,19,FINISHED,4.5,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,app,,20,TIMEOUT,61.0,,,3b8e846
+hypre-2.10.1,8,app,,21,TIMEOUT,61.0,,,3b8e846
+hypre-2.10.1,8,app,,22,TIMEOUT,61.0,,,3b8e846
+hypre-2.10.1,8,app,,23,TIMEOUT,61.0,,,3b8e846
+hypre-2.10.1,8,app,,24,TIMEOUT,61.0,,,3b8e846
+hypre-2.10.1,8,app,,25,TIMEOUT,61.0,,,3b8e846
+hypre-2.10.1,8,app,,26,FINISHED,4.5,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,app,,27,TIMEOUT,61.0,,,3b8e846
+hypre-2.10.1,8,app,,28,TIMEOUT,61.0,,,3b8e846
+hypre-2.10.1,8,app,,29,FINISHED,4.5,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,app,,30,TIMEOUT,61.0,,,3b8e846
+hypre-2.10.1,8,app,,31,FINISHED,4.5,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,app,,32,TIMEOUT,61.0,,,3b8e846
+hypre-2.10.1,8,app,,33,FINISHED,4.5,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,app,,34,FINISHED,4.5,solved,8.347820e-09,3b8e846
+hypre-2.10.1,8,app,,35,TIMEOUT,61.0,,,3b8e846
+hypre-2.10.1,8,app,,36,TIMEOUT,61.0,,,3b8e846
+hypre-2.10.1,8,app,,37,TIMEOUT,61.0,,,3b8e846
+hypre-2.10.1,8,app,,38,TIMEOUT,61.0,,,3b8e846
+hypre-2.10.1,8,app,,39,TIMEOUT,61.0,,,3b8e846
+hypre-2.10.1,8,app,,40,TIMEOUT,61.0,,,3b8e846
+hypre-2.11.0,4,random,ratio=10% delay=50000us,1,FINISHED,5.3,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,random,ratio=10% delay=50000us,2,FINISHED,5.2,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,random,ratio=10% delay=50000us,3,FINISHED,5.3,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,random,ratio=10% delay=50000us,4,FINISHED,5.3,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,random,ratio=10% delay=50000us,5,FINISHED,5.0,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,random,ratio=10% delay=50000us,6,FINISHED,5.3,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,random,ratio=10% delay=50000us,7,FINISHED,5.1,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,random,ratio=10% delay=50000us,8,FINISHED,4.9,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,random,ratio=10% delay=50000us,9,FINISHED,5.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,random,ratio=10% delay=50000us,10,FINISHED,5.2,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,random,ratio=10% delay=50000us,11,FINISHED,5.3,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,random,ratio=10% delay=50000us,12,FINISHED,4.9,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,random,ratio=10% delay=50000us,13,FINISHED,5.1,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,random,ratio=10% delay=50000us,14,FINISHED,5.1,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,random,ratio=10% delay=50000us,15,FINISHED,4.8,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,random,ratio=10% delay=50000us,16,FINISHED,5.2,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,random,ratio=10% delay=50000us,17,FINISHED,4.9,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,random,ratio=10% delay=50000us,18,FINISHED,5.3,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,random,ratio=10% delay=50000us,19,FINISHED,5.2,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,random,ratio=10% delay=50000us,20,FINISHED,4.9,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,random,ratio=10% delay=50000us,21,FINISHED,5.0,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,random,ratio=10% delay=50000us,22,FINISHED,5.3,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,random,ratio=10% delay=50000us,23,FINISHED,5.3,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,random,ratio=10% delay=50000us,24,FINISHED,5.1,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,random,ratio=10% delay=50000us,25,FINISHED,5.3,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,random,ratio=10% delay=50000us,26,FINISHED,5.1,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,random,ratio=10% delay=50000us,27,FINISHED,5.3,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,random,ratio=10% delay=50000us,28,FINISHED,5.2,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,random,ratio=10% delay=50000us,29,FINISHED,5.3,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,random,ratio=10% delay=50000us,30,FINISHED,5.1,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,random,ratio=10% delay=50000us,31,FINISHED,5.2,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,random,ratio=10% delay=50000us,32,FINISHED,5.3,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,random,ratio=10% delay=50000us,33,FINISHED,5.4,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,random,ratio=10% delay=50000us,34,FINISHED,5.1,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,random,ratio=10% delay=50000us,35,FINISHED,5.1,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,random,ratio=10% delay=50000us,36,FINISHED,5.1,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,random,ratio=10% delay=50000us,37,FINISHED,4.9,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,random,ratio=10% delay=50000us,38,FINISHED,5.1,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,random,ratio=10% delay=50000us,39,FINISHED,5.1,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,random,ratio=10% delay=50000us,40,FINISHED,5.1,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,system,,1,FINISHED,4.6,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,system,,2,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,system,,3,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,system,,4,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,system,,5,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,system,,6,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,system,,7,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,system,,8,FINISHED,4.6,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,system,,9,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,system,,10,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,system,,11,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,system,,12,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,system,,13,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,system,,14,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,system,,15,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,system,,16,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,system,,17,FINISHED,4.4,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,system,,18,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,system,,19,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,system,,20,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,system,,21,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,system,,22,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,system,,23,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,system,,24,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,system,,25,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,system,,26,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,system,,27,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,system,,28,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,system,,29,FINISHED,4.6,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,system,,30,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,system,,31,FINISHED,4.6,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,system,,32,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,system,,33,FINISHED,4.6,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,system,,34,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,system,,35,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,system,,36,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,system,,37,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,system,,38,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,system,,39,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,system,,40,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,app,learning run (system-centric),0,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,app,,1,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,app,,2,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,app,,3,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,app,,4,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,app,,5,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,app,,6,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,app,,7,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,app,,8,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,app,,9,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,app,,10,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,app,,11,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,app,,12,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,app,,13,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,app,,14,FINISHED,4.6,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,app,,15,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,app,,16,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,app,,17,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,app,,18,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,app,,19,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,app,,20,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,app,,21,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,app,,22,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,app,,23,FINISHED,4.6,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,app,,24,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,app,,25,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,app,,26,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,app,,27,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,app,,28,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,app,,29,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,app,,30,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,app,,31,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,app,,32,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,app,,33,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,app,,34,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,app,,35,FINISHED,4.6,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,app,,36,FINISHED,4.4,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,app,,37,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,app,,38,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,app,,39,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,4,app,,40,FINISHED,4.5,solved,6.788872e-09,3b8e846
+hypre-2.11.0,8,random,ratio=10% delay=50000us,1,FINISHED,5.7,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,random,ratio=10% delay=50000us,2,FINISHED,5.8,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,random,ratio=10% delay=50000us,3,FINISHED,5.5,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,random,ratio=10% delay=50000us,4,FINISHED,5.6,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,random,ratio=10% delay=50000us,5,FINISHED,5.7,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,random,ratio=10% delay=50000us,6,FINISHED,5.6,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,random,ratio=10% delay=50000us,7,FINISHED,5.7,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,random,ratio=10% delay=50000us,8,FINISHED,5.7,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,random,ratio=10% delay=50000us,9,FINISHED,5.6,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,random,ratio=10% delay=50000us,10,FINISHED,6.0,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,random,ratio=10% delay=50000us,11,FINISHED,5.7,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,random,ratio=10% delay=50000us,12,FINISHED,5.7,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,random,ratio=10% delay=50000us,13,FINISHED,5.5,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,random,ratio=10% delay=50000us,14,FINISHED,6.0,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,random,ratio=10% delay=50000us,15,FINISHED,5.4,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,random,ratio=10% delay=50000us,16,FINISHED,5.6,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,random,ratio=10% delay=50000us,17,FINISHED,5.5,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,random,ratio=10% delay=50000us,18,FINISHED,5.7,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,random,ratio=10% delay=50000us,19,FINISHED,5.4,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,random,ratio=10% delay=50000us,20,FINISHED,5.7,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,random,ratio=10% delay=50000us,21,FINISHED,5.7,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,random,ratio=10% delay=50000us,22,FINISHED,5.6,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,random,ratio=10% delay=50000us,23,FINISHED,5.5,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,random,ratio=10% delay=50000us,24,FINISHED,5.5,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,random,ratio=10% delay=50000us,25,FINISHED,5.6,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,random,ratio=10% delay=50000us,26,FINISHED,5.7,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,random,ratio=10% delay=50000us,27,FINISHED,5.5,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,random,ratio=10% delay=50000us,28,FINISHED,5.4,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,random,ratio=10% delay=50000us,29,FINISHED,5.4,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,random,ratio=10% delay=50000us,30,FINISHED,5.8,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,random,ratio=10% delay=50000us,31,FINISHED,5.6,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,random,ratio=10% delay=50000us,32,FINISHED,5.7,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,random,ratio=10% delay=50000us,33,FINISHED,5.5,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,random,ratio=10% delay=50000us,34,FINISHED,5.8,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,random,ratio=10% delay=50000us,35,FINISHED,5.5,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,random,ratio=10% delay=50000us,36,FINISHED,5.8,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,random,ratio=10% delay=50000us,37,FINISHED,5.5,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,random,ratio=10% delay=50000us,38,FINISHED,5.7,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,random,ratio=10% delay=50000us,39,FINISHED,5.8,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,random,ratio=10% delay=50000us,40,FINISHED,5.8,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,system,,1,FINISHED,4.6,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,system,,2,FINISHED,4.5,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,system,,3,FINISHED,4.6,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,system,,4,FINISHED,4.5,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,system,,5,FINISHED,4.5,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,system,,6,FINISHED,4.6,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,system,,7,FINISHED,4.6,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,system,,8,FINISHED,4.5,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,system,,9,FINISHED,4.6,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,system,,10,FINISHED,4.6,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,system,,11,FINISHED,5.1,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,system,,12,FINISHED,4.5,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,system,,13,FINISHED,4.5,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,system,,14,FINISHED,4.5,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,system,,15,FINISHED,4.6,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,system,,16,FINISHED,4.6,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,system,,17,FINISHED,4.5,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,system,,18,FINISHED,4.5,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,system,,19,FINISHED,4.6,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,system,,20,FINISHED,4.6,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,system,,21,FINISHED,4.5,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,system,,22,FINISHED,4.5,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,system,,23,FINISHED,4.5,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,system,,24,FINISHED,4.5,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,system,,25,FINISHED,4.6,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,system,,26,FINISHED,4.5,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,system,,27,FINISHED,4.6,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,system,,28,FINISHED,4.6,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,system,,29,FINISHED,4.6,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,system,,30,FINISHED,4.5,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,system,,31,FINISHED,4.6,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,system,,32,FINISHED,4.5,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,system,,33,FINISHED,4.6,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,system,,34,FINISHED,4.5,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,system,,35,FINISHED,4.5,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,system,,36,FINISHED,4.5,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,system,,37,FINISHED,4.5,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,system,,38,FINISHED,4.5,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,system,,39,FINISHED,4.5,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,system,,40,FINISHED,4.5,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,app,learning run (system-centric),0,FINISHED,4.6,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,app,,1,FINISHED,4.5,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,app,,2,FINISHED,4.5,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,app,,3,FINISHED,4.6,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,app,,4,FINISHED,4.5,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,app,,5,FINISHED,4.6,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,app,,6,FINISHED,4.5,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,app,,7,FINISHED,4.6,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,app,,8,FINISHED,4.6,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,app,,9,FINISHED,4.6,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,app,,10,FINISHED,4.5,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,app,,11,FINISHED,4.6,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,app,,12,FINISHED,4.5,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,app,,13,FINISHED,4.6,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,app,,14,FINISHED,4.5,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,app,,15,FINISHED,4.6,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,app,,16,FINISHED,4.6,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,app,,17,FINISHED,4.6,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,app,,18,FINISHED,4.6,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,app,,19,FINISHED,4.6,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,app,,20,FINISHED,4.8,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,app,,21,FINISHED,4.6,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,app,,22,FINISHED,4.6,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,app,,23,FINISHED,4.6,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,app,,24,FINISHED,4.6,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,app,,25,FINISHED,4.6,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,app,,26,FINISHED,4.5,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,app,,27,FINISHED,4.6,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,app,,28,FINISHED,4.6,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,app,,29,FINISHED,4.6,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,app,,30,FINISHED,4.5,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,app,,31,FINISHED,4.6,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,app,,32,FINISHED,4.6,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,app,,33,FINISHED,4.6,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,app,,34,FINISHED,4.5,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,app,,35,FINISHED,4.6,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,app,,36,FINISHED,4.6,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,app,,37,FINISHED,4.6,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,app,,38,FINISHED,5.2,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,app,,39,FINISHED,4.5,solved,8.347820e-09,3b8e846
+hypre-2.11.0,8,app,,40,FINISHED,4.5,solved,8.347820e-09,3b8e846
