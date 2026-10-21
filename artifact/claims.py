@@ -28,7 +28,8 @@ NUMBERS = os.path.join(ROOT, "paper", "generated", "numbers.tex")
 
 # which research question a macro belongs to, by name; the first match wins
 RQ_OF = [
-    (1, r"^nEsix|^nMBIReplay|^nAMGsample|^nNeksample|^nPin"),
+    (1, r"^nEsix|^nMBIReplay|^nAMGsample|^nNeksample|^nPin|^nReadsEsix|^nReadsReplay"),
+    (4, r"^nReads"),
     (2, r"^(MBI|MBB)fone|^n(MBI|MBB)(tp|fn|fp|progs|notBuilt|correct|errors|race|Stress|Clean|OnlyStretto|LC)|^n?Guard|^n?Reps"),
     (3, r"^nEtwo|^B[a-z]+OMPI$"),
     (4, r"^n(MBI|MBB)(one|sp|obs)[A-Z]"),
@@ -87,6 +88,18 @@ def claims(n: dict) -> list:
               lambda s, m, f, c: s > 0 and s == m == f == c)
     claim(1, "every application replay or control that hung or finished matched its pins",
           ["nPinRuns", "nPinUnmatchedEnded"], lambda r, e: r > 0 and e == 0)
+    claim(1, "with read bounds, no accepted alternative is unsound against the exhaustive explorer",
+          ["nReadsEsixPairs", "nReadsEsixUnsound"], lambda p, u: p > 0 and u == 0)
+    claim(1, "with read bounds, the explorer confirms every contained deadlock the check reports",
+          ["nReadsEsixLdeadUnsound"], lambda u: u == 0)
+    claim(1, "no replay of an MBI consequence the read bounds certify at L1 contradicts it",
+          ["nReadsReplayFindings", "nReadsReplayNotConfirmed"], lambda f, n: f > 0 and n == 0)
+    claim(4, "read bounds add no false positive on MBI and change no program's verdict",
+          ["nReadsNewFP", "nReadsUnionChanged"], lambda f, c: f == 0 and c == 0)
+    claim(4, "read bounds certify a consequence at L1 only on programs labelled erroneous",
+          ["nReadsMoved", "nReadsMovedErr"], lambda m, e: m > 0 and m == e)
+    claim(4, "the value-check programs keep no L1 consequence with read bounds (they read the value)",
+          ["nReadsValue", "nReadsValueMoved"], lambda v, m: v > 0 and m == 0)
     claim(2, "no false positive on MBI", ["nMBIfp"], lambda x: x == 0)
     claim(2, "every MBI error Stretto finds was shown by the run, or predicted by a consequence or a threshold",
           ["nMBItpunion", "nMBItpobserved", "nMBItpPredSP", "nMBItpPredBuf"], lambda u, o, s, b: u == o + s + b)

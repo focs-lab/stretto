@@ -155,6 +155,19 @@ plain runs.
 
 <p align="center"><img src="docs/figures/dealii.svg" width="760" alt="deal.II results"></p>
 """
+    reads = ""
+    if v("nReadsProgs"):
+        reads = f"""
+**Reads.** A program reads the result of a receive later, if at all. A static analysis of the
+C sources (clang, [`docs/firstread.md`](docs/firstread.md)) bounds where; a deadlock or lost
+message the single-path explorer finds then occurs in an execution of every program consistent
+with the trace, if its witness execution issues nothing past those bounds. On MBI, {t('nReadsMoved')}
+erroneous programs ({t('nReadsMovedClean')} with a clean run) get such a consequence; F1 counting
+only what needs no single-path assumption rises from {t('nReadsFoneLOneBase')} to
+{t('nReadsFoneLOne')}, with {t('nReadsNewFP')} new false positives. The {t('nReadsValue')}
+value checks still need L2. Against the explorer with read bounds, {t('nReadsEsixUnsound')} of
+{t('nReadsEsixPairs')} judged alternatives are unsound.
+"""
     block = f"""<!-- results:begin -->
 <!-- Written by experiments/tables.py from experiments/results/; do not edit by hand. -->
 
@@ -184,7 +197,7 @@ and finish cleanly in others: the run itself shows {t('nRepsObsAlways')} of the
 from {t('nRepsCleanPredicted')}. The other {t('nRepsCleanMissed')} are runs of
 {t('nRepsCleanMissedProgs')} programs whose error is a check of the received value, which the
 value level (L2) decides.
-
+{reads}
 **A real bug.** HYPRE 2.10.1's ParaSails preconditioner reuses one tag for two exchanges behind
 a wildcard probe; a probe can take a request of the next exchange, and the solver hangs. A
 message race in HYPRE 2.10.1 hung a production code intermittently for 18 months, and

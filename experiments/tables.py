@@ -6,6 +6,8 @@ Re-run after any experiment."""
 from __future__ import annotations
 import collections
 import csv
+import glob
+import json
 import os
 import re
 import statistics
@@ -961,6 +963,137 @@ def e3():
     return text + "\n"
 
 
+VALUE_CHECKS = {"MessageRace_Recv_Send_nok", "MessageRace_Recv_Isend_nok", "MessageRace_Irecv_Send_nok", "MessageRace_Irecv_Isend_nok"}
+
+
+def reads_section():
+    """E3b: the MBI run analysed again with read bounds (docs/firstread.md): the first-read
+    maps, the levels that change, every verdict with and without the bounds, E6 with read
+    bounds, and the replays of the findings the bounds promote."""
+    base = score.compiled(rows(os.path.join(RES, "mbi", "mbi.csv")))
+    rd = score.compiled(rows(os.path.join(RES, "reads", "mbi.csv")))
+    if not rd:
+        return "_no results_\n"
+    by = {r["name"]: r for r in base}
+    maps = sorted(glob.glob(os.path.join(RES, "reads", "mbi", "*.json")))
+    entries = free = 0
+    why = collections.Counter()
+    for p in maps:
+        for e in json.load(open(p))["results"]:
+            entries += 1
+            free += bool(e["free"])
+            if "why" in e:
+                why[e["why"]] += 1
+    with_map = [r for r in rd if r.get("reads") == "map"]
+    num("nReadsMaps", len(maps))
+    num("nReadsProgs", len(with_map))
+    num("nReadsEntries", entries)
+    num("nReadsEntriesFree", free)
+    out = [f"The corpus run of E1 analysed again from its traces, each program with the first-read map of its",
+           f"source (`experiments/mbi/reads_maps.py`, clang 18 in the image of `experiments/container/Dockerfile.firstread`;",
+           f"`reanalyze.py --reads`). {len(maps)} maps, {len(with_map)} of the {len(rd)} programs analysed with one; the maps",
+           f"have {entries} entries (a call that delivers a receive's result, with its posting call), {free} with free sites"
+           + (", the others empty because " + "; ".join(f"{k} ({v})" for k, v in why.most_common()) if why else ", none empty")
+           + f". Rows by code commit: {commits(rd)}.", ""]
+    # verdicts with and without the bounds
+    out += ["| verdict | without read bounds: TP / FP / FN / TN | F1 | with read bounds: TP / FP / FN / TN | F1 |", "|---|---|---|---|---|"]
+    for label, key, judge in (("union", "Union", score.verdict), ("observed in the run", "Observed", score.observed_verdict),
+                              ("predicted", "Predicted", score.predicted_verdict),
+                              ("certified at L1 only (no single-path assumption)", "LOne", score.l1_verdict)):
+        a, b = score.confusion(base, judge), score.confusion(rd, judge)
+        out.append(f"| {label} | {a['tp']} / {a['fp']} / {a['fn']} / {a['tn']} | {a['f1']:.2f} | {b['tp']} / {b['fp']} / {b['fn']} / {b['tn']} | {b['f1']:.2f} |")
+        num(f"nReadsFone{key}Base", a["f1"])
+        num(f"nReadsFone{key}", b["f1"])
+        num(f"nReadsTp{key}Base", a["tp"])
+        num(f"nReadsTp{key}", b["tp"])
+    # programs whose error consequences now hold at L1
+    moved, kept_sp = [], []
+    for r in rd:
+        b = by.get(r["name"])
+        if b is None:
+            continue
+        before, after = score.levels(b), score.levels(r)
+        gain = sorted((after & score.L1_ONLY) - (before & score.L1_ONLY))
+        if gain:
+            moved.append((r, gain, sorted(after & {"L1+SP:1a", "L1+SP:1c", "L1+SP:1d"})))
+        elif after & {"L1+SP:1a", "L1+SP:1c", "L1+SP:1d"}:
+            kept_sp.append(r)
+    new_fp = [r for r in rd if r["expect"] == "OK" and score.verdict(r) == "ERROR" and score.verdict(by.get(r["name"], {})) != "ERROR"]
+    union_changed = [r for r in rd if score.verdict(r) != score.verdict(by.get(r["name"], {}))]
+    value = [r for r in rd if r["name"] in VALUE_CHECKS]
+    num("nReadsMoved", len(moved))
+    num("nReadsMovedClean", sum(1 for r, _, _ in moved if score.finished(r)))
+    num("nReadsMovedErr", sum(1 for r, _, _ in moved if r["expect"] == "ERROR"))
+    num("nReadsMovedC", sum(1 for _, g, _ in moved if "L1:1c" in g))
+    num("nReadsMovedD", sum(1 for _, g, _ in moved if "L1:1d" in g))
+    num("nReadsMovedAll", sum(1 for _, _, sp in moved if not sp))
+    num("nReadsKeptSP", len(kept_sp))
+    num("nReadsNewFP", len(new_fp))
+    num("nReadsUnionChanged", len(union_changed))
+    num("nReadsValue", len(value))
+    num("nReadsValueMoved", sum(1 for r in value if score.levels(r) & score.L1_ONLY))
+    out += ["", f"Programs with an error consequence certified at L1 with the bounds and not without: **{len(moved)}** "
+            f"({sum(1 for r, _, _ in moved if score.finished(r))} of them with a clean observed run), every one labelled erroneous: "
+            f"{sum(1 for r, _, _ in moved if r['expect'] == 'ERROR')}. Programs that keep a single-path consequence: {len(kept_sp)}. "
+            f"New false positives: {len(new_fp)}; programs whose union verdict changes: {len(union_changed)}. Of the {len(value)} "
+            f"programs whose error is a check of the received value, which they read before `MPI_Finalize`, "
+            f"{sum(1 for r in value if not score.levels(r) & score.L1_ONLY)} keep no L1 consequence (E7 decides them at L2).", "",
+            "| program | observed run | levels without read bounds | levels with read bounds |", "|---|---|---|---|"]
+    for r, _, _ in sorted(moved, key=lambda x: x[0]["name"]):
+        out.append(f"| {r['name']} | {r['run'].split(':')[0]} | {by[r['name']].get('levels', '')} | {r.get('levels', '')} |")
+    hp = os.path.join(RES, "reads", "hypre-2.10.1-parasails.json")
+    if os.path.exists(hp):
+        es = json.load(open(hp))["results"]
+        num("nReadsHypreEntries", len(es))
+        num("nReadsHypreFree", sum(1 for e in es if e["free"]))
+        out += ["", f"HYPRE 2.10.1 (`distributed_ls/ParaSails/ParaSails.c` with the MPI wrappers of `utilities/mpistubs.c`, MPICH "
+                f"headers): {len(es)} entries, {sum(1 for e in es if e['free'])} with free sites. ParaSails calls MPI through the "
+                "wrappers, which hand the status and the buffer to MPI from their parameters, so every bound there is rule H1 and "
+                "the analysis of a HYPRE trace does not change."]
+    # E6 with read bounds
+    e6 = [(kind, rows(os.path.join(RES, f"e6_reads_{kind}.csv"))) for kind in ("never", "random")]
+    e6 = [(k, rs) for k, rs in e6 if rs]
+    if e6:
+        out += ["", "E6 with read bounds (`e6_checker_vs_explorer.py --reads never|random`): the checker judges with rule H1',",
+                "the rest of the changed rank kept up to a bound (never read, or a random bound per receive), against the",
+                "exhaustive explorer of the straight-line program, which reads nothing, so every bound is sound for it.", "",
+                "| bounds | traces | pairs (alternative, B) | with a window after the receive | agree | unsound | incomplete | skipped | contained deadlocks confirmed | not confirmed |",
+                "|---|---|---|---|---|---|---|---|---|---|"]
+        tot = collections.Counter()
+        for kind, rs in e6:
+            c = collections.Counter(r["kind"] for r in rs)
+            t7 = collections.Counter(r.get("l1_deadlock", "") for r in rs)
+            win = sum(1 for r in rs if r.get("window") == "True")
+            out.append(f"| {kind} | {len({r['trace'] for r in rs})} | {len(rs)} | {win} | {c['agree']} | {c['UNSOUND']} | {c['incomplete']} | {c['skip']} | {t7['ok']} | {t7['UNSOUND']} |")
+            tot.update({"pairs": len(rs), "win": win, "unsound": c["UNSOUND"], "ok": t7["ok"], "bad": t7["UNSOUND"]})
+        num("nReadsEsixPairs", tot["pairs"])
+        num("nReadsEsixWindows", tot["win"])
+        num("nReadsEsixUnsound", tot["unsound"])
+        num("nReadsEsixLdead", tot["ok"])
+        num("nReadsEsixLdeadUnsound", tot["bad"])
+        out += ["", f"Rows by code commit: {commits([r for _, rs in e6 for r in rs])}."]
+    # replays of the findings the bounds promote
+    rp = rows(os.path.join(RES, "reads", "replays.csv"))
+    if rp:
+        old = {(r["program"], r["cls"], r["pin"]): r["verdict"] for r in score.replay_rows(os.path.join(RES, "mbi", "mbi.csv"))}
+        l1 = [r for r in rp if r["level"] == "L1" and r["cls"] in ("1c", "1d") and r["verdict"] != "n/a"]
+        c = collections.Counter(r["verdict"] for r in l1)
+        before = collections.Counter(old.get((r["program"], r["cls"], r["pin"]), "not replayed") for r in l1)
+        num("nReadsReplayFindings", len(l1))
+        num("nReadsReplayConfirmed", c["confirmed"])
+        num("nReadsReplayInconclusive", c["inconclusive"])
+        num("nReadsReplayNotConfirmed", c["not-confirmed"])
+        num("nReadsReplaySamePinConfirmed", before["confirmed"])
+        out += ["", f"Replays of the L1 consequences (1c, 1d) of the {len({r['program'] for r in l1})} programs whose levels change, each "
+                "with the pins of its witness (`run_mbi.py --replay-only --reads`, the rule of E1): "
+                f"{c['confirmed']} confirmed, {c['inconclusive']} inconclusive, {c['not-confirmed']} not confirmed, of {len(l1)}. "
+                f"With the same pins in the E1 replays: {before['confirmed']} confirmed, {before['inconclusive']} inconclusive, "
+                f"{before['not-confirmed']} not confirmed, {before['not replayed']} not replayed there (the E1 replay of a "
+                "consequence that holds in every single-path execution pins the horizon, not a witness). Rows by code commit: "
+                f"{commits(rp)}."]
+    return "\n".join(out) + "\n"
+
+
 def nekbone():
     """Nekbone's communication suite (experiments/nekbone/run.sh): summary8.txt only."""
     p = os.path.join(RES, "nekbone", "summary8.txt")
@@ -1064,6 +1197,7 @@ def main():
            "### Repeated runs: how often each verdict holds (MBI)", "", reps(),
            "## E2: buffering ablation", "", e2(),
            "## E3: level ablation", "", e3(),
+           "## E3b: read bounds (MBI, docs/firstread.md)", "", reads_section(),
            "## E4: tracer overhead and analysis cost (NPB 3.4.3, MPICH build)", "", e4(),
            "## E5: real application (AMG)", "", e5() + app_sample("amg", "AMG"),
            "## E5b: real application (Nekbone)", "", nekbone() + app_sample("nekbone", "Nek"),

@@ -369,6 +369,50 @@ which the self transport sends inline up to 256 bytes), at the bound 17/17. Not 
 | 13 | 1f | 1c 1d | (no twin) | | - |
 
 
+## E3b: read bounds (MBI, docs/firstread.md)
+
+The corpus run of E1 analysed again from its traces, each program with the first-read map of its
+source (`experiments/mbi/reads_maps.py`, clang 18 in the image of `experiments/container/Dockerfile.firstread`;
+`reanalyze.py --reads`). 115 maps, 115 of the 115 programs analysed with one; the maps
+have 860 entries (a call that delivers a receive's result, with its posting call), 860 with free sites, none empty. Rows by code commit: 96dd241 (analysis 4121baf) (115).
+
+| verdict | without read bounds: TP / FP / FN / TN | F1 | with read bounds: TP / FP / FN / TN | F1 |
+|---|---|---|---|---|
+| union | 61 / 0 / 4 / 50 | 0.97 | 61 / 0 / 4 / 50 | 0.97 |
+| observed in the run | 42 / 0 / 23 / 50 | 0.79 | 42 / 0 / 23 / 50 | 0.79 |
+| predicted | 22 / 0 / 43 / 50 | 0.51 | 22 / 0 / 43 / 50 | 0.51 |
+| certified at L1 only (no single-path assumption) | 0 / 0 / 65 / 50 | 0.00 | 10 / 0 / 55 / 50 | 0.27 |
+
+Programs with an error consequence certified at L1 with the bounds and not without: **10** (7 of them with a clean observed run), every one labelled erroneous: 10. Programs that keep a single-path consequence: 0. New false positives: 0; programs whose union verdict changes: 0. Of the 4 programs whose error is a check of the received value, which they read before `MPI_Finalize`, 4 keep no L1 consequence (E7 decides them at L2).
+
+| program | observed run | levels without read bounds | levels with read bounds |
+|---|---|---|---|
+| MessageRace_Allgather_Send_Irecv_nok | FINISHED | L1+SP:1c L1+SP:1d L1:1f | L1:1c L1:1d L1:1f |
+| MessageRace_Alltoall_Send_Irecv_nok | FINISHED | L1+SP:1c L1+SP:1d L1:1f | L1:1c L1:1d L1:1f |
+| MessageRace_Bcast_Send_Irecv_nok | FINISHED | L1+SP:1c L1+SP:1d L1:1f | L1:1c L1:1d L1:1f |
+| MessageRace_Gather_Isend_Irecv_nok | FINISHED | L1+SP:1c L1+SP:1d L1:1f | L1:1c L1:1d L1:1f |
+| MessageRace_Gather_Send_Irecv_nok | FINISHED | L1+SP:1c L1+SP:1d L1:1f | L1:1c L1:1d L1:1f |
+| MessageRace_Loop_Isend_Irecv_nok | TIMEOUT | L1+SP:1c L1+SP:1d L1:1f observed:1c observed:2-blocked observed:2-buffering | L1:1c L1:1d L1:1f observed:1c observed:2-blocked observed:2-buffering |
+| MessageRace_Loop_Isend_Recv_nok | FINISHED | L1+SP:1c L1+SP:1d L1:1f | L1:1c L1:1d L1:1f |
+| MessageRace_Loop_Send_Irecv_nok | TIMEOUT | L1+SP:1c L1+SP:1d L1:1f observed:1c observed:2-blocked observed:2-buffering | L1:1c L1:1d L1:1f observed:1c observed:2-blocked observed:2-buffering |
+| MessageRace_Loop_Send_Recv_nok | TIMEOUT | L1+SP:1c L1+SP:1d L1:1f observed:1c observed:2-blocked observed:2-buffering | L1:1c L1:1d L1:1f observed:1c observed:2-blocked observed:2-buffering |
+| MessageRace_Reduce_Isend_Irecv_nok | FINISHED | L1+SP:1c L1+SP:1d L1:1f | L1:1c L1:1d L1:1f |
+
+HYPRE 2.10.1 (`distributed_ls/ParaSails/ParaSails.c` with the MPI wrappers of `utilities/mpistubs.c`, MPICH headers): 8 entries, 0 with free sites. ParaSails calls MPI through the wrappers, which hand the status and the buffer to MPI from their parameters, so every bound there is rule H1 and the analysis of a HYPRE trace does not change.
+
+E6 with read bounds (`e6_checker_vs_explorer.py --reads never|random`): the checker judges with rule H1',
+the rest of the changed rank kept up to a bound (never read, or a random bound per receive), against the
+exhaustive explorer of the straight-line program, which reads nothing, so every bound is sound for it.
+
+| bounds | traces | pairs (alternative, B) | with a window after the receive | agree | unsound | incomplete | skipped | contained deadlocks confirmed | not confirmed |
+|---|---|---|---|---|---|---|---|---|---|
+| never | 197 | 824 | 824 | 823 | 0 | 1 | 0 | 169 | 0 |
+| random | 197 | 824 | 644 | 823 | 0 | 1 | 0 | 124 | 0 |
+
+Rows by code commit: 0cf26a3 (1648).
+
+Replays of the L1 consequences (1c, 1d) of the 10 programs whose levels change, each with the pins of its witness (`run_mbi.py --replay-only --reads`, the rule of E1): 25 confirmed, 36 inconclusive, 0 not confirmed, of 61. With the same pins in the E1 replays: 23 confirmed, 29 inconclusive, 0 not confirmed, 9 not replayed there (the E1 replay of a consequence that holds in every single-path execution pins the horizon, not a witness). Rows by code commit: 4121baf (61).
+
 ## E4: tracer overhead and analysis cost (NPB 3.4.3, MPICH build)
 
 Plain, traced and analysis times from the timed leg (`experiments/timing_leg.sh`, log in
