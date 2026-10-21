@@ -7,8 +7,9 @@ to MAXNP ranks (default 24: the container has four processors and 16 GB). The bi
 built with MPI-PRV's instrumentation, which only appends its events to output.txt; Stretto's
 tracer (an LD_PRELOAD library built for the same Open MPI, 4.1.6) records their MPI calls.
 Each configuration runs from a copy of its directory:
-  trace     one traced run; then `stretto analyze` (the single-path explorer on traces of at
-            most 2000 events, as by default), timed and with its peak memory (/usr/bin/time)
+  trace     one traced run; then `stretto analyze` with the corpus harness's limits on the
+            single-path explorer (traces of at most 600 events, 30 000 states per alternative;
+            ANALYSE_ARGS overrides them), timed and with its peak memory (/usr/bin/time)
   replays   every L1 alternative (up to 30, a random sample beyond), each replayed with the pins
             of its horizon and with its control (experiments/replay_sample.py)
   guard     a second traced run with the buffer guard (STRETTO_GUARD=1), analysed
@@ -40,6 +41,7 @@ OUT = os.path.join(ROOT, "experiments", "results", "mpiprv")
 TRACER = os.path.join(ROOT, "tracer", "bin", "openmpi", "libstretto-trace.so")
 MPIRUN = "/usr/bin/mpirun.openmpi"
 ERROR_CLASSES = {"1a", "1c", "1d", "2-buffering", "2-collective", "2-blocked", "3-local", "abort"}
+ANALYSE = (os.environ.get("ANALYSE_ARGS") or "--sp-max-events 600 --max-states 30000").split()
 
 # app, directory, executable, {np: arguments}; the arguments of the artifact's MUST scripts
 APPS = [
@@ -81,7 +83,7 @@ def traced(d, exe, args, np_, tdir, guard, timeout):
 
 
 def analyse(tdir, timeout):
-    cmd = ["/usr/bin/time", "-f", "TIME %e %M", sys.executable, "-m", "stretto", "analyze", "--json", tdir]
+    cmd = ["/usr/bin/time", "-f", "TIME %e %M", sys.executable, "-m", "stretto", "analyze", "--json", *ANALYSE, tdir]
     rc, out, err = run(cmd, ROOT, timeout, env={"PYTHONPATH": os.path.join(ROOT, "analysis")})
     open(tdir + ".report.json", "w").write(out)
     m = re.search(r"TIME ([0-9.]+) (\d+)", err or "")
@@ -167,7 +169,7 @@ def main():
             # the error findings of either trace that carry a pin, replayed by `stretto confirm`
             for tag, t, found in (("", "trace", fs), ("guard_", "trace-guard", gfs)):
                 if any(f["cls"] in ERROR_CLASSES and f.get("pin") for f in found):
-                    rc, out, err = run([sys.executable, "-m", "stretto", "confirm", "--json", "--np", str(np_),
+                    rc, out, err = run([sys.executable, "-m", "stretto", "confirm", "--json", *ANALYSE, "--np", str(np_),
                                         "--timeout", str(args.replay_timeout), os.path.join(d, t), exe, *a.split()], d,
                                        40 * (2 * args.replay_timeout + 30), env={"PYTHONPATH": os.path.join(ROOT, "analysis")})
                     open(os.path.join(d, t + ".confirm.json"), "w").write(out + err)
