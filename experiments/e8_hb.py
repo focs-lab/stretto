@@ -78,7 +78,7 @@ from stretto.feasible import breakpoints, check  # noqa: E402
 from stretto.matching import candidates_full  # noqa: E402
 from stretto.report import Finding  # noqa: E402
 from stretto.trace import ANY  # noqa: E402
-from e6_checker_vs_explorer import judged  # noqa: E402
+from e6_checker_vs_explorer import judged, model_executions  # noqa: E402
 from provenance import code_commit  # noqa: E402
 
 RES = os.path.join(ROOT, "experiments", "results")
@@ -312,8 +312,9 @@ def explorer_evidence(t, sp, row: dict, max_states: int) -> str:
     soundness criterion, which a replay pinned over the horizon tests too); *realised with
     other matches changed*: executions match the receive to the send only together with other
     changes, which no single-change alternative states; *not realised*: none does. An execution
-    with a ready send issued before its receive is posted counts only when no other does, and the
-    verdict then says so."""
+    in which a ready send of the horizon, or one that must be issued before a pair it looks for is
+    matched, is not taken by a receive posted before its issue (erroneous, E6's
+    model_executions) counts only when no other does, and the verdict then says so."""
     f, M, changed, _ = alternative_of(t, row)
     rk, sk = f.recv, f.send
     victim = None
@@ -323,7 +324,8 @@ def explorer_evidence(t, sp, row: dict, max_states: int) -> str:
         if victim is not None:
             del M[victim]
         M[rk], changed = sk, {rk}
-    keys = set(judged(t, M, check(t, M, changed, None, "L1").cut)) | set(changed) | ({victim} if victim else set())
+    cut = check(t, M, changed, None, "L1").cut
+    keys = set(judged(t, M, cut)) | set(changed) | ({victim} if victim else set())
     try:
         res = explore.explore(sp, None, force={rk: sk}, max_states=max_states, comms=t.comm_members)
     except explore.StateCapReached:
@@ -342,9 +344,10 @@ def explorer_evidence(t, sp, row: dict, max_states: int) -> str:
             return "realised with other matches changed"
         return "not realised"
 
-    # the explorer records a ready send issued before its receive is posted as an error and goes
-    # on; such a run is erroneous (MPI 4.1 §3.4), and the check assumes the receive is posted
-    v = verdict([o for o in res.outcomes if "rsend-no-receive" not in o.error_kinds])
+    # the explorer records a ready send that no receive posted before its issue takes as an error
+    # and goes on; such a run is erroneous (MPI 4.1 §3.4), and the check assumes the receive is
+    # posted for every ready send of the horizon and every one its pairs need
+    v = verdict(model_executions(t, res.outcomes, cut, pairs, None))
     if v == "not realised":
         w = verdict(res.outcomes)
         if w != "not realised":

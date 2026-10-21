@@ -2,7 +2,7 @@
 MPI matching-order checks. See docs/model.md section 2."""
 from __future__ import annotations
 import itertools
-from collections.abc import Mapping
+from collections.abc import Collection, Mapping
 from dataclasses import dataclass, field
 from typing import Dict, Iterable, Iterator, List, Optional, Set, Tuple
 
@@ -124,13 +124,16 @@ def send_blocks(s: Send, B: Optional[int]) -> bool:
 
 def build_graph(t: Trace, M: Dict[Key, Key], cut: Optional[Dict[int, int]], B: Optional[int],
                 extra_edges: Iterable[Tuple[Node, Node]] = (), strong_only: bool = False,
-                probe_alt: Optional[Dict[Key, Key]] = None, issued: Optional[Dict[int, int]] = None) -> Graph:
+                probe_alt: Optional[Dict[Key, Key]] = None, issued: Optional[Dict[int, int]] = None,
+                ready: Optional[Collection[Key]] = None) -> Graph:
     """Constraint graph over the kept prefix (idx < cut[rank]; cut=None keeps all).
     B=None means infinite buffering. strong_only drops edges whose necessity is not
     guaranteed by the standard (collectives of unknown shape, probe observations): use it
     when a cycle is to be reported as a certain deadlock. probe_alt maps a probe to the
     send it observes instead of the one it saw in the run. issued names, per rank, a
-    blocking send at the cut whose issue node is kept although it never completes."""
+    blocking send at the cut whose issue node is kept although it never completes. ready
+    names the ready-mode sends whose edge issue(r) -> issue(s) is drawn (None: every one),
+    for an execution in which the others are issued before their receive."""
     def kept(rank: int, idx: int) -> bool:
         return cut is None or idx < cut.get(rank, 10**9)
 
@@ -182,7 +185,7 @@ def build_graph(t: Trace, M: Dict[Key, Key], cut: Optional[Dict[int, int]], B: O
             sc = s.complete_node()
             if sc is not None and sc in node_set:
                 g.add(m, sc)                                  # rendezvous: the send completes after it
-        if s.ready_mode:
+        if s.ready_mode and (ready is None or s.key in ready):
             g.add(r.issue_node(), s.issue_node())             # ready send: receive posted first
         # receiver side: an earlier receive that accepts s is matched before r takes s
         for r2 in t.earlier_competitors(r, s):

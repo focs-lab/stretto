@@ -19,11 +19,12 @@ Semantics (parameter B = eager threshold in bytes; None = infinite):
     the others, scan the members before it); blocking members are parked at it, nonblocking
     members have moved on. A collective whose root is unknown synchronises everyone.
     Different names once everyone has issued => 'collective-mismatch';
-  * count overflow at match time => 'truncate'; a ready-mode send issued while no
-    matching receive is posted => 'rsend-no-receive' (both errors on the path); an Abort op
-    ends its rank and makes the outcome 'abort' (the program's own check failed). A program
-    with a ready-mode send is explored without the reduction, since receive posting then no
-    longer commutes with the sender's steps;
+  * count overflow at match time => 'truncate'; a ready-mode send that is not matched to a
+    receive posted before its issue => 'rsend-no-receive' (both errors on the path; see
+    _Ctx.local_step for when the error is recorded); an Abort op ends its rank and makes the
+    outcome 'abort' (the program's own check failed). A program with a ready-mode send is
+    explored without the reduction, since receive posting then no longer commutes with the
+    sender's steps;
   * a Lazy op is replaced by the ops its function computes from the rank's variables (a
     local step, like a branch); an Unknown op ends its rank and makes the outcome 'unknown'
     unless some rank aborted: the rank's continuation is not determined, so the execution is
@@ -38,16 +39,18 @@ wildcard-source matches and Waitany choices branch. reduce=False enumerates ever
 enabled transition and is used as the reference in the differential test.
 
 Outcomes: done | deadlock | abort | unknown | force-blocked, with the errors hit on the path
-(truncate, collective-mismatch, rsend-no-receive), the matching in match order (one witness
-execution), the orphan sends (issued, never matched), the leaked receives (posted, never
-matched), every send issued with its destination and tag, the collectives issued per rank,
-which is what a skeleton comparison needs, and the ranks that stopped at an Unknown op.
+(truncate, collective-mismatch, rsend-no-receive, whose sends ready_errors() names), the
+matching in match order (one witness execution), the orphan sends (issued, never matched),
+the leaked receives (posted, never matched), every send issued with its destination and tag,
+the collectives issued per rank, which is what a skeleton comparison needs, and the ranks that
+stopped at an Unknown op.
 
 A program whose ops are computed during the exploration (Lazy) cannot be scanned for
 ready-mode sends beforehand; it may provide dynamic_rsend(), true once one was computed, and
 is then explored again without the reduction.
 """
 from __future__ import annotations
+import re
 from dataclasses import dataclass, field
 from typing import Dict, FrozenSet, List, Optional, Set, Tuple, Union
 
@@ -119,6 +122,9 @@ class GState:
     sent: Tuple[Tuple[Key, int, int, int], ...] = ()   # every send issued: (key, dst, tag, comm)
     aborted: Tuple[int, ...] = ()                  # ranks that aborted
     unknown: Tuple[Tuple[int, str], ...] = ()      # (rank, why) of the ranks stopped at an Unknown op
+    # pending ready-mode sends issued while a receive that accepts them was posted, each with
+    # those receives: the only ones that may take it without error (sorted by send key)
+    ready: Tuple[Tuple[Key, FrozenSet[Key]], ...] = ()
 
 
 @dataclass
@@ -178,6 +184,20 @@ class Result:
         return {o.sig() for o in self.outcomes}
 
 
+_READY_ERROR = re.compile(r"^rsend-no-receive: s\((-?\d+), (-?\d+)\)")
+
+
+def ready_errors(o: Outcome) -> FrozenSet[Key]:
+    """The ready-mode sends that an execution did not match to a receive posted before their
+    issue: the sends its rsend-no-receive errors name."""
+    out = set()
+    for e in o.errors:
+        m = _READY_ERROR.match(e)
+        if m:
+            out.add((int(m.group(1)), int(m.group(2))))
+    return frozenset(out)
+
+
 class ExploreError(Exception):
     pass
 
@@ -232,6 +252,13 @@ def _reqs_del(reqs, name):
 
 def _add_error(errors: Tuple[str, ...], e: str) -> Tuple[str, ...]:
     return errors if e in errors else tuple(sorted(errors + (e,)))
+
+
+def _ready_error(key: Key) -> str:
+    """The error of a ready-mode send that no receive posted before its issue takes. One text
+    wherever it is detected, so that executions alike in their matching and their errors are one
+    outcome."""
+    return f"rsend-no-receive: s{key} is not taken by a receive posted before its issue"
 
 
 # ---------------------------------------------------------------- the model
@@ -327,8 +354,12 @@ class _Ctx:
         ncoll = tuple((self.ranks[i], sum(n for _, n in p.ncoll)) for i, p in enumerate(st.procs))
         stops = tuple((self.ranks[i], p.pos, "send" if p.blocked_send is not None else "recv" if p.blocked_recv is not None
                        else "coll" if p.blocked_coll is not None else "") for i, p in enumerate(st.procs))
-        return Outcome(kind, frozenset(st.matched), frozenset(m.key for m in st.pending), "; ".join(st.errors),
-                       frozenset(r.key for r in st.posted), st.errors, st.matched, st.sent, ncoll, st.unknown, stops)
+        errors = st.errors
+        for key, _ in st.ready:
+            # a ready send that no receive took has no matching receive at all
+            errors = _add_error(errors, _ready_error(key))
+        return Outcome(kind, frozenset(st.matched), frozenset(m.key for m in st.pending), "; ".join(errors),
+                       frozenset(r.key for r in st.posted), errors, st.matched, st.sent, ncoll, st.unknown, stops)
 
     def _force_starved(self, st: GState) -> bool:
         """Some posted forced receive could match a pending send if the force were lifted."""
@@ -363,6 +394,24 @@ class _Ctx:
         commutative; the error surfaces in the terminal outcome."""
         if m.bytes > r.cap:
             st = _gs(st, errors=_add_error(st.errors, f"truncate: {m.bytes}B into {r.cap}B at r{r.key}"))
+        if st.ready:
+            # a ready send is correct only if the receive that takes it was posted before its
+            # issue; another receive that accepted it then does not make it so. A pending ready
+            # send whose receives of that kind are all matched elsewhere is erroneous whatever
+            # happens next, and its entry goes (fewer distinct states)
+            errors, ready = st.errors, []
+            for key, posted in st.ready:
+                if key == m.key:
+                    if r.key not in posted:
+                        errors = _add_error(errors, _ready_error(key))
+                    continue
+                if r.key in posted:
+                    posted = posted - {r.key}
+                    if not posted:
+                        errors = _add_error(errors, _ready_error(key))
+                        continue
+                ready.append((key, posted))
+            st = _gs(st, errors=errors, ready=tuple(ready))
         procs = list(st.procs)
         pi = self.ranks.index(m.src)
         p = procs[pi]
@@ -486,11 +535,22 @@ class _Ctx:
             blocked = key if (op.req is None and rendez) else None
             csend = st.completed_send if rendez else st.completed_send | {key}
             np_ = self.advance(p, nsend=p.nsend + 1, blocked_send=blocked, reqs=reqs)
-            errors = st.errors
-            if mode == "rsend" and not any(_accepts(r, m) for r in st.posted):
-                errors = _add_error(errors, f"rsend-no-receive: s{key} issued before a receive for it was posted at rank {dst}")
+            errors, ready = st.errors, st.ready
+            if mode == "rsend":
+                # MPI 4.1 §3.4: a ready send may start only if its matching receive is already
+                # posted. Which receive takes it is decided later, so the receives posted now that
+                # accept it are kept with it: the error is recorded here if there is none, at the
+                # match if another receive takes it, once all of them have taken other messages,
+                # or at the end of the path if nothing takes it (docs/model.md §5). The model
+                # says the same of the receive the send is matched to: the edge
+                # issue(r) -> issue(s) and horizon rule 7
+                posted = frozenset(r.key for r in st.posted if _accepts(r, m))
+                if posted:
+                    ready = tuple(sorted(ready + ((key, posted),)))
+                else:
+                    errors = _add_error(errors, _ready_error(key))
             return _gs(st, procs=_procs(st, i, np_), pending=st.pending + (m,), completed_send=csend, errors=errors,
-                       sent=st.sent + ((key, dst, op.tag, op.comm),))
+                       sent=st.sent + ((key, dst, op.tag, op.comm),), ready=ready)
         if isinstance(op, Recv):
             key = (rank, p.nrecv)
             post = Post(key, rank, op.src, op.tag, op.cap, op.comm, op.req is None, op.into)

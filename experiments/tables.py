@@ -810,7 +810,9 @@ def e6():
            "straight-line program, at B = 0 and B = inf. Unsound: the checker accepts and no execution realises the",
            "pairs of the alternative on the receives inside its cut. Incomplete: some execution agrees with the",
            "alternative on every receive inside the cut and the checker rejects. Exact: some execution realises the",
-           "whole matching, beyond the horizon too, which the single-change checker does not claim.", "",
+           "whole matching, beyond the horizon too, which the single-change checker does not claim. An execution in which",
+           "a ready send inside the cut, or one issued before a compared pair can match, is not taken by a receive",
+           "posted before its issue is erroneous and counts for none of these.", "",
            "| traces | pairs (alternative, B) | agree | unsound | incomplete | skipped (explorer cap) | exact as well | events per trace, max | checker time | explorer time |",
            "|---|---|---|---|---|---|---|---|---|---|"]
     for label, sel in (("corpus and idiom traces", [r for r in rs if not r["trace"].startswith("synthetic/")]),
@@ -1344,8 +1346,9 @@ def e8_hb():
                 "leaves unmatched takes a message (what a replay pinned over the horizon tests); *realised with other matches",
                 "changed*: executions match the receive to the send, but only with another receive matched differently,",
                 "which no single-change alternative states; *not realised*: no execution matches them. An execution in which a",
-                "ready send is issued before its receive is posted, which is erroneous and which the check excludes, counts only",
-                "when no other does, and the verdict says so.", ""] + head + [line("synthetic", c), "",
+                "ready send inside the horizon, or one issued before a compared pair can match, is not taken by a receive",
+                "posted before its issue, which is erroneous and which the check excludes, counts only when no other does, and",
+                "the verdict says so.", ""] + head + [line("synthetic", c), "",
                 "Explorer verdicts: " + (", ".join(f"{cls} {e} {n}" for (cls, e), n in sorted(decided.items())) or "none") + "."]
         ex = [r for r in syn_dis if r["class"] == "hb-only"][:3] + [r for r in syn_dis if r["class"] == "stretto-only"][:2]
         if ex:

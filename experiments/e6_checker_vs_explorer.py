@@ -15,6 +15,10 @@ execution, and the judged receives M' leaves unmatched stay unmatched."
                 message  =>  the checker accepts  (incomplete otherwise)
 Each pair also records whether some execution realises M' in full (explorer_exact), which the
 single-change checker does not claim: the receives beyond the horizon are not its business.
+An execution in which a ready send inside the horizon, or one that must be issued before a pair
+the comparison looks for is matched, is not taken by a receive posted before its issue is
+erroneous (MPI 4.1 §3.4) and counts for neither (model_executions); the column note says when
+such an execution alone would have changed the row's verdict.
 
 With --reads, the checker cuts the rank of a changed receive at a read bound (rule H1',
 docs/firstread.md) instead of right after the receive: `never` (no result is ever read, the
@@ -42,7 +46,7 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, os.path.join(ROOT, "analysis"))
 from stretto import dsl, explore, trace  # noqa: E402
 from stretto.feasible import check  # noqa: E402
-from stretto.matching import candidates_full  # noqa: E402
+from stretto.matching import build_graph, candidates_full, match_node  # noqa: E402
 from stretto.deadlock import contained_deadlock  # noqa: E402
 from stretto.reads import NeverReads, Table  # noqa: E402
 from provenance import code_commit  # noqa: E402
@@ -76,6 +80,35 @@ def judged(t, M, cut):
     return out
 
 
+def model_executions(t, outcomes, cut, pairs, B):
+    """The explorer's executions that are correct where the comparison looks: every ready send
+    that the horizon keeps (cut, None for the whole trace), or that must be issued before one of
+    the pairs (receive -> send) is matched, is taken by a receive posted before its issue
+    (explore.ready_errors). The others are erroneous (MPI 4.1 §3.4) and realise nothing: the
+    check's graph has the edge issue(r) -> issue(s) and its horizon removes a ready send without
+    its receive (rule 7). "Must be issued before" is reachability in the constraint graph of the
+    execution's matching at B, without the edges of its erroneous ready sends: a pair beyond the
+    cut (the changed receive of a rejected alternative) needs what precedes it, and an accepted
+    alternative's pairs lie in the horizon, which holds their predecessors. A ready send that
+    precedes neither is not the claim's business, and its error does not change what the
+    explorer delivers."""
+    ready = {s.key for s in t.sends.values() if s.ready_mode}
+    out = []
+    for o in outcomes:
+        bad = explore.ready_errors(o)
+        if any(cut is None or t.sends[k].idx < cut.get(k[0], 10**9) for k in bad):
+            continue
+        if bad:
+            mo = {rk: sk for rk, sk in o.matching if rk in t.recvs}
+            targets = {match_node(t.recvs[rk]) for rk, sk in pairs.items() if mo.get(rk) == sk}
+            if targets:
+                g = build_graph(t, mo, None, B, ready=ready - bad)
+                if any(targets & g.reach_set(t.sends[k].issue_node()) for k in bad):
+                    continue
+        out.append(o)
+    return out
+
+
 def compare(t, name, args, rows, counts, times):
     prog = dsl.program_from_trace(t)
     alts, _ = candidates_full(t)
@@ -87,24 +120,33 @@ def compare(t, name, args, rows, counts, times):
             t1 = time.perf_counter()
             try:
                 res = explore.explore(prog, B, force={a.recv: a.send}, max_states=args.max_states, comms=t.comm_members)
-                outs = [{rk: sk for rk, sk in o.matching if rk in t.recvs} for o in res.outcomes]
                 keys = set(judged(t, a.M, v.cut)) | set(a.changed)
                 if a.kind == "steal" and a.stolen_from is not None:
                     keys.add(a.stolen_from)        # left without a message: the execution must leave it so
                 pairs = {rk: a.M[rk] for rk in keys if rk in a.M}
-                # soundness: the judged pairs of M' occur together in some execution
-                reach_prefix = any(all(om.get(rk) == sk for rk, sk in pairs.items()) for om in outs)
-                # completeness: some execution agrees with M' on every judged receive, matched
-                # alike or unmatched, and on the changed receive (a rejection that cuts the changed
-                # receive itself claims its new match cannot happen within what the trace determines)
-                reach_kept_exact = any(all(om.get(rk) == a.M.get(rk) for rk in keys) for om in outs)
-                reach_exact = any(om == a.M for om in outs)
+
+                def reached(outcomes):
+                    outs = [{rk: sk for rk, sk in o.matching if rk in t.recvs} for o in outcomes]
+                    # soundness: the judged pairs of M' occur together in some execution
+                    prefix = any(all(om.get(rk) == sk for rk, sk in pairs.items()) for om in outs)
+                    # completeness: some execution agrees with M' on every judged receive, matched
+                    # alike or unmatched, and on the changed receive (a rejection that cuts the changed
+                    # receive itself claims its new match cannot happen within what the trace determines)
+                    kept_exact = any(all(om.get(rk) == a.M.get(rk) for rk in keys) for om in outs)
+                    return prefix, kept_exact, any(om == a.M for om in outs)
+
+                # an execution with a ready send of the horizon issued before the receive that takes it
+                # is erroneous and realises nothing; the note says when one would have changed the row
+                clean = model_executions(t, res.outcomes, v.cut, pairs, B)
+                reach_prefix, reach_kept_exact, reach_exact = reached(clean)
+                exp_err = ""
+                if len(clean) < len(res.outcomes) and reached(res.outcomes)[:2] != (reach_prefix, reach_kept_exact):
+                    exp_err = "realised only with a ready send before its receive"
                 # theorem T7: a contained deadlock means every execution with the changed match deadlocks
                 rule1 = bounds.rule1(t, a.changed) if bounds is not None else None
                 dl = contained_deadlock(t, a.M, a.changed, v.cut, v.issued, B, rule1) if v.feasible else None
-                with_pair = res.outcomes_with(a.recv, a.send)
+                with_pair = [o for o in clean if (a.recv, a.send) in o.matching]
                 t7 = "" if not dl else ("ok" if with_pair and all(o.kind == "deadlock" for o in with_pair) else "UNSOUND")
-                exp_err = ""
             except explore.StateCapReached:
                 reach_prefix = reach_kept_exact = reach_exact = None
                 exp_err, t7 = "state-space", ""

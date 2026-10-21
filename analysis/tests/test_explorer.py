@@ -12,7 +12,7 @@ import random
 import unittest
 
 from stretto.dsl import ANY, Abort, Coll, If, Irecv, Isend, Lazy, Recv, Send, Unknown, Wait, Waitany
-from stretto.explore import ExploreError, StateCapReached, explore
+from stretto.explore import ExploreError, StateCapReached, explore, ready_errors
 
 from idioms_dsl import ALL
 
@@ -324,6 +324,27 @@ class T14_ReadyMode(unittest.TestCase):
         self.assertEqual({o.kind for o in res.outcomes}, {"done"})
         self.assertIn("rsend-no-receive", res.kinds())
         self.assertTrue(any(not o.errors for o in res.outcomes), "the receive-first order is fine")
+
+    def test_rsend_taken_by_a_receive_posted_after_it(self):
+        """The shape of E6's synthetic program 017 (seed 20261016): a wildcard Irecv that accepts
+        the ready send is pending at its issue, but takes the sender's earlier message, and the
+        receive that takes the ready send is posted only after the sender's next message has
+        arrived. Every execution is erroneous; before 22 Oct 2026 the pending Irecv excused it."""
+        prog = {0: [Irecv(ANY, ANY, req="a"), Recv(1, 9), Recv(1, 1), Wait("a")],
+                1: [Send(0, 1), Send(0, 1, mode="rsend"), Send(0, 9)]}
+        res = explore(prog, None)
+        self.assertTrue(res.outcomes)
+        self.assertTrue(all(ready_errors(o) == {(1, 1)} for o in res.outcomes), [str(o) for o in res.outcomes])
+
+    def test_rsend_that_no_receive_takes(self):
+        # the Irecv posted before the ready send may take the other sender's message instead: the
+        # ready send then has no matching receive at all
+        prog = {0: [Irecv(ANY, 1, req="a"), Wait("a")], 1: [Send(0, 1, mode="rsend")], 2: [Send(0, 1)]}
+        res = explore(prog, None)
+        orphaned = [o for o in res.outcomes if (1, 0) in o.orphans]
+        self.assertTrue(orphaned)
+        self.assertTrue(all((1, 0) in ready_errors(o) for o in orphaned))
+        self.assertTrue(any(not o.errors for o in res.outcomes if (1, 0) not in o.orphans))
 
 
 if __name__ == "__main__":

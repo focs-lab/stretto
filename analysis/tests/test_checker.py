@@ -1220,15 +1220,15 @@ def realised_but_pruned(t, max_states: int):
     single change: every changed receive is posted inside the alternative's horizon and its
     new message issued there (otherwise the trace does not determine the change, and the
     check would reject it whatever the order), and some execution of the trace as a
-    straight-line program has every pair of the alternative that the horizon judges, with no
-    ready send issued while no receive for it is posted (the explorer's rsend-no-receive,
-    erroneous by MPI 4.1 section 3.4). Pairs
-    whose exploration exceeds max_states are left out, and so is a trace whose observed graph
-    is cyclic at B = inf: the model cannot realise its run at any threshold, the pruning's
-    argument (docs/model.md, section 2) needs the graph acyclic, and the report has no
-    vector clocks for it. (The explorer accepts a ready send while any receive that accepts
-    it is posted, the model only once the receive it is matched to is, so E6's generator
-    yields such traces.)"""
+    straight-line program has every pair of the alternative that the horizon judges, with every
+    ready send of the horizon taken by a receive posted before its issue (the explorer's
+    rsend-no-receive marks the others, erroneous by MPI 4.1 section 3.4; E6's
+    model_executions, here with every pair inside the horizon, which holds what the pairs
+    need). Pairs whose exploration exceeds max_states are left out, and so is a
+    trace whose observed graph is cyclic at B = inf: the model cannot realise its run at any
+    threshold, the pruning's argument (docs/model.md, section 2) needs the graph acyclic, and
+    the report predicts nothing for it. (Before 22 Oct 2026 the explorer accepted a ready send
+    while any receive that accepts it was posted, so E6's generator yielded such traces.)"""
     from stretto.horizon import compute_cut
     if build_graph(t, t.observed, None, None).find_cycle() is not None:
         return []
@@ -1253,8 +1253,8 @@ def realised_but_pruned(t, max_states: int):
             res = explore.explore(prog, None, force={a.recv: a.send}, max_states=max_states, comms=t.comm_members)
         except (explore.StateCapReached, explore.ExploreError):
             continue
-        if any("rsend-no-receive" not in o.error_kinds and all(dict(o.matching).get(rk) == sk for rk, sk in pairs.items())
-               for o in res.outcomes):
+        clean = [o for o in res.outcomes if not any(t.sends[k].idx < cut[k[0]] for k in explore.ready_errors(o))]
+        if any(all(dict(o.matching).get(rk) == sk for rk, sk in pairs.items()) for o in clean):
             out.append(a.describe(t))
     return out
 
@@ -1264,8 +1264,9 @@ class C_EnumerationComplete(unittest.TestCase):
     on the random programs of E6 (experiments/e6_checker_vs_explorer.py --synthetic: the same
     generator, seed and share of programs with synchronous and ready sends interleaved with
     receives and waits), the first PROGRAMS of them with a smaller state cap so that the test
-    stays fast. None of E6's 200 programs has a pair that the pruning lost before it set the
-    ready edge aside; of E8b's 100, all mixed, program 037 has one (C_PruneOnKeptEdges)."""
+    stays fast. Of the programs drawn before the explorer's ready-send fix (22 Oct 2026), none of
+    E6's 200 had a pair that the pruning lost before it set the ready edge aside, and of E8b's
+    100, all mixed, program 037 had one (C_PruneOnKeptEdges)."""
     PROGRAMS, MAX_STATES = 40, 5000
 
     def test_e6_programs(self):
@@ -1293,6 +1294,40 @@ class C_EnumerationComplete(unittest.TestCase):
                 self.assertEqual(realised_but_pruned(t, self.MAX_STATES), [])
         self.assertEqual(made, self.PROGRAMS)
         self.assertGreater(pruned, 0)
+
+
+def ready_before_receive_trace():
+    """E6's synthetic program 017 (seed 20261016), reduced: rank 1 sends s0, then the ready send
+    s1, then x; rank 0 posts Irecv(ANY, ANY), receives x, then the receive r2 that takes s1, and
+    waits for the Irecv, which takes s0 (non-overtaking). r2 follows x, which follows s1, so
+    every execution issues s1 before r2 is posted: the run is erroneous, while the Irecv, which
+    accepts s1, may be pending at s1's issue."""
+    return mk({0: [irecv(T.ANY, T.ANY, 10), recv(1, 9, 1, 9), recv(1, 1, 1, 1), wait((10, 1, 1))],
+               1: [send(0, 1), send(0, 1, mode="rsend"), send(0, 9)]})
+
+
+class C_ReadySendBeforeItsReceive(unittest.TestCase):
+    """A ready send needs the receive it is matched to posted before its issue (MPI 4.1 §3.4,
+    the edge issue(r) -> issue(s) and horizon rule 7). Before 22 Oct 2026 the explorer accepted
+    one whenever some receive that accepts it was posted."""
+
+    def test_explorer_needs_the_matched_receive_posted(self):
+        t = ready_before_receive_trace()
+        s1, r2 = (1, 1), (0, 2)
+        self.assertEqual(t.observed, {(0, 0): (1, 0), (0, 1): (1, 2), r2: s1})
+        for B in (0, None):
+            res = explore.explore(dsl.program_from_trace(t), B, comms=t.comm_members)
+            if B is None:
+                self.assertEqual({o.matching for o in res.outcomes}, {frozenset(t.observed.items())})
+            # the Irecv pending at s1's issue no longer excuses it: every execution is erroneous
+            self.assertTrue(all(s1 in explore.ready_errors(o) for o in res.outcomes), [str(o) for o in res.outcomes])
+
+    def test_ready_send_matched_to_a_receive_posted_earlier_is_fine(self):
+        # the same ranks, with the ready send first: the Irecv posted before it takes it
+        t = mk({0: [irecv(T.ANY, T.ANY, 10), recv(1, 9, 1, 9), recv(1, 1, 1, 1), wait((10, 1, 1))],
+                1: [send(0, 1, mode="rsend"), send(0, 1), send(0, 9)]})
+        res = explore.explore(dsl.program_from_trace(t), None, comms=t.comm_members)
+        self.assertTrue(any(not explore.ready_errors(o) for o in res.outcomes))
 
 
 class C_BufferGuard(unittest.TestCase):

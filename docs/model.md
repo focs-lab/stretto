@@ -121,6 +121,25 @@ query did not set the ready edge aside: E8b found a steal of a ready send that t
 accepts and the explorer realises pruned (synthetic program 037; `C_PruneOnKeptEdges`, and
 `C_EnumerationComplete` over E6's programs).
 
+Ready sends. MPI 4.1 §3.4 lets a ready-mode send start only once its matching receive is
+posted, and the model says so of the receive the send is matched to: the edge
+issue(r₂) → issue(s) and rule 7. Before 22 Oct 2026 the explorer was looser: it raised
+rsend-no-receive only when no posted receive accepted the send at its issue, so a ready send
+issued while a wildcard that accepts it was pending, then taken by a receive posted later, was
+correct to it (E6's synthetic program 017: the pending Irecv(ANY, ANY) takes the sender's
+earlier message). Such executions can realise a pair the check rightly rejects, and can hide an
+accepted pair that no correct execution realises; E6's generator also drew its traces from
+them. The explorer now keeps with each pending ready send the receives posted at its issue that
+accept it and checks the receive that takes it at the match, where that receive is first known
+(deciding at the issue would need a guess of which receive will take it, one more branch per
+send); a send that keeps no such receive, because each took another message or none was
+posted, is erroneous whatever follows, and so is one that nothing takes by the end of the path.
+E6 and E8b count an execution only if every ready send is correct in it that the alternative's
+horizon keeps or that must be issued before a pair they compare is matched (such a pair lies
+beyond the horizon when the check rejects the alternative; `model_executions` in
+`experiments/e6_checker_vs_explorer.py`); any other ready send is not the claim's business.
+Tests `C_ReadySendBeforeItsReceive` and `T14_ReadyMode`.
+
 ## 2b. Theorems
 
 Statements in the form of *Soundness of Predictive Concurrency Analyses* (OOPSLA'25): a trace,
@@ -419,9 +438,12 @@ and matches of specific-source receives (unique by non-overtaking) are taken alo
 wildcard-source matches and `Waitany` choices branch. Collectives complete by the same shapes
 as the checker's edges (§2): a bcast root returns once it has issued, a reduce root waits for
 everyone, a scan member for those before it; a collective without a known root synchronises
-everyone. A ready-mode send issued before its receive is posted is an error on the path, and
-since that depends on the order of posting and issue, a program with a ready-mode send is
-explored without the reduction. Outcomes: done, deadlock, truncate, rsend-no-receive,
+everyone. A ready-mode send that no receive posted before its issue takes is an error on the
+path (rsend-no-receive): it is recorded at the issue when no posted receive accepts the send,
+at the match when a receive posted later takes it, once every receive that accepted it at its
+issue has taken another message, or at the end of a path on which nothing takes it (§2, ready
+sends). Since that depends on the order of posting and issue, a program with a ready-mode send
+is explored without the reduction. Outcomes: done, deadlock, truncate, rsend-no-receive,
 collective-mismatch, each with its matching, its orphan sends and one witness execution.
 Ground truth for 2–4 ranks; the differential test T10 compares the reduced and the unreduced
 explorer on the idiom twins and on random programs with every send mode, sub-communicators,
