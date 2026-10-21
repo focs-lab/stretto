@@ -95,6 +95,40 @@ class ReadBoundsInTheHorizon(unittest.TestCase):
             self.assertIsNotNone(ob.check_alternative(a, bounds=Table({})))
             self.assertEqual(ob.check_alternative(a, bounds=Table({})).cut, ob.check_alternative(a).cut)
 
+    def test_fast_closure_equals_the_worklist_on_more_traces(self):
+        """The indexed closure and horizon.compute_cut cut alike under read bounds that keep the
+        whole rest of the changed rank, for every steal of the idiom traces kept with the tests
+        and of the traces built here, at every breakpoint."""
+        import glob
+        traces = [window_trace(), loop_trace(),
+                  mk({0: [recv(T.ANY, 1, 1, 1, widx=0), recv(T.ANY, 1, 1, 1, widx=1), recv(2, 1, 2, 1)],
+                      1: [send(0, 1), send(0, 1)], 2: [send(0, 1)]})]
+        golden = os.path.join(os.path.dirname(os.path.abspath(__file__)), "golden", "openmpi")
+        traces += [T.load(d) for d in sorted(glob.glob(os.path.join(golden, "*")))]
+        b = NeverReads()
+        n = 0
+        for t in traces:
+            for a in candidates_full(t)[0]:
+                if a.kind != "steal":
+                    continue
+                r, s = t.recvs[a.recv], t.sends[a.send]
+                s_obs = t.observed_send(r)
+                r2 = t.recvs[a.stolen_from] if a.stolen_from is not None else None
+                for B in breakpoints(t) + [None]:
+                    ob = fast.Observed(t, B)
+                    ob.ix.ready()
+                    cut, issued = ob.closure(changed=[r.key], new_pairs={r.key: s.key},
+                                             dropped_recvs=[r2] if r2 is not None else (),
+                                             dropped_sends=[s_obs] if s_obs is not None else (),
+                                             exclude2=(s_obs.rank, r.rank, ob.ix.sq_pos[s_obs.key]) if s_obs is not None else None,
+                                             exclude3=(r2.rank, s.rank, ob.ix.rq_pos[r2.key]) if r2 is not None else None,
+                                             bounds=b)
+                    ref = {}
+                    self.assertEqual((cut, issued), (compute_cut(t, a.M, set(a.changed), B, "L1", set(), None, set(), ref, None, b), ref),
+                                     f"{a.describe(t)} B={B}")
+                    n += 1
+        self.assertGreater(n, 50)
+
     def test_contained_deadlock_inside_the_window(self):
         """Under H1 rank 0 is cut right after r0 and its stranded receive r1 lies beyond the
         horizon: the deadlock is a single-path claim. With r0's result never read before r1,
