@@ -174,6 +174,18 @@ only what needs no single-path assumption rises from {t('nReadsFoneLOneBase')} t
 value checks still need L2. Against the explorer with read bounds, {t('nReadsEsixUnsound')} of
 {t('nReadsEsixPairs')} judged alternatives are unsound.
 """
+    scale = ""
+    if v("nScaleTraces"):
+        scale = f"""
+**Scale.** From {t('nScaleNpMin')} to {t('nScaleNpMax')} processes, in a container of 24 hardware threads that the
+larger counts oversubscribe (so these runs measure the analysis, not the programs), the analysis
+of AMG grows from {t('ScaleAMGSixteenTime')} s and {t('ScaleAMGSixteenGB')} GB to {t('ScaleAMGSixtyFourTime')} s and {t('ScaleAMGSixtyFourGB')} GB. Its probe alternatives
+grow from {t('nScaleAMGSixteenProbeAlts')} to {t('nScaleAMGSixtyFourProbeAlts')}, and each takes time about in proportion to the trace
+({t('ScaleAMGSixteenPerAlt')} ms at {t('ScaleAMGSixteenRecords')} M records, {t('ScaleAMGSixtyFourPerAlt')} ms at {t('ScaleAMGSixtyFourRecords')} M), so the total is about the
+number of alternatives times the length of the trace. HYPRE's analysis grows from
+{t('ScaleHypreSixteenTime')} to {t('ScaleHypreSixtyFourTime')} s; LU's, with no wildcards, {t('ScaleLuTimeRatio')}-fold with its {t('ScaleLuRecordsRatio')}-fold trace. All
+{t('nScaleSample')} sampled replays matched their pins and finished, and so did every control.
+"""
     block = f"""<!-- results:begin -->
 <!-- Written by experiments/tables.py from experiments/results/; do not edit by hand. -->
 
@@ -221,7 +233,7 @@ and on Nekbone: every replay matched its pins and finished, and so did every con
 **Cost.** Tracing slows NPB by {t('TraceOverhead')}× (its own timers). Analysis: lu.A on 16
 processes ({t('LuEvents')} M events) in {t('LuAnalysis')} s, AMG in {t('AMGtime')} s, Nekbone
 ({t('NekRecords')} M records) in {t('NekMinutes')} min and {t('NekGB')} GB.
-
+{scale}
 Full tables: [`docs/results.md`](docs/results.md).
 <!-- results:end -->"""
     path = os.path.join(root, "README.md")

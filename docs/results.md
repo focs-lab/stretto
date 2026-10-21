@@ -5,7 +5,8 @@ names the code commits its rows were produced with (the `commit` column). The co
 E2, E6 and the E3 and E7 inputs come from `experiments/run_remaining.sh` on the second, shared machine
 (the container of `experiments/container/`, 12 cores of one NUMA node); the HYPRE campaign from
 `experiments/hypre/campaign.sh`, the NPB MG and deal.II campaigns from `experiments/npbmg/run.sh` and
-`experiments/dealii/run.sh`, and Nekbone from `experiments/nekbone/run.sh` there. The MUST verdicts
+`experiments/dealii/run.sh`, Nekbone from `experiments/nekbone/run.sh` and the scale campaign (E11)
+from `experiments/scale/run.sh` there. The MUST verdicts
 are carried over from MUST 1.9.2 runs under MPICH in MPI-BugBench's own container, with the same timeout
 per program, and those of MUST 1.11.2 from the image of `experiments/must/`; NINJA's runs come from
 `experiments/ninja/campaign.sh`. The E4 times, the AMG trace and its analysis time come from one announced timed leg at commit
@@ -1010,3 +1011,36 @@ more than 1e-8 off the reference. Rows by code commit: 3b8e846 (81).
 | 16 | random, 10% of sends by 0.05 s | 20 | 20 | 8 | 8 |
 | 16 | system-centric | 20 | 20 | 1 | 1 |
 | 16 | application-centric | 20 | 20 | 9 | 9 |
+
+## E11: scale (16 to 64 processes)
+
+HYPRE 2.10.1's `ij -solver 8 -pout 0` (ParaSails, MPICH build), AMG with 16^3 points per process (`-problem 1`,
+Open MPI) and NPB LU class A (MPICH build), each traced once per process count; each trace analysed in one
+process under `/usr/bin/time` (`--no-sp`), and a random sample of its alternatives replayed with the pins of
+their horizon and a control (`experiments/scale/run.sh`, `experiments/replay_sample.py`). Process counts above
+the container's processors (24 hardware threads, 12 cores, in the committed campaign) oversubscribe it, so these
+runs measure the analysis, which runs in one process, not the traced program's speed. They ran outside a timed
+leg, with other containers on the machine: the times show the cost and are not timing claims. Peak memory is
+the analysis's maximum resident set. *Per record* is the analysis time over the trace's records, *per
+alternative* the time over the alternatives reported, *per alternative and record* that over the records too.
+Rows by code commit: b7c886f (9).
+
+| application | processes | traced run | records | wildcard receives | probes | findings by class | analysis (s) | peak memory (GB) | per record (µs) | per alternative (ms) | per alternative and record (ns) | replays | pins matched | finished | controls finished | control pins matched |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| HYPRE 2.10.1, ParaSails | 16 | FINISHED | 167802 | 23 | 78760 | probe-alt 187, 1f 8 | 12.4 | 0.7 | 74.0 | 63.7 | 379.6 | 10 | 10 | 10 | 10 | 10 |
+| HYPRE 2.10.1, ParaSails | 32 | FINISHED | 425093 | 40 | 203910 | probe-alt 202, 1f 9 | 34.2 | 2.1 | 80.4 | 162.0 | 381.2 | 10 | 10 | 10 | 10 | 10 |
+| HYPRE 2.10.1, ParaSails | 64 | FINISHED | 962967 | 70 | 465867 | probe-alt 215, 1f 7 | 90.9 | 5.7 | 94.4 | 409.5 | 425.3 | 10 | 10 | 10 | 10 | 10 |
+| AMG | 16 | FINISHED | 329453 | 103 | 26019 | probe-alt 16934, 1f 10 | 65.2 | 2.1 | 197.8 | 3.8 | 11.7 | 10 | 10 | 10 | 10 | 10 |
+| AMG | 32 | FINISHED | 976135 | 209 | 86879 | probe-alt 91578, 1f 16 | 704.1 | 7.4 | 721.3 | 7.7 | 7.9 | 10 | 10 | 10 | 10 | 10 |
+| AMG | 64 | FINISHED | 2573046 | 497 | 130465 | probe-alt 501881, 1f 66 | 10837.6 | 37.5 | 4212.0 | 21.6 | 8.4 | 10 | 10 | 10 | 10 | 10 |
+| NPB LU, class A | 16 | FINISHED | 3049940 | 0 | 0 | none | 87.3 | 5.2 | 28.6 | - | - | 0 | 0 | 0 | 0 | 0 |
+| NPB LU, class A | 32 | FINISHED | 6608024 | 0 | 0 | none | 185.2 | 11.0 | 28.0 | - | - | 0 | 0 | 0 | 0 | 0 |
+| NPB LU, class A | 64 | FINISHED | 14232316 | 0 | 0 | none | 419.1 | 23.4 | 29.4 | - | - | 0 | 0 | 0 | 0 | 0 |
+
+Traced runs that finished: 9 of 9; analyses that finished: 9 of 9. Sampled replays: 60 (1f 4, probe-alt 56); with every pin matched: 60; finished: 60; controls finished: 60, with every pin matched: 60. A trace without wildcard receives or probes (LU) has no alternative to sample.
+
+Where the time goes. LU has no alternative: its analysis costs 28 to 29 µs per record at every
+process count. AMG's alternatives grow with the processes, and so does the time each one takes, about in
+proportion to the trace (theorem T4 bounds the time per alternative by a quasi-linear function of the trace):
+per alternative and record, 8 to 12 ns. AMG's analysis time is therefore about the number of
+its alternatives times the length of its trace.

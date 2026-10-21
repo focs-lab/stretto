@@ -1644,6 +1644,114 @@ def ninja():
     return "\n".join(out) + "\n"
 
 
+SCALE_APPS = (("hypre", "Hypre", "HYPRE 2.10.1, ParaSails"), ("amg", "AMG", "AMG"), ("lu", "Lu", "NPB LU, class A"))
+NP_WORD = {4: "Four", 8: "Eight", 16: "Sixteen", 32: "ThirtyTwo", 64: "SixtyFour", 128: "HundredTwentyEight"}
+
+
+def scale():
+    """E11: HYPRE, AMG and NPB LU traced beyond eight processes, each trace analysed under
+    /usr/bin/time and a sample of its alternatives replayed with controls (experiments/scale/run.sh:
+    scale.csv, one row per trace; samples/<app>-<np>.csv, the sample's rows; samples/<app>-<np>.time)."""
+    d = os.path.join(RES, "scale")
+    rs = rows(os.path.join(d, "scale.csv"))
+    if not rs:
+        return "## E11: scale\n\n_no results_\n"
+    nps = sorted({int(r["np"]) for r in rs})
+
+    def classes(r):
+        """'1f 8;probe-alt 187' -> {'1f': 8, 'probe-alt': 187}"""
+        return {k: int(v) for k, v in (c.strip().rsplit(" ", 1) for c in (r.get("findings") or "").split(";") if c.strip())}
+
+    def analysed(r):
+        """The analysis printed its trace header and /usr/bin/time no failure (a nonzero status or a signal)."""
+        p = os.path.join(d, "samples", f"{r['app']}-{r['np']}.time")
+        t = open(p).read() if os.path.exists(p) else ""
+        return bool(r.get("wildcard_receives") and r.get("analysis_s")) and "Command" not in t
+
+    def sample(r):
+        """The sample's rows that were replayed (replay_sample.py skips an alternative without a horizon)."""
+        return [x for x in rows(os.path.join(d, "samples", f"{r['app']}-{r['np']}.csv")) if x.get("replay") not in (None, "", "no horizon")]
+
+    out = [f"## E11: scale ({nps[0]} to {nps[-1]} processes)", "",
+           "HYPRE 2.10.1's `ij -solver 8 -pout 0` (ParaSails, MPICH build), AMG with 16^3 points per process (`-problem 1`,",
+           "Open MPI) and NPB LU class A (MPICH build), each traced once per process count; each trace analysed in one",
+           "process under `/usr/bin/time` (`--no-sp`), and a random sample of its alternatives replayed with the pins of",
+           "their horizon and a control (`experiments/scale/run.sh`, `experiments/replay_sample.py`). Process counts above",
+           "the container's processors (24 hardware threads, 12 cores, in the committed campaign) oversubscribe it, so these",
+           "runs measure the analysis, which runs in one process, not the traced program's speed. They ran outside a timed",
+           "leg, with other containers on the machine: the times show the cost and are not timing claims. Peak memory is",
+           "the analysis's maximum resident set. *Per record* is the analysis time over the trace's records, *per",
+           "alternative* the time over the alternatives reported, *per alternative and record* that over the records too.",
+           f"Rows by code commit: {commits(rs)}.", "",
+           "| application | processes | traced run | records | wildcard receives | probes | findings by class | analysis (s) "
+           "| peak memory (GB) | per record (µs) | per alternative (ms) | per alternative and record (ns) | replays "
+           "| pins matched | finished | controls finished | control pins matched |",
+           "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
+    done = [r for r in rs if analysed(r)]
+    replayed = []
+    by_app = collections.defaultdict(dict)
+    per_rec = collections.defaultdict(list)       # µs per record, per application
+    per_alt_rec = collections.defaultdict(list)   # ns per alternative and record
+    for app, key, label in SCALE_APPS:
+        for r in sorted((r for r in rs if r["app"] == app), key=lambda r: int(r["np"])):
+            np_ = int(r["np"])
+            c = classes(r)
+            alts = sum(c.values())
+            secs, gb, recs = float(r["analysis_s"]), int(r["peak_kb"]) * 1024 / 1e9, int(r["records"])   # %M is in KiB
+            per = secs / alts * 1e3 if alts else None
+            per_rec[key].append(secs / recs * 1e6)
+            if per:
+                per_alt_rec[key].append(per / recs * 1e6)
+            s = sample(r)
+            replayed += s
+            out.append(f"| {label} | {np_} | {r['traced_run']} | {recs} | {r['wildcard_receives']} | {r['probes']} | "
+                       + (", ".join(f"{k} {v}" for k, v in sorted(c.items(), key=lambda kv: -kv[1])) or "none")
+                       + f" | {secs:.1f} | {gb:.1f} | {secs / recs * 1e6:.1f} | {f'{per:.1f}' if per else '-'} "
+                       f"| {f'{per / recs * 1e6:.1f}' if per else '-'} | {r['sample']} | {r['matched']} | {r['finished']} "
+                       f"| {r['controls_finished']} | {sum(x.get('control_matched') == 'True' for x in s)} |")
+            k = f"Scale{key}{NP_WORD[np_]}"
+            num(k + "Time", round(secs))
+            num(k + "GB", f"{gb:.1f}")
+            num(k + "Records", f"{recs / 1e6:.2f}")
+            if int(r["wildcard_receives"] or 0) or int(r["probes"] or 0):     # LU has none
+                num(f"n{k}Wild", int(r["wildcard_receives"] or 0))
+                num(f"n{k}Alts", alts)
+                num(f"n{k}ProbeAlts", c.get("probe-alt", 0))
+            if per:
+                num(k + "PerAlt", f"{per:.1f}")
+            by_app[key][np_] = (secs, recs)
+    for key, b in by_app.items():
+        lo, hi = b[min(b)], b[max(b)]
+        num(f"Scale{key}TimeRatio", f"{hi[0] / lo[0]:.1f}")       # from the fewest processes to the most
+        num(f"Scale{key}RecordsRatio", f"{hi[1] / lo[1]:.1f}")
+    num("nScaleNpMin", nps[0])
+    num("nScaleNpMax", nps[-1])
+    num("nScaleTraces", len(rs))
+    num("nScaleTracedFinished", sum(r["traced_run"] == "FINISHED" for r in rs))
+    num("nScaleAnalysed", len(done))
+    num("nScaleSample", sum(int(r["sample"] or 0) for r in rs))
+    num("nScaleSampleMatched", sum(int(r["matched"] or 0) for r in rs))
+    num("nScaleSampleFinish", sum(int(r["finished"] or 0) for r in rs))
+    num("nScaleSampleControls", sum(int(r["controls_finished"] or 0) for r in rs))
+    num("nScaleSampleControlsMatched", sum(x.get("control_matched") == "True" for x in replayed))
+    sampled = collections.Counter(x["cls"] for x in replayed)
+    out += ["", f"Traced runs that finished: {sum(r['traced_run'] == 'FINISHED' for r in rs)} of {len(rs)}; analyses that finished: "
+            f"{len(done)} of {len(rs)}. Sampled replays: {len(replayed)} ("
+            + ", ".join(f"{k} {v}" for k, v in sorted(sampled.items())) + f"); with every pin matched: "
+            f"{sum(x.get('matched') == 'True' for x in replayed)}; finished: {sum(x.get('replay') == 'FINISHED' for x in replayed)}; "
+            f"controls finished: {sum(x.get('control') == 'FINISHED' for x in replayed)}, with every pin matched: "
+            f"{sum(x.get('control_matched') == 'True' for x in replayed)}. A trace without wildcard receives or probes (LU) has no "
+            "alternative to sample."]
+    rng = lambda xs, fmt: f"{min(xs):{fmt}} to {max(xs):{fmt}}"   # noqa: E731
+    if per_rec.get("Lu") and per_alt_rec.get("AMG"):
+        out += ["", f"Where the time goes. LU has no alternative: its analysis costs {rng(per_rec['Lu'], '.0f')} µs per record at every",
+                "process count. AMG's alternatives grow with the processes, and so does the time each one takes, about in",
+                "proportion to the trace (theorem T4 bounds the time per alternative by a quasi-linear function of the trace):",
+                f"per alternative and record, {rng(per_alt_rec['AMG'], '.0f')} ns. AMG's analysis time is therefore about the number of",
+                "its alternatives times the length of its trace."]
+    return "\n".join(out) + "\n"
+
+
 def leg_commits():
     cs = sorted({r["commit"] for r in rows(os.path.join(RES, "e4", "e4.csv")) if r.get("commit")})
     return ", ".join(cs) or "unknown"
@@ -1655,7 +1763,8 @@ def main():
            "E2, E6 and the E3 and E7 inputs come from `experiments/run_remaining.sh` on the second, shared machine",
            "(the container of `experiments/container/`, 12 cores of one NUMA node); the HYPRE campaign from",
            "`experiments/hypre/campaign.sh`, the NPB MG and deal.II campaigns from `experiments/npbmg/run.sh` and",
-           "`experiments/dealii/run.sh`, and Nekbone from `experiments/nekbone/run.sh` there. The MUST verdicts",
+           "`experiments/dealii/run.sh`, Nekbone from `experiments/nekbone/run.sh` and the scale campaign (E11)",
+           "from `experiments/scale/run.sh` there. The MUST verdicts",
            "are carried over from MUST 1.9.2 runs under MPICH in MPI-BugBench's own container, with the same timeout",
            "per program, and those of MUST 1.11.2 from the image of `experiments/must/`; NINJA's runs come from",
            "`experiments/ninja/campaign.sh`. The E4 times, the AMG trace and its analysis time come from one announced timed leg at commit",
@@ -1681,7 +1790,8 @@ def main():
            "## E7: the value skeleton on MBI (level L2)", "", e7(),
            "## E8: the buffer guard (local concurrency, class 3-local)", "", guard() + must_tsan_local(),
            "## E8b: happens-before candidate selection against the check", "", e8_hb(),
-           "## E10: NINJA (noise injection)", "", ninja()]
+           "## E10: NINJA (noise injection)", "", ninja(),
+           scale()]
     path = os.path.join(ROOT, "docs", "results.md")
     open(path, "w").write("\n".join(doc))
     print("wrote", path)

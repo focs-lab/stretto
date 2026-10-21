@@ -136,6 +136,15 @@ and on Nekbone: every replay matched its pins and finished, and so did every con
 processes (3.05 M events) in 55 s, AMG in 15.5 s, Nekbone
 (10.1 M records) in 34 min and 33 GB.
 
+**Scale.** From 16 to 64 processes, in a container of 24 hardware threads that the
+larger counts oversubscribe (so these runs measure the analysis, not the programs), the analysis
+of AMG grows from 65 s and 2.1 GB to 10 838 s and 37.5 GB. Its probe alternatives
+grow from 16 934 to 501 881, and each takes time about in proportion to the trace
+(3.8 ms at 0.33 M records, 21.6 ms at 2.57 M), so the total is about the
+number of alternatives times the length of the trace. HYPRE's analysis grows from
+12 to 91 s; LU's, with no wildcards, 4.8-fold with its 4.7-fold trace. All
+60 sampled replays matched their pins and finished, and so did every control.
+
 Full tables: [`docs/results.md`](docs/results.md).
 <!-- results:end -->
 
