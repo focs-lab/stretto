@@ -539,6 +539,48 @@ Untraced runs of MG 2.4.1, plain and with random send and receive delays from th
 
 Pin logs of the application replays (HYPRE, MG, AMG and Nekbone samples), replays and controls: 2700 pinned runs, 10 with a pin unmatched, of which 0 hung or finished (the others: 10 APP-ERROR:15).
 
+## E5e: a third documented bug (deal.II 9.3.0-rc1, a probe takes a message of the next call)
+
+Traced runs of deal.II's test `mapping_01` (MPICH build); every probe alternative on the tag of
+RemotePointEvaluation is replayed with the pins of its horizon and with its control (`experiments/dealii/predict.py`).
+An alternative is *cross* if the probe would see a message of another call (the race), *same* if another
+rank's message of the same call. A replay *changes the output* when the test's log differs from its
+control's; the expected log is the test's own `.output` file. Rows by code commit: 575d291 (5380).
+
+| version | ranks | kind | traced runs | traced runs as expected | runs with one | alternatives | replayed | pins matched | finished | output changed | differs from the expected | controls finished | controls as expected |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 9.3.0-rc1 | 4 | cross | 20 | 20 | 20 | 1440 | 1440 | 1434 | 1440 | 1440 | 1440 | 1440 | 1437 |
+| 9.3.0-rc1 | 4 | same | 20 | 20 | 20 | 1920 | 1920 | 1917 | 1920 | 3 | 3 | 1920 | 1920 |
+| 9.3.0 | 4 | cross | 20 | 20 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| 9.3.0 | 4 | same | 20 | 20 | 20 | 1920 | 1920 | 1911 | 1920 | 0 | 0 | 1920 | 1920 |
+
+Every traced run also has 324 alternatives of probes on other tags (the consensus algorithms and cell exchanges that set up the
+triangulation and the cache), which are not replayed.
+
+Untraced runs of the same test on 9.3.0-rc1, plain and with random send and receive delays of 0 to 20 ms
+per rank from the replay library (no pin); a run *differs* when its log differs from the expected one.
+
+| ranks | setting | runs | finished | differs from the expected |
+|---|---|---|---|---|
+| 4 | plain | 50 | 50 | 1 |
+| 4 | delays | 50 | 50 | 42 |
+
+Where the logs of 9.3.0-rc1 differ from the expected one (`experiments/dealii/changes.py`). The test prints, per rank,
+one line per point and object with one column per call (avg, min, max, insert), so the changed lines name the
+ranks and the changed columns the calls whose values were wrong. Every call sends the same values, so a call is
+right whenever it took one message from each sender. A probe of call k that takes a sender's message of call k+1
+makes its own rank's call k wrong, and one later call of the same object, in which the rank takes the other
+sender twice: k+1, or the object's last call if the sender that ran ahead stays ahead. Rows by code commit:
+299d061 (1489).
+
+| runs | logs that differ | the probing rank's values in two consecutive calls | other ranks' values | two wrong calls per changed rank and object | consecutive ones |
+|---|---|---|---|---|---|
+| cross replays | 1440 | 1440 | 2 | 1440 | 1440 |
+| same replays | 3 | 0 | 3 | 3 | 3 |
+| controls | 3 | 0 | 3 | 3 | 3 |
+| untraced, plain | 1 | - | - | 1 | 1 |
+| untraced, with delays | 42 | - | - | 38 | 4 |
+
 ## E6: polynomial checker vs exhaustive explorer
 
 The checker in L1 mode (the claim the report makes) against exhaustive exploration of the trace as a
