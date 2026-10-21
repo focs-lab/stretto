@@ -94,12 +94,15 @@ Stress testing makes \nMBIStressFound of the \nMBIStressErr fail, mostly in its 
 does not buffer a 4-byte send. Open MPI buffers every message that small, so no delay exposes
 them. \tool predicts each of them from one finished run, as realisable only from a threshold of
 4~bytes. The replays of RQ3 confirm the threshold for the eight that send to another rank.
+\MUST reports these programs too, because it treats standard sends as
+unbuffered~\citep{hilbrich12must}; what \tool adds there is the threshold.
 
-\MBB's errors show in the run itself: \tool's predicted findings alone score
-\MBBfonepredicted, while the observed checks score \MBBfoneunion, against \MBBfoneMUST and
-\MBBfoneMUSTsym for \MUST. The corpus thus measures the observational floor and the false
-positives, not prediction. The \nMBBfp false positives are correct-labelled gather and reduce
-programs whose runs Open MPI ends with \texttt{MPI\_ERR\_ARG}. The \nMBBfnunion misses are local
+\MBB's errors show in the run itself: by design, the error of every incorrect program is
+expected to be observable~\citep{jammer24quality}, so a score on \MBB measures detection, not
+prediction. \tool's predicted findings alone score \MBBfonepredicted, while the observed checks
+score \MBBfoneunion, against \MBBfoneMUST and \MBBfoneMUSTsym for \MUST. The corpus thus
+measures the observational floor and the false positives. The \nMBBfp false positives are
+correct-labelled gather and reduce programs whose runs Open MPI ends with \texttt{MPI\_ERR\_ARG}. The \nMBBfnunion misses are local
 concurrency errors, a buffer reused while a nonblocking operation is pending, which a matching
 model does not see.
 
@@ -160,9 +163,10 @@ exchanges matrix rows twice, first the pruned rows and then the stored rows. Bot
 send their requests with tag~222 and take them with \mpicall{Probe(ANY\_SOURCE, 222)}
 followed by a receive from the probed source. A rank that has finished the first exchange can
 send its stored-rows request while a neighbour is still probing for pruned-rows requests. The
-probe then takes it, and the run hangs. In production this hang appeared intermittently for 18
-months, and diagnosing it took 291 jobs and 10\,392 compute-node hours~\citep{sato17ninja}.
-Version~2.11.0 fixed it by giving the two exchanges different tags.
+probe then takes it, and the run hangs. A message race in HYPRE~2.10.1 hung a production code
+intermittently for 18 months, and diagnosing it took 291 jobs and 10\,392 compute-node
+hours~\citep{sato17ninja}. Version~2.11.0 fixed ``an MPI bug that was causing Parasails to hang
+occasionally''~\citep{hypre-changelog}, by giving the two exchanges different tags.
 
 We traced \nHypreFourRuns runs of HYPRE's \texttt{ij} driver with ParaSails-PCG on four
 processes and \nHypreEightRuns on eight. Every run finished normally. In each trace we replayed
@@ -221,14 +225,34 @@ procs & kind & traces & replays & hang & finish & matched & control \\
 \end{tabular}
 \end{table}
 
-\tool reports the race as a probe alternative, a warning, with the remark that a count taken
-from the probe would differ. It does not report a deadlock: the hang happens after the probe,
-and the receive that follows takes its source from the probe's status, so the continuation is
-beyond the horizon. The replay supplies what the trace cannot. In a trace on four processes the
+The claim has two parts. That the probe can report the other exchange's request is an \Lone
+finding, true for every program consistent with the trace; \tool reports it as a probe
+alternative, a warning, noting that a count taken from the probe would differ. That the run
+then hangs is not a claim of the analysis: ParaSails receives from the probed source and
+replies to it (\texttt{status.MPI\_SOURCE}), the pattern of \cref{lem:sp}, so the continuation
+lies beyond the horizon. The pinned replays and their controls show the hang. In a trace on four processes the
 probe alternatives fall at four call sites: HYPRE's own \mpicall{Iprobe} wrapper in its data
 exchange, the diagonal-scaling exchange, ParaSails's \texttt{ReceiveReplyPrunedRows}, and its
 \texttt{ReceiveRequest}. Every alternative replayed in the campaign lies at the last, the probe
 for requests (\texttt{ParaSails.c:166}).
+
+\paragraph{A second documented bug.} The halo exchange of NPB MG~2.4.1 posts every receive
+with \anysrc and a tag that depends on the axis and the direction but not on the grid level.
+NPB's change log records that this ``could cause MPI\_Wait return a message meant for the
+wrong k'', and version~3.2.1 fixed it by receiving from the named
+neighbour~\citep{npb-changelog}. We traced \nMGTraced clean runs of class~S on \nMGRanks
+processes. Within one exchange each receive has its own tag and one sender, so an accepted
+alternative takes a shorter message of another exchange, which MPI allows; \nMGExposed traces
+have such alternatives, \nMGAlts in all. Taking that message is an \Lone finding; what follows
+lies beyond the horizon, so we replayed every alternative with its horizon pins and its
+control. Of the \nMGReplayed replays, \nMGMatched matched their pins,
+\nMGFinished finished, and \nMGChanged computed another residual than their control.
+\nMGFailRel of these fail the relative check of later NPB versions, but only \nMGFailAbs fail
+the check of version~2.4.1, which accepts an absolute error of $10^{-8}$: most wrong results
+pass it. \nMGControls controls finished, \nMGControlsSame of them with the residual of the
+traced run. Version~3.3.1 has no alternative in its \nMGFixedTraced traces. Random delays
+change the residual as well, in \nMGStressChanged of \nMGStressRuns untraced runs of
+version~2.4.1, half of them delayed.
 
 \paragraph{Wildcard-heavy correct code.} AMG's solver exchanges its matrix data with probes on
 any source. One traced run on eight processes, with \nAMGsends messages, \nAMGwild wildcard
@@ -256,4 +280,5 @@ tool, may find more of the races, but no delay makes Open MPI stop buffering a 4
 The model assumes a complete trace of the modelled fragment (a call outside it restricts the
 report to observed findings), a threshold per send path that does not change within a run,
 and an angelic choice in \mpicall{Waitany}. The HYPRE campaign uses one input and two process
-counts.
+counts, the MG campaign one class and one count. We did not run
+MPI-PRV~\citep{yao26mpiprv}, which keeps every wildcard match fixed.
