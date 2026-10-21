@@ -33,8 +33,10 @@ rerun with the observed senders pinned finished; the predicted row counts `2-buf
 runs that finished; MUST is scored both with its timeouts as no error and as errors; stress
 testing is a second baseline. The HYPRE race is predicted from 35 of 40 single finished runs; every
 predicted cross-exchange alternative hangs when replayed, and testing never hit it (E5c).
-Still open: AMG and Nekbone are analysed with `--no-sp`, so they
-cannot show a 1c or 1d; Nekbone was not rerun.
+The timed leg (E4) and Nekbone (E5b) were rerun on the final code. Both applications have a
+sample of 30 replays; in each, every replay matched its pins and finished, and so did its
+control. Still open: AMG and Nekbone are
+analysed with `--no-sp`, so they cannot show a 1c or 1d.
 
 ## Criterion 1: ≥ 3 benchmark bugs predicted from a run in which MUST reports nothing, confirmed by replay
 
@@ -221,7 +223,8 @@ is restated accordingly (a prediction on a real application confirmed realisable
 and benchmark bugs MUST misses confirmed).
 
 Results section "E5b" (Nekbone's communication suite `test/nek_comm`, 8 ranks,
-`summary8.txt`): 2 060 218 sends, 35 714 wildcard receives, 10 378 277 records. The analysis
+`summary8.txt`, rerun at 576e917): 2 002 398 sends, 35 714 wildcard receives, 10 089 233
+records (the message count varies between runs with the suite's timing loops). The analysis
 reports 10 000 racing receives (1f) and rejects 8 759 alternatives, all at one site: the
 binary-tree global operation `gp2` (`comm_mpi.f` line 994), where the inner nodes 0 and 4
 receive their children's contributions with one tag and `MPI_ANY_SOURCE`, so the children
@@ -234,14 +237,20 @@ source of floating-point accumulation order differences. The row was corrected a
 (commit 7e2de3b), which refuted an earlier "sender unique at every call site", so this is not
 a prediction made before the run. The
 ping-pong and message-volume tests, whose tags make the sender unique, produce no finding,
-and no 1a is reported (1c and 1d cannot be, with `--no-sp`). The 8 759 rejections are not yet
-explained per alternative. Cost: 3 779 s and 33.3 GB (31.0 GiB) in one process, on
-the second machine while another lane's jobs ran on the same socket (an upper bound, not a
-timing claim; a first run with per-item scans over a rank's receives, since removed, took
-5 688 s and produced the byte-identical report). The memory is the loaded trace and its
-graph (about 3 KB per record, against 1.5 KB per record on the NPB traces, which have no
-alternatives to check) and the time is the 18 759 alternatives, each checked over the whole
-10-million-record graph: about 0.2 s per alternative, the per-alternative linear cost of T4
+and no 1a is reported (1c and 1d cannot be, with `--no-sp`). The 8 759 rejections all give
+one reason ("rejected by reason" in `summary8.txt`): from each other sender, the first
+message with the receive's tag that the receive could still take was sent only after the
+receive completed, so no execution gives it to that receive. A random sample of 30
+alternatives (`replay_sample.csv`, at 4a8814f, which passes horizons of up to 31 239 pins
+through a file) replayed with the pins of their horizon and with controls: all 30 matched
+every required pin and finished, and so did their controls. Cost: 2 051 s and 32.8 GB
+(30.5 GiB) in one process on the second machine, outside the timed leg (indicative, not a
+timing claim; at 521185a, while another lane's jobs ran on the same socket, 3 779 s, and a
+first run with per-item scans over a rank's receives, since removed, took 5 688 s and
+produced the byte-identical report). The memory is the loaded trace and its graph (about
+3 KB per record, against 1.5 KB per record on the NPB traces, which have no alternatives to
+check) and the time is the 18 759 alternatives, each checked over the whole
+10-million-record graph: about 0.11 s per alternative, the per-alternative linear cost of T4
 at this trace size. Before `Overlay` (commit "Share the observed matching between
 alternatives") the same analysis was killed at 4, 24 and 64 GB: one dictionary copy of the
 observed matching per alternative. MACSio was not traced: its only wildcard site lies in
