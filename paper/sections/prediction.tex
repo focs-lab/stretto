@@ -125,11 +125,14 @@ placing it at its posting rejects it, but also every message sent causally after
 posting, which $r$ may well take. DAMPI's protocol gives $r$ its final clock at its wait or at
 a later receive that must be matched after it, which rejects this steal; its theorem shows a
 reported match concurrent with $r$ in that order, not realisable, and it can miss
-matches~\citep{vo11thesis}.
+matches~\citep{vo11thesis}. On our \nHBTraces corpus and application traces, placing receives
+at their posting misses \nHBPostMissed pairs the check accepts, \nHBMGPostMissed of them NPB
+MG's documented bug (RQ6), and all \nHBReplayStrettoOnly we replayed were realised by runs of
+the program. Placing them at their completion selected no impossible pair there, only on this
+example (idiom~14) and on \nHBSynCompOnlyNotRealised of \nHBSynPrograms random programs.
 
-The edges of \ref{G:fifo} and \ref{G:order} need not be quadratic: an edge from the latest
-earlier receive of each of the four envelope classes that accept $s$, and from the latest
-earlier send of each tag on its channel, reaches the rest (\cref{app:chain}).
+\ref{G:fifo} and \ref{G:order} need only an edge from the latest earlier receive of each
+envelope class and send of each tag (\cref{app:chain}).
 
 \begin{theorem}[Soundness]
 \label{thm:sound}
@@ -239,9 +242,7 @@ As $\SP(\trace)\in\Cons(\trace,\Hpre)$, the two theorems say that a surviving al
 feasible iff some, and then every, program consistent with the trace realises it over
 $\Hpre$: maximality as in the maximal causal model~\citep{serbanuta12mcm} and
 RVPredict~\citep{huang14rvpredict}, for one fixed prefix.
-For a steal, a realisation is a matching-preserving reordering of the whole horizon: an
-execution of the operations of $\Hpre$ that matches $r$ to $s$ and every other judged
-receive as $\Mobs$ does. The theorem is relative to the horizon, so it is weaker than the
+The theorem is relative to the horizon, so it is weaker than the
 optimality of SyncP~\citep{mathur21syncp}, which decides against the least closed set
 containing the race and covers every sync-preserving reordering of any prefix; \tool needs the
 greatest closed prefix to judge consequences (\cref{sec:levels}). A reordering of a shorter
