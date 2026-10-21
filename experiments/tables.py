@@ -406,6 +406,75 @@ def hypre_campaign():
     return "\n".join(out) + "\n"
 
 
+MG_REFERENCE = {"S": 0.5307707005734e-04, "A": 0.2433365309069e-05}   # NPB 3.3.1's verification values
+
+
+def npbmg():
+    """A second documented bug: NPB MG 2.4.1's wildcard receives can take a message of another
+    exchange (experiments/npbmg/run.sh: predict-2.4.1.csv, predict-3.3.1.csv, stress.csv)."""
+    d = os.path.join(RES, "npbmg")
+    pr, fixed, st = (rows(os.path.join(d, f)) for f in ("predict-2.4.1.csv", "predict-3.3.1.csv", "stress.csv"))
+    if not pr:
+        return "_no results_\n"
+
+    def rel(norm, cls):
+        try:
+            return abs(float(norm) - MG_REFERENCE[cls]) / MG_REFERENCE[cls]
+        except (ValueError, KeyError):
+            return None
+
+    out = ["Traced runs of MG (class " + "/".join(sorted({r["class"] for r in pr})) + ", MPICH build); every alternative the",
+           "analysis accepts is replayed with the pins of its horizon and with its control (`experiments/npbmg/predict.py`).",
+           "A replay *changes the result* when its residual norm differs from its control's; MG 2.4.1's own check accepts",
+           "an absolute error of 1e-8 against the reference, later versions a relative error of 1e-8, which these columns",
+           f"apply. Rows by code commit: {commits(pr + fixed + st)}.", "",
+           "| version | ranks | traced runs | runs with one | alternatives | replayed | pins matched | finished | result changed | fails the relative check | largest relative change | controls finished | controls with the traced run's norm |",
+           "|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
+    for version, vrows, prefix in (("2.4.1", pr, "MG"), ("3.3.1", fixed, "MGFixed")):
+        for np in sorted({int(r["np"]) for r in vrows}):
+            rs = [r for r in vrows if int(r["np"]) == np]
+            runs = {r["run"] for r in rs}
+            exposed = {r["run"] for r in rs if r.get("alternatives") and int(r["alternatives"]) > 0}
+            rep = [r for r in rs if r.get("replay") and r.get("pin")]
+            changed = [r for r in rep if r.get("norm") and r["norm"] != r.get("control_norm")]
+            fails = [r for r in rep if (rel(r.get("norm"), r["class"]) or 0) > 1e-8]
+            big = max((rel(r.get("norm"), r["class"]) or 0 for r in changed), default=0)
+            same_ctl = [r for r in rep if r.get("control_norm") and r["control_norm"] == r.get("traced_norm")]
+            alts = sum(int(r["alternatives"]) for r in {r["run"]: r for r in rs if r.get("alternatives")}.values())
+            out.append(f"| {version} | {np} | {len(runs)} | {len(exposed)} | {alts} | {len(rep)} | {sum(r.get('matched') == 'True' for r in rep)} "
+                       f"| {sum(r.get('replay') == 'FINISHED' for r in rep)} | {len(changed)} | {len(fails)} | {big:.1e} "
+                       f"| {sum(r.get('control') == 'FINISHED' for r in rep)} | {len(same_ctl)} |")
+        rep = [r for r in vrows if r.get("replay") and r.get("pin")]
+        num(f"n{prefix}Traced", len({(r["np"], r["run"]) for r in vrows}))
+        num(f"n{prefix}Exposed", len({(r["np"], r["run"]) for r in vrows if r.get("alternatives") and int(r["alternatives"]) > 0}))
+        num(f"n{prefix}Alts", sum(int(r["alternatives"]) for r in {(r["np"], r["run"]): r for r in vrows if r.get("alternatives")}.values()))
+        if version == "2.4.1":
+            num("nMGReplayed", len(rep))
+            num("nMGMatched", sum(r.get("matched") == "True" for r in rep))
+            num("nMGFinished", sum(r.get("replay") == "FINISHED" for r in rep))
+            num("nMGChanged", sum(1 for r in rep if r.get("norm") and r["norm"] != r.get("control_norm")))
+            num("nMGFailRel", sum(1 for r in rep if (rel(r.get("norm"), r["class"]) or 0) > 1e-8))
+            num("nMGFailAbs", sum(1 for r in rep if (rel(r.get("norm"), r["class"]) or 0) * MG_REFERENCE[r["class"]] > 1e-8))
+            num("nMGControls", sum(r.get("control") == "FINISHED" for r in rep))
+            num("nMGControlsSame", sum(1 for r in rep if r.get("control_norm") and r["control_norm"] == r.get("traced_norm")))
+            num("nMGRanks", "/".join(str(n) for n in sorted({int(r["np"]) for r in vrows})))
+    if st:
+        out += ["", "Untraced runs of MG 2.4.1, plain and with random send and receive delays from the replay library; a run",
+                "*changes the result* when its residual norm differs from the plain runs' (every plain run printed the same).", "",
+                "| ranks | setting | runs | finished | result changed | fails the relative check |", "|---|---|---|---|---|---|"]
+        plain = {r["norm"] for r in st if r["setting"] == "plain" and r.get("norm")}
+        base = plain.pop() if len(plain) == 1 else None
+        for np in sorted({int(r["np"]) for r in st}):
+            for setting in ("plain", "delays"):
+                rs = [r for r in st if int(r["np"]) == np and r["setting"] == setting]
+                ch = [r for r in rs if base and r.get("norm") and r["norm"] != base]
+                fl = [r for r in rs if (rel(r.get("norm"), r["class"]) or 0) > 1e-8]
+                out.append(f"| {np} | {setting} | {len(rs)} | {sum(r['result'] == 'FINISHED' for r in rs)} | {len(ch)} | {len(fl)} |")
+        num("nMGStressRuns", len(st))
+        num("nMGStressChanged", sum(1 for r in st if base and r.get("norm") and r["norm"] != base))
+    return "\n".join(out) + "\n"
+
+
 def app_sample(app="amg", prefix="AMG"):
     """A sample of an application's alternatives replayed with horizon pins and controls
     (replay_sample.py, experiments/<app>/run.sh sample)."""
@@ -691,6 +760,7 @@ def main():
            "## E5b: real application (Nekbone)", "", nekbone() + app_sample("nekbone", "Nek"),
            "## E5c: a real bug (HYPRE 2.10.1, ParaSails)", "", hypre(),
            "### How often one trace exposes it, and how often testing hits it", "", hypre_campaign(),
+           "## E5d: a second documented bug (NPB MG 2.4.1, a message of another exchange)", "", npbmg(),
            "## E6: polynomial checker vs exhaustive explorer", "", e6(),
            "## E7: the value skeleton on MBI (level L2)", "", e7()]
     path = os.path.join(ROOT, "docs", "results.md")

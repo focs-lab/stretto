@@ -111,6 +111,27 @@ def readme(root: str, num: dict) -> None:
         ("Testing runs that hang", "plain runs and runs with random delays", v("nHypreStressHang"), v("nHypreStressRuns"), ORANGE),
         ("Traces of the fix that predict it", "HYPRE 2.11.0", v("nHypreFixedExposed"), v("nHypreFixedTraced"), GREY),
     ])
+    mg = ""
+    if v("nMGReplayed"):
+        fractions(os.path.join(figs, "npbmg.svg"), "NPB MG 2.4.1: a message of another exchange, predicted from one run", [
+            ("Traced runs that predict it", f"one clean run each, {t('nMGRanks')} processes", v("nMGExposed"), v("nMGTraced"), BLUE),
+            ("Replays that take the predicted message", "pins of the whole horizon", v("nMGMatched"), v("nMGReplayed"), BLUE),
+            ("Replays whose result changes", f"{t('nMGControlsSame')} of {t('nMGReplayed')} controls keep the traced result", v("nMGChanged"), v("nMGReplayed"), RUST),
+            ("Testing runs whose result changes", "plain runs and runs with random delays", v("nMGStressChanged"), v("nMGStressRuns"), ORANGE),
+            ("Traces of the fix that predict it", "NPB 3.3.1", v("nMGFixedExposed"), v("nMGFixedTraced"), GREY),
+        ])
+        mg = f"""
+**A second documented bug.** NPB MG 2.4.1 receives every halo exchange from `MPI_ANY_SOURCE`
+with a tag that does not depend on the grid level; its changelog says this "could cause MPI_Wait
+return a message meant for the wrong k", fixed in 3.2.1. From one clean run Stretto predicts
+receives that take a message of another exchange. Forced, {t('nMGChanged')} of
+{t('nMGReplayed')} replays compute another residual; {t('nMGFailAbs')} of them fail 2.4.1's own
+check, an absolute error of 1e-8, and {t('nMGFailRel')} fail the relative check of later
+versions. Testing changes the residual in {t('nMGStressChanged')} of {t('nMGStressRuns')} runs, and
+nothing in those runs reports it.
+
+<p align="center"><img src="docs/figures/npbmg.svg" width="760" alt="NPB MG results"></p>
+"""
     block = f"""<!-- results:begin -->
 <!-- Written by experiments/tables.py from experiments/results/; do not edit by hand. -->
 
@@ -135,7 +156,7 @@ hung intermittently for 18 months, and diagnosing it took 291 jobs and 10,392 co
 hours (reported in the NINJA noise-injection paper, PPoPP 2017).
 
 <p align="center"><img src="docs/figures/hypre.svg" width="760" alt="HYPRE ParaSails results"></p>
-
+{mg}
 **Soundness in practice.** Against an exhaustive explorer, {t('nEsixUnsound')} of
 {t('nEsixPairs')} judged alternatives are unsound. Replays on MBI: {t('nMBIReplayConfirmed')}
 confirmed, {t('nMBIReplayInconclusive')} inconclusive (the control itself hung),
