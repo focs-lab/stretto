@@ -116,6 +116,19 @@ for families ① and ② only. The pass route is realistic (out-of-tree against 
 belongs to WP2. Idiom 07 is traced and analysed (E3): the report is empty, as it must be for a
 family ③ bug that leaves no trace in the message events.
 
+Update, 21 Oct 2026: page protection gives the observed half of family ③ without
+recompilation. The tracer's buffer guard (`STRETTO_GUARD=1`) write-protects the pages of
+pending buffers between MPI calls and records the first access the program makes to them
+(reads too, on pages wholly inside a point-to-point receive buffer), compares each send
+buffer's checksum at the completion with the one at the call, and checks every call's buffers
+against the pending ones. It finds all 22 LocalConcurrency programs of MPI-BugBench level 2
+(the 20 that build with Open MPI 4.1.6, and with MPICH 4.2 the two partitioned ones too), with
+no finding on a correct program of MPI-BugBench or MBI nor in runs of NPB LU, HYPRE and AMG,
+and idiom 07 through the checksum (its buffer is on the stack, whose pages are never
+protected); `experiments/results/guard/` has the runs. What stays out of reach is prediction: an access is
+seen only if the run makes it while the operation is pending, so the compiler route is still
+the one for claims about other runs.
+
 ## H. Placement of MOPPER in the ladder
 
 Single-path is the trivial skeleton, so L2 subsumes MOPPER's input assumption:

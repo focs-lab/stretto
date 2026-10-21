@@ -1,0 +1,6 @@
+# payload recording (STRETTO_PAYLOAD=4096) with the guard off and on; commit 7117573; host a-p13; 2026-10-21T13:40Z
+# idiom, guard, records, records with a payload, guard records, findings by level:class with L2 by re-execution (analyze --rerun)
+01_master_worker_anysource guard=0 records=37 payloads=4 guard_records=0 findings=[L1+SP:1c*1 L1+SP:1d*1 L1:1f*1 L2:1e*1]
+01_master_worker_anysource guard=1 records=37 payloads=4 guard_records=0 findings=[L1+SP:1c*1 L1+SP:1d*1 L1:1f*1 L2:1e*1]
+07_isend_buffer_reuse guard=0 records=18 payloads=1 guard_records=0 findings=[]
+07_isend_buffer_reuse guard=1 records=19 payloads=1 guard_records=1 findings=[observed:3-local*1]

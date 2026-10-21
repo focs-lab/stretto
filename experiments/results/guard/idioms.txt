@@ -1,0 +1,160 @@
+== 01_master_worker_anysource (np=3, openmpi)
+trace: 3 ranks, 4 sends, 4 receives, 2 wildcard receives, 0 probes, 0 collective records, 4 communicators
+[          1f] L1     recv(0, 0) src=ANY tag=7 cap=4B <- send(2, 0)->0 tag=7 4B (observed send(1, 0)->0 tag=7 4B); recv(0, 1) src=ANY tag=7 cap=4B left without send(2, 0)->0 tag=7 4B [any B]
+              - same shape as the observed message but from rank 2 instead of 1
+              - L1: the continuation of rank 0 after recv(0, 0) src=ANY tag=7 cap=4B is undetermined by the trace (horizon)
+              - steal variant: recv(0, 1) src=ANY tag=7 cap=4B is left without send(2, 0)->0 tag=7 4B
+              - L1+SP at B=0: outcomes ['deadlock']; orphan sends ['s0.0', 's1.0']
+              - L1+SP at B=inf: outcomes ['done']
+              - replay: STRETTO_PIN=0:0:2
+[          1d] L1+SP  deadlock in every execution after recv(0, 0) src=ANY tag=7 cap=4B <- send(2, 0)->0 tag=7 4B (single-path assumption) [B=0]
+              - replay: STRETTO_PIN=0:0:2
+[          1c] L1+SP  orphan send(s) ['s0.0', 's1.0'] in every execution after recv(0, 0) src=ANY tag=7 cap=4B <- send(2, 0)->0 tag=7 4B (single-path assumption) [B=0]
+              - replay: STRETTO_PIN=0:0:2
+findings by call site of the changed receive or probe (1 sites):
+  main+0x139d: L1+SP:1c 1, L1+SP:1d 1, L1:1f 1
+
+== 02_waitany_loop (np=3, openmpi)
+trace: 3 ranks, 4 sends, 4 receives, 0 wildcard receives, 0 probes, 0 collective records, 4 communicators
+[waitany-order] L1     waitany at rank 0 #5 could complete index 1 (recv(0, 1) src=2 tag=7 cap=4B <- send(2, 0)->0 tag=7 4B) first [any B]
+              - L1: continuation of rank 0 is undetermined if it depends on the index
+              - no replay mechanism for completion order: not confirmable by pin
+
+== 03_head_to_head_send (np=2, openmpi)
+trace: 2 ranks, 2 sends, 2 receives, 0 wildcard receives, 0 probes, 0 collective records, 3 communicators
+[ 2-buffering] observed observed run deadlocks on any implementation with eager threshold < 400 bytes [B < 400]
+              - cycle at B=0: r0#4i -> r0#4c -> r1#3c -> r1#4i -> r1#4c -> r0#3c
+
+== 04_orphan_send (np=3, openmpi)
+trace: 3 ranks, 2 sends, 2 receives, 1 wildcard receives, 0 probes, 0 collective records, 4 communicators
+[          1f] L1     recv(0, 0) src=ANY tag=4 cap=4B <- send(2, 0)->0 tag=4 4B (observed send(1, 0)->0 tag=4 4B); recv(0, 1) src=2 tag=4 cap=4B left without send(2, 0)->0 tag=4 4B [any B]
+              - same shape as the observed message but from rank 2 instead of 1
+              - L1: the continuation of rank 0 after recv(0, 0) src=ANY tag=4 cap=4B is undetermined by the trace (horizon)
+              - steal variant: recv(0, 1) src=2 tag=4 cap=4B is left without send(2, 0)->0 tag=4 4B
+              - L1+SP at B=0: outcomes ['deadlock']; orphan sends ['s1.0']
+              - L1+SP at B=inf: outcomes ['deadlock']; orphan sends ['s1.0']
+              - replay: STRETTO_PIN=0:0:2
+[          1d] L1+SP  deadlock in every execution after recv(0, 0) src=ANY tag=4 cap=4B <- send(2, 0)->0 tag=4 4B (single-path assumption) [B=0,inf]
+              - replay: STRETTO_PIN=0:0:2
+[          1c] L1+SP  orphan send(s) ['s1.0'] in every execution after recv(0, 0) src=ANY tag=4 cap=4B <- send(2, 0)->0 tag=4 4B (single-path assumption) [B=0,inf]
+              - replay: STRETTO_PIN=0:0:2
+findings by call site of the changed receive or probe (1 sites):
+  main+0x138b: L1+SP:1c 1, L1+SP:1d 1, L1:1f 1
+
+== 05_count_mismatch (np=3, openmpi)
+trace: 3 ranks, 2 sends, 2 receives, 1 wildcard receives, 0 probes, 0 collective records, 4 communicators
+[          1a] L1     recv(0, 0) src=ANY tag=5 cap=16B <- send(2, 0)->0 tag=5 32B (observed send(1, 0)->0 tag=5 16B); recv(0, 1) src=2 tag=5 cap=32B left without send(2, 0)->0 tag=5 32B [any B]
+              - count mismatch: 32B into a 16B receive (MPI_ERR_TRUNCATE)
+              - L1: the continuation of rank 0 after recv(0, 0) src=ANY tag=5 cap=16B is undetermined by the trace (horizon)
+              - steal variant: recv(0, 1) src=2 tag=5 cap=32B is left without send(2, 0)->0 tag=5 32B
+              - L1+SP at B=0: outcomes ['deadlock', 'truncate']; orphan sends ['s1.0']
+              - L1+SP at B=inf: outcomes ['deadlock', 'truncate']; orphan sends ['s1.0']
+              - replay: STRETTO_PIN=0:0:2
+[          1d] L1+SP  deadlock in every execution after recv(0, 0) src=ANY tag=5 cap=16B <- send(2, 0)->0 tag=5 32B (single-path assumption) [B=0,inf]
+              - replay: STRETTO_PIN=0:0:2
+[          1c] L1+SP  orphan send(s) ['s1.0'] in every execution after recv(0, 0) src=ANY tag=5 cap=16B <- send(2, 0)->0 tag=5 32B (single-path assumption) [B=0,inf]
+              - replay: STRETTO_PIN=0:0:2
+[          1a] L1+SP  truncation error in every execution after recv(0, 0) src=ANY tag=5 cap=16B <- send(2, 0)->0 tag=5 32B (single-path assumption) [B=0,inf]
+              - replay: STRETTO_PIN=0:0:2
+findings by call site of the changed receive or probe (1 sites):
+  main+0x138b: L1+SP:1a 1, L1+SP:1c 1, L1+SP:1d 1, L1:1a 1
+
+== 06_collective_after_anysource (np=3, openmpi)
+trace: 3 ranks, 2 sends, 2 receives, 1 wildcard receives, 0 probes, 3 collective records, 4 communicators
+[          1f] L1     recv(0, 0) src=ANY tag=6 cap=4B <- send(2, 0)->0 tag=6 4B (observed send(1, 0)->0 tag=6 4B); recv(0, 1) src=2 tag=6 cap=4B left without send(2, 0)->0 tag=6 4B [any B]
+              - same shape as the observed message but from rank 2 instead of 1
+              - L1: the continuation of rank 0 after recv(0, 0) src=ANY tag=6 cap=4B is undetermined by the trace (horizon)
+              - steal variant: recv(0, 1) src=2 tag=6 cap=4B is left without send(2, 0)->0 tag=6 4B
+              - L1+SP at B=0: outcomes ['deadlock']; orphan sends ['s1.0']
+              - L1+SP at B=inf: outcomes ['deadlock']; orphan sends ['s1.0']
+              - replay: STRETTO_PIN=0:0:2
+[          1d] L1+SP  deadlock in every execution after recv(0, 0) src=ANY tag=6 cap=4B <- send(2, 0)->0 tag=6 4B (single-path assumption) [B=0,inf]
+              - replay: STRETTO_PIN=0:0:2
+[          1c] L1+SP  orphan send(s) ['s1.0'] in every execution after recv(0, 0) src=ANY tag=6 cap=4B <- send(2, 0)->0 tag=6 4B (single-path assumption) [B=0,inf]
+              - replay: STRETTO_PIN=0:0:2
+findings by call site of the changed receive or probe (1 sites):
+  main+0x13b6: L1+SP:1c 1, L1+SP:1d 1, L1:1f 1
+
+== 07_isend_buffer_reuse (np=2, openmpi)
+trace: 2 ranks, 1 sends, 1 receives, 0 wildcard receives, 0 probes, 0 collective records, 3 communicators
+[     3-local] observed rank 0 changed the send buffer of its pending isend to 1 tag 8 (64 B) before the operation completed
+              - the buffer's checksum at the completion differs from the one at the call; the write itself was not caught (its page was not protected, as on the stack, or another access had opened it)
+              - the operation was issued at record #3 (main+0x13a3)
+
+== 08_anytag_cross_purpose (np=3, openmpi)
+trace: 3 ranks, 2 sends, 2 receives, 1 wildcard receives, 0 probes, 0 collective records, 4 communicators
+[          1b] L1     recv(0, 0) src=ANY tag=ANY cap=4B <- send(2, 0)->0 tag=22 4B (observed send(1, 0)->0 tag=11 4B); recv(0, 1) src=2 tag=22 cap=4B left without send(2, 0)->0 tag=22 4B [any B]
+              - cross-purpose: tag 22 instead of observed tag 11 (another logical channel)
+              - L1: the continuation of rank 0 after recv(0, 0) src=ANY tag=ANY cap=4B is undetermined by the trace (horizon)
+              - steal variant: recv(0, 1) src=2 tag=22 cap=4B is left without send(2, 0)->0 tag=22 4B
+              - L1+SP at B=0: outcomes ['deadlock']; orphan sends ['s1.0']
+              - L1+SP at B=inf: outcomes ['deadlock']; orphan sends ['s1.0']
+              - replay: STRETTO_PIN=0:0:2:22
+[          1d] L1+SP  deadlock in every execution after recv(0, 0) src=ANY tag=ANY cap=4B <- send(2, 0)->0 tag=22 4B (single-path assumption) [B=0,inf]
+              - replay: STRETTO_PIN=0:0:2:22
+[          1c] L1+SP  orphan send(s) ['s1.0'] in every execution after recv(0, 0) src=ANY tag=ANY cap=4B <- send(2, 0)->0 tag=22 4B (single-path assumption) [B=0,inf]
+              - replay: STRETTO_PIN=0:0:2:22
+findings by call site of the changed receive or probe (1 sites):
+  main+0x138b: L1+SP:1c 1, L1+SP:1d 1, L1:1b 1
+
+== 09_two_wildcards_chain (np=3, openmpi)
+trace: 3 ranks, 3 sends, 3 receives, 2 wildcard receives, 0 probes, 0 collective records, 4 communicators
+[          1b] L1     recv(0, 1) src=ANY tag=ANY cap=4B <- send(1, 1)->0 tag=31 4B (observed send(2, 0)->0 tag=32 4B); recv(0, 2) src=1 tag=31 cap=4B left without send(1, 1)->0 tag=31 4B [any B]
+              - cross-purpose: tag 31 instead of observed tag 32 (another logical channel)
+              - L1: the continuation of rank 0 after recv(0, 1) src=ANY tag=ANY cap=4B is undetermined by the trace (horizon)
+              - steal variant: recv(0, 2) src=1 tag=31 cap=4B is left without send(1, 1)->0 tag=31 4B
+              - L1+SP at B=0: outcomes ['deadlock']; orphan sends ['s2.0']
+              - L1+SP at B=inf: outcomes ['deadlock']; orphan sends ['s2.0']
+              - replay: STRETTO_PIN=0:1:1:31
+[          1d] L1+SP  deadlock in every execution after recv(0, 1) src=ANY tag=ANY cap=4B <- send(1, 1)->0 tag=31 4B (single-path assumption) [B=0,inf]
+              - replay: STRETTO_PIN=0:0:1,0:1:1:31
+[          1c] L1+SP  orphan send(s) ['s2.0'] in every execution after recv(0, 1) src=ANY tag=ANY cap=4B <- send(1, 1)->0 tag=31 4B (single-path assumption) [B=0,inf]
+              - replay: STRETTO_PIN=0:0:1,0:1:1:31
+findings by call site of the changed receive or probe (1 sites):
+  main+0x13c6: L1+SP:1c 1, L1+SP:1d 1, L1:1b 1
+
+== 10_halo_exchange (np=4, openmpi)
+trace: 4 ranks, 24 sends, 24 receives, 0 wildcard receives, 0 probes, 12 collective records, 5 communicators
+no findings
+
+== 11_iprobe_polling (np=3, openmpi)
+trace: 3 ranks, 2 sends, 2 receives, 0 wildcard receives, 4 probes, 0 collective records, 4 communicators
+[   probe-alt] L1     iprobe(0, 1) src=ANY tag=11 could observe send(2, 0)->0 tag=11 4B instead of send(1, 0)->0 tag=11 4B [any B]
+              - same shape, from rank 2 instead of 1
+              - L1: a receive whose source or count is taken from this probe's status changes with it; continuation of rank 0 undetermined
+              - replay: STRETTO_PIN_PROBE=0:0:2
+findings by call site of the changed receive or probe (1 sites):
+  main+0x13b5: L1:probe-alt 1
+
+== 12_split_comm_pin (np=4, openmpi)
+trace: 4 ranks, 4 sends, 4 receives, 2 wildcard receives, 0 probes, 0 collective records, 6 communicators
+[          1f] L1     recv(1, 0) src=ANY tag=12 cap=4B <- send(3, 0)->1 tag=12 4B (observed send(2, 0)->1 tag=12 4B); recv(1, 1) src=ANY tag=12 cap=4B left without send(3, 0)->1 tag=12 4B [any B]
+              - same shape as the observed message but from rank 3 instead of 2
+              - L1: the continuation of rank 1 after recv(1, 0) src=ANY tag=12 cap=4B is undetermined by the trace (horizon)
+              - steal variant: recv(1, 1) src=ANY tag=12 cap=4B is left without send(3, 0)->1 tag=12 4B
+              - L1+SP at B=0: outcomes ['deadlock']; orphan sends ['s1.0', 's2.0']
+              - L1+SP at B=inf: outcomes ['done']
+              - replay: STRETTO_PIN=1:0:3
+[          1d] L1+SP  deadlock in every execution after recv(1, 0) src=ANY tag=12 cap=4B <- send(3, 0)->1 tag=12 4B (single-path assumption) [B=0]
+              - replay: STRETTO_PIN=1:0:3
+[          1c] L1+SP  orphan send(s) ['s1.0', 's2.0'] in every execution after recv(1, 0) src=ANY tag=12 cap=4B <- send(3, 0)->1 tag=12 4B (single-path assumption) [B=0]
+              - replay: STRETTO_PIN=1:0:3
+findings by call site of the changed receive or probe (1 sites):
+  main+0x142b: L1+SP:1c 1, L1+SP:1d 1, L1:1f 1
+
+== 13_derived_type_signature (np=4, openmpi)
+trace: 4 ranks, 3 sends, 3 receives, 1 wildcard receives, 0 probes, 0 collective records, 5 communicators
+[          1f] L1     recv(0, 0) src=ANY tag=13 cap=16B <- send(2, 0)->0 tag=13 16B (observed send(1, 0)->0 tag=13 16B); recv(0, 1) src=2 tag=13 cap=16B left without send(2, 0)->0 tag=13 16B [any B]
+              - same shape as the observed message but from rank 2 instead of 1
+              - L1: the continuation of rank 0 after recv(0, 0) src=ANY tag=13 cap=16B is undetermined by the trace (horizon)
+              - steal variant: recv(0, 1) src=2 tag=13 cap=16B is left without send(2, 0)->0 tag=13 16B
+              - L1+SP at B=0: outcomes ['deadlock']; orphan sends ['s1.0', 's3.0']
+              - L1+SP at B=inf: outcomes ['deadlock']; orphan sends ['s1.0', 's3.0']
+              - replay: STRETTO_PIN=0:0:2
+[          1d] L1+SP  deadlock in every execution after recv(0, 0) src=ANY tag=13 cap=16B <- send(2, 0)->0 tag=13 16B (single-path assumption) [B=0,inf]
+              - replay: STRETTO_PIN=0:0:2
+[          1c] L1+SP  orphan send(s) ['s1.0', 's3.0'] in every execution after recv(0, 0) src=ANY tag=13 cap=16B <- send(2, 0)->0 tag=13 16B (single-path assumption) [B=0,inf]
+              - replay: STRETTO_PIN=0:0:2
+findings by call site of the changed receive or probe (1 sites):
+  main+0x147e: L1+SP:1c 1, L1+SP:1d 1, L1:1f 1
+

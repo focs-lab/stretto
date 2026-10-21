@@ -1,0 +1,47 @@
+# MPI-BugBench LocalConcurrency programs: exit status, guard records, Stretto classes; commit 7117573; host a-p13; 2026-10-21T13:42Z; single-copy on; payloads up to 0 bytes
+openmpi  P2P__LocalConcurrency-mpi_irecv-001                rc=0   guard=[overlap*1] classes=[3-local*1] payloads=0
+openmpi  P2P__LocalConcurrency-mpi_irecv-002                rc=0   guard=[overlap*1] classes=[3-local*1] payloads=0
+openmpi  P2P__LocalConcurrency-receive-mpi_imrecv-001       rc=0   guard=[access:write*1] classes=[3-local*1] payloads=0
+openmpi  P2P__LocalConcurrency-receive-mpi_irecv-001        rc=0   guard=[access:write*1] classes=[3-local*1] payloads=0
+openmpi  P2P__LocalConcurrency-receive-mpi_precv_init-001   not built
+openmpi  P2P__LocalConcurrency-receive-mpi_recv_init-001    rc=0   guard=[access:write*1] classes=[3-local*1] payloads=0
+openmpi  P2P__LocalConcurrency-send-mpi_bsend_init-001      rc=0   guard=[access:write*1] classes=[3-local*1] payloads=0
+openmpi  P2P__LocalConcurrency-send-mpi_ibsend-001          rc=0   guard=[access:write*1] classes=[3-local*1] payloads=0
+openmpi  P2P__LocalConcurrency-send-mpi_irsend-001          rc=0   guard=[access:write*1] classes=[3-local*1] payloads=0
+openmpi  P2P__LocalConcurrency-send-mpi_isend-001           rc=0   guard=[access:write*1] classes=[3-local*1] payloads=0
+openmpi  P2P__LocalConcurrency-send-mpi_issend-001          rc=0   guard=[access:write*1] classes=[3-local*1] payloads=0
+openmpi  P2P__LocalConcurrency-send-mpi_psend_init-001      not built
+openmpi  P2P__LocalConcurrency-send-mpi_rsend_init-001      rc=0   guard=[access:write*1] classes=[3-local*1] payloads=0
+openmpi  P2P__LocalConcurrency-send-mpi_send_init-001       rc=0   guard=[access:write*1] classes=[3-local*1] payloads=0
+openmpi  P2P__LocalConcurrency-send-mpi_ssend_init-001      rc=0   guard=[access:write*1] classes=[3-local*1] payloads=0
+openmpi  COLL__LocalConcurrency-mpi_iallreduce-001          rc=0   guard=[access:write*2] classes=[3-local*2] payloads=0
+openmpi  COLL__LocalConcurrency-mpi_ialltoall-001           rc=0   guard=[access:write*2] classes=[3-local*2] payloads=0
+openmpi  COLL__LocalConcurrency-mpi_ibcast-001              rc=0   guard=[access:write*2] classes=[3-local*2] payloads=0
+openmpi  COLL__LocalConcurrency-mpi_igather-001             rc=0   guard=[access:write*2] classes=[3-local*2] payloads=0
+openmpi  COLL__LocalConcurrency-mpi_ireduce-001             rc=0   guard=[access:write*2] classes=[3-local*2] payloads=0
+openmpi  COLL__LocalConcurrency-mpi_iscan-001               rc=0   guard=[access:write*2] classes=[3-local*2] payloads=0
+openmpi  COLL__LocalConcurrency-mpi_iscatter-001            rc=0   guard=[access:write*1] classes=[3-local*1] payloads=0
+openmpi: 3-local in 20 of 20 programs built
+mpich    P2P__LocalConcurrency-mpi_irecv-001                rc=0   guard=[overlap*1] classes=[3-local*1] payloads=0
+mpich    P2P__LocalConcurrency-mpi_irecv-002                rc=0   guard=[overlap*1] classes=[3-local*1] payloads=0
+mpich    P2P__LocalConcurrency-receive-mpi_imrecv-001       rc=0   guard=[access:write*1] classes=[3-local*1] payloads=0
+mpich    P2P__LocalConcurrency-receive-mpi_irecv-001        rc=0   guard=[access:write*1] classes=[3-local*1] payloads=0
+mpich    P2P__LocalConcurrency-receive-mpi_precv_init-001   rc=0   guard=[access:write*1] classes=[3-local*1] payloads=0
+mpich    P2P__LocalConcurrency-receive-mpi_recv_init-001    rc=0   guard=[access:write*1] classes=[3-local*1] payloads=0
+mpich    P2P__LocalConcurrency-send-mpi_bsend_init-001      rc=0   guard=[access:write*1] classes=[3-local*1] payloads=0
+mpich    P2P__LocalConcurrency-send-mpi_ibsend-001          rc=0   guard=[access:write*1] classes=[3-local*1] payloads=0
+mpich    P2P__LocalConcurrency-send-mpi_irsend-001          rc=0   guard=[access:write*1] classes=[3-local*1] payloads=0
+mpich    P2P__LocalConcurrency-send-mpi_isend-001           rc=0   guard=[access:write*1] classes=[3-local*1] payloads=0
+mpich    P2P__LocalConcurrency-send-mpi_issend-001          rc=0   guard=[access:write*1] classes=[3-local*1] payloads=0
+mpich    P2P__LocalConcurrency-send-mpi_psend_init-001      rc=0   guard=[access:write*1] classes=[3-local*1] payloads=0
+mpich    P2P__LocalConcurrency-send-mpi_rsend_init-001      rc=0   guard=[access:write*1] classes=[3-local*1] payloads=0
+mpich    P2P__LocalConcurrency-send-mpi_send_init-001       rc=0   guard=[access:write*1] classes=[3-local*1] payloads=0
+mpich    P2P__LocalConcurrency-send-mpi_ssend_init-001      rc=0   guard=[access:write*1] classes=[3-local*1] payloads=0
+mpich    COLL__LocalConcurrency-mpi_iallreduce-001          rc=0   guard=[access:write*2] classes=[3-local*2] payloads=0
+mpich    COLL__LocalConcurrency-mpi_ialltoall-001           rc=0   guard=[access:write*2] classes=[3-local*2] payloads=0
+mpich    COLL__LocalConcurrency-mpi_ibcast-001              rc=0   guard=[access:write*2] classes=[3-local*2] payloads=0
+mpich    COLL__LocalConcurrency-mpi_igather-001             rc=0   guard=[access:write*2] classes=[3-local*2] payloads=0
+mpich    COLL__LocalConcurrency-mpi_ireduce-001             rc=0   guard=[access:write*2] classes=[3-local*2] payloads=0
+mpich    COLL__LocalConcurrency-mpi_iscan-001               rc=0   guard=[access:write*2] classes=[3-local*2] payloads=0
+mpich    COLL__LocalConcurrency-mpi_iscatter-001            rc=0   guard=[access:write*1] classes=[3-local*1] payloads=0
+mpich: 3-local in 22 of 22 programs built
