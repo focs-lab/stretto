@@ -84,3 +84,7 @@ file, for horizons too long for one environment string (`run_pinned` does this p
 
 "L1+SP" findings assume the recorded call sequence does not change: unsound on
 metadata-dependent code (idioms 01 and 06 show it), which is what L2 is for.
+
+## License
+
+MIT; see `LICENSE`.
