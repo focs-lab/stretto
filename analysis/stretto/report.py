@@ -664,8 +664,11 @@ def _profiles_fast(t: Trace, alts, probes, waits, full: bool = False, reads=None
     instead; the tests and the E2 harness compare the two. Observed(t, B) is built on the
     first check at B and serves every later one at that threshold. With read bounds, an
     alternative that rule H1 rejects is judged again with the longer window of rule H1' (the
-    generic check); either verdict is sound, so the profile is their union, monotone in B as
-    each of them is."""
+    generic check); either verdict is sound, so the profile is their union. H1' alone need not
+    be monotone (later receives of the window become judged as B grows), but its horizon
+    contains H1's with every node, edge and obligation of it, so H1' accepts only what the
+    generic H1 check accepts: where the generic check confirms the fast check's rejections,
+    the union is H1's profile, which T2 makes monotone."""
     bps = breakpoints(t) + [None]
     ix = t.fast_indexes()
     obs: Dict[Optional[int], fast.Observed] = {}
