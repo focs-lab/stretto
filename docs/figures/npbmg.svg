@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="860" height="366" viewBox="0 0 860 366" role="img" aria-label="NPB MG 2.4.1: a message of another exchange, predicted from one run">
+<rect x="1" y="1" width="858" height="364" rx="14" fill="#FFFDF8" stroke="#E2DDD2" stroke-width="2"/>
+<text x="28" y="40" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="19" font-weight="600" fill="#14213D">NPB MG 2.4.1: a message of another exchange, predicted from one run</text>
+<text x="28" y="80" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#14213D">Traced runs that predict it</text>
+<text x="28" y="100" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" fill="#3F4A5C">one clean run each, 16 processes</text>
+<rect x="330" y="72" width="400" height="22" rx="5" fill="#E9ECF2"/>
+<rect x="330" y="72" width="400.0" height="22" rx="5" fill="#1F5FA8"/>
+<text x="832" y="89" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#14213D" text-anchor="end">3 / 3</text>
+<text x="28" y="138" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#14213D">Replays that take the predicted message</text>
+<text x="28" y="158" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" fill="#3F4A5C">pins of the whole horizon</text>
+<rect x="330" y="130" width="400" height="22" rx="5" fill="#E9ECF2"/>
+<rect x="330" y="130" width="399.2" height="22" rx="5" fill="#1F5FA8"/>
+<text x="832" y="147" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#14213D" text-anchor="end">479 / 480</text>
+<text x="28" y="196" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#14213D">Replays whose result changes</text>
+<text x="28" y="216" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" fill="#3F4A5C">478 of 480 controls keep the traced result</text>
+<rect x="330" y="188" width="400" height="22" rx="5" fill="#E9ECF2"/>
+<rect x="330" y="188" width="320.0" height="22" rx="5" fill="#B4561A"/>
+<text x="832" y="205" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#14213D" text-anchor="end">384 / 480</text>
+<text x="28" y="254" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#14213D">Testing runs whose result changes</text>
+<text x="28" y="274" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" fill="#3F4A5C">plain runs and runs with random delays</text>
+<rect x="330" y="246" width="400" height="22" rx="5" fill="#E9ECF2"/>
+<rect x="330" y="246" width="40.0" height="22" rx="5" fill="#E8873A"/>
+<text x="832" y="263" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#14213D" text-anchor="end">8 / 80</text>
+<text x="28" y="312" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#14213D">Traces of the fix that predict it</text>
+<text x="28" y="332" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" fill="#3F4A5C">NPB 3.3.1</text>
+<rect x="330" y="304" width="400" height="22" rx="5" fill="#E9ECF2"/>
+<rect x="330" y="304" width="0.0" height="22" rx="5" fill="#9AA3B2"/>
+<text x="832" y="321" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#14213D" text-anchor="end">0 / 3</text>
+</svg>

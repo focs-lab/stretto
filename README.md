@@ -80,6 +80,17 @@ hours (reported in the NINJA noise-injection paper, PPoPP 2017).
 
 <p align="center"><img src="docs/figures/hypre.svg" width="760" alt="HYPRE ParaSails results"></p>
 
+**A second documented bug.** NPB MG 2.4.1 receives every halo exchange from `MPI_ANY_SOURCE`
+with a tag that does not depend on the grid level; its changelog says this "could cause MPI_Wait
+return a message meant for the wrong k", fixed in 3.2.1. From one clean run Stretto predicts
+receives that take a message of another exchange. Forced, 384 of
+480 replays compute another residual; 15 of them fail 2.4.1's own
+check, an absolute error of 1e-8, and 383 fail the relative check of later
+versions. Testing changes the residual in 8 of 80 runs, and
+nothing in those runs reports it.
+
+<p align="center"><img src="docs/figures/npbmg.svg" width="760" alt="NPB MG results"></p>
+
 **Soundness in practice.** Against an exhaustive explorer, 0 of
 826 judged alternatives are unsound. Replays on MBI: 64
 confirmed, 10 inconclusive (the control itself hung),

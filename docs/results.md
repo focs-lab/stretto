@@ -483,6 +483,29 @@ per rank from the replay library (no pin). Rows by code commit: c27c793 (80).
 | 8 | plain | 20 | 20 | 0 | 0 |
 | 8 | delays | 20 | 20 | 0 | 0 |
 
+## E5d: a second documented bug (NPB MG 2.4.1, a message of another exchange)
+
+Traced runs of MG (class S, MPICH build); every alternative the
+analysis accepts is replayed with the pins of its horizon and with its control (`experiments/npbmg/predict.py`).
+A replay *changes the result* when its residual norm differs from its control's; MG 2.4.1's own check accepts
+an absolute error of 1e-8 against the reference, later versions a relative error of 1e-8, which these columns
+apply. Rows by code commit: 8d780ae (563).
+
+| version | ranks | traced runs | runs with one | alternatives | replayed | pins matched | finished | result changed | fails the relative check | largest relative change | controls finished | controls with the traced run's norm |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 2.4.1 | 16 | 3 | 3 | 480 | 480 | 479 | 479 | 384 | 383 | 4.1e-04 | 478 | 478 |
+| 3.3.1 | 16 | 3 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0.0e+00 | 0 | 0 |
+
+Untraced runs of MG 2.4.1, plain and with random send and receive delays from the replay library; a run
+*changes the result* when its residual norm differs from the plain runs' (every plain run printed the same).
+
+| ranks | setting | runs | finished | result changed | fails the relative check |
+|---|---|---|---|---|---|
+| 16 | plain | 20 | 20 | 0 | 0 |
+| 16 | delays | 20 | 20 | 4 | 4 |
+| 32 | plain | 20 | 20 | 0 | 0 |
+| 32 | delays | 20 | 20 | 4 | 4 |
+
 ## E6: polynomial checker vs exhaustive explorer
 
 The checker in L1 mode (the claim the report makes) against exhaustive exploration of the trace as a
