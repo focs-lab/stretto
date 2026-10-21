@@ -2,6 +2,7 @@
 from __future__ import annotations
 import argparse
 import json
+import shlex
 import sys
 
 from . import confirm as confirm_mod, dsl, explore, report, trace
@@ -53,9 +54,16 @@ def cmd_show(args):
 
 def _analyze(args):
     t = _load(args.tracedir)
+    twin, label = None, "twin"
+    if args.rerun:
+        # level L2 from the program itself: ranks re-executed alone under the shim (stretto.rerun)
+        from . import rerun
+        runner = rerun.ShimRunner(args.rerun, shlex.split(args.rerun_args), np=t.np, mpi=args.rerun_mpi,
+                                  timeout=args.rerun_timeout, cwd=args.rerun_cwd)
+        twin, label = rerun.Oracle(t, runner).program(), "re-execution"
     return t, report.analyze(t, with_sp=not args.no_sp, sp_max_events=args.sp_max_events,
                              max_states=args.max_states, generic=args.generic, full_profile=args.full_profile,
-                             changes=args.changes)
+                             changes=args.changes, twin=twin, twin_label=label)
 
 
 def cmd_analyze(args):
@@ -132,6 +140,14 @@ def _analysis_options(a):
     a.add_argument("--generic", action="store_true",
                    help="judge alternatives with the generic checker instead of the indexed one (slow; for differential testing)")
     a.add_argument("--changes", type=int, default=1, choices=[1, 2], help="also report alternatives that re-match two receives on different ranks")
+    a.add_argument("--rerun", metavar="EXE", default=None,
+                   help="level L2 by re-execution: the traced executable, whose ranks are rerun alone under the shim "
+                        "(rerun/libstretto-rerun.so; the trace must carry payloads, STRETTO_PAYLOAD)")
+    a.add_argument("--rerun-args", default="", help="the traced run's command-line arguments, one string")
+    a.add_argument("--rerun-mpi", default="openmpi", help="the MPI the executable is built with (which shim)")
+    a.add_argument("--rerun-timeout", type=float, default=20, help="seconds per re-execution")
+    a.add_argument("--rerun-cwd", default=None,
+                   help="working directory of the re-executions (default: an empty one; the rank's file writes land here)")
 
 
 def main(argv=None) -> int:

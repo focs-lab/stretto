@@ -108,15 +108,18 @@ def classify(r: Recv, s: Send, s_obs: Optional[Send]) -> Tuple[str, str]:
 
 
 def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_events: int = 2000,
-            generic: bool = False, full_profile: bool = False, twin=None, changes: int = 1) -> Report:
+            generic: bool = False, full_profile: bool = False, twin=None, changes: int = 1,
+            twin_label: str = "twin") -> Report:
     """Alternatives are judged by the indexed checker (stretto.fast), each profiled at the
     two ends of the B range and bisected between them (exact by theorem T2); full_profile=True
     judges every breakpoint, generic=True uses the generic checker (feasible.check) instead
     of the indexed one. Both exist for differential testing and are slower. twin: a DSL
-    program (level L2) that encodes the program's metadata dependencies; its exploration under
-    each L1 alternative yields the L2 findings (1e, abort, deadlock). changes=2 also enumerates
-    alternatives that re-match two wildcard receives on different ranks, judged by the generic
-    checker at every breakpoint."""
+    program (level L2) that encodes the program's metadata dependencies, written by hand or
+    built by re-executing the ranks (stretto.rerun, twin_label "re-execution"); its
+    exploration under each L1 alternative yields the L2 findings (1e, abort, deadlock), and an
+    alternative after which every execution finishes with the recorded calls is dismissed.
+    changes=2 also enumerates alternatives that re-match two wildcard receives on different
+    ranks, judged by the generic checker at every breakpoint."""
     rep = Report()
     rep.notes.extend(t.warnings)
     if t.truncated:
@@ -395,36 +398,47 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
                                          f"L1: the continuation of ranks {sorted(rk[0] for rk in alt.changed)} after the changed receives is undetermined"],
                                         B=brange, recv=alt.recv, send=alt.send))
 
-    # ---- level L2: the twin program (metadata dependencies encoded) under each alternative
+    # ---- level L2: the twin program (metadata dependencies encoded) under each alternative.
+    # An execution that reaches a rank whose continuation is undetermined (outcome 'unknown',
+    # only a re-executed twin has them) supports no deadlock and no dismissal, and counts
+    # against "every execution"; what happened in it before, an abort or a departure from the
+    # trace's calls, stands.
     if twin is not None and sp_targets:
         for rk, sk, f in sp_targets:
             for B in (0, None):
                 try:
                     res = explore.explore(twin, B, force={rk: sk}, max_states=max_states, comms=t.comm_members)
                 except (explore.StateCapReached, explore.ExploreError) as e:
-                    f.detail.append(f"L2 at B={_fmt_B(B)}: twin not explored ({e})")
+                    f.detail.append(f"L2 at B={_fmt_B(B)}: {twin_label} not explored ({e})")
                     continue
                 outs = res.outcomes_with(rk, sk)
                 if not outs:
-                    f.detail.append(f"L2 at B={_fmt_B(B)}: the twin never realises this match")
+                    f.detail.append(f"L2 at B={_fmt_B(B)}: the {twin_label} never realises this match")
                     continue
                 kinds = sorted({o.kind for o in outs} | {k for o in outs for k in o.error_kinds})
-                f.detail.append(f"L2 at B={_fmt_B(B)}: twin outcomes {kinds}")
-                tail = f"after {t.recvs[rk]} <- {t.sends[sk]} (L2 twin)"
+                f.detail.append(f"L2 at B={_fmt_B(B)}: {twin_label} outcomes {kinds}")
+                why = sorted({f"rank {r}: {w}" for o in outs for r, w in o.unknown})
+                if why:
+                    f.detail.append(f"L2 at B={_fmt_B(B)}: undetermined continuations: " + "; ".join(why[:3]))
+                tail = f"after {t.recvs[rk]} <- {t.sends[sk]} (L2 {twin_label})"
                 every = lambda pred: "every execution" if all(pred(o) for o in outs) else "some executions"
                 div = [d for o in outs for d in skeleton_divergence(t, o)]
                 if div:
                     rep.findings.append(Finding("1", "1e", "L2", f"the continuation diverges from the trace in {every(lambda o: bool(skeleton_divergence(t, o)))} {tail}",
                                                 sorted(set(div))[:6], B=f"B={_fmt_B(B)}", recv=rk, send=sk))
                 if any(o.kind == "abort" for o in outs):
+                    aborts = sorted({e for o in outs for e in o.errors if e.startswith("abort:")})
                     rep.findings.append(Finding("1", "1e", "L2", f"the program aborts on its own check in {every(lambda o: o.kind == 'abort')} {tail}",
-                                                B=f"B={_fmt_B(B)}", recv=rk, send=sk))
+                                                aborts[:3], B=f"B={_fmt_B(B)}", recv=rk, send=sk))
                 if any(o.kind == "deadlock" for o in outs):
                     rep.findings.append(Finding("1", "1d", "L2", f"deadlock in {every(lambda o: o.kind == 'deadlock')} {tail}",
                                                 B=f"B={_fmt_B(B)}", recv=rk, send=sk, pin=pin_from_execution(t, next(o for o in outs if o.kind == "deadlock"))))
+                if not div and all(o.kind == "done" and not o.orphans for o in outs):
+                    f.detail.append(f"L2 at B={_fmt_B(B)}: dismissed: every execution of the {twin_label} with this match "
+                                    "finishes, receives every message and does not depart from the trace's calls")
         uniq, out = {}, []
         for f in rep.findings:
-            sig = (f.cls, f.level, f.title.split(" (L2 twin")[0]) if f.level == "L2" else id(f)
+            sig = (f.cls, f.level, f.title.split(" (L2 ")[0]) if f.level == "L2" else id(f)
             if sig in uniq:
                 g = uniq[sig]
                 if f.B and f.B not in g.B.split(","):
@@ -655,7 +669,9 @@ def _profiles_generic(t: Trace, alts, probes, waits) -> _Profiles:
 def skeleton_divergence(t: Trace, o: explore.Outcome) -> List[str]:
     """How an execution of the twin departs from the trace's call sequence: a send to another
     destination or with another tag at the same position, or a different number of
-    collectives on a rank. Empty when the single-path assumption holds on this execution."""
+    collectives on a rank. Empty when the single-path assumption holds on this execution. A
+    rank whose continuation is undetermined (outcome.unknown) may still issue collectives, so
+    only more of them than the trace has counts there."""
     out = []
     for key, dst, tag, comm in o.sent:
         s = t.sends.get(key)
@@ -666,9 +682,11 @@ def skeleton_divergence(t: Trace, o: explore.Outcome) -> List[str]:
     per_rank = {}
     for c in t.colls:
         per_rank[c.rank] = per_rank.get(c.rank, 0) + 1
+    open_ranks = {r for r, _ in o.unknown}
     for rank, n in o.ncoll:
-        if n != per_rank.get(rank, 0):
-            out.append(f"rank {rank} issues {n} collective(s) instead of {per_rank.get(rank, 0)}")
+        m = per_rank.get(rank, 0)
+        if n > m or (n < m and rank not in open_ranks):
+            out.append(f"rank {rank} issues {n} collective(s) instead of {m}")
     return out
 
 
