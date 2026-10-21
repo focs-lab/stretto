@@ -17,7 +17,8 @@ record of that rank.
 \item\label{H:changed} For $r\in\Changed$, the records of $\mathit{rank}(r)$ after the
   completion of $r$ are removed. Their results differ from $\trace$, so $\trace$ does not
   determine them. If $r$ does not complete in $\trace$, the records after its posting are
-  removed, since a later test of its request could now succeed.
+  removed, since a later test of its request could now succeed. The changed record of a probe
+  or completion-order alternative cuts its rank after it in the same way.
 \item\label{H:recv} A receive whose $\Malt$-send is not issued in $\Hpre$, or that has no
   $\Malt$-send, does not complete: the record completing it is removed.
 \item\label{H:send} A send that blocks at $\Bt$ and whose $\Malt$-receive is not posted
@@ -25,7 +26,8 @@ record of that rank.
   \emph{issued}, so a probe can still see it.
 \item\label{H:coll} A collective whose shape requires a member that does not issue it in
   $\Hpre$ does not complete on the members that wait for it.
-\item\label{H:probe} A probe whose observed send is not issued in $\Hpre$ is removed.
+\item\label{H:probe} A probe whose reported send $s_p$, the observed one or for a changed probe
+  the new one, is not issued in $\Hpre$ is removed.
 \item\label{H:pending} A receive $r'$ posted in $\Hpre$ whose $\Malt$-send is not issued in
   $\Hpre$ stays pending. Any later receive or probe of its rank that would take or report
   a message $r'$ accepts is removed, by \ref{E:order}.
@@ -34,7 +36,8 @@ record of that rank.
 \end{enumerate}
 The \emph{judged} receives $\judged$ are the receives posted in $\Hpre$ whose
 $\Malt$-send is issued in $\Hpre$, together with the receives posted in $\Hpre$ that
-$\Malt$ leaves unmatched. $\Malt$ \emph{survives} if every $r\in\Changed$ is judged.
+$\Malt$ leaves unmatched. $\Malt$ \emph{survives} if every $r\in\Changed$ is judged and a
+changed record lies in $\Hpre$ with the message it now reports or completes issued there.
 \end{definition}
 
 The horizon is computed as a fixpoint over per-rank cut indices. Rule~\ref{H:changed} is
@@ -133,9 +136,10 @@ unmatched messages. \Cref{app:sound} gives the full proof.
 
 Feasibility is a function of $\Bt$, and the thresholds that matter are $0$, the distinct
 message sizes of $\trace$, and $\infty$. Let $\Bobs$ be the least threshold at which
-$\Mobs$ itself is feasible. If $\Bobs>0$, the recorded run deadlocks on every
-implementation that sends fewer than $\Bobs$ bytes eagerly, and \tool reports it as
-\cls{2-buffering}.
+$\Mobs$ itself is feasible. If $\Bobs>0$, the recorded run cannot happen on an implementation
+that sends fewer than $\Bobs$ bytes eagerly. \tool reports \cls{2-buffering} when the cycle
+that shows this needs neither a probe's report nor a collective of unknown shape, so that the
+recorded calls deadlock there whatever the probes see.
 
 \begin{lemma}
 \label{lem:obsmono}
@@ -162,7 +166,11 @@ switch from true to false and back. \Cref{thm:mono} makes bisection over
 $[\Bobs,\infty]$ exact for steals at blocking receives. \tool profiles each of them at
 $\Bobs$ and $\infty$ and bisects between them. Judging every breakpoint is the
 differential test. Swaps re-match two receives, which \cref{thm:mono} does not cover, so
-\tool profiles them, like steals at nonblocking receives, at every breakpoint.
+\tool profiles them, like steals at nonblocking receives, at every breakpoint. Probe and
+completion-order alternatives keep every match, and their changed record is the last of its rank
+in the horizon, so nothing in the graph follows it. The rest of the graph is part of the
+observed one, and their feasibility is monotone above $\Bobs$ too (\cref{lem:app-nochange});
+\tool bisects their profiles.
 
 \begin{proposition}[Deadlocks are not monotone in $\Bt$]
 \label{prop:nonmono}
@@ -229,8 +237,9 @@ and $k$ distinct message sizes, and let $C$ range over its collective sets. Then
 \item there are at most $w\cdot p$ steals and at most $\sum_q \binom{w_q}{2}$ swaps;
 \item one alternative is decided at one threshold in time
   $O((n+(|\Malt|+\pi)\,T)\log n+\sum_C|C|^2)$, where $\sum_C|C|^2\le p\,n$;
-\item a steal at a blocking receive is profiled with $O(\log k)$ checks above $\Bobs$
-  (\cref{thm:mono}), any other alternative with $k+2$.
+\item a steal at a blocking receive, or a probe or completion-order alternative, is profiled
+  with $O(\log k)$ checks above $\Bobs$ (\cref{thm:mono,lem:app-nochange}), any other
+  alternative with $k+2$.
 \end{enumerate}
 \end{theorem}
 
@@ -246,5 +255,3 @@ quasi-linear per alternative, for any number of changed receives. What grows wit
 of changed receives is the number of alternatives. Choosing which receives to change is
 NP-complete in general~\citep{forejt17mopper}, and placing that problem between polynomial
 and hard cases parameterised by $w$~\citep{shi26popl,mathur20lics} is future work.
-\pending{Tree clocks for the fast check's reachability; measured cost per alternative after
-the rerun.}

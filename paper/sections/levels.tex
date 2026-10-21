@@ -49,7 +49,8 @@ $\Hpre$, let $\kappa_i$ be its first record whose return is not in $\Hpre$. A ra
 \begin{definition}[Contained deadlock]
 A set $D$ of ranks is a \emph{contained deadlock} if every $i\in D$ satisfies:
 \begin{enumerate}[leftmargin=*,label=(D\arabic*)]
-\item\label{D:changed} $i$ is not the rank of a changed receive that completes in $\Hpre$;
+\item\label{D:changed} $i$ is not the rank of a changed receive that completes in $\Hpre$, nor
+  of the changed record of a probe or completion-order alternative;
 \item\label{D:block} $\kappa_i$ blocks: it is a blocking send, receive, probe or collective,
   or a wait, not a test or an iprobe;
 \item\label{D:partner} what $\kappa_i$ waits for has no partner in $\Hpre$: no unmatched send
@@ -88,10 +89,13 @@ one can stop its rank \emph{before} the receive completes. Consider a nonblockin
 \mpicall{Irecv(ANY)}, then \mpicall{Recv(from 1)}, then the wait. If the wildcard takes
 rank~1's only message, the second receive has nothing left to take. The rank stops there,
 before the wait whose result could change its behaviour. Deadlocks that need the changed
-rank's continuation remain \LoneSP or \Ltwo claims.
-\pending{That every contained deadlock contains the rank of a changed nonblocking receive
-that does not complete in $\Hpre$ is plausible but not proved: cuts also start at the
-receive deprived of the stolen message and at the released send.}
+rank's continuation remain \LoneSP or \Ltwo claims. Cuts also start at the receive deprived of
+the stolen message and at the released send, yet for $\Bt\ge\Bobs$ these never yield a contained
+deadlock on their own. Every contained deadlock contains the rank of a receive on which $\Malt$
+and $\Mobs$ differ, for a steal the rank of a nonblocking changed receive that does not complete
+in $\Hpre$ (\cref{prop:app-deadrank}). Otherwise, following each blocked rank to the rank that
+would have to unblock it would close a cycle in the graph of the recorded run. \tool therefore
+looks for contained deadlocks only after nonblocking changed receives.
 
 \subsection{Single-path consequences}
 
@@ -126,9 +130,9 @@ Level \Ltwo replaces $\SP(\trace)$ by a \emph{twin}: the recorded program with i
 dependencies on message metadata made explicit. A destination can be computed from
 \texttt{MPI\_SOURCE}. A branch can guard a collective. A payload can mirror the sender's
 rank. The explorer over the twin decides \cls{1c}, \cls{1d} and \cls{1e} for programs
-that agree with the twin. Twins are written by hand in this paper.
-\pending{Static check that a continuation is metadata-independent, which makes \LoneSP
-findings sound where it passes.}
+that agree with the twin. Twins are written by hand in this paper. A static check that a
+continuation does not depend on message metadata would make \LoneSP findings sound where it
+passes; we leave it to future work.
 
 \subsection{Confirmation by replay}
 \label{sec:replay}

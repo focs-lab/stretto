@@ -22,8 +22,12 @@ because a rank's program order is no longer total. Calls outside this fragment (
 neighbourhood collectives, dynamic processes, generalised requests, and the MPI-4
 \mpicall{Isendrecv}, partitioned and large-count calls) write an \emph{unmodelled} record.
 The analysis then reports observed findings only, because the trace is no longer a complete
-record of the run's communication. \pending{C-2: record results, and side records written
-after completions.}
+record of the run's communication. Records written while a call is in progress (the
+communicator a nonblocking duplication registers when it completes, the overflow of the table
+of messages taken by matched probes) are
+side records, and the analysis does not pair them with the call around them. Records do not
+carry the call's return code. Under the default error handler a failed call aborts the run, but
+under \texttt{MPI\_ERRORS\_RETURN} it is recorded as if it had succeeded.
 
 \paragraph{Analyser.} The analyser rebuilds $\Mobs$ from the statuses and checks the
 recorded run itself (\cref{tab:classes}, the observed classes). It then enumerates
@@ -36,10 +40,12 @@ once per threshold. Steals at nonblocking receives and swaps go to a generic che
 builds the horizon and the graph from scratch. The generic check is the reference, and the
 tests compare the two on every alternative of every traced idiom. The \LoneSP explorer runs below a size limit. Two-change
 alternatives on different ranks are available on request.
-\pending{Cost per alternative after T4; tree clocks~\citep{mathur22treeclock} as a
-drop-in for the vector clocks.}
+On Nekbone's trace of \NekRecords million records an alternative costs about \NekPerAlt\,s
+(\cref{sec:eval}). The vector clocks cost $O(p)$ per node and threshold; tree
+clocks~\citep{mathur22treeclock} would reduce that.
 
-\paragraph{Replay.} The replay library reads the pins from the environment and
+\paragraph{Replay.} The replay library reads the pins from the environment, or from a file
+the environment names when a horizon pins more receives than one environment string holds, and
 substitutes the source of the pinned wildcard receives and probes, persistent receives
 included, through a shadow request. It can also delay chosen sends and receives, which the
 stress-testing baseline of \cref{sec:eval} uses. When a pinned receive completes or a pinned

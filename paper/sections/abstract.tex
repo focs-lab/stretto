@@ -17,7 +17,10 @@ buffering threshold above the threshold of the observed run, while deadlock pred
 are not. We also show that the single-path assumption of earlier predictors is unsound
 when control flow depends on message metadata, and we give a deadlock prediction that
 needs no such assumption.
-From one clean run of HYPRE~2.10.1 on four processes, \tool predicts the message race in
-its ParaSails preconditioner that took 10\,392 compute-node hours to diagnose: a replay that
-forces the predicted match hangs, its control finishes, and the alternative is gone in the
-fixed version. \pending{Benchmark sentence after the rerun.}
+From single clean runs of HYPRE~2.10.1, \tool predicts the message race in its ParaSails
+preconditioner that took 10\,392 compute-node hours to diagnose. The race shows in
+\nHypreExposed of \nHypreTraced traced runs; all \nHypreCrossAlts replays that force a
+predicted match hang while their controls finish; randomised testing never hit the hang; and
+the fixed version has no such alternative. On the MPI Bugs Initiative, \tool finds
+\nMBItpunion of \nMBIerrors labelled errors with no false positive (F1~\MBIfoneunion,
+against \MBIfoneMUST for \MUST and \MBIfonestress for randomised runs).

@@ -114,3 +114,8 @@ A \emph{swap} exchanges the messages of two wildcard receives of one rank. By
 \ref{E:fifo}, only the earliest message of each source that $r$ has not consumed can be
 $\Malt(r)$, so a wildcard receive has at most one steal per source with a pending
 message. A swap is determined by its pair of receives (\cref{thm:cost}).
+Two further kinds keep $\Malt=\Mobs$ and change one record instead. A \emph{probe
+alternative} lets a probe report another send, and a \emph{completion-order alternative} lets
+a \mpicall{Waitany} or \mpicall{Waitsome} return another request whose receive completes later in
+$\trace$. The results below cover them with that record in the place of a changed receive
+(\cref{app:conv}).
