@@ -129,9 +129,11 @@ def main():
             if np_ > args.maxnp:
                 rows.append({**row, "run": f"skipped (more than {args.maxnp} ranks)"})
                 continue
-            d = os.path.join(WORK, name)
-            shutil.rmtree(d, ignore_errors=True)
-            shutil.copytree(os.path.join(BENCH, sub), d, symlinks=True)
+            # the whole application directory, run from its subdirectory (kf-ray reads ../scenes)
+            top, _, rest = sub.partition("/")
+            shutil.rmtree(os.path.join(WORK, name), ignore_errors=True)
+            shutil.copytree(os.path.join(BENCH, top), os.path.join(WORK, name), symlinks=True)
+            d = os.path.join(WORK, name, rest) if rest else os.path.join(WORK, name)
             for f in os.listdir(d):          # MPI-PRV's own traces and logs are not needed
                 if re.match(r"output.*\.txt$", f):
                     os.remove(os.path.join(d, f))
@@ -178,6 +180,14 @@ def main():
             rows.append(row)
             print(name, {k: row.get(k) for k in ("run", "records", "wildcards", "classes", "alternatives",
                                                   "replay_results", "analysis_s", "guard_classes")}, flush=True)
+    if args.select:      # a partial rerun replaces only its own configurations' rows
+        done = {(r["app"], str(r["np"])) for r in rows}
+        for f, acc in (("apps.csv", rows), ("apps-replays.csv", reps)):
+            p = os.path.join(OUT, f)
+            if os.path.exists(p):
+                acc[:0] = [r for r in csv.DictReader(open(p)) if (r["app"], r["np"]) not in done]
+        order = {f"{app}-{n}": i for i, (app, _, _, cfgs) in enumerate(APPS) for n in cfgs}
+        rows.sort(key=lambda r: (order.get(f"{r['app']}-{r['np']}", 0), int(r["np"])))
     keys = ["app", "np", "command", "run", "records", "sends", "recvs", "wildcards", "probes", "colls", "classes", "confirmed",
             "errors", "alternatives", "replays", "replay_results", "analysis_s", "analysis_kb", "analysis_rc",
             "guard_run", "guard_classes", "guard_local", "guard_confirmed", "summary", "commit"]
