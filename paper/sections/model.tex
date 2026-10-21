@@ -100,8 +100,11 @@ $\SP(\trace)$ issues the records of $\trace$ whatever its calls return.
 Consistency constrains a program only on the histories $\trace$ shows. It says nothing
 about what a rank does after a call returns a result that $\trace$ does not record, for
 example a different status. This is what makes predictions sound for the unknown program
-behind the trace. The definition assumes that $\trace$ records every communication call
-of the run. The tracer reports calls outside the modelled fragment, and the analysis then
+behind the trace. The definition is the local-determinism axiom of the maximal causal
+model~\citep{serbanuta12mcm}, stated for MPI results and relative to a prefix: every program
+that produces $\trace$ is in $\Cons(\trace,\Hpre)$, so a claim about all of
+$\Cons(\trace,\Hpre)$ is at least as strong as one about the programs that produce $\trace$.
+The definition assumes that $\trace$ records every communication call of the run. The tracer reports calls outside the modelled fragment, and the analysis then
 restricts itself to observed findings (\cref{sec:implementation}).
 
 \subsection{Alternative matchings}
@@ -113,7 +116,9 @@ receive $r$ to a send $s$; if $s$ was taken in $\trace$ by a later receive $r_2$
 A \emph{swap} exchanges the messages of two wildcard receives of one rank. By
 \ref{E:fifo}, only the earliest message of each source that $r$ has not consumed can be
 $\Malt(r)$, so a wildcard receive has at most one steal per source with a pending
-message. A swap is determined by its pair of receives (\cref{thm:cost}).
+message. The race sets of reachability testing~\citep{lei06reachability} and the racing
+messages of the MAD debugger~\citep{kranzlmueller00thesis} have the same bound. A swap is
+determined by its pair of receives (\cref{thm:cost}).
 Two further kinds keep $\Malt=\Mobs$ and change one record instead. A \emph{probe
 alternative} lets a probe report another send, and a \emph{completion-order alternative} lets
 a \mpicall{Waitany} or \mpicall{Waitsome} return another request whose receive completes later in

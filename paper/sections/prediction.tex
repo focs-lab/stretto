@@ -45,7 +45,20 @@ the only rule that refers to $\Changed$. It encodes the one fact the trace canno
 supply: what a rank does after a call returns a result the trace did not record. Every
 other rule removes an operation that could not complete if everything kept stayed as
 recorded. A nonblocking changed receive is judged once it is posted and its new message
-is issued, because the match is decided then. Its wait may lie beyond $\Hpre$.
+is issued, because the match is decided then. Its wait may lie beyond $\Hpre$. Apart from
+the cut of \ref{H:changed}, the horizon is thus an ordinary downward-closed prefix with
+respect to the dependences of $\Malt$.
+
+Rule~\ref{H:changed} is the rule of the maximal causal model, in which a thread ``is stopped
+once it read a value from the memory different from the one observed
+originally''~\citep{serbanuta12mcm}, and of relaxed correct reorderings~\citep{mathur18shb};
+RVPredict lets the thread run on to its next branch~\citep{huang14rvpredict}. A trace of MPI
+calls records no branches, so \ref{H:changed} is the branch-free instance. MPI adds the
+details. A rank keeps issuing recorded operations between a changed nonblocking receive and
+its wait; \ref{H:recv} and \ref{H:pending} handle the receive a stolen message deprives,
+\ref{H:pending} non-overtaking on the matches of pending receives, and \ref{H:send} sends
+that block at $\Bt$. For blocking traffic, the horizon of a steal corresponds to a race
+variant of reachability testing~\citep{lei06reachability}.
 
 \subsection{The constraint graph}
 \label{sec:graph}
@@ -96,13 +109,21 @@ $\Graph(\trace,\Malt,\Bt,\Hpre)$ is acyclic.
 Match nodes are what make the order rules exact. In MPI, the constraint that an earlier
 receive be matched first binds the \emph{match} of the later receive. It does not bind
 that receive's completion, which for a nonblocking receive lies at a wait much later, nor
-the send's completion, which for a rendezvous send follows the match. Without match nodes,
-\ref{G:order} has to be attached to some completion. Attached to $\compl(r)$, it misses
-the cycle in which a rendezvous send must be matched before its sender can produce the
-message the earlier receive was waiting for.
-An earlier version of \tool did exactly that, and it accepted two shapes that MPI cannot
-produce: a pending nonblocking wildcard overtaken by a later receive, and a rendezvous send
-matched after its own completion. Both are now regression tests.
+the send's completion, which for a rendezvous send follows the match. An earlier version of
+\tool attached \ref{G:order} to completions and accepted two shapes that MPI cannot produce:
+a pending nonblocking wildcard overtaken by a later receive, and a rendezvous send matched
+after its own completion. Both are now regression tests.
+
+For the same reason, happens-before concurrency, with which earlier tools select racing
+messages before re-executing~\citep{lei06reachability,gopalakrishnan11cacm}, cannot decide an
+alternative. Let rank~0 post \mpicall{Irecv($r$, ANY)}, then \mpicall{Recv(ANY)}, which takes
+rank~3's message, then send $x$ to rank~2 and wait for $r$, which takes rank~1's message;
+rank~2 receives $x$ and sends $s$ to rank~0. The steal $r\mapsto s$ is impossible: $r$
+accepts rank~3's message, so it must be matched before the second receive, and $s$ is sent
+only after that receive completes (in the graph, a cycle through \ref{G:order} and $x$). Yet
+$s$ is concurrent with the wait of $r$. Placing $r$ at its completion accepts the steal;
+placing it at its posting rejects it, but also every message sent causally after the
+posting, which $r$ may well take.
 
 The edges of \ref{G:fifo} and \ref{G:order} need not be quadratic. The receives that accept
 $s$ fall into four envelope classes (source $\mathit{rank}(s)$ or \ANY, tag $\mathit{tag}(s)$
@@ -139,7 +160,10 @@ message sizes of $\trace$, and $\infty$. Let $\Bobs$ be the least threshold at w
 $\Mobs$ itself is feasible. If $\Bobs>0$, the recorded run cannot happen on an implementation
 that sends fewer than $\Bobs$ bytes eagerly. \tool reports \cls{2-buffering} when the cycle
 that shows this needs neither a probe's report nor a collective of unknown shape, so that the
-recorded calls deadlock there whatever the probes see.
+recorded calls deadlock there whatever the probes see. Runtime checkers report the zero-buffer
+end of this class for the observed matching~\citep{vetter00umpire,hilbrich12must}, and SMT
+has decided whether a trace has a zero-buffer schedule~\citep{huang15nfm}; \tool computes the
+least threshold, $\Bobs$.
 
 \begin{lemma}
 \label{lem:obsmono}
@@ -180,14 +204,15 @@ downward-closed in general.
 \noindent Two witnesses suffice. A head-to-head exchange of 400-byte messages deadlocks
 exactly for $\Bt<400$. In MBI's loop races, a steal needs the stolen message buffered,
 so the resulting deadlock exists only for $\Bt\ge 4$. A deadlock prediction therefore
-names its thresholds.
+names its thresholds. \Cref{prop:nonmono} is the formal counterpart, in the threshold model,
+of the observation that adding buffering can add deadlocks to programs with
+wildcards~\citep{vakkalanka10slack}; \cref{thm:mono} and the profiles are what is new.
 
 \subsection{Completeness relative to the horizon}
 \label{sec:complete}
 
-Soundness alone is cheap: an analysis that accepts nothing is sound. Following the
-optimality results for shared-memory race prediction~\citep{mathur21syncp}, we
-characterise exactly which alternatives the check accepts.
+Soundness alone is cheap: an analysis that accepts nothing is sound. We characterise
+exactly which alternatives the check accepts, relative to the horizon.
 
 \begin{definition}[Realisation]
 Let $\Malt$ survive at $\Bt$ with horizon $\Hpre$. A \emph{realisation} of $\Malt$ over
@@ -210,11 +235,18 @@ any execution with the events of $\Hpre$ and the matches of $\Malt$. A realisati
 meets the obligations, contains every node of $\Graph$, and orders them topologically
 (\cref{app:complete}).
 
+As $\SP(\trace)\in\Cons(\trace,\Hpre)$, the two theorems say that a surviving alternative is
+feasible iff some, and then every, program consistent with the trace realises it over
+$\Hpre$: maximality as in the maximal causal model~\citep{serbanuta12mcm} and
+RVPredict~\citep{huang14rvpredict}, for one fixed prefix.
 For a steal, a realisation is a matching-preserving reordering of the whole horizon: an
 execution of the operations of $\Hpre$ that matches $r$ to $s$ and every other judged
-receive as $\Mobs$ does. The theorem is relative to the horizon, and it has to be. A
-reordering of a shorter prefix can exist while the check rejects, because the horizon keeps
-a receive that the reordering omits and whose obligation fails (\cref{app:mono}). The rules
+receive as $\Mobs$ does. The theorem is relative to the horizon, so it is weaker than the
+optimality of SyncP~\citep{mathur21syncp}, which decides against the least closed set
+containing the race and covers every sync-preserving reordering of any prefix; \tool needs the
+greatest closed prefix to judge consequences (\cref{sec:levels}). A reordering of a shorter
+prefix can exist while the check rejects, because the horizon keeps a receive that the
+reordering omits and whose obligation fails (\cref{app:mono}). The rules
 \ref{H:recv}--\ref{H:probe} and \ref{H:ready} remove only events that no such execution can
 contain. Rule~\ref{H:pending} is stronger than necessary: it removes a deprived receive where
 removing its completion would suffice.
@@ -252,6 +284,7 @@ is removed, which gives the term $\sum_C|C|^2$. Each pair and each probe adds a 
 at most $4+T$ class-indexed order edges, so the graph has $O(n+(|\Malt|+\pi)\,T)$ edges, and
 cycle detection is linear. The check is therefore
 quasi-linear per alternative, for any number of changed receives. What grows with the number
-of changed receives is the number of alternatives. Choosing which receives to change is
-NP-complete in general~\citep{forejt17mopper}, and placing that problem between polynomial
-and hard cases parameterised by $w$~\citep{shi26popl,mathur20lics} is future work.
+of changed receives is the number of alternatives. Deciding whether some combination of
+changed matches deadlocks is NP-complete even for single-path programs~\citep{forejt17mopper},
+and placing the choice of changes between polynomial and hard cases parameterised by
+$w$~\citep{shi26popl,mathur20lics,kulkarni21concur} is future work.
