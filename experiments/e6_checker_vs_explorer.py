@@ -16,6 +16,12 @@ execution, and the judged receives M' leaves unmatched stay unmatched."
 Each pair also records whether some execution realises M' in full (explorer_exact), which the
 single-change checker does not claim: the receives beyond the horizon are not its business.
 
+With --reads, the checker cuts the rank of a changed receive at a read bound (rule H1',
+docs/firstread.md) instead of right after the receive: `never` (no result is ever read, the
+whole rest of the rank stays) or `random` (a bound drawn per receive between the receive and
+the end of its rank). A straight-line program reads nothing, so every bound is sound for it, and
+the comparison checks theorem T1 with the longer windows. Without --reads the checker is H1.
+
 Besides the corpus traces, --synthetic N adds N random straight-line programs that complete
 (dsl.random_matched_program: rounds of sends and receives, mostly wildcards, standard and
 buffered and nonblocking sends, sub-communicators, shaped collectives; with --mixed, a share of
@@ -38,7 +44,23 @@ from stretto import dsl, explore, trace  # noqa: E402
 from stretto.feasible import check  # noqa: E402
 from stretto.matching import candidates_full  # noqa: E402
 from stretto.deadlock import contained_deadlock  # noqa: E402
+from stretto.reads import NeverReads, Table  # noqa: E402
 from provenance import code_commit  # noqa: E402
+
+
+def read_bounds(t, kind, rng):
+    """The bounds of --reads for trace t: None (rule H1), every result never read, or a bound
+    drawn per completed receive between the record after its completion and the rank's end."""
+    if kind is None:
+        return None
+    if kind == "never":
+        return NeverReads()
+    out = {}
+    for r in sorted(t.recvs.values(), key=lambda r: r.key):
+        if r.completed:
+            c = r.complete_idx if r.complete_idx is not None else r.idx
+            out[(r.rank, c)] = rng.randint(c + 1, len(t.ranks[r.rank]))
+    return Table(out)
 
 
 def judged(t, M, cut):
@@ -57,10 +79,11 @@ def judged(t, M, cut):
 def compare(t, name, args, rows, counts, times):
     prog = dsl.program_from_trace(t)
     alts, _ = candidates_full(t)
+    bounds = read_bounds(t, args.reads, random.Random(f"{args.seed}/{name}"))
     for a in alts:
         for B in (0, None):
             t0 = time.perf_counter()
-            v = check(t, a.M, a.changed, B, "L1")
+            v = check(t, a.M, a.changed, B, "L1", bounds=bounds)
             t1 = time.perf_counter()
             try:
                 res = explore.explore(prog, B, force={a.recv: a.send}, max_states=args.max_states, comms=t.comm_members)
@@ -77,7 +100,8 @@ def compare(t, name, args, rows, counts, times):
                 reach_kept_exact = any(all(om.get(rk) == a.M.get(rk) for rk in keys) for om in outs)
                 reach_exact = any(om == a.M for om in outs)
                 # theorem T7: a contained deadlock means every execution with the changed match deadlocks
-                dl = contained_deadlock(t, a.M, a.changed, v.cut, v.issued, B) if v.feasible else None
+                rule1 = bounds.rule1(t, a.changed) if bounds is not None else None
+                dl = contained_deadlock(t, a.M, a.changed, v.cut, v.issued, B, rule1) if v.feasible else None
                 with_pair = res.outcomes_with(a.recv, a.send)
                 t7 = "" if not dl else ("ok" if with_pair and all(o.kind == "deadlock" for o in with_pair) else "UNSOUND")
                 exp_err = ""
@@ -101,11 +125,15 @@ def compare(t, name, args, rows, counts, times):
             counts[kind] += 1
             if t7:
                 counts["t7_" + t7] += 1
-            rows.append({"trace": name, "events": sum(len(v_) for v_ in t.ranks.values()), "alt": f"{a.recv}<-{a.send} [{a.kind}]",
-                         "B": "inf" if B is None else B, "checker": v.feasible, "checker_reason": v.reason,
-                         "explorer_prefix": reach_prefix, "explorer_kept_exact": reach_kept_exact, "explorer_exact": reach_exact,
-                         "note": exp_err, "t_checker_ms": round((t1 - t0) * 1000, 2), "t_explorer_ms": round((t2 - t1) * 1000, 2), "kind": kind,
-                         "l1_deadlock": t7, "commit": code_commit()})
+            row = {"trace": name, "events": sum(len(v_) for v_ in t.ranks.values()), "alt": f"{a.recv}<-{a.send} [{a.kind}]",
+                   "B": "inf" if B is None else B, "checker": v.feasible, "checker_reason": v.reason,
+                   "explorer_prefix": reach_prefix, "explorer_kept_exact": reach_kept_exact, "explorer_exact": reach_exact,
+                   "note": exp_err, "t_checker_ms": round((t1 - t0) * 1000, 2), "t_explorer_ms": round((t2 - t1) * 1000, 2), "kind": kind,
+                   "l1_deadlock": t7, "commit": code_commit()}
+            if bounds is not None:
+                # does the bound keep records of the changed rank after the receive (rule H1')?
+                row["window"] = bounds.extends(t, a.changed)
+            rows.append(row)
 
 
 def synthetic(args, rows, counts, times) -> int:
@@ -143,8 +171,13 @@ def main() -> int:
     ap.add_argument("--mixed", type=float, default=0.5,
                     help="share of synthetic programs that interleave sends, receives and waits and use ssend/rsend")
     ap.add_argument("--seed", type=int, default=20261016)
-    ap.add_argument("--out", default=os.path.join(ROOT, "experiments", "results", "e6_checker_vs_explorer.csv"))
+    ap.add_argument("--reads", choices=["never", "random"], default=None,
+                    help="judge with read bounds (rule H1'): no result ever read, or a random bound per receive")
+    ap.add_argument("--out", default=None, help="default: results/e6_checker_vs_explorer.csv, or e6_reads_<kind>.csv with --reads")
     args = ap.parse_args()
+    if args.out is None:
+        args.out = os.path.join(ROOT, "experiments", "results",
+                                f"e6_reads_{args.reads}.csv" if args.reads else "e6_checker_vs_explorer.csv")
     dirs = args.dirs or sorted(glob.glob(os.path.join(ROOT, "traces", "openmpi", "*")) +
                                glob.glob(os.path.join(ROOT, "experiments", "results", "*", "*", "trace")))
     rows: list = []
@@ -163,12 +196,14 @@ def main() -> int:
     made = synthetic(args, rows, counts, times) if args.synthetic else 0
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
     keys = ["trace", "events", "alt", "B", "checker", "checker_reason", "explorer_prefix", "explorer_kept_exact", "explorer_exact",
-            "note", "t_checker_ms", "t_explorer_ms", "kind", "l1_deadlock", "commit"]
+            "note", "t_checker_ms", "t_explorer_ms", "kind", "l1_deadlock", "commit"] + (["window"] if args.reads else [])
     with open(args.out, "w", newline="") as fh:
         w = csv.DictWriter(fh, fieldnames=keys, lineterminator="\n")
         w.writeheader()
         w.writerows(rows)
     ev = [r["events"] for r in rows]
+    if args.reads:
+        print(f"read bounds {args.reads}: {sum(1 for r in rows if r.get('window'))} pairs with a window after the changed receive")
     print(f"pairs={len(rows)} agree={counts['agree']} unsound={counts['UNSOUND']} incomplete={counts['incomplete']} "
           f"l1-deadlocks ok={counts['t7_ok']} unsound={counts['t7_UNSOUND']} "
           f"skipped-traces={skipped} synthetic-programs={made} events max={max(ev) if ev else 0} "
