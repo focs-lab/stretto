@@ -75,6 +75,16 @@ records. The buffer guard (`STRETTO_GUARD=1`) watches those buffers in the run i
 20 of the 20 under Open MPI and 22 of
 22 under MPICH, with no new false positive.
 
+**One run is one schedule.** Run 10 times, MBI's racing programs fail in some runs
+and finish cleanly in others: the run itself shows 26 of the
+65 labelled errors every time, 27 only sometimes and
+12 never. Stretto reports 61 of them in every run (F1
+0.98–1.00, no false positive in any run): of the
+234 runs of an erroneous program that showed nothing, it predicts the error
+from 222. The other 12 are runs of
+4 programs whose error is a check of the received value, which the
+value level (L2) decides.
+
 **A real bug.** HYPRE 2.10.1's ParaSails preconditioner reuses one tag for two exchanges behind
 a wildcard probe; a probe can take a request of the next exchange, and the solver hangs. A
 message race in HYPRE 2.10.1 hung a production code intermittently for 18 months, and

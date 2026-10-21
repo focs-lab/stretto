@@ -175,6 +175,16 @@ records. The buffer guard (`STRETTO_GUARD=1`) watches those buffers in the run i
 {t('nMBBLCguard')} of the {t('nMBBLC')} under Open MPI and {t('nGuardLCMPICHfound')} of
 {t('nGuardLCMPICHbuilt')} under MPICH, with no new false positive.
 
+**One run is one schedule.** Run {t('nRepsRuns')} times, MBI's racing programs fail in some runs
+and finish cleanly in others: the run itself shows {t('nRepsObsAlways')} of the
+{t('nRepsErrors')} labelled errors every time, {t('nRepsObsSometimes')} only sometimes and
+{t('nRepsObsNever')} never. Stretto reports {t('nRepsUnionAlways')} of them in every run (F1
+{t('RepsUnionFoneMin')}–{t('RepsUnionFoneMax')}, no false positive in any run): of the
+{t('nRepsCleanRuns')} runs of an erroneous program that showed nothing, it predicts the error
+from {t('nRepsCleanPredicted')}. The other {t('nRepsCleanMissed')} are runs of
+{t('nRepsCleanMissedProgs')} programs whose error is a check of the received value, which the
+value level (L2) decides.
+
 **A real bug.** HYPRE 2.10.1's ParaSails preconditioner reuses one tag for two exchanges behind
 a wildcard probe; a probe can take a request of the next exchange, and the solver hangs. A
 message race in HYPRE 2.10.1 hung a production code intermittently for 18 months, and

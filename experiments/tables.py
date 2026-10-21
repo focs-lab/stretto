@@ -202,6 +202,84 @@ def e1(name, path, key=None):
     return "\n".join(out) + "\n"
 
 
+def reps():
+    """MBI run again and again (experiments/run_remaining.sh reps): a racing program's run shows
+    one schedule, so one run's verdicts are samples; here every program has as many."""
+    d = os.path.join(RES, "reps")
+    paths = sorted((p for p in (os.listdir(d) if os.path.isdir(d) else []) if re.fullmatch(r"mbi-\d+\.csv", p)),
+                   key=lambda p: int(p[4:-4]))
+    runs = [{r["name"]: r for r in score.compiled(rows(os.path.join(d, p)))} for p in paths]
+    if not runs:
+        return "_no results_\n"
+    n = len(runs)
+    names = sorted(set.intersection(*(set(b) for b in runs)))
+    err = [p for p in names if runs[0][p]["expect"] == "ERROR"]
+    ok = [p for p in names if runs[0][p]["expect"] == "OK"]
+    judges = (("Stretto (union)", "Union", score.verdict), ("Stretto, observed in the run", "Obs", score.observed_verdict),
+              ("Stretto, predicted", "Pred", score.predicted_verdict))
+    out = [f"MBI's programs of E1 run {n} times each with the same harness (`experiments/run_remaining.sh reps`) and",
+           "analysed with the current analysis; MUST and replays are not rerun. One run per program is one schedule:",
+           f"these runs say how often each verdict holds. Programs in every run: {len(names)}, {len(err)} labelled errors.",
+           f"Rows by code commit: {commits([r for b in runs for r in b.values()])}.", "",
+           "| verdict | F1 min | F1 median | F1 max | TP | FP | FN |", "|---|---|---|---|---|---|---|"]
+    num("nRepsRuns", n)
+    num("nRepsProgs", len(names))
+    num("nRepsErrors", len(err))
+    for label, key, judge in judges:
+        cs = [score.confusion([b[p] for p in names], judge) for b in runs]
+        f1 = sorted(c["f1"] for c in cs)
+        rng = lambda k: f"{min(c[k] for c in cs)}–{max(c[k] for c in cs)}"
+        out.append(f"| {label} | {f1[0]:.2f} | {statistics.median(f1):.2f} | {f1[-1]:.2f} | {rng('tp')} | {rng('fp')} | {rng('fn')} |")
+        num(f"Reps{key}FoneMin", f1[0])
+        num(f"Reps{key}FoneMax", f1[-1])
+        num(f"nReps{key}FPmax", max(c["fp"] for c in cs))
+    # per labelled error: in how many runs the run itself failed, and in how many Stretto reported it
+    k_obs = {p: sum(score.observed_verdict(b[p]) == "ERROR" for b in runs) for p in err}
+    k_uni = {p: sum(score.verdict(b[p]) == "ERROR" for b in runs) for p in err}
+    clean = [(p, b) for p in err for b in runs if score.observed_verdict(b[p]) != "ERROR"]
+    clean_pred = [(p, b) for p, b in clean if score.predicted_verdict(b[p]) == "ERROR"]
+    per_run = [sum(1 for p in err if score.observed_verdict(b[p]) != "ERROR" and score.predicted_verdict(b[p]) == "ERROR") for b in runs]
+    vary = [p for p in err if 0 < k_obs[p] < n or 0 < k_uni[p] < n]
+    num("nRepsUnionAlways", sum(1 for p in err if k_uni[p] == n))
+    num("nRepsUnionNever", sum(1 for p in err if k_uni[p] == 0))
+    num("nRepsObsAlways", sum(1 for p in err if k_obs[p] == n))
+    num("nRepsObsNever", sum(1 for p in err if k_obs[p] == 0))
+    num("nRepsObsSometimes", sum(1 for p in err if 0 < k_obs[p] < n))
+    num("nRepsCleanRuns", len(clean))
+    num("nRepsCleanPredicted", len(clean_pred))
+    missed = [(p, b) for p, b in clean if score.predicted_verdict(b[p]) != "ERROR"]
+    num("nRepsCleanMissed", len(missed))
+    num("nRepsCleanMissedProgs", len({p for p, _ in missed}))
+    # the value-check programs of E7, which only the value level decides
+    e7 = os.path.join(RES, "e7.md")
+    l2 = set(re.findall(r"^\| (\w+) \|", open(e7).read(), re.M)) if os.path.exists(e7) else set()
+    num("nRepsCleanMissedNotLtwo", len({p for p, _ in missed} - l2))
+    num("nRepsCleanPredMin", min(per_run))
+    num("nRepsCleanPredMax", max(per_run))
+    num("nRepsUnionAboveObs", sum(1 for p in err if k_uni[p] > k_obs[p]))
+    num("nRepsUnionBelowObs", sum(1 for p in err if k_uni[p] < k_obs[p]))
+    fp_ever = [p for p in ok if any(score.verdict(b[p]) == "ERROR" for b in runs)]
+    num("nRepsFPever", len(fp_ever))
+    out += ["", f"Labelled errors by the number of runs, out of {n}, in which the run itself failed (observed) and in which",
+            "Stretto reported the error (union):", "",
+            "| | in every run | in some runs | in no run |", "|---|---|---|---|",
+            f"| the run failed (observed) | {sum(1 for p in err if k_obs[p] == n)} | {sum(1 for p in err if 0 < k_obs[p] < n)} | {sum(1 for p in err if k_obs[p] == 0)} |",
+            f"| Stretto reported it | {sum(1 for p in err if k_uni[p] == n)} | {sum(1 for p in err if 0 < k_uni[p] < n)} | {sum(1 for p in err if k_uni[p] == 0)} |",
+            "", f"Runs of a labelled-error program that showed nothing themselves: {len(clean)}; Stretto predicted the error from",
+            f"{len(clean_pred)} of them ({min(per_run)} to {max(per_run)} programs per round of runs); the other {len(missed)} are runs of "
+            + ", ".join(sorted({p for p, _ in missed})) + ". Correct programs reported as an",
+            f"error in some run: {len(fp_ever)}" + (f" ({', '.join(fp_ever)})" if fp_ever else "") + ".",
+            "", "Labelled errors whose outcome depends on the run (the run failed or Stretto reported the error in some runs",
+            "and not in others); *predicted from clean runs* counts the runs that finished without showing the error in which",
+            "Stretto predicted it:", "",
+            "| program | the run failed | Stretto reported it | predicted from clean runs |", "|---|---|---|---|"]
+    for p in vary:
+        c = [b for b in runs if score.observed_verdict(b[p]) != "ERROR"]
+        out.append(f"| {p} | {k_obs[p]}/{n} | {k_uni[p]}/{n} | "
+                   f"{sum(score.predicted_verdict(b[p]) == 'ERROR' for b in c)}/{len(c)} |")
+    return "\n".join(out) + "\n"
+
+
 def e2():
     rs = rows(os.path.join(RES, "e2_buffering.csv"))
     if not rs:
@@ -983,6 +1061,7 @@ def main():
            e1("MPI-BugBench level 2: point-to-point and collective call-ordering, missing-call, local-concurrency and correct programs", os.path.join(RES, "mbb", "mbb.csv"), "MBB"),
            stress("MBI", os.path.join(RES, "mbi", "mbi.csv"), "MBI"),
            stress("MPI-BugBench level 2", os.path.join(RES, "mbb", "mbb.csv"), "MBB"),
+           "### Repeated runs: how often each verdict holds (MBI)", "", reps(),
            "## E2: buffering ablation", "", e2(),
            "## E3: level ablation", "", e3(),
            "## E4: tracer overhead and analysis cost (NPB 3.4.3, MPICH build)", "", e4(),

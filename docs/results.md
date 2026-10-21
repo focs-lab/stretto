@@ -207,6 +207,65 @@ run that finished; stress testing never makes 12 of those fail (P2PBuffering_Cir
 Correct programs that failed under stress (a hang under load or a delay): 0.
 
 
+### Repeated runs: how often each verdict holds (MBI)
+
+MBI's programs of E1 run 10 times each with the same harness (`experiments/run_remaining.sh reps`) and
+analysed with the current analysis; MUST and replays are not rerun. One run per program is one schedule:
+these runs say how often each verdict holds. Programs in every run: 115, 65 labelled errors.
+Rows by code commit: 34bf460 (analysis 5f4922d) (1150).
+
+| verdict | F1 min | F1 median | F1 max | TP | FP | FN |
+|---|---|---|---|---|---|---|
+| Stretto (union) | 0.98 | 0.99 | 1.00 | 62–65 | 0–0 | 0–3 |
+| Stretto, observed in the run | 0.73 | 0.79 | 0.81 | 37–44 | 0–0 | 21–28 |
+| Stretto, predicted | 0.49 | 0.54 | 0.59 | 21–27 | 0–0 | 38–44 |
+
+Labelled errors by the number of runs, out of 10, in which the run itself failed (observed) and in which
+Stretto reported the error (union):
+
+| | in every run | in some runs | in no run |
+|---|---|---|---|
+| the run failed (observed) | 26 | 27 | 12 |
+| Stretto reported it | 61 | 4 | 0 |
+
+Runs of a labelled-error program that showed nothing themselves: 234; Stretto predicted the error from
+222 of them (19 to 26 programs per round of runs); the other 12 are runs of MessageRace_Irecv_Isend_nok, MessageRace_Irecv_Send_nok, MessageRace_Recv_Isend_nok, MessageRace_Recv_Send_nok. Correct programs reported as an
+error in some run: 0.
+
+Labelled errors whose outcome depends on the run (the run failed or Stretto reported the error in some runs
+and not in others); *predicted from clean runs* counts the runs that finished without showing the error in which
+Stretto predicted it:
+
+| program | the run failed | Stretto reported it | predicted from clean runs |
+|---|---|---|---|
+| MessageRace_Allgather_Isend_Irecv_nok | 5/10 | 10/10 | 5/5 |
+| MessageRace_Allgather_Send_Irecv_nok | 7/10 | 10/10 | 3/3 |
+| MessageRace_Allgatherv_Send_Irecv_nok | 8/10 | 10/10 | 2/2 |
+| MessageRace_Allreduce_Isend_Irecv_nok | 9/10 | 10/10 | 1/1 |
+| MessageRace_Allreduce_Send_Irecv_nok | 5/10 | 10/10 | 5/5 |
+| MessageRace_Alltoall_Isend_Irecv_nok | 5/10 | 10/10 | 5/5 |
+| MessageRace_Alltoall_Send_Irecv_nok | 6/10 | 10/10 | 4/4 |
+| MessageRace_Alltoallv_Isend_Irecv_nok | 4/10 | 10/10 | 6/6 |
+| MessageRace_Alltoallv_Send_Irecv_nok | 7/10 | 10/10 | 3/3 |
+| MessageRace_Barrier_Isend_Irecv_nok | 9/10 | 10/10 | 1/1 |
+| MessageRace_Barrier_Send_Irecv_nok | 8/10 | 10/10 | 2/2 |
+| MessageRace_Bcast_Send_Irecv_nok | 8/10 | 10/10 | 2/2 |
+| MessageRace_Exscan_Send_Irecv_nok | 9/10 | 10/10 | 1/1 |
+| MessageRace_Gather_Isend_Irecv_nok | 1/10 | 10/10 | 9/9 |
+| MessageRace_Gather_Send_Irecv_nok | 5/10 | 10/10 | 5/5 |
+| MessageRace_Irecv_Isend_nok | 7/10 | 7/10 | 0/3 |
+| MessageRace_Irecv_Send_nok | 7/10 | 7/10 | 0/3 |
+| MessageRace_Loop_Isend_Irecv_nok | 4/10 | 10/10 | 6/6 |
+| MessageRace_Loop_Isend_Recv_nok | 5/10 | 10/10 | 5/5 |
+| MessageRace_Loop_Send_Irecv_nok | 4/10 | 10/10 | 6/6 |
+| MessageRace_Loop_Send_Recv_nok | 1/10 | 10/10 | 9/9 |
+| MessageRace_Recv_Isend_nok | 7/10 | 7/10 | 0/3 |
+| MessageRace_Recv_Send_nok | 7/10 | 7/10 | 0/3 |
+| MessageRace_Reduce_Isend_Irecv_nok | 1/10 | 10/10 | 9/9 |
+| MessageRace_Reduce_Send_Irecv_nok | 3/10 | 10/10 | 7/7 |
+| MessageRace_Scatter_Send_Irecv_nok | 7/10 | 10/10 | 3/3 |
+| MessageRace_tag_ANY_TAG_1_Send_Recv_nok | 7/10 | 10/10 | 3/3 |
+
 ## E2: buffering ablation
 
 Rows by code commit: 96dd241 (670).

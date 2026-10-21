@@ -29,7 +29,7 @@ NUMBERS = os.path.join(ROOT, "paper", "generated", "numbers.tex")
 # which research question a macro belongs to, by name; the first match wins
 RQ_OF = [
     (1, r"^nEsix|^nMBIReplay|^nAMGsample|^nNeksample|^nPin"),
-    (2, r"^(MBI|MBB)fone|^n(MBI|MBB)(tp|fn|fp|progs|notBuilt|correct|errors|race|Stress|Clean|OnlyStretto|LC)|^n?Guard"),
+    (2, r"^(MBI|MBB)fone|^n(MBI|MBB)(tp|fn|fp|progs|notBuilt|correct|errors|race|Stress|Clean|OnlyStretto|LC)|^n?Guard|^n?Reps"),
     (3, r"^nEtwo|^B[a-z]+OMPI$"),
     (4, r"^n(MBI|MBB)(one|sp|obs)[A-Z]"),
     (5, r"^TraceOverhead|^LuAnalysis|^LuEvents|^AMGtime|^Nek(GB|Minutes|PerAlt|Records)|^nEfour"),
@@ -40,7 +40,7 @@ RQ_OF = [
 FIXED = re.compile(r"^n(MBI|MBB)(progs|notBuilt|correct|errors|race)$|^B[a-z]+OMPI$|^n(AMG|Nek)sample$|^nEfourReps$"
                    r"|^nMBIStressRuns$|^nHypre(Fixed)?(Traced|(Four|Eight)(Local)?Runs)$|^nHypreStressRuns$"
                    r"|^nMBBLC$|^nGuardLC(OMPI|MPICH)built$|^nGuardCases$|^nGuardAppRuns$"
-                   r"|^nDeal(Fixed)?Traced$|^nDealRanks$|^nDealStress(Plain|Delay)?Runs$")
+                   r"|^nReps(Runs|Progs|Errors)$|^nDeal(Fixed)?Traced$|^nDealRanks$|^nDealStress(Plain|Delay)?Runs$")
 
 
 def load(path: str) -> dict:
@@ -104,6 +104,11 @@ def claims(n: dict) -> list:
           ["nGuardLCMPICHbuilt", "nGuardLCMPICHfound"], lambda b, f: b > 0 and b == f)
     claim(2, "the guard records nothing on NPB LU, HYPRE and AMG, and every run finishes",
           ["nGuardAppRuns", "nGuardAppBad"], lambda r, b: r > 0 and b == 0)
+    claim(2, "repeated MBI runs: no false positive in any run", ["nRepsRuns", "nRepsFPever"], lambda n, f: n > 1 and f == 0)
+    claim(2, "repeated MBI runs: no labelled error the run shows more often than Stretto reports it",
+          ["nRepsUnionBelowObs"], lambda b: b == 0)
+    claim(2, "repeated MBI runs: every clean run Stretto predicts nothing from is of a value-check program (L2)",
+          ["nRepsCleanMissedNotLtwo"], lambda x: x == 0)
     claim(3, "every recorded run infeasible at B=0 needs no threshold, finished, or did not finish",
           ["nEtwoObsBuf", "nEtwoObsBufNever", "nEtwoObsBufFinished", "nEtwoObsBufStopped"], lambda a, n, f, s: a == n + f + s)
     claim(3, "the runs that finished and need a threshold are the ones replayed",

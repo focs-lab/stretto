@@ -72,6 +72,7 @@ t_rq2() {
         MUST_CPUS="$CPUS" python3 experiments/mbi/run_must.py "experiments/results/$c/$c.csv" --jobs 3 --timeout 60 2>&1 | tee -a "$OUT/rq2.log"
     done
     box guard experiments/run_remaining.sh guard
+    box reps experiments/run_remaining.sh reps
     claims 2
 }
 t_rq3() { corpora; box rq3 experiments/run_remaining.sh e2; claims 3; }
