@@ -16,7 +16,8 @@
 #               labelled access (markers.py oracle), and its corrected twin, the access and
 #               marker moved after the MPI_Wait (markers.py twin); the shipped receive-buffer
 #               property, TWIN_REPS runs each (default 20), since the order in which the ranks
-#               append their records to the shared trace varies
+#               append their records to the shared trace varies; the twin a second time with
+#               four busy loops on the same processors
 # Writes experiments/results/mpiprv/probes.csv and, for the first repetition of each case,
 # its trace as probes-<case>.trace.
 # usage (repository root, on the host): experiments/mpiprv/prv.sh experiments/mpiprv/probes.sh
@@ -69,5 +70,10 @@ if [ -f "$LC" ]; then
     python3 experiments/mpiprv/markers.py twin "$LC" > "$W/lc_twin.c"
     probe lc-error "$W/lc_error.c" '#include <mpi.h>' '#include <mpi.h>' MPI3.mop matched 2 "${TWIN_REPS:-20}"
     probe lc-twin  "$W/lc_twin.c"  '#include <mpi.h>' '#include <mpi.h>' MPI3.mop none 2 "${TWIN_REPS:-20}"
+    # the twin again while four busy loops share the container's processors: the ranks then
+    # append their records to the shared trace in more orders
+    for i in 1 2 3 4; do (while :; do :; done) & done
+    probe lc-twin-loaded "$W/lc_twin.c" '#include <mpi.h>' '#include <mpi.h>' MPI3.mop none 2 "${TWIN_REPS:-20}"
+    kill $(jobs -p) 2>/dev/null; wait 2>/dev/null
 fi
 cat "$OUT/probes.csv"
