@@ -5,13 +5,12 @@
 completion calls and collectives by shape. RMA, neighbourhood collectives, partitioned
 communication and memory accesses are outside it. The optional guard reports buffer reuse
 during a nonblocking operation when the run does it.
-Under \texttt{MPI\_THREAD\_MULTIPLE} we report observed findings only. Consequences beyond
-\Lone come from the single-path explorer on small traces, replays, or hand-written twins.
+Under \texttt{MPI\_THREAD\_MULTIPLE} we report observed findings only. Read bounds need C
+sources; other consequences come from the single-path explorer, replays or twins.
 
 \paragraph{Conclusion.} One recorded run of an MPI program determines more than the run itself.
-Over the horizon, the part of the trace every consistent program repeats, an alternative
-matching is feasible iff a constraint graph with match nodes is acyclic. Each certificate
-carries its buffering thresholds, a level for its consequence, and a pin that forces it. On
+Over the horizon, an alternative matching is feasible iff a constraint graph with match nodes
+is acyclic, and up to the first read of a changed result the recorded calls still hold. On
 MBI, \tool finds \nMBItpunion of \nMBIerrors labelled errors with no false error report, here
-and in \nRepsRuns repeated runs. From one clean run, forced certified alternatives expose a
-production race in HYPRE and documented bugs in NPB MG and deal.II.
+and in \nRepsRuns repeated runs; from one clean run, forced alternatives expose a production
+race in HYPRE and documented bugs in NPB MG and deal.II.

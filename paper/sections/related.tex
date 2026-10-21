@@ -13,8 +13,7 @@ reorderings~\citep{smaragdakis12cp} keep every read's writer. WCP~\citep{kini17w
 happens-before soundly in linear time, and SHB~\citep{mathur18shb} made it sound beyond the
 first race, with relaxed correct reorderings that let a thread's last read change. M2~\citep{pavlogiannis20m2} and
 SyncP~\citep{mathur21syncp} decide larger classes by closure, SyncP optimally for the
-reorderings that keep the order of critical sections; the soundness claim of
-SDP~\citep{genc19sdp} was later refuted~\citep{mathur21syncp}. Sync-preserving deadlock
+reorderings that keep the order of critical sections. Sync-preserving deadlock
 prediction runs in linear time~\citep{tunc23spd} and reports gaps in an SMT encoding claimed
 sound~\citep{kalhauge18sound}. Synchronisation-reversal races~\citep{shi24osr} reverse one lock
 order and test acyclicity over a closure, the shape of our check; reversing one match is the
@@ -22,8 +21,7 @@ message-passing analogue. \Cref{thm:sound} follows the unified soundness
 template~\citep{liu25soundness}, with MPI's rules at $\Bt$ for the memory model and a matching
 over the horizon for the bug; the template covers locks under multicopy-atomic models, not
 message passing. Our witness is uniform over the programs consistent on $\Hpre$, and
-\cref{thm:l1dead} also constrains its extensions. Strong trace prefixes~\citep{ang24strong}
-drop critical sections that cannot affect a property; the horizon has no such weak dependences.
+\cref{thm:l1dead} also constrains its extensions.
 
 \paragraph{Message races and reachability testing.} Race analysis of
 traces~\citep{tai97race} and reachability testing~\citep{lei06reachability} compute, from one
@@ -36,9 +34,9 @@ flow''~\citep[p.\,390]{lei06reachability}, and each variant is executed by prefi
 The first paper of the line proves feasibility for the read--write sequences of shared
 memory~\citep{hwang94apsec}; for message passing we found it asserted, not proved. The model has no
 nonblocking receives, probes, collectives or buffering threshold, and happens-before
-concurrency suffices there; for MPI it does not (\cref{sec:graph}). Race detection from a trace
-was extended to nonblocking operations~\citep{cypher95race}, and first and unaffected message
-races are detected from a run~\citep{netzer96msgrace,park04unaffected,park07mpirace}. The MAD
+concurrency suffices there; for MPI it does not (\cref{sec:graph}). Trace race detection covers
+nonblocking operations~\citep{cypher95race} and first and unaffected
+races~\citep{netzer96msgrace,park04unaffected,park07mpirace}. The MAD
 environment computed the racing messages of MPI programs with the same one-per-source bound,
 cut the trace at the causal future of an exchanged message, and replayed the rest with the
 other wildcards pinned~\citep{kranzlmueller00thesis,kranzlmueller00mad}. For MPI's semantics,
@@ -59,35 +57,32 @@ analysis~\citep{huang20ase} and Hermes state soundness and completeness relative
 single-path programs, or to recorded path conditions, under fixed buffering models. None
 certifies an alternative for every program consistent with the trace or computes its
 threshold profile. MPI-PRV~\citep{yao26mpiprv} is sound one-trace prediction for MPI without a
-solver: it carries trace equivalence and pattern-language monitoring~\citep{ang24pattern} to
-MPI and checks temporal properties of real applications. It keeps the observed match of every
-wildcard receive, so that control flow stays consistent, and assumes zero buffering.
-Alternative matchings, which \tool predicts, are out of its scope.
+solver, carrying trace equivalence and pattern-language monitoring~\citep{ang24pattern} to
+temporal properties of real applications; it keeps the observed match of every wildcard
+receive and assumes zero buffering, so alternative matchings are out of its scope.
 
 \paragraph{Exhaustive exploration.} ISP~\citep{vakkalanka08isp} explores the matchings of a
 program on one input, rewriting wildcard receives into specific ones during
 replay~\citep{gopalakrishnan11cacm}. DAMPI~\citep{vo10dampi} takes from one run the sends not
 causally after a wildcard receive, subject to non-overtaking, replays each choice, and reaches
 thousands of processes by giving up completeness. MPI-SV~\citep{yu20mpisv} and
-CIVL~\citep{siegel15civl} verify symbolically, and Concuerror~\citep{christakis13concuerror}
-explores Erlang programs. These tools pay for every competing wildcard or give up
-completeness; we re-execute only to confirm. The stress baseline of \cref{sec:eval} follows
+CIVL~\citep{siegel15civl} verify symbolically. These tools pay for every competing wildcard or
+give up completeness; we re-execute only to confirm. The stress baseline of \cref{sec:eval} follows
 randomised concurrency testing~\citep{wolff24rff,zhao25surw}.
 
 \paragraph{Complexity of message-passing consistency.} \citet{shi26popl} map the complexity
 of deciding whether an abstract execution of a channel-based program is consistent, with or
-without a fixed reads-from relation. Our check is their VCh-rf problem for MPI's channel
-shape. In their map, hardness comes from channels with several producers and from count
-capacities. MPI has neither: its queues have one producer per (source, destination,
-communicator), and blocking is a per-message threshold. Given the whole matching, every
-constraint is therefore a conjunction and the check is an acyclicity test, for mixed eager and
-rendezvous traffic too, whereas in shared memory keeping a read's writer is a disjunction and
-a race that needs one reversed critical section is W[1]-hard to predict~\citep{mathur21syncp}.
+without a fixed reads-from relation; our check is their VCh-rf problem for MPI's channels.
+Their hardness comes from channels with several producers and from count capacities, and MPI
+has neither: a queue has one producer per (source, destination, communicator), and blocking
+is a per-message threshold. Given the whole matching, every constraint is a conjunction and
+the check an acyclicity test, for mixed eager and rendezvous traffic too; in shared memory
+keeping a read's writer is a disjunction, and predicting a race that needs one reversed
+critical section is W[1]-hard~\citep{mathur21syncp}.
 
 \paragraph{Buffering.} Slack elasticity holds for deterministic programs~\citep{manohar98slack}.
 For MPI programs with wildcards, adding buffering can add deadlocks, and neither zero nor
-infinite buffering exposes all of them~\citep{vakkalanka10slack}; Hermes reports a deadlock
-that exists only with one buffer slot~\citep{khanna18hermes}. Without wildcards, a program is
+infinite buffering exposes all of them~\citep{vakkalanka10slack}. Without wildcards, a program is
 deadlock-free iff it is deadlock-free with zero buffering~\citep{siegel05ppopp,siegel07europvm}.
 Aislinn verifies programs under the eager and rendezvous threshold we
 model~\citep{bohm16aislinn}.

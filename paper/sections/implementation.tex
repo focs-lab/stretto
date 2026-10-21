@@ -34,7 +34,10 @@ reachability queries in the graph of the recorded run, answered by vector clocks
 once per threshold. Steals at nonblocking receives and swaps go to a generic check, which
 builds the horizon and the graph from scratch. The generic check is the reference, and the
 tests compare the two on every alternative of every traced idiom. The \LoneSP explorer runs
-below a size limit. On Nekbone's trace of \NekRecords million records a check costs about \NekPerAlt\,s
+below a size limit. Read bounds come from clang's LLVM IR of the C sources: the analysis
+follows the stack objects of a receive's completing function whose address does not escape,
+and certifies the MPI calls reachable from the completion but from no possible read; anything
+else keeps \ref{H:changed}, and \texttt{addr2line} maps records to calls. On Nekbone's trace of \NekRecords million records a check costs about \NekPerAlt\,s
 (\cref{sec:eval}). The vector clocks cost $O(p)$ per node and threshold; tree
 clocks~\citep{mathur22treeclock} would reduce that.
 

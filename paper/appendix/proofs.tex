@@ -666,3 +666,20 @@ bound beyond the last call the rank makes in $E$. A bound that is too large make
 inapplicable to the real program, never wrong about $\SP(\trace)$; the static analysis
 therefore over-approximates reads: whatever may observe a result before $q(k)$, including a
 call that passes the buffer on, ends the window at that point.
+
+\paragraph{Read bounds in the horizon.} Let (H1$'$) remove the records of
+$\mathit{rank}(r)$ from $q(r)$ on, for $r\in\Changed$ that completes in $\trace$ (other
+changed records keep \ref{H:changed}), and let $\Cons_q(\trace,\Hpre)$ be the programs
+consistent under $q$ on the records whose calls are in $\Hpre$. \Cref{thm:sound} holds for
+$\Hpre'=\Hpre(\trace,\Malt,\Bt)$ under (H1$'$) and every $\prog\in\Cons_q(\trace,\Hpre')$: in its
+proof only the step for \ref{E:po} uses \ref{H:changed}, and there the records $k<j$ of rank $i$
+returned their results in $\trace$ except changed receives, whose bound exceeds $j$ because
+$\Hpre'$ keeps record $j$, so consistency under $q$ yields record $j$. \Cref{thm:app-dead} holds
+likewise with (D1) relaxed to: if $i$ is the rank of a changed receive $r$ that completes in
+$\Hpre'$, then $\kappa_i$ comes before $q(r)$; its first step is the same argument. Since
+(H1$'$) only weakens one cut, $\Hpre'\supseteq\Hpre$ and $\Graph(\Hpre')$ contains every node,
+edge, judged receive and obligation of $\Graph(\Hpre)$, so $\Malt$ feasible under (H1$'$) is
+feasible under \ref{H:changed}: the window adds contained deadlocks, not alternatives. \Cref{thm:mono}
+does not transfer to (H1$'$), whose window holds later receives of the rank that can become
+judged as $\Bt$ grows, but \tool profiles the union of the two verdicts, which is the profile
+under \ref{H:changed}.

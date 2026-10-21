@@ -38,10 +38,11 @@ corpus and idiom traces small enough to explore, and random programs with synchr
 ready sends, probes, \mpicall{Waitany} and sends after receives, of up to \nEsixMaxEvents
 events. Every alternative the check judges counts, accepted or rejected. Of \nEsixPairs
 (alternative, threshold) pairs, \nEsixUnsound are unsound: no accepted alternative lacks an
-execution that realises its pairs on the receives of its horizon. One pair is incomplete. It
-is a steal that does not survive, since the closure removes the changed receive itself, as in
-the example after \cref{thm:complete}, and the theorem assumes survival. The explorer confirms
-all \nEsixLdead contained deadlocks of \cref{thm:l1dead}.
+execution that realises its pairs on the receives of its horizon. The one incomplete pair is
+a steal that does not survive, outside \cref{thm:complete}. The explorer confirms
+all \nEsixLdead contained deadlocks of \cref{thm:l1dead}. With read bounds that never or
+randomly allow a read, \nReadsEsixUnsound of \nReadsEsixPairs pairs are unsound and all
+\nReadsEsixLdead contained deadlocks are confirmed.
 
 \paragraph{Replays.} A finding is confirmed when a rerun with the pins of its horizon
 (\cref{sec:replay}) matches every pinned operation whose completion lies in the horizon and
@@ -55,13 +56,14 @@ inconclusive when its control does not finish: \nMBIReplayInconclusiveLoop of th
 \nMBIReplayInconclusive belong to racing loops labelled erroneous, which can hang without any
 change, and in \nMBIReplayInconclusiveHung the recorded run itself hung. Each of them matched
 its pins and reached the predicted outcome, so without the control it would have counted as a
-confirmation. On AMG, a
+confirmation. The \nReadsReplayFindings findings that read bounds promote to \Lone, replayed
+with their witnesses' pins, give \nReadsReplayConfirmed confirmed, \nReadsReplayInconclusive
+inconclusive and \nReadsReplayNotConfirmed not confirmed. On AMG, a
 random sample of \nAMGsample of its alternatives, which claim no failure, was replayed: all
 \nAMGsampleMatched matched their pins, \nAMGsampleFinish finished, and so did
 \nAMGsampleControls controls. On Nekbone, whose late alternatives pin tens of thousands of
 receives each, \nNeksampleMatched of \nNeksample matched, \nNeksampleFinish finished, and
-\nNeksampleControls controls finished. In each sampled replay the implementation accepted the
-forced match, so that alternative execution exists. The log of pinned matches never had to
+\nNeksampleControls controls finished. The log of pinned matches never had to
 overrule an outcome: of the \nPinRuns pinned runs of the applications, replays and controls,
 \nPinUnmatched left a pin unmatched, and \nPinUnmatchedEnded of these hung or finished; the
 others exited with an error. The buffering replays are in RQ3 and HYPRE's in RQ6.
@@ -153,13 +155,15 @@ the prediction.
 \LoneSP certifies \nMBIspCfind unreceived sends (\cls{1c}) in \nMBIspCprogs programs and
 \nMBIspDfind deadlocks (\cls{1d}) in \nMBIspDprogs. On the idioms, \LoneSP's deadlock of the master--worker program
 (idiom~01) is spurious: the real program's loop ends on the count of results, and its
-\Ltwo twin finishes. The MBI races that \tool misses compare the payload, the sender's
-rank, with~3 and abort otherwise. \Lone flags each race as a warning, and the single path,
-which has no branch, cannot reach the abort. Their \Ltwo twins, which write the check as a
-branch on the source of the last message, certify \cls{1e}, the abort, in every case. The
-twins are written knowing the labels; \Ltwo shows what a value skeleton adds, not how one is
-obtained. No corpus program has a contained deadlock (\cref{thm:l1dead}); the ones found
-arise in the random programs of RQ1.
+\Ltwo twin finishes. The MBI races that \tool misses abort unless the payload, the sender's
+rank, is~3; the single path has no branch to reach the abort, and their \Ltwo twins, written
+knowing the labels, certify it (\cls{1e}) in every case. Without read bounds no corpus program has a contained deadlock
+(\cref{thm:l1dead}). With the bounds the static analysis computes from the sources, the
+consequences of \nReadsMoved erroneous programs, \nReadsMovedClean with a clean run, move from
+\LoneSP to \Lone, through deadlocks contained in the longer horizon or witnesses that respect
+the bounds (\cref{thm:firstread}); \Lone alone then scores F1 \nReadsFoneLOne instead of
+\nReadsFoneLOneBase, with \nReadsNewFP new false positives. The value-checking programs read
+the payload first and stay at \Ltwo.
 
 \subsection{RQ5: cost}
 

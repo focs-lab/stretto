@@ -159,9 +159,11 @@ extended and every rank has finalised or is in a call, $E$ cannot be extended fo
 (\cref{app:firstread}). \tool bounds reads statically, as dependence analysis relaxes value
 constraints in maximal causality reduction~\citep{huang17mcrsdg}: a possible load of a
 received buffer, status, flag or index, an escape of its address or a send of the buffer ends
-the window, and what it cannot analyse gets $q(k)=k+1$. Running the horizon of
-\cref{thm:sound} to $q$ would not do: other wildcard receives before the bound may take other
-messages too, which the explorer covers and one alternative matching does not.
+the window, and what it cannot analyse gets $q(k)=k+1$. \Cref{thm:sound,thm:l1dead} also
+hold with \ref{H:changed} cutting at $q(r)$ under consistency under $q$ (\cref{app:firstread}).
+That accepts no more alternatives, since the receives up to the bound keep their recorded
+matches, but it finds deadlocks contained in the longer horizon; re-matching those receives is
+what the explorer's witnesses add.
 
 \subsection{Skeletons}
 
