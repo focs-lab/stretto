@@ -155,6 +155,21 @@ output under `experiments/results/hypre/failed/`. Keep a few processors of the n
 long campaign's `--cpuset-cpus` for short jobs (tables, LaTeX): two bursts of runs that exited
 with status 15 coincided with such jobs on the campaign's own processors.
 
+## Third documented bug: deal.II
+
+`experiments/dealii/run.sh [fetch|build|predict|stress|all]` fetches deal.II 9.3.0-rc1 (the
+race in `Utilities::MPI::RemotePointEvaluation`) and 9.3.0 (the fix), p4est 2.2 and CMake
+3.28.3, which the image lacks, each checked by sha256. The deal.II archives leave `tests/` out,
+so the tests of RemotePointEvaluation and their expected outputs come one by one from the two
+tagged commits. The build step builds p4est and both deal.II versions with the MPICH wrappers
+in Release, `-j8`, about 25 minutes each in a 24 GB container, then the tests as programs;
+`predict` traces `RUNS` runs of `mapping_01` per version at 4 ranks and replays every probe
+alternative on RemotePointEvaluation's tag with its horizon pins and control, `JOBS` at a
+time (one trace's 168 alternatives took about 10 minutes at `JOBS=3`); `stress` runs the
+untraced baseline. A test's log is compared with its expected output after deal.II's own
+`cmake/scripts/normalize.pl`, which removes the line naming host and date. `DEALII_DIR`
+(default `third_party/apps/dealii`) is where the sources and builds go.
+
 ## Shared-host protocol on the development host
 
 Jobs that may exceed 20 GiB or use 8 sustained cores run one at a time through

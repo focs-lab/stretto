@@ -492,6 +492,74 @@ def npbmg():
     return "\n".join(out) + "\n"
 
 
+def dealii():
+    """A third documented bug: deal.II 9.3.0-rc1's RemotePointEvaluation can probe a message of
+    the next call (experiments/dealii/run.sh: predict-9.3.0-rc1.csv, predict-9.3.0.csv, stress.csv)."""
+    d = os.path.join(RES, "dealii")
+    pr, fixed, st = (rows(os.path.join(d, f)) for f in ("predict-9.3.0-rc1.csv", "predict-9.3.0.csv", "stress.csv"))
+    if not pr:
+        return "_no results_\n"
+    tests = "/".join(sorted({r["test"] for r in pr + fixed}))
+    out = [f"Traced runs of deal.II's test `{tests}` (MPICH build); every probe alternative on the tag of",
+           "RemotePointEvaluation is replayed with the pins of its horizon and with its control (`experiments/dealii/predict.py`).",
+           "An alternative is *cross* if the probe would see a message of another call (the race), *same* if another",
+           "rank's message of the same call. A replay *changes the output* when the test's log differs from its",
+           f"control's; the expected log is the test's own `.output` file. Rows by code commit: {commits(pr + fixed + st)}.", "",
+           "| version | ranks | kind | traced runs | traced runs as expected | runs with one | alternatives | replayed | pins matched | finished | output changed | differs from the expected | controls finished | controls as expected |",
+           "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
+    for version, vrows, prefix in (("9.3.0-rc1", pr, "Deal"), ("9.3.0", fixed, "DealFixed")):
+        ok = [r for r in vrows if not (r.get("replay") or "").startswith("traced run")]
+        per_run = {(r["np"], r["run"]): r for r in ok}
+        for np_ in sorted({r["np"] for r in vrows}, key=int):
+            runs = {k: r for k, r in per_run.items() if k[0] == np_}
+            failed = len({r["run"] for r in vrows if r["np"] == np_}) - len(runs)
+            for kind, macro in (("cross", ""), ("same", "Same")):
+                rep = [r for r in ok if r["np"] == np_ and r.get("pin") and r.get("kind") == kind]
+                done = [r for r in rep if r.get("replay") and r["replay"] != "no horizon"]
+                alts = sum(int(r["alternatives" if kind == "cross" else "same_alternatives"] or 0) for r in runs.values())
+                out.append(f"| {version} | {np_} | {kind} | {len(runs)}" + (f" (+{failed} failed)" if failed else "") +
+                           f" | {sum(r.get('traced_expected') == 'True' for r in runs.values())} | {len({r['run'] for r in rep})} | {alts} "
+                           f"| {len(done)} | {sum(r.get('matched') == 'True' for r in done)} | {sum(r.get('replay') == 'FINISHED' for r in done)} "
+                           f"| {sum(r.get('differs_control') == 'True' for r in done)} | {sum(r.get('differs') == 'True' for r in done)} "
+                           f"| {sum(r.get('control') == 'FINISHED' for r in done)} | {sum(r.get('control_expected') == 'True' for r in done)} |")
+        cross = [r for r in ok if r.get("pin") and r.get("kind") == "cross" and r.get("replay") not in (None, "", "no horizon")]
+        same = [r for r in ok if r.get("pin") and r.get("kind") == "same" and r.get("replay") not in (None, "", "no horizon")]
+        num(f"n{prefix}Traced", len(per_run))
+        num(f"n{prefix}TracedExpected", sum(r.get("traced_expected") == "True" for r in per_run.values()))
+        num(f"n{prefix}Exposed", len({(r["np"], r["run"]) for r in ok if r.get("pin") and r.get("kind") == "cross"}))
+        num(f"n{prefix}Alts", sum(int(r.get("alternatives") or 0) for r in per_run.values()))
+        num(f"n{prefix}SameAlts", sum(int(r.get("same_alternatives") or 0) for r in per_run.values()))
+        num(f"n{prefix}OtherAlts", sum(int(r.get("other_alternatives") or 0) for r in per_run.values()))
+        if version == "9.3.0-rc1":
+            num("nDealReplayed", len(cross))
+            num("nDealMatched", sum(r.get("matched") == "True" for r in cross))
+            num("nDealFinished", sum(r.get("replay") == "FINISHED" for r in cross))
+            num("nDealChanged", sum(r.get("differs_control") == "True" for r in cross))
+            num("nDealWrong", sum(r.get("differs") == "True" for r in cross))
+            num("nDealControls", sum(r.get("control") == "FINISHED" for r in cross))
+            num("nDealControlsSame", sum(r.get("control_expected") == "True" for r in cross))
+            num("nDealSameReplayed", len(same))
+            num("nDealSameChanged", sum(r.get("differs_control") == "True" for r in same))
+            num("nDealRanks", "/".join(sorted({r["np"] for r in pr}, key=int)))
+            lines = [int(r["lines"]) for r in cross if r.get("differs") == "True" and r.get("lines")]
+            if lines:
+                num("nDealLinesMin", min(lines))
+                num("nDealLinesMax", max(lines))
+    if st:
+        out += ["", "Untraced runs of the same test on 9.3.0-rc1, plain and with random send and receive delays of 0 to 20 ms",
+                "per rank from the replay library (no pin); a run *differs* when its log differs from the expected one.", "",
+                "| ranks | setting | runs | finished | differs from the expected |", "|---|---|---|---|---|"]
+        for np_ in sorted({r["np"] for r in st}, key=int):
+            for setting in ("plain", "delays"):
+                rs = [r for r in st if r["np"] == np_ and r["setting"] == setting]
+                out.append(f"| {np_} | {setting} | {len(rs)} | {sum(r['result'] == 'FINISHED' for r in rs)} | {sum(r['differs'] == 'True' for r in rs)} |")
+        num("nDealStressRuns", len(st))
+        num("nDealStressChanged", sum(r["differs"] == "True" for r in st))
+        num("nDealStressPlainChanged", sum(r["differs"] == "True" for r in st if r["setting"] == "plain"))
+        num("nDealStressDelayChanged", sum(r["differs"] == "True" for r in st if r["setting"] == "delays"))
+    return "\n".join(out) + "\n"
+
+
 def app_sample(app="amg", prefix="AMG"):
     """A sample of an application's alternatives replayed with horizon pins and controls
     (replay_sample.py, experiments/<app>/run.sh sample)."""
@@ -821,6 +889,7 @@ def main():
            "## E5c: a real bug (HYPRE 2.10.1, ParaSails)", "", hypre(),
            "### How often one trace exposes it, and how often testing hits it", "", hypre_campaign(),
            "## E5d: a second documented bug (NPB MG 2.4.1, a message of another exchange)", "", npbmg(),
+           "## E5e: a third documented bug (deal.II 9.3.0-rc1, a probe takes a message of the next call)", "", dealii(),
            "## E6: polynomial checker vs exhaustive explorer", "", e6(),
            "## E7: the value skeleton on MBI (level L2)", "", e7(),
            "## E8: the buffer guard (local concurrency, class 3-local)", "", guard()]
