@@ -12,7 +12,7 @@
                record; an unpaired begin means the rank was killed inside that call.
      send      mode(std|ssend|bsend|rsend|isend|issend|ibsend|irsend), dst, tag, comm,
                count, tsize, tsig (a named type's name, or a derived type flattened into
-               "MPI_INT*4,MPI_DOUBLE*2"), [req], [procnull], [persistent]
+               "MPI_INT*4,MPI_DOUBLE*2"), [req], [procnull], [persistent], [data]
      recv      src, tag, comm, count, tsize, tsig, [anysrc], [anytag], [procnull], [widx],
                msrc, mtag, mcount (null when unknown), [cancelled], [pinned]
      irecv     same arguments plus req ([mrecv] on both: Mrecv/Imrecv of a probed message;
@@ -27,7 +27,7 @@
      probe     kind(probe|iprobe|mprobe|improbe), src, tag, comm, [anysrc], [anytag], flag,
                [msrc, mtag, mbytes], [pidx] (the probe's ordinal among the rank's wildcard
                probes, what STRETTO_PIN_PROBE counts)
-     coll      name, comm, root(-1 if none), count, tsize, [req]
+     coll      name, comm, root(-1 if none), count, tsize, [req], [din], [dout]
      comm      name, parent(local id), id(local id), ranks:[world ranks in comm-rank order],
                gord (creation ordinal of that group); an intercommunicator carries
                inter:1, ranks = the remote group (what src/dst mean there), local = the
@@ -46,7 +46,15 @@
      abort     code
      finalize  [truncated]
    A record of kind wait with kind getstatus (MPI_Request_get_status) completes nothing.
-   Ranks in send/recv records are comm-local; the loader translates them. */
+   Ranks in send/recv records are comm-local; the loader translates them.
+
+   Payloads (STRETTO_PAYLOAD=<bytes>, off when unset or 0): a send carries data, the message
+   packed with MPI_Pack in hexadecimal, and a blocking collective of a fixed-size shape
+   (bcast, reduce, allreduce, scan, exscan, gather, scatter, allgather, alltoall) carries din,
+   what this rank contributes, and dout, what it receives, wherever the shape gives it one; a
+   buffer whose packed size exceeds the limit is written as <field>big:<size> instead, and an
+   MPI_IN_PLACE one not at all. They let a rank be rerun alone on the recorded messages, which
+   is how level L2 learns what it does after a result the trace did not record. */
 #define _GNU_SOURCE
 #include <mpi.h>
 #include <dlfcn.h>
@@ -68,6 +76,7 @@ static int g_rank = -1;
 static long g_seq __attribute__((unused)) = 0;
 static int g_truncated = 0;
 static int g_multi = 0;           /* MPI_THREAD_MULTIPLE was provided: records carry tid */
+static long g_payload = 0;        /* STRETTO_PAYLOAD: record message contents up to this many bytes */
 static pthread_mutex_t g_mu = PTHREAD_MUTEX_INITIALIZER;
 
 static void *xrealloc(void *p, size_t n) {
@@ -316,6 +325,27 @@ static void rb_tag(rec_t *b, int tag) {
     if (tag == MPI_ANY_TAG) rb_printf(b, ",\"tag\":-1,\"anytag\":1");
     else rb_printf(b, ",\"tag\":%d", tag);
 }
+/* The contents of (buf, count, dt) packed with MPI_Pack, in hexadecimal, as field key; only
+   with STRETTO_PAYLOAD set, and only up to that many packed bytes (keybig:<size> above). */
+static void rb_payload(rec_t *b, const char *key, const void *buf, int count, MPI_Datatype dt) {
+    if (g_payload <= 0 || buf == MPI_IN_PLACE || count < 0 || dt == MPI_DATATYPE_NULL) return;
+    int size = 0, pos = 0;
+    if (PMPI_Pack_size(count, dt, MPI_COMM_WORLD, &size) != MPI_SUCCESS) return;
+    if (size > g_payload) { rb_printf(b, ",\"%sbig\":%d", key, size); return; }
+    unsigned char *packed = xrealloc(NULL, size > 0 ? size : 1);
+    if (PMPI_Pack(buf, count, dt, packed, size, &pos, MPI_COMM_WORLD) == MPI_SUCCESS) {
+        static const char digits[] = "0123456789abcdef";
+        char *hex = xrealloc(NULL, 2 * (size_t)pos + 1);
+        for (int i = 0; i < pos; i++) { hex[2 * i] = digits[packed[i] >> 4]; hex[2 * i + 1] = digits[packed[i] & 15]; }
+        hex[2 * pos] = 0;
+        rb_printf(b, ",\"%s\":\"%s\"", key, hex);
+        free(hex);
+    }
+    free(packed);
+}
+static void rb_send_data(rec_t *b, int dst, const void *buf, int count, MPI_Datatype dt) {
+    if (dst != MPI_PROC_NULL) rb_payload(b, "data", buf, count, dt);
+}
 
 /* ------------------------------------------------------------- comm table */
 static int comm_lookup(MPI_Comm c) {
@@ -451,6 +481,8 @@ static void open_trace(int provided) {
 #ifndef STRETTO_PIN_ONLY
     Dl_info self;
     if (dladdr((void *)open_trace, &self)) g_self_base = self.dli_fbase;
+    const char *payload = getenv("STRETTO_PAYLOAD");
+    if (payload) g_payload = atol(payload);
     const char *dir = getenv("STRETTO_TRACE_DIR");
     if (!dir) dir = "traces";
     mkdir(dir, 0777);
@@ -506,7 +538,7 @@ int NAME(const void *buf, int count, MPI_Datatype dt, int dst, int tag, MPI_Comm
     stretto_pin_before_send(); \
     { REC(b, "begin"); rb_printf(&b, ",\"call\":\"send\""); send_fields(&b, MODE, count, dt, dst, tag, comm); rb_emit(&b); } \
     int rc = P##NAME(buf, count, dt, dst, tag, comm); \
-    { REC(b, "send"); send_fields(&b, MODE, count, dt, dst, tag, comm); rb_emit(&b); } \
+    { REC(b, "send"); send_fields(&b, MODE, count, dt, dst, tag, comm); rb_send_data(&b, dst, buf, count, dt); rb_emit(&b); } \
     return rc; }
 BLOCKING_SEND(MPI_Send,  "std")
 BLOCKING_SEND(MPI_Ssend, "ssend")
@@ -516,7 +548,8 @@ BLOCKING_SEND(MPI_Rsend, "rsend")
 int NAME(const void *buf, int count, MPI_Datatype dt, int dst, int tag, MPI_Comm comm, MPI_Request *req) { \
     stretto_pin_before_send(); int rc = P##NAME(buf, count, dt, dst, tag, comm, req); \
     int id = rc == MPI_SUCCESS ? req_add(*req, 0, dt, 0) : -1; \
-    REC(b, "send"); send_fields(&b, MODE, count, dt, dst, tag, comm); if (id >= 0) rb_printf(&b, ",\"req\":%d", id); rb_emit(&b); return rc; }
+    REC(b, "send"); send_fields(&b, MODE, count, dt, dst, tag, comm); if (id >= 0) rb_printf(&b, ",\"req\":%d", id); \
+    rb_send_data(&b, dst, buf, count, dt); rb_emit(&b); return rc; }
 NONBLOCKING_SEND(MPI_Isend,  "isend")
 NONBLOCKING_SEND(MPI_Issend, "issend")
 NONBLOCKING_SEND(MPI_Ibsend, "ibsend")
@@ -656,11 +689,12 @@ int MPI_Irecv(void *buf, int count, MPI_Datatype dt, int src, int tag, MPI_Comm 
     rb_emit(&b);
     return rc;
 }
-static inline __attribute__((always_inline)) int sendrecv_common(int scount, MPI_Datatype sdt, int dst, int stag, int rcount, MPI_Datatype rdt, int *src, int *rtag, MPI_Comm comm, int *widx, int *reqid) {
+static inline __attribute__((always_inline)) int sendrecv_common(const void *sbuf, int scount, MPI_Datatype sdt, int dst, int stag, int rcount, MPI_Datatype rdt, int *src, int *rtag, MPI_Comm comm, int *widx, int *reqid) {
     /* Modelled as Isend + Recv + Wait. */
     stretto_pin_before_send();
     pthread_mutex_lock(&g_mu); *reqid = g_next_req++; pthread_mutex_unlock(&g_mu);
-    { REC(b, "send"); send_fields(&b, "isend", scount, sdt, dst, stag, comm); rb_printf(&b, ",\"req\":%d", *reqid); rb_emit(&b); }
+    { REC(b, "send"); send_fields(&b, "isend", scount, sdt, dst, stag, comm); rb_printf(&b, ",\"req\":%d", *reqid);
+      rb_send_data(&b, dst, sbuf, scount, sdt); rb_emit(&b); }
     int osrc = *src, otag = *rtag;
     int pinned = stretto_pin_recv(src, rtag, comm, widx);
     { REC(b, "begin"); rb_printf(&b, ",\"call\":\"recv\""); recv_args(&b, osrc, otag, comm, rcount, rdt, *widx); rb_emit(&b); }
@@ -676,7 +710,7 @@ static inline __attribute__((always_inline)) void sendrecv_finish(int rcount, MP
 int MPI_Sendrecv(const void *sbuf, int scount, MPI_Datatype sdt, int dst, int stag,
                  void *rbuf, int rcount, MPI_Datatype rdt, int src, int rtag, MPI_Comm comm, MPI_Status *st) {
     int osrc = src, otag = rtag, widx = -1, reqid;
-    int pinned = sendrecv_common(scount, sdt, dst, stag, rcount, rdt, &src, &rtag, comm, &widx, &reqid);
+    int pinned = sendrecv_common(sbuf, scount, sdt, dst, stag, rcount, rdt, &src, &rtag, comm, &widx, &reqid);
     MPI_Status mine; if (st == MPI_STATUS_IGNORE) st = &mine;
     int rc = PMPI_Sendrecv(sbuf, scount, sdt, dst, stag, rbuf, rcount, rdt, src, rtag, comm, st);
     sendrecv_finish(rcount, rdt, osrc, otag, src, rtag, comm, st, rc, widx, pinned, reqid);
@@ -684,7 +718,7 @@ int MPI_Sendrecv(const void *sbuf, int scount, MPI_Datatype sdt, int dst, int st
 }
 int MPI_Sendrecv_replace(void *buf, int count, MPI_Datatype dt, int dst, int stag, int src, int rtag, MPI_Comm comm, MPI_Status *st) {
     int osrc = src, otag = rtag, widx = -1, reqid;
-    int pinned = sendrecv_common(count, dt, dst, stag, count, dt, &src, &rtag, comm, &widx, &reqid);
+    int pinned = sendrecv_common(buf, count, dt, dst, stag, count, dt, &src, &rtag, comm, &widx, &reqid);
     MPI_Status mine; if (st == MPI_STATUS_IGNORE) st = &mine;
     int rc = PMPI_Sendrecv_replace(buf, count, dt, dst, stag, src, rtag, comm, st);
     sendrecv_finish(count, dt, osrc, otag, src, rtag, comm, st, rc, widx, pinned, reqid);
@@ -909,35 +943,72 @@ int MPI_Imrecv(void *buf, int count, MPI_Datatype dt, MPI_Message *msg, MPI_Requ
 }
 
 /* ------------------------------------------------------------ collectives */
-static inline __attribute__((always_inline)) void coll_rec(const char *name, MPI_Comm comm, int root, int count, MPI_Datatype dt, int reqid, int begin) {
+/* What this rank contributes to a collective and what it receives, written as din and dout
+   when payloads are recorded; a NULL buffer is left out. */
+typedef struct { const void *in; int nin; MPI_Datatype tin; const void *out; int nout; MPI_Datatype tout; } cdata;
+static inline __attribute__((always_inline)) void coll_rec(const char *name, MPI_Comm comm, int root, int count, MPI_Datatype dt, int reqid, int begin, const cdata *d) {
     REC(b, begin ? "begin" : "coll");
     if (begin) rb_printf(&b, ",\"call\":\"coll\"");
     rb_printf(&b, ",\"name\":\"%s\",\"comm\":%d,\"root\":%d", name, comm_id(comm), root); rb_type(&b, count, dt);
     if (reqid >= 0) rb_printf(&b, ",\"req\":%d", reqid);
+    if (d && d->in) rb_payload(&b, "din", d->in, d->nin, d->tin);
+    if (d && d->out) rb_payload(&b, "dout", d->out, d->nout, d->tout);
     rb_emit(&b);
 }
-#define BLK(NAME, name, root, count, dt, call) \
-    coll_rec(name, comm, root, count, dt, -1, 1); int rc = call; coll_rec(name, comm, root, count, dt, -1, 0); return rc;
+/* This rank's rank in comm and the size of comm, when payloads are recorded; -1 otherwise and
+   on an intercommunicator, whose collectives are recorded without payloads. */
+static int coll_me(MPI_Comm comm, int *np) {
+    int me = -1, inter = 0;
+    *np = 0;
+    if (g_payload <= 0) return -1;
+    PMPI_Comm_test_inter(comm, &inter);
+    if (inter) return -1;
+    PMPI_Comm_rank(comm, &me); PMPI_Comm_size(comm, np);
+    return me;
+}
+#define BLK(NAME, name, root, count, dt, call) BLKD(name, root, count, dt, call, NULL)
+#define BLKD(name, root, count, dt, call, D) \
+    coll_rec(name, comm, root, count, dt, -1, 1, NULL); int rc = call; coll_rec(name, comm, root, count, dt, -1, 0, D); return rc;
 #define NBL(NAME, name, root, count, dt, call) \
-    int rc = call; coll_rec(name, comm, root, count, dt, rc == MPI_SUCCESS ? req_add(*req, 2, dt, 0) : -1, 0); return rc;
+    int rc = call; coll_rec(name, comm, root, count, dt, rc == MPI_SUCCESS ? req_add(*req, 2, dt, 0) : -1, 0, NULL); return rc;
+/* the payload of a fixed-size collective: D is the cdata, built from me and np */
+#define WITH_DATA(...) int np_ = 0, me = coll_me(comm, &np_); cdata d_ = __VA_ARGS__; const cdata *D = me >= 0 ? &d_ : NULL
 
 int MPI_Barrier(MPI_Comm comm) { BLK(MPI_Barrier, "barrier", -1, 0, MPI_DATATYPE_NULL, PMPI_Barrier(comm)) }
-int MPI_Bcast(void *b, int n, MPI_Datatype dt, int root, MPI_Comm comm) { BLK(MPI_Bcast, "bcast", root, n, dt, PMPI_Bcast(b, n, dt, root, comm)) }
-int MPI_Reduce(const void *s, void *r, int n, MPI_Datatype dt, MPI_Op op, int root, MPI_Comm comm) { BLK(MPI_Reduce, "reduce", root, n, dt, PMPI_Reduce(s, r, n, dt, op, root, comm)) }
-int MPI_Allreduce(const void *s, void *r, int n, MPI_Datatype dt, MPI_Op op, MPI_Comm comm) { BLK(MPI_Allreduce, "allreduce", -1, n, dt, PMPI_Allreduce(s, r, n, dt, op, comm)) }
-int MPI_Gather(const void *s, int sn, MPI_Datatype sdt, void *r, int rn, MPI_Datatype rdt, int root, MPI_Comm comm) { BLK(MPI_Gather, "gather", root, sn, sdt, PMPI_Gather(s, sn, sdt, r, rn, rdt, root, comm)) }
+int MPI_Bcast(void *b, int n, MPI_Datatype dt, int root, MPI_Comm comm) {
+    WITH_DATA({me == root ? b : NULL, n, dt, me != root ? b : NULL, n, dt});
+    BLKD("bcast", root, n, dt, PMPI_Bcast(b, n, dt, root, comm), D) }
+int MPI_Reduce(const void *s, void *r, int n, MPI_Datatype dt, MPI_Op op, int root, MPI_Comm comm) {
+    WITH_DATA({s, n, dt, me == root ? r : NULL, n, dt});
+    BLKD("reduce", root, n, dt, PMPI_Reduce(s, r, n, dt, op, root, comm), D) }
+int MPI_Allreduce(const void *s, void *r, int n, MPI_Datatype dt, MPI_Op op, MPI_Comm comm) {
+    WITH_DATA({s, n, dt, r, n, dt});
+    BLKD("allreduce", -1, n, dt, PMPI_Allreduce(s, r, n, dt, op, comm), D) }
+int MPI_Gather(const void *s, int sn, MPI_Datatype sdt, void *r, int rn, MPI_Datatype rdt, int root, MPI_Comm comm) {
+    WITH_DATA({s, sn, sdt, me == root ? r : NULL, rn * np_, rdt});
+    BLKD("gather", root, sn, sdt, PMPI_Gather(s, sn, sdt, r, rn, rdt, root, comm), D) }
 int MPI_Gatherv(const void *s, int sn, MPI_Datatype sdt, void *r, const int *rc_, const int *d, MPI_Datatype rdt, int root, MPI_Comm comm) { BLK(MPI_Gatherv, "gatherv", root, sn, sdt, PMPI_Gatherv(s, sn, sdt, r, rc_, d, rdt, root, comm)) }
-int MPI_Scatter(const void *s, int sn, MPI_Datatype sdt, void *r, int rn, MPI_Datatype rdt, int root, MPI_Comm comm) { BLK(MPI_Scatter, "scatter", root, rn, rdt, PMPI_Scatter(s, sn, sdt, r, rn, rdt, root, comm)) }
+int MPI_Scatter(const void *s, int sn, MPI_Datatype sdt, void *r, int rn, MPI_Datatype rdt, int root, MPI_Comm comm) {
+    WITH_DATA({me == root ? s : NULL, sn * np_, sdt, r, rn, rdt});
+    BLKD("scatter", root, rn, rdt, PMPI_Scatter(s, sn, sdt, r, rn, rdt, root, comm), D) }
 int MPI_Scatterv(const void *s, const int *sc, const int *d, MPI_Datatype sdt, void *r, int rn, MPI_Datatype rdt, int root, MPI_Comm comm) { BLK(MPI_Scatterv, "scatterv", root, rn, rdt, PMPI_Scatterv(s, sc, d, sdt, r, rn, rdt, root, comm)) }
-int MPI_Allgather(const void *s, int sn, MPI_Datatype sdt, void *r, int rn, MPI_Datatype rdt, MPI_Comm comm) { BLK(MPI_Allgather, "allgather", -1, sn, sdt, PMPI_Allgather(s, sn, sdt, r, rn, rdt, comm)) }
+int MPI_Allgather(const void *s, int sn, MPI_Datatype sdt, void *r, int rn, MPI_Datatype rdt, MPI_Comm comm) {
+    WITH_DATA({s, sn, sdt, r, rn * np_, rdt});
+    BLKD("allgather", -1, sn, sdt, PMPI_Allgather(s, sn, sdt, r, rn, rdt, comm), D) }
 int MPI_Allgatherv(const void *s, int sn, MPI_Datatype sdt, void *r, const int *rc_, const int *d, MPI_Datatype rdt, MPI_Comm comm) { BLK(MPI_Allgatherv, "allgatherv", -1, sn, sdt, PMPI_Allgatherv(s, sn, sdt, r, rc_, d, rdt, comm)) }
-int MPI_Alltoall(const void *s, int sn, MPI_Datatype sdt, void *r, int rn, MPI_Datatype rdt, MPI_Comm comm) { BLK(MPI_Alltoall, "alltoall", -1, sn, sdt, PMPI_Alltoall(s, sn, sdt, r, rn, rdt, comm)) }
+int MPI_Alltoall(const void *s, int sn, MPI_Datatype sdt, void *r, int rn, MPI_Datatype rdt, MPI_Comm comm) {
+    WITH_DATA({s, sn * np_, sdt, r, rn * np_, rdt});
+    BLKD("alltoall", -1, sn, sdt, PMPI_Alltoall(s, sn, sdt, r, rn, rdt, comm), D) }
 int MPI_Alltoallv(const void *s, const int *sc, const int *sd, MPI_Datatype sdt, void *r, const int *rc_, const int *rd, MPI_Datatype rdt, MPI_Comm comm) { BLK(MPI_Alltoallv, "alltoallv", -1, 0, sdt, PMPI_Alltoallv(s, sc, sd, sdt, r, rc_, rd, rdt, comm)) }
 int MPI_Alltoallw(const void *s, const int *sc, const int *sd, const MPI_Datatype *sdt, void *r, const int *rc_, const int *rd, const MPI_Datatype *rdt, MPI_Comm comm) { BLK(MPI_Alltoallw, "alltoallw", -1, 0, MPI_DATATYPE_NULL, PMPI_Alltoallw(s, sc, sd, sdt, r, rc_, rd, rdt, comm)) }
 int MPI_Reduce_scatter(const void *s, void *r, const int *rc_, MPI_Datatype dt, MPI_Op op, MPI_Comm comm) { BLK(MPI_Reduce_scatter, "reduce_scatter", -1, 0, dt, PMPI_Reduce_scatter(s, r, rc_, dt, op, comm)) }
 int MPI_Reduce_scatter_block(const void *s, void *r, int n, MPI_Datatype dt, MPI_Op op, MPI_Comm comm) { BLK(MPI_Reduce_scatter_block, "reduce_scatter_block", -1, n, dt, PMPI_Reduce_scatter_block(s, r, n, dt, op, comm)) }
-int MPI_Scan(const void *s, void *r, int n, MPI_Datatype dt, MPI_Op op, MPI_Comm comm) { BLK(MPI_Scan, "scan", -1, n, dt, PMPI_Scan(s, r, n, dt, op, comm)) }
-int MPI_Exscan(const void *s, void *r, int n, MPI_Datatype dt, MPI_Op op, MPI_Comm comm) { BLK(MPI_Exscan, "exscan", -1, n, dt, PMPI_Exscan(s, r, n, dt, op, comm)) }
+int MPI_Scan(const void *s, void *r, int n, MPI_Datatype dt, MPI_Op op, MPI_Comm comm) {
+    WITH_DATA({s, n, dt, r, n, dt});
+    BLKD("scan", -1, n, dt, PMPI_Scan(s, r, n, dt, op, comm), D) }
+int MPI_Exscan(const void *s, void *r, int n, MPI_Datatype dt, MPI_Op op, MPI_Comm comm) {
+    WITH_DATA({s, n, dt, r, n, dt});
+    BLKD("exscan", -1, n, dt, PMPI_Exscan(s, r, n, dt, op, comm), D) }
 
 int MPI_Ibarrier(MPI_Comm comm, MPI_Request *req) { NBL(MPI_Ibarrier, "ibarrier", -1, 0, MPI_DATATYPE_NULL, PMPI_Ibarrier(comm, req)) }
 int MPI_Ibcast(void *b, int n, MPI_Datatype dt, int root, MPI_Comm comm, MPI_Request *req) { NBL(MPI_Ibcast, "ibcast", root, n, dt, PMPI_Ibcast(b, n, dt, root, comm, req)) }

@@ -20,6 +20,10 @@ field) keep their local ids and are assumed to use MPI_COMM_WORLD only.
 
 Encoding of wildcards: new traces carry `anysrc`/`anytag`/`procnull` flags; old traces
 encode ANY as -1.
+
+Payloads: a trace made with STRETTO_PAYLOAD carries the packed contents of every send
+(`Send.data`) and of what each rank gives to and gets from a collective (`Coll.din`,
+`Coll.dout`), in hexadecimal, so that a rank can be rerun alone on the recorded messages.
 """
 from __future__ import annotations
 import json
@@ -69,6 +73,7 @@ class Send:
     tsig: Optional[str] = None
     cancelled: bool = False          # a cancel record named its request: the message is withdrawn
     reserved_idx: Optional[int] = None   # idx of the Mprobe/Improbe at dst that removed it from the queue
+    data: Optional[str] = None       # the packed message in hexadecimal, if the tracer recorded it (STRETTO_PAYLOAD)
 
     @property
     def bytes(self) -> int:
@@ -203,6 +208,8 @@ class Coll:
     req: Optional[int] = None
     complete_idx: Optional[int] = None
     completed: bool = True
+    din: Optional[str] = None    # what this rank contributed, packed, in hexadecimal (STRETTO_PAYLOAD)
+    dout: Optional[str] = None   # what it received
 
     def issue_node(self):
         return (self.rank, self.idx, "i")
@@ -528,7 +535,8 @@ def _build(t: Trace, raw_ranks: Dict[int, List[dict]]) -> None:
                 nb = mode in ("isend", "issend", "ibsend", "irsend")
                 comm = gid(rank, raw["comm"])
                 s = Send((rank, nsend), rank, rec.idx, world(rank, raw["comm"], raw["dst"]), raw["tag"], comm,
-                         raw["count"], raw["tsize"], not nb, mode, raw.get("req"), tsig=raw.get("tsig"))
+                         raw["count"], raw["tsize"], not nb, mode, raw.get("req"), tsig=raw.get("tsig"),
+                         data=raw.get("data"))
                 nsend += 1
                 if blocked:
                     s.completed = False
@@ -606,7 +614,7 @@ def _build(t: Trace, raw_ranks: Dict[int, List[dict]]) -> None:
                 coll_ord[comm] = k + 1
                 root = raw.get("root")
                 root = None if root is None or root < 0 else world(rank, raw["comm"], root)
-                c = Coll(rank, rec.idx, raw["name"], comm, k, root, raw.get("req"))
+                c = Coll(rank, rec.idx, raw["name"], comm, k, root, raw.get("req"), din=raw.get("din"), dout=raw.get("dout"))
                 if blocked:
                     c.completed = False
                 elif c.req is not None:

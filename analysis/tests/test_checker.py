@@ -316,6 +316,15 @@ class C_ObservedOrphanAndSpin(unittest.TestCase):
         rep = analyze(t, with_sp=False)
         self.assertTrue(any("spinning" in f.title for f in rep.by_class("2-blocked")))
 
+    def test_payloads_are_kept(self):
+        """STRETTO_PAYLOAD traces: the packed contents of sends and of collective
+        contributions and results survive the loader, which drops the records' dictionaries."""
+        t = mk({0: [dict(send(1, 1), data="2a000000"), dict(coll("bcast", root=0), din="07000000")],
+                1: [recv(0, 1, 0, 1), dict(coll("bcast", root=0), dout="07000000")]})
+        self.assertEqual(t.sends[(0, 0)].data, "2a000000")
+        self.assertEqual([(c.rank, c.din, c.dout) for c in t.colls], [(0, "07000000", None), (1, None, "07000000")])
+        self.assertIsNone(mk({0: [send(1, 1)], 1: [recv(0, 1, 0, 1)]}).sends[(0, 0)].data)
+
 
 class C_ProgramFromTrace(unittest.TestCase):
     """The single-path program is built from the loaded objects: world ranks, global
