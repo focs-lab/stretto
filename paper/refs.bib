@@ -4,6 +4,8 @@
 
 % Bibliography. Every entry below was checked on 20 Oct 2026 against the source named in the
 % comment line above it (Crossref records are the publisher's own deposit; "api.crossref.org/works/<DOI>").
+% Entries added on 21 Oct 2026, after a review of prior work, were checked the same way; a field
+% that no record confirmed (a volume, say) is left out rather than filled in from memory.
 
 % ------------------------------------------------------------------ MPI and usage
 % verified: https://www.mpi-forum.org/docs/mpi-5.0/citation.bib (approved by the MPI Forum on 5 June 2025)
@@ -132,6 +134,51 @@
   address   = {New York, NY, USA},
 }
 
+% verified: https://api.crossref.org/works/10.1145/2043174.2043194 ; LLNL-JRNL-489171 read (pp. 4-5)
+@article{gopalakrishnan11cacm,
+  author  = {Gopalakrishnan, Ganesh and Kirby, Robert M. and Siegel, Stephen and Thakur, Rajeev and Gropp, William and Lusk, Ewing and de Supinski, Bronis R. and Schulz, Martin and Bronevetsky, Greg},
+  title   = {Formal Analysis of {MPI}-Based Parallel Programs},
+  journal = {Communications of the ACM},
+  volume  = {54},
+  number  = {12},
+  pages   = {82--91},
+  year    = {2011},
+  doi     = {10.1145/2043174.2043194},
+}
+
+% verified: https://api.crossref.org/works/10.1145/1504176.1504213
+@inproceedings{xue09mpiwiz,
+  author    = {Xue, Ruini and Liu, Xuezheng and Wu, Ming and Guo, Zhenyu and Chen, Wenguang and Zheng, Weimin and Zhang, Zheng and Voelker, Geoffrey M.},
+  title     = {{MPIWiz}: Subgroup Reproducible Replay of {MPI} Applications},
+  booktitle = {Symposium on Principles and Practice of Parallel Programming (PPoPP)},
+  pages     = {251--260},
+  year      = {2009},
+  doi       = {10.1145/1504176.1504213},
+  publisher = {ACM},
+}
+
+% verified: https://api.crossref.org/works/10.1109/SC.2000.10055 ; OSTI preprint UCRL-JC-138650 read (section 4.3)
+@inproceedings{vetter00umpire,
+  author    = {Vetter, Jeffrey S. and de Supinski, Bronis R.},
+  title     = {Dynamic Software Testing of {MPI} Applications with {Umpire}},
+  booktitle = {ACM/IEEE Conference on Supercomputing (SC)},
+  pages     = {51},
+  year      = {2000},
+  doi       = {10.1109/SC.2000.10055},
+  publisher = {IEEE},
+}
+
+% verified: https://api.crossref.org/works/10.1145/3624062.3624085
+@inproceedings{jenke23tsanfibers,
+  author    = {Jenke, Joachim and Schwitanski, Simon and Th{\"a}rigen, Isabel and M{\"u}ller, Matthias S.},
+  title     = {Mapping High-Level Concurrency from {OpenMP} and {MPI} to {ThreadSanitizer} Fibers},
+  booktitle = {Workshops of the International Conference for High Performance Computing, Networking, Storage and Analysis (SC-W)},
+  pages     = {187--195},
+  year      = {2023},
+  doi       = {10.1145/3624062.3624085},
+  publisher = {ACM},
+}
+
 % ------------------------------------------------------------------ MPI prediction
 % verified: https://citation-needed.springer.com/v2/references/10.1007/978-3-319-06410-9_19?format=bibtex; LNCS 8442 from the Springer book page for 10.1007/978-3-319-06410-9
 @inproceedings{forejt14mopper,
@@ -146,13 +193,14 @@
   publisher = {Springer},
 }
 
-% verified: https://api.crossref.org/works/10.1145/3095075 (article number not checked: author copy has a placeholder)
+% verified: https://api.crossref.org/works/10.1145/3095075 (pages 1-27; article number not checked: author copy has a placeholder)
 @article{forejt17mopper,
   author  = {Forejt, Vojt{\v{e}}ch and Joshi, Saurabh and Kroening, Daniel and Narayanaswamy, Ganesh and Sharma, Subodh},
   title   = {Precise Predictive Analysis for Discovering Communication Deadlocks in {MPI} Programs},
   journal = {ACM Transactions on Programming Languages and Systems},
   volume  = {39},
   number  = {4},
+  pages   = {1--27},
   year    = {2017},
   doi     = {10.1145/3095075},
 }
@@ -215,6 +263,230 @@
   address   = {New York, NY, USA},
 }
 
+% verified: https://api.crossref.org/works/10.1145/3832278 ; PDF read in full (article ISSTA187)
+@article{yao26mpiprv,
+  author    = {Yao, Jiaqiang and Geng, Haocheng and Chen, Zhenbang},
+  title     = {Efficient Predictive Monitoring of Message Passing Interface Programs},
+  journal   = {Proceedings of the ACM on Software Engineering},
+  volume    = {3},
+  number    = {ISSTA},
+  articleno = {ISSTA187},
+  pages     = {4288--4309},
+  year      = {2026},
+  doi       = {10.1145/3832278},
+}
+
+% verified: https://api.crossref.org/works/10.1007/978-3-319-95582-7_28 (pp. 466-484); LNCS 10951 from the series listing
+@inproceedings{khanna18hermes,
+  author    = {Khanna, Dhriti and Sharma, Subodh and Rodr{\'\i}guez, C{\'e}sar and Purandare, Rahul},
+  title     = {Dynamic Symbolic Verification of {MPI} Programs},
+  booktitle = {Formal Methods (FM)},
+  series    = {LNCS},
+  volume    = {10951},
+  pages     = {466--484},
+  year      = {2018},
+  doi       = {10.1007/978-3-319-95582-7_28},
+  publisher = {Springer},
+}
+
+% verified: https://api.crossref.org/works/10.1109/sc.companion.2012.233 (the Crossref title spells the tool MAPPED; the PDF spells it MAAPED)
+@inproceedings{sharma12maaped,
+  author    = {Sharma, Subodh and Gopalakrishnan, Ganesh and Bronevetsky, Greg},
+  title     = {Abstract: {MAPPED}: Predictive Dynamic Analysis Tool for {MPI} Applications},
+  booktitle = {SC Companion: High Performance Computing, Networking, Storage and Analysis},
+  pages     = {1425--1426},
+  year      = {2012},
+  doi       = {10.1109/SC.Companion.2012.233},
+  publisher = {IEEE},
+}
+
+% verified: https://api.crossref.org/works/10.1145/3551349.3556954
+@inproceedings{ranjan22simian,
+  author    = {Ranjan, Rishabh and Agrawal, Ishita and Sharma, Subodh},
+  title     = {Exploiting Epochs and Symmetries in Analysing {MPI} Programs},
+  booktitle = {International Conference on Automated Software Engineering (ASE)},
+  pages     = {1--12},
+  year      = {2022},
+  doi       = {10.1145/3551349.3556954},
+  publisher = {ACM},
+}
+
+% verified: https://api.crossref.org/works/10.1145/1866210.1866212
+@inproceedings{elwakil10padtad,
+  author    = {Elwakil, Mohamed and Yang, Zijiang},
+  title     = {Debugging Support Tool for {MCAPI} Applications},
+  booktitle = {Workshop on Parallel and Distributed Systems: Testing, Analysis, and Debugging (PADTAD)},
+  pages     = {20--25},
+  year      = {2010},
+  doi       = {10.1145/1866210.1866212},
+  publisher = {ACM},
+}
+
+% verified: https://api.crossref.org/works/10.1109/ase.2013.6693063
+@inproceedings{huang13ase,
+  author    = {Huang, Yu and Mercer, Eric and McCarthy, Jay},
+  title     = {Proving {MCAPI} Executions Are Correct Using {SMT}},
+  booktitle = {International Conference on Automated Software Engineering (ASE)},
+  pages     = {26--36},
+  year      = {2013},
+  doi       = {10.1109/ASE.2013.6693063},
+  publisher = {IEEE},
+}
+
+% verified: https://api.crossref.org/works/10.1016/j.parco.2019.102585
+@article{huang20matchpair,
+  author  = {Huang, Yu and Gong, Kai and Mercer, Eric},
+  title   = {An Efficient Algorithm for Match Pair Approximation in Message Passing},
+  journal = {Parallel Computing},
+  volume  = {91},
+  pages   = {102585},
+  year    = {2020},
+  doi     = {10.1016/j.parco.2019.102585},
+}
+
+% verified: https://api.crossref.org/works/10.1007/978-3-319-17524-9_16 ; LNCS 9058 from the series listing
+@inproceedings{huang15nfm,
+  author    = {Huang, Yu and Mercer, Eric},
+  title     = {Detecting {MPI} Zero Buffer Incompatibility by {SMT} Encoding},
+  booktitle = {NASA Formal Methods (NFM)},
+  series    = {LNCS},
+  volume    = {9058},
+  pages     = {219--233},
+  year      = {2015},
+  doi       = {10.1007/978-3-319-17524-9_16},
+  publisher = {Springer},
+}
+
+% ------------------------------------------------------------------ message races and reachability testing
+% verified: https://api.crossref.org/works/10.1109/TSE.2006.56 ; PDF read (Prop. 2, Def. 7, p. 390)
+@article{lei06reachability,
+  author  = {Lei, Yu and Carver, Richard H.},
+  title   = {Reachability Testing of Concurrent Programs},
+  journal = {IEEE Transactions on Software Engineering},
+  volume  = {32},
+  number  = {6},
+  pages   = {382--403},
+  year    = {2006},
+  doi     = {10.1109/TSE.2006.56},
+}
+
+% verified: https://api.crossref.org/works/10.1109/ICDCS.1997.598047 (year from reference 28 of lei06reachability)
+@inproceedings{tai97race,
+  author    = {Tai, Kuo-Chung},
+  title     = {Race Analysis of Traces of Asynchronous Message-Passing Programs},
+  booktitle = {International Conference on Distributed Computing Systems (ICDCS)},
+  pages     = {261--268},
+  year      = {1997},
+  doi       = {10.1109/ICDCS.1997.598047},
+  publisher = {IEEE},
+}
+
+% verified: https://api.crossref.org/works/10.1093/comjnl/40.8.489 (Crossref lists one author; the preprint and OpenAlex list both)
+@article{kilgore97racing,
+  author  = {Kilgore, Richard B. and Chase, Craig M.},
+  title   = {Testing Distributed Programs Containing Racing Messages},
+  journal = {The Computer Journal},
+  volume  = {40},
+  number  = {8},
+  pages   = {489--498},
+  year    = {1997},
+  doi     = {10.1093/comjnl/40.8.489},
+}
+
+% verified: https://api.crossref.org/works/10.1145/238020.238033
+@inproceedings{netzer96msgrace,
+  author    = {Netzer, Robert H. B. and Brennan, Timothy W. and Damodaran-Kamal, Suresh K.},
+  title     = {Debugging Race Conditions in Message-Passing Programs},
+  booktitle = {SIGMETRICS Symposium on Parallel and Distributed Tools (SPDT)},
+  pages     = {31--40},
+  year      = {1996},
+  doi       = {10.1145/238020.238033},
+  publisher = {ACM},
+}
+
+% verified: https://api.crossref.org/works/10.1109/SPDP.1995.530730 (no year in the record: SPDP 1995)
+@inproceedings{cypher95race,
+  author    = {Cypher, Robert and Leu, Eric},
+  title     = {Efficient Race Detection for Message-Passing Programs with Nonblocking Sends and Receives},
+  booktitle = {Symposium on Parallel and Distributed Processing (SPDP)},
+  pages     = {534--541},
+  year      = {1995},
+  doi       = {10.1109/SPDP.1995.530730},
+  publisher = {IEEE},
+}
+
+% verified: archived HTML of the thesis (gup.uni-linz.ac.at/~dk/thesis/html, chapters 8.2, 8.4, 9.2), dated 2000
+@phdthesis{kranzlmueller00thesis,
+  author = {Kranzlm{\"u}ller, Dieter},
+  title  = {Event Graph Analysis for Debugging Massively Parallel Programs},
+  school = {Johannes Kepler University Linz},
+  year   = {2000},
+}
+
+% ------------------------------------------------------------------ buffering
+% verified: https://api.crossref.org/works/10.1007/bfb0054295 ; LNCS 1422 per the reference list of vakkalanka10slack
+@inproceedings{manohar98slack,
+  author    = {Manohar, Rajit and Martin, Alain J.},
+  title     = {Slack Elasticity in Concurrent Computing},
+  booktitle = {Mathematics of Program Construction (MPC)},
+  series    = {LNCS},
+  volume    = {1422},
+  pages     = {272--285},
+  year      = {1998},
+  doi       = {10.1007/BFb0054295},
+  publisher = {Springer},
+}
+
+% verified: https://api.crossref.org/works/10.1007/978-3-642-15646-5_16 ; LNCS 6305 from the series listing
+@inproceedings{vakkalanka10slack,
+  author    = {Vakkalanka, Sarvani and Vo, Anh and Gopalakrishnan, Ganesh and Kirby, Robert M.},
+  title     = {Precise Dynamic Analysis for Slack Elasticity: Adding Buffering without Adding Bugs},
+  booktitle = {Recent Advances in the Message Passing Interface (EuroMPI)},
+  series    = {LNCS},
+  volume    = {6305},
+  pages     = {152--159},
+  year      = {2010},
+  doi       = {10.1007/978-3-642-15646-5_16},
+  publisher = {Springer},
+}
+
+% verified: https://api.crossref.org/works/10.1145/1065944.1065957 ; PDF read (Thm 1, p. 5)
+@inproceedings{siegel05ppopp,
+  author    = {Siegel, Stephen F. and Avrunin, George S.},
+  title     = {Modeling Wildcard-Free {MPI} Programs for Verification},
+  booktitle = {Symposium on Principles and Practice of Parallel Programming (PPoPP)},
+  pages     = {95--106},
+  year      = {2005},
+  doi       = {10.1145/1065944.1065957},
+  publisher = {ACM},
+}
+
+% verified: https://api.crossref.org/works/10.1007/978-3-540-75416-9_44 ; LNCS 4757 per the author's page
+@inproceedings{siegel07europvm,
+  author    = {Siegel, Stephen F. and Avrunin, George S.},
+  title     = {Verification of Halting Properties for {MPI} Programs Using Nonblocking Operations},
+  booktitle = {Recent Advances in Parallel Virtual Machine and Message Passing Interface (EuroPVM/MPI)},
+  series    = {LNCS},
+  volume    = {4757},
+  pages     = {326--334},
+  year      = {2007},
+  doi       = {10.1007/978-3-540-75416-9_44},
+  publisher = {Springer},
+}
+
+% verified: https://api.crossref.org/works/10.1007/978-3-319-48989-6_7 ; LNCS 9995 from the series listing
+@inproceedings{bohm16aislinn,
+  author    = {B{\"o}hm, Stanislav and Meca, Ond{\v{r}}ej and Jan{\v{c}}ar, Petr},
+  title     = {State-Space Reduction of Non-deterministically Synchronizing Systems Applicable to Deadlock Detection in {MPI}},
+  booktitle = {Formal Methods (FM)},
+  series    = {LNCS},
+  volume    = {9995},
+  pages     = {102--118},
+  year      = {2016},
+  doi       = {10.1007/978-3-319-48989-6_7},
+  publisher = {Springer},
+}
+
 % verified: https://arxiv.org/abs/cs/0012012 (no DOI; arXiv comment names the AADEBUG 2000 proceedings, Munich, August 2000)
 @inproceedings{kranzlmueller00mad,
   author    = {Kranzlm{\"u}ller, Dieter and Schaubschl{\"a}ger, Christian and Volkert, Jens},
@@ -275,7 +547,111 @@
   publisher = {Springer},
 }
 
+% verified: https://api.crossref.org/works/10.1109/scw63240.2024.00034 ; read (sections V-VI)
+@inproceedings{jammer24quality,
+  author    = {Jammer, Tim and Schwitanski, Simon and Saillard, Emmanuelle and H{\"u}ck, Alexander and Jenke, Joachim and Vinayagame, Radjasouria and Bischof, Christian},
+  title     = {Designing Quality {MPI} Correctness Benchmarks: Insights and Metrics},
+  booktitle = {Workshops of the International Conference for High Performance Computing, Networking, Storage and Analysis (SC-W)},
+  pages     = {222--226},
+  year      = {2024},
+  doi       = {10.1109/scw63240.2024.00034},
+  publisher = {IEEE},
+}
+
 % ------------------------------------------------------------------ predictive analysis
+% verified: https://api.crossref.org/works/10.1145/109625.109640 ; PDF read (Thm 4.1)
+@inproceedings{netzer91accuracy,
+  author    = {Netzer, Robert H. B. and Miller, Barton P.},
+  title     = {Improving the Accuracy of Data Race Detection},
+  booktitle = {Symposium on Principles and Practice of Parallel Programming (PPoPP)},
+  pages     = {133--144},
+  year      = {1991},
+  doi       = {10.1145/109625.109640},
+  publisher = {ACM},
+}
+
+% verified: https://api.crossref.org/works/10.1007/978-3-642-35632-2_16 and Springer's citation export (RV 2012 proceedings, published 2013, pp. 136-150); the LNCS volume is in no record consulted and is left out
+@inproceedings{serbanuta12mcm,
+  author    = {{\c{S}}erb{\u{a}}nu{\c{t}}{\u{a}}, Traian Florin and Chen, Feng and Ro{\c{s}}u, Grigore},
+  title     = {Maximal Causal Models for Sequentially Consistent Systems},
+  booktitle = {Runtime Verification (RV 2012)},
+  series    = {LNCS},
+  pages     = {136--150},
+  year      = {2013},
+  doi       = {10.1007/978-3-642-35632-2_16},
+  publisher = {Springer},
+}
+
+% verified: https://api.crossref.org/works/10.1145/2594291.2594315 ; PDF read (sections 1-4)
+@inproceedings{huang14rvpredict,
+  author    = {Huang, Jeff and Meredith, Patrick O'Neil and Ro{\c{s}}u, Grigore},
+  title     = {Maximal Sound Predictive Race Detection with Control Flow Abstraction},
+  booktitle = {Conference on Programming Language Design and Implementation (PLDI)},
+  pages     = {337--348},
+  year      = {2014},
+  doi       = {10.1145/2594291.2594315},
+  publisher = {ACM},
+}
+
+% verified: https://api.crossref.org/works/10.1145/2103656.2103702 ; PDF read (Def. 4, Thm 1)
+@inproceedings{smaragdakis12cp,
+  author    = {Smaragdakis, Yannis and Evans, Jacob and Sadowski, Caitlin and Yi, Jaeheon and Flanagan, Cormac},
+  title     = {Sound Predictive Race Detection in Polynomial Time},
+  booktitle = {Symposium on Principles of Programming Languages (POPL)},
+  pages     = {387--400},
+  year      = {2012},
+  doi       = {10.1145/2103656.2103702},
+  publisher = {ACM},
+}
+
+% verified: https://api.crossref.org/works/10.1007/978-3-642-05089-3_17 (LNCS volume not in the record, left out)
+@inproceedings{wang09ctp,
+  author    = {Wang, Chao and Kundu, Sudipta and Ganai, Malay and Gupta, Aarti},
+  title     = {Symbolic Predictive Analysis for Concurrent Programs},
+  booktitle = {Formal Methods (FM)},
+  series    = {LNCS},
+  pages     = {256--272},
+  year      = {2009},
+  doi       = {10.1007/978-3-642-05089-3_17},
+  publisher = {Springer},
+}
+
+% verified: https://api.crossref.org/works/10.1145/3468264.3468549
+@inproceedings{cai21seqcheck,
+  author    = {Cai, Yan and Yun, Hao and Wang, Jinqiu and Qiao, Lei and Palsberg, Jens},
+  title     = {Sound and Efficient Concurrency Bug Prediction},
+  booktitle = {Joint European Software Engineering Conference and Symposium on the Foundations of Software Engineering (ESEC/FSE)},
+  pages     = {255--267},
+  year      = {2021},
+  doi       = {10.1145/3468264.3468549},
+  publisher = {ACM},
+}
+
+% verified: https://api.datacite.org/dois/10.4230/LIPIcs.ECOOP.2017.16 ; volume and article pages from the PDF footer
+@inproceedings{huang17mcrsdg,
+  author    = {Huang, Shiyou and Huang, Jeff},
+  title     = {Speeding Up Maximal Causality Reduction with Static Dependency Analysis},
+  booktitle = {European Conference on Object-Oriented Programming (ECOOP)},
+  series    = {LIPIcs},
+  volume    = {74},
+  pages     = {16:1--16:22},
+  year      = {2017},
+  doi       = {10.4230/LIPIcs.ECOOP.2017.16},
+  publisher = {Schloss Dagstuhl -- Leibniz-Zentrum f{\"u}r Informatik},
+}
+
+% verified: Crossref listing of the authors' works (DOI 10.1145/3632915)
+@article{ang24pattern,
+  author  = {Ang, Zhendong and Mathur, Umang},
+  title   = {Predictive Monitoring against Pattern Regular Languages},
+  journal = {Proceedings of the ACM on Programming Languages},
+  volume  = {8},
+  number  = {POPL},
+  pages   = {2191--2225},
+  year    = {2024},
+  doi     = {10.1145/3632915},
+}
+
 % verified: https://api.crossref.org/works/10.1145/3062341.3062374
 @inproceedings{kini17wcp,
   author    = {Kini, Dileep and Mathur, Umang and Viswanathan, Mahesh},
@@ -483,12 +859,160 @@
   doi       = {10.1145/3808291},
 }
 
+% ------------------------------------------------------------------ confirmation by re-execution
+% verified: https://api.crossref.org/works/10.1145/1147403.1147412
+@inproceedings{bensalem06confirmation,
+  author    = {Bensalem, Saddek and Fernandez, Jean-Claude and Havelund, Klaus and Mounier, Laurent},
+  title     = {Confirmation of Deadlock Potentials Detected by Runtime Analysis},
+  booktitle = {Workshop on Parallel and Distributed Systems: Testing and Debugging (PADTAD)},
+  pages     = {41--50},
+  year      = {2006},
+  doi       = {10.1145/1147403.1147412},
+  publisher = {ACM},
+}
+
+% verified: https://api.crossref.org/works/10.1145/1375581.1375584
+@inproceedings{sen08racefuzzer,
+  author    = {Sen, Koushik},
+  title     = {Race Directed Random Testing of Concurrent Programs},
+  booktitle = {Conference on Programming Language Design and Implementation (PLDI)},
+  pages     = {11--21},
+  year      = {2008},
+  doi       = {10.1145/1375581.1375584},
+  publisher = {ACM},
+}
+
+% verified: https://api.crossref.org/works/10.1145/1542476.1542489
+@inproceedings{joshi09deadlockfuzzer,
+  author    = {Joshi, Pallavi and Park, Chang-Seo and Sen, Koushik and Naik, Mayur},
+  title     = {A Randomized Dynamic Program Analysis Technique for Detecting Real Deadlocks},
+  booktitle = {Conference on Programming Language Design and Implementation (PLDI)},
+  pages     = {110--120},
+  year      = {2009},
+  doi       = {10.1145/1542476.1542489},
+  publisher = {ACM},
+}
+
+% verified: https://api.crossref.org/works/10.1145/1882291.1882300
+@inproceedings{sorrentino10penelope,
+  author    = {Sorrentino, Francesco and Farzan, Azadeh and Madhusudan, P.},
+  title     = {{PENELOPE}: Weaving Threads to Expose Atomicity Violations},
+  booktitle = {International Symposium on Foundations of Software Engineering (FSE)},
+  pages     = {37--46},
+  year      = {2010},
+  doi       = {10.1145/1882291.1882300},
+  publisher = {ACM},
+}
+
+% verified: https://api.crossref.org/works/10.1145/2393596.2393651
+@inproceedings{farzan12exceptionull,
+  author    = {Farzan, Azadeh and Madhusudan, P. and Razavi, Niloofar and Sorrentino, Francesco},
+  title     = {Predicting Null-Pointer Dereferences in Concurrent Programs},
+  booktitle = {International Symposium on the Foundations of Software Engineering (FSE)},
+  pages     = {1--11},
+  year      = {2012},
+  doi       = {10.1145/2393596.2393651},
+  publisher = {ACM},
+}
+
+% verified: https://api.crossref.org/works/10.1145/2150976.2150997
+@inproceedings{kasikci12portend,
+  author    = {Kasikci, Baris and Zamfir, Cristian and Candea, George},
+  title     = {Data Races vs. Data Race Bugs: Telling the Difference with {Portend}},
+  booktitle = {International Conference on Architectural Support for Programming Languages and Operating Systems (ASPLOS)},
+  pages     = {185--198},
+  year      = {2012},
+  doi       = {10.1145/2150976.2150997},
+  publisher = {ACM},
+}
+
+% verified: https://api.crossref.org/works/10.1145/2737924.2737975
+@inproceedings{huang15mcr,
+  author    = {Huang, Jeff},
+  title     = {Stateless Model Checking Concurrent Programs with Maximal Causality Reduction},
+  booktitle = {Conference on Programming Language Design and Implementation (PLDI)},
+  pages     = {165--174},
+  year      = {2015},
+  doi       = {10.1145/2737924.2737975},
+  publisher = {ACM},
+}
+
 % ------------------------------------------------------------------ beyond MPI
-% verified: https://api.crossref.org/works/10.1145/3236950.3236959; https://arxiv.org/abs/1807.03585 (extended version)
+% verified: https://api.crossref.org/works/10.1007/978-3-319-70389-3_6 ; LNCS 10629 per reference 33 of sulzmann18go; arXiv:1709.01588 read
+@inproceedings{sulzmann17hvc,
+  author    = {Sulzmann, Martin and Stadtm{\"u}ller, Kai},
+  title     = {Trace-Based Run-Time Analysis of Message-Passing {Go} Programs},
+  booktitle = {Hardware and Software: Verification and Testing (HVC)},
+  series    = {LNCS},
+  volume    = {10629},
+  pages     = {83--98},
+  year      = {2017},
+  doi       = {10.1007/978-3-319-70389-3_6},
+  publisher = {Springer},
+  note      = {arXiv:1709.01588},
+}
+
+% verified: https://github.com/ErikKassubek/ADVOCATE (README and doc/, read 21 Oct 2026); no paper on its prediction part was found
+@misc{advocatego,
+  author       = {Kassubek, Erik},
+  title        = {{AdvocateGo}: Automated Detection and Verification of Concurrency Bugs through Analysis and Transmutation of Program Executions in {Go}},
+  howpublished = {\url{https://github.com/ErikKassubek/ADVOCATE}},
+  year         = {2026},
+  note         = {Software, accessed 21 October 2026},
+}
+
+% verified: https://api.crossref.org/works/10.1007/978-3-031-08679-3_12 ; LNCS 13273 from the journal reference of arXiv:2210.03026
+@inproceedings{vidal22racevariants,
+  author    = {Vidal, Germ{\'a}n},
+  title     = {Computing Race Variants in Message-Passing Concurrent Programming with Selective Receives},
+  booktitle = {Formal Techniques for Distributed Objects, Components, and Systems (FORTE)},
+  series    = {LNCS},
+  volume    = {13273},
+  pages     = {188--207},
+  year      = {2022},
+  doi       = {10.1007/978-3-031-08679-3_12},
+  publisher = {Springer},
+}
+
+% verified: https://api.crossref.org/works/10.1109/ASE.2013.6693072
+@inproceedings{tasharofi13bita,
+  author    = {Tasharofi, Samira and Pradel, Michael and Lin, Yu and Johnson, Ralph},
+  title     = {Bita: Coverage-Guided, Automatic Testing of Actor Programs},
+  booktitle = {International Conference on Automated Software Engineering (ASE)},
+  pages     = {114--124},
+  year      = {2013},
+  doi       = {10.1109/ASE.2013.6693072},
+  publisher = {IEEE},
+}
+
+% verified: https://api.crossref.org/works/10.1109/ICST.2013.50
+@inproceedings{christakis13concuerror,
+  author    = {Christakis, Maria and Gotovos, Alkis and Sagonas, Konstantinos},
+  title     = {Systematic Testing for Detecting Concurrency Errors in {Erlang} Programs},
+  booktitle = {International Conference on Software Testing, Verification and Validation (ICST)},
+  pages     = {154--163},
+  year      = {2013},
+  doi       = {10.1109/ICST.2013.50},
+  publisher = {IEEE},
+}
+
+% verified: https://api.crossref.org/works/10.1145/3037697.3037735
+@inproceedings{liu17dcatch,
+  author    = {Liu, Haopeng and Li, Guangpu and Lukman, Jeffrey F. and Li, Jiaxin and Lu, Shan and Gunawi, Haryadi S. and Tian, Chen},
+  title     = {{DCatch}: Automatically Detecting Distributed Concurrency Bugs in Cloud Systems},
+  booktitle = {International Conference on Architectural Support for Programming Languages and Operating Systems (ASPLOS)},
+  pages     = {677--691},
+  year      = {2017},
+  doi       = {10.1145/3037697.3037735},
+  publisher = {ACM},
+}
+
+% verified: https://api.crossref.org/works/10.1145/3236950.3236959 (pages 1-13); https://arxiv.org/abs/1807.03585 (extended version)
 @inproceedings{sulzmann18go,
   author    = {Sulzmann, Martin and Stadtm{\"u}ller, Kai},
   title     = {Two-Phase Dynamic Analysis of Message-Passing {Go} Programs Based on Vector Clocks},
   booktitle = {International Symposium on Principles and Practice of Declarative Programming (PPDP)},
+  pages     = {1--13},
   year      = {2018},
   doi       = {10.1145/3236950.3236959},
   note      = {arXiv:1807.03585},
@@ -518,4 +1042,25 @@
   doi       = {10.1145/3018743.3018767},
   publisher = {ACM},
   address   = {New York, NY, USA},
+}
+
+% ------------------------------------------------------------------ sources of the documented bugs
+% verified: the CHANGELOG at raw.githubusercontent.com/hypre-space/hypre/master/CHANGELOG, read 21 Oct 2026:
+% "Version 2.11.0 released 2016/03/28 ... Fixed an MPI bug that was causing Parasails to hang occasionally"
+@misc{hypre-changelog,
+  key          = {hypre},
+  title        = {{hypre} {CHANGELOG}: Version 2.11.0 released 2016/03/28},
+  howpublished = {\url{https://github.com/hypre-space/hypre/blob/master/CHANGELOG}},
+  year         = {2016},
+  note         = {``Fixed an MPI bug that was causing Parasails to hang occasionally''; accessed 21 October 2026},
+}
+
+% verified: Changes.log of the NPB 3.3.1 and 3.4.1 distributions, section "Changes in NPB3.2.1 [27-Jul-05]", MG
+% entry; NPB 2.4.1 MG source mg.f (subroutine ready, and the verification against epsilon = 1.d-8)
+@misc{npb-changelog,
+  key          = {NPB},
+  title        = {{NAS} {Parallel} {Benchmarks}, {Changes.log}: entry ``Changes in {NPB3.2.1}'', 27 July 2005},
+  howpublished = {\url{https://www.nas.nasa.gov/software/npb.html}},
+  year         = {2005},
+  note         = {File Changes.log in NPB 3.3.1 and later distributions},
 }
