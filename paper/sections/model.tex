@@ -92,11 +92,12 @@ The tracer does not see match events. $\Mobs$ is reconstructed from the statuses
 per receiving rank, communicator and actual source, receives take that source's messages
 in send order. \ref{E:fifo} makes this reconstruction exact.
 
-A \emph{prefix} $\Hpre$ of $\trace$ chooses, for each rank, a prefix of its records.
+A \emph{prefix} $\Hpre$ of $\trace$ chooses, for each rank, a prefix of the calls and returns
+of its records, so it may keep a call without its return.
 
 \begin{definition}[Consistency]
 A program $\prog$ is \emph{consistent with $\trace$ on $\Hpre$} if, for every rank $i$
-and every record $k$ of rank $i$ in $\Hpre$, $\prog_i$ applied to the results of
+and every record $k$ of rank $i$ whose call is in $\Hpre$, $\prog_i$ applied to the results of
 records $0,\dots,k-1$ of rank $i$ in $\trace$ yields the operation of record $k$. We write
 $\Cons(\trace,\Hpre)$ for the set of such programs. The \emph{single-path program}
 $\SP(\trace)$ issues the records of $\trace$ whatever its calls return.

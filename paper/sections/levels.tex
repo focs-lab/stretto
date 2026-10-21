@@ -67,11 +67,13 @@ A set $D$ of ranks is a \emph{contained deadlock} if every $i\in D$ satisfies:
 \label{thm:l1dead}
 Let $D$ be a contained deadlock and $\Hpre^+$ be $\Hpre$ with the calls of the records
 $\kappa_i$, $i\in D$, added. For every $\prog\in\Cons(\trace,\Hpre^+)$, every execution of
-$\prog$ given by \cref{thm:sound} extends only to executions at $\Bt$ in which no rank of $D$
-returns from $\kappa_i$.
+$\prog$ that \cref{thm:sound} reads from a topological order of $\Graph$ extends only to
+executions at $\Bt$ in which no rank of $D$ returns from $\kappa_i$.
 \end{theorem}
 
-\noindent By \ref{D:changed}, the ranks of $D$ return in $\Hpre$ the results they returned in
+\noindent An extension that cannot be extended further has called each $\kappa_i$, so it
+deadlocks in the sense of \cref{sec:model}, with the ranks of $D$ blocked for good.
+By \ref{D:changed}, the ranks of $D$ return in $\Hpre$ the results they returned in
 $\trace$, so every program consistent on $\Hpre^+$ calls $\kappa_i$ next. Consider the first
 event after the execution of \cref{thm:sound} that would complete what some $\kappa_i$ waits
 for. Its partner is not in $\Hpre$ by \ref{D:partner}, and by \ref{D:closed} it could only
@@ -120,10 +122,10 @@ consequence or only some. Its pin fixes every wildcard receive of one witness.
 
 \begin{lemma}[Single-path is unsound]
 \label{lem:sp}
-There is a trace $\trace$, an alternative $\Malt$, a threshold $\Bt$ and two programs
-$\prog_1,\prog_2\in\Cons(\trace)$ such that every execution of $\prog_1$ at $\Bt$
-realising $\Malt$ deadlocks, while $\prog_2$ has an execution at $\Bt$ realising $\Malt$
-that terminates.
+There is a trace $\trace$, a steal $r\mapsto s$, a threshold $\Bt$ and two programs
+$\prog_1,\prog_2\in\Cons(\trace,\trace)$ such that every execution of $\prog_1$ at $\Bt$ that
+matches $r$ to $s$ and cannot be extended deadlocks, while $\prog_2$ has an execution at $\Bt$
+that matches $r$ to $s$ and terminates.
 \end{lemma}
 
 \noindent The master--worker program of \cref{sec:overview} at $\Bt=0$ is the witness.

@@ -11,8 +11,8 @@ constraint graph.
 
 \begin{definition}[Horizon]
 The \emph{horizon} $\Hpre=\Hpre(\trace,\Malt,\Bt)$ is the greatest prefix of $\trace$
-closed under the following rules. A record removed from a rank removes every later
-record of that rank.
+closed under the following rules. An event removed from a rank removes every later
+event of that rank.
 \begin{enumerate}[leftmargin=*,label=(H\arabic*)]
 \item\label{H:changed} For $r\in\Changed$, the records of $\mathit{rank}(r)$ after the
   completion of $r$ are removed. Their results differ from $\trace$, so $\trace$ does not
@@ -22,8 +22,8 @@ record of that rank.
 \item\label{H:recv} A receive whose $\Malt$-send is not issued in $\Hpre$, or that has no
   $\Malt$-send, does not complete: the record completing it is removed.
 \item\label{H:send} A send that blocks at $\Bt$ and whose $\Malt$-receive is not posted
-  in $\Hpre$ does not complete. The record completing it is removed, but the send stays
-  \emph{issued}, so a probe can still see it.
+  in $\Hpre$ does not complete: the return of a blocking send, or the record completing a
+  nonblocking one, is removed. The send stays \emph{issued}, so a probe can still see it.
 \item\label{H:coll} A collective whose shape requires a member that does not issue it in
   $\Hpre$ does not complete on the members that wait for it.
 \item\label{H:probe} A probe whose reported send $s_p$, the observed one or for a changed probe
@@ -36,11 +36,12 @@ record of that rank.
 \end{enumerate}
 The \emph{judged} receives $\judged$ are the receives posted in $\Hpre$ whose
 $\Malt$-send is issued in $\Hpre$, together with the receives posted in $\Hpre$ that
-$\Malt$ leaves unmatched. $\Malt$ \emph{survives} if every $r\in\Changed$ is judged and a
-changed record lies in $\Hpre$ with the message it now reports or completes issued there.
+$\Malt$ leaves unmatched. $\Malt$ \emph{survives} if every $r\in\Changed$ is judged and, for a
+probe or completion-order alternative, the changed record lies in $\Hpre$ and the message it now
+reports or completes is issued there.
 \end{definition}
 
-The horizon is computed as a fixpoint over per-rank cut indices. Rule~\ref{H:changed} is
+Rule~\ref{H:changed} is
 the only rule that refers to $\Changed$. It encodes the one fact the trace cannot
 supply: what a rank does after a call returns a result the trace did not record. Every
 other rule removes an operation that could not complete if everything kept stayed as
@@ -262,14 +263,14 @@ rejections left unconfirmed.
 \label{thm:cost}
 Let $\trace$ have $n$ records, $w$ wildcard receives of which $w_q$ on rank $q$, $\pi$ probes
 that report a message, at most $T$ tags on any channel read by an \ANY-tag receive or probe,
-and $k$ distinct message sizes, and let $C$ range over its collective sets. Then
+and $\mu$ distinct message sizes, and let $C$ range over its collective sets. Then
 \begin{enumerate}[leftmargin=*,label=(\roman*)]
 \item there are at most $w\cdot p$ steals and at most $\sum_q \binom{w_q}{2}$ swaps;
 \item one alternative is decided at one threshold in time
   $O((n+(|\Malt|+\pi)\,T)\log n+\sum_C|C|^2)$, where $\sum_C|C|^2\le p\,n$;
 \item a steal at a blocking receive, or a probe or completion-order alternative, is profiled
-  with $O(\log k)$ checks above $\Bobs$ (\cref{thm:mono,lem:app-nochange}), any other
-  alternative with $k+2$.
+  with $O(\log \mu)$ checks above $\Bobs$ (\cref{thm:mono,lem:app-nochange}), any other
+  alternative with $\mu+2$.
 \end{enumerate}
 \end{theorem}
 
@@ -280,9 +281,10 @@ when an input of its condition changes. Rule~\ref{H:pending} costs one bisection
 of the messages each receive takes. A collective set is rescanned whenever one of its members
 is removed, which gives the term $\sum_C|C|^2$. Each pair and each probe adds a match node and
 at most $4+T$ class-indexed order edges, so the graph has $O(n+(|\Malt|+\pi)\,T)$ edges, and
-cycle detection is linear. The check is therefore
-quasi-linear per alternative, for any number of changed receives. What grows with the number
-of changed receives is the number of alternatives. Deciding whether some combination of
+cycle detection is linear. The check is therefore quasi-linear in $n$ per alternative and
+threshold when ranks and tags are bounded, for any number of changed receives; a whole trace
+costs that times the number of alternatives, which grows with the number of changed receives.
+Deciding whether some combination of
 changed matches deadlocks is NP-complete even for single-path programs~\citep{forejt17mopper},
 and placing the choice of changes between polynomial and hard cases parameterised by
 $w$~\citep{shi26popl,mathur20lics,kulkarni21concur} is future work.
