@@ -135,6 +135,30 @@ does not mention B). A deadlock contained in the H1' horizon is an L1 finding (t
 `deadlock.contained_deadlock` with the cut of rule 1 at the bound): the ranks of the deadlock
 stop at operations every program consistent with the trace and its bounds issues.
 
+## Single-path witnesses
+
+The single-path explorer runs the trace as a straight-line program, which reads nothing: the
+single-path assumption is the assumption that no rank reads its results. The bounds say how far
+that holds. Let E be an execution the explorer finds for an alternative. If for every rank
+every record it issues in E, the one it stops at included, lies before the bound of each
+earlier receive whose message in E differs from the trace's (and so whose source, tag, count or
+payload may differ), then E is an execution of every program consistent with the trace that
+respects the bounds: by induction along E, each rank has read only results equal to the
+trace's when it issues a record, so it issues the trace's call, and each send's payload, a
+function of what the rank has read, is the trace's too. Every message of E therefore carries
+what it carried in the trace, so a receive that took the same message as in the trace returned
+the same result, and MPI makes the same matches in the same interleaving. A deadlock or an
+orphan message (or a truncation) that the explorer reports for an alternative is then an L1
+finding when one of its witness executions passes this test (`reads.witness_respects`); the
+finding says "in an execution", and its pins are that witness's.
+
+A witness is not used when a rank passes, or stops at, a record outside the explorer's model:
+a probe (its report could differ, and a blocking one could block), a test or
+`MPI_Request_get_status` (its flag could differ), a Waitany or Waitsome (its index could), a
+cancel, an abort, or the creation of a communicator (a collective the explorer does not
+synchronise). A rank that finishes its recorded calls in the witness must end its trace with
+`MPI_Finalize`; otherwise the program goes on beyond what the trace shows.
+
 ## Known imprecision
 
 - Objects that are globals, heap memory or parameters, and locals whose address escapes, are
@@ -153,3 +177,6 @@ stop at operations every program consistent with the trace and its bounds issues
   site, which ends the window unless the call sits in a loop.
 - In the horizon, the window's other receives keep their observed matches; an alternative that
   is realisable only if they take other messages falls back to H1.
+- The explorer keeps one witness per outcome; a consequence is promoted only if that witness
+  passes, and the promoted claim is existential ("in an execution") even when every
+  single-path execution with the change has the consequence.

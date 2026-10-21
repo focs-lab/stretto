@@ -198,3 +198,73 @@ class SiteMap(ReadBounds):
             if not es or not free.issuperset(es):
                 return e
         return len(recs)
+
+
+# ------------------------------------------------------------------ single-path witnesses
+
+_TESTS = ("test", "testall", "testany", "testsome", "getstatus")
+
+
+def _outside(rec) -> Optional[str]:
+    """Why a record lies outside what the single-path explorer models (its result could
+    differ in another execution, or it could block or synchronise there), or None."""
+    op, raw = rec.op, rec.raw or {}
+    if op == "blocked":
+        op = raw.get("call")
+    if op == "probe":
+        return "a probe"
+    if op == "wait":
+        kind = raw.get("kind")
+        if kind in _TESTS:
+            return f"a {kind}"
+        if kind in ("waitany", "waitsome"):
+            return f"a {kind}"
+        return None
+    if op == "comm":
+        return None if raw.get("name") in ("world", "self", "free") else "the creation of a communicator"
+    if op in ("cancel", "abort", "unmodelled", "overflow"):
+        return f"a record '{op}'"
+    return None
+
+
+def witness_respects(t: Trace, o, positions: Dict[int, List[int]], bounds: ReadBounds) -> Optional[str]:
+    """None if the explorer's execution o of dsl.program_from_trace(t, positions) is an
+    execution of every program consistent with the trace that reads no result before its
+    bound; otherwise why it may not be (docs/firstread.md). For every rank, every record it
+    issues in o, the one it stops at included, must precede the bound of each earlier receive
+    whose message in o differs from the trace's: up to there the program has read only results
+    equal to the trace's, so it issues the trace's calls, with the trace's payloads. A rank that
+    finishes must end with MPI_Finalize, and no rank may pass a record the explorer does not
+    model (_outside)."""
+    if t.missing:
+        return f"ranks without a trace: {t.missing}"
+    if not o.stops:
+        return "the witness has no positions"
+    matched = dict(o.matching)
+    for rank, pos, blocked in o.stops:
+        where = positions.get(rank, [])
+        recs = t.ranks[rank]
+        if pos >= len(where) and not blocked:
+            if not recs or recs[-1].op != "finalize":
+                return f"rank {rank} finishes its recorded calls without MPI_Finalize"
+            last = len(recs) - 1
+        elif blocked in ("send", "recv"):
+            last = where[pos - 1]                  # issued, the process parked in it
+        else:
+            last = where[pos]                      # parked at a collective, or a wait that cannot complete
+        for rec in recs[:last + 1]:
+            why = _outside(rec)
+            if why:
+                return f"rank {rank} passes {why} (record #{rec.idx})"
+        for r in t.recvs_of(rank):
+            if not r.completed or _cidx(r) >= last:
+                continue                           # its result is not delivered before the rank stops
+            sk = matched.get(r.key)
+            if sk is None:
+                return f"{r} completes without a match in the witness"
+            if sk == t.observed.get(r.key):
+                continue
+            q = bounds.recv(t, r)
+            if last >= q:
+                return f"rank {rank} issues record #{last}, at or after record #{q}, where it may read the result of {r}, which differs"
+    return None

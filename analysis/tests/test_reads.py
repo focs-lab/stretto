@@ -1,6 +1,7 @@
 """Read bounds (stretto.reads, docs/firstread.md): rule H1' of the horizon in the generic and
-the indexed checks, the fallback to H1, contained deadlocks inside the window, and the bounds
-a first-read map gives on a trace. Traces are built in memory as in test_checker."""
+the indexed checks, the fallback to H1, contained deadlocks inside the window, single-path
+consequences promoted to L1 when a witness respects the bounds, and the bounds a first-read
+map gives on a trace. Traces are built in memory as in test_checker."""
 import os
 import sys
 import unittest
@@ -146,6 +147,95 @@ class ReadBoundsInTheHorizon(unittest.TestCase):
                 f = analyze(t, with_sp=False, reads=b)
                 g = analyze(t, with_sp=False, generic=True, reads=b)
                 self.assertEqual(sorted(str(x) for x in f.findings), sorted(str(x) for x in g.findings))
+
+
+def loop_trace():
+    """The shape of MBI's MessageRace_Loop_Isend_Recv: rank 0 receives four messages from ANY,
+    then two from rank 3; ranks 1 and 2 send two each to 0 and one to 3; rank 3 forwards a
+    message to 0 after each of theirs. If a wildcard receive takes rank 3's first message,
+    rank 0's last receive waits forever."""
+    return mk({0: [recv(T.ANY, 0, 2, 0, widx=0), recv(T.ANY, 0, 1, 0, widx=1), recv(T.ANY, 0, 2, 0, widx=2),
+                   recv(T.ANY, 0, 1, 0, widx=3), recv(3, 0, 3, 0), recv(3, 0, 3, 0)],
+               1: [send(0, 0), send(0, 0), send(3, 0)], 2: [send(0, 0), send(0, 0), send(3, 0)],
+               3: [recv(1, 0, 1, 0), send(0, 0), recv(2, 0, 2, 0), send(0, 0)]})
+
+
+class WitnessPromotion(unittest.TestCase):
+    """A consequence the single-path explorer finds is an L1 finding when one of its witness
+    executions respects the read bounds (reads.witness_respects)."""
+
+    def levels(self, rep, cls):
+        return sorted({f.level for f in rep.findings if f.cls == cls and f.recv is not None})
+
+    def promoted(self, rep):
+        return [f for f in rep.findings if "its read bounds" in f.title]
+
+    def test_loop_deadlock_is_promoted(self):
+        t = loop_trace()
+        plain = analyze(t, with_sp=True)
+        self.assertEqual(self.levels(plain, "1d"), ["L1+SP"])
+        rep = analyze(t, with_sp=True, reads=NeverReads())
+        self.assertEqual(self.levels(rep, "1d"), ["L1"])
+        self.assertEqual(self.levels(rep, "1c"), ["L1"])
+        promoted = [f for f in rep.findings if f.cls == "1d" and f.level == "L1"]
+        for f in promoted:
+            self.assertEqual(f.certainty, "some")
+            self.assertTrue(f.pin and f.pin.startswith("STRETTO_PIN="), f)
+        # the same alternatives, the same thresholds
+        alts = lambda r: sorted((f.recv, f.send, f.B) for f in r.findings if f.cls == "1f")
+        self.assertEqual(alts(plain), alts(rep))
+
+    def test_an_early_read_keeps_the_single_path_level(self):
+        """With the result of every wildcard receive read at once (H1), every witness of the
+        deadlock has rank 0 issue records after a changed result: nothing is promoted."""
+        t = loop_trace()
+        plain = analyze(t, with_sp=True)
+        rep = analyze(t, with_sp=True, reads=ReadBounds())
+        self.assertEqual([str(f) for f in plain.findings], [str(f) for f in rep.findings])
+
+    def test_witness_condition(self):
+        """reads.witness_respects on the explorer's witnesses of one alternative: with no read
+        at all every witness passes; with the result read at once, a witness in which rank 0
+        goes past the changed receive does not."""
+        from stretto import dsl, explore
+        from stretto.reads import witness_respects
+        t = loop_trace()
+        pos = {}
+        prog = dsl.program_from_trace(t, pos)
+        self.assertEqual(len(pos[0]), len(prog[0]))
+        self.assertEqual([t.ranks[0][i].op for i in pos[0]], ["recv"] * 6)
+        res = explore.explore(prog, None, force={(0, 0): (3, 0)}, comms=t.comm_members)
+        outs = res.outcomes_with((0, 0), (3, 0))
+        self.assertTrue(outs)
+        for o in outs:
+            self.assertIsNone(witness_respects(t, o, pos, NeverReads()), str(o))
+            self.assertIsNotNone(witness_respects(t, o, pos, ReadBounds()), str(o))
+
+    def test_records_outside_the_model_block_promotion(self):
+        """A rank that passes a probe or a test in the witness: the program could do anything
+        there (the probe could block or report another message, the test fail)."""
+        iprobe = {"op": "probe", "kind": "iprobe", "src": 0, "anysrc": 1, "tag": 9, "comm": 0, "flag": 0}
+        tst = {"op": "wait", "kind": "test", "reqs": [5], "done": []}
+        for extra in (iprobe, tst):
+            t = mk({0: [recv(T.ANY, 1, 2, 1, widx=0), extra, recv(1, 1, 1, 1)], 1: [send(0, 1)], 2: [send(0, 1)]})
+            rep = analyze(t, with_sp=True, reads=NeverReads())
+            self.assertEqual(self.promoted(rep), [], [str(f) for f in rep.findings])
+            self.assertIn("L1+SP", self.levels(rep, "1d"))
+            t = mk({0: [recv(T.ANY, 1, 2, 1, widx=0), recv(1, 1, 1, 1), extra], 1: [send(0, 1)], 2: [send(0, 1)]})
+            rep = analyze(t, with_sp=True, reads=NeverReads())
+            self.assertTrue(self.promoted(rep), "a record the stopped rank never reaches does not matter")
+
+    def test_a_rank_without_finalize_blocks_promotion(self):
+        """A rank that ends its trace without MPI_Finalize goes on in the program: when it
+        finishes its recorded calls in the witness, nothing says it stops there."""
+        raw = {0: [{"op": "init", "np": 3}, recv(T.ANY, 1, 2, 1, widx=0), recv(1, 1, 1, 1), {"op": "finalize"}],
+               1: [{"op": "init", "np": 3}, send(0, 1)],
+               2: [{"op": "init", "np": 3}, send(0, 1), {"op": "finalize"}]}
+        t = T.Trace()
+        T._build(t, raw)
+        rep = analyze(t, with_sp=True, reads=NeverReads())
+        self.assertEqual(self.promoted(rep), [], [str(f) for f in rep.findings])
+        self.assertNotIn("L1", self.levels(rep, "1d"))
 
 
 def site(i):

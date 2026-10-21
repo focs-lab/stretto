@@ -358,7 +358,10 @@ finding says whether *every* execution containing the pair has the consequence o
 *some*, and its pin fixes every wildcard receive of one witness execution, so that a replay
 realises that execution rather than the first changed pair alone. Idioms 01
 and 06 show that this assumption is unsound on metadata-dependent code: the explorer reports a
-deadlock that the real program cannot reach (01) or reaches for a different reason (06).
+deadlock that the real program cannot reach (01) or reaches for a different reason (06). With
+read bounds (`stretto analyze --reads`, `docs/firstread.md`), a consequence one of whose
+witness executions has no rank issue a record past the read bound of a result that differs is
+an L1 finding: every consistent program that respects the bounds has that execution.
 
 Level **L2** is represented by the DSL twins in `analysis/tests/idioms_dsl.py`: the same
 programs with their metadata dependencies (`Send(dst=lambda env: env["st"].src)`,

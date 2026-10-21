@@ -10,6 +10,7 @@ from .matching import candidates_full, observed_hb, probe_candidates
 from .trace import ANY, Key, Probe, Recv, Send, Trace
 from . import types
 from .deadlock import contained_deadlock
+from .reads import witness_respects
 
 
 # classes that make a program's verdict ERROR (the warnings 1b, 1f, probe-alt and
@@ -123,7 +124,8 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
     (stretto.reads, docs/firstread.md); an alternative whose changed receive is followed by
     records the program issues before it can read the result is judged with those records in
     the horizon (rule H1') and, if that fails, with rule H1, and a deadlock contained in the
-    H1' horizon is an L1 finding."""
+    H1' horizon is an L1 finding; a consequence the single-path explorer finds is an L1
+    finding when one of its witness executions respects the bounds (reads.witness_respects)."""
     rep = Report()
     rep.notes.extend(t.warnings)
     if t.truncated:
@@ -343,7 +345,8 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
         if nevents > sp_max_events:
             rep.notes.append(f"L1+SP explorer skipped: {nevents} events > {sp_max_events}")
         else:
-            prog = dsl.program_from_trace(t)
+            positions: Dict[int, List[int]] = {}
+            prog = dsl.program_from_trace(t, positions)
             # baseline: what the straight-line program does without the forced match. A
             # deadlock or an orphan that every baseline execution has is the observed run's
             # own (a hang, a rendezvous below B, a send nobody receives), not the alternative's.
@@ -388,26 +391,55 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
                     def witness(pred) -> Optional[str]:
                         return next((pin_from_execution(t, o) for o in outs if pred(o)), None)
 
+                    def respecting(pred) -> Optional[explore.Outcome]:
+                        """A witness of pred that every program consistent with the trace and its
+                        read bounds also has (reads.witness_respects): the consequence is then an
+                        L1 finding, with that witness's pins."""
+                        if reads is None:
+                            return None
+                        return next((o for o in outs if pred(o) and witness_respects(t, o, positions, reads) is None), None)
+
+                    def promote(cls: str, what: str, w: explore.Outcome, c: str) -> None:
+                        rep.findings.append(Finding(
+                            "1", cls, "L1", f"{what} in an execution of every program consistent with the trace and its read bounds, "
+                            f"after {t.recvs[rk]} <- {t.sends[sk]}",
+                            [f"single-path witness at B={_fmt_B(B)}: every rank stops before the read bound of each of its results "
+                             "that differ from the trace, so the program issues the trace's calls up to there (docs/firstread.md)",
+                             f"under the single-path assumption: in {'every execution' if c == 'all' else 'some executions'} with the change"],
+                            B=f"B={_fmt_B(B)}", recv=rk, send=sk, pin=pin_from_execution(t, w), certainty="some"))
+
                     dead = [o for o in outs if o.kind == "deadlock"]
                     if dead and base_deadlock:
                         f.detail.append(f"L1+SP at B={_fmt_B(B)}: the deadlock is the observed run's own (every execution without the change deadlocks too), not attributed")
                     elif dead:
                         c = certainty(lambda o: o.kind == "deadlock")
-                        rep.findings.append(Finding("1", "1d", "L1+SP", f"deadlock in {'every execution' if c == 'all' else 'some executions'} {tail}",
-                                                    B=f"B={_fmt_B(B)}", recv=rk, send=sk, pin=witness(lambda o: o.kind == "deadlock"), certainty=c))
+                        w = respecting(lambda o: o.kind == "deadlock")
+                        if w is not None:
+                            promote("1d", "deadlock", w, c)
+                        else:
+                            rep.findings.append(Finding("1", "1d", "L1+SP", f"deadlock in {'every execution' if c == 'all' else 'some executions'} {tail}",
+                                                        B=f"B={_fmt_B(B)}", recv=rk, send=sk, pin=witness(lambda o: o.kind == "deadlock"), certainty=c))
                     new_orphans = [k for k in orphans if k not in base_orphans]
                     if orphans and not new_orphans:
                         f.detail.append(f"L1+SP at B={_fmt_B(B)}: the orphan sends are the observed run's own, not attributed")
                     elif new_orphans:
                         oset = set(new_orphans)
                         c = certainty(lambda o: oset <= set(o.orphans))
-                        rep.findings.append(Finding("1", "1c", "L1+SP", f"orphan send(s) {['s%d.%d' % k for k in new_orphans]} in {'every execution' if c == 'all' else 'some executions'} {tail}",
-                                                    B=f"B={_fmt_B(B)}", recv=rk, send=sk, pin=witness(lambda o: oset & set(o.orphans)), certainty=c))
+                        w = respecting(lambda o: oset & set(o.orphans))
+                        if w is not None:
+                            promote("1c", f"orphan send(s) {['s%d.%d' % k for k in sorted(oset & set(w.orphans))]}", w, c)
+                        else:
+                            rep.findings.append(Finding("1", "1c", "L1+SP", f"orphan send(s) {['s%d.%d' % k for k in new_orphans]} in {'every execution' if c == 'all' else 'some executions'} {tail}",
+                                                        B=f"B={_fmt_B(B)}", recv=rk, send=sk, pin=witness(lambda o: oset & set(o.orphans)), certainty=c))
                     for err, what in (("truncate", "truncation error"), ("rsend-no-receive", "ready-mode send with no posted receive")):
                         if err in kinds and not (base_outs and all(err in o.error_kinds for o in base_outs)):
                             c = certainty(lambda o, err=err: err in o.error_kinds)
-                            rep.findings.append(Finding("1", "1a", "L1+SP", f"{what} in {'every execution' if c == 'all' else 'some executions'} {tail}",
-                                                        B=f"B={_fmt_B(B)}", recv=rk, send=sk, pin=witness(lambda o, err=err: err in o.error_kinds), certainty=c))
+                            w = respecting(lambda o, err=err: err in o.error_kinds)
+                            if w is not None:
+                                promote("1a", what, w, c)
+                            else:
+                                rep.findings.append(Finding("1", "1a", "L1+SP", f"{what} in {'every execution' if c == 'all' else 'some executions'} {tail}",
+                                                            B=f"B={_fmt_B(B)}", recv=rk, send=sk, pin=witness(lambda o, err=err: err in o.error_kinds), certainty=c))
             # one finding per consequence, with the thresholds it holds at merged into its B
             uniq, out = {}, []
             for f in rep.findings:
