@@ -151,9 +151,10 @@ are programs that touch a buffer while a nonblocking call still uses it, which n
 records.
 
 **A real bug.** HYPRE 2.10.1's ParaSails preconditioner reuses one tag for two exchanges behind
-a wildcard probe; a probe can take a request of the next exchange, and the solver hangs. It
-hung intermittently for 18 months, and diagnosing it took 291 jobs and 10,392 compute-node
-hours (reported in the NINJA noise-injection paper, PPoPP 2017).
+a wildcard probe; a probe can take a request of the next exchange, and the solver hangs. A
+message race in HYPRE 2.10.1 hung a production code intermittently for 18 months, and
+diagnosing it took 291 jobs and 10,392 compute-node hours (the NINJA noise-injection paper,
+PPoPP 2017); HYPRE's changelog for 2.11.0 places the fix in ParaSails.
 
 <p align="center"><img src="docs/figures/hypre.svg" width="760" alt="HYPRE ParaSails results"></p>
 {mg}
