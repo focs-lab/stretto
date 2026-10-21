@@ -1,6 +1,7 @@
 """Constraint graph, observed happens-before, candidate alternative matchings and the
 MPI matching-order checks. See docs/model.md section 2."""
 from __future__ import annotations
+import itertools
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Dict, Iterable, Iterator, List, Optional, Set, Tuple
@@ -451,15 +452,26 @@ def probe_candidates(t: Trace, hb=None) -> List[Tuple[Probe, Send]]:
     hb = hb or observed_hb(t)
     out = []
     consumed = _ConsumedBefore(t)
+    # per (rank, source, comm) queue, how many sends at its head are gone for every probe
+    # from here on: consumed by a receive posted earlier, cancelled, or reserved by an earlier
+    # matched Mprobe. Probes come in posting order per rank, so the prefix only grows and
+    # each queue is walked once instead of once per probe.
+    gone: Dict[Tuple[int, int, int], int] = {}
     for p in sorted(t.probes.values(), key=lambda p: p.key):
         if not p.wildcard or not p.flag or p.seen is None:
             continue
         consumed_before = consumed.before(p.rank, p.idx)
         seen_src = t.sends[p.seen].rank
-        for src in sorted({s.rank for s in t.sends.values()}):
+        for src in t.sources_to(p.rank, p.comm):
             if src == seen_src:
                 continue
-            for s in t.sends_of(src):
+            q, k = t.sends_to(src, p.rank, p.comm), (p.rank, src, p.comm)
+            i = gone.get(k, 0)
+            while i < len(q) and (q[i].key in consumed_before or q[i].cancelled
+                                  or (q[i].reserved_idx is not None and q[i].reserved_idx < p.idx)):
+                i += 1
+            gone[k] = i
+            for s in itertools.islice(q, i, None):
                 if not p.accepts(s) or s.key in consumed_before or s.cancelled:
                     continue
                 if s.reserved_idx is not None and s.reserved_idx < p.idx:

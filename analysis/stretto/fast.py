@@ -236,6 +236,7 @@ class Observed:
         self._rank_pos: Dict[int, int] = {}
         self._obs_closure = None
         self._observed: Dict[bool, Verdict] = {}
+        self._probe_closure: Optional[Tuple[Key, Tuple[Dict[int, int], Dict[int, int]]]] = None
 
     def r3(self, key: Tuple[int, int]) -> Suffix2:
         """Rule-3 index for the receives on key[0] matched to sends from key[1]: value =
@@ -607,7 +608,12 @@ class Observed:
         if not self.acyclic():
             return None
         t = self.t
-        cut, issued = self.closure(changed_probes=[p])
+        # the closure depends on the probe, not on the message it would report, and a probe's
+        # alternatives come one after another (matching.probe_candidates): the last probe's
+        # closure serves them all
+        if self._probe_closure is None or self._probe_closure[0] != p.key:
+            self._probe_closure = (p.key, self.closure(changed_probes=[p]))
+        cut, issued = self._probe_closure[1]
         if p.idx >= cut[p.rank]:
             return Verdict(False, "witness cut by the horizon closure", cut)
         if s.idx >= cut[s.rank] and issued.get(s.rank) != s.idx:
