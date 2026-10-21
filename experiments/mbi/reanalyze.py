@@ -3,7 +3,7 @@
 columns of its table (classes, findings, notes, report files). Run results, replay
 confirmations and MUST verdicts are kept; the commit column then names the run's commit
 and the analysis's. Use after a change to the analysis that does not
-need new runs.   usage: reanalyze.py [--sp-max-events N] [--max-states N] <corpus>.csv
+need new runs.   usage: reanalyze.py [--sp-max-events N] [--max-states N] [--work DIR] <corpus>.csv
 The caps default to run_mbi.py's, so a re-analysis sees what a run would have seen."""
 import argparse
 import csv
@@ -19,9 +19,10 @@ from provenance import code_commit  # noqa: E402
 
 ap = argparse.ArgumentParser()
 ap.add_argument("csv"); ap.add_argument("--sp-max-events", type=int, default=600); ap.add_argument("--max-states", type=int, default=30000)
+ap.add_argument("--work", default=None, help="the programs' directories, when the run kept them elsewhere (run_mbi.py --work)")
 args = ap.parse_args()
 path = args.csv
-base = os.path.dirname(os.path.abspath(path))
+base = os.path.abspath(args.work) if args.work else os.path.dirname(os.path.abspath(path))
 reader = csv.DictReader(open(path))
 rows = list(reader)
 keys = list(reader.fieldnames)
