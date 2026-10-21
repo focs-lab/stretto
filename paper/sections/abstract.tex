@@ -11,19 +11,23 @@ We carry sound predictive analysis from shared-memory concurrency to \emph{alter
 matchings, in which a wildcard receive, probe or \texttt{Waitany} takes a different message.
 From one trace, our tool \tool enumerates them, decides each one with a graph check over the
 part of the trace the change cannot affect, profiles it over the buffering threshold of the
-MPI implementation, classifies its consequence, and emits a pin that forces it in a replay.
-We prove that an accepted alternative is realisable by every program consistent with the
-trace up to that part, and that the check is complete relative to it. The check covers MPI's
-matching semantics and needs no solver: it takes quasi-linear time per alternative. Above the
-threshold the observed run needs, feasibility of a steal at a blocking receive is monotone in
-the threshold, while deadlock predictions are not. We show that single-path predictions can
-be false when control flow depends only on message metadata, and we give a deadlock
-prediction that needs no single-path assumption.
-From single clean runs of HYPRE~2.10.1, \tool predicts the message race in its ParaSails
-preconditioner that took 10\,392 compute-node hours to diagnose. The race shows in
-\nHypreExposed of \nHypreTraced traced runs; all \nHypreCrossAlts replays that force a
-predicted match hang while their controls finish; randomised testing never hit the hang; and
-the fixed version has no such alternative. It also predicts the documented wildcard bug of NPB
-MG~2.4.1. On the MPI Bugs Initiative, \tool finds \nMBItpunion of \nMBIerrors labelled errors
-with no false positive (F1~\MBIfoneunion, against \MBIfoneMUST for \MUST and \MBIfonestress
-for randomised runs).
+MPI implementation, and emits a pin that forces it in a replay. We prove that an accepted
+alternative is realisable by every program consistent with the trace up to that part, and
+that the check is complete relative to it. The check covers MPI's matching semantics and
+needs no solver; per alternative, it takes time quasi-linear in the trace for bounded ranks
+and tags. Above the threshold the observed run needs, feasibility of a steal at a blocking
+receive is monotone in the threshold, while deadlock predictions, as known for programs with
+wildcards, are not. Consequences after the changed receive are explored, on small traces,
+under the single-path assumption, which we show can be false when a destination comes from a
+message's status; deadlocks contained in that part need no such assumption, but none of our
+benchmark programs has one.
+From single clean runs of HYPRE~2.10.1, \tool reports the message race in its ParaSails
+preconditioner that took 10\,392 compute-node hours to diagnose, as a probe alternative in
+\nHypreExposed of \nHypreTraced traced runs. Replayed at the probe whose tag the documented fix
+changed, all \nHypreCrossAlts such alternatives hang while their controls finish; our
+random-delay baseline never hung in \nHypreStressRuns runs, and the fixed version has no such
+alternative. \tool also predicts the documented wildcard bug of NPB MG~2.4.1. On \nMBIprogs
+programs of the MPI Bugs Initiative about matching, it finds \nMBItpunion of \nMBIerrors
+labelled errors with no false error report: \nMBItpobserved shown by the traced run,
+\nMBItpPredBuf buffering thresholds and \nMBItpPredSP single-path consequences (F1
+\MBIfoneunion, against \MBIfoneMUST for \MUST and \MBIfonestress for randomised runs).

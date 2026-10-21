@@ -7,8 +7,8 @@ sending messages. Almost all of them use the Message Passing Interface
 receive names the process it expects a message from. One feature breaks this. A receive
 may pass the wildcard \anysrc and accept the first matching message from any sender. Work
 pools use it to serve whichever worker finishes first. Solvers use it when the set of
-neighbours is not known in advance (AMG), and reduction trees use it to collect partial
-sums in arrival order (Nekbone). Source wildcards appear in 3 of 14 US exascale proxy
+neighbours is not known in advance (AMG), and a reduction tree in Nekbone's communication
+tests collects partial sums in arrival order. Source wildcards appear in 3 of 14 US exascale proxy
 applications, and a tag wildcard in a fourth~\citep{sultana21proxy}.
 
 \Cref{fig:tworuns} shows how little it takes for a wildcard to matter. Rank~0 receives
@@ -96,21 +96,25 @@ skeleton of the program's dependence on message metadata.
   elasticity~\citep{vakkalanka10slack}.
 \item Levels of evidence, a reporting discipline with shared-memory
   counterparts~\citep{kalhauge18sound,farzan12exceptionull}. Single-path predictions can be
-  false on code whose control flow depends only on message metadata (\cref{lem:sp}).
-  Deadlocks contained in the horizon after a changed match are predicted without that
-  assumption (\cref{thm:l1dead}).
+  false for programs outside the single-path class whose traces look the same, such as one
+  that takes a destination from a receive's status (\cref{lem:sp}). Deadlocks contained in
+  the horizon after a changed nonblocking receive need no such assumption (\cref{thm:l1dead}).
 \item \tool: a PMPI tracer, an analyser whose check is quasi-linear in the trace per
-  alternative (\cref{thm:cost}), and a replay library whose pins cover the horizon, whose log
-  shows that each forced match happened, and whose confirmations need a control replay.
+  alternative for bounded ranks and tags (\cref{thm:cost}), and a replay library whose pins
+  cover the horizon, whose log shows that each forced match happened, and whose confirmations
+  need a control replay.
 \item An evaluation on the MPI Bugs Initiative and \MBB against \MUST and against repeated
   randomised runs, a differential check of soundness against an exhaustive explorer, and
-  real applications. On the MPI Bugs Initiative, \tool finds \nMBItpunion of the
-  \nMBIerrors labelled errors with no false positive, against F1 \MBIfoneMUST for \MUST and
-  \MBIfonestress for randomised runs, which never expose the \nMBIStressPredMissed buffering
-  bugs \tool predicts.
-  From single clean runs of HYPRE~2.10.1, \tool finds the ParaSails race as a probe
-  alternative (\Lone) in \nHypreExposed of \nHypreTraced runs. All \nHypreCrossAlts pinned
-  replays hang while their controls finish, and the fixed version has no such alternative.
+  real applications. On \nMBIprogs MBI programs about matching, \tool finds \nMBItpunion of
+  the \nMBIerrors labelled errors with no false error report (F1 \MBIfoneunion, against
+  \MBIfoneMUST for \MUST and \MBIfonestress for randomised runs). The traced run shows
+  \nMBItpobserved; \nMBItpPredSP are consequences under the single-path assumption, and
+  \nMBItpPredBuf are buffering thresholds, which randomised runs at Open MPI's default eager
+  limit never expose and \MUST reports by treating sends as unbuffered.
+  From single clean runs of HYPRE~2.10.1, \tool reports the ParaSails race as a probe
+  alternative (\Lone), a warning, in \nHypreExposed of \nHypreTraced runs. Replayed at the
+  probe whose tag the documented fix changed, all \nHypreCrossAlts such alternatives hang while their
+  controls finish, and the fixed version has none.
   In NPB MG~2.4.1 it predicts the documented wildcard bug of the halo exchange: forced,
   \nMGChanged of \nMGReplayed replays compute another residual.
 \end{itemize}
