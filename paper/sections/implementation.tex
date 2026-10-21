@@ -27,7 +27,10 @@ communicator a nonblocking duplication registers when it completes, the overflow
 of messages taken by matched probes) are
 side records, and the analysis does not pair them with the call around them. Records do not
 carry the call's return code. Under the default error handler a failed call aborts the run, but
-under \texttt{MPI\_ERRORS\_RETURN} it is recorded as if it had succeeded.
+under \texttt{MPI\_ERRORS\_RETURN} it is recorded as if it had succeeded. On request, a
+\emph{buffer guard} also protects the pages of pending operations' buffers between MPI calls
+and compares send checksums, which gives observed \cls{3-local} findings.
+
 
 \paragraph{Analyser.} The analyser rebuilds $\Mobs$ from the statuses and checks the
 recorded run itself (\cref{tab:classes}, the observed classes). It then enumerates

@@ -3,7 +3,7 @@
 
 A feasible alternative is not yet a bug. In correct master--worker code, a wildcard with
 two possible senders is the intended behaviour. \tool reports what the alternative
-\emph{does}, and states what that claim rests on.
+\emph{does}, and what the claim rests on.
 
 \subsection{Consequence classes}
 
@@ -25,6 +25,7 @@ class & level & meaning & counts as \\
 \cls{2-buffering} & observed & the recorded run is realisable only above a threshold & error \\
 \cls{2-collective} & observed & ranks disagree on a collective & error \\
 \cls{2-blocked} & observed & the run ended with a rank blocked or spinning & error \\
+\cls{3-local} & observed & the run touched a buffer a pending operation owns (buffer guard) & error \\
 \cls{probe-alt} & \Lone & a wildcard probe could have reported another message & warning \\
 \cls{waitany-order} & \Lone & another request could have completed first & warning \\
 \bottomrule
@@ -35,7 +36,7 @@ class & level & meaning & counts as \\
 the changed pair alone. A count or type mismatch is an error whatever the program does
 next. The consequences that happen later, a message nobody receives or a deadlock,
 depend on what the changed rank does after its receive. The horizon deliberately removes
-exactly that part. Each finding therefore names the assumption it rests on.
+exactly that part. Each finding therefore names its assumption.
 
 \subsection{Deadlocks inside the horizon}
 \label{sec:l1dead}
@@ -119,7 +120,7 @@ using a persistent-set reduction in which only wildcard matches and \mpicall{Wai
 choices branch. It compares the outcomes with the unforced exploration, so that a hang
 the recorded program has anyway is not attributed to the alternative. Each \LoneSP
 finding states whether every execution that contains the changed pair has the
-consequence or only some. Its pin fixes every wildcard receive of one witness execution.
+consequence or only some. Its pin fixes every wildcard receive of one witness.
 
 \begin{lemma}[Single-path is unsound]
 \label{lem:sp}

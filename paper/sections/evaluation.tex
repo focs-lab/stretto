@@ -40,7 +40,7 @@ events. Every alternative the check judges counts, accepted or rejected. Of \nEs
 execution that realises its pairs on the receives of its horizon. One pair is incomplete. It
 is a steal that does not survive, since the closure removes the changed receive itself, as in
 the example after \cref{thm:complete}, and the theorem assumes survival. The explorer confirms
-all \nEsixLdead contained deadlocks of \cref{thm:l1dead} among the accepted pairs.
+all \nEsixLdead contained deadlocks of \cref{thm:l1dead}.
 
 \paragraph{Replays.} A finding is confirmed when a rerun with the pins of its horizon
 (\cref{sec:replay}) matches every pinned operation whose completion lies in the horizon and
@@ -104,7 +104,9 @@ score \MBBfoneunion, against \MBBfoneMUST and \MBBfoneMUSTsym for \MUST. The cor
 measures the observational floor and the false positives. The \nMBBfp false positives are
 correct-labelled gather and reduce programs whose runs Open MPI ends with \texttt{MPI\_ERR\_ARG}. The \nMBBfnunion misses are local
 concurrency errors, a buffer reused while a nonblocking operation is pending, which a matching
-model does not see.
+model does not see. With the buffer guard (\cref{sec:implementation}) the run
+itself shows \nMBBLCguard of the \nMBBLC and nothing else (F1 \MBBfoneguard), and under MPICH
+\nGuardLCMPICHfound of \nGuardLCMPICHbuilt; MBI's score does not change.
 
 \subsection{RQ3: buffering}
 
