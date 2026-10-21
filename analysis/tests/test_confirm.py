@@ -1,4 +1,5 @@
 """The replay classifier and the pin-applied check, without running MPI."""
+import json
 import os
 import sys
 import tempfile
@@ -8,7 +9,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from stretto.confirm import (PIN_INLINE_MAX, all_matched, changed_pin, classify_rc, control_pin, expected_outcomes,  # noqa: E402
-                             horizon_pins, pin_assignment, pins_applied, pins_matched, required_matches, unpinned_violation)
+                             horizon_pins, judge_replay, parse_pins, pin_assignment, pins_applied, pins_matched,
+                             required_matches, strict_verdict, unpinned_violation)
 from stretto import trace as T  # noqa: E402
 from stretto.matching import candidates_full  # noqa: E402
 from stretto.report import Finding  # noqa: E402
@@ -175,12 +177,126 @@ class RejectedAlternatives(unittest.TestCase):
         self.assertIsNone(unpinned_violation(replay))
         self.assertIsNone(unpinned_violation(reply_to_pending_receive()))
 
-    def test_a_pending_receive_is_judged_only_in_a_finished_run(self):
-        """A run killed while an Irecv(ANY) was pending: the receive may have been matched
-        without its wait returning, so only the cycle is judged."""
+    def test_a_pending_receive_may_have_matched_unseen(self):
+        """An Irecv(ANY) that never completed while a later Recv(ANY) took rank 2's message: the
+        Irecv may have taken rank 1's message without its wait returning, whether the run
+        finished or not. Pinned to rank 1 it may have; pinned to rank 2 it had nothing left to
+        take, and the Recv overtook it."""
         cut = mk({0: [irecv(T.ANY, 0, 10, widx=0), recv(T.ANY, 0, 2, 0, widx=1)], 1: [send(0, 0)], 2: [send(0, 0)]})
-        self.assertIsNotNone(unpinned_violation(cut))
+        self.assertIsNone(unpinned_violation(cut))
         self.assertIsNone(unpinned_violation(cut, finished=False))
+        self.assertIsNone(unpinned_violation(cut, pins="STRETTO_PIN=0:0:1"))
+        self.assertIn("receiver order", unpinned_violation(cut, pins="STRETTO_PIN=0:0:2"))
+        self.assertIn("receiver order", unpinned_violation(cut, finished=False, pins=["STRETTO_PIN=0:0:2"]))
+
+
+def unfinished(raw, done=()):
+    """A trace whose ranks not in done end without MPI_Finalize (a hung or killed run)."""
+    t = T.Trace()
+    T._build(t, {r: [{"op": "init", "np": len(raw)}] + recs + ([{"op": "finalize"}] if r in done else [])
+                 for r, recs in raw.items()})
+    return t
+
+
+def begin(call, src=None, tag=None, widx=None, **kw):
+    """The record of a call a rank was still in when the run ended (the tracer's begin record)."""
+    d = {"op": "begin", "call": call, "comm": 0, **kw}
+    if src is not None:
+        d.update(src=0 if src == T.ANY else src, tag=0 if tag == T.ANY else tag, count=1, tsize=4)
+        if src == T.ANY:
+            d["anysrc"] = 1
+        if tag == T.ANY:
+            d["anytag"] = 1
+    if widx is not None:
+        d["widx"] = widx
+    return d
+
+
+def wild_irecv(src, tag, req, widx):
+    d = {"op": "irecv", "src": 0 if src == T.ANY else src, "tag": 0 if tag == T.ANY else tag, "comm": 0, "count": 1, "tsize": 4,
+         "req": req, "widx": widx}
+    if src == T.ANY:
+        d["anysrc"] = 1
+    if tag == T.ANY:
+        d["anytag"] = 1
+    return d
+
+
+class HungReplays(unittest.TestCase):
+    """A replay of a predicted hang ends in a timeout. Its trace is judged up to where it
+    stopped, and its end too: a receive or probe still waiting there that, without its pin,
+    takes a message nobody took would have taken it in the program, and the hang is the pin's."""
+
+    def test_a_pinned_receive_waits_beside_a_message_it_takes_unpinned(self):
+        t = unfinished({0: [begin("recv", T.ANY, 0, widx=0)], 1: [send(0, 0)], 2: []}, done=(1, 2))
+        why = unpinned_violation(t, finished=False, hung=True, pins="STRETTO_PIN=0:0:2")
+        self.assertIn("end of the run", why)
+        self.assertIn("pinned to rank 2", why)
+        # unpinned, the replay itself should have matched them: no reading explains its end
+        self.assertTrue(unpinned_violation(t, finished=False, hung=True).startswith("undetermined"))
+        # a run that failed is judged up to where it stopped, not at its end
+        self.assertIsNone(unpinned_violation(t, finished=False, pins="STRETTO_PIN=0:0:2"))
+
+    def test_a_hang_of_the_program(self):
+        """MBI's MessageRace_Gather_Send_Irecv_nok, its steal replayed: Irecv r(ANY, any tag)
+        pinned to rank 0 takes rank 0's message, and the Irecv from rank 0 that follows waits
+        forever; rank 2's message is left, which only r would take, and r has completed."""
+        t = unfinished({1: [wild_irecv(T.ANY, T.ANY, 3, 0), wild_irecv(0, T.ANY, 4, 1), wait((3, 0, 0)),
+                            begin("wait", kind="wait", reqs=[4])],
+                        0: [send(1, 0)], 2: [send(1, 0)]}, done=(0, 2))
+        self.assertIsNone(unpinned_violation(t, finished=False, hung=True, pins="STRETTO_PIN=1:0:0:0"))
+
+    def test_a_pending_receive_read_both_ways(self):
+        """Rank 0 posts Irecv r(ANY, tag 0), receives from rank 1, then waits for rank 2, which
+        never sends. Pinned to rank 1, r took rank 1's first message unseen and the Recv its
+        second (the reading that leaves r unmatched contradicts the replay: r would have taken
+        the second); pinned to rank 2, r took nothing and the Recv overtook it."""
+        t = unfinished({0: [wild_irecv(T.ANY, 0, 10, 0), recv(1, 0, 1, 0), begin("recv", 2, 0)],
+                        1: [send(0, 0), send(0, 0)], 2: []}, done=(1, 2))
+        self.assertIsNone(unpinned_violation(t, finished=False, hung=True, pins="STRETTO_PIN=0:0:1"))
+        self.assertIn("receiver order", unpinned_violation(t, finished=False, hung=True, pins="STRETTO_PIN=0:0:2"))
+
+    def test_a_pinned_probe_waits_beside_a_message(self):
+        t = unfinished({0: [begin("probe", T.ANY, 0, kind="probe")], 1: [send(0, 0)], 2: []}, done=(1, 2))
+        why = unpinned_violation(t, finished=False, hung=True, pins="STRETTO_PIN_PROBE=0:0:2")
+        self.assertIn("end of the run", why)
+        self.assertIn("probe(0, 0)", why)
+        self.assertTrue(unpinned_violation(t, finished=False, hung=True).startswith("undetermined"))
+
+    def test_too_many_readings(self):
+        t = unfinished({0: [wild_irecv(T.ANY, 0, 10 + i, i) for i in range(4)], 1: [send(0, 0) for _ in range(4)],
+                        2: [send(0, 0) for _ in range(4)]}, done=(1, 2))
+        self.assertTrue(unpinned_violation(t, finished=False, hung=True, limit=8).startswith("undetermined"))
+        self.assertIsNone(unpinned_violation(t, finished=False, hung=True))
+
+    def test_judged_from_the_replay_directory(self):
+        with tempfile.TemporaryDirectory() as d:
+            self.assertEqual(judge_replay(d, "TIMEOUT")[0], "unknown")
+            for rank, recs in {0: [{"op": "init", "np": 3}, begin("recv", T.ANY, 0, widx=0)],
+                               1: [{"op": "init", "np": 3}, send(0, 0), {"op": "finalize"}],
+                               2: [{"op": "init", "np": 3}, {"op": "finalize"}]}.items():
+                with open(os.path.join(d, f"rank-{rank}.jsonl"), "w") as fh:
+                    fh.write("".join(json.dumps(r) + "\n" for r in recs))
+            valid, why = judge_replay(d, "TIMEOUT", ["STRETTO_PIN=0:0:2"])
+            self.assertEqual(valid, "False")
+            self.assertIn("end of the run", why)
+            self.assertEqual(judge_replay(d, "APP-ERROR:1", ["STRETTO_PIN=0:0:2"]), ("True", ""))
+
+
+class Verdicts(unittest.TestCase):
+    def test_strict_verdict(self):
+        self.assertEqual(strict_verdict("confirmed", "True"), "confirmed")
+        self.assertEqual(strict_verdict("confirmed", "False"), "pins only")
+        self.assertEqual(strict_verdict("confirmed", "unknown"), "undetermined")
+        self.assertEqual(strict_verdict("confirmed", ""), "undetermined")
+        self.assertEqual(strict_verdict("inconclusive", "False"), "inconclusive")
+        self.assertEqual(strict_verdict("n/a", ""), "n/a")
+
+    def test_parse_pins(self):
+        self.assertEqual(parse_pins(["STRETTO_PIN=0:1:2,1:0:3:7", "STRETTO_PIN_PROBE=2:4:0"]),
+                         ({(0, 1): (2, None), (1, 0): (3, 7)}, {(2, 4): (0, None)}))
+        self.assertEqual(parse_pins("STRETTO_PIN=0:0:1"), ({(0, 0): (1, None)}, {}))
+        self.assertEqual(parse_pins(None), ({}, {}))
 
 
 class PinFile(unittest.TestCase):

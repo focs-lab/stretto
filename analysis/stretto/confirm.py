@@ -6,15 +6,26 @@ says the argument was set, and forcing an impossible match also hangs), (2) the 
 the predicted one, and (3) a control rerun that pins the same receives to their observed
 senders finishes, so that the outcome is the alternative's and not the program's anyway.
 A finding whose control does not finish is inconclusive. Prediction stays single-run; this
-only separates true predictions from model or tool divergence."""
+only separates true predictions from model or tool divergence.
+
+A pin turns a wildcard receive into a receive from one source, which is another program: a
+replay can match every pin of an alternative that no run of the program has. When the tracer
+is built, the replays and controls run under it (run_checked): it applies the pins and records
+the run with the original envelopes, and the replay's own trace is judged as a run of the
+program without the pins (unpinned_violation). The strict verdict (strict_verdict) confirms a
+finding only if, in addition, its replay is such a run up to where it ended."""
 from __future__ import annotations
+import itertools
+import math
 import os
 import re
+import shutil
 import subprocess
 import tempfile
 import time
+from collections import Counter
 from dataclasses import dataclass
-from typing import List, Optional, Set, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 
 from .report import Finding, Report
 from .horizon import _cidx
@@ -33,6 +44,21 @@ class Confirmation:
     pin_applied: bool = False   # every pin of the spec reported itself applied in the rerun
     pin_matched: bool = False   # every pinned receive completed, i.e. took its pinned sender
     control: str = ""           # result of the control rerun (observed senders pinned), "" if none
+    run_valid: str = ""         # "True": the replay's own trace is a run of the program without the pins; "False";
+                                # "unknown" (unreadable, or too many readings); "" when the replay was not recorded
+    violation: str = ""         # why it is not such a run, or why that is unknown
+    control_valid: str = ""     # the same for the control
+    control_violation: str = ""
+    strict: str = ""            # strict_verdict(verdict, run_valid)
+
+
+def strict_verdict(verdict: str, run_valid: str) -> str:
+    """The verdict when a confirmation also needs the replay to be a run of the program without
+    its pins: a confirmed finding whose replay is no such run is confirmed by the pins only, one
+    whose replay could not be judged is undetermined; every other verdict stays."""
+    if verdict != "confirmed":
+        return verdict
+    return {"True": "confirmed", "False": "pins only"}.get(run_valid, "undetermined")
 
 
 def classify_rc(rc: int, stderr: str, elapsed: Optional[float] = None, timeout: Optional[int] = None) -> str:
@@ -222,7 +248,167 @@ def _horizon(t, f: Finding, B=None, infeasible_ok: bool = False, M=None, changed
     return specs(True), specs(False), required
 
 
-def unpinned_violation(t, finished: bool = True) -> Optional[str]:
+def parse_pins(pins) -> Tuple[Dict[Tuple[int, int], Tuple[int, Optional[int]]], Dict[Tuple[int, int], Tuple[int, Optional[int]]]]:
+    """The receive and probe pins of a replay, from "STRETTO_PIN=..." and "STRETTO_PIN_PROBE=..."
+    assignments (one, a list, or None): (rank, widx) and (rank, pidx) -> (world source, tag or
+    None when the pin names none)."""
+    recv: Dict[Tuple[int, int], Tuple[int, Optional[int]]] = {}
+    probe: Dict[Tuple[int, int], Tuple[int, Optional[int]]] = {}
+    for a in ([pins] if isinstance(pins, str) else (pins or [])):
+        name, _, spec = a.partition("=")
+        out = probe if name == "STRETTO_PIN_PROBE" else recv
+        for tok in re.split(r"[,\s]+", spec):
+            parts = tok.split(":")
+            if len(parts) >= 3:
+                out[(int(parts[0]), int(parts[1]))] = (int(parts[2]), int(parts[3]) if len(parts) > 3 else None)
+    return recv, probe
+
+
+def _envelope(x, pin) -> Tuple[int, int]:
+    """(source, tag) that operation x accepted in the replay: the pin's source in place of
+    ANY_SOURCE, and its tag, if it names one, in place of ANY_TAG (replay/pin.c)."""
+    if pin is None:
+        return x.src, x.tag
+    src, tag = pin
+    return (src if x.src == ANY else x.src), (tag if x.tag == ANY and tag is not None else x.tag)
+
+
+def _takes(env: Tuple[int, int], queue: Tuple[int, int, int, int]) -> bool:
+    """Does a receive with this (source, tag) take the messages of queue (src, dst, comm, tag)?
+    The caller has checked the destination and the communicator."""
+    return env[0] in (ANY, queue[0]) and env[1] in (ANY, queue[3])
+
+
+def _queues(t):
+    """The (src, dst, comm, tag) queues in issue order, and per rank its receives and probes in
+    posting order: what trace._reconstruct_observed walks."""
+    queues: Dict[Tuple[int, int, int, int], list] = {}
+    for s in sorted(t.sends.values(), key=lambda s: (s.rank, s.idx)):
+        queues.setdefault((s.rank, s.dst, s.comm, s.tag), []).append(s)
+    events: Dict[int, list] = {}
+    for x in list(t.recvs.values()) + list(t.probes.values()):
+        events.setdefault(x.rank, []).append(x)
+    for v in events.values():
+        v.sort(key=lambda x: x.idx)
+    return queues, events
+
+
+def _rematch(t, queues, events, assign):
+    """The run's matching, and the probes whose observed message differs from t's, if the
+    pending receives in assign took the head of the queue it names while the receives and
+    probes before them took theirs (trace._reconstruct_observed with those receives added;
+    every later receive of the queue then took the next message). None if a queue runs out."""
+    from .trace import Probe
+    M: Dict = {}
+    alt: Dict = {}
+    ptr: Dict = {}
+    for rank, evs in events.items():
+        reserved: Dict = {}
+        for e in evs:
+            if isinstance(e, Probe):
+                if not e.flag or e.msrc is None:
+                    continue
+                key = (e.msrc, rank, e.comm, e.mtag)
+                q, i = queues.get(key), ptr.get(key, 0)
+                if q and i < len(q):
+                    if q[i].key != e.seen:
+                        alt[e.key] = q[i].key
+                    if e.kind in ("mprobe", "improbe"):
+                        reserved.setdefault(key, []).append(q[i])
+                        ptr[key] = i + 1
+                continue
+            if e.completed and e.msrc is not None:
+                key = (e.msrc, rank, e.comm, e.mtag)
+            elif e.key in assign:
+                key = assign[e.key]
+            else:
+                continue
+            if e.mrecv and reserved.get(key):
+                M[e.key] = reserved[key].pop(0).key
+                continue
+            q, i = queues.get(key), ptr.get(key, 0)
+            if not q or i >= len(q):
+                if e.key in assign:
+                    return None
+                continue
+            M[e.key] = q[i].key
+            ptr[key] = i + 1
+    return M, alt
+
+
+def _blocked_on(t) -> Set:
+    """The receives a hung run shows unmatched at its end: a blocking receive a rank was blocked
+    in, and the receives of a wait, waitany or waitsome a rank was blocked in (one of them
+    matched would have ended the call). A waitall can be held by any one of its requests."""
+    out = set()
+    for rec in t.blocked_calls():
+        call = rec.raw.get("call")
+        if call == "recv":
+            r = next((x for x in t.recvs_of(rec.rank) if x.idx == rec.idx), None)
+            if r is not None:
+                out.add(r.key)
+        elif call == "wait" and rec.raw.get("kind") in ("wait", "waitany", "waitsome"):
+            for q in rec.raw.get("reqs") or []:
+                r = t.recv_by_req(rec.rank, q) if q is not None else None
+                if r is not None and not r.completed:
+                    out.add(r.key)
+    return out
+
+
+def _end_probes(t, ppins) -> list:
+    """(probe, its envelope in the replay, its pin) for every probe a hung run ended in without
+    a message: a blocking probe a rank was blocked in, or a failed Iprobe that is its rank's
+    last record (a polling loop). Its pin is the one of the rank's next probe ordinal
+    (replay/pin.c counts the wildcard probes that found a message)."""
+    nxt: Dict[int, int] = {}
+    for q in t.probes.values():
+        if q.pidx is not None:
+            nxt[q.rank] = max(nxt.get(q.rank, 0), q.pidx + 1)
+    last = {}
+    for rank in t.truncated:
+        recs = [r for r in t.ranks.get(rank, []) if r.op != "guard"]
+        if recs:
+            last[rank] = recs[-1].idx
+    out = []
+    for p in t.probes.values():
+        polling = not p.flag and last.get(p.rank) == p.idx
+        if p.completed and not polling:
+            continue
+        pin = ppins.get((p.rank, nxt.get(p.rank, 0))) if p.wildcard else None
+        out.append((p, _envelope(p, pin), pin))
+    return out
+
+
+def _end_state(t, queues, M, pend, env, pinned, end_probes) -> Tuple[bool, Optional[str]]:
+    """The end of a hung run, given which pending receives were matched (M): every message
+    taken is a prefix of its queue, the rest of the queue is still there. A pending receive left
+    unmatched, or a probe the run ended in, whose envelope in the replay takes a message still
+    there contradicts the replay (MPI's progress rule would have matched them): (False, None),
+    a reading to drop. One whose original envelope alone takes it is the pin's doing: the
+    program would have taken that message, and the hang is no hang of the program."""
+    taken = Counter()
+    for sk in M.values():
+        s = t.sends[sk]
+        taken[(s.rank, s.dst, s.comm, s.tag)] += 1
+    left: Dict[Tuple[int, int], list] = {}
+    for key, q in queues.items():
+        rest = [s for s in q[taken[key]:] if not s.cancelled and s.reserved_idx is None]
+        if rest:
+            left.setdefault((key[1], key[2]), []).append((key, rest[0]))
+    why = None
+    ops = [(r, env[r.key], pinned.get(r.key)) for r in pend if r.key not in M] + list(end_probes)
+    for x, e, pin in ops:
+        for key, s in left.get((x.rank, x.comm), ()):
+            if _takes(e, key):
+                return False, None
+            if why is None and _takes((x.src, x.tag), key):
+                how = f" (pinned to rank {pin[0]}" + (f", tag {pin[1]}" if pin[1] is not None else "") + ")" if pin else ""
+                why = (f"end of the run: {x}{how} was still waiting while {s}, which it takes without the pin, "
+                       "was not taken: the program would have matched them")
+    return True, why
+
+
+def unpinned_violation(t, finished: bool = True, hung: bool = False, pins=None, limit: int = 4096) -> Optional[str]:
     """Is the recorded run of a pinned replay a run of the program without the pins? A pin
     rewrites a wildcard receive into one from a given source, so a later receive of its rank can
     take a message the original receive accepts while the pinned one is still pending, which MPI
@@ -231,16 +417,80 @@ def unpinned_violation(t, finished: bool = True) -> Optional[str]:
     records the original envelope of a pinned operation, so t, the replay's own trace, is judged
     by MPI's matching order on its matches with those envelopes (matching.matching_order_ok
     over every receive and probe) and by the acyclicity of its constraint graph with infinite
-    buffering, the weakest. Of a run that did not finish only the cycle is judged: a receive
-    still pending at its end may have been matched without its wait returning, which the trace
-    cannot show and the matching order would misread. Returns the violation, None if none."""
+    buffering, the weakest.
+
+    A receive still pending at the end of the trace (a run that did not finish, or one freed
+    while pending) may have been matched without its wait returning, which the trace cannot
+    show; then every later receive of its queue took the next message. Each pending receive is
+    therefore read as unmatched or as matched to the head of a queue with a message no completed
+    receive took (its pinned envelope, pins, decides which queues), and the run is one of the
+    program if some reading passes both checks. In a hung run (hung) the receives the run was
+    blocked on are unmatched, and the end itself is judged: a pending receive or a probe the run
+    ended in that, without its pin, takes a message nobody took would have taken it, and the
+    hang is the pins'. A reading in which the pinned envelope takes such a message contradicts
+    the replay itself and is dropped. Returns the violation of the first reading, None if some
+    reading is a run of the program, or a reason starting with "undetermined" when the readings
+    number more than limit or none agrees with the replay's end."""
     from .matching import build_graph, matching_order_ok
-    why = matching_order_ok(t, t.observed, lambda rk: True, None, lambda q: True) if finished else None
-    if why:
+    rpins, ppins = parse_pins(pins)
+    pend = sorted((r for r in t.recvs.values() if not r.completed and not r.cancelled and not r.mrecv), key=lambda r: r.key)
+    end_probes = _end_probes(t, ppins) if hung else []
+    if not pend and not end_probes:
+        why = matching_order_ok(t, t.observed, lambda rk: True, None, lambda q: True)
+        if why is None and build_graph(t, t.observed, None, None).find_cycle():
+            why = "constraint cycle over the run's own matches"
         return why
-    if build_graph(t, t.observed, None, None).find_cycle():
-        return "constraint cycle over the run's own matches"
-    return None
+    pinned = {r.key: rpins.get((r.rank, r.widx)) for r in pend if r.widx is not None}
+    env = {r.key: _envelope(r, pinned.get(r.key)) for r in pend}
+    queues, events = _queues(t)
+    used = Counter()
+    for sk in t.observed.values():
+        s = t.sends[sk]
+        used[(s.rank, s.dst, s.comm, s.tag)] += 1
+    by_dst: Dict[Tuple[int, int], list] = {}
+    for key, q in queues.items():
+        if len(q) > used[key]:
+            by_dst.setdefault((key[1], key[2]), []).append(key)
+    forced = _blocked_on(t) if hung else set()
+    choices = [[None] + ([] if r.key in forced else [k for k in by_dst.get((r.rank, r.comm), ()) if _takes(env[r.key], k)])
+               for r in pend]
+    n = math.prod(len(c) for c in choices)
+    if n > limit:
+        return f"undetermined: {len(pend)} pending receives have {n} readings, more than {limit}"
+    first = None
+    for combo in itertools.product(*choices):
+        got = _rematch(t, queues, events, {r.key: k for r, k in zip(pend, combo) if k is not None})
+        if got is None:
+            continue
+        M, alt = got
+        end = None
+        if hung:
+            agrees, end = _end_state(t, queues, M, pend, env, pinned, end_probes)
+            if not agrees:
+                continue
+        why = matching_order_ok(t, M, lambda rk: True, None, lambda q: True, alt) or end
+        if why is None and build_graph(t, M, None, None, probe_alt=alt).find_cycle():
+            why = "constraint cycle over the run's own matches"
+        if why is None:
+            return None
+        first = first or why
+    return first or "undetermined: no reading of the pending receives agrees with the end of the replay"
+
+
+def judge_replay(tracedir: str, result: str, pins=None) -> Tuple[str, str]:
+    """("True", "") if the trace a replay recorded in tracedir is a run of the program without
+    its pins up to where the run ended (unpinned_violation; result is the replay's
+    classify_rc), ("False", the violation), or ("unknown", why) when the trace cannot be read or
+    its readings are too many."""
+    from . import trace as trace_mod
+    try:
+        t = trace_mod.load(tracedir)
+    except Exception as e:  # noqa: BLE001  (a run killed while writing: judged unknown, not fatal)
+        return "unknown", f"trace unreadable: {e}"[:200]
+    why = unpinned_violation(t, finished=result == "FINISHED", hung=result == "TIMEOUT", pins=pins)
+    if why is None:
+        return "True", ""
+    return ("unknown" if why.startswith("undetermined") else "False"), why
 
 
 def all_matched(pins: List[str], stderr: str, required: Optional[Set[Tuple[str, int, int]]] = None) -> bool:
@@ -284,6 +534,53 @@ def run_pinned(np: int, exe: str, args: List[str], pin, timeout: int = 20, mpi: 
     return r
 
 
+def tracer_lib(mpi: str = "openmpi") -> str:
+    return os.path.join(ROOT, "tracer", "bin", mpi, "libstretto-trace.so")
+
+
+@dataclass
+class Replay:
+    """A pinned run: the process, its classify_rc, and whether its own trace is a run of the
+    program without the pins (judge_replay; "" when the tracer was not there to record it)."""
+    proc: subprocess.CompletedProcess
+    result: str
+    valid: str = ""
+    why: str = ""
+
+
+def run_checked(np: int, exe: str, args: List[str], pin, timeout: int = 20, mpi: str = "openmpi",
+                mpirun_args: Optional[List[str]] = None, extra_env: Optional[dict] = None,
+                cwd: Optional[str] = None) -> Replay:
+    """run_pinned with the tracer preloaded when it is built: the tracer applies the pins as the
+    replay library does and records the run with the original envelopes into a directory of
+    its own, which judge_replay reads and removes. Without the tracer, the replay library runs
+    and the replay is not judged. With STRETTO_KEEP_REPLAYS set to a directory, a replay whose
+    trace is not, or not known to be, a run of the program is kept there, its pins, result,
+    verdict and stderr next to the trace, for a closer look."""
+    tracer = tracer_lib(mpi)
+    if not os.path.exists(tracer):
+        r = run_pinned(np, exe, args, pin, timeout, mpi, mpirun_args, extra_env, cwd)
+        return Replay(r, classify_rc(r.returncode, r.stderr, r.elapsed, timeout))
+    d = tempfile.mkdtemp(prefix="stretto-replay-")
+    try:
+        r = run_pinned(np, exe, args, pin, timeout, mpi, mpirun_args, {**(extra_env or {}), "STRETTO_TRACE_DIR": d},
+                       cwd, preload=tracer)
+        res = classify_rc(r.returncode, r.stderr, r.elapsed, timeout)
+        valid, why = judge_replay(d, res, pin)
+        keep = os.environ.get("STRETTO_KEEP_REPLAYS")
+        if keep and valid != "True":
+            os.makedirs(keep, exist_ok=True)
+            dest = tempfile.mkdtemp(prefix="replay-", dir=keep)
+            for f in os.listdir(d):
+                shutil.copy(os.path.join(d, f), dest)
+            with open(os.path.join(dest, "replay.txt"), "w") as fh:
+                fh.write(f"exe: {exe} {' '.join(args)}\nnp: {np}\nresult: {res}\nvalid: {valid}\nwhy: {why}\npins:\n"
+                         + "\n".join([pin] if isinstance(pin, str) else (pin or [])) + f"\n--- stderr\n{r.stderr}")
+        return Replay(r, res, valid, why)
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
 PIN_INLINE_MAX = 16 * 1024
 
 
@@ -305,18 +602,19 @@ def confirm(rep: Report, np: int, exe: str, args: List[str] = (), timeout: int =
     """t, the trace, gives the horizon pins and the control reruns; without it no finding can be
     confirmed. A finding whose consequence holds in every execution with the change is replayed
     with the horizon pins (every wildcard operation of the alternative's horizon pinned); one
-    whose consequence holds in some execution with the pins of the explorer's witness."""
+    whose consequence holds in some execution with the pins of the explorer's witness. Replays
+    and controls run under the tracer when it is built (run_checked), which judges each as a run
+    of the program without its pins; Confirmation.strict is the verdict that needs it."""
     out = []
     seen = set()
     controls: dict = {}
 
-    def control(pins: List[str]) -> str:
+    def control(pins: List[str]) -> Replay:
         if t is None or not pins:
-            return ""
+            return Replay(None, "")
         key = tuple(pins)
         if key not in controls:
-            r = run_pinned(np, exe, list(args), pins, timeout, mpi)
-            controls[key] = classify_rc(r.returncode, r.stderr, r.elapsed, timeout)
+            controls[key] = run_checked(np, exe, list(args), pins, timeout, mpi)
         return controls[key]
 
     for f in rep.findings:
@@ -338,23 +636,24 @@ def confirm(rep: Report, np: int, exe: str, args: List[str] = (), timeout: int =
             cp = control_pin(t, pin) if t is not None else None
             ctl_pins = [cp] if cp else []
         else:
-            out.append(Confirmation(f, "", "NO-PIN", "n/a"))
+            out.append(Confirmation(f, "", "NO-PIN", "n/a", strict="n/a"))
             continue
         key = (tuple(pins), f.cls)
         if key in seen:
             continue
         seen.add(key)
-        r = run_pinned(np, exe, list(args), pins, timeout, mpi)
-        res = classify_rc(r.returncode, r.stderr, r.elapsed, timeout)
+        rp = run_checked(np, exe, list(args), pins, timeout, mpi)
+        r, res = rp.proc, rp.result
         applied = all(pins_applied(x, r.stderr) for x in pins)
         matched = all_matched(pins, r.stderr, required)
         want = expected_outcomes(f)
-        ctl = control(ctl_pins) if want and res in want and matched else ""
+        ctl = control(ctl_pins) if want and res in want and matched else Replay(None, "")
         if not want:
             verdict = "n/a"
         elif res not in want or not matched:
             verdict = "not-confirmed"
         else:
-            verdict = "confirmed" if ctl == "FINISHED" else "inconclusive"
-        out.append(Confirmation(f, " ".join(pins), res, verdict, r.stderr[-300:], applied, matched, ctl))
+            verdict = "confirmed" if ctl.result == "FINISHED" else "inconclusive"
+        out.append(Confirmation(f, " ".join(pins), res, verdict, r.stderr[-300:], applied, matched, ctl.result,
+                                rp.valid, rp.why, ctl.valid, ctl.why, strict_verdict(verdict, rp.valid)))
     return out
