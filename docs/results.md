@@ -578,3 +578,150 @@ Two-rank cases that each name the guard record they must give (`scenarios.txt`):
 Applications at 4 ranks (`apps.txt`, `apps-cma.txt`): 32 runs of amg, hypre, lu.A, lu.S; 0 ended with a nonzero status or a guard record.
 
 lu.A by NPB's own timer: 12.50 to 12.57 s with the guard off, 12.51 to 12.59 s on (shared processors, not a timed leg).
+
+## E8b: happens-before candidate selection against the check
+
+Every pair (wildcard receive or probe, send) that a happens-before rule selects or the analysis enumerates,
+judged three ways (`experiments/e8_hb.py`, definitions in `analysis/stretto/hb.py`): rule (a) selects a
+send that is the non-overtaking head of its source and not causally after the receive's *posting*
+(DAMPI's rule); rule (b) the same at the receive's *completion*; the check is the report's verdict
+(feasible at some threshold at which the observed run is realisable). Happens-before is the run's causal
+order (program order, message to the completion that returned it, probes, collectives by shape), with
+exact vector clocks. The rules coincide at blocking receives and probes; they differ only at a
+nonblocking receive whose rank sends or enters a collective while it is pending. *Only (a)*: the rule
+selects the pair and the check rejects it; *check only*: the check accepts it and the rule does not.
+Rows by code commit: 7941c12 (510).
+
+| corpus | traces | records, max | wildcard receives | blocking | nonblocking, nothing sent while pending | nonblocking, pending across a send | nonblocking, never completed | wildcard probes | not analysed |
+|---|---|---|---|---|---|---|---|---|---|
+| MBI | 115 | 48 | 165 | 37 | 62 | 48 | 18 | 0 | 0 |
+| MPI-BugBench level 2 | 388 | 29 | 12 | 12 | 0 | 0 | 0 | 0 | 0 |
+| idioms | 14 | 88 | 14 | 13 | 0 | 1 | 0 | 2 | 0 |
+| AMG, 8 ranks | 1 | 99804 | 53 | 53 | 0 | 0 | 0 | 1158 | 0 |
+| HYPRE 2.10.1, 4 and 8 ranks | 2 | 4294 | 11 | 11 | 0 | 0 | 0 | 182 | 0 |
+| NPB MG 2.4.1, class S, 16 and 32 ranks | 2 | 42624 | 19792 | 0 | 400 | 19392 | 0 | 0 | 0 |
+
+Pairs by corpus:
+
+| | pairs | (a) and check | only (a) | check only, not (a) | (b) and check | only (b) | check only, not (b) | neither |
+|---|---|---|---|---|---|---|---|---|
+| MBI | 121 | 58 | 0 | 63 | 97 | 0 | 24 | 0 |
+| MPI-BugBench level 2 | 1 | 1 | 0 | 0 | 1 | 0 | 0 | 0 |
+| idioms | 12 | 10 | 0 | 0 | 10 | 1 | 0 | 1 |
+| AMG, 8 ranks | 7106 | 3268 | 0 | 0 | 3268 | 0 | 0 | 3838 |
+| HYPRE 2.10.1, 4 and 8 ranks | 200 | 148 | 0 | 0 | 148 | 0 | 0 | 52 |
+| NPB MG 2.4.1, class S, 16 and 32 ranks | 3120 | 240 | 0 | 240 | 480 | 0 | 0 | 2640 |
+| **all real traces** | 10560 | 3725 | 0 | 303 | 4004 | 1 | 24 | 6531 |
+
+Pairs by kind of receive, all real traces (a probe is one call: (a) and (b) coincide):
+
+| | pairs | (a) and check | only (a) | check only, not (a) | (b) and check | only (b) | check only, not (b) | neither |
+|---|---|---|---|---|---|---|---|---|
+| blocking | 66 | 41 | 0 | 0 | 41 | 0 | 0 | 25 |
+| nonblocking, nothing sent while pending | 47 | 23 | 0 | 24 | 23 | 0 | 24 | 0 |
+| nonblocking, pending across a send | 3170 | 250 | 0 | 279 | 529 | 1 | 0 | 2640 |
+| probes | 7277 | 3411 | 0 | 0 | 3411 | 0 | 0 | 3866 |
+
+Programs with a disagreement (46 of 522; every other program agrees under both rules):
+
+| program | pairs | (a) and check | only (a) | check only, not (a) | (b) and check | only (b) | check only, not (b) | neither |
+|---|---|---|---|---|---|---|---|---|
+| idioms/14_pending_wildcard_overtaken | 3 | 1 | 0 | 0 | 1 | 1 | 0 | 1 |
+| mbi/MessageRace_Allgather_Isend_Irecv_nok | 1 | 0 | 0 | 1 | 1 | 0 | 0 | 0 |
+| mbi/MessageRace_Allgather_Isend_Irecv_ok | 2 | 0 | 0 | 2 | 1 | 0 | 1 | 0 |
+| mbi/MessageRace_Allgather_Send_Irecv_nok | 1 | 0 | 0 | 1 | 1 | 0 | 0 | 0 |
+| mbi/MessageRace_Allgather_Send_Irecv_ok | 2 | 0 | 0 | 2 | 1 | 0 | 1 | 0 |
+| mbi/MessageRace_Allgatherv_Isend_Irecv_nok | 1 | 0 | 0 | 1 | 1 | 0 | 0 | 0 |
+| mbi/MessageRace_Allgatherv_Isend_Irecv_ok | 2 | 0 | 0 | 2 | 1 | 0 | 1 | 0 |
+| mbi/MessageRace_Allgatherv_Send_Irecv_nok | 1 | 0 | 0 | 1 | 1 | 0 | 0 | 0 |
+| mbi/MessageRace_Allgatherv_Send_Irecv_ok | 2 | 0 | 0 | 2 | 1 | 0 | 1 | 0 |
+| mbi/MessageRace_Allreduce_Isend_Irecv_nok | 1 | 0 | 0 | 1 | 1 | 0 | 0 | 0 |
+| mbi/MessageRace_Allreduce_Isend_Irecv_ok | 2 | 0 | 0 | 2 | 1 | 0 | 1 | 0 |
+| mbi/MessageRace_Allreduce_Send_Irecv_nok | 1 | 0 | 0 | 1 | 1 | 0 | 0 | 0 |
+| mbi/MessageRace_Allreduce_Send_Irecv_ok | 2 | 0 | 0 | 2 | 1 | 0 | 1 | 0 |
+| mbi/MessageRace_Alltoall_Isend_Irecv_nok | 1 | 0 | 0 | 1 | 1 | 0 | 0 | 0 |
+| mbi/MessageRace_Alltoall_Isend_Irecv_ok | 2 | 0 | 0 | 2 | 1 | 0 | 1 | 0 |
+| mbi/MessageRace_Alltoall_Send_Irecv_nok | 1 | 0 | 0 | 1 | 1 | 0 | 0 | 0 |
+| mbi/MessageRace_Alltoall_Send_Irecv_ok | 2 | 0 | 0 | 2 | 1 | 0 | 1 | 0 |
+| mbi/MessageRace_Alltoallv_Isend_Irecv_nok | 1 | 0 | 0 | 1 | 1 | 0 | 0 | 0 |
+| mbi/MessageRace_Alltoallv_Isend_Irecv_ok | 2 | 0 | 0 | 2 | 1 | 0 | 1 | 0 |
+| mbi/MessageRace_Alltoallv_Send_Irecv_nok | 1 | 0 | 0 | 1 | 1 | 0 | 0 | 0 |
+| mbi/MessageRace_Alltoallv_Send_Irecv_ok | 2 | 0 | 0 | 2 | 1 | 0 | 1 | 0 |
+| mbi/MessageRace_Barrier_Isend_Irecv_nok | 1 | 0 | 0 | 1 | 1 | 0 | 0 | 0 |
+| mbi/MessageRace_Barrier_Isend_Irecv_ok | 2 | 0 | 0 | 2 | 1 | 0 | 1 | 0 |
+| mbi/MessageRace_Barrier_Send_Irecv_nok | 1 | 0 | 0 | 1 | 1 | 0 | 0 | 0 |
+| mbi/MessageRace_Barrier_Send_Irecv_ok | 2 | 0 | 0 | 2 | 1 | 0 | 1 | 0 |
+| mbi/MessageRace_Bcast_Isend_Irecv_ok | 2 | 1 | 0 | 1 | 1 | 0 | 1 | 0 |
+| mbi/MessageRace_Bcast_Send_Irecv_ok | 2 | 1 | 0 | 1 | 1 | 0 | 1 | 0 |
+| mbi/MessageRace_Exscan_Isend_Irecv_nok | 1 | 0 | 0 | 1 | 1 | 0 | 0 | 0 |
+| mbi/MessageRace_Exscan_Isend_Irecv_ok | 2 | 0 | 0 | 2 | 1 | 0 | 1 | 0 |
+| mbi/MessageRace_Exscan_Send_Irecv_nok | 1 | 0 | 0 | 1 | 1 | 0 | 0 | 0 |
+| mbi/MessageRace_Exscan_Send_Irecv_ok | 2 | 0 | 0 | 2 | 1 | 0 | 1 | 0 |
+| mbi/MessageRace_Gather_Isend_Irecv_nok | 1 | 0 | 0 | 1 | 1 | 0 | 0 | 0 |
+| mbi/MessageRace_Gather_Isend_Irecv_ok | 2 | 0 | 0 | 2 | 1 | 0 | 1 | 0 |
+| mbi/MessageRace_Gather_Send_Irecv_nok | 1 | 0 | 0 | 1 | 1 | 0 | 0 | 0 |
+| mbi/MessageRace_Gather_Send_Irecv_ok | 2 | 0 | 0 | 2 | 1 | 0 | 1 | 0 |
+| mbi/MessageRace_Reduce_Isend_Irecv_nok | 1 | 0 | 0 | 1 | 1 | 0 | 0 | 0 |
+| mbi/MessageRace_Reduce_Isend_Irecv_ok | 2 | 0 | 0 | 2 | 1 | 0 | 1 | 0 |
+| mbi/MessageRace_Reduce_Send_Irecv_ok | 2 | 0 | 0 | 2 | 1 | 0 | 1 | 0 |
+| mbi/MessageRace_Scan_Isend_Irecv_nok | 1 | 0 | 0 | 1 | 1 | 0 | 0 | 0 |
+| mbi/MessageRace_Scan_Isend_Irecv_ok | 2 | 0 | 0 | 2 | 1 | 0 | 1 | 0 |
+| mbi/MessageRace_Scan_Send_Irecv_nok | 1 | 0 | 0 | 1 | 1 | 0 | 0 | 0 |
+| mbi/MessageRace_Scan_Send_Irecv_ok | 2 | 0 | 0 | 2 | 1 | 0 | 1 | 0 |
+| mbi/MessageRace_Scatter_Isend_Irecv_ok | 2 | 1 | 0 | 1 | 1 | 0 | 1 | 0 |
+| mbi/MessageRace_Scatter_Send_Irecv_ok | 2 | 1 | 0 | 1 | 1 | 0 | 1 | 0 |
+| npbmg/mg-2.4.1-S-np16 | 1040 | 80 | 0 | 80 | 160 | 0 | 0 | 880 |
+| npbmg/mg-2.4.1-S-np32 | 2080 | 160 | 0 | 160 | 320 | 0 | 0 | 1760 |
+
+Why rule (a) misses the pairs only the check accepts: causally after the receive's posting 279, taken in the run by an earlier receive of its rank (a swap) 24. Why the check rejects the pairs rule (b) selects: constraint cycle 1.
+The generic check judged as well the 334 pairs of the 519 traces of up to 20,000 records and differs from the fast checks on 0.
+
+Replays of the disagreements (up to 30 per program and class, chosen at random with a fixed seed), each
+pinned over its horizon with a control pinned to the observed senders, both recorded by the tracer. *Realised*:
+the changed receive's pin and the pins of the receives completed in the horizon matched, the run finished, and
+its own trace is a run of the program without pins (*run did not finish*: the changed pin matched in a run of
+the program that then hung or failed); *pins only*: it matched, but only because the pin rewrote the wildcard (a
+later receive took a message the pending original accepts); *not realised*: the pin never matched while the
+control's pins all matched in a finished run of the program; *control failed*: the pin never matched and the
+control shows nothing (it did not finish, did not match, or is itself no run of the program).
+
+| corpus | class | disagreements | replayed | realised | realised, run did not finish | realised, other pins unmatched | realised, truncation error | pins only | not realised | control failed | controls finished, pins matched |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| MBI | check only, not (a) | 63 | 63 | 58 | 5 | 0 | 0 | 0 | 0 | 0 | 49 |
+| idioms | only (b), check rejects | 1 | 1 | 0 | 0 | 0 | 0 | 1 | 0 | 0 | 1 |
+| NPB MG 2.4.1, class S, 16 and 32 ranks | check only, not (a) | 240 | 60 | 60 | 0 | 0 | 0 | 0 | 0 | 0 | 60 |
+
+Examples, two per class and outcome:
+
+| class | outcome | program | pair | receive | why the other side disagrees | replay / control |
+|---|---|---|---|---|---|---|
+| hb-only | pins only | idioms/14_pending_wildcard_overtaken | `recv(0, 0) src=ANY tag=41 cap=4B <- send(2, 0)->0 tag=41 4B; observed send(1, 0)->0 tag=41 4B` | nonblocking, pending across a send | constraint cycle | FINISHED / FINISHED |
+| stretto-only | realised | mbi/MessageRace_Allgather_Isend_Irecv_nok | `recv(1, 0) src=ANY tag=ANY cap=4B <- send(2, 0)->1 tag=0 4B; observed send(0, 0)->1 tag=0 4B` | nonblocking, pending across a send | causally after the receive's posting | FINISHED / TIMEOUT |
+| stretto-only | realised | mbi/MessageRace_Allgather_Isend_Irecv_ok | `recv(1, 0) src=ANY tag=ANY cap=4B <- send(0, 0)->1 tag=0 4B; observed send(2, 0)->1 tag=0 4B` | nonblocking, pending across a send | causally after the receive's posting | FINISHED / FINISHED |
+| stretto-only | realised, run did not finish | mbi/MessageRace_Allgather_Send_Irecv_nok | `recv(1, 0) src=ANY tag=ANY cap=4B <- send(0, 0)->1 tag=0 4B; observed send(2, 0)->1 tag=0 4B` | nonblocking, pending across a send | causally after the receive's posting | TIMEOUT / FINISHED |
+| stretto-only | realised, run did not finish | mbi/MessageRace_Alltoall_Send_Irecv_nok | `recv(1, 0) src=ANY tag=ANY cap=4B <- send(0, 0)->1 tag=0 4B; observed send(2, 0)->1 tag=0 4B` | nonblocking, pending across a send | causally after the receive's posting | TIMEOUT / FINISHED |
+
+Synthetic traces: 100 random programs from E6's generator, all with sends, receives and waits
+interleaved, each traced from an execution the explorer chose; with no program to rerun, the explorer over
+the trace as a straight-line program decides each disagreement with E6's criteria. *Realised*: some execution
+agrees with the single-change alternative on every receive its horizon judges, matched alike or unmatched
+alike; *realised, judged pairs only*: some execution has every pair the alternative judges, while a receive it
+leaves unmatched takes a message (what a replay pinned over the horizon tests); *realised with other matches
+changed*: executions match the receive to the send, but only with another receive matched differently,
+which no single-change alternative states; *not realised*: no execution matches them. An execution in which a
+ready send is issued before its receive is posted, which is erroneous and which the check excludes, counts only
+when no other does, and the verdict says so.
+
+| | pairs | (a) and check | only (a) | check only, not (a) | (b) and check | only (b) | check only, not (b) | neither |
+|---|---|---|---|---|---|---|---|---|
+| synthetic | 97 | 56 | 6 | 5 | 56 | 6 | 5 | 30 |
+
+Explorer verdicts: hb-only not realised 3, hb-only realised with other matches changed 1, hb-only realised, judged pairs only 1, hb-only realised, judged pairs only, only with a ready send before its receive 1, stretto-only realised, judged pairs only 5.
+
+| program | class | explorer | pair | receive | why the other side disagrees |
+|---|---|---|---|---|---|
+| 020 | hb-only | not realised | `recv(2, 1) src=ANY tag=ANY cap=4096B <- send(1, 6)->2 tag=1 4B; observed send(0, 4)->2 tag=1 4096B` | nonblocking, nothing sent while pending | witness cut by the horizon closure |
+| 032 | hb-only | realised, judged pairs only, only with a ready send before its receive | `recv(1, 3) src=ANY tag=2 cap=4096B <- send(0, 2)->1 tag=2 4B; observed send(2, 3)->1 tag=2 4B` | blocking | send causally follows the receive's completion |
+| 037 | hb-only | realised, judged pairs only | `recv(1, 2) src=ANY tag=1 cap=4096B <- send(0, 2)->1 tag=1 4096B; observed send(2, 0)->1 tag=1 64B` | nonblocking, nothing sent while pending | send causally follows the receive's completion |
+| 013 | stretto-only | realised, judged pairs only | `recv(1, 4) src=ANY tag=1 cap=4096B <- send(2, 6)->1 tag=1 4B; observed send(0, 1)->1 tag=1 4B` | nonblocking, nothing sent while pending | taken in the run by an earlier receive of its rank (a swap) |
+| 056 | stretto-only | realised, judged pairs only | `recv(1, 2) src=ANY tag=1 cap=4096B <- send(0, 1)->1 tag=1 64B; observed send(2, 1)->1 tag=1 4096B` | nonblocking, nothing sent while pending | taken in the run by an earlier receive of its rank (a swap) |
