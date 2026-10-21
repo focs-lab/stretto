@@ -738,7 +738,7 @@ order (program order, message to the completion that returned it, probes, collec
 exact vector clocks. The rules coincide at blocking receives and probes; they differ only at a
 nonblocking receive whose rank sends or enters a collective while it is pending. *Only (a)*: the rule
 selects the pair and the check rejects it; *check only*: the check accepts it and the rule does not.
-Rows by code commit: 7941c12 (510).
+Rows by code commit: 7941c12 (420), a71eb11 (89).
 
 | corpus | traces | records, max | wildcard receives | blocking | nonblocking, nothing sent while pending | nonblocking, pending across a send | nonblocking, never completed | wildcard probes | not analysed |
 |---|---|---|---|---|---|---|---|---|---|
@@ -862,14 +862,14 @@ when no other does, and the verdict says so.
 
 | | pairs | (a) and check | only (a) | check only, not (a) | (b) and check | only (b) | check only, not (b) | neither |
 |---|---|---|---|---|---|---|---|---|
-| synthetic | 97 | 56 | 6 | 5 | 56 | 6 | 5 | 30 |
+| synthetic | 97 | 57 | 5 | 5 | 57 | 5 | 5 | 30 |
 
-Explorer verdicts: hb-only not realised 3, hb-only realised with other matches changed 1, hb-only realised, judged pairs only 1, hb-only realised, judged pairs only, only with a ready send before its receive 1, stretto-only realised, judged pairs only 5.
+Explorer verdicts: hb-only not realised 3, hb-only realised with other matches changed 1, hb-only realised, judged pairs only, only with a ready send before its receive 1, stretto-only realised, judged pairs only 5.
 
 | program | class | explorer | pair | receive | why the other side disagrees |
 |---|---|---|---|---|---|
 | 020 | hb-only | not realised | `recv(2, 1) src=ANY tag=ANY cap=4096B <- send(1, 6)->2 tag=1 4B; observed send(0, 4)->2 tag=1 4096B` | nonblocking, nothing sent while pending | witness cut by the horizon closure |
 | 032 | hb-only | realised, judged pairs only, only with a ready send before its receive | `recv(1, 3) src=ANY tag=2 cap=4096B <- send(0, 2)->1 tag=2 4B; observed send(2, 3)->1 tag=2 4B` | blocking | send causally follows the receive's completion |
-| 037 | hb-only | realised, judged pairs only | `recv(1, 2) src=ANY tag=1 cap=4096B <- send(0, 2)->1 tag=1 4096B; observed send(2, 0)->1 tag=1 64B` | nonblocking, nothing sent while pending | send causally follows the receive's completion |
+| 044 | hb-only | realised with other matches changed | `recv(0, 0) src=ANY tag=ANY cap=4096B <- send(2, 0)->0 tag=1 64B; observed send(1, 0)->0 tag=1 64B` | nonblocking, nothing sent while pending | non-overtaking: send(1, 0)->0 tag=1 64B would reach recv(0, 1) src=1 tag=ANY cap=4096B before send(1, 1)->0 tag=1 64B |
 | 013 | stretto-only | realised, judged pairs only | `recv(1, 4) src=ANY tag=1 cap=4096B <- send(2, 6)->1 tag=1 4B; observed send(0, 1)->1 tag=1 4B` | nonblocking, nothing sent while pending | taken in the run by an earlier receive of its rank (a swap) |
 | 056 | stretto-only | realised, judged pairs only | `recv(1, 2) src=ANY tag=1 cap=4096B <- send(0, 1)->1 tag=1 64B; observed send(2, 1)->1 tag=1 4096B` | nonblocking, nothing sent while pending | taken in the run by an earlier receive of its rank (a swap) |

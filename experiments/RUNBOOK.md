@@ -201,7 +201,11 @@ pins and records each replay, whose trace tells a run of the program from one th
 pins make possible. A replay that hangs waits out `--timeout` (corpus programs) or
 `--app-timeout` (applications). The committed tables come from `e8_hb.py all --synthetic 100
 --max-states 100000 --jobs 2` in a container on 12 processors; at the explorer's default cap
-the generator keeps larger programs but takes a minute or more for each.
+the generator keeps larger programs but takes a minute or more for each. Their synthetic rows
+were redone on 22 Oct 2026 by `e8_hb.py compare --only synthetic --synthetic 100 --max-states
+100000` with `--out`, `--counts-out` and `--traces-out` elsewhere, put in place of the old
+synthetic rows: a fix of the enumeration's pruning changed the candidates of one synthetic
+program and of no trace (about 25 minutes, one process).
 
 ## Shared-host protocol on the development host
 
