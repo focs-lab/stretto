@@ -125,11 +125,9 @@ $s$ is concurrent with the wait of $r$. Placing $r$ at its completion accepts th
 placing it at its posting rejects it, but also every message sent causally after the
 posting, which $r$ may well take.
 
-The edges of \ref{G:fifo} and \ref{G:order} need not be quadratic. The receives that accept
-$s$ fall into four envelope classes (source $\mathit{rank}(s)$ or \ANY, tag $\mathit{tag}(s)$
-or \ANY). Within a class, each receive accepts whatever a later one accepts. An edge from the
-latest earlier member of each class therefore reaches the rest of the class through the
-members' own edges. The same holds for the latest earlier send of each tag on $s$'s channel.
+The edges of \ref{G:fifo} and \ref{G:order} need not be quadratic: an edge from the latest
+earlier receive of each of the four envelope classes that accept $s$, and from the latest
+earlier send of each tag on its channel, reaches the rest (\cref{app:chain}).
 
 \begin{theorem}[Soundness]
 \label{thm:sound}

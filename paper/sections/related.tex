@@ -13,20 +13,17 @@ reorderings~\citep{smaragdakis12cp} keep every read's writer. WCP~\citep{kini17w
 happens-before soundly in linear time, and SHB~\citep{mathur18shb} made it sound beyond the
 first race, with relaxed correct reorderings that let a thread's last read change. M2~\citep{pavlogiannis20m2} and
 SyncP~\citep{mathur21syncp} decide larger classes by closure, SyncP optimally for the
-reorderings that keep the order of critical sections; SDP~\citep{genc19sdp} drops write--write
-orderings, but its soundness claim was later refuted~\citep{mathur21syncp}. For deadlocks, an
-SMT encoding of executability was claimed sound~\citep{kalhauge18sound}; sync-preserving
-deadlock prediction runs in linear time and reports gaps in that claim~\citep{tunc23spd}.
-Synchronisation-reversal races~\citep{shi24osr} reverse one lock order and test acyclicity over
-a closure, the shape of our check; reversing one match is the message-passing analogue
-(\cref{sec:horizon,sec:complete} relate \ref{H:changed} and \cref{thm:complete} to these
-works). \Cref{thm:sound} follows the unified soundness template~\citep{liu25soundness}, with MPI's
-rules at $\Bt$ for the memory model and a matching over the horizon for the bug; the template
-covers locks under multicopy-atomic models, not message passing. Our witness is uniform over
-the programs consistent on $\Hpre$, as in its relaxed-correct-reordering class, and
-\cref{thm:l1dead} also constrains every extension of the witness. Strong trace
-prefixes~\citep{ang24strong} drop critical sections that cannot affect a property; the horizon
-has no such weak dependences and is an ordinary downward-closed prefix.
+reorderings that keep the order of critical sections; the soundness claim of
+SDP~\citep{genc19sdp} was later refuted~\citep{mathur21syncp}. Sync-preserving deadlock
+prediction runs in linear time~\citep{tunc23spd} and reports gaps in an SMT encoding claimed
+sound~\citep{kalhauge18sound}. Synchronisation-reversal races~\citep{shi24osr} reverse one lock
+order and test acyclicity over a closure, the shape of our check; reversing one match is the
+message-passing analogue. \Cref{thm:sound} follows the unified soundness
+template~\citep{liu25soundness}, with MPI's rules at $\Bt$ for the memory model and a matching
+over the horizon for the bug; the template covers locks under multicopy-atomic models, not
+message passing. Our witness is uniform over the programs consistent on $\Hpre$, and
+\cref{thm:l1dead} also constrains its extensions. Strong trace prefixes~\citep{ang24strong}
+drop critical sections that cannot affect a property; the horizon has no such weak dependences.
 
 \paragraph{Message races and reachability testing.} Race analysis of
 traces~\citep{tai97race} and reachability testing~\citep{lei06reachability} compute, from one
@@ -98,22 +95,15 @@ Aislinn verifies programs under the eager and rendezvous threshold we
 model~\citep{bohm16aislinn}. \Cref{prop:nonmono} is the formal counterpart of the
 slack-elasticity observation; per-alternative profiles and \cref{thm:mono} are new.
 
-\paragraph{Message passing beyond MPI.} Go channels and MPI matching are incomparable. Any
-goroutine may receive from a Go channel, capacity counts messages, \texttt{select} chooses
-among sends as well as receives, and channels can be closed; MPI has tags, probes,
-collectives and a size threshold, and a status reveals the sender. Our results
-apply to their common fragment: single-consumer channels, unbuffered or unbounded, with
-\texttt{select} over receives. Trace analyses of Go report alternative communications under a
-straight-line program model~\citep{sulzmann17hvc} or by vector clocks, leaving their
-interpretation to the user~\citep{sulzmann18go}. AdvocateGo~\citep{advocatego} predicts
-alternative partners by happens-before, rewrites the trace with the changed thread truncated,
-and replays it. For Erlang-style selective receive, race variants replace a receive's message
-and delete what depends on it~\citep{vidal22racevariants}, our steal and horizon without
-blocking; their theorem concerns non-redundancy, not feasibility. Bita~\citep{tasharofi13bita}
-reorders two receives of an actor, drops the dependent tail and forces the schedule, and
-DCatch~\citep{liu17dcatch} predicts distributed concurrency bugs from correct runs and triggers
-them; dl$^2$ finds communication deadlocks in deep-learning jobs observationally~\citep{gao25dl2}.
-None of these proves an alternative feasible.
+\paragraph{Message passing beyond MPI.} Go channels and MPI matching are incomparable (any
+goroutine may receive from a channel; MPI has tags, probes and a size threshold), and our
+results apply to their common fragment. Trace analyses of Go report alternative
+communications under a straight-line model~\citep{sulzmann17hvc} or by vector
+clocks~\citep{sulzmann18go}, and AdvocateGo replays alternative partners found by
+happens-before~\citep{advocatego}. Race variants for Erlang's selective
+receive~\citep{vidal22racevariants} are our steal and horizon without blocking, with a theorem
+on non-redundancy; Bita~\citep{tasharofi13bita}, DCatch~\citep{liu17dcatch} and
+dl$^2$~\citep{gao25dl2} force, trigger or observe such bugs. None proves an alternative feasible.
 
 \paragraph{Confirmation by re-execution.} Forcing a predicted bug in a re-execution is
 standard. In shared memory, deadlocks are confirmed by controlled
@@ -141,6 +131,4 @@ buffers through ThreadSanitizer~\citep{jenke23tsanfibers}. PARCOACH~\citep{saill
 checks collective ordering statically and dynamically. NINJA~\citep{sato17ninja} injects
 network noise to make message races manifest, and reproduced the HYPRE race that we predict
 (\cref{sec:eval}); our stress baseline is in its spirit. The MPI Bugs
-Initiative~\citep{laurent21mbi} and \MBB~\citep{jammer24mbb} are the standard corpora; in
-\MBB's own comparison the Intel Trace Analyzer and Collector scores best and \MUST has the
-highest specificity~\citep{jammer24mbb}.
+Initiative~\citep{laurent21mbi} and \MBB~\citep{jammer24mbb} are the standard corpora.

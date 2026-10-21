@@ -80,12 +80,10 @@ come from a rank of $D$ after its own $\kappa_j$ returned, which has not happene
 of $\kappa_i$ is cut, a program consistent on $\Hpre$ could issue a different call there, for
 instance a send that releases another rank of $D$. A wildcard receive belongs to a contained
 deadlock only if every rank of its communicator is in $D$ or terminates, because any other
-rank might still send. The closest statement in shared memory is the theorem that
-deadlocked threads are stuck~\citep{kalhauge18sound}. Sync-preserving deadlock
-prediction~\citep{tunc23spd} characterises deadlocks by a closure but never changes a
-read, and for Go channels a replay that is completely stuck implies a deadlock with every
-partner fixed~\citep{sulzmann18go}. Here the deadlock follows a changed match, and an MPI
-deadlock is the absence of any future partner, hence \ref{D:closed}.
+rank might still send. In shared memory, deadlocked threads are
+stuck~\citep{kalhauge18sound}, and sync-preserving prediction characterises deadlocks by a
+closure without changing a read~\citep{tunc23spd}. Here the deadlock follows a changed match,
+and an MPI deadlock is the absence of any future partner, hence \ref{D:closed}.
 
 By \ref{D:changed}, a contained deadlock never needs the changed rank's continuation. A
 blocking changed receive is the last record of its rank in $\Hpre$, so a rank that waits on
@@ -112,9 +110,7 @@ restriction is stated, and its limits are known: an early MPI predictor named pr
 decode the status object unsupported~\citep{sharma12maaped}, racing-message testing assumed
 that a race cannot change a process's future communication~\citep{kilgore97racing}, a Go
 analysis models runs as straight-line code~\citep{sulzmann17hvc}, and Hermes replaces the
-restriction by recorded path conditions~\citep{khanna18hermes}. In shared memory, symbolic
-prediction keeps the recorded branch conditions~\citep{wang09ctp}, and deadlock prediction
-that ignores data flow is unsound~\citep{kalhauge18sound}.
+restriction by recorded path conditions~\citep{khanna18hermes}.
 At level \LoneSP, \tool explores $\SP(\trace)$ exhaustively with the changed match forced,
 using a persistent-set reduction in which only wildcard matches and \mpicall{Waitany}
 choices branch. It compares the outcomes with the unforced exploration, so that a hang

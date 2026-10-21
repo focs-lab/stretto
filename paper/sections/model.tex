@@ -30,13 +30,12 @@ A program $\prog=(\prog_i)_{i\in\Ranks}$ gives each rank a function $\prog_i$ fr
 sequence of results it has received so far to its next operation, or to termination.
 \end{definition}
 
-A rank is thus deterministic given the results of its calls. All nondeterminism comes
-from the MPI library: which message a receive takes, when a request completes, what a
-test or probe observes, and which request \mpicall{Waitany} returns. The definition
-excludes programs whose control flow depends on any other source of nondeterminism, such
-as clocks (including \mpicall{Wtime}, which the trace does not record), random numbers,
-input or signals, as the local-determinism axiom excludes them for shared
-memory~\citep{serbanuta12mcm}.
+A rank is thus deterministic given the results of its calls, and all nondeterminism comes
+from the MPI library: which message a receive takes, when a request completes, what a test or
+probe observes, and which request \mpicall{Waitany} returns. As the local-determinism axiom
+does for shared memory~\citep{serbanuta12mcm}, the definition excludes control flow that
+depends on clocks (including \mpicall{Wtime}, which the trace does not record), random
+numbers, input or signals.
 
 \subsection{Executions}
 

@@ -9,25 +9,19 @@ record per call and rank: the arguments, the result, the request it creates or c
 and the communicator as a global identifier with its members' world ranks. Blocking calls
 first emit a \emph{begin} record, so that a rank killed while blocked shows where it was
 blocked. Repeated failed polls (\mpicall{Iprobe}, \mpicall{Test}) with no call in between
-are written once with a count. Each record from user code names its call site, the return
-address of the MPI call as an object and an offset, which are the same in every process; the
-report groups the findings by the site of the changed receive or probe, and \texttt{addr2line}
-names a site in the source. Derived datatypes are flattened to their basic type
+are written once with a count. Each record names its call site as an object and an offset,
+the same in every process, which \texttt{addr2line} maps to the source; the report groups
+findings by the site of the changed receive or probe. Derived datatypes are flattened to their basic type
 signature for the count and type checks of \cls{1a}. The tracer covers all point-to-point
 modes, persistent requests, \mpicall{Sendrecv}, every wait and test variant, probes
 including matched probes, cancellation, blocking and nonblocking collectives, and
-communicator and intercommunicator creation. Under \texttt{MPI\_THREAD\_MULTIPLE},
-records carry a thread identifier. The analysis then reports observed findings only,
-because a rank's program order is no longer total. Calls outside this fragment (RMA,
-neighbourhood collectives, dynamic processes, generalised requests, and the MPI-4
-\mpicall{Isendrecv}, partitioned and large-count calls) write an \emph{unmodelled} record.
-The analysis then reports observed findings only, because the trace is no longer a complete
-record of the run's communication. Records written while a call is in progress (the
-communicator a nonblocking duplication registers when it completes, the overflow of the table
-of messages taken by matched probes) are
-side records, and the analysis does not pair them with the call around them. Records do not
-carry the call's return code. Under the default error handler a failed call aborts the run, but
-under \texttt{MPI\_ERRORS\_RETURN} it is recorded as if it had succeeded. On request, a
+communicator and intercommunicator creation. Under \texttt{MPI\_THREAD\_MULTIPLE} records
+carry a thread identifier, and calls outside this fragment (RMA, neighbourhood collectives,
+dynamic processes, generalised requests, and the MPI-4 \mpicall{Isendrecv}, partitioned and
+large-count calls) write an \emph{unmodelled} record. The analysis then reports observed
+findings only, since a rank's program order is no longer total or the trace no longer
+complete. Records do not carry return codes, so under
+\texttt{MPI\_ERRORS\_RETURN} a failed call is recorded as if it had succeeded. On request, a
 \emph{buffer guard} also protects the pages of pending operations' buffers between MPI calls
 and compares send checksums, which gives observed \cls{3-local} findings.
 

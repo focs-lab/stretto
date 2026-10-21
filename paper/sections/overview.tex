@@ -50,31 +50,25 @@ received (\cls{1c}, orphan). The prediction holds at every buffering threshold. 
 witness is a pin, \texttt{STRETTO\_PIN=0:0:2}: on rank~0, wildcard receive number~0
 takes rank~2's message.
 
-\paragraph{Replay.} A second PMPI library reads the pins and substitutes the source of
-each pinned receive or probe. The changed receive gets the alternative's sender, and every
-other wildcard receive and probe in the horizon gets the sender it had in the recorded run,
-so that the replay follows the horizon and not only its last step. The library logs the
-source that each pinned operation actually matched. The finding is confirmed when every
-pin matched its named sender, the run shows the predicted outcome (here a hang), and a
-control run, pinned the same way but with the observed sender at the changed receive,
-finishes.
+\paragraph{Replay.} A second PMPI library substitutes the source of each pinned receive or
+probe: the alternative's sender at the changed receive, the recorded sender at every other
+wildcard of the horizon. It logs the source each pinned operation matched. The finding is
+confirmed when every pin matched, the run shows the predicted outcome (here a hang), and a
+control run with the observed sender at the changed receive finishes.
 
 \paragraph{Levels of evidence.} The single-path assumption that turned \cls{1f} into
 \cls{1d} above is the restriction under which earlier MPI predictors state their
 guarantees~\citep{forejt17mopper}, and no trace shows that a program meets it. Consider a
-master that receives a result from \anysrc and replies to \texttt{status.MPI\_SOURCE}, with two workers that each send a result and wait for a
-reply. Suppose the master's first receive takes worker~2's result instead of worker~1's.
-The recorded call sequence still sends the first reply to worker~1. Under rendezvous,
-that send waits for worker~1 to post its receive, while worker~1 waits for the master to
-take its result. The single-path analysis therefore reports a deadlock. The real master
-replies to worker~2, who is waiting for it, and the program finishes. \tool reports each finding with its level: \Lone
-(trace only, sound for every consistent program), \LoneSP (adds the single-path
-assumption) or \Ltwo (adds a skeleton recording which calls depend on message metadata).
-\Cref{sec:levels} makes the difference precise and gives deadlock predictions that need
-no single-path assumption.
+master that receives a result from \anysrc and replies to \texttt{status.MPI\_SOURCE}, with
+two workers that each send a result and wait for a reply. If the master's first receive takes
+worker~2's result, the recorded call sequence still replies first to worker~1, who under
+rendezvous waits for the master to take its own result: the single-path analysis reports a
+deadlock. The real master replies to worker~2, and the program finishes. \tool reports each
+finding with its level: \Lone (trace only, sound for every consistent program), \LoneSP (adds
+the single-path assumption) or \Ltwo (adds a skeleton of the calls that depend on message
+metadata; \cref{sec:levels}).
 
-\paragraph{Buffering.} Feasibility depends on the threshold $\Bt$. Two ranks that each
-\mpicall{Send} 400 bytes to the other and then \mpicall{Recv} finish on Open MPI's
-defaults and deadlock under rendezvous. The recorded run is therefore realisable only
-for $\Bt \ge 400$, and \tool reports it as \cls{2-buffering}. Each prediction carries the
-set of thresholds at which it holds (\cref{sec:buffering}).
+\paragraph{Buffering.} Two ranks that each \mpicall{Send} 400 bytes to the other and then
+\mpicall{Recv} finish on Open MPI's defaults and deadlock under rendezvous: the recorded run
+is realisable only for $\Bt \ge 400$ (\cls{2-buffering}). Each prediction carries the set of
+thresholds at which it holds (\cref{sec:buffering}).

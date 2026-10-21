@@ -100,8 +100,8 @@ unbuffered~\citep{hilbrich12must}; what \tool adds there is the threshold.
 \MBB's errors show in the run itself: by design, the error of every incorrect program is
 expected to be observable~\citep{jammer24quality}, so a score on \MBB measures detection, not
 prediction. \tool's predicted findings alone score \MBBfonepredicted, while the observed checks
-score \MBBfoneunion, against \MBBfoneMUST and \MBBfoneMUSTsym for \MUST. The corpus thus
-measures the observational floor and the false positives. The \nMBBfp false positives are
+score \MBBfoneunion, against \MBBfoneMUST and \MBBfoneMUSTsym for \MUST. The \nMBBfp false
+positives are
 correct-labelled gather and reduce programs whose runs Open MPI ends with \texttt{MPI\_ERR\_ARG}. The \nMBBfnunion misses are local
 concurrency errors, a buffer reused while a nonblocking operation is pending, which a matching
 model does not see. With the buffer guard (\cref{sec:implementation}) the run
@@ -262,8 +262,8 @@ receives and \nAMGprobes probes, gives \nAMGalts probe alternatives and \nAMGrec
 same-shape receive alternatives. All of them are warnings or information, and none is a
 contained deadlock. The sample of RQ1 finished under every pin. By call site the findings fall
 at two sites, the probe and the receive inside HYPRE's MPI wrappers
-(\texttt{hypre\_MPI\_Iprobe}, \texttt{hypre\_MPI\_Recv}). A site is the caller of the MPI
-call, one frame up, so naming the code that called the wrapper needs a deeper stack. In
+(\texttt{hypre\_MPI\_Iprobe}, \texttt{hypre\_MPI\_Recv}); naming their callers needs a deeper
+stack. In
 Nekbone, every finding is a \cls{1f} at the binary-tree reduction \texttt{gp2}, whose inner
 nodes take their children's contributions with one tag from any source. Only the
 communication suite's timing test calls it; the solver sums with \mpicall{Allreduce}. The

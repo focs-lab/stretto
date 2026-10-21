@@ -16,10 +16,9 @@ once from anyone and then once from rank~2. Ranks~1 and~2 each send one message.
 run~A, rank~1's message arrives first: the wildcard takes it, the second receive takes
 rank~2's message, and the program finishes. In run~B, rank~2's message arrives first and
 the wildcard takes it. The receive from rank~2 then waits forever, and rank~1's message
-is never received. Both runs are legal MPI. Which one happens is decided by the network,
+is never received. Both runs are legal MPI, and which one happens is decided by the network,
 the load on the node and the MPI library's progress engine. The bad order may appear once
-in thousands of test runs, disappear when the test is repeated under a debugger, and
-then surface at scale. A race in a laser--plasma code appeared only at 524\,288 processes
+in thousands of test runs and then surface at scale. A race in a laser--plasma code appeared only at 524\,288 processes
 and took months of debugging with print statements~\citep{laguna15cacm}. A message race
 in the HYPRE solver library hung a production code intermittently for 18 months; diagnosing
 it took 291 jobs and 10\,392 compute-node hours, and the fix was ten
