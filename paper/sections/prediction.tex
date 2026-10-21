@@ -110,10 +110,10 @@ $\Graph(\trace,\Malt,\Bt,\Hpre)$ is acyclic.
 Match nodes are what make the order rules exact. In MPI, the constraint that an earlier
 receive be matched first binds the \emph{match} of the later receive. It does not bind
 that receive's completion, which for a nonblocking receive lies at a wait much later, nor
-the send's completion, which for a rendezvous send follows the match. An earlier version of
-\tool attached \ref{G:order} to completions and accepted two shapes that MPI cannot produce:
-a pending nonblocking wildcard overtaken by a later receive, and a rendezvous send matched
-after its own completion. Both are now regression tests.
+the send's completion, which for a rendezvous send follows the match. Attaching
+\ref{G:order} to completions instead accepts two shapes that MPI cannot produce: a pending
+nonblocking wildcard overtaken by a later receive, and a rendezvous send matched after its own
+completion.
 
 For the same reason, happens-before concurrency, with which earlier tools select racing
 messages before re-executing~\citep{lei06reachability,gopalakrishnan11cacm}, cannot decide an
