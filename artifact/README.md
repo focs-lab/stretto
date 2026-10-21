@@ -58,7 +58,7 @@ used the image `ceb926607397` built on 7 Sep 2026.
 | question (paper) | what the paper claims | target | time on 12 cores |
 |---|---|---|---|
 | RQ1, soundness | no accepted alternative is unsound against an exhaustive explorer; no replay contradicts its finding, and every inconclusive one belongs to a racing loop labelled erroneous; AMG's and Nekbone's sampled replays match their pins and finish, as do their controls | `rq1` | 2.5 h (1 h without Nekbone) |
-| RQ2, effectiveness (table "Labelled errors found") | F1 on MBI above MUST and stress testing with no false positive; every error stress testing misses is predicted; on MPI-BugBench at least MUST's F1 | `rq2` | 5 h, most of it MUST |
+| RQ2, effectiveness (table "Labelled errors found") | F1 on MBI above MUST and stress testing with no false positive; every error stress testing misses is predicted; on MPI-BugBench at least MUST's F1; with the buffer guard every local-concurrency program found and nothing else changed | `rq2` | 6 h, most of it MUST |
 | RQ3, buffering | thresholds measured per send path; every replay at, below and above the predicted bound behaves as predicted | `rq3` | 1.5 h |
 | RQ4, levels | findings per level and class on the corpora | `rq4` | 1 h |
 | RQ5, cost | tracing overhead on NPB, analysis times of lu.A, AMG and Nekbone | `rq5` | 1.5 h, on an idle machine |

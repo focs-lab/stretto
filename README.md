@@ -66,12 +66,14 @@ judges the run it sees) and stress testing with random delays.
 | corpus | programs | Stretto, one run | false positives | MUST 1.9.2 | stress testing |
 |---|---:|---:|---:|---:|---:|
 | MBI (message races, probes, buffering) | 115 | **0.97** | 0 | 0.83–0.87 | 0.90 |
-| MPI-BugBench level 2 | 388 | **0.95** | 4 | 0.94–0.95 | – |
+| MPI-BugBench level 2 | 388 | **0.95**, 0.99 with the buffer guard | 4 | 0.94–0.95 | – |
 
 Every MBI error that stress testing never exposes (12 programs, the
 buffering-dependent deadlocks) is predicted from a run that finished. The MPI-BugBench misses
 are programs that touch a buffer while a nonblocking call still uses it, which no MPI call
-records.
+records. The buffer guard (`STRETTO_GUARD=1`) watches those buffers in the run itself and finds
+20 of the 20 under Open MPI and 22 of
+22 under MPICH, with no new false positive.
 
 **A real bug.** HYPRE 2.10.1's ParaSails preconditioner reuses one tag for two exchanges behind
 a wildcard probe; a probe can take a request of the next exchange, and the solver hangs. A

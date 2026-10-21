@@ -29,7 +29,7 @@ NUMBERS = os.path.join(ROOT, "paper", "generated", "numbers.tex")
 # which research question a macro belongs to, by name; the first match wins
 RQ_OF = [
     (1, r"^nEsix|^nMBIReplay|^nAMGsample|^nNeksample"),
-    (2, r"^(MBI|MBB)fone|^n(MBI|MBB)(tp|fn|fp|progs|correct|errors|race|Stress|Clean|OnlyStretto)"),
+    (2, r"^(MBI|MBB)fone|^n(MBI|MBB)(tp|fn|fp|progs|correct|errors|race|Stress|Clean|OnlyStretto|LC)|^n?Guard"),
     (3, r"^nEtwo|^B[a-z]+OMPI$"),
     (4, r"^n(MBI|MBB)(one|sp|obs)[A-Z]"),
     (5, r"^TraceOverhead|^LuAnalysis|^LuEvents|^AMGtime|^Nek(GB|Minutes|PerAlt|Records)|^nEfour"),
@@ -38,7 +38,8 @@ RQ_OF = [
 # numbers the inputs fix: a difference there is unexpected; every other number is a time or a
 # count taken from recorded runs, which depends on their schedule
 FIXED = re.compile(r"^n(MBI|MBB)(progs|correct|errors|race)$|^B[a-z]+OMPI$|^n(AMG|Nek)sample$|^nEfourReps$"
-                   r"|^nMBIStressRuns$|^nHypre(Fixed)?(Traced|(Four|Eight)(Local)?Runs)$|^nHypreStressRuns$")
+                   r"|^nMBIStressRuns$|^nHypre(Fixed)?(Traced|(Four|Eight)(Local)?Runs)$|^nHypreStressRuns$"
+                   r"|^nMBBLC$|^nGuardLC(OMPI|MPICH)built$|^nGuardCases$|^nGuardAppRuns$")
 
 
 def load(path: str) -> dict:
@@ -91,6 +92,13 @@ def claims(n: dict) -> list:
           ["nMBIStressErr", "nMBIStressFound", "nMBIStressPredMissed"], lambda e, f, p: e - f == p)
     claim(2, "on MPI-BugBench, Stretto's F1 is at least MUST's",
           ["MBBfoneunion", "MBBfoneMUST"], lambda s, m: s >= m)
+    claim(2, "with the buffer guard, every MPI-BugBench local-concurrency program gets 3-local and nothing else changes",
+          ["nMBBLC", "nMBBLCguard", "nMBBfp", "nMBBfpguard", "MBIfoneunion", "MBIfoneguard"],
+          lambda lc, g, fp, fpg, s, sg: lc > 0 and lc == g and fp == fpg and s == sg)
+    claim(2, "under MPICH the guard finds every local-concurrency program that builds",
+          ["nGuardLCMPICHbuilt", "nGuardLCMPICHfound"], lambda b, f: b > 0 and b == f)
+    claim(2, "the guard records nothing on NPB LU, HYPRE and AMG, and every run finishes",
+          ["nGuardAppRuns", "nGuardAppBad"], lambda r, b: r > 0 and b == 0)
     claim(3, "no buffering replay goes against the prediction", ["nEtwoReplayBad"], lambda b: b == 0)
     claim(3, "with the default limits every replayed program finishes again",
           ["nEtwoReplayPrograms", "nEtwoReplayDefaultOK"], lambda p, ok: p > 0 and p == ok)

@@ -16,7 +16,7 @@ trace; the leg's times are the only timing claims.
 
 Programs: 115. Rows by code commit: c27c793 (115).
 
-A program's verdict is ERROR iff a finding of class 1a/1c/1d/2-buffering/2-collective/2-blocked is
+A program's verdict is ERROR iff a finding of class 1a/1c/1d/2-buffering/2-collective/2-blocked/3-local is
 present; 1b, 1f, probe-alt and waitany-order are warnings and never count. The *observed* row uses
 only what the run itself showed (a blocked or spinning rank, a collective mismatch, a message never
 received), which any observational tool sees; the *predicted* row only what Stretto says about other
@@ -29,6 +29,10 @@ finish is the hang itself and counts as observed. The union is the tool's verdic
 | Stretto (union) | 61 | 0 | 4 | 50 | 1.00 | 0.94 | 0.97 |
 | Stretto, observed in the run | 39 | 0 | 26 | 50 | 1.00 | 0.60 | 0.75 |
 | Stretto, predicted | 23 | 0 | 42 | 50 | 1.00 | 0.35 | 0.52 |
+| Stretto with the buffer guard (`STRETTO_GUARD=1`), a separate run | 61 | 0 | 4 | 50 | 1.00 | 0.94 | 0.97 |
+
+Buffer guard run: 115 programs (rows by code commit: 7117573 (115)); 3-local in 0 of the 0 local-concurrency programs and in 0 others.
+
 | MUST 1.9.2 (same source, its own run under MPICH) | 46 | 0 | 19 | 50 | 1.00 | 0.71 | 0.83 |
 | MUST 1.9.2, a timeout counted as an error | 50 | 0 | 15 | 50 | 1.00 | 0.77 | 0.87 |
 
@@ -104,7 +108,7 @@ Not confirmed or inconclusive:
 
 Programs: 388. Not compiled with Open MPI 4.1.6 and left out: 8 (P2P__CallOrdering-unmatched-mpi_precv_init-001, P2P__CallOrdering-unmatched-mpi_psend_init-001, P2P__Correct-mpi_precv_init-001, P2P__Correct-mpi_precv_init-002, P2P__Correct-mpi_psend_init-001, P2P__Correct-mpi_psend_init-002, P2P__LocalConcurrency-receive-mpi_precv_init-001, P2P__LocalConcurrency-send-mpi_psend_init-001). Rows by code commit: c27c793 (388), unrecorded (8).
 
-A program's verdict is ERROR iff a finding of class 1a/1c/1d/2-buffering/2-collective/2-blocked is
+A program's verdict is ERROR iff a finding of class 1a/1c/1d/2-buffering/2-collective/2-blocked/3-local is
 present; 1b, 1f, probe-alt and waitany-order are warnings and never count. The *observed* row uses
 only what the run itself showed (a blocked or spinning rank, a collective mismatch, a message never
 received), which any observational tool sees; the *predicted* row only what Stretto says about other
@@ -117,6 +121,10 @@ finish is the hang itself and counts as observed. The union is the tool's verdic
 | Stretto (union) | 216 | 4 | 20 | 148 | 0.98 | 0.92 | 0.95 |
 | Stretto, observed in the run | 216 | 4 | 20 | 148 | 0.98 | 0.92 | 0.95 |
 | Stretto, predicted | 7 | 0 | 229 | 152 | 1.00 | 0.03 | 0.06 |
+| Stretto with the buffer guard (`STRETTO_GUARD=1`), a separate run | 236 | 4 | 0 | 148 | 0.98 | 1.00 | 0.99 |
+
+Buffer guard run: 388 programs (rows by code commit: 7117573 (388)); 3-local in 20 of the 20 local-concurrency programs and in 0 others.
+
 | MUST 1.9.2 (same source, its own run under MPICH) | 213 | 4 | 23 | 148 | 0.98 | 0.90 | 0.94 |
 | MUST 1.9.2, a timeout counted as an error | 218 | 5 | 18 | 147 | 0.98 | 0.92 | 0.95 |
 
@@ -537,3 +545,13 @@ certify a consequence; the twin yields the abort.
 | MessageRace_Recv_Isend_nok | ERROR MessageRace | FINISHED | 1f | - | 1e | the program aborts on its own check in every execution; the program aborts on its own check in some executions |
 | MessageRace_Recv_Send_nok | ERROR MessageRace | SIGNAL:6 | 1f | - | 1e | the program aborts on its own check in every execution; the program aborts on its own check in some executions |
 
+
+## E8: the buffer guard (local concurrency, class 3-local)
+
+MPI-BugBench local-concurrency programs traced with the guard (`lc.txt`): openmpi: 3-local in 20 of 20 programs built; mpich: 3-local in 22 of 22 programs built.
+
+Two-rank cases that each name the guard record they must give (`scenarios.txt`): openmpi: 19 of 19 as expected; mpich: 19 of 19 as expected.
+
+Applications at 4 ranks (`apps.txt`, `apps-cma.txt`): 32 runs of amg, hypre, lu.A, lu.S; 0 ended with a nonzero status or a guard record.
+
+lu.A by NPB's own timer: 12.50 to 12.57 s with the guard off, 12.51 to 12.59 s on (shared processors, not a timed leg).

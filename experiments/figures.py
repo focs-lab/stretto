@@ -102,6 +102,7 @@ def readme(root: str, num: dict) -> None:
             (f"stress testing, up to {t('nMBIStressRuns')} runs", v("MBIfonestress"), ORANGE)]),
         (f"MPI-BugBench level 2 ({t('nMBBprogs')} programs)", [
             ("Stretto, one run", v("MBBfoneunion"), BLUE),
+            ("Stretto with the buffer guard", v("MBBfoneguard"), BLUE),
             ("MUST 1.9.2", v("MBBfoneMUST"), GREY),
             ("MUST, a timeout as an error", v("MBBfoneMUSTsym"), GREY)]),
     ])
@@ -143,12 +144,14 @@ judges the run it sees) and stress testing with random delays.
 | corpus | programs | Stretto, one run | false positives | MUST 1.9.2 | stress testing |
 |---|---:|---:|---:|---:|---:|
 | MBI (message races, probes, buffering) | {t('nMBIprogs')} | **{t('MBIfoneunion')}** | {t('nMBIfp')} | {t('MBIfoneMUST')}–{t('MBIfoneMUSTsym')} | {t('MBIfonestress')} |
-| MPI-BugBench level 2 | {t('nMBBprogs')} | **{t('MBBfoneunion')}** | {t('nMBBfp')} | {t('MBBfoneMUST')}–{t('MBBfoneMUSTsym')} | – |
+| MPI-BugBench level 2 | {t('nMBBprogs')} | **{t('MBBfoneunion')}**, {t('MBBfoneguard')} with the buffer guard | {t('nMBBfp')} | {t('MBBfoneMUST')}–{t('MBBfoneMUSTsym')} | – |
 
 Every MBI error that stress testing never exposes ({t('nMBIStressPredMissed')} programs, the
 buffering-dependent deadlocks) is predicted from a run that finished. The MPI-BugBench misses
 are programs that touch a buffer while a nonblocking call still uses it, which no MPI call
-records.
+records. The buffer guard (`STRETTO_GUARD=1`) watches those buffers in the run itself and finds
+{t('nMBBLCguard')} of the {t('nMBBLC')} under Open MPI and {t('nGuardLCMPICHfound')} of
+{t('nGuardLCMPICHbuilt')} under MPICH, with no new false positive.
 
 **A real bug.** HYPRE 2.10.1's ParaSails preconditioner reuses one tag for two exchanges behind
 a wildcard probe; a probe can take a request of the next exchange, and the solver hangs. A

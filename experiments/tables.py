@@ -47,7 +47,7 @@ def e1(name, path, key=None):
     rs = score.compiled(rs)
     skipped = f" Not compiled with Open MPI 4.1.6 and left out: {len(ce)} ({', '.join(sorted(r['name'] for r in ce))})." if ce else ""
     out = [f"### {name}", "", f"Programs: {len(rs)}.{skipped} {commit_note}", "",
-           "A program's verdict is ERROR iff a finding of class 1a/1c/1d/2-buffering/2-collective/2-blocked is",
+           "A program's verdict is ERROR iff a finding of class 1a/1c/1d/2-buffering/2-collective/2-blocked/3-local is",
            "present; 1b, 1f, probe-alt and waitany-order are warnings and never count. The *observed* row uses",
            "only what the run itself showed (a blocked or spinning rank, a collective mismatch, a message never",
            "received), which any observational tool sees; the *predicted* row only what Stretto says about other",
@@ -58,6 +58,23 @@ def e1(name, path, key=None):
            conf_row("Stretto (union)", score.confusion(rs, score.verdict)),
            conf_row("Stretto, observed in the run", score.confusion(rs, score.observed_verdict)),
            conf_row("Stretto, predicted", score.confusion(rs, score.predicted_verdict))]
+    # the same corpus traced again with the buffer guard on (run_mbi.py --guard), which adds 3-local
+    grs = score.compiled(rows(os.path.join(RES, "guard", os.path.basename(path))))
+    if grs:
+        cg = score.confusion(grs, score.verdict)
+        out.append(conf_row("Stretto with the buffer guard (`STRETTO_GUARD=1`), a separate run", cg))
+        lc = [r for r in grs if r.get("detail") == "LocalConcurrency"]
+        found = [r for r in lc if "3-local" in r.get("classes", "").split()]
+        stray = [r for r in grs if "3-local" in r.get("classes", "").split() and r.get("detail") != "LocalConcurrency"]
+        out += ["", f"Buffer guard run: {len(grs)} programs (rows by code commit: {commits(grs)}); 3-local in {len(found)} of the "
+                f"{len(lc)} local-concurrency programs and in {len(stray)} others.", ""]
+        if key:
+            CONF[(key, "guard")] = cg
+            num(f"{key}foneguard", cg["f1"])
+            num(f"n{key}fpguard", cg["fp"])
+            num(f"n{key}fnguard", cg["fn"])
+            num(f"n{key}LC", len(lc))
+            num(f"n{key}LCguard", len(found))
     if key:
         num(f"n{key}progs", len(rs))
         num(f"n{key}correct", sum(1 for r in rs if r["expect"] == "OK"))
@@ -508,7 +525,7 @@ def write_paper_numbers():
     open(os.path.join(gen, "numbers.tex"), "w").write("\n".join(lines) + "\n")
     body = []
     labels = (("union", "\\tool, observed or predicted"), ("observed", "\\tool, observed in the run"),
-              ("predicted", "\\tool, predicted"), ("MUST", "\\MUST, a timeout not counted"), ("MUSTsym", "\\MUST, a timeout counted as an error"),
+              ("predicted", "\\tool, predicted"), ("guard", "\\tool with the buffer guard"), ("MUST", "\\MUST, a timeout not counted"), ("MUSTsym", "\\MUST, a timeout counted as an error"),
               ("stress", "random delays, up to \\n{key}StressRuns runs"))
     for key, title in (("MBI", "MBI"), ("MBB", "\\MBB level~2")):
         if not any((key, l) in CONF for l, _ in labels):
@@ -516,6 +533,8 @@ def write_paper_numbers():
         body.append(f"\\multicolumn{{6}}{{@{{}}l}}{{\\emph{{{title}, \\n{key}progs programs}}}} \\\\")
         for l, text in labels:
             c = CONF.get((key, l))
+            if l == "guard" and c == CONF.get((key, "union")):    # the guard changed no verdict: no row
+                continue
             if c:
                 label = text.replace("{key}", key)
                 if l == "stress":       # the baseline runs a subset of the corpus (stress_baseline.py --select)
@@ -733,6 +752,47 @@ def nekbone():
                       "```", open(p).read().strip(), "```", ""])
 
 
+def guard():
+    """The buffer guard's own checks (experiments/guard/run.sh): its cases, MPI-BugBench's
+    local-concurrency programs under both MPI implementations, and applications with the guard
+    off and on. The corpus rows with the guard are in E1."""
+    d = os.path.join(RES, "guard")
+    if not os.path.isdir(d):
+        return "_no results_\n"
+    def read(f):
+        p = os.path.join(d, f)
+        return open(p).read() if os.path.exists(p) else ""
+    out = []
+    lc = re.findall(r"^(openmpi|mpich): 3-local in (\d+) of (\d+) programs built$", read("lc.txt"), re.M)
+    if lc:
+        out += ["MPI-BugBench local-concurrency programs traced with the guard (`lc.txt`): "
+                + "; ".join(f"{m}: 3-local in {a} of {b} programs built" for m, a, b in lc) + "."]
+        for m, a, b in lc:
+            tag = {"openmpi": "OMPI", "mpich": "MPICH"}[m]
+            num(f"nGuardLC{tag}found", int(a))
+            num(f"nGuardLC{tag}built", int(b))
+    sc = re.findall(r"^(openmpi|mpich): (\d+) of (\d+) cases as expected$", read("scenarios.txt"), re.M)
+    if sc:
+        out += ["Two-rank cases that each name the guard record they must give (`scenarios.txt`): "
+                + "; ".join(f"{m}: {a} of {b} as expected" for m, a, b in sc) + "."]
+        num("nGuardCases", int(sc[0][2]))
+    runs = re.findall(r"^(\S+)\s+(\S+)\s+guard=(\d) rep=\d+ rc=(\d+)\s+wall=\s*[\d.]+s npb=(\S+)\s+records=\d+\s+guard=\[([^]]*)\]",
+                      read("apps.txt") + read("apps-cma.txt"), re.M)
+    if runs:
+        bad = [r for r in runs if r[3] != "0" or r[5]]
+        lu = {g: sorted(float(r[4]) for r in runs if r[0] == "lu.A" and r[2] == g) for g in ("0", "1")}
+        out += [f"Applications at 4 ranks (`apps.txt`, `apps-cma.txt`): {len(runs)} runs of {', '.join(sorted({r[0] for r in runs}))}; "
+                f"{len(bad)} ended with a nonzero status or a guard record."]
+        num("nGuardAppRuns", len(runs))
+        num("nGuardAppBad", len(bad))
+        if lu["0"] and lu["1"]:
+            out += [f"lu.A by NPB's own timer: {lu['0'][0]:.2f} to {lu['0'][-1]:.2f} s with the guard off, "
+                    f"{lu['1'][0]:.2f} to {lu['1'][-1]:.2f} s on (shared processors, not a timed leg)."]
+            num("GuardLuOff", f"{lu['0'][0]:.2f}--{lu['0'][-1]:.2f}")
+            num("GuardLuOn", f"{lu['1'][0]:.2f}--{lu['1'][-1]:.2f}")
+    return "\n\n".join(out) + "\n"
+
+
 def leg_commits():
     cs = sorted({r["commit"] for r in rows(os.path.join(RES, "e4", "e4.csv")) if r.get("commit")})
     return ", ".join(cs) or "unknown"
@@ -762,7 +822,8 @@ def main():
            "### How often one trace exposes it, and how often testing hits it", "", hypre_campaign(),
            "## E5d: a second documented bug (NPB MG 2.4.1, a message of another exchange)", "", npbmg(),
            "## E6: polynomial checker vs exhaustive explorer", "", e6(),
-           "## E7: the value skeleton on MBI (level L2)", "", e7()]
+           "## E7: the value skeleton on MBI (level L2)", "", e7(),
+           "## E8: the buffer guard (local concurrency, class 3-local)", "", guard()]
     path = os.path.join(ROOT, "docs", "results.md")
     open(path, "w").write("\n".join(doc))
     print("wrote", path)

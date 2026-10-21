@@ -27,12 +27,12 @@ times; the level table. MUST runs on the host, where docker is: `experiments/mbi
 AMG. `experiments/tables.py` then writes `docs/results.md`.
 
 The buffer guard (local concurrency, class 3-local) is opt-in and outside that sequence:
-`experiments/mbi/run_mbi.py --guard --out experiments/results/guard/<corpus>.csv` traces a
-corpus with it, and `experiments/guard/run.sh` checks it on the real stack (cases with known
+`experiments/mbi/run_mbi.py --guard` (or `experiments/run_remaining.sh guard`) traces a corpus
+with it into `experiments/results/guard/<corpus>.csv`, and `experiments/guard/run.sh` checks it on the real stack (cases with known
 answers, MPI-BugBench's LocalConcurrency programs, NPB LU, HYPRE and AMG with the guard off and
 on), once in the default container and once with `DOCKER_ARGS="--cap-add SYS_PTRACE"`, which
-lets the MPI libraries use single-copy transfers. Its tables are in `experiments/results/guard/`
-and `docs/results.md` does not read them.
+lets the MPI libraries use single-copy transfers. Its tables are in `experiments/results/guard/`;
+`experiments/tables.py` adds the corpus rows with the guard to E1 and the checks to E8.
 
 Variables the scripts read (all optional):
 
