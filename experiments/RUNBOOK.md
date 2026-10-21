@@ -184,6 +184,25 @@ program under Open MPI's `mpirun` spends about 4 s idle in start-up in the image
 hello world takes 4.4 s), so the campaign of 21 Oct ran `RUNS=20 JOBS=8 predict` (about 3.5
 minutes per trace of 9.3.0-rc1, 2 per trace of 9.3.0) and `RUNS=50 stress`, two hours in all.
 
+## Happens-before selection against the check (E8b)
+
+`experiments/e8_hb.py [trace|compare|replay|all]`, inside the container. `trace` traces the
+applications it compares into `experiments/results/e8/` with the binaries the application
+scripts build (AMG at 8 ranks; HYPRE 2.10.1 at 4 and 8 ranks under `HYPRE_DIR`; NPB MG 2.4.1
+class S at 16 and 32 ranks under `NPB_MG_DIR`). `compare` judges every pair (wildcard receive
+or probe, send) by the two happens-before rules of `analysis/stretto/hb.py` and by the check,
+on the corpus traces of the latest run (`experiments/results/{mbi,mbb}/<program>/trace`), the
+idioms (`traces/openmpi`) and those applications, and with `--synthetic N` on random programs
+that the explorer decides; it writes `e8_hb_counts.csv` (pairs per program, kind of receive and
+verdicts), `e8_hb.csv` (one row per disagreement) and `e8_hb_traces.csv`. MG at 32 ranks takes
+about 20 minutes of it, in the generic check of nonblocking alternatives. `replay` replays up
+to `--sample` disagreements per program and class with the tracer preloaded: it applies the
+pins and records each replay, whose trace tells a run of the program from one that only the
+pins make possible. A replay that hangs waits out `--timeout` (corpus programs) or
+`--app-timeout` (applications). The committed tables come from `e8_hb.py all --synthetic 100
+--max-states 100000 --jobs 2` in a container on 12 processors; at the explorer's default cap
+the generator keeps larger programs but takes a minute or more for each.
+
 ## Shared-host protocol on the development host
 
 Jobs that may exceed 20 GiB or use 8 sustained cores run one at a time through

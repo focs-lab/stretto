@@ -1173,6 +1173,203 @@ def guard():
     return "\n\n".join(out) + "\n"
 
 
+HB_CORPORA = (("mbi", "MBI", "MBI"), ("mbb", "MPI-BugBench level 2", "MBB"), ("idioms", "idioms", "Idioms"),
+              ("amg", "AMG, 8 ranks", "AMG"), ("hypre", "HYPRE 2.10.1, 4 and 8 ranks", "Hypre"),
+              ("npbmg", "NPB MG 2.4.1, class S, 16 and 32 ranks", "MG"))
+
+
+def e8_hb():
+    """Happens-before selection of alternatives against the check (experiments/e8_hb.py:
+    e8_hb_counts.csv, the pairs per program, kind and verdicts; e8_hb.csv, one row per
+    disagreement with its replay; e8_hb_traces.csv, one row per trace)."""
+    cnt = rows(os.path.join(RES, "e8_hb_counts.csv"))
+    rs = rows(os.path.join(RES, "e8_hb.csv"))
+    ts = rows(os.path.join(RES, "e8_hb_traces.csv"))
+    if not cnt:
+        return "_no results_\n"
+    yes = lambda r, k: r.get(k) == "True"   # noqa: E731
+
+    def cells(sel):
+        """Counts of e8_hb_counts.csv rows (weighted by their pairs) or of single pairs."""
+        n = lambda cond: sum(int(r.get("pairs") or 1) for r in sel if cond(r))   # noqa: E731
+        return {"pairs": n(lambda r: True),
+                "post_both": n(lambda r: yes(r, "hb_post") and yes(r, "stretto")),
+                "post_only": n(lambda r: yes(r, "hb_post") and not yes(r, "stretto")),
+                "post_missed": n(lambda r: yes(r, "stretto") and not yes(r, "hb_post")),
+                "comp_both": n(lambda r: yes(r, "hb_comp") and yes(r, "stretto")),
+                "comp_only": n(lambda r: yes(r, "hb_comp") and not yes(r, "stretto")),
+                "comp_missed": n(lambda r: yes(r, "stretto") and not yes(r, "hb_comp")),
+                "neither": n(lambda r: not yes(r, "hb_comp") and not yes(r, "stretto"))}
+
+    def line(label, c, extra=""):
+        return (f"| {label} | {c['pairs']} | {c['post_both']} | {c['post_only']} | {c['post_missed']} | {c['comp_both']} | "
+                f"{c['comp_only']} | {c['comp_missed']} | {c['neither']} |{extra}")
+
+    real = [r for r in cnt if r["corpus"] != "synthetic"]           # counts
+    syn = [r for r in cnt if r["corpus"] == "synthetic"]
+    dis = [r for r in rs if r["corpus"] != "synthetic"]             # one row per disagreement
+    syn_dis = [r for r in rs if r["corpus"] == "synthetic"]
+    real_ts = [t for t in ts if t["corpus"] != "synthetic"]
+    ok_ts = [t for t in real_ts if t["status"] == "ok"]
+    out = ["Every pair (wildcard receive or probe, send) that a happens-before rule selects or the analysis enumerates,",
+           "judged three ways (`experiments/e8_hb.py`, definitions in `analysis/stretto/hb.py`): rule (a) selects a",
+           "send that is the non-overtaking head of its source and not causally after the receive's *posting*",
+           "(DAMPI's rule); rule (b) the same at the receive's *completion*; the check is the report's verdict",
+           "(feasible at some threshold at which the observed run is realisable). Happens-before is the run's causal",
+           "order (program order, message to the completion that returned it, probes, collectives by shape), with",
+           "exact vector clocks. The rules coincide at blocking receives and probes; they differ only at a",
+           "nonblocking receive whose rank sends or enters a collective while it is pending. *Only (a)*: the rule",
+           "selects the pair and the check rejects it; *check only*: the check accepts it and the rule does not.",
+           f"Rows by code commit: {commits(cnt + rs)}.", ""]
+    out += ["| corpus | traces | records, max | wildcard receives | blocking | nonblocking, nothing sent while pending | "
+            "nonblocking, pending across a send | nonblocking, never completed | wildcard probes | not analysed |",
+            "|---|---|---|---|---|---|---|---|---|---|"]
+    isum = lambda sel, k: sum(int(t.get(k) or 0) for t in sel)   # noqa: E731
+    for c, label, _ in HB_CORPORA:
+        sel = [t for t in real_ts if t["corpus"] == c]
+        if not sel:
+            continue
+        good = [t for t in sel if t["status"] == "ok"]
+        bad = collections.Counter(t["status"].split(":")[0] for t in sel if t["status"] != "ok")
+        out.append(f"| {label} | {len(good)} | {max((int(t['records']) for t in good if t.get('records')), default=0)} | "
+                   f"{isum(good, 'wildcard_recvs')} | {isum(good, 'blocking')} | {isum(good, 'nonblocking_nothing_sent_while_pending')} | "
+                   f"{isum(good, 'nonblocking_pending_across_a_send')} | {isum(good, 'nonblocking_never_completed')} | "
+                   f"{isum(good, 'wildcard_probes')} | {', '.join(f'{k} {v}' for k, v in sorted(bad.items())) or '0'} |")
+    head = ["| | pairs | (a) and check | only (a) | check only, not (a) | (b) and check | only (b) | check only, not (b) | neither |",
+            "|---|---|---|---|---|---|---|---|---|"]
+    out += ["", "Pairs by corpus:", ""] + head
+    for c, label, k in HB_CORPORA:
+        sel = [r for r in real if r["corpus"] == c]
+        if not sel and not any(t["corpus"] == c for t in ok_ts):
+            continue
+        cc = cells(sel)
+        out.append(line(label, cc))
+        num(f"nHB{k}Pairs", cc["pairs"])
+        num(f"nHB{k}PostOnly", cc["post_only"])
+        num(f"nHB{k}PostMissed", cc["post_missed"])
+        num(f"nHB{k}CompOnly", cc["comp_only"])
+        num(f"nHB{k}CompMissed", cc["comp_missed"])
+    tot = cells(real)
+    out.append(line("**all real traces**", tot))
+    for name, v in tot.items():
+        num("nHB" + "".join(w.capitalize() for w in name.split("_")), v)
+    num("nHBTraces", len(ok_ts))
+    num("nHBRecvPairs", cells([r for r in real if r["op"] == "recv"])["pairs"])
+    num("nHBProbePairs", cells([r for r in real if r["op"] == "probe"])["pairs"])
+    num("nHBPendingRecvs", isum(ok_ts, "nonblocking_pending_across_a_send"))
+    out += ["", "Pairs by kind of receive, all real traces (a probe is one call: (a) and (b) coincide):", ""] + head
+    for kind in ("blocking", "nonblocking, nothing sent while pending", "nonblocking, pending across a send",
+                 "nonblocking, never completed"):
+        sel = [r for r in real if r["op"] == "recv" and r["kind"] == kind]
+        if sel:
+            out.append(line(kind, cells(sel)))
+    sel = [r for r in real if r["op"] == "probe"]
+    if sel:
+        out.append(line("probes", cells(sel)))
+    by_prog = collections.OrderedDict()
+    for r in real:
+        by_prog.setdefault((r["corpus"], r["program"]), []).append(r)
+    split = [(k, cells(v)) for k, v in by_prog.items() if any(x["class"] for x in v)]
+    out += ["", f"Programs with a disagreement ({len(split)} of {len(ok_ts)}; every other program agrees under both rules):", ""]
+    out += [h.replace("| |", "| program |", 1) if i == 0 else h for i, h in enumerate(head)]
+    out += [line(f"{c}/{p}", cc) for (c, p), cc in split]
+    num("nHBProgramsSplit", len(split))
+    missed = collections.Counter(r["hb_miss"] for r in dis if yes(r, "stretto") and not yes(r, "hb_post"))
+    rejected = collections.Counter(r["stretto_reason"].split(":")[0] for r in dis if yes(r, "hb_comp") and not yes(r, "stretto"))
+    out += ["", "Why rule (a) misses the pairs only the check accepts: " +
+            (", ".join(f"{k} {v}" for k, v in missed.most_common()) or "none") + ". Why the check rejects the pairs rule (b) "
+            "selects: " + (", ".join(f"{k} {v}" for k, v in rejected.most_common()) or "none") + "."]
+    gen = [r for r in real if r.get("stretto_generic") in ("True", "False")]
+    differ = [r for r in gen if r["stretto_generic"] != r["stretto"]]
+    num("nHBGenericPairs", cells(gen)["pairs"])
+    num("nHBGenericDiffer", cells(differ)["pairs"])
+    out += [f"The generic check judged as well the {cells(gen)['pairs']} pairs of the {sum(1 for t in ok_ts if t.get('generic') == 'yes')} "
+            f"traces of up to 20,000 records and differs from the fast checks on {cells(differ)['pairs']}"
+            + (" (" + ", ".join(sorted({f"{r['corpus']}/{r['program']}" for r in differ})) + ")" if differ else "") + "."]
+    # replays of the disagreements
+    rp = [r for r in dis if r.get("arbiter") == "replay"]
+    if rp:
+        ev = collections.Counter((r["class"], r["evidence"]) for r in rp)
+        out += ["", "Replays of the disagreements (up to 30 per program and class, chosen at random with a fixed seed), each",
+                "pinned over its horizon with a control pinned to the observed senders, both recorded by the tracer. *Realised*:",
+                "the changed receive's pin and the pins of the receives completed in the horizon matched, the run finished, and",
+                "its own trace is a run of the program without pins (*run did not finish*: the changed pin matched in a run of",
+                "the program that then hung or failed); *pins only*: it matched, but only because the pin rewrote the wildcard (a",
+                "later receive took a message the pending original accepts); *not realised*: the pin never matched while the",
+                "control's pins all matched in a finished run of the program; *control failed*: the pin never matched and the",
+                "control shows nothing (it did not finish, did not match, or is itself no run of the program).", "",
+                "| corpus | class | disagreements | replayed | " + " | ".join(EVIDENCE) + " | controls finished, pins matched |",
+                "|---|---|---|---|" + "---|" * (len(EVIDENCE) + 1)]
+        for c, label, _ in HB_CORPORA:
+            for cls in ("hb-only", "stretto-only"):
+                sel = [r for r in rp if r["class"] == cls and r["corpus"] == c]
+                n = sum(1 for r in dis if r["class"] == cls and r["corpus"] == c)
+                if not n:
+                    continue
+                e = collections.Counter(r["evidence"] for r in sel)
+                out.append(f"| {label} | {'only (b), check rejects' if cls == 'hb-only' else 'check only, not (a)'} | {n} | {len(sel)} | "
+                           + " | ".join(str(e[x]) for x in EVIDENCE)
+                           + f" | {sum(1 for r in sel if r['control'] == 'FINISHED' and r['control_matched'] == 'True')} |")
+        other = sorted({e for _, e in ev} - set(EVIDENCE))
+        if other:
+            out += ["", "Other replay outcomes: " + ", ".join(f"{c} {e} {ev[(c, e)]}" for c, e in sorted(ev) if e in other) + "."]
+        num("nHBReplayed", len(rp))
+        for cls, k in (("hb-only", "HBOnly"), ("stretto-only", "StrettoOnly")):
+            sel = [r for r in rp if r["class"] == cls]
+            num(f"nHBReplay{k}", len(sel))
+            num(f"nHBReplay{k}Realised", sum(1 for r in sel if r["evidence"].startswith("realised")))
+            num(f"nHBReplay{k}NotRealised", sum(1 for r in sel if r["evidence"] == "not realised"))
+            num(f"nHBReplay{k}PinsOnly", sum(1 for r in sel if r["evidence"] == "pins only"))
+            num(f"nHBReplay{k}ControlFailed", sum(1 for r in sel if r["evidence"] == "control failed"))
+        ex = []
+        for (cls, e), _ in sorted(ev.items()):
+            for r in [r for r in rp if r["class"] == cls and r["evidence"] == e][:2]:
+                why = r["stretto_reason"] if cls == "hb-only" else r["hb_miss"]
+                ex.append(f"| {cls} | {e} | {r['corpus']}/{r['program']} | `{r['desc']}` | {r['kind']} | {why} | "
+                          f"{r['replay']} / {r['control']} |")
+        out += ["", "Examples, two per class and outcome:", "",
+                "| class | outcome | program | pair | receive | why the other side disagrees | replay / control |",
+                "|---|---|---|---|---|---|---|"] + ex
+    if syn:
+        c = cells(syn)
+        decided = collections.Counter((r["class"], r["evidence"]) for r in syn_dis)
+        progs = len({r["program"] for r in syn} | {t["program"] for t in ts if t["corpus"] == "synthetic"})
+        out += ["", f"Synthetic traces: {progs} random programs from E6's generator, all with sends, receives and waits",
+                "interleaved, each traced from an execution the explorer chose; with no program to rerun, the explorer over",
+                "the trace as a straight-line program decides each disagreement with E6's criteria. *Realised*: some execution",
+                "agrees with the single-change alternative on every receive its horizon judges, matched alike or unmatched",
+                "alike; *realised, judged pairs only*: some execution has every pair the alternative judges, while a receive it",
+                "leaves unmatched takes a message (what a replay pinned over the horizon tests); *realised with other matches",
+                "changed*: executions match the receive to the send, but only with another receive matched differently,",
+                "which no single-change alternative states; *not realised*: no execution matches them. An execution in which a",
+                "ready send is issued before its receive is posted, which is erroneous and which the check excludes, counts only",
+                "when no other does, and the verdict says so.", ""] + head + [line("synthetic", c), "",
+                "Explorer verdicts: " + (", ".join(f"{cls} {e} {n}" for (cls, e), n in sorted(decided.items())) or "none") + "."]
+        ex = [r for r in syn_dis if r["class"] == "hb-only"][:3] + [r for r in syn_dis if r["class"] == "stretto-only"][:2]
+        if ex:
+            out += ["", "| program | class | explorer | pair | receive | why the other side disagrees |", "|---|---|---|---|---|---|"]
+            out += [f"| {r['program']} | {r['class']} | {r['evidence']} | `{r['desc']}` | {r['kind']} | "
+                    f"{r['stretto_reason'] if r['class'] == 'hb-only' else r['hb_miss']} |" for r in ex]
+        num("nHBSynPrograms", progs)
+        num("nHBSynPairs", c["pairs"])
+        num("nHBSynCompOnly", c["comp_only"])
+        num("nHBSynPostMissed", c["post_missed"])
+        num("nHBSynCompOnlyNotRealised", decided[("hb-only", "not realised")])
+        num("nHBSynCompOnlyRealised", decided[("hb-only", "realised")])
+        num("nHBSynCompOnlyOther", decided[("hb-only", "realised with other matches changed")])
+        num("nHBSynCompOnlyPairs", decided[("hb-only", "realised, judged pairs only")])
+        num("nHBSynCompOnlyReady", sum(n for (cls, e), n in decided.items() if cls == "hb-only" and e.endswith("ready send before its receive")))
+        num("nHBSynPostMissedPairs", decided[("stretto-only", "realised, judged pairs only")])
+        num("nHBSynPostMissedOther", decided[("stretto-only", "realised with other matches changed")])
+        num("nHBSynPostMissedRealised", decided[("stretto-only", "realised")])
+        num("nHBSynPostMissedNotRealised", decided[("stretto-only", "not realised")])
+    return "\n".join(out) + "\n"
+
+
+EVIDENCE = ("realised", "realised, run did not finish", "realised, other pins unmatched", "realised, truncation error",
+            "pins only", "not realised", "control failed")
+
+
 def leg_commits():
     cs = sorted({r["commit"] for r in rows(os.path.join(RES, "e4", "e4.csv")) if r.get("commit")})
     return ", ".join(cs) or "unknown"
@@ -1207,7 +1404,8 @@ def main():
            "## E5e: a third documented bug (deal.II 9.3.0-rc1, a probe takes a message of the next call)", "", dealii(),
            "## E6: polynomial checker vs exhaustive explorer", "", e6(),
            "## E7: the value skeleton on MBI (level L2)", "", e7(),
-           "## E8: the buffer guard (local concurrency, class 3-local)", "", guard()]
+           "## E8: the buffer guard (local concurrency, class 3-local)", "", guard(),
+           "## E8b: happens-before candidate selection against the check", "", e8_hb()]
     path = os.path.join(ROOT, "docs", "results.md")
     open(path, "w").write("\n".join(doc))
     print("wrote", path)
