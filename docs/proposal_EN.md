@@ -992,7 +992,7 @@ So the correct novelty claim is *not* "the intersection of prediction theory and
                                      from exploration
 ```
 
-   Our position survives, refined. MPI semantics — matching over (src, tag, comm), non-overtaking, buffering regimes, collectives — is strictly richer than Go channels, so a theory built for MPI specialises to Go, not the other way round.
+   Our position survives, refined. Go channels and MPI matching are incomparable. In Go any goroutine may receive from a channel, capacity counts messages, `select` chooses among sends as well as receives, and channels can be closed; MPI has matching over (src, tag, comm), non-overtaking per pair of ranks, probes, a per-message eager threshold and collectives, and a status that reveals the sender. A theory built for MPI applies to their common fragment (single-consumer channels, unbuffered or unbounded, `select` over receives), not to Go as a whole.
 
 - **dl²** — *Detecting Communication Deadlocks in Deep Learning Jobs*, FSE'25 (Microsoft Research). Intercepts PyTorch distributed **and NCCL**, models the run as an execution graph, builds a wait-for graph, handles nondeterminism by action reordering; 1.00–1.09× overhead. Observational; no predictive layer. **Double significance:** independent evidence that message-matching bugs are alive in the AI stack and publishable at a top SE venue, and a natural target for WP4.
 
