@@ -24,7 +24,7 @@ import subprocess
 import tempfile
 import time
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Set, Tuple
 
 from .report import Finding, Report
@@ -477,25 +477,50 @@ def unpinned_violation(t, finished: bool = True, hung: bool = False, pins=None, 
     return first or "undetermined: no reading of the pending receives agrees with the end of the replay"
 
 
-def judge_replay(tracedir: str, result: str, pins=None) -> Tuple[str, str]:
+def trace_matches(t, pins) -> Set[Tuple[str, int, int]]:
+    """The pins a replay's own trace shows taken, as _reported has them: ("recv", rank, widx)
+    for a pinned receive that completed from its pinned source (with its pinned tag, if the pin
+    names one), ("probe", rank, pidx) for a pinned probe that saw a message of its pinned
+    source. The trace says what the run did; the replay library's report lines, which Open
+    MPI's mpirun merges from the ranks' stderr in chunks, can be cut apart and missed."""
+    rp, pp = parse_pins(pins)
+    out: Set[Tuple[str, int, int]] = set()
+    for r in t.recvs.values():
+        pin = rp.get((r.rank, r.widx)) if r.widx is not None else None
+        if pin and r.completed and r.msrc == pin[0] and (pin[1] is None or r.mtag == pin[1]):
+            out.add(("recv", r.rank, r.widx))
+    for q in t.probes.values():
+        pin = pp.get((q.rank, q.pidx)) if q.pidx is not None else None
+        if pin and q.flag and q.msrc == pin[0] and (pin[1] is None or q.mtag == pin[1]):
+            out.add(("probe", q.rank, q.pidx))
+    return out
+
+
+def judge_replay(tracedir: str, result: str, pins=None, seen: Optional[set] = None) -> Tuple[str, str]:
     """("True", "") if the trace a replay recorded in tracedir is a run of the program without
     its pins up to where the run ended (unpinned_violation; result is the replay's
     classify_rc), ("False", the violation), or ("unknown", why) when the trace cannot be read or
-    its readings are too many."""
+    its readings are too many. seen, if given, receives the pins the trace shows taken
+    (trace_matches)."""
     from . import trace as trace_mod
     try:
         t = trace_mod.load(tracedir)
     except Exception as e:  # noqa: BLE001  (a run killed while writing: judged unknown, not fatal)
         return "unknown", f"trace unreadable: {e}"[:200]
+    if seen is not None:
+        seen |= trace_matches(t, pins)
     why = unpinned_violation(t, finished=result == "FINISHED", hung=result == "TIMEOUT", pins=pins)
     if why is None:
         return "True", ""
     return ("unknown" if why.startswith("undetermined") else "False"), why
 
 
-def all_matched(pins: List[str], stderr: str, required: Optional[Set[Tuple[str, int, int]]] = None) -> bool:
-    """Every pin matched (pins_matched), or, given required (required_matches), every required one."""
-    reported = _reported(stderr)
+def all_matched(pins: List[str], stderr: str, required: Optional[Set[Tuple[str, int, int]]] = None,
+                seen: Optional[Set[Tuple[str, int, int]]] = None) -> bool:
+    """Every pin matched (pins_matched), or, given required (required_matches), every required one.
+    A pin counts when stderr reports it or when seen, the pins the replay's own trace shows taken
+    (Replay.seen, trace_matches), has it."""
+    reported = _reported(stderr) | (seen or set())
     if required is None:
         return all(_taken(p, reported) for p in pins)
     return required <= reported
@@ -540,12 +565,14 @@ def tracer_lib(mpi: str = "openmpi") -> str:
 
 @dataclass
 class Replay:
-    """A pinned run: the process, its classify_rc, and whether its own trace is a run of the
-    program without the pins (judge_replay; "" when the tracer was not there to record it)."""
+    """A pinned run: the process, its classify_rc, whether its own trace is a run of the
+    program without the pins (judge_replay; "" when the tracer was not there to record it), and
+    the pins that trace shows taken (trace_matches), for all_matched."""
     proc: subprocess.CompletedProcess
     result: str
     valid: str = ""
     why: str = ""
+    seen: Set[Tuple[str, int, int]] = field(default_factory=set)
 
 
 def run_checked(np: int, exe: str, args: List[str], pin, timeout: int = 20, mpi: str = "openmpi",
@@ -566,7 +593,8 @@ def run_checked(np: int, exe: str, args: List[str], pin, timeout: int = 20, mpi:
         r = run_pinned(np, exe, args, pin, timeout, mpi, mpirun_args, {**(extra_env or {}), "STRETTO_TRACE_DIR": d},
                        cwd, preload=tracer)
         res = classify_rc(r.returncode, r.stderr, r.elapsed, timeout)
-        valid, why = judge_replay(d, res, pin)
+        seen: Set[Tuple[str, int, int]] = set()
+        valid, why = judge_replay(d, res, pin, seen)
         keep = os.environ.get("STRETTO_KEEP_REPLAYS")
         if keep and valid != "True":
             os.makedirs(keep, exist_ok=True)
@@ -576,7 +604,7 @@ def run_checked(np: int, exe: str, args: List[str], pin, timeout: int = 20, mpi:
             with open(os.path.join(dest, "replay.txt"), "w") as fh:
                 fh.write(f"exe: {exe} {' '.join(args)}\nnp: {np}\nresult: {res}\nvalid: {valid}\nwhy: {why}\npins:\n"
                          + "\n".join([pin] if isinstance(pin, str) else (pin or [])) + f"\n--- stderr\n{r.stderr}")
-        return Replay(r, res, valid, why)
+        return Replay(r, res, valid, why, seen)
     finally:
         shutil.rmtree(d, ignore_errors=True)
 
@@ -645,7 +673,7 @@ def confirm(rep: Report, np: int, exe: str, args: List[str] = (), timeout: int =
         rp = run_checked(np, exe, list(args), pins, timeout, mpi)
         r, res = rp.proc, rp.result
         applied = all(pins_applied(x, r.stderr) for x in pins)
-        matched = all_matched(pins, r.stderr, required)
+        matched = all_matched(pins, r.stderr, required, rp.seen)
         want = expected_outcomes(f)
         ctl = control(ctl_pins) if want and res in want and matched else Replay(None, "")
         if not want:

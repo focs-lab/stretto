@@ -106,9 +106,9 @@ def main() -> int:
         ra = run_checked(args.np, args.exe, args.args, alt, args.timeout, mpi=args.mpi, extra_env=env)
         rc = run_checked(args.np, args.exe, args.args, ctl, args.timeout, mpi=args.mpi, extra_env=env)
         rows.append({**row, "pins": sum(x.count(",") + 1 for x in alt),
-                     "replay": ra.result, "matched": all_matched(alt, ra.proc.stderr, required),
+                     "replay": ra.result, "matched": all_matched(alt, ra.proc.stderr, required, ra.seen),
                      "run_valid": ra.valid, "violation": ra.why[:300],
-                     "control": rc.result, "control_matched": all_matched(ctl, rc.proc.stderr),
+                     "control": rc.result, "control_matched": all_matched(ctl, rc.proc.stderr, None, rc.seen),
                      "control_valid": rc.valid, "control_violation": rc.why[:300]})
         print(f"[{k}/{len(planned)}] {rows[-1]['replay']} matched={rows[-1]['matched']} valid={ra.valid} control={rows[-1]['control']} "
               f"valid={rc.valid} {f.title[:90]}" + (f"\n    {ra.why[:200]}" if ra.why else "") + (f"\n    control: {rc.why[:200]}" if rc.why else ""),

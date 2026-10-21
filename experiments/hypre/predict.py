@@ -141,9 +141,10 @@ def main() -> int:
         ra = run_checked(np, exe, ARGS, alt, args.timeout, mpi="mpich", cwd=args.testdir)
         rc = run_checked(np, exe, ARGS, ctl, args.timeout, mpi="mpich", cwd=args.testdir)
         res = {**row, "pin": f.pin, "kind": kind, "site": f.site, "replay": ra.result,
-               "matched": all_matched(alt, ra.proc.stderr, required_matches(t, f)), "residual": residual(ra.proc.stdout),
+               "matched": all_matched(alt, ra.proc.stderr, required_matches(t, f), ra.seen), "residual": residual(ra.proc.stdout),
                "run_valid": ra.valid, "violation": ra.why[:300],
-               "control": rc.result, "control_matched": all_matched(ctl, rc.proc.stderr), "control_residual": residual(rc.proc.stdout),
+               "control": rc.result, "control_matched": all_matched(ctl, rc.proc.stderr, None, rc.seen),
+               "control_residual": residual(rc.proc.stdout),
                "control_valid": rc.valid, "control_violation": rc.why[:300]}
         for role, r in (("replay", ra.proc), ("control", rc.proc)):
             if res[role] not in ("FINISHED", "TIMEOUT"):

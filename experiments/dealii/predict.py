@@ -169,10 +169,10 @@ def main() -> int:
             return {**res, "replay": "no horizon"}
         alt, ctl = hp
         (ra, oa), (rc, oc) = run(np, alt), run(np, ctl)
-        res.update(replay=ra.result, matched=all_matched(alt, ra.proc.stderr, required_matches(t, f)),
+        res.update(replay=ra.result, matched=all_matched(alt, ra.proc.stderr, required_matches(t, f), ra.seen),
                    differs=oa != exp, differs_control=oa != oc, lines=lines_differing(oa, exp),
                    run_valid=ra.valid, violation=ra.why[:300],
-                   control=rc.result, control_matched=all_matched(ctl, rc.proc.stderr), control_expected=oc == exp,
+                   control=rc.result, control_matched=all_matched(ctl, rc.proc.stderr, None, rc.seen), control_expected=oc == exp,
                    control_valid=rc.valid, control_violation=rc.why[:300])
         if oa != exp or oc != exp:
             os.makedirs(keep, exist_ok=True)

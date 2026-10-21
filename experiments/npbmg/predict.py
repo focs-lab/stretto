@@ -105,9 +105,10 @@ def main() -> int:
         alt, ctl = hp
         ra = run_checked(np, exe, [], alt, args.timeout, mpi="mpich", cwd=args.bindir)
         rc = run_checked(np, exe, [], ctl, args.timeout, mpi="mpich", cwd=args.bindir)
-        return {**res, "replay": ra.result, "matched": all_matched(alt, ra.proc.stderr, required_matches(t, f)),
+        return {**res, "replay": ra.result, "matched": all_matched(alt, ra.proc.stderr, required_matches(t, f), ra.seen),
                 "norm": norm(ra.proc.stdout), "run_valid": ra.valid, "violation": ra.why[:300],
-                "control": rc.result, "control_matched": all_matched(ctl, rc.proc.stderr), "control_norm": norm(rc.proc.stdout),
+                "control": rc.result, "control_matched": all_matched(ctl, rc.proc.stderr, None, rc.seen),
+                "control_norm": norm(rc.proc.stdout),
                 "control_valid": rc.valid, "control_violation": rc.why[:300]}
 
     # the replays are independent runs

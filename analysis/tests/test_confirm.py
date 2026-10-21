@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from stretto.confirm import (PIN_INLINE_MAX, all_matched, changed_pin, classify_rc, control_pin, expected_outcomes,  # noqa: E402
                              horizon_pins, judge_replay, parse_pins, pin_assignment, pins_applied, pins_matched,
-                             required_matches, strict_verdict, unpinned_violation)
+                             required_matches, strict_verdict, trace_matches, unpinned_violation)
 from stretto import trace as T  # noqa: E402
 from stretto.matching import candidates_full  # noqa: E402
 from stretto.report import Finding  # noqa: E402
@@ -281,6 +281,30 @@ class HungReplays(unittest.TestCase):
             self.assertEqual(valid, "False")
             self.assertIn("end of the run", why)
             self.assertEqual(judge_replay(d, "APP-ERROR:1", ["STRETTO_PIN=0:0:2"]), ("True", ""))
+
+
+class TraceMatches(unittest.TestCase):
+    """A replay's own trace says which pins it took; mpirun can cut the report lines apart."""
+
+    def test_pins_taken_in_the_replays_trace(self):
+        probe = {"op": "probe", "kind": "probe", "src": 0, "anysrc": 1, "tag": 3, "comm": 0, "flag": 1, "msrc": 1, "mtag": 3, "pidx": 0}
+        t = mk({0: [recv(T.ANY, 0, 2, 0, widx=0), recv(T.ANY, T.ANY, 1, 5, widx=1), probe, recv(1, 3, 1, 3)],
+                1: [send(0, 5), send(0, 3)], 2: [send(0, 0)]})
+        pins = ["STRETTO_PIN=0:0:2,0:1:1:5", "STRETTO_PIN_PROBE=0:0:1"]
+        self.assertEqual(trace_matches(t, pins), {("recv", 0, 0), ("recv", 0, 1), ("probe", 0, 0)})
+        self.assertEqual(trace_matches(t, ["STRETTO_PIN=0:0:1,0:1:1:7", "STRETTO_PIN_PROBE=0:0:2"]), set())
+        self.assertFalse(all_matched(pins, ""))
+        self.assertTrue(all_matched(pins, "", None, trace_matches(t, pins)))
+        self.assertTrue(all_matched(pins, "", {("recv", 0, 1)}, {("recv", 0, 1)}))
+
+    def test_judge_replay_hands_the_taken_pins_back(self):
+        with tempfile.TemporaryDirectory() as d:
+            for rank, recs in {0: [recv(T.ANY, 0, 1, 0, widx=0)], 1: [send(0, 0)]}.items():
+                with open(os.path.join(d, f"rank-{rank}.jsonl"), "w") as fh:
+                    fh.write("".join(json.dumps(r) + "\n" for r in [{"op": "init", "np": 2}] + recs + [{"op": "finalize"}]))
+            seen = set()
+            self.assertEqual(judge_replay(d, "FINISHED", "STRETTO_PIN=0:0:1", seen), ("True", ""))
+            self.assertEqual(seen, {("recv", 0, 0)})
 
 
 class Verdicts(unittest.TestCase):
