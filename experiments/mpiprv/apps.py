@@ -14,7 +14,9 @@ Each configuration runs from a copy of its directory:
             of its horizon and with its control (experiments/replay_sample.py)
   guard     a second traced run with the buffer guard (STRETTO_GUARD=1), analysed
   confirm   the error findings of either trace that carry a pin, each replayed with its pin and
-            a control (`stretto confirm`)
+            a control (`stretto confirm`, with Open MPI's default eager limits); the error
+            predictions of the plain trace that hold only below the eager threshold (B=0, B < n)
+            again under rendezvous for every message above 8 bytes (column rendezvous)
 Writes experiments/results/mpiprv/apps.csv and apps-replays.csv; the runs stay under
 experiments/mpiprv/work/apps/ (git-ignored).
 
@@ -61,6 +63,18 @@ APPS = [
     ("MiniAMR", "MiniAMR/ref", "./miniAMR.x", {4: "--npx 2 --npy 2 --npz 1", 8: "--npx 2 --npy 2 --npz 2",
                                                16: "--npx 4 --npy 2 --npz 2"}),
 ]
+# the environment an application needs, {top} its copied directory: pm_ptest's run path names
+# directories of the machine it was built on, and its libmetis.so lies in the METIS build
+APP_ENV = {"ParMETIS": {"LD_LIBRARY_PATH": "{top}/METIS/build/libmetis"}}
+# Open MPI over TCP with a 64-byte eager limit sends every message above 8 bytes by rendezvous
+# (experiments/results/b_impl.csv, setting openmpi-tcp-64): the setting in which to replay a
+# prediction that needs B = 0 or B below a message size
+RENDEZVOUS = ["--mca", "btl", "self,tcp", "--mca", "btl_tcp_if_include", "lo", "--mca", "btl_tcp_eager_limit", "64",
+              "--mca", "btl_self_eager_limit", "64"]
+sys.path.insert(0, os.path.join(ROOT, "analysis"))
+from stretto import trace as strace  # noqa: E402
+from stretto.confirm import all_matched, classify_rc, horizon_pins, required_matches, run_pinned  # noqa: E402
+from stretto.report import analyze as s_analyze  # noqa: E402
 
 
 def run(cmd, cwd, timeout, env=None):
@@ -98,6 +112,31 @@ def analyse(tdir, timeout):
     if m:
         res.update(sends=m.group(1), recvs=m.group(2), wildcards=m.group(3), probes=m.group(4), colls=m.group(5))
     return res, j["findings"]
+
+
+def rendezvous_replays(d, exe, args, np_, tdir, timeout):
+    """The error predictions of the trace that hold only below the eager threshold (B=0, B < n),
+    which a replay with Open MPI's default limits cannot show: each replayed with the pins of its
+    horizon at B = 0, and its control, under RENDEZVOUS."""
+    try:
+        t = strace.load(tdir)
+    except Exception:  # noqa: BLE001
+        return ""
+    rep = s_analyze(t, with_sp=True, sp_max_events=600, max_states=30000)
+    res = set()
+    for f in rep.findings:
+        if f.cls not in ERROR_CLASSES or f.recv is None or f.send is None or not (f.B == "B=0" or f.B.startswith("B <")):
+            continue
+        hp = horizon_pins(t, f, 0)
+        if hp is None:
+            continue
+        alt, ctl = hp
+        ra = run_pinned(np_, exe, args.split(), alt, timeout, mpirun_args=RENDEZVOUS, cwd=d)
+        rc = run_pinned(np_, exe, args.split(), ctl, timeout, mpirun_args=RENDEZVOUS, cwd=d)
+        res.add(f"{f.cls} at {f.B}: {classify_rc(ra.returncode, ra.stderr, ra.elapsed, timeout)}/"
+                f"{'matched' if all_matched(alt, ra.stderr, required_matches(t, f, 0)) else 'unmatched'}/"
+                f"control-{classify_rc(rc.returncode, rc.stderr, rc.elapsed, timeout)}")
+    return "; ".join(sorted(res))
 
 
 def records(tdir):
@@ -139,6 +178,9 @@ def main():
             for f in os.listdir(d):          # MPI-PRV's own traces and logs are not needed
                 if re.match(r"output.*\.txt$", f):
                     os.remove(os.path.join(d, f))
+            saved = dict(os.environ)          # every run, replay and control of this configuration
+            for k, v in APP_ENV.get(app, {}).items():
+                os.environ[k] = v.format(top=os.path.join(WORK, name)) + ":" + os.environ.get(k, "")
             row["run"] = traced(d, exe, a, np_, os.path.join(d, "trace"), False, args.timeout)
             row["records"] = records(os.path.join(d, "trace"))
             res, fs = analyse(os.path.join(d, "trace"), args.timeout)
@@ -170,7 +212,7 @@ def main():
             for tag, t, found in (("", "trace", fs), ("guard_", "trace-guard", gfs)):
                 if any(f["cls"] in ERROR_CLASSES and f.get("pin") for f in found):
                     rc, out, err = run([sys.executable, "-m", "stretto", "confirm", "--json", *ANALYSE, "--np", str(np_),
-                                        "--timeout", str(args.replay_timeout), os.path.join(d, t), exe, *a.split()], d,
+                                        "--timeout", str(args.replay_timeout), os.path.join(d, t), exe, "--", *a.split()], d,
                                        40 * (2 * args.replay_timeout + 30), env={"PYTHONPATH": os.path.join(ROOT, "analysis")})
                     open(os.path.join(d, t + ".confirm.json"), "w").write(out + err)
                     try:
@@ -179,6 +221,9 @@ def main():
                         cs = []
                     row[tag + "confirmed"] = " ".join(f"{k}*{v}" for k, v in sorted(collections.Counter(
                         f"{c['cls']}:{c['verdict']}" for c in cs).items())) or f"error rc={rc}"
+            row["rendezvous"] = rendezvous_replays(d, exe, a, np_, os.path.join(d, "trace"), args.replay_timeout)
+            os.environ.clear()
+            os.environ.update(saved)
             rows.append(row)
             print(name, {k: row.get(k) for k in ("run", "records", "wildcards", "classes", "alternatives",
                                                   "replay_results", "analysis_s", "guard_classes")}, flush=True)
@@ -191,7 +236,7 @@ def main():
         order = {f"{app}-{n}": i for i, (app, _, _, cfgs) in enumerate(APPS) for n in cfgs}
         rows.sort(key=lambda r: (order.get(f"{r['app']}-{r['np']}", 0), int(r["np"])))
     keys = ["app", "np", "command", "run", "records", "sends", "recvs", "wildcards", "probes", "colls", "classes", "confirmed",
-            "errors", "alternatives", "replays", "replay_results", "analysis_s", "analysis_kb", "analysis_rc",
+            "errors", "alternatives", "replays", "replay_results", "rendezvous", "analysis_s", "analysis_kb", "analysis_rc",
             "guard_run", "guard_classes", "guard_local", "guard_confirmed", "summary", "commit"]
     with open(os.path.join(OUT, "apps.csv"), "w", newline="") as fh:
         w = csv.DictWriter(fh, fieldnames=keys, extrasaction="ignore", lineterminator="\n")
