@@ -103,12 +103,14 @@ def e1(name, path, key=None):
         kinds = collections.Counter(score.must_kind(r) for r in rs)
         out.append(conf_row("MUST 1.9.2 (same source, its own run under MPICH)", score.confusion(rs, score.must_verdict)))
         out.append(conf_row("MUST 1.9.2, a timeout or a run without a report counted as an error", score.confusion(rs, score.must_verdict_hangs)))
+        out += must_versions(rs, key)
         out += ["", "MUST verdicts: " + ", ".join(f"{k or 'none'} {v}" for k, v in sorted(kinds.items())) + ". In the first MUST row a run",
                 "that timed out, crashed or did not compile counts as no error reported. A Stretto run that the harness",
                 "killed at the timeout is reported as a blocked rank (2-blocked) and one whose rank stopped before MPI_Finalize",
                 "as an abort, both errors, so the second MUST row credits MUST's timeouts and its runs that ended without a",
                 "report (RE) the same way; the two rows bracket the comparison. Both tools ran each program once, with",
                 "the same timeout; MUST under MPICH, Stretto under Open MPI, so they did not see the same run."]
+        out += must_versions_notes(rs, key, path)
         failed = [r["name"] for r in rs if score.analysis_failed(r)]
         if failed:
             out += ["", f"Analysis failed on {len(failed)} program(s), counted as no error: {', '.join(failed)}."]
@@ -1173,6 +1175,275 @@ def guard():
     return "\n\n".join(out) + "\n"
 
 
+MUST_TAGS = {"must1112": "MUSTeleven", "must1112tsan": "MUSTeleventsan"}   # macro names of score.MUST_COLUMNS
+
+
+def must_versions(rs, key):
+    """E1 rows of the MUST columns besides 1.9.2's (score.MUST_COLUMNS): MUST 1.11.2, plain and
+    with its ThreadSanitizer analysis, each bracketed as 1.9.2 is."""
+    out = []
+    for col, name in score.MUST_COLUMNS:
+        if not any(r.get(col) for r in rs):
+            continue
+        c = score.confusion(rs, score.must_column_judge(col))
+        cs = score.confusion(rs, score.must_column_judge(col, hangs=True))
+        out.append(conf_row(f"{name} (same source, its own run under MPICH)", c))
+        out.append(conf_row(f"{name}, a timeout or a run without a report counted as an error", cs))
+        if key:
+            tag = MUST_TAGS[col]
+            for label, cc in ((tag, c), (tag + "sym", cs)):
+                num(f"{key}fone{label}", cc["f1"])
+                num(f"n{key}tp{label}", cc["tp"])
+                num(f"n{key}fp{label}", cc["fp"])
+    return out
+
+
+def must_versions_notes(rs, key, path):
+    """What the other MUST columns report, against MUST 1.9.2's on the same programs."""
+    out = []
+    for col, name in score.MUST_COLUMNS:
+        if not any(r.get(col) for r in rs):
+            continue
+        judge = score.must_column_judge(col)
+        kinds = collections.Counter(score.must_kind({"must": r.get(col) or ""}) for r in rs)
+        gained = [r for r in rs if r["expect"] == "ERROR" and judge(r) == "ERROR" and score.must_verdict(r) != "ERROR"]
+        lost = [r for r in rs if r["expect"] == "ERROR" and judge(r) != "ERROR" and score.must_verdict(r) == "ERROR"]
+        fps = [r for r in rs if r["expect"] == "OK" and judge(r) == "ERROR"]
+        races = [r for r in rs if "data race" in (r.get(col) or "")]
+        by = lambda sel: ", ".join(f"{d or 'none'} {n}" for d, n in sorted(collections.Counter(r.get("detail") or "-" for r in sel).items()))
+        side = rows(os.path.join(os.path.dirname(path), col + ".csv"))    # run_must.py's own table, with the commit
+        out += ["", f"{name} verdicts (rows by code commit: {commits(side)}): " + ", ".join(f"{k or 'none'} {v}" for k, v in sorted(kinds.items())) + "."
+                f" Labelled errors it reports and MUST 1.9.2 does not: {len(gained)}" + (f" ({by(gained)})" if gained else "")
+                + f"; the reverse: {len(lost)}" + (f" ({by(lost)})" if lost else "") + f". Correct programs it reports: {len(fps)}"
+                + (f" ({', '.join(r['name'] for r in fps)})" if fps else "") + "."
+                + (f" Programs with a data race reported: {len(races)}" + (f" ({by(races)})" if races else "") + "." if col.endswith("tsan") else "")]
+        if key:
+            tag = MUST_TAGS[col]
+            num(f"n{key}{tag}Gained", len(gained))
+            num(f"n{key}{tag}Lost", len(lost))
+            num(f"n{key}{tag}Timeout", kinds.get("TIMEOUT", 0))
+            if col.endswith("tsan"):
+                num(f"n{key}{tag}Races", len(races))
+    if any(r.get("must1112tsan") for r in rs):
+        out += ["", "MUST 1.11.2 runs from `experiments/must/Dockerfile` (MPI-BugBench's MUST image with 1.11.2: Debian 12,",
+                "MPICH 4.0.2, clang 14), the same harness and timeout as 1.9.2 (`scripts/must_run.sh`). With ThreadSanitizer the",
+                "program is compiled with `must-tsan-cc --wrap-target mpicc.mpich` and run with `--must:tsan`; a data race counts",
+                "as an error (MPI-BugBench's harness maps MUST_WARNING_DATARACE to no error class). As MUST's own tests do for",
+                "clang 14 and later, the run sets MUST_DISABLE_TSAN_ONREPORT=1, so the races are in ThreadSanitizer's report",
+                "rather than MUST's: with the hook on, the runs hung after the first race."]
+    return out
+
+
+def must_tsan_local():
+    """MUST 1.11.2 with ThreadSanitizer against the buffer guard on MPI-BugBench's
+    local-concurrency programs, both under MPICH (guard: lc.txt; MUST: the column of mbb.csv, or
+    mbb/must1112tsan-lc.csv, run_must.py's table of a run on these programs alone)."""
+    mbb = {r["name"]: r for r in rows(os.path.join(RES, "mbb", "mbb.csv"))}
+    side = {r["name"]: r for r in rows(os.path.join(RES, "mbb", "must1112tsan-lc.csv"))}
+    lc = [dict(r, must1112tsan=r.get("must1112tsan") or side.get(r["name"], {}).get("must1112tsan", ""))
+          for r in mbb.values() if r.get("detail") == "LocalConcurrency"]
+    if not any(r.get("must1112tsan") for r in lc):
+        return ""
+    p = os.path.join(RES, "guard", "lc.txt")
+    text = open(p).read() if os.path.exists(p) else ""
+    guard = {m.group(1): "3-local" in m.group(2) for m in re.finditer(r"^mpich\s+(\S+)\s+(.*)$", text, re.M)}
+    gcommit = (re.search(r"; commit (\w+);", text) or re.search(r"(unknown)", "unknown")).group(1)
+    yes = lambda v: "ERROR" if score.must_verdict({"must": v or ""}) == "ERROR" else (score.must_kind({"must": v or ""}) or "-")
+    out = ["", "### MUST 1.11.2 with ThreadSanitizer on the local-concurrency programs", "",
+           "MPI-BugBench's local-concurrency programs (the program touches a buffer that a pending nonblocking operation owns),",
+           "under MPICH: the buffer guard (`lc.txt`) against MUST's ThreadSanitizer analysis, which since 1.10 models a pending",
+           "operation's buffer accesses as a concurrent thread, and plain MUST runs. A race or a report counts.", "",
+           "| program | buffer guard | MUST 1.11.2 with ThreadSanitizer | MUST 1.11.2 | MUST 1.9.2 |", "|---|---|---|---|---|"]
+    both = tsan_only = guard_only = 0
+    for r in sorted(lc, key=lambda r: r["name"]):
+        g = guard.get(r["name"])
+        t = score.must_column_judge("must1112tsan")(r) == "ERROR"
+        both += bool(g and t)
+        tsan_only += bool(t and not g)
+        guard_only += bool(g and not t)
+        out.append(f"| {r['name']} | {'3-local' if g else 'not built' if g is None else '-'} | {yes(r.get('must1112tsan'))} "
+                   f"| {yes(r.get('must1112'))} | {yes(r.get('must'))} |")
+    found_t = sum(1 for r in lc if score.must_column_judge("must1112tsan")(r) == "ERROR")
+    found_g = sum(1 for r in lc if guard.get(r["name"]))
+    out += ["", f"Programs: {len(lc)}. The guard reports {found_g}, MUST with ThreadSanitizer {found_t}; both {both}, only the guard "
+            f"{guard_only}, only MUST {tsan_only}. The guard run's code commit: {gcommit}"
+            + (f"; MUST's rows: {commits(side.values())}." if side else ".")]
+    num("nTsanLC", len(lc))
+    num("nTsanLCfound", found_t)
+    num("nTsanLCguard", found_g)
+    num("nTsanLCboth", both)
+    num("nTsanLCguardOnly", guard_only)
+    num("nTsanLCtsanOnly", tsan_only)
+    return "\n".join(out) + "\n"
+
+
+def _ninja_mode(r) -> str:
+    """A NINJA row's mode as text, the random noise with its ratio and delay."""
+    if r["mode"] == "random":
+        m = re.match(r"ratio=([\d.]+)% delay=(\d+)us( as shipped)?", r.get("setting", ""))
+        if m:
+            d = int(m.group(2))
+            return f"random, {m.group(1)}% of sends by {d / 1e6:g} s" + (" (as shipped)" if m.group(3) else "")
+    return {"plain": "none (plain runs)", "system": "system-centric", "app": "application-centric"}.get(r["mode"], r["mode"])
+
+
+def _ninja_key(r, delays) -> str:
+    """The macro name of a mode; with two random settings, the shorter delay is RandomShort."""
+    if r["mode"] == "random":
+        d = re.search(r"delay=(\d+)us", r.get("setting", ""))
+        if len(delays) > 1 and d:
+            return "RandomShort" if int(d.group(1)) == min(delays) else "RandomLong"
+        return "Random"
+    return {"plain": "Plain", "system": "System", "app": "App"}.get(r["mode"], r["mode"])
+
+
+def _ninja_runs(rs, prefix, phases=False):
+    """One table row per program, process count and mode of a fixed number of runs under NINJA
+    (experiments/ninja/run.py runs); run 0 is application-centric mode's learning run."""
+    delays = sorted({int(m.group(1)) for r in rs if r["mode"] == "random" for m in [re.search(r"delay=(\d+)us", r["setting"])] if m})
+    groups = collections.OrderedDict()
+    for r in rs:
+        groups.setdefault((r["label"], int(r["np"]), r["mode"], r["setting"] if r["mode"] == "random" else ""), []).append(r)
+    head = "| program | ranks | noise | runs | finished | hung | " + ("of which in the setup | " if phases else "") + \
+           "other | " + ("first hang in the setup (run) | its rate" if phases else "first hang (run) | hang rate") + " | learning run |"
+    out = [head, "|" + "---|" * (head.count("|") - 1)]
+    for (label, np_, mode, _), g in sorted(groups.items(), key=lambda kv: (kv[0][0], kv[0][1], ["plain", "random", "system", "app"].index(kv[0][2]), kv[0][3])):
+        learn = [r for r in g if r["run"] == "0"]
+        runs = sorted((r for r in g if r["run"] != "0"), key=lambda r: int(r["run"]))
+        hung = [r for r in runs if r["result"] == "TIMEOUT"]
+        setup = [r for r in hung if not r.get("reached")]           # killed before the setup completed
+        fin = [r for r in runs if r["result"] == "FINISHED"]
+        other = collections.Counter(r["result"] for r in runs if r["result"] not in ("TIMEOUT", "FINISHED"))
+        hits = setup if phases else hung                            # the hangs of the race
+        first = min((int(r["run"]) for r in hits), default=None)
+        rate = len(hits) / len(runs) if runs else 0.0
+        out.append(f"| {label} | {np_} | {_ninja_mode(g[0])} | {len(runs)} | {len(fin)} | {len(hung)} | "
+                   + (f"{len(setup)} | " if phases else "")
+                   + f"{', '.join(f'{n} {k}' for k, n in sorted(other.items())) or 0} | {first or '-'} | {rate:.2f} | "
+                   + (", ".join(r["result"] for r in learn) or "-") + " |")
+        k = f"nNinja{prefix(label)}{'Four' if np_ == 4 else 'Eight' if np_ == 8 else np_}{_ninja_key(g[0], delays)}"
+        num(k + "Runs", len(runs))
+        num(k + "Hang", len(hung))
+        num(k + "First", first if first else "--")
+        num(k.replace("nNinja", "Ninja", 1) + "Rate", rate)
+        if phases:
+            num(k + "HangSetup", len(setup))
+    return out
+
+
+def ninja():
+    """E10: NINJA's noise injection on the programs Stretto predicts bugs in
+    (experiments/ninja/campaign.sh): its ParaSails replica, HYPRE, the MBI corpus, NPB MG."""
+    d = os.path.join(RES, "ninja")
+    cal, hy, mb, mg = (rows(os.path.join(d, f)) for f in ("calibrate.csv", "hypre.csv", "mbi.csv", "mg.csv"))
+    if not (cal or hy or mb or mg):
+        return "_no results_\n"
+    out = ["NINJA v1.0.2 (`experiments/ninja/build.sh`), the noise injector of the paper that reported the HYPRE ParaSails race",
+           "(PPoPP 2017), loaded with `LD_PRELOAD`; it delays sends from a helper thread and keeps their order per destination.",
+           "Modes: *random* (NIN_PATTERN=1, a share of the sends delayed by a fixed time; NINJA as shipped reseeds before every",
+           "draw with a value that overflows to one constant, so that it delays no send below a ratio of 100%; the runs use a",
+           "build that takes the low bits instead), *system-centric* (NIN_MODE=0: delays from a model of the network queue),",
+           "and *application-centric* (NIN_MODE=1: from one system-centric learning run, NINJA learns the interval between",
+           "groups of sends with the same tag and delays the earlier group to a random fifth of the ranks by 1.2 times it).",
+           "Every run in its own directory, one at a time for the replica, HYPRE and MG; budget and timeout as for the stress",
+           "baseline (`experiments/ninja/run.py`, `experiments/ninja/campaign.sh`)."]
+    if cal:
+        out += ["", "### Calibration: NINJA's ParaSails replica",
+                "", "NINJA's replica of the ParaSails race (`test/ninja_test_hypre_parasails.c`; two request exchanges with one tag,",
+                "a one-second pause between them, which as shipped needs 64 processes; here the copy without that check, and",
+                "`replica-fixed`, the same with the second exchange on its own tag as in HYPRE 2.11.0), 5 iterations per run, 60 s",
+                f"each. Rows by code commit: {commits(cal)}.", ""]
+        out += _ninja_runs(cal, lambda label: "ReplicaFixed" if label.endswith("fixed") else "Replica")
+    if hy:
+        out += ["", "### HYPRE 2.10.1 and 2.11.0",
+                "", "`ij -solver 8 -pout 0` as in E5c, 60 s per run. A run that hangs in the ParaSails setup is killed before",
+                "ij prints its setup times (*of which in the setup*); a run killed later was slow, not hung in the race.",
+                f"Rows by code commit: {commits(hy)}.", ""]
+        out += _ninja_runs(hy, lambda label: "HypreFixed" if label.endswith("2.11.0") else "Hypre", phases=True)
+        bug = [r for r in hy if r["label"].endswith("2.10.1") and r["run"] != "0"]
+        num("nNinjaHypreRuns", len(bug))
+        num("nNinjaHypreHang", sum(1 for r in bug if r["result"] == "TIMEOUT" and not r.get("reached")))
+        fixed = [r for r in hy if r["label"].endswith("2.11.0") and r["run"] != "0"]
+        num("nNinjaHypreFixedRuns", len(fixed))
+        num("nNinjaHypreFixedHang", sum(1 for r in fixed if r["result"] == "TIMEOUT" and not r.get("reached")))
+    if mb:
+        by = {r["name"]: r for r in score.compiled(rows(os.path.join(RES, "mbi", "mbi.csv")))}
+        st = {r["program"]: r for r in rows(os.path.join(RES, "mbi", "stress.csv"))}
+        out += ["", "### MBI", "", "The programs of the stress baseline, up to 30 runs per program and mode (in application-centric mode",
+                "the learning run is the first), stopping at the first that does not finish, 60 s each. The last columns: of the",
+                "programs Stretto predicts from a run that finished, how many the mode never makes fail; and of the programs",
+                f"stress testing never makes fail, how many the mode does. Rows by code commit: {commits(mb)}.", "",
+                "A failure is any run that does not finish, as in the stress baseline; some are segmentation faults of NINJA",
+                "itself (*of them crashes*: errors made to fail by one, and correct programs failing by one), and the second F1",
+                "does not count them.", "",
+                "| noise | labelled errors | made to fail | median first failure | after the first run | correct programs failing | of them crashes | F1 | F1, crashes not counted | Stretto's predicted errors missed | stress misses found |",
+                "|---|---|---|---|---|---|---|---|---|---|---|"]
+        delays = sorted({int(m.group(1)) for r in mb if r["mode"] == "random" for m in [re.search(r"delay=(\d+)us", r["setting"])] if m})
+        groups = collections.OrderedDict()
+        for r in mb:
+            if r["program"] in by:
+                groups.setdefault((r["mode"], r["setting"]), []).append(r)
+        for (mode, _), g in sorted(groups.items(), key=lambda kv: (["plain", "random", "system", "app"].index(kv[0][0]), kv[0][1])):
+            err = [r for r in g if r["expect"] == "ERROR"]
+            ok = [r for r in g if r["expect"] == "OK"]
+            found = [r for r in err if r["first_failure"]]
+            fp = [r for r in ok if r["first_failure"]]
+            firsts = sorted(int(r["first_failure"]) for r in found)
+            med = firsts[len(firsts) // 2] if firsts else "-"
+            later = [r for r in found if int(r["first_failure"]) > 1]
+            pred = [r for r in err if score.predicted_verdict(by[r["program"]]) == "ERROR"]
+            missed = [r for r in pred if not r["first_failure"]]
+            stress_missed = [r for r in err if r["program"] in st and not st[r["program"]]["first_failure"]]
+            new = [r for r in stress_missed if r["first_failure"]]
+            segv = lambda sel: [r for r in sel if r["outcome"] in ("SIGNAL:11", "APP-ERROR:-11")]
+
+            def f1_of(tp, fn_, fpn):
+                prec = tp / (tp + fpn) if tp + fpn else 0.0
+                rec = tp / (tp + fn_) if tp + fn_ else 0.0
+                return 2 * prec * rec / (prec + rec) if prec + rec else 0.0
+            tp, fpn = len(found), len(fp)
+            f1 = f1_of(tp, len(err) - tp, fpn)
+            tp_s, fp_s = tp - len(segv(found)), fpn - len(segv(fp))
+            f1_s = f1_of(tp_s, len(err) - tp_s, fp_s)
+            out.append(f"| {_ninja_mode(g[0])} | {len(err)} | {tp} | {med} | {len(later)} | {fpn} | {len(segv(found))} / {len(segv(fp))} "
+                       f"| {f1:.2f} | {f1_s:.2f} | {len(missed)} of {len(pred)} | {len(new)} of {len(stress_missed)} |")
+            k = f"nNinjaMBI{_ninja_key(g[0], delays)}"
+            num(k + "Found", tp)
+            num(k + "FP", fpn)
+            num(k + "Later", len(later))
+            num(k + "PredMissed", len(missed))
+            num(k + "StressMissedFound", len(new))
+            num(k.replace("nNinja", "Ninja", 1) + "fone", f1)
+            num(k.replace("nNinja", "Ninja", 1) + "foneNoCrash", f1_s)
+            num(k + "Crashes", len(segv(found)) + len(segv(fp)))
+            if mode == "app":
+                num("nNinjaMBIAppLearnFailed", sum(1 for r in g if r.get("learn") and not r["learn"].startswith("FINISHED")))
+        num("nNinjaMBIerrors", len([r for r in by.values() if r["expect"] == "ERROR"]))
+    if mg:
+        out += ["", "### NPB MG 2.4.1", "", "MG class S as in E5d, 120 s per run; a run *changes the result* when its residual norm differs",
+                "from the plain runs' (every plain run printed the same), and fails the relative check of later versions when it is",
+                f"more than 1e-8 off the reference. Rows by code commit: {commits(mg)}.", "",
+                "| ranks | noise | runs | finished | result changed | fails the relative check |", "|---|---|---|---|---|---|"]
+        plain = {r["value"] for r in mg if r["mode"] == "plain" and r.get("value")}
+        base = plain.pop() if len(plain) == 1 else None
+        ref = MG_REFERENCE["S"]
+        rel = lambda v: abs(float(v) - ref) / ref if v else 0.0
+        delays = sorted({int(m.group(1)) for r in mg if r["mode"] == "random" for m in [re.search(r"delay=(\d+)us", r["setting"])] if m})
+        groups = collections.OrderedDict()
+        for r in mg:
+            if r["run"] != "0":
+                groups.setdefault((int(r["np"]), r["mode"], r["setting"]), []).append(r)
+        for (np_, mode, _), g in sorted(groups.items(), key=lambda kv: (kv[0][0], ["plain", "random", "system", "app"].index(kv[0][1]), kv[0][2])):
+            ch = [r for r in g if base and r.get("value") and r["value"] != base]
+            fl = [r for r in g if rel(r.get("value")) > 1e-8]
+            out.append(f"| {np_} | {_ninja_mode(g[0])} | {len(g)} | {sum(r['result'] == 'FINISHED' for r in g)} | {len(ch)} | {len(fl)} |")
+            k = f"nNinjaMG{ {16: 'Sixteen', 32: 'ThirtyTwo'}.get(np_, '') }{_ninja_key(g[0], delays)}"
+            num(k + "Runs", len(g))
+            num(k + "Changed", len(ch))
+            num(k + "FailRel", len(fl))
+    return "\n".join(out) + "\n"
+
+
 def leg_commits():
     cs = sorted({r["commit"] for r in rows(os.path.join(RES, "e4", "e4.csv")) if r.get("commit")})
     return ", ".join(cs) or "unknown"
@@ -1207,7 +1478,8 @@ def main():
            "## E5e: a third documented bug (deal.II 9.3.0-rc1, a probe takes a message of the next call)", "", dealii(),
            "## E6: polynomial checker vs exhaustive explorer", "", e6(),
            "## E7: the value skeleton on MBI (level L2)", "", e7(),
-           "## E8: the buffer guard (local concurrency, class 3-local)", "", guard()]
+           "## E8: the buffer guard (local concurrency, class 3-local)", "", guard() + must_tsan_local(),
+           "## E10: NINJA (noise injection)", "", ninja()]
     path = os.path.join(ROOT, "docs", "results.md")
     open(path, "w").write("\n".join(doc))
     print("wrote", path)

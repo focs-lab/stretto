@@ -112,6 +112,12 @@ def readme(root: str, num: dict) -> None:
         ("Testing runs that hang", "plain runs and runs with random delays", v("nHypreStressHang"), v("nHypreStressRuns"), ORANGE),
         ("Traces of the fix that predict it", "HYPRE 2.11.0", v("nHypreFixedExposed"), v("nHypreFixedTraced"), GREY),
     ])
+    ninja = ""
+    if v("nNinjaHypreEightAppRuns"):
+        ninja = (f" NINJA, the noise injector of that paper, hangs it in {t('nNinjaHypreEightAppHangSetup')} of "
+                 f"{t('nNinjaHypreEightAppRuns')} runs at 8 processes (its application-centric mode) and in "
+                 f"{t('nNinjaHypreEightRandomShortHangSetup')} of {t('nNinjaHypreEightRandomShortRuns')} with random noise, "
+                 f"and never on the fix.")
     mg = ""
     if v("nMGReplayed"):
         fractions(os.path.join(figs, "npbmg.svg"), "NPB MG 2.4.1: a message of another exchange, predicted from one run", [
@@ -202,7 +208,7 @@ value level (L2) decides.
 a wildcard probe; a probe can take a request of the next exchange, and the solver hangs. A
 message race in HYPRE 2.10.1 hung a production code intermittently for 18 months, and
 diagnosing it took 291 jobs and 10,392 compute-node hours (the NINJA noise-injection paper,
-PPoPP 2017); HYPRE's changelog for 2.11.0 places the fix in ParaSails.
+PPoPP 2017); HYPRE's changelog for 2.11.0 places the fix in ParaSails.{ninja}
 
 <p align="center"><img src="docs/figures/hypre.svg" width="760" alt="HYPRE ParaSails results"></p>
 {mg}{dealii}
