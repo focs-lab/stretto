@@ -12,8 +12,11 @@ what Stretto predicts about other runs:
               observed:abort (the run itself; 3-local only from runs traced with the buffer
               guard, STRETTO_GUARD=1; abort when a rank stopped outside MPI before MPI_Finalize)
   predicted : L1:1a (a mismatch certain from the trace), L1+SP:1a/1c/1d (consequences
-              under the single-path assumption), observed:2-buffering (the finished run
-              would deadlock below a threshold)
+              under the single-path assumption), L1:1c/1d (a deadlock contained in the horizon,
+              or, with read bounds, a consequence whose witness respects them:
+              docs/firstread.md), observed:2-buffering (the finished run would deadlock below a
+              threshold)
+  L1 only   : L1:1a/1c/1d, the error consequences that hold without the single-path assumption
 usage: score.py results.csv [--md]
 """
 from __future__ import annotations
@@ -26,9 +29,10 @@ from typing import Dict, Iterable, List
 ERROR = {"1a", "1c", "1d", "2-buffering", "2-collective", "2-blocked", "3-local", "abort"}
 WARN = {"1b", "1f", "probe-alt", "waitany-order"}
 OBSERVED = {"observed:1c", "observed:2-blocked", "observed:2-collective", "observed:3-local", "observed:abort"}
-PREDICTED = {"L1:1a", "L1+SP:1a", "L1+SP:1c", "L1+SP:1d", "observed:2-buffering"}   # 2-buffering on finished runs only
+PREDICTED = {"L1:1a", "L1:1c", "L1:1d", "L1+SP:1a", "L1+SP:1c", "L1+SP:1d", "observed:2-buffering"}   # 2-buffering on finished runs only
 FLAGGED = {"L1:1a", "L1:1b", "L1:1f"}            # a wildcard alternative found from the trace alone
-CERTIFIED = {"L1:1a", "L1+SP:1a", "L1+SP:1c", "L1+SP:1d"}   # an error consequence of a predicted alternative
+CERTIFIED = {"L1:1a", "L1:1c", "L1:1d", "L1+SP:1a", "L1+SP:1c", "L1+SP:1d"}   # an error consequence of a predicted alternative
+L1_ONLY = {"L1:1a", "L1:1c", "L1:1d"}            # an error consequence without the single-path assumption
 
 
 def rows(path: str) -> List[dict]:
@@ -67,6 +71,12 @@ def predicted_verdict(r: dict) -> str:
     if not finished(r):
         lv = lv - {"observed:2-buffering"}
     return "ERROR" if lv & PREDICTED else "OK"
+
+
+def l1_verdict(r: dict) -> str:
+    """Claims about other runs that hold for every program consistent with the trace (and,
+    with read bounds, with them): 1a, and 1c/1d at level L1."""
+    return "ERROR" if levels(r) & L1_ONLY else "OK"
 
 
 def analysis_failed(r: dict) -> bool:
@@ -128,7 +138,7 @@ def replay_rows(csv_path: str) -> List[dict]:
 
 def main(path: str, md: bool = False) -> int:
     rs = compiled(rows(path))
-    for name, judge in (("union", verdict), ("observed", observed_verdict), ("predicted", predicted_verdict)):
+    for name, judge in (("union", verdict), ("observed", observed_verdict), ("predicted", predicted_verdict), ("L1 only", l1_verdict)):
         c = confusion(rs, judge)
         print(f"{name:<9} TP={c['tp']} FP={c['fp']} FN={c['fn']} TN={c['tn']} precision={c['precision']:.2f} recall={c['recall']:.2f} F1={c['f1']:.2f}")
     if any(r.get("must") for r in rs):

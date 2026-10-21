@@ -16,9 +16,11 @@ table and of replays.csv are kept. --out and --work put a run's table and its pr
 directories elsewhere, so that repeated runs keep apart (without --confirm: replays.csv is
 next to the table). With --guard the traced run has the tracer's buffer guard on
 (STRETTO_GUARD=1), which adds the local-concurrency findings (class 3-local); its table goes to
-results/guard/<corpus>.csv and its programs' directories under results/guard/<corpus>/.
+results/guard/<corpus>.csv and its programs' directories under results/guard/<corpus>/. With
+--reads DIR each program is analysed with its first-read map DIR/<name>.json (reads_maps.py,
+docs/firstread.md), if there is one.
 
-usage: run_mbi.py [--corpus mbi|mbb] [--select REGEX] [--limit N] [--confirm] [--must] [--guard] [--timeout S] [--jobs J]
+usage: run_mbi.py [--corpus mbi|mbb] [--select REGEX] [--limit N] [--confirm] [--must] [--guard] [--timeout S] [--jobs J] [--reads DIR]
        run_mbi.py --replay-only [--select REGEX] [--timeout S] ...   (implies --confirm)
 """
 from __future__ import annotations
@@ -44,7 +46,7 @@ MPICC = "/usr/bin/mpicc.openmpi"
 MPIRUN = "/usr/bin/mpirun.openmpi"
 TRACER = os.path.join(ROOT, "tracer", "bin", "openmpi", "libstretto-trace.so")
 sys.path.insert(0, os.path.join(ROOT, "analysis"))
-from stretto import confirm as confirm_mod, report, trace  # noqa: E402
+from stretto import confirm as confirm_mod, reads, report, trace  # noqa: E402
 from stretto.confirm import classify_rc  # noqa: E402
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from provenance import code_commit  # noqa: E402
@@ -146,7 +148,12 @@ def analyse(row: dict, out: str, exe: str, tracedir: str, args) -> None:
     replay every error finding with its pin."""
     try:
         t = trace.load(tracedir)
-        rep = report.analyze(t, with_sp=not args.no_sp, sp_max_events=args.sp_max_events, max_states=args.max_states)
+        bounds = None
+        if args.reads:
+            mp = os.path.join(args.reads, row["name"] + ".json")
+            bounds = reads.SiteMap.load(mp, reads.addr2line_resolver(out)) if os.path.exists(mp) else None
+        rep = report.analyze(t, with_sp=not args.no_sp, sp_max_events=args.sp_max_events, max_states=args.max_states,
+                             reads=bounds)
         row["classes"] = " ".join(rep.classes())
         row["levels"] = " ".join(rep.levels())
         row["findings"] = len(rep.findings)
@@ -218,6 +225,8 @@ def main() -> int:
     ap.add_argument("--out", default=None)
     ap.add_argument("--work", default=None, help="directory for the programs' builds, traces and logs (default: next to the table)")
     ap.add_argument("--replay-only", action="store_true", help="redo the replays of the selected programs from their kept traces")
+    ap.add_argument("--reads", default=None,
+                    help="directory of first-read maps, DIR/<name>.json (reads_maps.py): analyse with read bounds (docs/firstread.md)")
     args = ap.parse_args()
     args.gencodes = CORPORA[args.corpus]
     # a run with the guard keeps its programs' directories apart, so it never replaces the traces
