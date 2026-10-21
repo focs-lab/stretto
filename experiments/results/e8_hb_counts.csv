@@ -1,0 +1,196 @@
+corpus,program,op,kind,head,hb_post,hb_comp,stretto,stretto_generic,class,pairs,commit
+amg,amg-np8,probe,iprobe,True,False,False,False,,,3814,7941c12
+amg,amg-np8,probe,iprobe,True,True,True,True,,,3263,7941c12
+amg,amg-np8,recv,blocking,True,False,False,False,,,24,7941c12
+amg,amg-np8,recv,blocking,True,True,True,True,,,5,7941c12
+hypre,hypre-2.10.1-np4,probe,iprobe,True,True,True,True,True,,14,7941c12
+hypre,hypre-2.10.1-np4,probe,probe,True,False,False,False,False,,6,7941c12
+hypre,hypre-2.10.1-np4,probe,probe,True,True,True,True,True,,12,7941c12
+hypre,hypre-2.10.1-np8,probe,iprobe,True,True,True,True,True,,37,7941c12
+hypre,hypre-2.10.1-np8,probe,probe,True,False,False,False,False,,46,7941c12
+hypre,hypre-2.10.1-np8,probe,probe,True,True,True,True,True,,84,7941c12
+hypre,hypre-2.10.1-np8,recv,blocking,True,True,True,True,True,,1,7941c12
+idioms,01_master_worker_anysource,recv,blocking,True,True,True,True,True,,1,7941c12
+idioms,04_orphan_send,recv,blocking,True,True,True,True,True,,1,7941c12
+idioms,05_count_mismatch,recv,blocking,True,True,True,True,True,,1,7941c12
+idioms,06_collective_after_anysource,recv,blocking,True,True,True,True,True,,1,7941c12
+idioms,08_anytag_cross_purpose,recv,blocking,True,True,True,True,True,,1,7941c12
+idioms,09_two_wildcards_chain,recv,blocking,True,True,True,True,True,,1,7941c12
+idioms,11_iprobe_polling,probe,iprobe,True,True,True,True,True,,1,7941c12
+idioms,12_split_comm_pin,recv,blocking,True,True,True,True,True,,1,7941c12
+idioms,13_derived_type_signature,recv,blocking,True,True,True,True,True,,1,7941c12
+idioms,14_pending_wildcard_overtaken,recv,blocking,True,False,False,False,False,,1,7941c12
+idioms,14_pending_wildcard_overtaken,recv,"nonblocking, pending across a send",True,False,True,False,False,hb-only,1,7941c12
+idioms,14_pending_wildcard_overtaken,recv,"nonblocking, pending across a send",True,True,True,True,True,,1,7941c12
+mbb,P2P__CallOrdering-ANY_SOURCE-001,recv,blocking,True,True,True,True,True,,1,7941c12
+mbi,MessageRace_Allgather_Isend_Irecv_nok,recv,"nonblocking, pending across a send",True,False,True,True,True,stretto-only,1,7941c12
+mbi,MessageRace_Allgather_Isend_Irecv_ok,recv,"nonblocking, nothing sent while pending",False,False,False,True,True,stretto-only,1,7941c12
+mbi,MessageRace_Allgather_Isend_Irecv_ok,recv,"nonblocking, pending across a send",True,False,True,True,True,stretto-only,1,7941c12
+mbi,MessageRace_Allgather_Send_Irecv_nok,recv,"nonblocking, pending across a send",True,False,True,True,True,stretto-only,1,7941c12
+mbi,MessageRace_Allgather_Send_Irecv_ok,recv,"nonblocking, nothing sent while pending",False,False,False,True,True,stretto-only,1,7941c12
+mbi,MessageRace_Allgather_Send_Irecv_ok,recv,"nonblocking, pending across a send",True,False,True,True,True,stretto-only,1,7941c12
+mbi,MessageRace_Allgatherv_Isend_Irecv_nok,recv,"nonblocking, pending across a send",True,False,True,True,True,stretto-only,1,7941c12
+mbi,MessageRace_Allgatherv_Isend_Irecv_ok,recv,"nonblocking, nothing sent while pending",False,False,False,True,True,stretto-only,1,7941c12
+mbi,MessageRace_Allgatherv_Isend_Irecv_ok,recv,"nonblocking, pending across a send",True,False,True,True,True,stretto-only,1,7941c12
+mbi,MessageRace_Allgatherv_Send_Irecv_nok,recv,"nonblocking, pending across a send",True,False,True,True,True,stretto-only,1,7941c12
+mbi,MessageRace_Allgatherv_Send_Irecv_ok,recv,"nonblocking, nothing sent while pending",False,False,False,True,True,stretto-only,1,7941c12
+mbi,MessageRace_Allgatherv_Send_Irecv_ok,recv,"nonblocking, pending across a send",True,False,True,True,True,stretto-only,1,7941c12
+mbi,MessageRace_Allreduce_Isend_Irecv_nok,recv,"nonblocking, pending across a send",True,False,True,True,True,stretto-only,1,7941c12
+mbi,MessageRace_Allreduce_Isend_Irecv_ok,recv,"nonblocking, nothing sent while pending",False,False,False,True,True,stretto-only,1,7941c12
+mbi,MessageRace_Allreduce_Isend_Irecv_ok,recv,"nonblocking, pending across a send",True,False,True,True,True,stretto-only,1,7941c12
+mbi,MessageRace_Allreduce_Send_Irecv_nok,recv,"nonblocking, pending across a send",True,False,True,True,True,stretto-only,1,7941c12
+mbi,MessageRace_Allreduce_Send_Irecv_ok,recv,"nonblocking, nothing sent while pending",False,False,False,True,True,stretto-only,1,7941c12
+mbi,MessageRace_Allreduce_Send_Irecv_ok,recv,"nonblocking, pending across a send",True,False,True,True,True,stretto-only,1,7941c12
+mbi,MessageRace_Alltoall_Isend_Irecv_nok,recv,"nonblocking, pending across a send",True,False,True,True,True,stretto-only,1,7941c12
+mbi,MessageRace_Alltoall_Isend_Irecv_ok,recv,"nonblocking, nothing sent while pending",False,False,False,True,True,stretto-only,1,7941c12
+mbi,MessageRace_Alltoall_Isend_Irecv_ok,recv,"nonblocking, pending across a send",True,False,True,True,True,stretto-only,1,7941c12
+mbi,MessageRace_Alltoall_Send_Irecv_nok,recv,"nonblocking, pending across a send",True,False,True,True,True,stretto-only,1,7941c12
+mbi,MessageRace_Alltoall_Send_Irecv_ok,recv,"nonblocking, nothing sent while pending",False,False,False,True,True,stretto-only,1,7941c12
+mbi,MessageRace_Alltoall_Send_Irecv_ok,recv,"nonblocking, pending across a send",True,False,True,True,True,stretto-only,1,7941c12
+mbi,MessageRace_Alltoallv_Isend_Irecv_nok,recv,"nonblocking, pending across a send",True,False,True,True,True,stretto-only,1,7941c12
+mbi,MessageRace_Alltoallv_Isend_Irecv_ok,recv,"nonblocking, nothing sent while pending",False,False,False,True,True,stretto-only,1,7941c12
+mbi,MessageRace_Alltoallv_Isend_Irecv_ok,recv,"nonblocking, pending across a send",True,False,True,True,True,stretto-only,1,7941c12
+mbi,MessageRace_Alltoallv_Send_Irecv_nok,recv,"nonblocking, pending across a send",True,False,True,True,True,stretto-only,1,7941c12
+mbi,MessageRace_Alltoallv_Send_Irecv_ok,recv,"nonblocking, nothing sent while pending",False,False,False,True,True,stretto-only,1,7941c12
+mbi,MessageRace_Alltoallv_Send_Irecv_ok,recv,"nonblocking, pending across a send",True,False,True,True,True,stretto-only,1,7941c12
+mbi,MessageRace_Barrier_Isend_Irecv_nok,recv,"nonblocking, pending across a send",True,False,True,True,True,stretto-only,1,7941c12
+mbi,MessageRace_Barrier_Isend_Irecv_ok,recv,"nonblocking, nothing sent while pending",False,False,False,True,True,stretto-only,1,7941c12
+mbi,MessageRace_Barrier_Isend_Irecv_ok,recv,"nonblocking, pending across a send",True,False,True,True,True,stretto-only,1,7941c12
+mbi,MessageRace_Barrier_Send_Irecv_nok,recv,"nonblocking, pending across a send",True,False,True,True,True,stretto-only,1,7941c12
+mbi,MessageRace_Barrier_Send_Irecv_ok,recv,"nonblocking, nothing sent while pending",False,False,False,True,True,stretto-only,1,7941c12
+mbi,MessageRace_Barrier_Send_Irecv_ok,recv,"nonblocking, pending across a send",True,False,True,True,True,stretto-only,1,7941c12
+mbi,MessageRace_Bcast_Isend_Irecv_nok,recv,"nonblocking, pending across a send",True,True,True,True,True,,1,7941c12
+mbi,MessageRace_Bcast_Isend_Irecv_ok,recv,"nonblocking, nothing sent while pending",False,False,False,True,True,stretto-only,1,7941c12
+mbi,MessageRace_Bcast_Isend_Irecv_ok,recv,"nonblocking, pending across a send",True,True,True,True,True,,1,7941c12
+mbi,MessageRace_Bcast_Send_Irecv_nok,recv,"nonblocking, pending across a send",True,True,True,True,True,,1,7941c12
+mbi,MessageRace_Bcast_Send_Irecv_ok,recv,"nonblocking, nothing sent while pending",False,False,False,True,True,stretto-only,1,7941c12
+mbi,MessageRace_Bcast_Send_Irecv_ok,recv,"nonblocking, pending across a send",True,True,True,True,True,,1,7941c12
+mbi,MessageRace_Exscan_Isend_Irecv_nok,recv,"nonblocking, pending across a send",True,False,True,True,True,stretto-only,1,7941c12
+mbi,MessageRace_Exscan_Isend_Irecv_ok,recv,"nonblocking, nothing sent while pending",False,False,False,True,True,stretto-only,1,7941c12
+mbi,MessageRace_Exscan_Isend_Irecv_ok,recv,"nonblocking, pending across a send",True,False,True,True,True,stretto-only,1,7941c12
+mbi,MessageRace_Exscan_Send_Irecv_nok,recv,"nonblocking, pending across a send",True,False,True,True,True,stretto-only,1,7941c12
+mbi,MessageRace_Exscan_Send_Irecv_ok,recv,"nonblocking, nothing sent while pending",False,False,False,True,True,stretto-only,1,7941c12
+mbi,MessageRace_Exscan_Send_Irecv_ok,recv,"nonblocking, pending across a send",True,False,True,True,True,stretto-only,1,7941c12
+mbi,MessageRace_Gather_Isend_Irecv_nok,recv,"nonblocking, pending across a send",True,False,True,True,True,stretto-only,1,7941c12
+mbi,MessageRace_Gather_Isend_Irecv_ok,recv,"nonblocking, nothing sent while pending",False,False,False,True,True,stretto-only,1,7941c12
+mbi,MessageRace_Gather_Isend_Irecv_ok,recv,"nonblocking, pending across a send",True,False,True,True,True,stretto-only,1,7941c12
+mbi,MessageRace_Gather_Send_Irecv_nok,recv,"nonblocking, pending across a send",True,False,True,True,True,stretto-only,1,7941c12
+mbi,MessageRace_Gather_Send_Irecv_ok,recv,"nonblocking, nothing sent while pending",False,False,False,True,True,stretto-only,1,7941c12
+mbi,MessageRace_Gather_Send_Irecv_ok,recv,"nonblocking, pending across a send",True,False,True,True,True,stretto-only,1,7941c12
+mbi,MessageRace_Irecv_Isend_nok,recv,"nonblocking, nothing sent while pending",True,True,True,True,True,,3,7941c12
+mbi,MessageRace_Irecv_Send_nok,recv,"nonblocking, nothing sent while pending",True,True,True,True,True,,3,7941c12
+mbi,MessageRace_Loop_Isend_Irecv_nok,recv,"nonblocking, nothing sent while pending",True,True,True,True,True,,7,7941c12
+mbi,MessageRace_Loop_Isend_Irecv_ok,recv,"nonblocking, nothing sent while pending",True,True,True,True,True,,2,7941c12
+mbi,MessageRace_Loop_Isend_Recv_nok,recv,blocking,True,True,True,True,True,,7,7941c12
+mbi,MessageRace_Loop_Isend_Recv_ok,recv,blocking,True,True,True,True,True,,3,7941c12
+mbi,MessageRace_Loop_Send_Irecv_nok,recv,"nonblocking, nothing sent while pending",True,True,True,True,True,,6,7941c12
+mbi,MessageRace_Loop_Send_Irecv_ok,recv,"nonblocking, nothing sent while pending",True,True,True,True,True,,2,7941c12
+mbi,MessageRace_Loop_Send_Recv_nok,recv,blocking,True,True,True,True,True,,6,7941c12
+mbi,MessageRace_Loop_Send_Recv_ok,recv,blocking,True,True,True,True,True,,2,7941c12
+mbi,MessageRace_Recv_Isend_nok,recv,blocking,True,True,True,True,True,,3,7941c12
+mbi,MessageRace_Recv_Send_nok,recv,blocking,True,True,True,True,True,,3,7941c12
+mbi,MessageRace_Reduce_Isend_Irecv_nok,recv,"nonblocking, pending across a send",True,False,True,True,True,stretto-only,1,7941c12
+mbi,MessageRace_Reduce_Isend_Irecv_ok,recv,"nonblocking, nothing sent while pending",False,False,False,True,True,stretto-only,1,7941c12
+mbi,MessageRace_Reduce_Isend_Irecv_ok,recv,"nonblocking, pending across a send",True,False,True,True,True,stretto-only,1,7941c12
+mbi,MessageRace_Reduce_Send_Irecv_nok,recv,"nonblocking, pending across a send",True,True,True,True,True,,1,7941c12
+mbi,MessageRace_Reduce_Send_Irecv_ok,recv,"nonblocking, nothing sent while pending",False,False,False,True,True,stretto-only,1,7941c12
+mbi,MessageRace_Reduce_Send_Irecv_ok,recv,"nonblocking, pending across a send",True,False,True,True,True,stretto-only,1,7941c12
+mbi,MessageRace_Scan_Isend_Irecv_nok,recv,"nonblocking, pending across a send",True,False,True,True,True,stretto-only,1,7941c12
+mbi,MessageRace_Scan_Isend_Irecv_ok,recv,"nonblocking, nothing sent while pending",False,False,False,True,True,stretto-only,1,7941c12
+mbi,MessageRace_Scan_Isend_Irecv_ok,recv,"nonblocking, pending across a send",True,False,True,True,True,stretto-only,1,7941c12
+mbi,MessageRace_Scan_Send_Irecv_nok,recv,"nonblocking, pending across a send",True,False,True,True,True,stretto-only,1,7941c12
+mbi,MessageRace_Scan_Send_Irecv_ok,recv,"nonblocking, nothing sent while pending",False,False,False,True,True,stretto-only,1,7941c12
+mbi,MessageRace_Scan_Send_Irecv_ok,recv,"nonblocking, pending across a send",True,False,True,True,True,stretto-only,1,7941c12
+mbi,MessageRace_Scatter_Isend_Irecv_nok,recv,"nonblocking, pending across a send",True,True,True,True,True,,1,7941c12
+mbi,MessageRace_Scatter_Isend_Irecv_ok,recv,"nonblocking, nothing sent while pending",False,False,False,True,True,stretto-only,1,7941c12
+mbi,MessageRace_Scatter_Isend_Irecv_ok,recv,"nonblocking, pending across a send",True,True,True,True,True,,1,7941c12
+mbi,MessageRace_Scatter_Send_Irecv_nok,recv,"nonblocking, pending across a send",True,True,True,True,True,,1,7941c12
+mbi,MessageRace_Scatter_Send_Irecv_ok,recv,"nonblocking, nothing sent while pending",False,False,False,True,True,stretto-only,1,7941c12
+mbi,MessageRace_Scatter_Send_Irecv_ok,recv,"nonblocking, pending across a send",True,True,True,True,True,,1,7941c12
+mbi,MessageRace_tag_ANY_TAG_1_Send_Recv_nok,recv,blocking,True,True,True,True,True,,1,7941c12
+mbi,MessageRace_tag_ANY_TAG_ANY_TAG_Send_Recv_ok,recv,blocking,True,True,True,True,True,,1,7941c12
+npbmg,mg-2.4.1-S-np16,recv,"nonblocking, pending across a send",True,False,False,False,,,880,7941c12
+npbmg,mg-2.4.1-S-np16,recv,"nonblocking, pending across a send",True,False,True,True,,stretto-only,80,7941c12
+npbmg,mg-2.4.1-S-np16,recv,"nonblocking, pending across a send",True,True,True,True,,,80,7941c12
+npbmg,mg-2.4.1-S-np32,recv,"nonblocking, pending across a send",True,False,False,False,,,1760,7941c12
+npbmg,mg-2.4.1-S-np32,recv,"nonblocking, pending across a send",True,False,True,True,,stretto-only,160,7941c12
+npbmg,mg-2.4.1-S-np32,recv,"nonblocking, pending across a send",True,True,True,True,,,160,7941c12
+synthetic,001,recv,blocking,True,False,False,False,False,,1,7941c12
+synthetic,001,recv,blocking,True,True,True,True,True,,1,7941c12
+synthetic,002,recv,blocking,True,False,False,False,False,,1,7941c12
+synthetic,002,recv,"nonblocking, nothing sent while pending",True,False,False,False,False,,1,7941c12
+synthetic,003,recv,blocking,True,False,False,False,False,,2,7941c12
+synthetic,003,recv,blocking,True,True,True,True,True,,1,7941c12
+synthetic,003,recv,"nonblocking, nothing sent while pending",True,True,True,True,True,,1,7941c12
+synthetic,007,recv,blocking,True,True,True,True,True,,1,7941c12
+synthetic,011,recv,blocking,True,False,False,False,False,,2,7941c12
+synthetic,013,recv,blocking,True,True,True,True,True,,1,7941c12
+synthetic,013,recv,"nonblocking, nothing sent while pending",False,False,False,True,True,stretto-only,1,7941c12
+synthetic,013,recv,"nonblocking, nothing sent while pending",True,True,True,True,True,,2,7941c12
+synthetic,014,recv,"nonblocking, pending across a send",True,True,True,True,True,,1,7941c12
+synthetic,015,recv,blocking,True,True,True,True,True,,1,7941c12
+synthetic,015,recv,"nonblocking, nothing sent while pending",True,True,True,True,True,,2,7941c12
+synthetic,016,recv,"nonblocking, nothing sent while pending",True,True,True,True,True,,1,7941c12
+synthetic,017,recv,blocking,True,True,True,True,True,,1,7941c12
+synthetic,018,recv,"nonblocking, pending across a send",True,False,False,False,False,,1,7941c12
+synthetic,020,recv,blocking,True,False,False,False,False,,1,7941c12
+synthetic,020,recv,blocking,True,True,True,True,True,,1,7941c12
+synthetic,020,recv,"nonblocking, nothing sent while pending",True,True,True,False,False,hb-only,1,7941c12
+synthetic,021,recv,blocking,True,False,False,False,False,,1,7941c12
+synthetic,022,recv,"nonblocking, pending across a send",True,True,True,True,True,,1,7941c12
+synthetic,023,recv,"nonblocking, nothing sent while pending",True,True,True,True,True,,1,7941c12
+synthetic,029,recv,"nonblocking, nothing sent while pending",True,True,True,True,True,,1,7941c12
+synthetic,032,recv,blocking,True,True,True,False,False,hb-only,1,7941c12
+synthetic,036,recv,"nonblocking, nothing sent while pending",True,True,True,True,True,,1,7941c12
+synthetic,037,recv,"nonblocking, nothing sent while pending",True,True,True,False,False,hb-only,1,7941c12
+synthetic,039,recv,"nonblocking, nothing sent while pending",True,True,True,True,True,,1,7941c12
+synthetic,040,recv,"nonblocking, nothing sent while pending",True,False,False,False,False,,1,7941c12
+synthetic,040,recv,"nonblocking, nothing sent while pending",True,True,True,True,True,,2,7941c12
+synthetic,041,recv,"nonblocking, nothing sent while pending",True,True,True,True,True,,1,7941c12
+synthetic,043,recv,"nonblocking, nothing sent while pending",True,False,False,False,False,,1,7941c12
+synthetic,043,recv,"nonblocking, pending across a send",True,False,False,False,False,,1,7941c12
+synthetic,044,recv,"nonblocking, nothing sent while pending",True,True,True,False,False,hb-only,1,7941c12
+synthetic,046,recv,"nonblocking, nothing sent while pending",False,False,False,False,False,,3,7941c12
+synthetic,047,recv,"nonblocking, nothing sent while pending",True,True,True,True,True,,1,7941c12
+synthetic,052,recv,"nonblocking, nothing sent while pending",False,False,False,False,False,,1,7941c12
+synthetic,053,recv,"nonblocking, nothing sent while pending",True,True,True,True,True,,1,7941c12
+synthetic,056,recv,"nonblocking, nothing sent while pending",False,False,False,True,True,stretto-only,1,7941c12
+synthetic,056,recv,"nonblocking, pending across a send",True,True,True,True,True,,1,7941c12
+synthetic,057,recv,"nonblocking, nothing sent while pending",True,False,False,False,False,,2,7941c12
+synthetic,057,recv,"nonblocking, nothing sent while pending",True,True,True,True,True,,1,7941c12
+synthetic,060,recv,"nonblocking, nothing sent while pending",True,False,False,False,False,,2,7941c12
+synthetic,062,recv,blocking,True,True,True,True,True,,2,7941c12
+synthetic,064,recv,"nonblocking, nothing sent while pending",False,False,False,True,True,stretto-only,1,7941c12
+synthetic,064,recv,"nonblocking, nothing sent while pending",True,True,True,True,True,,2,7941c12
+synthetic,070,recv,blocking,True,True,True,True,True,,1,7941c12
+synthetic,072,recv,blocking,True,False,False,False,False,,1,7941c12
+synthetic,073,recv,blocking,True,True,True,True,True,,1,7941c12
+synthetic,073,recv,"nonblocking, nothing sent while pending",False,False,False,True,True,stretto-only,1,7941c12
+synthetic,073,recv,"nonblocking, nothing sent while pending",True,True,True,True,True,,1,7941c12
+synthetic,076,recv,blocking,True,False,False,False,False,,1,7941c12
+synthetic,076,recv,blocking,True,True,True,True,True,,2,7941c12
+synthetic,076,recv,"nonblocking, nothing sent while pending",True,False,False,False,False,,1,7941c12
+synthetic,076,recv,"nonblocking, nothing sent while pending",True,True,True,True,True,,1,7941c12
+synthetic,078,recv,"nonblocking, nothing sent while pending",True,True,True,True,True,,1,7941c12
+synthetic,080,recv,"nonblocking, nothing sent while pending",False,False,False,True,True,stretto-only,1,7941c12
+synthetic,080,recv,"nonblocking, nothing sent while pending",True,False,False,False,False,,1,7941c12
+synthetic,080,recv,"nonblocking, nothing sent while pending",True,True,True,True,True,,2,7941c12
+synthetic,081,recv,blocking,True,True,True,True,True,,1,7941c12
+synthetic,081,recv,"nonblocking, nothing sent while pending",True,True,True,True,True,,2,7941c12
+synthetic,082,recv,blocking,True,True,True,True,True,,2,7941c12
+synthetic,083,recv,blocking,True,False,False,False,False,,1,7941c12
+synthetic,085,recv,"nonblocking, nothing sent while pending",False,False,False,False,False,,1,7941c12
+synthetic,088,recv,blocking,True,True,True,True,True,,1,7941c12
+synthetic,089,recv,blocking,True,True,True,True,True,,1,7941c12
+synthetic,089,recv,"nonblocking, nothing sent while pending",True,True,True,True,True,,1,7941c12
+synthetic,091,recv,blocking,True,True,True,True,True,,2,7941c12
+synthetic,091,recv,"nonblocking, nothing sent while pending",True,False,False,False,False,,1,7941c12
+synthetic,091,recv,"nonblocking, nothing sent while pending",True,True,True,False,False,hb-only,1,7941c12
+synthetic,094,recv,"nonblocking, nothing sent while pending",True,True,True,True,True,,2,7941c12
+synthetic,095,recv,blocking,True,True,True,True,True,,1,7941c12
+synthetic,097,recv,blocking,True,True,True,True,True,,2,7941c12
+synthetic,097,recv,"nonblocking, nothing sent while pending",False,False,False,False,False,,1,7941c12
+synthetic,097,recv,"nonblocking, pending across a send",True,True,True,True,True,,1,7941c12
+synthetic,098,recv,blocking,True,True,True,True,True,,1,7941c12
+synthetic,099,recv,"nonblocking, nothing sent while pending",False,False,False,False,False,,1,7941c12
+synthetic,099,recv,"nonblocking, nothing sent while pending",True,True,True,False,False,hb-only,1,7941c12
