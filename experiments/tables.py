@@ -1421,7 +1421,7 @@ def must_versions_notes(rs, key, path):
             num(f"n{key}{tag}Timeout", kinds.get("TIMEOUT", 0))
             if col.endswith("tsan"):
                 num(f"n{key}{tag}Races", len(races))
-    if any(r.get("must1112tsan") for r in rs):
+    if any(r.get(col) for r in rs for col, _ in score.MUST_COLUMNS):
         out += ["", "MUST 1.11.2 runs from `experiments/must/Dockerfile` (MPI-BugBench's MUST image with 1.11.2: Debian 12,",
                 "MPICH 4.0.2, clang 14), the same harness and timeout as 1.9.2 (`scripts/must_run.sh`). With ThreadSanitizer the",
                 "program is compiled with `must-tsan-cc --wrap-target mpicc.mpich` and run with `--must:tsan`; a data race counts",
