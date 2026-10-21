@@ -49,6 +49,7 @@ MPI=openmpi`, in the experiment image).
 | `adept.sh` | the Adept Kernel report checked: the result under the reordering MPI-PRV predicts, forced with delays (`adept_shim.c`), a mutant as the positive control, and Stretto's buffer guard | `adept.csv`, `adept-guard.txt`, `adept-mutant.diff` |
 | `run.py` | MPI-PRV on Stretto's corpora, three arms (below); `--rq1-check` first checks the combined MOP file on the artifact's RQ1 programs | `corpus.csv`, `corpus-rq1check.csv` |
 | `apps.py` | Stretto, plain and with the guard, on the artifact's applications, with replays | `apps.csv`, `apps-replays.csv` |
+| `stretto_corpus.py` | Stretto with the buffer guard on `run.py`'s programs, twins included, in the experiment image | `stretto-corpus.csv` |
 
 ```bash
 # on the second machine, in the deployed copy (experiments/RUNBOOK.md)
@@ -61,6 +62,8 @@ experiments/mpiprv/prv.sh experiments/mpiprv/adept.sh          # about 45 minute
 experiments/mpiprv/prv.sh python3 experiments/mpiprv/run.py --rq1-check
 experiments/mpiprv/prv.sh python3 experiments/mpiprv/run.py    # needs the corpora (third_party/fetch.sh corpora)
 experiments/mpiprv/prv.sh python3 experiments/mpiprv/apps.py
+IMAGE=stretto-exp:24.04 CPUS=26-27,66-67 DETACH=0 experiments/container/run.sh python3 experiments/mpiprv/stretto_corpus.py
+python3 experiments/tables.py                                  # section E9 of docs/results.md
 ```
 
 ## The corpus arms (`run.py`)
