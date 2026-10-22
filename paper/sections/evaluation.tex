@@ -189,14 +189,14 @@ events, and \AMGtime\,s for AMG with its \nAMGalts probe alternatives. On Nekbon
 communication suite, \NekRecords million records, it took \NekMinutes minutes and \NekGB\,GB,
 outside the timed leg, to check \nNekChecked receive alternatives, \nNekAlts of them accepted:
 about \NekPerAlt\,s per check against the whole graph (\cref{thm:cost}).
-Also outside it, from \nScaleNpMin to \nScaleNpMax processes (oversubscribed above 24
-hardware threads), AMG's analysis grows from \ScaleAMGSixteenTime\,s and \ScaleAMGSixteenGB\,GB to
-\ScaleAMGSixtyFourTime\,s and \ScaleAMGSixtyFourGB\,GB and its probe alternatives from
-\nScaleAMGSixteenProbeAlts to \nScaleAMGSixtyFourProbeAlts, each costing time about linear in the
-trace (\ScaleAMGSixteenPerAlt to \ScaleAMGSixtyFourPerAlt\,ms); HYPRE's grows from
-\ScaleHypreSixteenTime to \ScaleHypreSixtyFourTime\,s, LU's \ScaleLuTimeRatio-fold for a
-\ScaleLuRecordsRatio-fold trace. All \nScaleSample sampled replays and their controls matched
-their pins and finished.
+Also outside it, from \nScaleNpMin to \nScaleNpMax processes (oversubscribed above 12
+threads), AMG's analysis grows from \ScaleAMGSixteenTime\,s and \ScaleAMGSixteenGB\,GB to
+\ScaleAMGSixtyFourTime\,s and \ScaleAMGSixtyFourGB\,GB, about linear in records plus probe alternatives
+(\nScaleAMGSixteenProbeAlts to \nScaleAMGSixtyFourProbeAlts, each \ScaleAMGSixteenPerAlt to
+\ScaleAMGSixtyFourPerAlt\,ms); HYPRE's grows from \ScaleHypreSixteenTime to \ScaleHypreSixtyFourTime\,s,
+LU's \ScaleLuTimeRatio-fold for a \ScaleLuRecordsRatio-fold trace. All \nScaleSample sampled replays
+matched their pins; \nScaleSampleUnfinished hung, on ParaSails' request probe, and
+\nScaleSampleControlsFailed control exited with status~15.
 
 \subsection{RQ6: real applications}
 
