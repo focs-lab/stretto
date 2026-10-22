@@ -1843,3 +1843,17 @@ probability of a split at least as uneven if each such error were as likely to g
 | MPI-BugBench level 2 | the stress baseline at the default limits | 41 | 0 | 9.1e-13 | `nMBBSignStressStretto`, `nMBBSignStressOther`, `MBBSignStressP` |
 | MPI-BugBench level 2 | MUST 1.9.2 | 6 | 0 | 0.031 | `nMBBSignMUSTStretto`, `nMBBSignMUSTOther`, `MBBSignMUSTP` |
 | MPI-BugBench level 2 | MUST 1.9.2, a timeout or failed run counted | 0 | 0 | 1 | `nMBBSignMUSTsymStretto`, `nMBBSignMUSTsymOther`, `MBBSignMUSTsymP` |
+
+### E4: the configurations of the overhead range
+
+E4's NPB slowdown range (`TraceOverhead`) runs from the least to the greatest median over the configurations
+whose plain timed section lasts at least 1 s by NPB's own timer: 3 of the 20 configurations
+(`nEfourLong`, `nEfourLongNames`). Each row is the median over the repetitions of the timed leg.
+
+| configuration | NPB plain (s) | NPB traced (s) | NPB slowdown, median (range over the repetitions) |
+|---|---|---|---|
+| ep.A.4 | 1.10 | 1.13 | 1.009 (0.99-1.05) |
+| lu.A.4 | 7.77 | 7.97 | 1.023 (1.02-1.03) |
+| lu.A.16 | 4.33 | 5.08 | 1.173 (1.17-1.19) |
+
+The other 17 configurations' plain timed sections last 0.00 to 0.43 s by the median (NPB prints hundredths of a second), and their median slowdowns range from 0.909 to 5.000; 4 have no NPB slowdown, their plain timed section printing 0.00 s.

@@ -211,5 +211,34 @@ class Baselines(unittest.TestCase):
         self.assertEqual((f["MUST"] | f["Stress"]) - f["Stretto"], {"c"})
 
 
+class EfourRange(unittest.TestCase):
+    """E4's overhead range is taken over the configurations whose plain timed section lasts at least
+    1 s; the statistics count exactly those."""
+
+    def test_the_range_and_its_configurations(self):
+        h = "benchmark,class,np,rep,plain_s,traced_s,slowdown,plain_npb_s,traced_npb_s,npb_slowdown,trace_MB,events,wildcards,analysis_s,findings,classes,commit"
+        lines = ["lu,A,4,1,12.3,12.5,1.02,7.70,7.90,1.026,68,1,0,8,0,,a", "lu,A,4,2,12.4,12.6,1.02,7.80,8.00,1.020,68,1,0,8,0,,a",
+                 "ep,A,4,1,5.5,5.5,1.00,1.20,1.30,1.090,1,1,0,0.1,0,,a", "ep,A,4,2,5.5,5.5,1.00,0.90,1.00,1.110,1,1,0,0.1,0,,a",
+                 "is,S,4,1,4.4,4.4,1.00,0.00,0.00,,1,1,0,0.1,0,,a", "is,S,4,2,4.4,4.4,1.00,0.00,0.00,,1,1,0,0.1,0,,a",
+                 "cg,S,4,1,4.4,4.5,1.01,0.02,0.05,2.500,4,1,0,0.5,0,,a", "cg,S,4,2,4.4,4.5,1.01,0.02,0.05,2.500,4,1,0,0.5,0,,a"]
+        saved = dict(tables.NUM)
+        with tempfile.TemporaryDirectory() as d, mock.patch.object(tables, "RES", d):
+            os.makedirs(os.path.join(d, "e4"))
+            with open(os.path.join(d, "e4", "e4.csv"), "w") as fh:
+                fh.write(h + "\n" + "".join(x + "\n" for x in lines))
+            try:
+                tables.NUM.clear()
+                tables.e4()
+                text = "\n".join(tables._efour())
+                got = {k: tables.NUM[k] for k in ("TraceOverhead", "nEfourConfigs", "nEfourLong", "nEfourLongNames")}
+            finally:
+                tables.NUM.clear()
+                tables.NUM.update(saved)
+        # ep.A.4's median plain time is 1.05 s, one of its runs below 1 s; lu.A.4's 7.75 s; the S classes less than 1 s
+        self.assertEqual(got, {"TraceOverhead": "1.02--1.10", "nEfourConfigs": "4", "nEfourLong": "2", "nEfourLongNames": "lu.A.4, ep.A.4"})
+        self.assertIn("| lu.A.4 | 7.75 | 7.95 | 1.023 (1.02-1.03) |", text)
+        self.assertIn("1 have no NPB slowdown, their plain timed section printing 0.00 s.", text)
+
+
 if __name__ == "__main__":
     unittest.main()

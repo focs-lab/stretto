@@ -14,7 +14,8 @@ The statistics of the last section of docs/results.md ("Statistics") have macros
   nPin...All, nPin...<campaign>         the pin log over every application campaign, and by campaign
   n<corpus>Union...                     the labelled errors each tool and each union of baselines finds
   n<corpus>Sign<baseline>Stretto/Other  the labelled errors Stretto finds and a baseline misses, and the
-  <corpus>Sign<baseline>P               reverse, with the exact two-sided sign test's p-value"""
+  <corpus>Sign<baseline>P               reverse, with the exact two-sided sign test's p-value
+  nEfourLong, nEfourLongNames           the E4 configurations the overhead range is taken over"""
 from __future__ import annotations
 import collections
 import csv
@@ -37,6 +38,7 @@ import figures  # noqa: E402  (the README's charts and results block)
 rows = score.rows
 NUM: dict = {}       # macro name -> text, written to experiments/generated/numbers.tex
 CONF: dict = {}      # (corpus, row label) -> confusion counts, for experiments/generated/rq2.tex
+EFOUR: list = []     # E4's configurations with their NPB timer medians, for the statistics section
 
 
 def num(name: str, value) -> None:
@@ -1369,6 +1371,7 @@ def e6():
 def e4():
     """E4 from the timed leg: per row the median over its repetitions, with the range of the
     slowdown; NPB's own timer where the log has one."""
+    EFOUR.clear()
     rs = rows(os.path.join(RES, "e4", "e4.csv"))
     if not rs:
         return "_no results_\n"
@@ -1408,8 +1411,11 @@ def e4():
         sd = tr / pl if pl else None
         nsd = med(g, "npb_slowdown")
         wall_sd.append(sd)
-        if nsd is not None and pn is not None and pn >= 1.0:
+        timed = nsd is not None and pn is not None and pn >= 1.0     # a configuration of the range in the text
+        if timed:
             npb_sd.append(nsd)
+        EFOUR.append({"config": f"{b}.{c}.{n}", "plain": pn, "traced": tn, "slowdown": nsd, "range": rng(g, "npb_slowdown"),
+                      "timed": timed})
         f = g[0]
         cell = lambda x, fmt: (fmt.format(x) if x is not None else "-")
         out.append(f"| {b} | {c} | {n} | {cell(pl, '{:.2f}')} | {cell(tr, '{:.2f}')} | {cell(sd, '{:.2f}')} | {cell(pn, '{:.2f}')} | "
@@ -3175,6 +3181,34 @@ def _baselines() -> list:
     return out
 
 
+def _efour() -> list:
+    """The configurations of E4 that its overhead range (TraceOverhead) is taken over."""
+    if not EFOUR:
+        return []
+    timed = [x for x in EFOUR if x["timed"]]
+    rest = [x for x in EFOUR if not x["timed"]]
+    num("nEfourConfigs", len(EFOUR))
+    num("nEfourLong", len(timed))
+    num("nEfourLongNames", ", ".join(x["config"] for x in timed))
+    s = lambda x: "-" if x is None else f"{x:.2f}"     # noqa: E731
+    out = ["", "### E4: the configurations of the overhead range", "",
+           "E4's NPB slowdown range (`TraceOverhead`) runs from the least to the greatest median over the configurations",
+           f"whose plain timed section lasts at least 1 s by NPB's own timer: {len(timed)} of the {len(EFOUR)} configurations",
+           "(`nEfourLong`, `nEfourLongNames`). Each row is the median over the repetitions of the timed leg.", "",
+           "| configuration | NPB plain (s) | NPB traced (s) | NPB slowdown, median (range over the repetitions) |", "|---|---|---|---|"]
+    out += [f"| {x['config']} | {s(x['plain'])} | {s(x['traced'])} | {x['slowdown']:.3f} ({x['range']}) |" for x in timed]
+    plain = [x["plain"] for x in rest if x["plain"] is not None]
+    sd = [x["slowdown"] for x in rest if x["slowdown"] is not None]
+    none = [x for x in rest if x["slowdown"] is None]
+    if rest:
+        out += ["", f"The other {len(rest)} configurations' plain timed sections last "
+                + (f"{min(plain):.2f} to {max(plain):.2f} s by the median (NPB prints hundredths of a second)" if plain else "an unknown time")
+                + (f", and their median slowdowns range from {min(sd):.3f} to {max(sd):.3f}" if sd else "")
+                + (f"; {len(none)} have no NPB slowdown" + (", their plain timed section printing 0.00 s"
+                                                           if all(x["plain"] == 0 for x in none) else "") if none else "") + "."]
+    return out
+
+
 def statistics_section() -> str:
     """The statistics of the evaluation, from the same tables as the sections above, and some
     from their macros: run after them (the macro names: the module docstring)."""
@@ -3186,6 +3220,7 @@ def statistics_section() -> str:
     out += _distinct()
     out += _pin_log_all()
     out += _baselines()
+    out += _efour()
     return "\n".join(out) + "\n"
 
 
