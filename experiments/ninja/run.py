@@ -20,17 +20,24 @@ environment:
           files, since NINJA rewrites them at MPI_Finalize
   plain   no NINJA, the reference
 Every run gets its own working directory (NINJA's learning directory is relative to it).
+A run that is not a NINJA run stops the campaign with HARNESS-ERROR and exit status 3: the
+library missing, or ld.so reporting that it "cannot be preloaded" (the run then goes on
+without it), and a run killed before its timeout (a memory cap or an outside kill, not a run
+the noise exposed). Rows written before stay. A corpus selection that selects nothing, a
+selected program without its binary and a missing program end the run before any row.
 
 usage:
   run.py runs --np N --mode MODE --runs K --out CSV [--label L] [--timeout S] [--mpi mpich|openmpi]
               [--marks name=regex,...] [--value REGEX] [--line-buffered] [--keep DIR] -- exe [args]
       K runs of one program, one row each: label, np, mode, setting, run, result, seconds,
       reached (the last of --marks found in its output), value (the group of the last match of
-      --value), commit. Rows are appended to CSV.
+      --value), commit. Rows are appended to CSV, which must have these columns if it exists
+      (experiments/ninja/campaign.sh starts each table afresh).
   run.py corpus <corpus csv> --mode MODE --out CSV [--runs 30] [--timeout 60] [--jobs J]
               [--select REGEX] [--mpi openmpi]
       the stress baseline's protocol (experiments/stress_baseline.py) under NINJA: every
-      compiled program of a corpus table, up to --runs runs (in app mode the learning run counts
+      compiled program of a corpus table that --select selects (experiments/selection.py: a
+      path with "/" and a table name with "__" select the same programs), up to --runs runs (in app mode the learning run counts
       as the first), stopping at the first run that does not finish. One row per program:
       program, expect, mode, setting, runs, first_failure, outcome, learn, seconds, commit.
 """
@@ -49,8 +56,9 @@ from concurrent.futures import ThreadPoolExecutor
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 sys.path.insert(0, os.path.join(ROOT, "analysis"))
 sys.path.insert(0, os.path.join(ROOT, "experiments"))
-from stretto.confirm import classify_rc  # noqa: E402
+from stretto.confirm import HarnessError, classify_rc  # noqa: E402
 from provenance import code_commit  # noqa: E402
+from selection import selects  # noqa: E402
 
 NINJA = os.environ.get("NINJA_DIR", os.path.join(ROOT, "third_party", "ninja"))
 MODES = ("plain", "random", "system", "app")
@@ -92,6 +100,14 @@ def run_once(np_: int, exe: str, argv: list, mode: str, wd: str, args) -> dict:
     elapsed = time.monotonic() - t0
     out = {"result": classify_rc(r.returncode, r.stderr, elapsed, args.timeout), "seconds": round(elapsed, 1),
            "stdout": r.stdout, "stderr": r.stderr, "reached": "", "value": ""}
+    if mode != "plain" and "cannot be preloaded" in r.stderr:
+        # ld.so could not preload NINJA (wrong MPI, wrong architecture) and the run went on without it
+        why = next(ln for ln in r.stderr.splitlines() if "cannot be preloaded" in ln).strip()
+        raise HarnessError(f"{ninja_lib(args)} was not preloaded: {why}")
+    if out["result"] == "KILLED":
+        # a SIGKILL before the timeout is a memory cap or an outside kill, not a run the noise exposed
+        raise HarnessError(f"a {mode} run was killed after {out['seconds']} s, before its timeout of {args.timeout} s "
+                           f"(status {r.returncode}): a memory cap or an outside kill")
     text = r.stdout + r.stderr
     for name, rx in getattr(args, "mark_list", []):
         if re.search(rx, text):
@@ -124,15 +140,28 @@ def keep_log(args, name: str, res: dict) -> None:
             fh.write(f"result={res['result']} seconds={res['seconds']}\n--- stdout\n{res['stdout'][-4000:]}\n--- stderr\n{res['stderr'][-4000:]}\n")
 
 
-def cmd_runs(args) -> int:
-    args.mark_list = [tuple(m.split("=", 1)) for m in args.marks.split(",")] if args.marks else []
-    exe = os.path.abspath(args.exe)
-    fields = ["label", "np", "mode", "setting", "run", "result", "seconds", "reached", "value", "commit"]
-    new = not os.path.exists(args.out)
-    fh = open(args.out, "a", newline="")
+def open_table(path: str, fields: list):
+    """The table at path opened for appending rows of these columns, with its header if new;
+    a table with other columns is refused (its rows would land in the wrong columns)."""
+    new = not os.path.exists(path)
+    if not new:
+        with open(path, newline="") as fh:
+            if next(csv.reader(fh), []) != fields:
+                raise HarnessError(f"{path} has other columns than {','.join(fields)}; remove it or choose another --out")
+    fh = open(path, "a", newline="")
     w = csv.DictWriter(fh, fieldnames=fields, lineterminator="\n")
     if new:
         w.writeheader()
+    return fh, w
+
+
+def cmd_runs(args) -> int:
+    args.mark_list = [tuple(m.split("=", 1)) for m in args.marks.split(",")] if args.marks else []
+    exe = os.path.abspath(args.exe)
+    if not os.path.isfile(exe):
+        raise HarnessError(f"no program {exe}; nothing written")
+    fields = ["label", "np", "mode", "setting", "run", "result", "seconds", "reached", "value", "commit"]
+    fh, w = open_table(args.out, fields)
 
     def emit(run, res, mode):
         w.writerow({"label": args.label, "np": args.np, "mode": mode, "setting": setting(mode, args) if run else
@@ -199,15 +228,22 @@ def corpus_one(row: dict, exe: str, args) -> dict:
 
 def cmd_corpus(args) -> int:
     base = os.path.dirname(os.path.abspath(args.csv))
-    rows = [r for r in csv.DictReader(open(args.csv)) if r.get("build") == "ok" and re.search(args.select, r["name"])]
-    todo = [(r, os.path.join(base, r["name"].replace("/", "__"), "main")) for r in rows]
-    todo = [(r, e) for r, e in todo if os.path.exists(e)]
+    if not os.path.exists(args.csv):
+        raise HarnessError(f"no corpus table {args.csv}")
+    with open(args.csv) as fh:
+        rows = [r for r in csv.DictReader(fh) if r.get("build") == "ok" and selects(args.select, r["name"])]
+    if not rows:
+        raise HarnessError(f"--select {args.select!r} selects no compiled program of {args.csv}; nothing written")
+    todo, missing = [], []
+    for r in rows:
+        e = os.path.join(base, r["name"].replace("/", "__"), "main")
+        (todo if os.path.exists(e) else missing).append((r, e))
+    if missing:
+        # a program the corpus run built whose binary is gone would silently leave the table
+        raise HarnessError(f"{len(missing)} selected program(s) have no binary, e.g. {missing[0][1]}; nothing written "
+                 "(run the corpus step first)")
     fields = ["program", "expect", "mode", "setting", "runs", "first_failure", "outcome", "learn", "seconds", "commit"]
-    new = not os.path.exists(args.out)
-    fh = open(args.out, "a", newline="")
-    w = csv.DictWriter(fh, fieldnames=fields, lineterminator="\n")
-    if new:
-        w.writeheader()
+    fh, w = open_table(args.out, fields)
     with ThreadPoolExecutor(max_workers=args.jobs) as ex:
         for i, res in enumerate(ex.map(lambda x: corpus_one(x[0], x[1], args), todo), 1):
             w.writerow(res)
@@ -246,14 +282,20 @@ def main() -> int:
     p.add_argument("--jobs", type=int, default=3)
     p.add_argument("--select", default=".")
     args = ap.parse_args()
-    # the dynamic loader skips an LD_PRELOAD entry it cannot open with only a warning on
-    # stderr, so without the library every run would be a plain run recorded as a NINJA one
-    if args.mode != "plain" and not os.path.isfile(ninja_lib(args)):
-        sys.exit(f"run.py: {ninja_lib(args)} is missing; build NINJA first (experiments/ninja/build.sh fetch build) "
-                 "or point NINJA_DIR at a build")
     if args.cmd == "runs" and not args.label:
         args.label = os.path.basename(args.exe)
-    return cmd_runs(args) if args.cmd == "runs" else cmd_corpus(args)
+    try:
+        # the dynamic loader skips an LD_PRELOAD entry it cannot open with only a warning on
+        # stderr, so without the library every run would be a plain run recorded as a NINJA one
+        if args.mode != "plain" and not os.path.isfile(ninja_lib(args)):
+            raise HarnessError(f"{ninja_lib(args)} is missing; build NINJA first (experiments/ninja/build.sh fetch "
+                               "build) or point NINJA_DIR at a build")
+        return cmd_runs(args) if args.cmd == "runs" else cmd_corpus(args)
+    except HarnessError as e:
+        # status 3, apart from 1 (no application-centric learning run finished): the rows
+        # written before stay, and experiments/ninja/campaign.sh starts its tables afresh
+        print(f"run.py: HARNESS-ERROR: {e}", file=sys.stderr, flush=True)
+        return 3
 
 
 if __name__ == "__main__":
