@@ -27,8 +27,9 @@ binary, with the `install.sh` that compiles it into `MPI-PRV`); the behaviour th
 measure is the binary's.
 
 `experiments/mpiprv/prv.sh <command>` runs a command in the image with the repository at `/w`,
-on processors `CPUS` (default `26-27,66-67`) and `MEMORY` (default 16 GB). The image keeps its
-tool paths in `/root/.bashrc`, which the wrapper sources. The artifact is meant to run
+on processors `CPUS` (default: every processor; the runs of E9 had four, `26-27,66-67` of
+the second machine) and `MEMORY` (default 16 GB). The image keeps its tool paths in
+`/root/.bashrc`, which the wrapper sources. The artifact is meant to run
 `--privileged`; the wrapper adds only `--cap-add SYS_PTRACE`, without which Open MPI's
 single-copy transfers fail and the RMA program of the artifact's property 6 hangs.
 
@@ -50,6 +51,11 @@ MPI=openmpi`, in the experiment image).
 | `run.py` | MPI-PRV on Stretto's corpora, three arms (below); `--rq1-check` first checks the combined MOP file on the artifact's RQ1 programs | `corpus.csv`, `corpus-rq1check.csv` |
 | `apps.py` | Stretto, plain and with the guard, on the artifact's applications, with replays | `apps.csv`, `apps-replays.csv` |
 | `stretto_corpus.py` | Stretto with the buffer guard on `run.py`'s programs, twins included, in the experiment image | `stretto-corpus.csv` |
+
+`artifact/reproduce.sh rq2` runs all of it after the corpora (`MPIPRV=0` leaves it out): the
+image takes 24 GB of disk, the runs about 6 GB and 3.5 hours on four processors, most of them
+the Adept check (45 minutes) and the applications (1 h 45 min). By hand, as the paper's runs
+were made:
 
 ```bash
 # on the second machine, in the deployed copy (experiments/RUNBOOK.md)

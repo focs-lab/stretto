@@ -18,7 +18,8 @@ and then checks the paper's claims against the numbers it produced (`artifact/cl
   only slower). Nekbone needs 48 GB in one process, as does AMG's analysis at 64 processes
   (38 GB).
 - About 10 GB of disk: the experiment image is 0.9 GB, MUST's image 2.8 GB, the TeX image
-  for the paper 5.3 GB, Nekbone's trace 1.2 GB.
+  for the paper 5.3 GB, Nekbone's trace 1.2 GB. MPI-PRV's image (`rq2`, unless `MPIPRV=0`)
+  takes 24 GB more, and its runs about 6 GB.
 - Network access for `image` and `inputs` (the Ubuntu archive snapshot, GitHub, GitLab, the
   RWTH Aachen GitLab and the NAS web site).
 
@@ -59,7 +60,7 @@ used the image `ceb926607397` built on 7 Sep 2026.
 | question (paper) | what the paper claims | target | time on 12 cores |
 |---|---|---|---|
 | RQ1, soundness | no accepted alternative is unsound against an exhaustive explorer; no replay contradicts its finding, and every inconclusive one belongs to a racing loop labelled erroneous; AMG's and Nekbone's sampled replays match their pins and finish, as do their controls | `rq1` | 2.5 h (1 h without Nekbone) |
-| RQ2, effectiveness (table "Labelled errors found") | F1 on MBI above MUST (1.9.2 and 1.11.2), stress testing and NINJA with no false positive; every error stress testing misses is predicted, and NINJA exposes none of them; on MPI-BugBench at least MUST's F1; with the buffer guard every local-concurrency program found and nothing else changed, and MUST 1.11.2 with ThreadSanitizer finds none the guard misses; MBI run ten times: no false positive in any run, no error the run shows more often than Stretto reports it, and every clean run Stretto predicts nothing from is of a value-check program | `rq2` | 13.5 h, most of it MUST |
+| RQ2, effectiveness (table "Labelled errors found") | F1 on MBI above MUST (1.9.2 and 1.11.2), stress testing and NINJA with no false positive; every error stress testing misses is predicted, and NINJA exposes none of them; on MPI-BugBench at least MUST's F1; with the buffer guard every local-concurrency program found and nothing else changed, and MUST 1.11.2 with ThreadSanitizer finds none the guard misses; MBI run ten times: no false positive in any run, no error the run shows more often than Stretto reports it, and every clean run Stretto predicts nothing from is of a value-check program; MPI-PRV (appendix): its RQ1 reproduces in every round and its pattern is reported in none of its shipped configurations, every wildcard and barrier probe gets the impossible order in every run and its control in none, its buffer properties with script-placed markers report fewer local-concurrency errors than the guard, the Adept kernel with its missing waits gives the blocking result under the reported order while the shipped kernel does not and the guard reports its writes, Heat's predicted deadlock is confirmed and every rendezvous replay hangs as predicted | `rq2` | 17 h: 13.5 h, most of it MUST, and 3.5 h for MPI-PRV (`MPIPRV=0` skips it) |
 | RQ3, buffering | thresholds measured per send path; every replay at, below and above the predicted bound behaves as predicted | `rq3` | 1.5 h |
 | RQ4, levels | findings per level and class on the corpora | `rq4` | 1 h |
 | RQ5, cost | tracing overhead on NPB, analysis times of lu.A, AMG and Nekbone; from 16 to 64 processes every traced run of HYPRE, AMG and NPB LU and every analysis finishes, and every sampled replay and its control match their pins and finish | `rq5` | 8.5 h: 1.5 h for the timed leg (on an idle machine) and Nekbone, 7 h for the runs from 16 to 64 processes |
@@ -68,9 +69,11 @@ used the image `ceb926607397` built on 7 Sep 2026.
 Each target reruns what its question needs, regenerates the tables and prints the claims of
 that question. RQ1 to RQ4 share one traced and analysed run of the corpora, AMG and Nekbone
 run once for RQ1, RQ5 and RQ6: a marker in `artifact/out/` (`corpora.done`, `amg.done`,
-`nekbone.done`, and `scale.done` for the runs from 16 to 64 processes of RQ5) records each,
-and removing the marker reruns the step. `all` runs every question. `NEKBONE=0` leaves Nekbone
-out, `SCALE=0` the runs from 16 to 64 processes.
+`nekbone.done`, `scale.done` for the runs from 16 to 64 processes of RQ5, and `mpiprv.done`
+for MPI-PRV's in RQ2) records each, and removing the marker reruns the step. `all` runs every
+question. `NEKBONE=0` leaves Nekbone out, `SCALE=0` the runs from 16 to 64 processes, and
+`MPIPRV=0` MPI-PRV: its artifact image (24 GB, pulled by digest) and the runs of
+`experiments/mpiprv/` (`experiments/mpiprv/README.md`).
 
 Before `rq1` to `rq6`, fetch and build the inputs:
 

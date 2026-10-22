@@ -25,6 +25,8 @@
 #   JOBS     programs run at a time in the corpus steps (default 6), replays in HYPRE's (4)
 #   NEKBONE  0: leave Nekbone out of rq1 and rq5 (it needs 48 GB and about an hour)
 #   SCALE    0: leave the runs from 16 to 64 processes out of rq5 (38 GB and about 7 hours)
+#   MPIPRV   0: leave MPI-PRV out of rq2 (its image takes 24 GB of disk; the runs about 6 GB
+#            and 3.5 hours on four processors)
 set -euo pipefail
 R="$(cd "$(dirname "$0")/.." && pwd)"; cd "$R"
 export IMAGE="${IMAGE:-stretto-exp:24.04}" CPUS="${CPUS:-0-$(($(nproc) - 1))}" DETACH=0
@@ -62,6 +64,22 @@ scale() {
         && experiments/scale/run.sh all"
 }
 
+# MPI-PRV (section E9): its artifact image pulled by digest, its own RQ1, RQ2 and motivating
+# example rerun, the probes, the Adept check, its marker arms on the corpora and Stretto on its
+# applications (experiments/mpiprv/README.md); the corpus step has built the tracer and the
+# replay library, which run inside MPI-PRV's image too
+mpiprv() {
+    [ "${MPIPRV:-1}" = 0 ] && return
+    once mpiprv bash -c 'set -e; P=experiments/mpiprv
+        docker pull "$(grep -o "mpiprv/mpiprv@sha256:[0-9a-f]*" $P/prv.sh)"
+        $P/prv.sh $P/rq1.sh
+        $P/prv.sh $P/probes.sh
+        $P/prv.sh "python3 $P/run.py --rq1-check && python3 $P/run.py"
+        $P/prv.sh $P/adept.sh
+        $P/prv.sh python3 $P/apps.py' 2>&1 | tee -a "$OUT/mpiprv.log"
+    box mpiprv-stretto python3 experiments/mpiprv/stretto_corpus.py
+}
+
 t_image() {
     docker build -t "$IMAGE" experiments/container
     experiments/container/check.sh "$IMAGE"
@@ -92,6 +110,7 @@ t_rq2() {
     box guard experiments/run_remaining.sh guard
     box reps experiments/run_remaining.sh reps
     box ninja bash -c "experiments/ninja/build.sh && RAND_DELAYS=50000 experiments/ninja/campaign.sh mbi"
+    mpiprv
     claims 2
 }
 t_rq3() { corpora; box rq3 experiments/run_remaining.sh e2; claims 3; }
@@ -122,7 +141,7 @@ t_paper() {
         && $P > /dev/null && BIBINPUTS=. bibtex build/main > /dev/null && $P > /dev/null && $P > build/pdflatex.log && ls -l build/main.pdf'
 }
 
-[ $# -gt 0 ] || { sed -n '2,27p' "$0"; exit 2; }
+[ $# -gt 0 ] || { sed -n '2,29p' "$0"; exit 2; }
 for t in "$@"; do
     declare -F "t_$t" > /dev/null || { echo "unknown target: $t" >&2; exit 2; }
     log "start $t"

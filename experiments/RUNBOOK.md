@@ -74,7 +74,8 @@ Variables the scripts read (all optional):
 | `STRETTO_MACHINE_LOCK`, `STRETTO_CPUS` | `scripts/heavy.sh` | the shared-host lock file and the processors a heavy job may use |
 | `IMAGE`, `CPUS`, `MEMORY`, `NAME`, `MACHINE`, `DETACH` | `experiments/container/run.sh` | container image, cpuset (`0-11,40-51`), memory (`24g`), name, the host name the summaries print (the host's), `0` to run in the foreground (detached) |
 | `DOCKER_ARGS` | `experiments/container/run.sh` | more `docker run` options; `--cap-add SYS_PTRACE` lets the MPI libraries use single-copy transfers (`experiments/guard/run.sh`) |
-| `CPUS`, `MEMORY`, `JOBS`, `NEKBONE`, `SCALE` | `artifact/reproduce.sh` | as above, but `CPUS` defaults to every processor; `NEKBONE=0` leaves Nekbone out, `SCALE=0` the runs from 16 to 64 processes |
+| `CPUS`, `MEMORY`, `JOBS`, `NEKBONE`, `SCALE`, `MPIPRV` | `artifact/reproduce.sh` | as above, but `CPUS` defaults to every processor; `NEKBONE=0` leaves Nekbone out, `SCALE=0` the runs from 16 to 64 processes, `MPIPRV=0` MPI-PRV (E9) |
+| `PRV_IMAGE`, `CPUS`, `MEMORY`, `DOCKER_ARGS`; `REPS`, `TWIN_REPS`, `DELAY`, `MAXNP` | `experiments/mpiprv/prv.sh`; its scripts | MPI-PRV's image (the pinned digest), cpuset (every processor), memory (`16g`), more `docker run` options (`--cap-add SYS_PTRACE`); rounds of its RQ1 and runs per probe (5), runs of the twin probes (20), the Adept delay in ms (2500), the largest process count `apps.py` runs (24) |
 | `NPS`, `SAMPLE`, `TIMEOUT` | `experiments/scale/run.sh` | process counts (`16 32 64`), replays sampled per trace (10), seconds per replay (120) |
 | `BENCHMARKS`, `CLASSES`, `CSV` | `experiments/e4_overhead.sh` | which NPB rows to measure and which table to write |
 | `DOCKER_BUILD_ARGS` | `third_party/fetch.sh must` | e.g. `--cgroup-parent=docker.slice` on the development host |
@@ -277,6 +278,23 @@ The four runs of 21 Oct 2026 (UTC) took 12 minutes (MBI, plain), 46 (MPI-BugBenc
 (MBI with ThreadSanitizer) and 80 (MPI-BugBench with ThreadSanitizer) on `CPUS=20-25,60-65`, from
 the copy deployed at commit 3b8e846; their tables `<corpus>/must1112*.csv` were then merged
 (`run_must.py --merge-only --column ...`) into the corpus tables of the current commit.
+
+## Baseline: MPI-PRV (E9)
+
+`experiments/mpiprv/` runs MPI-PRV's artifact image, `mpiprv/mpiprv` pinned by digest in
+`experiments/mpiprv/prv.sh` (24 GB on disk), unchanged; `experiments/mpiprv/README.md` lists
+each script and its table. Stretto's tracer and pin library, built for Open MPI in the
+experiment image, run inside MPI-PRV's image too, since both use the Ubuntu package of Open MPI
+4.1.6. Every script but `stretto_corpus.py` (experiment image) runs through `prv.sh`, which
+sources the image's `/root/.bashrc`, runs as root with `--cap-add SYS_PTRACE` and hands the
+files back. The runs of 21 and 22 Oct 2026 (UTC) used `CPUS=26-27,66-67` of the second machine
+and `MEMORY=16g`, one step at a time, from copies deployed at the commits their rows name:
+`rq1.sh` (RQ1, the motivating example, RQ2) 27 minutes, `probes.sh` 3, `run.py` 8, `adept.sh`
+43, `apps.py` 1 h 46 min (most of it clustalW at 20 processes and kf-ray's analyses),
+`stretto_corpus.py` 2; about 6 GB under `experiments/mpiprv/work/`. Without the capability Open
+MPI's single-copy transfers fail and the artifact's RQ1 program for property 6 hangs. kf-ray's
+rank 0 ends with a segmentation fault with or without the tracer, so `apps.py` does not replay
+it. `artifact/reproduce.sh rq2` runs every step (`MPIPRV=0` leaves them out).
 
 ## Shared-host protocol on the development host
 
