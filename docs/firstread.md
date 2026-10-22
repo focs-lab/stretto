@@ -55,10 +55,17 @@ object.
    that makes the completing call, whose address never escapes that function. An address
    escapes when a pointer derived from it (by `getelementptr`, casts, `phi`, `select`) is
    stored to memory, passed to a function other than an MPI function or a memory intrinsic,
-   passed to an MPI call that keeps it (persistent initialisation, `MPI_Buffer_attach`),
-   returned, converted to an integer, or used by any instruction the reader does not
-   recognise. Otherwise (a parameter, a global, heap memory, a constant address such as
-   `MPI_BOTTOM`, an escaping local) the entry has no free site: rule H1.
+   passed to an MPI call that keeps it (`firstread/mpi.py`, `captures`), returned, converted
+   to an integer, or used by any instruction the reader does not recognise. The MPI calls that
+   keep a pointer are those whose memory a later call reads without naming it: the
+   initialisation of every persistent request (`MPI_Send_init`, `MPI_Recv_init`, the
+   partitioned and the collective ones; `MPI_Start` reads the buffer), `MPI_Buffer_attach`,
+   `MPI_Win_create` and `MPI_Win_attach` (other processes read the window),
+   `MPI_Get_address` and `MPI_Address` (a datatype with the absolute address as displacement
+   lets a send of `MPI_BOTTOM` read the object), attribute values, the `extra_state` of
+   keyvals, generalised requests and data representations. Otherwise (a parameter, a global,
+   heap memory, a constant address such as `MPI_BOTTOM`, an escaping local) the entry has no
+   free site: rule H1.
 2. **Reads.** With the objects followed, a read is: a load or an atomic operation through a
    pointer derived from one of them; `memcpy`/`memmove` with one as the source; a call to an
    MPI function that passes one in any argument the table does not list as written only. The

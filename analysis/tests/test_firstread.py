@@ -221,6 +221,52 @@ int main(int argc, char **argv) {
             self.assertIn("escapes", e["why"])
         self.assertIn(sites(m, "MPI_Finalize")[0], entry(m, rc)["free"])
 
+    def test_absolute_address_is_an_escape(self):
+        """MPI_Get_address hands out the buffer's address: a struct type built from it lets a
+        send of MPI_BOTTOM forward the received value without naming the buffer, so the send
+        must not be free. Before 22 Oct 2026 the call counted as a read at the point it was made
+        (before the receive here) and the send was certified free."""
+        m = analyse_c("""
+int main(int argc, char **argv) {
+  int buf = 0; MPI_Aint a; MPI_Datatype dt; int one = 1;
+  MPI_Init(&argc, &argv);
+  MPI_Get_address(&buf, &a);
+  MPI_Type_create_struct(1, &one, &a, (MPI_Datatype[]){MPI_INT}, &dt);
+  MPI_Type_commit(&dt);
+  MPI_Recv(&buf, 1, MPI_INT, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+  MPI_Send(MPI_BOTTOM, 1, dt, 1, 0, MPI_COMM_WORLD);
+  MPI_Finalize();
+  return 0;
+}""")
+        e = entry(m, sites(m, "MPI_Recv")[0])
+        self.assertEqual(e["free"], [])
+        self.assertIn("escapes", e["why"])
+
+    def test_persistent_and_attached_buffers_escape(self):
+        """A buffer given to a persistent request is read at every MPI_Start, which does not
+        name it; an attached buffer at every buffered send; a window's memory by other
+        processes. Each makes the receive into that buffer H1."""
+        for setup in ("MPI_Request q; MPI_Send_init(&buf, 1, MPI_INT, 1, 0, MPI_COMM_WORLD, &q);",
+                      # MPI 4.0: Open MPI 4.1's header does not declare it
+                      "int MPI_Allreduce_init(const void *, void *, int, MPI_Datatype, MPI_Op, MPI_Comm, MPI_Info, "
+                      "MPI_Request *); MPI_Request q; "
+                      "MPI_Allreduce_init(&buf, &x, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD, MPI_INFO_NULL, &q);",
+                      "MPI_Buffer_attach(&buf, sizeof buf);",
+                      "MPI_Win w; MPI_Win_create(&buf, sizeof buf, 1, MPI_INFO_NULL, MPI_COMM_WORLD, &w);"):
+            m = analyse_c("""
+int main(int argc, char **argv) {
+  int buf = 0, x = 0;
+  MPI_Init(&argc, &argv);
+  %s
+  MPI_Recv(&buf, 1, MPI_INT, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+  MPI_Barrier(MPI_COMM_WORLD);
+  MPI_Finalize();
+  return x;
+}""" % setup)
+            e = entry(m, sites(m, "MPI_Recv")[0])
+            self.assertEqual(e["free"], [], setup)
+            self.assertIn("escapes", e["why"], setup)
+
     def test_global_and_heap_buffers_fall_back(self):
         m = analyse_c("""
 int g;

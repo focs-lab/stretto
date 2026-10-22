@@ -25,8 +25,8 @@ from collections import deque
 from typing import Dict, FrozenSet, Iterable, List, Optional, Set, Tuple
 
 from . import ir
-from .mpi import (BLOCKING_RECV, CAPTURES, COMPLETION, NONBLOCKING_RECV, OUTPUT_ONLY, PROBES, RECV_BUFFER,
-                  RESULTS, mpi_name)
+from .mpi import (BLOCKING_RECV, COMPLETION, NONBLOCKING_RECV, OUTPUT_ONLY, PROBES, RECV_BUFFER, RESULTS, captures,
+                  mpi_name)
 
 FORMAT = "stretto-firstread 1"
 UNKNOWN = "?"                       # a root the analysis cannot name: a loaded pointer, a parameter, a call's result
@@ -266,7 +266,7 @@ class Program:
             if name is not None:
                 for i, a in enumerate(x.args):
                     r = rt(a)
-                    if name in CAPTURES:
+                    if captures(name):
                         out.append(("escape", r))
                     elif i in OUTPUT_ONLY.get(name, ()):
                         out.append(("write", r))
