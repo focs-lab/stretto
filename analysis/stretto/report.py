@@ -12,7 +12,7 @@ from .matching import candidates_full, observed_hb, observed_ready_errors, probe
 from .trace import ANY, Key, Probe, Recv, Send, Trace
 from . import types
 from .deadlock import contained_deadlock
-from .reads import witness_respects
+from .reads import _cidx, erroneous, witness_respects
 
 
 # classes that make a program's verdict ERROR (the warnings 1b, 1f, probe-alt and
@@ -302,7 +302,7 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
         rep.degrade("unconfirmed-rejections", f"above {CONFIRM_LIMIT} records the generic check does not confirm the fast "
                     "check's rejections, which may include alternatives the rules accept")
     if reads is not None:
-        n = sum(1 for a in alts if reads.extends(t, a.changed))
+        n = sum(1 for a in alts if reads.extends(t, a.changed, a.M))
         rep.notes.append(f"read bounds: {n} of {len(alts)} alternatives keep records of the changed rank after the "
                          "changed receive completes (rule H1', docs/firstread.md)")
 
@@ -370,17 +370,21 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
             details.append(f"swap variant: {t.recvs[alt.stolen_from]} then takes {s_obs}; certified at L1 only up to the first changed receive")
         elif alt.stolen_from is not None:
             details.append(f"steal variant: {t.recvs[alt.stolen_from]} is left without {s}")
-        ext = reads is not None and reads.extends(t, alt.changed)
+        ext = reads is not None and reads.extends(t, alt.changed, alt.M)
         if ext:
             details.append("read bounds: " + "; ".join(
                 f"rank {R} reads no result of the changed receive " + (f"before its record #{q}" if q < len(t.ranks[R]) else "in the rest of its trace")
-                for R, q in sorted(reads.rule1(t, alt.changed).items())))
+                for R, q in sorted(reads.rule1(t, alt.changed, alt.M).items())))
         f = Finding("1", cls, "L1", alt.describe(t), details, B=brange, recv=alt.recv, send=alt.send,
                     pin=pin_spec(r, s), error=("truncate" if why.startswith("count mismatch") else "type") if cls == "1a" else "")
         rep.findings.append(f)
         # a deadlock contained in the horizon (theorem T7): possible only when a changed rank
         # stops before rule 1 cuts it, i.e. at a nonblocking changed receive, or inside the
-        # window that read bounds keep after a changed receive (rule H1')
+        # window that read bounds keep after a changed receive (rule H1'). A changed receive
+        # that errs on its new message (1a) ends the window at once (reads.ReadBounds.recv),
+        # and the deadlock holds only if its rank stops before completing it: the call that
+        # completes it returns the error, where the program aborts or may branch
+        errs = [t.recvs[k] for k in alt.changed if alt.M.get(k) in t.sends and erroneous(t.recvs[k], t.sends[alt.M[k]])]
         if any(not t.recvs[k].blocking for k in alt.changed) or ext:
             held = []
             windowed = False
@@ -388,11 +392,13 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
                 v, rule1 = None, None
                 if ext:
                     v = check(t, alt.M, alt.changed, B, "L1", bounds=reads)
-                    rule1 = reads.rule1(t, alt.changed)
+                    rule1 = reads.rule1(t, alt.changed, alt.M)
                 if v is None or not v.feasible:
                     v, rule1 = check(t, alt.M, alt.changed, B, "L1"), None
                 if v.feasible:
                     D = contained_deadlock(t, alt.M, alt.changed, v.cut, v.issued, B, rule1)
+                    if D and any(x.rank not in D or v.cut[x.rank] > _cidx(x) for x in errs):
+                        D = None
                     if D:
                         held.append((B, D))
                         windowed = windowed or rule1 is not None
@@ -939,7 +945,7 @@ def _profiles_fast(t: Trace, alts, probes, waits, full: bool = False, reads=None
                 unconfirmed[0] += 1
             return fv
 
-        def alt_at(B, a=a, h1=alt_h1, ext=reads is not None and reads.extends(t, a.changed)):
+        def alt_at(B, a=a, h1=alt_h1, ext=reads is not None and reads.extends(t, a.changed, a.M)):
             v = h1(B)
             if ext and not v.feasible:
                 g = check(t, a.M, a.changed, B, "L1", bounds=reads)     # rule H1'
@@ -1001,7 +1007,7 @@ def _profiles_generic(t: Trace, alts, probes, waits, reads=None) -> _Profiles:
     for a in alts:
         full = not (a.kind == "steal" and t.recvs[a.recv].blocking)
         prof = feasible_profile(t, a.M, a.changed, mode="L1", full=full, floor=B0)
-        if reads is not None and reads.extends(t, a.changed):
+        if reads is not None and reads.extends(t, a.changed, a.M):
             p2 = feasible_profile(t, a.M, a.changed, mode="L1", full=full, floor=B0, bounds=reads)
             prof = {B: ok or p2.get(B, False) for B, ok in prof.items()}
         pr.alt.append(prof)

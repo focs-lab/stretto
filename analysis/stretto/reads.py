@@ -12,11 +12,23 @@ import json
 import os
 from typing import Callable, Dict, FrozenSet, Iterable, List, Optional, Set, Tuple
 
-from .trace import Key, Recv, Trace
+from .trace import Key, Recv, Send, Trace
+from .types import compatible
 
 
 def _cidx(x) -> int:
     return x.complete_idx if x.complete_idx is not None else x.idx
+
+
+def erroneous(r: Recv, s: Send) -> Optional[str]:
+    """Is receive r taking the message of send s an MPI error, and which: "truncate" when the
+    message is longer than the receive (MPI_ERR_TRUNCATE), "type" when the type signatures
+    do not match (as report.classify decides 1a); None when it is not."""
+    if s.bytes > r.capacity:
+        return "truncate"
+    if compatible(s.tsig, s.count, r.tsig, r.count) is False:
+        return "type"
+    return None
 
 
 class ReadBounds:
@@ -27,27 +39,31 @@ class ReadBounds:
         post (None: the record's own results, such as a Waitany's index)."""
         return comp + 1
 
-    def recv(self, t: Trace, r: Recv) -> int:
-        """The bound of receive r: rule H1 for a receive that never completed in the trace,
-        whose result a later test of its request could deliver anywhere."""
+    def recv(self, t: Trace, r: Recv, sk: Optional[Key]) -> int:
+        """The bound of receive r when it takes the message of send sk (None: not known). Rule
+        H1 for a receive that never completed in the trace, whose result a later test of its
+        request could deliver anywhere, and for a message that r cannot take without an MPI
+        error (erroneous): the call that completes r then returns an error code, which the
+        program may test at once, and with the default error handler it aborts there."""
         c = _cidx(r)
-        if not r.completed:
+        s = t.sends.get(sk) if sk is not None else None
+        if not r.completed or s is None or erroneous(r, s):
             return c + 1
         return max(c + 1, self.limit(t, r.rank, c, r.idx))
 
-    def rule1(self, t: Trace, changed: Iterable[Key]) -> Dict[int, int]:
-        """Rule 1 of the horizon under these bounds: per rank, the least bound of its changed
-        receives."""
+    def rule1(self, t: Trace, changed: Iterable[Key], M) -> Dict[int, int]:
+        """Rule 1 of the horizon under these bounds, for the matching M (receive -> send):
+        per rank, the least bound of its changed receives."""
         out: Dict[int, int] = {}
         for rk in changed:
             r = t.recvs[rk]
-            q = self.recv(t, r)
+            q = self.recv(t, r, M.get(rk))
             out[r.rank] = min(out.get(r.rank, q), q)
         return out
 
-    def extends(self, t: Trace, changed: Iterable[Key]) -> bool:
-        """Does some changed receive keep records after its completion?"""
-        return any(self.recv(t, t.recvs[rk]) > _cidx(t.recvs[rk]) + 1 for rk in changed)
+    def extends(self, t: Trace, changed: Iterable[Key], M) -> bool:
+        """Does some changed receive keep records after its completion under the matching M?"""
+        return any(self.recv(t, t.recvs[rk], M.get(rk)) > _cidx(t.recvs[rk]) + 1 for rk in changed)
 
 
 class NeverReads(ReadBounds):
@@ -330,7 +346,7 @@ def witness_respects(t: Trace, o, positions: Dict[int, List[int]], bounds: ReadB
                 return f"{r} completes without a match in the witness"
             if sk == t.observed.get(r.key):
                 continue
-            q = bounds.recv(t, r)
+            q = bounds.recv(t, r, sk)
             if last >= q:
                 return f"rank {rank} issues record #{last}, at or after record #{q}, where it may read the result of {r}, which differs"
     return None

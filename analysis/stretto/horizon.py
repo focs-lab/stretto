@@ -173,7 +173,7 @@ def compute_cut(t: Trace, M: Dict[Key, Key], changed: Set[Key], B: Optional[int]
     if mode == "L1":
         for rk in changed:
             r = t.recvs[rk]
-            lower(r.rank, bounds.recv(t, r) if bounds is not None else _cidx(r) + 1)
+            lower(r.rank, bounds.recv(t, r, M.get(rk)) if bounds is not None else _cidx(r) + 1)
         for pk in changed_probes:
             p = t.probes[pk]
             lower(p.rank, p.idx + 1)
@@ -254,7 +254,7 @@ def compute_cut_fixpoint(t: Trace, M: Dict[Key, Key], changed: Set[Key], B: Opti
     if mode == "L1":
         for rk in changed:
             r = t.recvs[rk]
-            lower(r.rank, bounds.recv(t, r) if bounds is not None else _cidx(r) + 1)
+            lower(r.rank, bounds.recv(t, r, M.get(rk)) if bounds is not None else _cidx(r) + 1)
         for pk in changed_probes:
             p = t.probes[pk]
             lower(p.rank, p.idx + 1)

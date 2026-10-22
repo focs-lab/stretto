@@ -499,7 +499,7 @@ class Observed:
         if mode == "L1":
             for rk in changed:
                 r = t.recvs[rk]
-                lower(r.rank, bounds.recv(t, r) if bounds is not None else _cidx(r) + 1)
+                lower(r.rank, bounds.recv(t, r, (new_pairs or {}).get(rk)) if bounds is not None else _cidx(r) + 1)
             for p in changed_probes:
                 lower(p.rank, p.idx + 1)
             for rank, idx in changed_events:
@@ -831,7 +831,7 @@ class Observed:
         r, s = t.recvs[alt.recv], t.sends[alt.send]
         if not r.blocking:
             return None
-        if bounds is not None and bounds.extends(t, alt.changed):
+        if bounds is not None and bounds.extends(t, alt.changed, alt.M):
             return None
         s_obs = t.observed_send(r)
         r2 = t.recvs[alt.stolen_from] if alt.stolen_from is not None else None

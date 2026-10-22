@@ -13,7 +13,7 @@ from stretto import fast, trace as T  # noqa: E402
 from stretto.feasible import breakpoints, check  # noqa: E402
 from stretto.horizon import compute_cut, compute_cut_fixpoint  # noqa: E402
 from stretto.matching import candidates_full  # noqa: E402
-from stretto.reads import NeverReads, ReadBounds, SiteMap, Table  # noqa: E402
+from stretto.reads import NeverReads, ReadBounds, SiteMap, Table, erroneous  # noqa: E402
 from stretto.report import analyze  # noqa: E402
 from test_checker import irecv, mk, recv, send, wait  # noqa: E402
 
@@ -44,7 +44,7 @@ class ReadBoundsInTheHorizon(unittest.TestCase):
         self.assertTrue(h1p.feasible)
         self.assertEqual(h1p.cut[0], r1.idx)                    # H1': x kept, r1 has no message (rule 2)
         self.assertEqual(h1p.cut[3], len(t.ranks[3]))           # rank 3 receives x
-        self.assertEqual(b.rule1(t, a.changed), {0: len(t.ranks[0])})
+        self.assertEqual(b.rule1(t, a.changed, a.M), {0: len(t.ranks[0])})
 
     def test_cut_stays_without_a_bound(self):
         """No bound for the record, or a bound not past the completion: rule H1."""
@@ -53,7 +53,7 @@ class ReadBoundsInTheHorizon(unittest.TestCase):
         h1 = check(t, a.M, a.changed, None, "L1")
         for b in (ReadBounds(), Table({}), Table({(0, t.recvs[(0, 0)].idx): 0})):
             self.assertEqual(check(t, a.M, a.changed, None, "L1", bounds=b).cut, h1.cut)
-            self.assertFalse(b.extends(t, a.changed))
+            self.assertFalse(b.extends(t, a.changed, a.M))
 
     def test_never_completed_receive_keeps_h1(self):
         """A receive that never completed in the trace may complete at any later test of its
@@ -61,7 +61,7 @@ class ReadBoundsInTheHorizon(unittest.TestCase):
         t = mk({0: [irecv(T.ANY, 1, 7), send(1, 2)], 1: [recv(0, 2, 0, 2)]})
         r = t.recvs[(0, 0)]
         self.assertFalse(r.completed)
-        self.assertEqual(NeverReads().recv(t, r), r.idx + 1)
+        self.assertEqual(NeverReads().recv(t, r, next(iter(t.sends))), r.idx + 1)
 
     def test_worklist_and_fixpoint_agree(self):
         t = window_trace()
@@ -163,6 +163,55 @@ class ReadBoundsInTheHorizon(unittest.TestCase):
             alts = lambda rep: sorted((f.recv, f.send, f.B) for f in rep.findings if f.level == "L1" and f.cls in ("1f", "1b", "1a"))
             self.assertEqual(alts(plain), alts(withb))
             self.assertIn(((0, 0), (2, 0)), [(r, s) for r, s, _ in alts(withb)])
+
+    def test_an_erring_message_keeps_h1(self):
+        """r0 takes rank 1's message, which is longer than r0 (a truncation) or of another type:
+        the call that completes r0 returns an error code, at which the program aborts or may
+        branch, so rule H1 holds whatever the map says. With a message that fits, the same
+        bounds keep the window, and its stranded receive gives a contained deadlock (as in
+        test_contained_deadlock_inside_the_window)."""
+        b = NeverReads()
+        for kind in ("truncate", "type", None):
+            long = kind == "truncate"
+            t = mk({0: [recv(T.ANY, 1, 2, 1, widx=0), send(3, 5), recv(1, 1, 1, 1, count=2 if long else 1)],
+                    1: [send(0, 1, count=2 if long else 1)], 2: [send(0, 1)], 3: [recv(0, 5, 0, 5)]})
+            if kind == "type":
+                t.sends[(1, 0)].tsig, t.recvs[(0, 0)].tsig = "MPI_FLOAT", "MPI_INT"
+            a = steal(t, (0, 0), (1, 0))
+            r0 = t.recvs[(0, 0)]
+            self.assertEqual(erroneous(r0, t.sends[(1, 0)]), kind)
+            self.assertEqual(b.extends(t, a.changed, a.M), kind is None, kind)
+            self.assertEqual(b.rule1(t, a.changed, a.M), {0: r0.idx + 1 if kind else len(t.ranks[0])}, kind)
+            if kind:
+                self.assertEqual(check(t, a.M, a.changed, None, "L1", bounds=b).cut, check(t, a.M, a.changed, None, "L1").cut)
+            rep = analyze(t, with_sp=False, reads=b)
+            f = next(f for f in rep.findings if (f.recv, f.send) == ((0, 0), (1, 0)) and f.cls in ("1a", "1f"))
+            self.assertEqual(f.cls, "1a" if kind else "1f")
+            self.assertEqual(any(d.startswith("read bounds") for d in f.detail), kind is None, f.detail)
+            l1d = [g for g in rep.findings if g.cls == "1d" and g.level == "L1"]
+            self.assertEqual(bool(l1d), kind is None, [str(g) for g in rep.findings])
+
+    def test_erroneous_follows_the_type_rules(self):
+        """reads.erroneous decides by the count and by types.compatible: a receive of
+        MPI_PACKED takes a message of any type that fits, MPI_BYTE against a typed signature
+        decides nothing, and two typed signatures that differ err."""
+        t = mk({0: [recv(T.ANY, 1, 1, 1, count=2)], 1: [send(0, 1)]})
+        r, s = t.recvs[(0, 0)], t.sends[(1, 0)]
+        for rsig, ssig, want in (("MPI_PACKED", "MPI_INT", None), ("MPI_BYTE", "MPI_INT", None),
+                                 ("MPI_BYTE", "MPI_BYTE", None), ("MPI_INT", "MPI_FLOAT", "type"), ("MPI_INT", "MPI_INT", None)):
+            r.tsig, s.tsig = rsig, ssig
+            self.assertEqual(erroneous(r, s), want, (rsig, ssig))
+        r.tsig, s.tsig, s.count = "MPI_PACKED", "MPI_INT", 3                # 12 bytes into 8
+        self.assertEqual(erroneous(r, s), "truncate")
+
+    def test_erring_receive_that_never_completes_keeps_its_deadlock(self):
+        """A nonblocking changed receive that would truncate, whose rank stops before the wait
+        that completes it: the error is never returned, and the contained deadlock stands."""
+        t = mk({0: [irecv(T.ANY, 1, 10), recv(1, 1, 1, 1), wait((10, 2, 1))],
+                1: [send(0, 1, count=2)], 2: [send(0, 1)]})
+        rep = analyze(t, with_sp=False, reads=NeverReads())
+        l1d = [f for f in rep.findings if f.cls == "1d" and f.level == "L1"]
+        self.assertEqual([(f.recv, f.send) for f in l1d], [((0, 0), (1, 0))], [str(f) for f in rep.findings])
 
     def test_report_without_bounds_unchanged(self):
         """reads=None and H1 bounds give the same report."""

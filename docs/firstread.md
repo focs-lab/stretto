@@ -154,6 +154,13 @@ does not mention B). A deadlock contained in the H1' horizon is an L1 finding (t
 `deadlock.contained_deadlock` with the cut of rule 1 at the bound): the ranks of the deadlock
 stop at operations every program consistent with the trace and its bounds issues.
 
+A changed receive that errs on its new message (a message longer than the receive, or of
+another type signature: class 1a) keeps rule H1, whatever the map says: the call that
+completes it returns an error code, at which the program aborts under the default error
+handler and which it may test under `MPI_ERRORS_RETURN`, so the program may branch right
+there. For the same reason a contained deadlock of such an alternative is stated only when
+the changed receive's rank stops before completing it.
+
 ## Single-path witnesses
 
 The single-path explorer runs the trace as a straight-line program, which reads nothing: the

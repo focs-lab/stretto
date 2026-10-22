@@ -143,7 +143,7 @@ def compare(t, name, args, rows, counts, times):
                 if len(clean) < len(res.outcomes) and reached(res.outcomes)[:2] != (reach_prefix, reach_kept_exact):
                     exp_err = "realised only with a ready send before its receive"
                 # theorem T7: a contained deadlock means every execution with the changed match deadlocks
-                rule1 = bounds.rule1(t, a.changed) if bounds is not None else None
+                rule1 = bounds.rule1(t, a.changed, a.M) if bounds is not None else None
                 dl = contained_deadlock(t, a.M, a.changed, v.cut, v.issued, B, rule1) if v.feasible else None
                 with_pair = [o for o in clean if (a.recv, a.send) in o.matching]
                 t7 = "" if not dl else ("ok" if with_pair and all(o.kind == "deadlock" for o in with_pair) else "UNSOUND")
@@ -174,7 +174,7 @@ def compare(t, name, args, rows, counts, times):
                    "l1_deadlock": t7, "commit": code_commit()}
             if bounds is not None:
                 # does the bound keep records of the changed rank after the receive (rule H1')?
-                row["window"] = bounds.extends(t, a.changed)
+                row["window"] = bounds.extends(t, a.changed, a.M)
             rows.append(row)
 
 
