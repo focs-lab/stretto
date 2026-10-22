@@ -651,6 +651,8 @@ def _build(t: Trace, raw_ranks: Dict[int, List[dict]]) -> None:
                 elif isinstance(obj, Recv):
                     obj.freed = True         # the receive completes unobserved: its message is not an orphan
             elif call == "probe":
+                if raw.get("procnull"):
+                    continue                   # a probe of MPI_PROC_NULL returns at once and observes nothing
                 comm = gid(rank, raw["comm"])
                 p = Probe((rank, nprobe), rank, rec.idx, world(rank, raw["comm"], src_of(raw)), tag_of(raw), comm,
                           raw.get("kind", "probe"), bool(raw.get("flag", 1)),

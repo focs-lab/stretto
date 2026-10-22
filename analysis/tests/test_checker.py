@@ -181,6 +181,16 @@ class C7_ProcNull(unittest.TestCase):
         self.assertEqual(analyze(t, with_sp=False).by_class("1f"), [])
 
 
+    def test_procnull_probe_is_not_a_wildcard(self):
+        # a probe of MPI_PROC_NULL returns at once: it was loaded as an ANY_SOURCE probe, which
+        # a contained deadlock would treat as waiting for any message
+        p = {"op": "probe", "kind": "probe", "src": -1, "procnull": 1, "tag": -1, "anytag": 1, "comm": 0, "flag": 1,
+             "msrc": -2, "mtag": -1, "mbytes": 0}
+        t = mk({0: [p, recv(1, 1, 1, 1)], 1: [send(0, 1)]})
+        self.assertEqual(t.probes, {})
+        self.assertEqual(t.observed, {(0, 0): (1, 0)})
+
+
 class C9_UnwaitedRequest(unittest.TestCase):
     def test_no_fabricated_rendezvous_edge(self):
         # rank 0: Isend(->1, 4000B) never waited; Recv(1). rank 1: Send(->0); Recv(0)

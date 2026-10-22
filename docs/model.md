@@ -24,6 +24,10 @@ Objects:
 
 `r accepts s` iff dst(s) = rank(r), comm agree, src(r) ∈ {ANY, rank(s)}, tag(r) ∈ {ANY, tag(s)}.
 
+Operations on `MPI_PROC_NULL` return at once and are no objects of the model: sends, receives,
+probes (before 22 Oct 2026 a probe of `MPI_PROC_NULL` was loaded as an `ANY_SOURCE` probe) and
+the `MPI_Mrecv`/`MPI_Imrecv` of the message such a probe returns.
+
 The observed matching `M₀` is reconstructed offline: receives per rank in posting order, each
 takes the earliest unconsumed send from (msrc → rank, comm, mtag). Non-overtaking makes this
 exact (`trace._reconstruct_observed`). A send whose cancellation succeeded never reached its

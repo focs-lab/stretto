@@ -1642,11 +1642,13 @@ int MPI_Improbe(int src, int tag, MPI_Comm comm, int *flag, MPI_Message *msg, MP
    message's (known from the probe's status), so the loader matches it by FIFO. */
 int MPI_Mrecv(void *buf, int count, MPI_Datatype dt, MPI_Message *msg, MPI_Status *st) {
     GUARD; MPI_Status mine; if (st == MPI_STATUS_IGNORE) st = &mine;
-    if (*msg != MPI_MESSAGE_NO_PROC) GUARD_BUF(-1, "MPI_Mrecv", buf, count, dt, 1, 0);
+    int noproc = *msg == MPI_MESSAGE_NO_PROC;     /* from a probe of MPI_PROC_NULL: receives nothing */
+    if (!noproc) GUARD_BUF(-1, "MPI_Mrecv", buf, count, dt, 1, 0);
     int comm = 0, src = -1, tag = -1; msg_take(*msg, &comm, &src, &tag);
     int rc = PMPI_Mrecv(buf, count, dt, msg, st);
     if (rc == MPI_SUCCESS) { src = st->MPI_SOURCE; tag = st->MPI_TAG; }
     REC(b, "recv"); rb_printf(&b, ",\"src\":%d,\"tag\":%d,\"comm\":%d,\"mrecv\":1", src, tag, comm); rb_type(&b, count, dt);
+    if (noproc && rc != MPI_SUCCESS) rb_printf(&b, ",\"procnull\":1");   /* else the status says so */
     status_fields(&b, st, dt, rc == MPI_SUCCESS); rb_emit(&b);
     return rc;
 }
@@ -1656,6 +1658,7 @@ int MPI_Imrecv(void *buf, int count, MPI_Datatype dt, MPI_Message *msg, MPI_Requ
     int rc = PMPI_Imrecv(buf, count, dt, msg, req);
     int id = rc == MPI_SUCCESS ? req_add(req, 1, dt, 0) : -1;
     REC(b, "irecv"); rb_printf(&b, ",\"src\":%d,\"tag\":%d,\"comm\":%d,\"mrecv\":1", src, tag, comm); rb_type(&b, count, dt);
+    if (noproc) rb_printf(&b, ",\"procnull\":1");
     if (id >= 0) rb_printf(&b, ",\"req\":%d", id);
     rb_emit(&b);
     if (id >= 0 && !noproc) GUARD_BUF(id, "MPI_Imrecv", buf, count, dt, 1, 1);
