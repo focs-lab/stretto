@@ -72,8 +72,9 @@ def normalize(out: str, ignore) -> str:
     return "\n".join(line for line in out.splitlines() if not (ignore and ignore.search(line)))
 
 
-def classify(t, f):
-    """(kind, tag) of a probe or receive alternative, None for other findings."""
+def classify(t, f, colls):
+    """(kind, tag) of a probe or receive alternative, None for other findings; colls is
+    collectives(t)."""
     if f.send is None or (f.probe is None and f.recv is None):
         return None
     s = t.sends[f.send]
@@ -86,23 +87,22 @@ def classify(t, f):
     o = t.sends[seen]
     if o.tag != s.tag:
         return "cross-tag", s.tag
-    return ("cross-phase" if phase(t, s) != phase(t, o) else "same"), s.tag
+    return ("cross-phase" if phase(colls, s) != phase(colls, o) else "same"), s.tag
 
 
-_phases = {}
+def collectives(t) -> dict:
+    """(rank, communicator) -> the sorted record indices of its collectives."""
+    before = {}
+    for c in t.colls:
+        before.setdefault((c.rank, c.comm), []).append(c.idx)
+    for v in before.values():
+        v.sort()
+    return before
 
 
-def phase(t, s):
-    before = _phases.get(id(t))
-    if before is None:
-        before = {}
-        for c in t.colls:
-            before.setdefault((c.rank, c.comm), []).append(c.idx)
-        for v in before.values():
-            v.sort()
-        _phases.clear()
-        _phases[id(t)] = before
-    return bisect.bisect_left(before.get((s.rank, s.comm), []), s.idx)
+def phase(colls, s):
+    """How many collectives on its communicator the sender issued before send s."""
+    return bisect.bisect_left(colls.get((s.rank, s.comm), []), s.idx)
 
 
 _outer = {}
@@ -214,29 +214,35 @@ def main() -> int:
                 shutil.rmtree(d, ignore_errors=True)
                 continue
             names = outer_names(t)
-            shutil.rmtree(d, ignore_errors=True)
             rep = analyze(t, with_sp=False)
             counts = Counter(f"{f.level}:{f.cls}" for f in rep.findings)
-            alts, at = [], Counter()
+            alts, at, colls = [], Counter(), collectives(t)
             for f in rep.findings:
-                k = classify(t, f)
+                k = classify(t, f, colls)
                 if k is not None and f.pin:
-                    alts.append((f, k[0], k[1]))
+                    s = t.sends[f.send]
+                    f.detail = []       # the explanation is not needed again, and there may be 10^5 of them
+                    alts.append((f, k[0], k[1], s.count * s.tsize))
                 if f.level != "observed":
                     at[f"{f.cls}{'/' + k[0] if k else ''}@{names.get(f.site) or f.site or '?'}"] += 1
-            counts.update(f"kind:{k}" for _, k, _ in alts)
+            counts.update(f"kind:{k}" for _, k, _, _ in alts)
             row.update(records=sum(len(v) for v in t.ranks.values()),
                        findings=";".join(f"{k}={n}" for k, n in sorted(counts.items())),
                        by_site=";".join(f"{k}={n}" for k, n in sorted(at.items())),
-                       cross_B=";".join(sorted({f.B for f, k, _ in alts if k.startswith("cross")})))
-            traced.append((row, t, names, traced_out, alts))
+                       cross_B=";".join(sorted({f.B for f, k, _, _ in alts if k.startswith("cross")})))
             print(f"{args.driver} np={np} run={i}: {row['traced']}, {row['records']} records, {row['findings']}", flush=True)
             for f in rep.findings:
                 if f.level == "observed":
                     print(f"  observed: {f.cls} {f.title}", flush=True)
-    pool = [] if args.no_replay else [(j, f, k, tag) for j, (*_, alts) in enumerate(traced) for f, k, tag in alts]
+            # a run of an adaptive code can have millions of records and hundreds of thousands
+            # of alternatives: keep the trace on disk, not in memory, until the sample is drawn
+            del t, rep, colls
+            if args.no_replay or not alts:
+                shutil.rmtree(d, ignore_errors=True)
+            traced.append((row, d, names, traced_out, alts))
+    pool = [] if args.no_replay else [(j, f, k, tag, nb) for j, (*_, alts) in enumerate(traced) for f, k, tag, nb in alts]
     if args.same_sample is not None:
-        same = [c for c, (_, f, k, _) in enumerate(pool) if k == "same" and f.cls not in ERROR_CLASSES]
+        same = [c for c, (_, f, k, _, _) in enumerate(pool) if k == "same" and f.cls not in ERROR_CLASSES]
         rest = sorted(set(range(len(pool))) - set(same))
         chosen = sorted(rest + random.Random(args.seed).sample(same, min(args.same_sample, len(same))))
     elif args.sample:
@@ -245,6 +251,16 @@ def main() -> int:
         chosen = range(len(pool))
     todo = [pool[c] for c in chosen]
     print(f"replaying {len(todo)} of {len(pool)} alternatives", flush=True)
+    # the pins of the chosen alternatives, from their traces loaded again one at a time
+    prepared = {}
+    for j in sorted({j for j, *_ in todo}):
+        t = trace.load(traced[j][1])
+        for jj, f, *_ in todo:
+            if jj == j:
+                prepared[id(f)] = (horizon_pins(t, f), required_matches(t, f))
+        del t
+    for _, d, *_ in traced:
+        shutil.rmtree(d, ignore_errors=True)
 
     def run(np, pins):
         """One pinned run: its Replay and its output."""
@@ -256,16 +272,16 @@ def main() -> int:
             if not args.cwd:
                 shutil.rmtree(w, ignore_errors=True)
 
-    def replay(j, f, kind, tag):
-        row, t, names, out, _ = traced[j]
+    def replay(j, f, kind, tag, nbytes):
+        row, _, names, out, _ = traced[j]
         res = {**row, "pin": f.pin, "cls": f.cls, "level": f.level, "kind": kind, "tag": tag,
-               "site": names.get(f.site) or f.site or "", "B": f.B, "bytes": t.sends[f.send].count * t.sends[f.send].tsize}
-        hp = horizon_pins(t, f)
+               "site": names.get(f.site) or f.site or "", "B": f.B, "bytes": nbytes}
+        hp, required = prepared[id(f)]
         if hp is None:
             return {**res, "replay": "no horizon"}
         alt, ctl = hp
         (ra, oa), (rc, oc) = run(row["np"], alt), run(row["np"], ctl)
-        res.update(replay=ra.result, matched=all_matched(alt, ra.proc.stderr, required_matches(t, f), ra.seen),
+        res.update(replay=ra.result, matched=all_matched(alt, ra.proc.stderr, required, ra.seen),
                    run_valid=ra.valid, violation=ra.why[:300], differs_control=oa != oc, differs_traced=oa != out,
                    control=rc.result, control_matched=all_matched(ctl, rc.proc.stderr, None, rc.seen),
                    control_valid=rc.valid, control_violation=rc.why[:300], control_differs_traced=oc != out)
