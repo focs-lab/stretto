@@ -19,13 +19,14 @@ output, and the control finished with the traced run's output.
 usage: scout.py --code C --version V --driver NAME --np N [N ...] --runs R --out CSV
                 [--sample S] [--seed K] [--timeout T] [--jobs J] [--mpi openmpi|mpich]
                 [--ignore REGEX] [--cwd DIR] [--output-file F [--normalize-script S]]
-                -- <exe> [args ...]
+                [--no-replay] -- <exe> [args ...]
 The program runs in --cwd (default: a fresh directory per run), as do its replays. With
 --output-file, the file of that name the program writes there is compared instead of its
 standard output, after the perl -p script S if given (deal.II's tests write their log to
 "output", which deal.II's cmake/scripts/normalize.pl normalises).
 Writes one row per replayed alternative and one per traced run without any: code, version,
-driver, np, run, records, traced result, the run's findings by level and class, pin, class,
+driver, np, run, records, traced result, the run's findings by level and class (and kind), the
+realisable thresholds of its cross alternatives, pin, class,
 level, kind, tag, call site, the thresholds at which the alternative is realisable (B) and
 the size of its message, replay result, every required pin matched, whether the replay is
 a run of the program and why not, whether its output differs from the control's and from the
@@ -56,7 +57,7 @@ from stretto.report import analyze  # noqa: E402
 from stretto.sites import sites  # noqa: E402
 from provenance import code_commit  # noqa: E402
 
-KEYS = ["code", "version", "driver", "np", "run", "records", "traced", "findings", "pin", "cls", "level", "kind", "tag",
+KEYS = ["code", "version", "driver", "np", "run", "records", "traced", "findings", "cross_B", "pin", "cls", "level", "kind", "tag",
         "site", "B", "bytes", "replay", "matched", "run_valid", "violation", "differs_control", "differs_traced", "control",
         "control_matched", "control_valid", "control_violation", "control_differs_traced", "seed", "commit"]
 
@@ -119,6 +120,7 @@ def main() -> int:
     ap.add_argument("--output-file", default=None,
                     help="compare this file, which the program writes in its directory, instead of its standard output")
     ap.add_argument("--normalize-script", default=None, help="a perl -p script the output file goes through first")
+    ap.add_argument("--no-replay", action="store_true", help="trace and analyse only: one row per traced run")
     ap.add_argument("--out", required=True)
     ap.add_argument("cmd", nargs=argparse.REMAINDER)
     args = ap.parse_args()
@@ -173,13 +175,14 @@ def main() -> int:
                     alts.append((f, k[0], k[1]))
             counts.update(f"kind:{k}" for _, k, _ in alts)
             row.update(records=sum(len(v) for v in t.ranks.values()),
-                       findings=";".join(f"{k}={n}" for k, n in sorted(counts.items())))
+                       findings=";".join(f"{k}={n}" for k, n in sorted(counts.items())),
+                       cross_B=";".join(sorted({f.B for f, k, _ in alts if k.startswith("cross")})))
             traced.append((row, t, names, traced_out, alts))
             print(f"{args.driver} np={np} run={i}: {row['traced']}, {row['records']} records, {row['findings']}", flush=True)
             for f in rep.findings:
                 if f.level == "observed":
                     print(f"  observed: {f.cls} {f.title}", flush=True)
-    pool = [(j, f, k, tag) for j, (*_, alts) in enumerate(traced) for f, k, tag in alts]
+    pool = [] if args.no_replay else [(j, f, k, tag) for j, (*_, alts) in enumerate(traced) for f, k, tag in alts]
     chosen = sorted(random.Random(args.seed).sample(range(len(pool)), min(args.sample, len(pool)))) if args.sample else range(len(pool))
     todo = [pool[c] for c in chosen]
     print(f"replaying {len(todo)} of {len(pool)} alternatives", flush=True)

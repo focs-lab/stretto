@@ -18,7 +18,7 @@
 #   fetch    download PETSc 3.26.0 (GitHub), f2cblaslapack 3.8.0.q2 (PETSc's site) and HYPRE
 #            3.2.0 (GitHub), check their sha256
 #   build    configure (Open MPI wrappers, no Fortran, optimised with -g, BLAS/LAPACK and HYPRE
-#            from those archives), make -j$MAKE_JOBS, then the KSP tutorials ex2 and ex3
+#            from those archives), make -j$MAKE_JOBS, then the KSP tutorials ex2, ex3 and ex45
 #   parasails  RUNS traced runs of ex2 with ParaSails at two pattern levels and at one (the
 #            default), at 4 and 8 processes, analysed, every alternative replayed with its
 #            horizon pins and its control (experiments/scout.py), JOBS at a time
@@ -30,9 +30,12 @@
 #            levels: STRESS_RUNS runs per process count in its random (50 ms), system- and
 #            application-centric modes (experiments/ninja/run.py)
 #   all      fetch build parasails predict stress
-# Writes experiments/results/petsc/{parasails,predict,stress,ninja}.csv.
-# usage: experiments/petsc/run.sh [fetch|build|parasails|predict|stress|ninja|all]
-#        RUNS (5), STRESS_RUNS (40), TIMEOUT (30), JOBS (1), MAKE_JOBS (12),
+#   scan     the reach of the race: SCAN_RUNS traced runs (analysis only) per ParaSails
+#            threshold (0.01, 0.05, 0.1), level count (1-3) and symmetry setting, on ex2 and
+#            ex45 (3D seven-point Laplacian) at 4 and 8 processes
+# Writes experiments/results/petsc/{parasails,predict,stress,ninja,scan}.csv.
+# usage: experiments/petsc/run.sh [fetch|build|parasails|predict|stress|ninja|scan|all]
+#        RUNS (5), STRESS_RUNS (40), SCAN_RUNS (2), TIMEOUT (30), JOBS (1), MAKE_JOBS (12),
 #        PETSC_SRC_DIR (third_party/apps/petsc), NINJA_DIR (third_party/ninja)
 set -uo pipefail
 R="$(cd "$(dirname "$0")/../.." && pwd)"; cd "$R"
@@ -80,7 +83,7 @@ step_build() {
              --with-make-np="${MAKE_JOBS:-12}" > "$D/configure.log" 2>&1 \
          && make MAKE_NP="${MAKE_JOBS:-12}" all > "$D/make.log" 2>&1) || { echo "build of PETSc $V failed" >&2; return 1; }
     fi
-    make -C "$TUT" ex2 ex3 > "$D/tutorials.log" 2>&1 || { echo "build of the tutorials failed" >&2; return 1; }
+    make -C "$TUT" ex2 ex3 ex45 > "$D/tutorials.log" 2>&1 || { echo "build of the tutorials failed" >&2; return 1; }
 }
 scout() {   # scout <table> <drivers>
     rm -f "$OUT/$1.csv"
@@ -91,6 +94,22 @@ scout() {   # scout <table> <drivers>
     done <<< "$2"
 }
 step_parasails() { scout parasails "$PARASAILS"; }
+step_scan() {
+    # where does the race reach? SCAN_RUNS traced runs per setting, analysed only (no replay):
+    # ParaSails' threshold and level count and its symmetry setting, on ex2 (2D five-point
+    # Laplacian, row strips) and ex45 (3D seven-point Laplacian on a DMDA, 3D decomposition)
+    rm -f "$OUT/scan.csv"
+    local d np th nl sym
+    for d in "ex2 -m 48 -n 48" "ex45 -da_grid_x 16 -da_grid_y 16 -da_grid_z 16"; do
+        read -r -a a <<< "$d"
+        for np in 4 8; do for th in 0.01 0.05 0.1; do for nl in 1 2 3; do for sym in nonsymmetric SPD; do
+            python3 experiments/scout.py --code petsc --version "$V" --driver "${a[0]} thresh=$th nlevels=$nl sym=$sym" \
+                --np $np --runs "${SCAN_RUNS:-2}" --no-replay --out "$OUT/scan.csv" -- "$TUT/${a[0]}" "${a[@]:1}" \
+                -pc_type hypre -pc_hypre_type parasails -pc_hypre_parasails_thresh $th -pc_hypre_parasails_nlevels $nl \
+                -pc_hypre_parasails_sym $sym || return 1
+        done; done; done; done
+    done
+}
 step_predict() { scout predict "$DRIVERS"; }
 step_ninja() {
     local np m
@@ -133,9 +152,9 @@ step_stress() {
 }
 for step in "${@:-all}"; do
     case "$step" in
-        fetch) step_fetch;; build) step_build;; parasails) step_parasails;; predict) step_predict;;
+        fetch) step_fetch;; build) step_build;; parasails) step_parasails;; predict) step_predict;; scan) step_scan;;
         stress) step_stress;; ninja) step_ninja;;
         all) step_fetch && step_build && step_parasails && step_predict && step_stress;;
-        *) echo "usage: $0 [fetch|build|parasails|predict|stress|ninja|all]" >&2; exit 2;;
+        *) echo "usage: $0 [fetch|build|parasails|predict|stress|ninja|scan|all]" >&2; exit 2;;
     esac || exit 1
 done
