@@ -47,9 +47,11 @@ pins (`run_mbi.py --replay-only --reads ... --out <a copy of that table>`, whose
 becomes `experiments/results/reads/replays.csv`), and compares rule H1' with the explorer
 (`run_remaining.sh e6reads`, `experiments/results/e6_reads_{never,random}.csv`). A map records the
 SHA-256 of the sources it was made from, and the analysis refuses it for a trace of a program
-built from other sources (`stretto.reads.check_sources`). The committed maps predate the hashes:
-`reanalyze.py --reads ... --reads-unchecked` accepts them as they are, and `reads_maps.py` makes
-new ones that are checked.
+built from other sources (`stretto.reads.check_sources`). The committed MBI maps were made again
+on 22 Oct 2026 with the hashes (paths under `/w`, the experiment container's mount point); their
+sites and free sets are those of the maps they replace, which had none (`reanalyze.py --reads
+... --reads-unchecked` accepts such a map as it is). The HYPRE map
+(`hypre-2.10.1-parasails.json`) predates the hashes; it has no free site.
 
 E6 and its runs with read bounds were redone on 22 Oct 2026 (`run_remaining.sh e6 e6reads`, two
 containers on 8 processors, about 10 and 20 minutes, with the idiom traces and the traces of the

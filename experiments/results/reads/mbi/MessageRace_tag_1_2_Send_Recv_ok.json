@@ -16,5 +16,6 @@
   {"post": 5, "complete": 5, "free": [7], "objects": ["buf1b", "sta1b"]}
  ],
  "notes": [],
- "compiler": "clang-18"
+ "compiler": "clang-18",
+ "sources": {"/w/study/apps/MBI/gencodes/MessageRace_tag_1_2_Send_Recv_ok.c": "e26e9300eb2d1910ba6644678d0a2d072ab8e57ac76ef2581a707a4a2f720350"}
 }

@@ -15,5 +15,6 @@
   {"post": 5, "complete": 5, "free": [6, 7], "objects": ["buf2", "sta2"]}
  ],
  "notes": [],
- "compiler": "clang-18"
+ "compiler": "clang-18",
+ "sources": {"/w/study/apps/MBI/gencodes/ParamMatching_Tag_Bsend_Recv_ok.c": "2e1100edeb4678e3f4d2461519201d77e2e63fc85dddcfb652ca9c8a7c68d740"}
 }

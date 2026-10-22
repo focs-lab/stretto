@@ -21,5 +21,6 @@
   {"post": 8, "complete": 8, "free": [9, 10], "objects": ["buf2", "sta2"]}
  ],
  "notes": [],
- "compiler": "clang-18"
+ "compiler": "clang-18",
+ "sources": {"/w/study/apps/MBI/gencodes/P2PBuffering_SameProcess_Isend_Recv_nok.c": "6d4edab4c4f34a9926ae97865d36d1ffab54cfa2d4c8d6e7220c91241e8559c4"}
 }

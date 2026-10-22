@@ -20,5 +20,6 @@
   {"post": 7, "complete": 7, "free": [8, 9], "objects": ["buf3", "sta3"]}
  ],
  "notes": [],
- "compiler": "clang-18"
+ "compiler": "clang-18",
+ "sources": {"/w/study/apps/MBI/gencodes/CallOrdering_Probe_Recv_Send_ok.c": "365405eee6fb97e93fa7c0b5ed87d1cef23fbab16763e2a77beb77e01c020549"}
 }

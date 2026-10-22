@@ -24,5 +24,6 @@
   {"post": 10, "complete": 10, "free": [11, 12], "objects": ["buf3c", "sta3c"]}
  ],
  "notes": [],
- "compiler": "clang-18"
+ "compiler": "clang-18",
+ "sources": {"/w/study/apps/MBI/gencodes/MessageRace_Loop_Send_Recv_ok.c": "29e92b7ccf66ea23e1210c7d7c363e5c62900b0ac4f7b2c7a138d267d1f9e1e5"}
 }
