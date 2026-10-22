@@ -49,6 +49,8 @@ experiments/results/*/must.csv
 experiments/results/*/must.log
 experiments/results/must.done
 experiments/results/nekbone/*
+# the MPI-PRV baseline's builds, runs and traces (experiments/mpiprv/)
+experiments/mpiprv/work/
 !experiments/results/nekbone/summary8.txt
 !experiments/results/nekbone/replay_sample.csv
 # the scale campaign (experiments/scale/run.sh): per trace the sample's rows and log, the analysis

@@ -1,0 +1,9 @@
+#include <stdio.h>
+MPI(){
+	event MPIFinalize before(): call(% MPI_Finalize(...)){}
+	event Use before(): call(% usebuf2(...)){}
+	pattern :  Recv Use Send
+        @ match {
+          printf("error use! \n");
+        }
+}

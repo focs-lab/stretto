@@ -1,0 +1,37 @@
+app,np,pattern,events,absent,result,matched,analysis_s,peak_kb,artifact_events,artifact_s,artifact_result,commit
+DTG,5,Irecv Use Isend,15,Irecv Use Isend,none,"",0.01,3916,15,0.003253,√,8ab453c
+integrate,2,Irecv Use Isend,8,Irecv Use Isend,none,"",0.01,4088,8,0.005034,√,8ab453c
+integrate,8,Irecv Use Isend,50,Irecv Use Isend,none,"",0.03,3976,50,0.013153,√,8ab453c
+integrate,10,Irecv Use Isend,64,Irecv Use Isend,none,"",0.02,4016,64,0.012260,√,8ab453c
+diffusion2d,4,Irecv Use Isend,46,Irecv Use Isend,none,"",0.02,4080,46,0.008679,√,8ab453c
+Gauss_elim,2,Irecv Use Isend,18,Irecv Use Isend,none,"",0.01,4008,18,0.003510,√,8ab453c
+Gauss_elim,4,Irecv Use Isend,40,Irecv Use Isend,none,"",0.02,4012,40,0.007199,√,8ab453c
+Gauss_elim,8,Irecv Use Isend,84,Irecv Use Isend,none,"",0.03,4032,84,0.018424,√,8ab453c
+image-manip,4,Irecv Use Isend,16,Irecv Use Isend,none,"",0.01,4008,16,0.003326,√,8ab453c
+image-manip,24,Irecv Use Isend,56,Irecv Use Isend,none,"",0.03,3948,56,0.011543,√,8ab453c
+image-manip,127,Irecv Use Isend,262,Irecv Use Isend,none,"",0.12,3968,262,0.087029,√,8ab453c
+Congrad,4,Irecv Use Isend,12,Irecv Use Isend,none,"",0.00,4088,12,0.003714,√,8ab453c
+poisson_mpi,4,Irecv Create Isend,9196,Create,none,"",2.38,7640,9196,1.735981,√,8ab453c
+poisson_mpi,8,Irecv Create Isend,21904,Create,none,"",5.72,10664,21904,3.413356,√,8ab453c
+poisson_mpi,24,Irecv Create Isend,80524,Create,none,"",23.05,21868,80524,13.432528,√,8ab453c
+poisson_mpi,64,Irecv Create Isend,292888,Create,none,"",98.33,71360,292888,60.665897,√,8ab453c
+poisson_mpi,96,Irecv Create Isend,409092,Create,none,"",149.20,97656,409092,97.569582,√,8ab453c
+poisson_mpi,127,Irecv Create Isend,206011,Create,none,"",82.85,51904,206011,55.273440,√,8ab453c
+Heat,4,Irecv Use Isend,64,Irecv Use,none,"",0.03,4016,64,0.014367,√,8ab453c
+adept-kernel-mpi,4,Irecv Create Isend,2608,Create,none,"",0.59,4084,2608,0.467616,√,8ab453c
+adept-kernel-mpi,8,Irecv Create Isend,5816,Create,none,"",1.31,4580,5816,1.054731,√,8ab453c
+adept-kernel-mpi,24,Irecv Create Isend,18648,Create,none,"",4.68,5868,18648,3.280217,√,8ab453c
+adept-kernel-mpi,64,Irecv Create Isend,50728,Create,none,"",15.36,10396,50728,10.201579,√,8ab453c
+adept-kernel-mpi,127,Irecv Create Isend,101254,Create,none,"",39.22,18952,101254,26.577784,√,8ab453c
+kf-ray,11,Isend MPIFinalize Irecv,140,Isend Irecv,none,"",0.05,3912,140,0.029808,√,8ab453c
+clustalW,5,Isend MPIFinalize Irecv,37,Isend Irecv,none,"",0.02,4072,37,0.008015,√,8ab453c
+clustalW,20,Isend MPIFinalize Irecv,172,Isend Irecv,none,"",0.06,4072,172,0.040489,√,8ab453c
+clustalW,127,Isend MPIFinalize Irecv,1135,Isend Irecv,none,"",0.42,3992,1135,0.360099,√,8ab453c
+ParMETIS,4,Isend MPIFinalize Irecv,598174,,none,"",241.86,105568,598174,153.753854,√,8ab453c
+MiniAMR,4,Isend Create Irecv,7608,Create,none,"",1.95,4696,7608,1.311203,√,8ab453c
+MiniAMR,8,Isend Create Irecv,22816,Create,none,"",5.51,6488,22816,3.565693,√,8ab453c
+MiniAMR,16,Isend Create Irecv,53232,Create,none,"",13.68,11772,53232,8.394478,√,8ab453c
+MiniAMR,24,Isend Create Irecv,87448,Create,none,"",23.28,13708,87448,14.268092,√,8ab453c
+MiniAMR,64,Isend Create Irecv,273728,Create,none,"",85.09,35260,273728,53.882190,√,8ab453c
+MiniAMR,96,Isend Create Irecv,425792,Create,none,"",147.34,51960,425792,95.300166,√,8ab453c
+MiniAMR,124,Isend Create Irecv,463848,Create,none,"",174.78,57852,463848,114.605275,√,8ab453c
