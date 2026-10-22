@@ -44,7 +44,7 @@ OUT="$R/experiments/results/dealii"; mkdir -p "$OUT"
 NPS="${NPS:-4}"; RUNS="${RUNS:-20}"; TEST="${TEST:-mapping_01}"; TIMEOUT=120
 PINLIB="$R/replay/bin/mpich/libstretto-pin.so"
 source "$R/experiments/harness.sh"
-export STRETTO_COMMIT="${STRETTO_COMMIT:-$(cat "$R/COMMIT" 2>/dev/null || git -C "$R" rev-parse --short HEAD 2>/dev/null || echo unknown)}"
+export STRETTO_COMMIT="${STRETTO_COMMIT:-$(python3 "$R/experiments/provenance.py")}"
 VERSIONS="9.3.0-rc1 9.3.0"
 declare -A SHA=([dealii-9.3.0-rc1.tar.gz]=8cc3ae374e82ae02b9312cc85e0a86beee699d9269aad0e6a9a7017b39cd976d
                 [dealii-9.3.0.tar.gz]=b65ea933ebc9fc698e78018b4b10cee1b36061045411d45d6dae8ff5be584526

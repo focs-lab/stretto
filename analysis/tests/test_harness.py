@@ -225,6 +225,91 @@ class Selection(unittest.TestCase):
             self.assertFalse(os.path.exists(os.path.join(d, "stress.csv")))
 
 
+class Provenance(unittest.TestCase):
+    """A row names the commit of the code that produced it, and says so when that code is not
+    the commit (a copy without .git is checked against the files the deployment listed)."""
+
+    def test_a_changed_copy_is_dirty(self):
+        import tempfile
+        prov = module("experiments/provenance.py", "provenance_under_test")
+        saved = os.environ.pop("STRETTO_COMMIT", None)
+        try:
+            with tempfile.TemporaryDirectory() as d:
+                os.makedirs(os.path.join(d, "analysis"))
+                f = os.path.join(d, "analysis", "x.py")
+                with open(f, "w") as fh:
+                    fh.write("hello\n")
+                self.assertEqual(prov.blob_hash(f), "ce013625030ba8dba906f756967f9e9ca394464a")   # git hash-object
+                with open(os.path.join(d, "COMMIT"), "w") as fh:
+                    fh.write("abc1234\n")
+                prov.ROOT = d                      # no .git there: COMMIT, checked against COMMIT.files
+                prov.code_commit.cache_clear()
+                self.assertEqual(prov.code_commit(), "abc1234-unchecked")
+                with open(os.path.join(d, "COMMIT.files"), "w") as fh:
+                    fh.write(f"100644 blob {prov.blob_hash(f)}\tanalysis/x.py\n")
+                prov.code_commit.cache_clear()
+                self.assertEqual(prov.code_commit(), "abc1234")
+                with open(f, "a") as fh:
+                    fh.write("changed\n")
+                prov.code_commit.cache_clear()
+                self.assertEqual(prov.code_commit(), "abc1234-dirty")
+                os.unlink(f)
+                prov.code_commit.cache_clear()
+                self.assertEqual(prov.code_commit(), "abc1234-dirty")
+                os.environ["STRETTO_COMMIT"] = "def5678-dirty"   # what a driver found and passed on
+                prov.code_commit.cache_clear()
+                self.assertEqual(prov.code_commit(), "def5678-dirty")
+        finally:
+            os.environ.pop("STRETTO_COMMIT", None)
+            if saved is not None:
+                os.environ["STRETTO_COMMIT"] = saved
+
+    def test_git_and_the_deployed_copy_agree(self):
+        import shutil
+        import subprocess
+        import tempfile
+        if shutil.which("git") is None:
+            self.skipTest("no git")
+        prov = module("experiments/provenance.py", "provenance_git")
+        saved = os.environ.pop("STRETTO_COMMIT", None)
+        try:
+            with tempfile.TemporaryDirectory() as d:
+                git = lambda *a: subprocess.run(["git", "-C", d, "-c", "user.name=t", "-c", "user.email=t@t", *a],
+                                                check=True, capture_output=True, text=True).stdout.strip()
+                git("init", "-q")
+                for rel in ("analysis/x.py", "experiments/results/y.csv"):
+                    os.makedirs(os.path.dirname(os.path.join(d, rel)), exist_ok=True)
+                    with open(os.path.join(d, rel), "w") as fh:
+                        fh.write("1\n")
+                git("add", "-A")
+                git("commit", "-q", "-m", "x")
+                head = git("rev-parse", "--short", "HEAD")
+                prov.ROOT = d
+                prov.code_commit.cache_clear()
+                self.assertEqual(prov.code_commit(), head)
+                with open(os.path.join(d, "experiments", "results", "y.csv"), "a") as fh:
+                    fh.write("a row a run wrote\n")
+                prov.code_commit.cache_clear()
+                self.assertEqual(prov.code_commit(), head)          # results are not code
+                self.assertEqual(prov.write_commit(), head)
+                shutil.rmtree(os.path.join(d, ".git"))              # the copy a deployment makes
+                prov.code_commit.cache_clear()
+                self.assertEqual(prov.code_commit(), head)
+                with open(os.path.join(d, "analysis", "x.py"), "a") as fh:
+                    fh.write("2\n")
+                prov.code_commit.cache_clear()
+                self.assertEqual(prov.code_commit(), head + "-dirty")
+        finally:
+            if saved is not None:
+                os.environ["STRETTO_COMMIT"] = saved
+
+    def test_tables_name_the_analysis_commit(self):
+        tables = module("experiments/tables.py", "tables_commits")
+        self.assertEqual(tables.commits([{"commit": "a"}, {"commit": "a"}]), "a (2)")      # older tables: as before
+        self.assertEqual(tables.commits([{"commit": "a", "analysis_commit": "b"}, {"commit": "a", "analysis_commit": ""}]),
+                         "a, analysed at b (1), a (1)")
+
+
 def bash(script: str) -> int:
     """Status of a bash script run with experiments/harness.sh sourced."""
     import subprocess

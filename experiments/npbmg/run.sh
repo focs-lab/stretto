@@ -23,7 +23,7 @@ OUT="$R/experiments/results/npbmg"; mkdir -p "$OUT"
 NPS="${NPS:-16 32}"; CLASS="${CLASS:-S}"; RUNS="${RUNS:-5}"; TIMEOUT=120
 PINLIB="$R/replay/bin/mpich/libstretto-pin.so"
 source "$R/experiments/harness.sh"
-export STRETTO_COMMIT="${STRETTO_COMMIT:-$(cat "$R/COMMIT" 2>/dev/null || git -C "$R" rev-parse --short HEAD 2>/dev/null || echo unknown)}"
+export STRETTO_COMMIT="${STRETTO_COMMIT:-$(python3 "$R/experiments/provenance.py")}"
 URL=https://www.nas.nasa.gov/assets/nas/npb
 declare -A SHA=([2.4.1]=59448aeee0641c1e08b8bb211c6d38e8e2cee29b17a2678e2f81b05997d2c137
                 [3.3.1]=4a8ea679b1df69f583c544c47198b3c26a50ec2bb6f8f69aef66c04c9a747d2d)

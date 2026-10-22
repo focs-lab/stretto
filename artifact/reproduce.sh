@@ -39,14 +39,22 @@ OUT=artifact/out; mkdir -p "$OUT"
 TEX_IMAGE="${TEX_IMAGE:-latexml/ar5ivist@sha256:cb395e7a60491ca75deab279b7b0fcdcd93f7d13c366bdf22a6391446839774a}"
 log() { echo "== $(date '+%F %T') $*"; }
 
-# the commit every result row records: the COMMIT file, or git when the copy has its history
-[ -f COMMIT ] || { git rev-parse --short HEAD > COMMIT 2>/dev/null || echo unknown > COMMIT; }
+# the commit every result row records (experiments/provenance.py): before each step, when the copy
+# has its history, COMMIT and COMMIT.files are written from git again, so that a step after a pull
+# or an edit records the code it ran ("<commit>-dirty" when the code differs from that commit);
+# a copy without .git keeps the COMMIT and COMMIT.files it came with
+stamp() {
+    if git rev-parse HEAD > /dev/null 2>&1; then
+        python3 experiments/provenance.py --write > /dev/null || { log "cannot write COMMIT from git"; return 1; }
+    fi
+}
 [ -f "$OUT/numbers.paper.tex" ] || cp paper/generated/numbers.tex "$OUT/numbers.paper.tex"
 
 box() {   # box <name> <command ...>: run in the experiment image, in the foreground, logged;
           # the status is the command's, not tee's
     local name=$1; shift
     local rc=0
+    stamp || return 1
     NAME="${PREFIX:-stretto}-$name" experiments/container/run.sh "$@" 2>&1 | tee -a "$OUT/$name.log" || rc=${PIPESTATUS[0]}
     [ "$rc" = 0 ] || log "$name failed with status $rc (log: $OUT/$name.log)"
     return "$rc"
@@ -63,6 +71,7 @@ once() {   # once <step> <command ...>: run unless artifact/out/<step>.done says
 host() {   # host <name> <command ...>: run on the host (docker, MUST), logged; the command's status
     local name=$1; shift
     local rc=0
+    stamp || return 1
     "$@" 2>&1 | tee -a "$OUT/$name.log" || rc=${PIPESTATUS[0]}
     [ "$rc" = 0 ] || log "$name: $1 failed with status $rc (log: $OUT/$name.log)"
     return "$rc"

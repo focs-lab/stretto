@@ -26,7 +26,7 @@ OUT=experiments/results/guard; mkdir -p "$OUT"
 W=/tmp/stretto-guard-run; mkdir -p "$W"
 source "$R/experiments/harness.sh"
 export OMPI_MCA_rmaps_base_oversubscribe=1 OMPI_MCA_hwloc_base_binding_policy=none OMP_NUM_THREADS=1 PYTHONPATH="$R/analysis"
-COMMIT="${STRETTO_COMMIT:-$(cat "$R/COMMIT" 2>/dev/null || git -C "$R" rev-parse --short HEAD 2>/dev/null || echo unknown)}"
+COMMIT="${STRETTO_COMMIT:-$(python3 "$R/experiments/provenance.py")}"
 gcc -O1 -shared -fPIC -o "$W/cmacount.so" experiments/guard/cmacount.c -ldl || exit 1
 single_copy() {   # does process_vm_readv work here?
     python3 -c '

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Re-run the analysis on the traces a harness run left behind and refresh the Stretto
 columns of its table (classes, findings, notes, report files). Run results, replay
-confirmations and MUST verdicts are kept; the commit column then names the run's commit
-and the analysis's. Use after a change to the analysis that does not
+confirmations and MUST verdicts are kept; the commit column keeps naming the run's commit,
+and analysis_commit names the analysis's. Use after a change to the analysis that does not
 need new runs.   usage: reanalyze.py [--sp-max-events N] [--max-states N] [--work DIR] [--reads DIR [--out CSV]] <corpus>.csv
 The caps default to run_mbi.py's, so a re-analysis sees what a run would have seen.
 --reads DIR analyses each program with its first-read map DIR/<name>.json (reads_maps.py,
@@ -41,6 +41,8 @@ if "l1_alternatives" not in keys:
     keys.insert(keys.index("classes"), "l1_alternatives")
 if args.reads and "reads" not in keys:
     keys.append("reads")
+if "analysis_commit" not in keys:
+    keys.append("analysis_commit")
 changed = 0
 for r in rows:
     out = os.path.join(base, r["name"])
@@ -69,8 +71,9 @@ for r in rows:
     r["levels"] = levels
     r["l1_alternatives"] = sum(1 for f in rep.findings if f.level == "L1" and f.family == "1")
     r["notes"] = "; ".join(rep.notes)[:300]
-    if "commit" in r and r["commit"] and "analysis" not in r["commit"]:
-        r["commit"] = f"{r['commit']} (analysis {code_commit()})"   # the run's commit, then the analysis's
+    # the run's commit stays (rows of older re-analyses wrote "<run> (analysis <commit>)" there);
+    # the analysis's goes to analysis_commit, the latest re-analysis's
+    r["analysis_commit"] = code_commit() if code_commit() != r.get("commit") else ""
     with open(os.path.join(out, f"report{suffix}.txt"), "w") as fh:
         fh.write(report.format_report(t, rep, show_infeasible=True))
     with open(os.path.join(out, f"report{suffix}.json"), "w") as fh:

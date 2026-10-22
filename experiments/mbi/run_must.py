@@ -23,8 +23,10 @@ def one(r):
     return r["name"], (p.stdout.strip().splitlines() or ["MUST:RE"])[-1]
 out = os.path.join(os.path.dirname(args.csv), col + ".csv")
 if not args.merge_only:
-    # the code commit of scripts/must_run.sh, as experiments/provenance.py finds it (Python 3.6 here)
-    commit = os.environ.get("STRETTO_COMMIT") or (open(os.path.join(ROOT, "COMMIT")).read().strip() if os.path.exists(os.path.join(ROOT, "COMMIT")) else "unknown")
+    # the code commit of scripts/must_run.sh (experiments/provenance.py, which Python 3.6 runs too)
+    sys.path.insert(0, os.path.join(ROOT, "experiments"))
+    from provenance import code_commit
+    commit = code_commit()
     with ThreadPoolExecutor(max_workers=args.jobs) as ex, open(out, "w", newline="") as fh:
         w = csv.writer(fh, lineterminator="\n"); w.writerow(["name", col, "commit"])
         for i, f in enumerate(as_completed([ex.submit(one, r) for r in rows]), 1):

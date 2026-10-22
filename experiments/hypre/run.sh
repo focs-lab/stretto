@@ -27,7 +27,7 @@ set -uo pipefail
 R="$(cd "$(dirname "$0")/../.." && pwd)"; cd "$R"
 H="${HYPRE_DIR:-$R/third_party/apps/hypre}"
 OUT=experiments/results/hypre; mkdir -p "$OUT" "$H"
-export STRETTO_COMMIT="${STRETTO_COMMIT:-$(cat "$R/COMMIT" 2>/dev/null || git -C "$R" rev-parse --short HEAD 2>/dev/null || echo unknown)}"
+export STRETTO_COMMIT="${STRETTO_COMMIT:-$(python3 "$R/experiments/provenance.py")}"
 NP=4; ARGS=(-solver 8 -pout 0); TIMEOUT=60
 TRACER="$R/tracer/bin/mpich/libstretto-trace.so"; PINLIB="$R/replay/bin/mpich/libstretto-pin.so"
 source "$R/experiments/harness.sh"

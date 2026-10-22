@@ -31,8 +31,12 @@ def num(name: str, value) -> None:
 
 
 def commits(rs) -> str:
-    """The code commits a table's rows were produced with, most rows first."""
-    c = collections.Counter(r.get("commit") or "unrecorded" for r in rs)
+    """The code commits a table's rows were produced with, most rows first; a row analysed again
+    by other code than the run's names that code too (its analysis_commit)."""
+    def key(r):
+        c, a = r.get("commit") or "unrecorded", r.get("analysis_commit")
+        return f"{c}, analysed at {a}" if a and a != c else c
+    c = collections.Counter(key(r) for r in rs)
     return ", ".join(f"{k} ({v})" for k, v in c.most_common())
 
 

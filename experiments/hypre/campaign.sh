@@ -19,7 +19,7 @@ OUT=experiments/results/hypre; mkdir -p "$OUT"
 RUNS="${RUNS:-20}"; TIMEOUT=60; ARGS=(-solver 8 -pout 0)
 TRACER="$R/tracer/bin/mpich/libstretto-trace.so"; PINLIB="$R/replay/bin/mpich/libstretto-pin.so"
 source "$R/experiments/harness.sh"
-export STRETTO_COMMIT="${STRETTO_COMMIT:-$(cat "$R/COMMIT" 2>/dev/null || git -C "$R" rev-parse --short HEAD 2>/dev/null || echo unknown)}"
+export STRETTO_COMMIT="${STRETTO_COMMIT:-$(python3 "$R/experiments/provenance.py")}"
 V="${HYPRE_VERSION:-2.10.1}"
 SRC="$H/hypre-$V"; [ -f "$SRC/configure" ] || SRC="$SRC/src"
 case "$V" in 2.10.1) SUF=; TAGS=222;; *) SUF="-$V"; TAGS="221 222";; esac

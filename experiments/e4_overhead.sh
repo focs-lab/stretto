@@ -15,7 +15,7 @@ OUT="$R/experiments/results/e4"; mkdir -p "$OUT"
 export OMPI_MCA_rmaps_base_oversubscribe=1 PYTHONPATH="$R/analysis"
 nps="${*:-4 16}"
 CSV="${CSV:-$OUT/e4.csv}"
-COMMIT="${STRETTO_COMMIT:-$(cat "$R/COMMIT" 2>/dev/null || git -C "$R" rev-parse --short HEAD 2>/dev/null || echo unknown)}"
+COMMIT="${STRETTO_COMMIT:-$(python3 "$R/experiments/provenance.py")}"
 # wall times include the launcher's start-up; NPB's own timer ("Time in seconds") covers the
 # timed section of the benchmark only, where the tracer's cost per call shows
 npb_time() { sed -n 's/^ *Time in seconds *= *//p' "$1" | head -1; }

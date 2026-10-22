@@ -25,7 +25,7 @@
 set -uo pipefail
 R="$(cd "$(dirname "$0")/../.." && pwd)"; cd "$R"
 OUT="${NINJA_OUT:-experiments/results/ninja}"; mkdir -p "$OUT"
-export STRETTO_COMMIT="${STRETTO_COMMIT:-$(cat "$R/COMMIT" 2>/dev/null || git -C "$R" rev-parse --short HEAD 2>/dev/null || echo unknown)}"
+export STRETTO_COMMIT="${STRETTO_COMMIT:-$(python3 "$R/experiments/provenance.py")}"
 RUN="python3 experiments/ninja/run.py"
 H="${HYPRE_DIR:-$R/third_party/apps/hypre}"
 MG="${NPB_MG_DIR:-$R/third_party/apps/npb-mg}/NPB2.4.1/NPB2.4-MPI/bin"

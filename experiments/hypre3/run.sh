@@ -49,7 +49,7 @@ OUT="$R/experiments/results/hypre3"; mkdir -p "$OUT"
 RUNS="${RUNS:-10}"; STRESS_RUNS="${STRESS_RUNS:-40}"; TIMEOUT="${TIMEOUT:-30}"
 PINLIB="$R/replay/bin/openmpi/libstretto-pin.so"
 source "$R/experiments/harness.sh"
-export STRETTO_COMMIT="${STRETTO_COMMIT:-$(cat "$R/COMMIT" 2>/dev/null || git -C "$R" rev-parse --short HEAD 2>/dev/null || echo unknown)}"
+export STRETTO_COMMIT="${STRETTO_COMMIT:-$(python3 "$R/experiments/provenance.py")}"
 V=3.2.0
 SHA=5273205a310fb6aa3ae506ce216760fb67b30e02024874f3cdb8b811e4801de7
 case "${VARIANT:-release}" in

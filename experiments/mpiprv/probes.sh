@@ -26,7 +26,7 @@ set -uo pipefail
 R="$(cd "$(dirname "$0")/../.." && pwd)"; cd "$R"
 OUT=experiments/results/mpiprv; mkdir -p "$OUT"
 REPS="${REPS:-5}"
-COMMIT="${STRETTO_COMMIT:-$(cat "$R/COMMIT" 2>/dev/null || echo unknown)}"
+COMMIT="${STRETTO_COMMIT:-$(python3 "$R/experiments/provenance.py")}"
 P=experiments/mpiprv/probes
 W=/tmp/prv-probes; rm -rf "$W"; mkdir -p "$W"
 cp /home/ubuntu/RQ1/MPI3.mop "$W/MPI3.mop"

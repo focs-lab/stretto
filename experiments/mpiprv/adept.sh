@@ -31,7 +31,7 @@
 set -uo pipefail
 R="$(cd "$(dirname "$0")/../.." && pwd)"; cd "$R"
 RES=experiments/results/mpiprv; mkdir -p "$RES"
-COMMIT="${STRETTO_COMMIT:-$(cat "$R/COMMIT" 2>/dev/null || echo unknown)}"
+COMMIT="${STRETTO_COMMIT:-$(python3 "$R/experiments/provenance.py")}"
 W="$R/experiments/mpiprv/work/adept"; LOG="$W/logs"; mkdir -p "$LOG"
 E=/home/ubuntu/Example/adept-kernel-mpi
 DELAY="${DELAY:-2500}"

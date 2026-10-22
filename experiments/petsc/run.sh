@@ -46,7 +46,7 @@ OUT="$R/experiments/results/petsc"; mkdir -p "$OUT"
 RUNS="${RUNS:-5}"; STRESS_RUNS="${STRESS_RUNS:-40}"; TIMEOUT="${TIMEOUT:-30}"
 PINLIB="$R/replay/bin/openmpi/libstretto-pin.so"
 source "$R/experiments/harness.sh"
-export STRETTO_COMMIT="${STRETTO_COMMIT:-$(cat "$R/COMMIT" 2>/dev/null || git -C "$R" rev-parse --short HEAD 2>/dev/null || echo unknown)}"
+export STRETTO_COMMIT="${STRETTO_COMMIT:-$(python3 "$R/experiments/provenance.py")}"
 V=3.26.0
 export PETSC_DIR="$D/petsc-$V" PETSC_ARCH=arch-ompi-opt
 TUT="$PETSC_DIR/src/ksp/ksp/tutorials"

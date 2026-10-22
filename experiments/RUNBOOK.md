@@ -131,7 +131,9 @@ over ssh on a freshly booted machine is gone before the next ssh command.
 # (a relative DIR, for example stretto, is taken from the remote home directory)
 git ls-files > /tmp/files.txt
 rsync -a --files-from=/tmp/files.txt . $REMOTE:$DIR/
-git rev-parse --short HEAD | ssh $REMOTE "cat > $DIR/COMMIT"   # the commit every CSV row records
+# the commit every CSV row records, and the code's files at that commit, against which
+# experiments/provenance.py checks the copy: a row from changed code says "<commit>-dirty"
+python3 experiments/provenance.py --write && rsync -a COMMIT COMMIT.files $REMOTE:$DIR/
 rsync -a --relative --exclude bin/ study/apps/MBI/gencodes third_party/mpi-bugbench/scripts/gencodes $REMOTE:$DIR/
 rsync -a --relative study/apps/AMG/test/amg third_party/apps/NPB-mpich/bin tracer/bin replay/bin $REMOTE:$DIR/
 rsync -a --relative study/apps/Nekbone $REMOTE:$DIR/      # sources: nekbone/run.sh build runs inside the container

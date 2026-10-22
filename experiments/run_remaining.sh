@@ -16,9 +16,9 @@ set -uo pipefail
 R="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$R"
 export PYTHONPATH="$R/analysis" OMPI_MCA_rmaps_base_oversubscribe=1 OMPI_MCA_hwloc_base_binding_policy=none
-# the commit every CSV row records (experiments/provenance.py); the copy here may have no .git,
-# so the sync writes it to COMMIT (RUNBOOK.md)
-export STRETTO_COMMIT="${STRETTO_COMMIT:-$(cat "$R/COMMIT" 2>/dev/null || echo unknown)}"
+# the commit every CSV row records (experiments/provenance.py: git, or the COMMIT and
+# COMMIT.files the sync writes into a copy without .git; "-dirty" when the code differs)
+export STRETTO_COMMIT="${STRETTO_COMMIT:-$(python3 "$R/experiments/provenance.py")}"
 JOBS="${JOBS:-6}"
 TIMEOUT="${TIMEOUT:-60}"
 log() { echo "== $(date '+%F %T') $*"; }

@@ -117,7 +117,7 @@ def run_one(name: str, args) -> dict:
     src = os.path.join(args.gencodes, name)
     out = os.path.join(args.results, name[:-2].replace("/", "__"))
     os.makedirs(out, exist_ok=True)
-    row = {"name": name[:-2].replace("/", "__"), **parse_header(src), **features(src)}
+    row = {"name": name[:-2].replace("/", "__"), **parse_header(src), **features(src), "commit": code_commit()}
     exe = os.path.join(out, "main")
     b = subprocess.run([MPICC, "-O0", "-g", "-o", exe, src, "-lm"], capture_output=True, text=True)
     if b.returncode != 0:
@@ -156,8 +156,10 @@ def analyse(row: dict, out: str, exe: str, tracedir: str, args) -> None:
     replay every error finding with its pin. An analysis that raises has no verdict: the row
     says CRASH in its analysis column (score.verdict), its classes stay empty, and the
     traceback goes to out/analysis.err. An error in the replays is the harness's and stops the
-    run."""
-    row["commit"] = code_commit()
+    run. The row's commit is that of the traced run (run_one); a re-analysis of a kept trace
+    by other code records its own commit in analysis_commit."""
+    row["commit"] = row.get("commit") or code_commit()
+    row["analysis_commit"] = code_commit() if code_commit() != row["commit"] else ""
     try:
         t = trace.load(tracedir)
         bounds = None
@@ -224,7 +226,7 @@ def replay_only(args) -> int:
     if not rows:
         print(f"run_mbi.py --replay-only: {args.out} has no rows", file=sys.stderr)
         return 1
-    keys = list(rows[0].keys()) + [k for k in ("analysis", "commit") if k not in rows[0]]
+    keys = list(rows[0].keys()) + [k for k in ("analysis", "commit", "analysis_commit") if k not in rows[0]]
     replays = list(csv.DictReader(open(rp))) if os.path.exists(rp) else []
     todo = [r for r in rows if r["build"] == "ok" and selects(args.select, r["name"])]
     if not todo:
@@ -356,7 +358,7 @@ def main() -> int:
                     r[k] = prev[r["name"]][k]
     keys = ["name", "category", "expect", "detail", "can_deadlock", "np", "anysrc", "anytag", "probe", "persistent", "waitany",
             "build", "run", "wildcard_recvs", "events", "findings", "l1_alternatives", "classes", "levels", "analysis", "confirmed", "confirmed_strict",
-            "not_confirmed", "replays", "must", "notes", "commit"]
+            "not_confirmed", "replays", "must", "notes", "commit", "analysis_commit"]
     keys += other_must
     with open(args.out, "w", newline="") as fh:
         w = csv.DictWriter(fh, fieldnames=keys, extrasaction="ignore", lineterminator="\n")
