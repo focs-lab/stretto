@@ -1,0 +1,10 @@
+setting,path,mpirun_args,eager_max_bytes,rendezvous_min_bytes,commit
+mpich-default,send,,650633,650634,553173e
+mpich-default,isend,,650633,650634,553173e
+mpich-default,persistent,,650633,650634,553173e
+mpich-nolocal,send,-x MPIR_CVAR_NOLOCAL=1,650633,650634,553173e
+mpich-nolocal,isend,-x MPIR_CVAR_NOLOCAL=1,650633,650634,553173e
+mpich-nolocal,persistent,-x MPIR_CVAR_NOLOCAL=1,650633,650634,553173e
+mpich-nolocal-ucx-tcp,send,"-x MPIR_CVAR_NOLOCAL=1 -x UCX_TLS=tcp,self",1048576,-1,553173e
+mpich-nolocal-ucx-tcp,isend,"-x MPIR_CVAR_NOLOCAL=1 -x UCX_TLS=tcp,self",1048576,-1,553173e
+mpich-nolocal-ucx-tcp,persistent,"-x MPIR_CVAR_NOLOCAL=1 -x UCX_TLS=tcp,self",1048576,-1,553173e
