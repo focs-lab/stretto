@@ -59,8 +59,8 @@ class Report:
 
     def status(self) -> str:
         """"complete", or "degraded:" and the reasons, comma-separated: missing-ranks,
-        tracer-overflow, unmatched-completions, guard-off, threads, unmodelled, ready-send,
-        explorer-skipped, explorer-incomplete, unconfirmed-rejections."""
+        tracer-overflow, unmatched-completions, creation-unknown, guard-off, threads, unmodelled,
+        ready-send, explorer-skipped, explorer-incomplete, unconfirmed-rejections."""
         return "complete" if not self.degraded else "degraded:" + ",".join(r for r, _ in self.degraded)
 
     def by_class(self, cls: str) -> List[Finding]:

@@ -28,6 +28,28 @@ Operations on `MPI_PROC_NULL` return at once and are no objects of the model: se
 probes (before 22 Oct 2026 a probe of `MPI_PROC_NULL` was loaded as an `ANY_SOURCE` probe) and
 the `MPI_Mrecv`/`MPI_Imrecv` of the message such a probe returns.
 
+Creating and freeing communicators. The constructors and `MPI_Comm_free` are collective (MPI
+4.1 §7.4), and a member may have to wait in one until the others have entered it:
+`MPI_Comm_split`'s result depends on every member's colour and key, and Open MPI and MPICH agree
+on the new context by an allreduce; the standard leaves the rest open. Each such call is a collective
+`comm_<call>` in the sequence of collectives of the communicator it is collective over: the
+parent's (split, split_type, dup, idup, create, cart_create, cart_sub, graph_create,
+dist_graph_create and its adjacent form, intercomm_merge), the result's for the two that only
+its members call (create_group, intercomm_create, over both groups), and the freed one's. Its
+shape is unknown: a barrier in the graph, the horizon (rule 4) and the explorer, and no edge
+of the graph of guaranteed edges. That is the sound direction for acceptance: the barrier only
+adds constraints, and a schedule in which the creation synchronises is an execution of an
+implementation that synchronises less too, since delays are arbitrary; a deadlock claim never
+rests on it (a rank cut at a creation is not one at which a contained deadlock stops). An
+`MPI_Comm_idup` is a nonblocking collective from its call to the completion of its request. A
+trace of the tracer before 22 Oct 2026 (format version 1) has no record of the idup's call,
+and the collective is placed at the completion, after its real issue, which constrains more;
+nor does it have a record at a member that obtained `MPI_COMM_NULL`, so a split, split_type,
+create, cart_create or graph_create cannot be placed at every member, and such a trace counts
+as incomplete (observed findings only). Before 22 Oct 2026 creations were side records with no
+synchronisation, and an alternative could need a rank out of a split before another had
+entered it (`C_CommunicatorCreation`).
+
 The observed matching `M₀` is reconstructed offline: receives per rank in posting order, each
 takes the earliest unconsumed send from (msrc → rank, comm, mtag). Non-overtaking makes this
 exact (`trace._reconstruct_observed`). A send whose cancellation succeeded never reached its
@@ -241,7 +263,8 @@ overflowing, which leaves the receives of probed messages without their envelope
 collective that lacks only ranks without a trace file is then not an observed `2-collective`
 error either: the trace is incomplete, not the program. Before 22 Oct 2026 the last three only
 added notes, and predictions were made on a happens-before relation with message edges
-missing (`C_IncompleteTrace`).
+missing (`C_IncompleteTrace`). The report's status names the reason: `degraded:` with
+`unmodelled`, `missing-ranks`, `unmatched-completions`, `tracer-overflow` or `creation-unknown`.
 
 Cancellation is outside the model: a cancel that succeeds withdraws an operation at a point that
 no matching rule describes (a cancelled send is pending until its cancel, and a receive posted

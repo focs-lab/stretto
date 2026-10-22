@@ -18,13 +18,23 @@ from stretto.report import analyze, classify
 import reference
 
 
-def mk(raw_ranks, np=None):
+def mk(raw_ranks, np=None, version=None):
+    """version 2: the trace format in which every member of a communicator creation records it,
+    MPI_COMM_NULL results included (tracer since 22 Oct 2026)."""
     t = T.Trace()
     np = np or len(raw_ranks)
+    init = {"op": "init", "np": np, **({"version": version} if version else {})}
     for rank in raw_ranks:
-        raw_ranks[rank] = [{"op": "init", "np": np}] + raw_ranks[rank] + [{"op": "finalize"}]
+        raw_ranks[rank] = [dict(init)] + raw_ranks[rank] + [{"op": "finalize"}]
     T._build(t, raw_ranks)
     return t
+
+
+def comm(name, ranks, id=2, parent=0, gord=1, **kw):
+    """A communicator creation record; ranks None: this member obtained MPI_COMM_NULL."""
+    if ranks is None:
+        return {"op": "comm", "name": name, "parent": parent, "id": -1, **kw}
+    return {"op": "comm", "name": name, "parent": parent, "id": id, "ranks": list(ranks), "gord": gord, **kw}
 
 
 def send(dst, tag, count=1, mode="std", req=None, comm=0):
@@ -285,9 +295,101 @@ class C_CommFree(unittest.TestCase):
     def test_free_record_does_not_remap(self):
         c = {"op": "comm", "name": "create", "parent": 0, "id": 2, "ranks": [0, 1], "gord": 1}
         free = {"op": "comm", "name": "free", "parent": -1, "id": 2}
-        t = mk({0: [c, coll("allgather", comm=2), free], 1: [c, coll("allgather", comm=2), free]})
+        t = mk({0: [c, coll("allgather", comm=2), free], 1: [c, coll("allgather", comm=2), free]}, version=2)
         self.assertEqual(analyze(t, with_sp=False).by_class("2-collective"), [])
+        sub = t.colls[1].comm
+        # the creation is a collective of the parent, the release one of the communicator freed
+        self.assertEqual([[(c.name, c.comm, c.ordinal) for c in cs][0] for cs in t.coll_sets()],
+                         [("comm_create", 0, 0), ("allgather", sub, 0), ("comm_free", sub, 1)])
+
+
+class C_CommunicatorCreation(unittest.TestCase):
+    """Creating a communicator is collective over its parent (MPI 4.1 §7.4); the model treats
+    it as a barrier, which an accepted alternative may rely on (audit of 22 Oct 2026)."""
+
+    @staticmethod
+    def witness(records=True):
+        # rank 0: Recv r(ANY) <- s2, Comm_split, Recv(1) <- s. Rank 1: Comm_split, Send s.
+        # Rank 2: Send s2, Comm_split. r <- s needs rank 1 out of its split before rank 0 has
+        # entered its own, which no implementation does: the split's result depends on rank 0
+        sp = [comm("split", [0, 1, 2])] if records else []
+        return mk({0: [recv(T.ANY, 1, 2, 1, widx=0), *sp, recv(1, 1, 1, 1)],
+                   1: [*sp, send(0, 1)], 2: [send(0, 1), *sp]}, version=2)
+
+    def test_split_orders_the_steal(self):
+        t = self.witness()
+        self.assertEqual({c.name for c in t.colls}, {"comm_split"})
         self.assertEqual(len(t.coll_sets()), 1)
+        # the enumeration prunes the pair (s follows r's completion through the split), and the
+        # check rejects it: rank 0 never reaches its split, so rank 1 never leaves its own
+        alts, pruned = candidates_full(t)
+        self.assertFalse([a for a in alts if a.recv == (0, 0) and a.send == (1, 0)])
+        self.assertIn(f"{t.recvs[(0, 0)]} <- {t.sends[(1, 0)]}", [d for d, _ in pruned])
+        M = Overlay(t.observed, {(0, 0): (1, 0)}, [(0, 1)])
+        self.assertFalse(check(t, M, {(0, 0)}, None, "L1").feasible)
+        self.assertFalse([f for f in analyze(t, with_sp=False).findings if f.recv == (0, 0) and f.send == (1, 0)])
+        fast_equals_generic(self, t)
+
+    def test_the_same_run_without_the_split_accepts(self):
+        t = self.witness(records=False)
+        self.assertTrue([f for f in analyze(t, with_sp=False).findings if f.recv == (0, 0) and f.send == (1, 0)])
+
+    def test_null_result_takes_part(self):
+        # rank 0 passes MPI_UNDEFINED: it records the call (version 2) and is a member of the barrier
+        t = mk({0: [comm("split", None)], 1: [comm("split", [1, 2])], 2: [comm("split", [1, 2])]}, version=2)
+        cs = t.coll_sets()
+        self.assertEqual([[c.rank for c in s] for s in cs], [[0, 1, 2]])
+        self.assertEqual(analyze(t, with_sp=False).by_class("2-collective"), [])
+
+    def test_legacy_trace_without_null_results(self):
+        # a trace of the tracer before 22 Oct 2026: rank 0's MPI_COMM_NULL left no record, so
+        # who took part is unknown, and nothing is predicted (idiom 12, AMG)
+        t = mk({0: [recv(T.ANY, 1, 1, 1, widx=0), recv(T.ANY, 1, 2, 1, widx=1)],
+                1: [comm("split", [1, 2]), send(0, 1)], 2: [comm("split", [1, 2]), send(0, 1)]})
+        self.assertEqual(t.colls, [])
+        self.assertTrue(any(r == "creation-unknown" and "MPI_Comm_split" in d and "MPI_COMM_NULL" in d
+                            for r, d in t.incomplete), t.incomplete)
+        rep = analyze(t, with_sp=False)
+        self.assertEqual([f for f in rep.findings if f.level != "observed"], [])
+        self.assertEqual(rep.status(), "degraded:creation-unknown")
+        self.assertEqual(rep.by_class("2-collective"), [])
+
+    def test_legacy_dup_is_modelled(self):
+        # MPI_Comm_dup never returns MPI_COMM_NULL: every member recorded it in any trace
+        t = mk({r: [comm("dup", [0, 1])] for r in range(2)})
+        self.assertEqual(t.incomplete, [])
+        self.assertEqual([c.name for c in t.colls], ["comm_dup", "comm_dup"])
+
+    def test_idup_is_a_nonblocking_collective(self):
+        # since 22 Oct 2026 the tracer records MPI_Comm_idup at its call, with its request, and
+        # registers the communicator at the completion (inside the wait)
+        def start():
+            return {"op": "comm", "name": "idup", "parent": 0, "id": -1, "req": 4}
+
+        def done():
+            return [comm("idup", [0, 1], req=4), {"op": "wait", "kind": "wait", "reqs": [4], "done": [{"req": 4}]}]
+        t = mk({0: [start(), send(1, 1), *done()], 1: [start(), recv(0, 1, 0, 1), *done()]}, version=2)
+        c = next(c for c in t.colls if c.rank == 0)
+        self.assertEqual((c.name, c.idx, c.complete_idx, c.completed), ("comm_idup", 1, 4, True))
+        self.assertEqual(len(t.colls), 2)
+        prog = dsl.program_from_trace(t)
+        self.assertEqual(prog[0][0], dsl.Coll("comm_idup", 0, "q4"))
+        self.assertEqual(explore.explore(prog, None, comms=t.comm_members).kinds(), {"done"})
+
+    def test_legacy_idup_at_its_completion(self):
+        reg = comm("idup", [0, 1])
+        t = mk({0: [send(1, 1), reg, {"op": "wait", "kind": "wait", "reqs": [4], "done": [{"req": 4}]}],
+                1: [recv(0, 1, 0, 1), reg, {"op": "wait", "kind": "wait", "reqs": [4], "done": [{"req": 4}]}]})
+        self.assertEqual([(c.name, c.idx, c.completed) for c in t.colls], [("comm_idup", 2, True)] * 2)
+
+    def test_intercommunicator_creation_is_collective_over_both_groups(self):
+        # gord 1: the member set of MPI_COMM_WORLD was registered first (gord 0)
+        left = {"op": "comm", "name": "intercomm", "parent": 0, "id": 2, "inter": 1, "ranks": [2, 3], "local": [0, 1], "members": [0, 1, 2, 3], "gord": 1}
+        right = {"op": "comm", "name": "intercomm", "parent": 0, "id": 2, "inter": 1, "ranks": [0, 1], "local": [2, 3], "members": [0, 1, 2, 3], "gord": 1}
+        t = mk({0: [left], 1: [left], 2: [right], 3: [right]}, version=2)
+        (cs,) = t.coll_sets()
+        self.assertEqual([c.rank for c in cs], [0, 1, 2, 3])
+        self.assertEqual(t.comm_members[cs[0].comm], [0, 1, 2, 3])
 
 
 class C_ObservedOrphanAndSpin(unittest.TestCase):
@@ -346,15 +448,16 @@ class C_ProgramFromTrace(unittest.TestCase):
         c = {"op": "comm", "name": "split", "parent": 0, "id": 2, "ranks": [1, 2], "gord": 0}
         return mk({0: [dict(c, id=2, ranks=[0]), {**send(-2, 1), "procnull": 1}, send(1, 5)],
                    1: [c, {**recv(0, 1, 1, 1, comm=2), "anysrc": 1}, coll("barrier", comm=2), recv(0, 5, 0, 5)],
-                   2: [c, send(0, 1, comm=2), coll("barrier", comm=2)]})
+                   2: [c, send(0, 1, comm=2), coll("barrier", comm=2)]}, version=2)
 
     def test_world_ranks_and_global_comms(self):
         t = self._split()
         prog = dsl.program_from_trace(t)
-        self.assertEqual(len(prog[0]), 1)                       # the PROC_NULL send is not an operation
-        s = prog[2][0]
+        # the split, a collective of MPI_COMM_WORLD, and the send to 1; the PROC_NULL send is not an operation
+        self.assertEqual(prog[0], [dsl.Coll("comm_split", 0), dsl.Send(1, 5, 4, 0)])
+        s = prog[2][1]
         self.assertEqual((s.dst, s.comm), (1, t.sends[(2, 0)].comm))
-        r = prog[1][0]
+        r = prog[1][1]
         self.assertEqual((r.src, r.comm), (dsl.ANY, t.recvs[(1, 0)].comm))
         res = explore.explore(prog, None, comms=t.comm_members)
         self.assertEqual(res.kinds(), {"done"})

@@ -17,7 +17,9 @@ in comm-rank order and the creation ordinal of that group ("gord"). The loader m
 per-rank local id to a global id derived from (group, gord), which is consistent across
 ranks by construction (creation is collective over the group). Ranks in send/recv records
 are comm-local and are translated to world ranks at load time. Old traces (no `ranks`
-field) keep their local ids and are assumed to use MPI_COMM_WORLD only.
+field) keep their local ids and are assumed to use MPI_COMM_WORLD only. Creating a
+communicator and freeing one are collective calls, and each is also a collective record
+(`Coll` named `comm_<call>`) of the communicator it is collective over (see ON_PARENT).
 
 Encoding of wildcards: new traces carry `anysrc`/`anytag`/`procnull` flags; old traces
 encode ANY as -1.
@@ -235,6 +237,7 @@ class Trace:
     observed: Dict[Key, Key] = field(default_factory=dict)  # recv key -> send key
     waitany: List[Rec] = field(default_factory=list)   # Waitany/Testany/Waitsome/Testsome records
     np: int = 0
+    version: int = 1                                    # trace format; 2: every member records a communicator creation
     thread_level: int = 0                               # MPI_THREAD_* level the run was given (3 = MULTIPLE)
     threads: Dict[int, int] = field(default_factory=dict)   # rank -> number of threads that made MPI calls
     comm_ranks: Dict[int, List[int]] = field(default_factory=dict)   # global comm id -> world ranks, in comm-rank order (the remote group of an intercommunicator)
@@ -465,6 +468,31 @@ def check_records(fname: str, rank: int, recs: List[dict]) -> None:
 
 SIDE_RECORDS = ("comm", "overflow", "guard")
 
+# Communicator constructors and MPI_Comm_free are collective (MPI 4.1 §7.4), and a member may
+# have to wait in one until the others have entered it: MPI_Comm_split's result depends on
+# every member's colour and key, and the implementations agree on the new context by an
+# allreduce; the standard leaves the rest open. Each becomes a collective record "comm_<name>" in the sequence of collectives of
+# the communicator it is collective over: the parent's, the result's for the two calls that
+# only the members of the result make, and the freed communicator's. Its shape is unknown
+# (matching.coll_shape): a barrier for the checks, the horizon and the explorer, which is the
+# sound direction for an accepted alternative (a schedule in which they synchronise is an
+# execution of an implementation in which they do not, too), and no guaranteed edge for a
+# deadlock claim.
+ON_PARENT = frozenset({"split", "split_type", "dup", "idup", "create", "cart", "cart_sub", "graph",
+                       "dist_graph", "dist_graph_adjacent", "merge"})
+ON_RESULT = frozenset({"create_group", "intercomm"})
+# the constructors that give some members MPI_COMM_NULL: a tracer before 22 Oct 2026 (trace
+# version 1) wrote no record at those members, so who took part is not known
+MAY_BE_NULL = frozenset({"split", "split_type", "create", "cart", "graph"})
+# the MPI function behind a comm record's name
+CREATION_CALL = {"cart": "MPI_Cart_create", "cart_sub": "MPI_Cart_sub", "graph": "MPI_Graph_create",
+                 "dist_graph": "MPI_Dist_graph_create", "dist_graph_adjacent": "MPI_Dist_graph_create_adjacent",
+                 "intercomm": "MPI_Intercomm_create", "merge": "MPI_Intercomm_merge"}
+
+
+def creation_call(name: str) -> str:
+    return CREATION_CALL.get(name, f"MPI_Comm_{name}")
+
 
 def _fold_begins(raw: List[dict]) -> List[dict]:
     """Drop `begin` records that are followed by their completing record, the next record
@@ -509,6 +537,7 @@ def _build(t: Trace, raw_ranks: Dict[int, List[dict]]) -> None:
         for r in recs:
             if r["op"] == "init":
                 t.np = max(t.np, r.get("np", 0))
+                t.version = max(t.version, r.get("version", 1))
                 t.thread_level = max(t.thread_level, r.get("thread", 0))
                 if "guard" in r:
                     t.guard[rank] = r["guard"]
@@ -562,6 +591,7 @@ def _build(t: Trace, raw_ranks: Dict[int, List[dict]]) -> None:
         return raw["tag"]
 
     # pass 1: operations
+    legacy_null: Dict[str, List[int]] = {}      # MAY_BE_NULL creations in a version-1 trace, by name: ranks
     for rank, recs in t.ranks.items():
         nsend = nrecv = nprobe = 0
         coll_ord: Dict[int, int] = {}
@@ -682,6 +712,38 @@ def _build(t: Trace, raw_ranks: Dict[int, List[dict]]) -> None:
                     c.completed = False
                     pending_req[c.req] = c
                 t.colls.append(c)
+            elif op == "comm":
+                name, req, cid = raw.get("name"), raw.get("req"), raw.get("id", -1)
+                if name == "free":
+                    over = gid(rank, cid)
+                elif name in ON_RESULT:
+                    if cid is None or cid < 0:
+                        continue
+                    over = gid(rank, cid)
+                elif name in ON_PARENT:
+                    if name == "idup" and req is not None and cid is not None and cid >= 0:
+                        continue           # the communicator of a started MPI_Comm_idup, registered at its completion
+                    if name in MAY_BE_NULL and t.version < 2:
+                        legacy_null.setdefault(name, []).append(rank)
+                        continue
+                    parent = raw.get("parent", -1)
+                    if parent is None or parent < 0:
+                        t.incomplete.append(("creation-unknown", f"rank {rank} created a communicator ({creation_call(name)}) "
+                                             "from one the trace does not know"))
+                        continue
+                    over = gid(rank, parent)
+                else:
+                    continue               # world, self, unknown: registrations, not calls
+                k = coll_ord.get(over, 0)
+                coll_ord[over] = k + 1
+                # an MPI_Comm_idup (since 22 Oct 2026 recorded at its call, with its request) is a
+                # nonblocking collective; in older traces only its completion is recorded, and the
+                # collective is placed there, after its real issue, which constrains more
+                c = Coll(rank, rec.idx, "comm_" + name, over, k, None, req if name == "idup" else None)
+                if c.req is not None:
+                    c.completed = False
+                    pending_req[c.req] = c
+                t.colls.append(c)
         for q, st in status_at.items():        # found complete, and no later call returned it
             obj = pending_req.get(q)
             if obj is not None:
@@ -695,6 +757,13 @@ def _build(t: Trace, raw_ranks: Dict[int, List[dict]]) -> None:
                 t.unmodelled.append((rank, "Cancel (succeeded)"))
             elif not returned:
                 t.unmodelled.append((rank, "Cancel (outcome not recorded)"))
+    if legacy_null:
+        t.incomplete.append(("creation-unknown",
+                             "the tracer that made this trace (before 22 Oct 2026) wrote no record of "
+                             + ", ".join(creation_call(n) for n in sorted(legacy_null))
+                             + " at a rank that obtained MPI_COMM_NULL, so the ranks that took part in these "
+                             "collectives are not known (recorded on ranks "
+                             + str(sorted({r for v in legacy_null.values() for r in v})) + ")"))
     t.index()
     _reconstruct_observed(t)
     # call sites, 4 bytes per record, before the dictionaries that name them go
