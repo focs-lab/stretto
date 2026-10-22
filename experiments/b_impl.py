@@ -21,8 +21,11 @@ import os
 import subprocess
 import sys
 import tempfile
+import time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "analysis"))
 from provenance import code_commit  # noqa: E402
+from stretto.confirm import classify_rc  # noqa: E402
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 MPICC, MPIRUN = "/usr/bin/mpicc.openmpi", "/usr/bin/mpirun.openmpi"
@@ -73,10 +76,18 @@ def tcp_header(path: str = TABLE):
 
 
 def hangs(exe: str, n: int, path: str, mpirun_args, timeout: int) -> bool:
+    """Does the head-to-head exchange of n bytes hang? A run that hangs is killed by the timeout
+    (124, or 137 once the timeout has passed, when the launcher ignored SIGTERM); any other end
+    than finishing is no answer, and the measurement stops instead of reading it as eager (a
+    memory cap, a launcher argument the MPI rejects)."""
     cmd = ["/usr/bin/timeout", "-k", "2", str(timeout), MPIRUN, "-np", "2", *mpirun_args, exe, str(n), path]
+    t0 = time.monotonic()
     r = subprocess.run(cmd, capture_output=True, text=True, stdin=subprocess.DEVNULL,
                        env={**os.environ, "OMPI_MCA_rmaps_base_oversubscribe": "1"})
-    return r.returncode == 124
+    res = classify_rc(r.returncode, r.stderr, time.monotonic() - t0, timeout)
+    if res not in ("FINISHED", "TIMEOUT"):
+        sys.exit(f"b_impl.py: HARNESS-ERROR: {n} bytes on path {path} with {mpirun_args}: {res}: {r.stderr.strip()[-300:]}")
+    return res == "TIMEOUT"
 
 
 def main() -> int:

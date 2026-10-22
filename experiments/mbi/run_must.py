@@ -20,7 +20,7 @@ rows = list(csv.DictReader(open(args.csv)))
 def one(r):
     src = os.path.join(CORPORA[corpus], r["name"].replace("__", "/") + ".c")
     p = subprocess.run([os.path.join(ROOT, "scripts", "must_run.sh"), str(r["np"]), src, str(args.timeout)], stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)  # Python 3.6 compatible
-    return r["name"], (p.stdout.strip().splitlines() or ["MUST:RE"])[-1]
+    return r["name"], (p.stdout.strip().splitlines() or ["MUST:HARNESS-ERROR:must_run.sh printed nothing"])[-1]
 out = os.path.join(os.path.dirname(args.csv), col + ".csv")
 if not args.merge_only:
     # the code commit of scripts/must_run.sh (experiments/provenance.py, which Python 3.6 runs too)
@@ -41,3 +41,7 @@ keys = list(rows[0].keys()) + ([] if col in rows[0] else [col])
 with open(args.csv, "w", newline="") as fh:
     w = csv.DictWriter(fh, fieldnames=keys, lineterminator="\n"); w.writeheader(); w.writerows(rows)
 print("merged into", args.csv)
+# a run the harness could not complete is no verdict of MUST's (score.py counts it apart): say so
+bad = sorted(n for n, v in verdicts.items() if v.startswith("MUST:HARNESS-ERROR"))
+if bad:
+    sys.exit(f"{len(bad)} MUST run(s) failed in the harness (HARNESS-ERROR; rerun_must.py reruns them): {', '.join(bad[:10])}")

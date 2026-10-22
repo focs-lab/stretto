@@ -26,9 +26,9 @@ case "$V" in 2.10.1) SUF=; TAGS=222;; *) SUF="-$V"; TAGS="221 222";; esac
 TMP="${TMPDIR:-/tmp}/hypre-campaign"; mkdir -p "$TMP"
 
 run() {   # run <np> <logfile> [-x VAR=value ...]: one run of ij, prints FINISHED | TIMEOUT | rc=N
-    local np=$1 log=$2; shift 2
+    local np=$1 log=$2 t0=$SECONDS; shift 2
     (cd "$SRC/test" && /usr/bin/timeout -k 5 $TIMEOUT mpirun.openmpi --oversubscribe -np "$np" "$@" ./ij "${ARGS[@]}" < /dev/null > "$log" 2>&1)
-    local rc=$?; [ $rc = 0 ] && echo FINISHED || { [ $rc = 124 ] && echo TIMEOUT || echo "rc=$rc"; }
+    run_result $? $((SECONDS - t0)) $TIMEOUT
 }
 step_predict() {
     python3 experiments/hypre/predict.py "$SRC/test" --runs "$RUNS" --np 4 8 --timeout $TIMEOUT --jobs "${JOBS:-1}" \

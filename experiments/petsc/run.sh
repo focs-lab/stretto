@@ -146,7 +146,7 @@ step_stress() {
                     (cd "$w" && /usr/bin/timeout -k 5 $TIMEOUT mpirun.openmpi --oversubscribe -np $np "${env[@]}" "$TUT/ex2" \
                          -m 48 -n 48 -pc_type hypre -pc_hypre_type parasails -pc_hypre_parasails_nlevels $nl \
                          -pc_hypre_parasails_thresh 0.01 < /dev/null > "$w/out" 2>&1)
-                    rc=$?; r=FINISHED; [ $rc = 0 ] || { [ $rc = 124 ] && r=TIMEOUT || r="rc=$rc"; }
+                    r=$(run_result $? $((SECONDS - t0)) "$TIMEOUT")
                     [ $setting = plain ] || preload_ok "$w/out" || { harness_error "$PINLIB did not load (np $np, run $i)"; return 1; }
                     it=$(sed -n 's/.*iterations *\([0-9]*\).*/\1/p' "$w/out" | head -1)
                     echo "$V,ex2-parasails$nl-dense,$np,$i,$setting,$r,$((SECONDS - t0)),$it,$STRETTO_COMMIT" | tee -a "$OUT/stress.csv"

@@ -112,7 +112,7 @@ step_stress() {
                     t0=$SECONDS
                     (cd "$w" && /usr/bin/timeout -k 5 "$TIMEOUT" mpirun.openmpi --oversubscribe -np $np "${env[@]}" "$DRIVER" \
                          -solver 8 -sai_levels $levels -n 33 < /dev/null > "$w/out" 2>&1)
-                    rc=$?; r=FINISHED; [ $rc = 0 ] || { [ $rc = 124 ] && r=TIMEOUT || r="rc=$rc"; }
+                    r=$(run_result $? $((SECONDS - t0)) "$TIMEOUT")
                     [ $setting = plain ] || preload_ok "$w/out" || { harness_error "$PINLIB did not load (np $np, run $i)"; return 1; }
                     res=$(sed -n 's/.*Final Relative Residual Norm = *\([^ ]*\).*/\1/p' "$w/out" | head -1)
                     echo "$V$SUF,$np,$levels,$i,$setting,$r,$((SECONDS - t0)),$res,$STRETTO_COMMIT" | tee -a "$OUT/stress$SUF.csv"

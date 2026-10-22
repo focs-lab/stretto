@@ -91,7 +91,7 @@ PY
         log="$OUT/replay-${pin//:/-}.log"; t0=$SECONDS
         (cd "$(src 2.10.1)/test" && /usr/bin/timeout -k 5 $TIMEOUT mpirun.openmpi --oversubscribe -np $NP \
              -x LD_PRELOAD="$PINLIB" -x STRETTO_PIN_PROBE=$pin ./ij "${ARGS[@]}" < /dev/null > "$R/$log" 2>&1)
-        rc=$?; res=$([ $rc = 0 ] && echo FINISHED || { [ $rc = 124 ] && echo TIMEOUT || echo "rc=$rc"; })
+        res=$(run_result $? $((SECONDS - t0)) $TIMEOUT)
         preload_ok "$log" || { harness_error "$PINLIB did not load (pin $pin)"; return 1; }
         pidx=$(echo "$pin" | cut -d: -f2); rank=${pin%%:*}
         found=$(grep -c "rank $rank: applied probe pidx=$pidx\b" "$log")

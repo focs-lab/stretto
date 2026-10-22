@@ -179,9 +179,10 @@ step_stress() {
                     dr=$(python3 -c "import random; r=random.Random($i*100+$np+7); print(','.join(f'{k}:{r.choice([0,0,0,1,5,20])}' for k in range($np)))")
                     env=(-x LD_PRELOAD="$PINLIB" -x STRETTO_SEND_DELAY_MS=$ds -x STRETTO_RECV_DELAY_MS=$dr)
                 fi
+                local t0=$SECONDS
                 (cd "$w" && /usr/bin/timeout -k 5 $TIMEOUT mpirun.openmpi --oversubscribe -np $np "${env[@]}" "$b/$TEST" \
                      < /dev/null > "$w/stdout" 2>&1)
-                rc=$?; r=FINISHED; [ $rc = 0 ] || { [ $rc = 124 ] && r=TIMEOUT || r="rc=$rc"; }
+                r=$(run_result $? $((SECONDS - t0)) $TIMEOUT)
                 [ $setting = plain ] || preload_ok "$w/stdout" || { harness_error "$PINLIB did not load (np $np, run $i)"; return 1; }
                 # normalised as deal.II's test harness does (the JobId line names host and date)
                 [ -f "$w/output" ] || : > "$w/output"

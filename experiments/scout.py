@@ -46,6 +46,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 from collections import Counter
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -99,8 +100,14 @@ def phase(t, s):
     return bisect.bisect_left(before.get((s.rank, s.comm), []), s.idx)
 
 
-def result_of(rc: int) -> str:
-    return "FINISHED" if rc == 0 else ("TIMEOUT" if rc == 124 else f"rc={rc}")
+def result_of(rc: int, elapsed: float = 0.0, timeout: int = 600) -> str:
+    """FINISHED, TIMEOUT or rc=N; a SIGKILL once the timeout has passed is timeout's own kill of
+    a launcher that ignored SIGTERM, a hang (stretto.confirm.classify_rc)."""
+    if rc == 0:
+        return "FINISHED"
+    if rc == 124 or (rc in (137, -9) and elapsed >= timeout):
+        return "TIMEOUT"
+    return f"rc={rc}"
 
 
 def main() -> int:
@@ -150,14 +157,18 @@ def main() -> int:
         for i in range(1, args.runs + 1):
             d = tempfile.mkdtemp(prefix=f"scout-trace-{np}-{i}-")
             w = workdir()
-            mpirun = ["/usr/bin/timeout", "600", "/usr/bin/mpirun.openmpi", "--oversubscribe", "-np", str(np),
+            mpirun = ["/usr/bin/timeout", "-k", "5", "600", "/usr/bin/mpirun.openmpi", "--oversubscribe", "-np", str(np),
                       "-x", f"LD_PRELOAD={tracer_lib(args.mpi)}", "-x", f"STRETTO_TRACE_DIR={d}", exe, *prog_args]
+            if not os.path.isfile(tracer_lib(args.mpi)):
+                sys.exit(f"scout.py: HARNESS-ERROR: missing {tracer_lib(args.mpi)}")
+            t0 = time.monotonic()
             r = subprocess.run(mpirun, cwd=w, capture_output=True, text=True, stdin=subprocess.DEVNULL)
+            elapsed = time.monotonic() - t0
             traced_out = output_of(r.stdout, w)
             if not args.cwd:
                 shutil.rmtree(w, ignore_errors=True)
             row = {"code": args.code, "version": args.version, "driver": args.driver, "np": np, "run": i,
-                   "traced": result_of(r.returncode), "seed": args.seed if args.sample else "", "commit": code_commit()}
+                   "traced": result_of(r.returncode, elapsed), "seed": args.seed if args.sample else "", "commit": code_commit()}
             try:
                 t = trace.load(d)
             except Exception as e:  # noqa: BLE001

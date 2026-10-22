@@ -317,6 +317,31 @@ def bash(script: str) -> int:
                           capture_output=True, text=True).returncode
 
 
+class HarnessErrors(unittest.TestCase):
+    """A run the harness could not complete or judge is no verdict of the tool's."""
+
+    def test_a_killed_launcher_is_a_hang_only_after_the_timeout(self):
+        def out(script):
+            import subprocess
+            return subprocess.run(["bash", "-c", f'R="{ROOT}"; source "$R/experiments/harness.sh"; {script}'],
+                                  capture_output=True, text=True).stdout.strip()
+        self.assertEqual(out("run_result 0 3 60"), "FINISHED")
+        self.assertEqual(out("run_result 124 60 60"), "TIMEOUT")
+        self.assertEqual(out("run_result 137 65 60"), "TIMEOUT")       # timeout's -k kill of a launcher ignoring SIGTERM
+        self.assertEqual(out("run_result 137 12 60"), "rc=137")        # a memory cap or a kill: not a hang
+        self.assertEqual(out("run_result 15 3 60"), "rc=15")
+
+    def test_must_without_a_run_has_no_verdict(self):
+        rs = [{"name": "a", "expect": "ERROR", "must": "MUST:HARNESS-ERROR:docker exited with status 125"},
+              {"name": "b", "expect": "ERROR", "must": "MUST:RE:abort"},
+              {"name": "c", "expect": "OK", "must": "MUST:OK"}]
+        self.assertEqual(score.must_verdict(rs[0]), "HARNESS-ERROR")
+        self.assertEqual(score.must_verdict_hangs(rs[0]), "HARNESS-ERROR")
+        c = score.confusion(rs, score.must_verdict_hangs)
+        self.assertEqual((c["tp"], c["tn"], c["harness"]), (1, 1, 1))
+        self.assertEqual(score.must_column_judge("must1112")({"must1112": rs[0]["must"]}), "HARNESS-ERROR")
+
+
 class ShellHarness(unittest.TestCase):
     """The checks the shell drivers make before and after a run with a preloaded library."""
 

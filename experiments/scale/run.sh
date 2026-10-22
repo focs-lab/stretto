@@ -30,7 +30,7 @@ one() {   # one <app> <np> <mpi> <dir> <exe> [args ...]: trace, analyse, replay 
     local rc=$? run=FINISHED; [ $rc = 0 ] || run="rc=$rc"
     /usr/bin/time -f '%e %M' -o "$log.time" python3 -m stretto analyze --no-sp "$td" > "$log.report" 2> "$log.err"
     local t; t=$(tail -1 "$log.time")
-    local head; head=$(head -1 "$log.report")   # "trace: N ranks, S sends, R receives, W wildcard receives, P probes, ..."
+    local head; head=$(grep -m1 "^trace:" "$log.report")   # "trace: N ranks, S sends, R receives, W wildcard receives, P probes, ..."
     local recs; recs=$(cat "$td"/rank-*.jsonl | wc -l)
     local wild probes finds
     wild=$(echo "$head" | sed -n 's/.* \([0-9]*\) wildcard receives.*/\1/p')
@@ -68,5 +68,5 @@ for step in "${@:-all}"; do
     case "$step" in
         hypre) hypre;; amg) amg;; lu) lu;; all) hypre; amg; lu;;
         *) echo "usage: $0 [hypre|amg|lu|all]" >&2; exit 2;;
-    esac
+    esac || exit 1
 done

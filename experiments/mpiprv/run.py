@@ -228,10 +228,14 @@ def one(p, args):
         names = ARM_PATTERNS[arm]
         key, res = instrument_run_analyse(s, p["np"], names, args.timeout)
         matched = [n for n in names if res.get(n, "").startswith("matched")]
+        # a run that left no trace, or an analyser that failed, gives MPI-PRV no verdict: it is
+        # a harness error, never "no pattern reported" (score.confusion counts it apart)
+        failed = [n for n in names if res.get(n, "") == "no-trace" or res.get(n, "").startswith("error")]
+        verdict = ("ERROR" if matched else "HARNESS-ERROR" if failed else "OK") if res.get("build") == "ok" else "-"
         rows.append({**base_row(p, sc, om), "arm": arm, "markers": where if isinstance(where, str) else
                      ";".join(f"{ln}:{'+'.join(k)}" for ln, k in where),
                      "build": res.get("build", ""), "run": res.get("run", ""), "events": res.get("events", ""),
-                     "verdict": "ERROR" if matched else ("OK" if res.get("build") == "ok" else "-"),
+                     "verdict": verdict,
                      "patterns": " ".join(f"{n}={res.get(n, '-').split(':')[0]}" for n in names),
                      "matched": " | ".join(f"{n}: {res[n].split(':', 1)[1]}" for n in matched),
                      "work": key})

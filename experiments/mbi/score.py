@@ -121,21 +121,27 @@ def certified(r: dict) -> bool:
 
 
 def must_kind(r: dict) -> str:
-    """OK | ERROR | TIMEOUT | RE | CE | '' from the MUST column ("MUST:ERROR:..." etc.)."""
+    """OK | ERROR | TIMEOUT | RE | CE | HARNESS-ERROR | '' from the MUST column ("MUST:ERROR:..."
+    etc.; scripts/must_run.sh)."""
     m = r.get("must", "") or ""
     m = m[5:] if m.startswith("MUST:") else m
     return m.split(":")[0]
 
 
 def must_verdict(r: dict) -> str:
-    return "ERROR" if must_kind(r) == "ERROR" else "OK"
+    """ERROR iff MUST reported one; HARNESS-ERROR when the harness had no MUST run to judge
+    (docker failed, the container was killed before the timeout): no verdict."""
+    k = must_kind(r)
+    return HARNESS if k == HARNESS else "ERROR" if k == "ERROR" else "OK"
 
 
 def must_verdict_hangs(r: dict) -> str:
     """MUST with a hang or a failed run the harness observed credited as an error, as
     Stretto's are: a run the harness killed (a blocked rank, 2-blocked) and a rank that
-    stopped before MPI_Finalize (abort). RE is a MUST run that ended without its report."""
-    return "ERROR" if must_kind(r) in ("ERROR", "TIMEOUT", "RE") else "OK"
+    stopped before MPI_Finalize (abort). RE is a MUST run that ended without its report; a
+    harness error is no MUST run at all, and no verdict."""
+    k = must_kind(r)
+    return HARNESS if k == HARNESS else "ERROR" if k in ("ERROR", "TIMEOUT", "RE") else "OK"
 
 
 # Other MUST versions and configurations, each in a column of its own in the corpus table

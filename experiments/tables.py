@@ -1275,6 +1275,13 @@ def e4():
     rs = rows(os.path.join(RES, "e4", "e4.csv"))
     if not rs:
         return "_no results_\n"
+    # rows whose plain or traced run did not finish, or whose analysis failed, time nothing
+    # (tables written before e4_overhead.sh recorded how its runs ended have no such columns)
+    failed = [r for r in rs if r.get("plain_result", "FINISHED") != "FINISHED" or r.get("traced_result", "FINISHED") != "FINISHED"
+              or r.get("analysis", "ok") != "ok"]
+    rs = [r for r in rs if r not in failed]
+    if not rs:
+        return f"_no row whose runs and analysis succeeded ({len(failed)} failed)_\n"
     groups = collections.OrderedDict()
     for r in rs:
         groups.setdefault((r["benchmark"], r["class"], r["np"]), []).append(r)
@@ -1292,7 +1299,9 @@ def e4():
            "`experiments/results/timing-leg.log`) on the second machine, announced to the other lanes, the",
            f"analysis one process; {reps} repetition(s) of the whole set, each row the median over them. The",
            "wall times include the launcher's start-up; NPB's own timer covers the benchmark's timed section.",
-           f"Rows by code commit: {commits(rs)}.", "",
+           f"Rows by code commit: {commits(rs)}." + (f" Left out, a run or its analysis failed: {len(failed)} ("
+                                                      + ", ".join(f"{r['benchmark']}.{r['class']}.{r['np']}" for r in failed) + ")."
+                                                      if failed else ""), "",
            "| benchmark | class | np | plain (s) | traced (s) | slowdown | NPB plain (s) | NPB traced (s) | NPB slowdown (range) | trace (MB) | events | wildcards | analysis (s) | findings |",
            "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
     npb_sd, wall_sd = [], []
@@ -2580,7 +2589,8 @@ def e9():
                 "access moved after the completing call), labelled correct. `a+b` is the tool run with every shipped "
                 "property and the blind markers: an error if either arm reports one.", ""]
         V = {arm: {r["program"]: r["verdict"] for r in built if r["arm"] == arm} for arm in "abc"}
-        V["a+b"] = {p: "ERROR" if "ERROR" in (V["a"].get(p), V["b"].get(p)) else "OK" for p in progs}
+        V["a+b"] = {p: "ERROR" if "ERROR" in (V["a"].get(p), V["b"].get(p))
+                    else score.HARNESS if score.HARNESS in (V["a"].get(p), V["b"].get(p)) else "OK" for p in progs}
         V["S"] = {p: r["verdict"] for p, r in st.items() if r.get("build") == "ok"}
         lc_dom = [p for p in insc if progs[p]["expect"] == "OK" or progs[p]["detail"] == "LocalConcurrency"]
         for title, ps, tag in (("All programs in scope", insc, ""),
@@ -2591,11 +2601,14 @@ def e9():
             for arm, label in (("a", "MPI-PRV, arm a (no markers)"), ("b", "MPI-PRV, arm b (blind markers)"),
                                ("c", "MPI-PRV, arm c (markers at the labels)"), ("a+b", "MPI-PRV, arms a and b"),
                                ("S", "Stretto with the buffer guard (`stretto_corpus.py`)")):
-                rs = [{"expect": progs[p]["expect"], "verdict": V[arm][p]} for p in ps if p in V[arm]]
+                rs = [{"expect": progs[p]["expect"], "verdict": V[arm][p], "program": p} for p in ps if p in V[arm]]
                 if not rs:
                     continue
                 c = score.confusion(rs, lambda r: r["verdict"])
                 out.append(conf_row(label, c))
+                if c["harness"] or c["crash"]:
+                    out.append(f"| ({label}: {c['harness']} program(s) without a verdict, a run without a trace or a "
+                               f"failed analyser, and {c['crash']} analysis crash(es), left out of the row) | | | | | | | |")
                 A = {"a+b": "AB", "S": "Stretto"}.get(arm, arm.upper()) + tag
                 num(f"PRVfone{A}", c["f1"])
                 for k in ("tp", "fp", "fn", "tn"):
