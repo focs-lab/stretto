@@ -211,6 +211,61 @@ Labelled-error programs: 65. Stress testing makes 53 fail (median run of the fir
 run that finished; stress testing never makes 12 of those fail (P2PBuffering_Circular_Isend_Irecv_nok, P2PBuffering_Circular_Isend_Recv_nok, P2PBuffering_Circular_Send_Irecv_nok, P2PBuffering_Circular_Send_Recv_nok, P2PBuffering_Isend_Irecv_Isend_Irecv_nok, P2PBuffering_Isend_Recv_Isend_Recv_nok, P2PBuffering_SameProcess_Isend_Irecv_nok, P2PBuffering_SameProcess_Isend_Recv_nok, P2PBuffering_SameProcess_Send_Irecv_nok, P2PBuffering_SameProcess_Send_Recv_nok, P2PBuffering_Send_Irecv_Send_Irecv_nok, P2PBuffering_Send_Recv_Send_Recv_nok).
 Correct programs that failed under stress (a hang under load or a delay): 0.
 
+### Stress-testing baseline with the eager limit forced down: MBI
+
+The same baseline (up to 30 runs per program, the same random delays, seed and timeout) with Open MPI's eager
+threshold forced down to 0 payload bytes in every run (`stress_baseline.py --eager`, `stress-eager.csv`):
+`--mca btl self,tcp --mca btl_tcp_if_include lo --mca btl_tcp_eager_limit 56 --mca btl_self_eager_limit 56`.
+This is the setting E2 replays a buffering finding with below its bound, at the least eager limit the TCP
+transport accepts; the shared-memory transport is left out because it sends up to 256 bytes inline whatever its
+limit, and the self transport does the same for a send to the sending rank.
+Programs: 115. Rows by code commit: 0dabfce (115).
+
+Labelled-error programs: 65. Forced down, stress testing makes 61 fail (15 only after the first run).
+Against the default limits: 8 of these do not fail there, and 0 that fail there never fail here. Of the 12 errors Stretto predicts that the default limits never expose, 8 fail and 4 still never fail (P2PBuffering_SameProcess_Isend_Irecv_nok, P2PBuffering_SameProcess_Isend_Recv_nok, P2PBuffering_SameProcess_Send_Irecv_nok, P2PBuffering_SameProcess_Send_Recv_nok), 4 of them sending to their own rank (untestable below their bound in E2).
+Correct programs that fail: 0.
+Of the 61 failures, 57 are hangs killed at the timeout and the others end with SIGNAL:6 (4).
+Against Stretto's verdict from one run: 4 errors Stretto reports are never made to fail (P2PBuffering_SameProcess_Isend_Irecv_nok, P2PBuffering_SameProcess_Isend_Recv_nok, P2PBuffering_SameProcess_Send_Irecv_nok, P2PBuffering_SameProcess_Send_Recv_nok),
+and 4 made to fail Stretto does not report (MessageRace_Irecv_Isend_nok, MessageRace_Irecv_Send_nok, MessageRace_Recv_Isend_nok, MessageRace_Recv_Send_nok).
+
+| | TP | FP | FN | TN | F1 |
+|---|---|---|---|---|---|
+| random delays, eager limit forced down | 61 | 0 | 4 | 50 | 0.97 |
+
+Programs whose outcome the forced limit changes:
+
+| program | label | default limits | eager limit forced down |
+|---|---|---|---|
+| P2PBuffering_Circular_Isend_Irecv_nok | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| P2PBuffering_Circular_Isend_Recv_nok | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| P2PBuffering_Circular_Send_Irecv_nok | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| P2PBuffering_Circular_Send_Recv_nok | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| P2PBuffering_Isend_Irecv_Isend_Irecv_nok | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| P2PBuffering_Isend_Recv_Isend_Recv_nok | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| P2PBuffering_Send_Irecv_Send_Irecv_nok | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| P2PBuffering_Send_Recv_Send_Recv_nok | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+
+
+### Stress-testing baseline with the eager limit forced down: MPI-BugBench level 2
+
+The same baseline (up to 30 runs per program, the same random delays, seed and timeout) with Open MPI's eager
+threshold forced down to 0 payload bytes in every run (`stress_baseline.py --eager`, `stress-eager.csv`):
+`--mca btl self,tcp --mca btl_tcp_if_include lo --mca btl_tcp_eager_limit 56 --mca btl_self_eager_limit 56`.
+This is the setting E2 replays a buffering finding with below its bound, at the least eager limit the TCP
+transport accepts; the shared-memory transport is left out because it sends up to 256 bytes inline whatever its
+limit, and the self transport does the same for a send to the sending rank.
+Programs: 365. Rows by code commit: 0dabfce (365).
+
+Labelled-error programs: 213. Forced down, stress testing makes 208 fail (0 only after the first run).
+The baseline at the default limits has no table for this corpus (step stress of `run_remaining.sh` selects none of its programs), so there is nothing to compare with.
+Correct programs that fail: 4 (COLL__Correct-mpi_gather-002, COLL__Correct-mpi_reduce-002, COLL__Correct-mpi_reduce-003, COLL__Correct-mpi_reduce-004), 4 of them ending as the traced run at the default limits did (column `run` of the corpus table).
+Of the 212 failures, 204 are hangs killed at the timeout and the others end with MPI-ERROR:MPI_ERR_ARG (4), SIGNAL:11 (4).
+Against Stretto's verdict from one run: 5 errors Stretto reports are never made to fail (COLL__CallOrdering-unmatched-mpi_iallreduce-mpi_ialltoall-001, COLL__CallOrdering-unmatched-mpi_ibcast-mpi_iscan-001, COLL__CallOrdering-unmatched-mpi_ibcast-mpi_iscatter-001, COLL__CallOrdering-unmatched-mpi_ireduce-mpi_igather-001, COLL__CallOrdering-unmatched-mpi_iscatter-mpi_iscan-001),
+and 0 made to fail Stretto does not report.
+
+| | TP | FP | FN | TN | F1 |
+|---|---|---|---|---|---|
+| random delays, eager limit forced down | 208 | 4 | 5 | 148 | 0.98 |
 
 ### Repeated runs: how often each verdict holds (MBI)
 
