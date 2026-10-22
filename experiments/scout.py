@@ -57,7 +57,7 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, os.path.join(ROOT, "analysis"))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from stretto import trace  # noqa: E402
-from stretto.confirm import all_matched, horizon_pins, required_matches, run_checked, tracer_lib  # noqa: E402
+from stretto.confirm import _horizon, all_matched, run_checked, tracer_lib  # noqa: E402
 from stretto.report import ERROR_CLASSES, analyze  # noqa: E402
 from stretto.sites import _is_dyn  # noqa: E402
 from provenance import code_commit  # noqa: E402
@@ -251,13 +251,17 @@ def main() -> int:
         chosen = range(len(pool))
     todo = [pool[c] for c in chosen]
     print(f"replaying {len(todo)} of {len(pool)} alternatives", flush=True)
-    # the pins of the chosen alternatives, from their traces loaded again one at a time
+    # the pins of the chosen alternatives, from their traces loaded again one at a time; one
+    # horizon (one feasibility check of the whole trace, minutes on a run of millions of
+    # records) gives both the pins (confirm.horizon_pins) and the required matches
+    # (confirm.required_matches)
     prepared = {}
     for j in sorted({j for j, *_ in todo}):
         t = trace.load(traced[j][1])
         for jj, f, *_ in todo:
             if jj == j:
-                prepared[id(f)] = (horizon_pins(t, f), required_matches(t, f))
+                h = _horizon(t, f)
+                prepared[id(f)] = (None, None) if h is None else ((h[0], h[1]), h[2])
         del t
     for _, d, *_ in traced:
         shutil.rmtree(d, ignore_errors=True)
