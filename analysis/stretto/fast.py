@@ -620,9 +620,15 @@ class Observed:
                     ex = exclude2[2] if exclude2 is not None and exclude2[0] == R and exclude2[1] == Q else -1
                     v, pos = ix.r6s[key].query(i, ex)
                     if v < cut[Q]:
-                        if (Q, v) in stale:
-                            # the competitor the index names is re-matched or dropped: judge
-                            # each pending receive of the suffix by its M' competitor
+                        exempt = (Q, v) in changed_probe_at
+                        if exempt and cut[Q] <= v + 1:
+                            # the changed probe, exempt from rule 6 (check_probe judges what
+                            # depends on the message it reports instead); every competitor after
+                            # it lies beyond rule 1's cut right after it
+                            pass
+                        elif (Q, v) in stale or exempt:
+                            # the competitor the index names is re-matched, dropped or exempt:
+                            # judge each pending receive of the suffix by its M' competitor
                             for j in range(i, len(ix.sq[key])):
                                 if j != ex and ix.sq[key][j].key in ix.recv_of0:
                                     rule6(t.recvs[ix.recv_of0[ix.sq[key][j].key]])

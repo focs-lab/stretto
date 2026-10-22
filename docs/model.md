@@ -160,7 +160,11 @@ keep it linear for mixed regimes.)
 Probe closures in a chain. The fast check of a probe alternative (p, s) splits it in two. The
 horizon is the closure of the observed matching with rule 1 cutting p's rank right after p,
 in which p itself is exempt from rules 5 and 6, since it reports s and not the message it saw
-(`Observed.closure(changed_probes=[p])`); it does not depend on s. What does depend on s is
+(`Observed.closure(changed_probes=[p])`); it does not depend on s. Before 22 Oct 2026 the
+exemption held where a pending receive is judged alone but not in the suffix-minimum query over
+the receivers of a cut rank's sends, which named p by the message it saw, so the probe's own
+closure could cut p where the generic check keeps it (completeness only;
+`test_probe_closure_exempts_the_probe_in_the_suffix_query`). What does depend on s is
 judged on that horizon, per alternative (`Observed.check_probe`): p is kept, s is issued
 inside the horizon, no earlier receive of p's rank without a message accepts s, and no earlier
 receive that accepts s has lost its message to the horizon (it would stay pending and take s:

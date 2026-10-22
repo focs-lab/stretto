@@ -1023,6 +1023,35 @@ class C_FastEqualsGeneric(unittest.TestCase):
         self.assertEqual(ob.probe_closure(p)[0][0], p.idx + 1)
         closure_orders_agree(self, t)
 
+    def test_probe_closure_exempts_the_probe_in_the_suffix_query(self):
+        """The probe's own closure exempted it from rule 6 only where a pending receive is
+        judged alone, not in the suffix query over the receivers of a cut rank's sends, which
+        named the probe under the message it saw (audit of 22 Oct 2026, item 12). Rank 0:
+        Irecv x(ANY, tag 1), which takes rank 1's y; Probe p(ANY, ANY), which saw rank 2's tag-1
+        message; Send q -> 1; receives. Rank 1: Irecv u(ANY, tag 4), which takes q; Irecv
+        v(ANY, tag 4), which takes rank 4's message; Send y -> 0; waits. If p reports rank 3's
+        tag-2 message instead, q is beyond the horizon, u stays pending and deprives v, rank 1
+        is cut at v, before y, and x stays pending: it accepts what p saw, not what p reports,
+        so p is kept. The fast check cut p and rejected the alternative."""
+        pr = {"op": "probe", "kind": "probe", "src": 0, "anysrc": 1, "tag": 0, "anytag": 1, "comm": 0, "flag": 1,
+              "msrc": 2, "mtag": 1}
+        t = mk({0: [irecv(T.ANY, 1, 10), pr, send(1, 4), recv(2, 1, 2, 1), recv(3, 2, 3, 2), wait((10, 1, 1))],
+                1: [irecv(T.ANY, 4, 20), irecv(T.ANY, 4, 21), send(0, 1), wait((21, 4, 4)), wait((20, 0, 4))],
+                2: [send(0, 1)], 3: [send(0, 2)], 4: [send(1, 4)]})
+        p, s = t.probes[(0, 0)], t.sends[(3, 0)]
+        self.assertEqual([(q.key, m.key) for q, m in probe_candidates(t)], [(p.key, s.key)])
+        for B in breakpoints(t) + [None]:
+            g = check(t, t.observed, set(), B, "L1", changed_probes={p.key}, probe_alt={p.key: s.key})
+            self.assertTrue(g.feasible, g.reason)
+            self.assertEqual((g.cut[0], g.cut[1]), (p.idx + 1, t.recvs[(1, 1)].idx))
+            ob = fast.Observed(t, B)
+            self.assertEqual(ob.closure(changed_probes=[p])[0], g.cut)
+            f = ob.check_probe(p, s)
+            self.assertEqual((f.feasible, f.cut), (True, g.cut), f.reason)
+        fast_equals_generic(self, t)
+        closure_equals_fixpoint(self, t)
+        closure_orders_agree(self, t)
+
 
 class C_MatchNodes(unittest.TestCase):
     """The audit's counterexamples to T1 (20 Oct 2026). Matching order binds the *match* of a
