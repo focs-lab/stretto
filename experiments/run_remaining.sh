@@ -59,20 +59,21 @@ step_reps() {
             --out "experiments/results/reps/mbi-$k.csv" --work "experiments/results/reps/mbi-$k" || return 1
     done
 }
+# the stress baseline's MPI-BugBench programs: the call-ordering and correct ones. The corpus
+# table names a program by its path with '/' replaced by '__' (MBB_SELECT above matches paths).
+MBB_STRESS_SELECT='^(P2P|COLL)__(CallOrdering|Correct)'
 step_stress() {
     # the baseline: up to 30 runs per program with random delays, until one does not finish
-    python3 experiments/stress_baseline.py experiments/results/mbi/mbi.csv --runs 30 --jobs "$JOBS" --timeout "$TIMEOUT"
+    python3 experiments/stress_baseline.py experiments/results/mbi/mbi.csv --runs 30 --jobs "$JOBS" --timeout "$TIMEOUT" &&
     python3 experiments/stress_baseline.py experiments/results/mbb/mbb.csv --runs 30 --jobs "$JOBS" --timeout "$TIMEOUT" \
-        --select '^(P2P|COLL)/(CallOrdering|Correct)'
+        --select "$MBB_STRESS_SELECT"
 }
 step_stresseager() {
     # the baseline again with no payload byte buffered (stress_baseline.py --eager 0: E2's TCP
-    # setting at the least eager limit Open MPI accepts), the same runs, delays and timeout; on
-    # MPI-BugBench the call-ordering and correct programs, which step stress means to select
-    # (its pattern has '/' where the program names have '__', so it selects none)
+    # setting at the least eager limit Open MPI accepts), the same programs, runs, delays and timeout
     python3 experiments/stress_baseline.py experiments/results/mbi/mbi.csv --runs 30 --jobs "$JOBS" --timeout "$TIMEOUT" --eager 0 &&
     python3 experiments/stress_baseline.py experiments/results/mbb/mbb.csv --runs 30 --jobs "$JOBS" --timeout "$TIMEOUT" --eager 0 \
-        --select '^(P2P|COLL)__(CallOrdering|Correct)'
+        --select "$MBB_STRESS_SELECT"
 }
 step_e2() {
     python3 experiments/b_impl.py
