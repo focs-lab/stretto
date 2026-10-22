@@ -1787,3 +1787,23 @@ the same alternative, so a count of replays counts it once per trace that has it
 So the 290 cross replays of HYPRE 2.10.1 test 18 alternatives, the 480 replays of NPB MG test 160 alternatives, the 1440 cross replays of deal.II test 142 alternatives, and the 160 cross replays of HYPRE 3.2.0 test 16 alternatives.
 
 NPB MG 2.4.1: the 3 traced runs have the same number of records, the same alternatives and the same residual (`nMGDistinctTraces` = 1). Their 480 replays have 161 distinct outcomes (alternative, result, residual; `nMGDistinctOutcomes`). 383 replays finished with a residual other than the traced run's (`nMGChangedTraced`), which every control that finished printed (478); they pin 128 distinct alternatives (`nMGDistinctChanged`), 0 of which change it in some finished replays and not in others (`nMGDistinctMixed`). E5d's count of replays that change the result compares with the control's residual, so it also counts 1 replay whose residual is the traced run's and whose control printed none.
+
+### The pin log of every application campaign
+
+The pinned runs of every application campaign, replays and controls alike, with the runs that left a
+required pin unmatched and how they ended. A run with a pin unmatched that finished or hung did not test its
+alternative, whatever it printed: the log overrules its outcome. The pin log at the end of E5d (`nPinRuns`)
+reads the first four campaigns only.
+
+| campaign | pinned runs | a pin unmatched | of which finished | hung | other | rows by code commit | macros |
+|---|---|---|---|---|---|---|---|
+| HYPRE 2.10.1 and 2.11.0 (E5c) | 1620 | 7 | 0 | 0 | 7 APP-ERROR:15 | 67e043a (550), 53dceae (260) | `nPinRunsHypre`, `nPinUnmatchedHypre`, ... |
+| NPB MG 2.4.1 and 3.3.1 (E5d) | 960 | 3 | 0 | 0 | 3 APP-ERROR:15 | 8d780ae (480) | `nPinRunsMG`, `nPinUnmatchedMG`, ... |
+| AMG, the sample of E5 | 60 | 0 | 0 | 0 | 0 | 576e917 (30) | `nPinRunsAMG`, `nPinUnmatchedAMG`, ... |
+| Nekbone, the sample of E5b | 60 | 0 | 0 | 0 | 0 | 4a8814f (30) | `nPinRunsNek`, `nPinUnmatchedNek`, ... |
+| deal.II 9.3.0-rc1 and 9.3.0 (E5e) | 10560 | 49 | 49 | 0 | 0 | 575d291 (5280) | `nPinRunsDeal`, `nPinUnmatchedDeal`, ... |
+| HYPRE 3.2.0 `ex5` and its fixed variant (E5f) | 4640 | 5 | 0 | 5 | 0 | e3d3933 (1200), 0ca587d (1120) | `nPinRunsHypreNew`, `nPinUnmatchedHypreNew`, ... |
+| PETSc 3.26.0 `ex2` (E5f) | 6840 | 10 | 0 | 10 | 0 | 0ca587d (1840), 3a87e3a (1580) | `nPinRunsPetsc`, `nPinUnmatchedPetsc`, ... |
+| **all** | 24740 | 74 | 49 | 15 | 10 | | `nPinRunsAll`, `nPinUnmatchedAll`, `nPinUnmatchedEndedAll`, ... |
+
+deal.II 9.3.0-rc1: of the 1440 cross replays that print wrong values, 1434 had every required pin matched and a control that finished (`nDealWrongConfirmed`), the confirmation rule of E1 and E8c.

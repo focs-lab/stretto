@@ -10,7 +10,8 @@ The statistics of the last section of docs/results.md ("Statistics") have macros
                                         that is exactly 0 or 1 is written so, any other with the
                                         decimals (at least two) that give its distance to 0 or 1
                                         two significant digits ('[0, 0.046]', '[0.0044, 0.13]')
-  n<campaign>...DistinctPins            the distinct pinned alternatives behind a campaign's replays"""
+  n<campaign>...DistinctPins            the distinct pinned alternatives behind a campaign's replays
+  nPin...All, nPin...<campaign>         the pin log over every application campaign, and by campaign"""
 from __future__ import annotations
 import collections
 import csv
@@ -3010,6 +3011,69 @@ def _distinct() -> list:
     return out
 
 
+# The application campaigns' tables of pinned runs: (macro key, campaign, tables). The first four
+# are the ones pin_log reads.
+PIN_CAMPAIGNS = (("Hypre", "HYPRE 2.10.1 and 2.11.0 (E5c)", ("hypre/predict.csv", "hypre/predict-2.11.0.csv")),
+                 ("MG", "NPB MG 2.4.1 and 3.3.1 (E5d)", ("npbmg/predict-2.4.1.csv", "npbmg/predict-3.3.1.csv")),
+                 ("AMG", "AMG, the sample of E5", ("amg/replay_sample.csv",)),
+                 ("Nek", "Nekbone, the sample of E5b", ("nekbone/replay_sample.csv",)),
+                 ("Deal", "deal.II 9.3.0-rc1 and 9.3.0 (E5e)", ("dealii/predict-9.3.0-rc1.csv", "dealii/predict-9.3.0.csv")),
+                 ("HypreNew", "HYPRE 3.2.0 `ex5` and its fixed variant (E5f)", ("hypre3/predict.csv", "hypre3/predict-fix.csv")),
+                 ("Petsc", "PETSc 3.26.0 `ex2` (E5f)", ("petsc/parasails.csv", "petsc/parasails-default-m32.csv")))
+
+
+def pinned_runs(rs) -> list:
+    """The pinned runs of a campaign table's rows, replays and controls alike, as (result, every
+    required pin matched); an alternative that was not replayed has none."""
+    out = []
+    for r in rs:
+        if _replayed(r):
+            out += [(r.get("replay"), r.get("matched") == "True"), (r.get("control"), r.get("control_matched") == "True")]
+    return [(res, m) for res, m in out if res]
+
+
+def _pin_log_all() -> list:
+    """The pin log over every application campaign, by campaign (pin_log reads the first four)."""
+    out = ["", "### The pin log of every application campaign", "",
+           "The pinned runs of every application campaign, replays and controls alike, with the runs that left a",
+           "required pin unmatched and how they ended. A run with a pin unmatched that finished or hung did not test its",
+           "alternative, whatever it printed: the log overrules its outcome. The pin log at the end of E5d (`nPinRuns`)",
+           "reads the first four campaigns only.", "",
+           "| campaign | pinned runs | a pin unmatched | of which finished | hung | other | rows by code commit | macros |",
+           "|---|---|---|---|---|---|---|---|"]
+    tot = collections.Counter()
+    for key, label, files in PIN_CAMPAIGNS:
+        rs = [r for f in files for r in rows(os.path.join(RES, f))]
+        runs = pinned_runs(rs)
+        if not runs:
+            continue
+        un = [res for res, m in runs if not m]
+        c = {"Runs": len(runs), "Unmatched": len(un), "UnmatchedFinished": un.count("FINISHED"), "UnmatchedHung": un.count("TIMEOUT")}
+        c["UnmatchedEnded"] = c["UnmatchedFinished"] + c["UnmatchedHung"]
+        for k, v in c.items():
+            num(f"nPin{k}{key}", v)
+            tot[k] += v
+        other = collections.Counter(res for res in un if res not in ("FINISHED", "TIMEOUT"))
+        out.append(f"| {label} | {len(runs)} | {len(un)} | {c['UnmatchedFinished']} | {c['UnmatchedHung']} | "
+                   f"{', '.join(f'{n} {res}' for res, n in sorted(other.items())) or 0} | {commits([r for r in rs if _replayed(r)])} "
+                   f"| `nPinRuns{key}`, `nPinUnmatched{key}`, ... |")
+    if not tot:
+        return []
+    for k, v in tot.items():
+        num(f"nPin{k}All", v)
+    out.append(f"| **all** | {tot['Runs']} | {tot['Unmatched']} | {tot['UnmatchedFinished']} | {tot['UnmatchedHung']} | "
+               f"{tot['Unmatched'] - tot['UnmatchedEnded']} | | `nPinRunsAll`, `nPinUnmatchedAll`, `nPinUnmatchedEndedAll`, ... |")
+    # deal.II's cross replays print wrong values; the ones that confirm the race by the rule of E1
+    cross = [r for r in rows(os.path.join(RES, "dealii", "predict-9.3.0-rc1.csv")) if _replayed(r) and r.get("kind") == "cross"]
+    if cross:
+        wrong = [r for r in cross if r.get("differs") == "True"]
+        conf = [r for r in cross if _valid_confirmed("dealii", r)]
+        num("nDealWrongConfirmed", len(conf))
+        out += ["", f"deal.II 9.3.0-rc1: of the {len(wrong)} cross replays that print wrong values, {len(conf)} had every required pin "
+                f"matched and a control that finished (`nDealWrongConfirmed`), the confirmation rule of E1 and E8c."]
+    return out
+
+
 def statistics_section() -> str:
     """The statistics of the evaluation, from the same tables as the sections above, and some
     from their macros: run after them (the macro names: the module docstring)."""
@@ -3019,6 +3083,7 @@ def statistics_section() -> str:
            "they qualify (the docstring of `experiments/tables.py`).", ""]
     out += _intervals()
     out += _distinct()
+    out += _pin_log_all()
     return "\n".join(out) + "\n"
 
 

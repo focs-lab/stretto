@@ -2,7 +2,9 @@
 on small inputs the tests write themselves."""
 import importlib.util
 import os
+import tempfile
 import unittest
+from unittest import mock
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
@@ -116,6 +118,45 @@ class DistinctPins(unittest.TestCase):
         for r in ({"pin": "STRETTO_PIN=1:2:3", "replay": "no horizon"}, {"pin": "", "replay": "FINISHED"},
                   {"pin": "STRETTO_PIN=1:2:3", "replay": ""}, {"pin": "STRETTO_PIN=1:2:3", "replay": "traced run TIMEOUT"}):
             self.assertFalse(tables._replayed(r), r)
+
+
+class PinLog(unittest.TestCase):
+    """The pinned runs of a campaign table: a replay and its control are two runs, an alternative
+    without a horizon is not replayed, and a run counts as matched only when its log says so."""
+
+    def test_replays_and_controls_alike(self):
+        rs = [{"pin": "STRETTO_PIN=1:2:3", "replay": "TIMEOUT", "matched": "True", "control": "FINISHED", "control_matched": "True"},
+              {"pin": "STRETTO_PIN=1:2:4", "replay": "FINISHED", "matched": "False", "control": "FINISHED", "control_matched": ""},
+              {"pin": "STRETTO_PIN=1:2:5", "replay": "no horizon", "matched": "", "control": "", "control_matched": ""},
+              {"pin": "STRETTO_PIN=1:2:6", "replay": "APP-ERROR:15", "matched": "False", "control": "", "control_matched": ""},
+              {"pin": "", "replay": "traced run TIMEOUT"}]
+        self.assertEqual(tables.pinned_runs(rs), [("TIMEOUT", True), ("FINISHED", True), ("FINISHED", False), ("FINISHED", False),
+                                                  ("APP-ERROR:15", False)])
+
+    def test_by_campaign_and_over_all(self):
+        h = "np,run,pin,kind,replay,matched,differs,control,control_matched,commit"
+        tabs = {"dealii/predict-9.3.0-rc1.csv": ["4,1,STRETTO_PIN_PROBE=0:52:2,cross,FINISHED,True,True,FINISHED,True,a",
+                                                 "4,1,STRETTO_PIN_PROBE=0:52:3,cross,FINISHED,False,True,FINISHED,False,a"],
+                "hypre3/predict.csv": ["4,1,STRETTO_PIN_PROBE=1:0:0,other,TIMEOUT,False,,FINISHED,True,b"]}
+        saved = dict(tables.NUM)
+        with tempfile.TemporaryDirectory() as d, mock.patch.object(tables, "RES", d):
+            for name, lines in tabs.items():
+                os.makedirs(os.path.dirname(os.path.join(d, name)), exist_ok=True)
+                with open(os.path.join(d, name), "w") as fh:
+                    fh.write(h + "\n" + "".join(x + "\n" for x in lines))
+            try:
+                tables.NUM.clear()
+                text = "\n".join(tables._pin_log_all())
+                got = {k: tables._count(k) for k in tables.NUM if k.startswith("nPin") or k == "nDealWrongConfirmed"}
+            finally:
+                tables.NUM.clear()
+                tables.NUM.update(saved)
+        self.assertEqual(got, {"nPinRunsDeal": 4, "nPinUnmatchedDeal": 2, "nPinUnmatchedFinishedDeal": 2, "nPinUnmatchedHungDeal": 0,
+                               "nPinUnmatchedEndedDeal": 2, "nPinRunsHypreNew": 2, "nPinUnmatchedHypreNew": 1,
+                               "nPinUnmatchedFinishedHypreNew": 0, "nPinUnmatchedHungHypreNew": 1, "nPinUnmatchedEndedHypreNew": 1,
+                               "nPinRunsAll": 6, "nPinUnmatchedAll": 3, "nPinUnmatchedFinishedAll": 2, "nPinUnmatchedHungAll": 1,
+                               "nPinUnmatchedEndedAll": 3, "nDealWrongConfirmed": 1})
+        self.assertIn("| **all** | 6 | 3 | 2 | 1 | 0 |", text)
 
 
 if __name__ == "__main__":
