@@ -78,10 +78,15 @@ object.
 3. **Paths.** The graph has a node per instruction. A call to a function defined in the
    analysed units goes to its entry, and its returns go back after every call that may reach
    it (context-insensitive). A call through a pointer, inline assembly, and a call into code
-   outside the units (MPI, the C library) fall through and may also call back every function
-   whose address the units take (named anywhere but as a direct callee, global initialisers
-   included). `main` returns to nowhere. A program that calls `setjmp`, `longjmp` or another
-   function that transfers control the graph cannot show gets no free site anywhere.
+   outside the units (MPI, the C library, a unit of the program that was not analysed) fall
+   through and may also call back every function whose address the units take (named
+   anywhere but as a direct callee, global initialisers included) and every function with
+   external linkage but `main`: another unit, or a library linked against the program, can
+   call such a function by name, so the map stays sound when some units of the program are
+   not given. Only a `static` function (internal linkage) that the units never take the
+   address of is called from its own unit alone. `main` returns to nowhere. A program that
+   calls `setjmp`, `longjmp` or another function that transfers control the graph cannot show
+   gets no free site anywhere.
 4. **Free sites.** From the instruction after the completing call: R, the nodes reachable;
    X, the nodes of R that read an object; tainted, the nodes reachable from X, X included. A
    site is free if its call is in R and not tainted.
@@ -94,9 +99,10 @@ the result of a receive r, it has read no result of r in between.
 Let π be the path of the execution from the return of c to the call at s. Every step of π is an
 edge of the graph: control within a function follows the IR's own edges; a call to a defined
 function enters it and returns to the instruction after that call, which is one of the return
-edges; a call to outside code either returns to the instruction after it or runs a callback,
-which can only be a function whose address the program has taken, and the graph has those
-edges from every such call. A read of a result object on π is an instruction of the completing
+edges; a call to outside code either returns to the instruction after it or runs code of the
+units, which it can enter only at a function whose address the units take (through a pointer)
+or at a function with external linkage (by name), and the graph has those edges from every
+such call. A read of a result object on π is an instruction of the completing
 call's function, or an MPI call to which a pointer to the object is passed: the object is a
 local whose address never leaves its function (rule 1), so no other code holds a pointer to
 it, and every pointer to it in its function is derived from the `alloca` by the operations the
@@ -106,7 +112,7 @@ only adds reads. So if π contained a read, s would be tainted, and it is free.
 Premises: the map comes from the sources the traced binary was built from; the program does not
 access an object through a pointer to another one (undefined behaviour in C), including
 receiving more data into a local than it holds; signal handlers and other threads do not read
-the result objects (they cannot reach them by rule 1).
+the result objects (they cannot reach them by rule 1); nothing but the C runtime calls `main`.
 
 ## Bounds on a trace
 
@@ -181,8 +187,11 @@ synchronise). A rank that finishes its recorded calls in the witness must end it
   element of an array buffer for the whole array.
 - An object received into again still counts as read when the program reads the new data.
 - Returns are context-insensitive and every outside call may call back every address-taken
-  function, so a function called both before and after a read, and every callback, has its
-  calls tainted.
+  function and every function with external linkage, so a function called both before and
+  after a read, every callback, and every non-`static` function once an outside call follows
+  the read, has its calls tainted. Declaring helpers `static` keeps their calls free; a map
+  that knew every unit of the program, and that no library calls the program by name, could
+  drop the external functions, but nothing checks those two premises today.
 - A wait that completes a receive posted in another function (a helper that waits for requests
   it is given) has no pair in the map: H1.
 - Records are matched to sites by line: two MPI calls of the same kind on one line are

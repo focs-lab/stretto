@@ -13,11 +13,13 @@ is an instruction of that function on a pointer derived from them, or an MPI cal
 passed to, and the analysis sees each one. Anything else (a parameter, a global, heap memory, a
 local whose address escapes, MPI_BOTTOM) gives the empty set, which is today's rule H1.
 
-Reachability is interprocedural and context-insensitive: a call to a function of the program
-goes to its entry and its returns go back after every call that may reach it; a call through
-a pointer, and every call into code outside the program (MPI included), may call back any
-function whose address the program takes. Every real path is a path of this graph, which is
-what soundness needs; spurious paths only make the sets smaller."""
+Reachability is interprocedural and context-insensitive: a call to a function of the analysed
+units goes to its entry and its returns go back after every call that may reach it; a call
+through a pointer, and every call into code outside the units (MPI, the C library, a unit of
+the program that was not analysed), may call back any function whose address the units take
+and any function with external linkage, which another unit can call by name. Every real path
+is a path of this graph, which is what soundness needs; spurious paths only make the sets
+smaller."""
 from __future__ import annotations
 import os
 import re
@@ -116,13 +118,19 @@ class Program:
             if x.callee in NONLOCAL_JUMPS:
                 self.notes.append(f"{x.callee[1:]} in {self.funcs[fi].name[1:]}: control flow that the graph does not show")
         self.taken = sorted(taken)
+        # what code outside the units may call: a function whose address the units take, and
+        # every function another unit can name, since a unit of the program that was not
+        # analysed (or a library linked against it) may call it directly. Only internal
+        # linkage hides a function from other units. main is left out: the C runtime calls it
+        # once, before everything, and no program calls it again (docs/firstread.md, premises)
+        self.callbacks = sorted(taken | {i for i, f in enumerate(self.funcs) if not f.internal and f.name != "@main"})
 
     def _edges(self) -> None:
         N = len(self.node_of)
         self.succ: List[List[int]] = [[] for _ in range(N)]
         rets: Dict[int, List[int]] = {}
         conts: Dict[int, List[int]] = {}                 # function -> nodes its returns go back to
-        taken_entries = [(g, self.entry[g]) for g in self.taken if self.entry[g] is not None]
+        callback_entries = [(g, self.entry[g]) for g in self.callbacks if self.entry[g] is not None]
         for n in range(N):
             fi, bi, ii = self.node_of[n]
             x = self.inst(n)
@@ -140,9 +148,10 @@ class Program:
                     continue
                 self.succ[n].extend(after)
                 if x.callee is None or not x.callee.startswith("@llvm."):
-                    # a call through a pointer, or into code outside the program, may call back
-                    # any function whose address the program takes
-                    for g, e in taken_entries:
+                    # a call through a pointer, or into code outside the units, may call back
+                    # any function whose address the units take and any function with
+                    # external linkage
+                    for g, e in callback_entries:
                         self.succ[n].append(e)
                         conts.setdefault(g, []).extend(after)
                 continue

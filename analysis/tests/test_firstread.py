@@ -337,6 +337,33 @@ int main(int argc, char **argv) {
         self.assertNotIn(sites(m, "MPI_Barrier")[0], r["free"])
         self.assertNotIn(sites(m, "MPI_Finalize")[0], r["free"])
 
+    def test_other_units_may_call_external_functions(self):
+        """A unit that was not analysed (other() here) may call step() by name after the read,
+        so step's barrier is not free although main calls step only before the read; before
+        22 Oct 2026 only address-taken functions were callbacks and the barrier was certified.
+        A static step cannot be named by another unit and keeps its barrier free; main is
+        never a callback."""
+        prog = """
+%sint step(void) { return MPI_Barrier(MPI_COMM_WORLD); }
+void other(void);
+int main(int argc, char **argv) {
+  int buf = 0, y;
+  MPI_Init(&argc, &argv);
+  MPI_Recv(&buf, 1, MPI_INT, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+  step();
+  y = buf;
+  other();
+  MPI_Send(&y, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
+  MPI_Finalize();
+  return 0;
+}"""
+        m = analyse_c(prog % "")
+        r = entry(m, sites(m, "MPI_Recv")[0])
+        self.assertNotIn(sites(m, "MPI_Barrier")[0], r["free"])
+        m = analyse_c(prog % "static ")
+        r = entry(m, sites(m, "MPI_Recv")[0])
+        self.assertEqual(r["free"], [sites(m, "MPI_Barrier")[0]])
+
     def test_nonlocal_jumps_fall_back(self):
         m = analyse_c("""
 #include <setjmp.h>
