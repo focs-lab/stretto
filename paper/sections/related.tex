@@ -17,13 +17,14 @@ first race, with relaxed correct reorderings that let a thread's last read chang
 SyncP~\citep{mathur21syncp} decide larger classes by closure, SyncP optimally for the
 reorderings that keep the order of critical sections. Sync-preserving deadlock
 prediction runs in linear time~\citep{tunc23spd} and reports gaps in an SMT encoding claimed
-sound~\citep{kalhauge18sound}. Synchronisation-reversal races~\citep{shi24osr} reverse one lock
-order and test acyclicity over a closure, the shape of our check; reversing one match is the
-message-passing analogue. \Cref{thm:sound} follows the unified soundness
+sound~\citep{kalhauge18sound}. Synchronisation-reversal races~\citep{shi24osr} reverse the order
+of critical sections and test acyclicity over a closure, the shape of our check; changing a match
+is the message-passing analogue. \Cref{thm:sound} follows the unified soundness
 template~\citep{liu25soundness}, with MPI's rules at $\Bt$ for the memory model and a matching
 over the horizon for the bug; the template covers locks under multicopy-atomic models, not
-message passing. Our witness is uniform over the programs consistent on $\Hpre$; the horizon is a
-strong trace prefix~\citep{ang24strong}.
+message passing. Our witness is uniform over the programs consistent on $\Hpre$; the horizon
+generalises strong trace prefixes~\citep{ang24strong}, which keep every read's writer, to a
+prefix in which one match changes.
 
 \paragraph{Message races and reachability testing.} Race analysis of
 traces~\citep{tai97race} and reachability testing~\citep{lei06reachability} compute from one
