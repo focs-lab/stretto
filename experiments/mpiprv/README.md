@@ -66,6 +66,8 @@ IMAGE=stretto-exp:24.04 CPUS=26-27,66-67 DETACH=0 experiments/container/run.sh p
 python3 experiments/tables.py                                  # section E9 of docs/results.md
 ```
 
+The tables are summarised in section E9 of [`docs/results.md`](../../docs/results.md).
+
 ## The corpus arms (`run.py`)
 
 Programs: MPI-BugBench level 2's LocalConcurrency and Correct programs (those of
