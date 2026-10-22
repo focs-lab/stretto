@@ -122,7 +122,7 @@ def cmd_oracle(args):
 def cmd_confirm(args):
     t, rep = _analyze(args)
     res = confirm_mod.confirm(rep, args.np or t.np, args.exe, args.args, timeout=args.timeout, mpi=args.mpi,
-                              only_errors=not args.all, t=t)
+                              only_errors=not args.all, t=t, keep_as=tuple(args.keep) if args.keep else None)
     if args.json:
         print(json.dumps([{"cls": c.finding.cls, "level": c.finding.level, "title": c.finding.title, "pin": c.pin,
                            "result": c.result, "pin_applied": c.pin_applied, "pin_matched": c.pin_matched,
@@ -207,6 +207,8 @@ def main(argv=None) -> int:
     a.add_argument("tracedir"); a.add_argument("exe"); a.add_argument("args", nargs="*")
     a.add_argument("--np", type=int, default=0); a.add_argument("--timeout", type=int, default=20)
     a.add_argument("--mpi", default="openmpi"); a.add_argument("--all", action="store_true", help="also replay informational findings")
+    a.add_argument("--keep", nargs=2, metavar=("CAMPAIGN", "PREFIX"),
+                   help="with KEEP_TRACES set, archive each replay's and control's trace as CAMPAIGN/PREFIX__... (stretto.keep)")
     _analysis_options(a); a.add_argument("--json", action="store_true"); a.set_defaults(fn=cmd_confirm)
     a = sub.add_parser("oracle", help="exhaustively explore the trace as a single-path program"); a.add_argument("tracedir")
     a.add_argument("--B", nargs="*", default=["0", "inf"]); a.set_defaults(fn=cmd_oracle)

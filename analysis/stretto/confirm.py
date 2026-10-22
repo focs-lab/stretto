@@ -32,6 +32,7 @@ from collections import Counter
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Set, Tuple
 
+from . import keep as keep_mod
 from .report import Finding, Report
 from .horizon import _cidx
 from .trace import ANY
@@ -175,6 +176,15 @@ def strip_identity(pins: str) -> str:
     """The pins as written before they carried identities (for tables, whose pin columns name
     the pins in that form)."""
     return re.sub(r"@[^,\s]*", "", pins)
+
+
+def pin_name(pin: Optional[str]) -> str:
+    """A pin as part of a file name, for the trace a replay with it keeps (stretto.keep):
+    STRETTO_PIN=1:0:0:0@... -> 1.0.0.0, STRETTO_PIN_PROBE=1:0:2 -> probe-1.0.2."""
+    if not pin:
+        return "nopin"
+    name, _, spec = strip_identity(pin).partition("=")
+    return ("probe-" if name.endswith("PROBE") else "") + spec.replace(":", ".").replace(",", "_")
 
 
 def _local_comms(t) -> Dict[Tuple[int, int], int]:
@@ -912,13 +922,15 @@ def misapplied_pins(r: subprocess.CompletedProcess, result: str, from_trace: Lis
 
 def run_checked(np: int, exe: str, args: List[str], pin, timeout: int = 20, mpi: str = "openmpi",
                 mpirun_args: Optional[List[str]] = None, extra_env: Optional[dict] = None,
-                cwd: Optional[str] = None) -> Replay:
+                cwd: Optional[str] = None, keep_as: Optional[Tuple[str, str]] = None) -> Replay:
     """run_pinned with the tracer preloaded when it is built: the tracer applies the pins as the
     replay library does and records the run with the original envelopes into a directory of
     its own, which judge_replay reads and removes. Without the tracer, the replay library runs
     and the replay is not judged. With STRETTO_KEEP_REPLAYS set to a directory, a replay whose
     trace is not, or not known to be, a run of the program is kept there, its pins, result,
-    verdict and stderr next to the trace, for a closer look."""
+    verdict and stderr next to the trace, for a closer look. keep_as, (campaign, name), keeps
+    the replay's trace with KEEP_TRACES set (stretto.keep), whatever its verdict, with the same
+    note and the run's stdout in replay.txt."""
     tracer = tracer_lib(mpi)
     if not os.path.exists(tracer):
         r = run_pinned(np, exe, args, pin, timeout, mpi, mpirun_args, extra_env, cwd)
@@ -933,6 +945,11 @@ def run_checked(np: int, exe: str, args: List[str], pin, timeout: int = 20, mpi:
         mis: List[str] = []
         ended: Set[Tuple[str, int, int]] = set()
         valid, why = judge_replay(d, res, pin, seen, mis, ended)
+
+        def note() -> str:
+            return (f"exe: {exe} {' '.join(args)}\nnp: {np}\nresult: {res}\nvalid: {valid}\nwhy: {why}\npins:\n"
+                    + "\n".join([pin] if isinstance(pin, str) else (pin or [])) + f"\n--- stderr\n{r.stderr}")
+
         keep = os.environ.get("STRETTO_KEEP_REPLAYS")
         if keep and valid != "True":
             os.makedirs(keep, exist_ok=True)
@@ -940,8 +957,9 @@ def run_checked(np: int, exe: str, args: List[str], pin, timeout: int = 20, mpi:
             for f in os.listdir(d):
                 shutil.copy(os.path.join(d, f), dest)
             with open(os.path.join(dest, "replay.txt"), "w") as fh:
-                fh.write(f"exe: {exe} {' '.join(args)}\nnp: {np}\nresult: {res}\nvalid: {valid}\nwhy: {why}\npins:\n"
-                         + "\n".join([pin] if isinstance(pin, str) else (pin or [])) + f"\n--- stderr\n{r.stderr}")
+                fh.write(note())
+        if keep_as is not None and keep_mod.enabled():
+            keep_mod.keep(d, keep_as[0], keep_as[1], notes={"replay.txt": note() + f"\n--- stdout\n{r.stdout}"})
         return Replay(r, res, valid, why, seen, misapplied_pins(r, res, mis),
                       None if why.startswith("trace unreadable") else ended)
     finally:
@@ -965,23 +983,28 @@ def pin_assignment(assignment: str, d: str) -> str:
 
 
 def confirm(rep: Report, np: int, exe: str, args: List[str] = (), timeout: int = 20, mpi: str = "openmpi",
-            only_errors: bool = True, t=None) -> List[Confirmation]:
+            only_errors: bool = True, t=None, keep_as: Optional[Tuple[str, str]] = None) -> List[Confirmation]:
     """t, the trace, gives the horizon pins and the control reruns; without it no finding can be
     confirmed. A finding whose consequence holds in every execution with the change is replayed
     with the horizon pins (every wildcard operation of the alternative's horizon pinned); one
     whose consequence holds in some execution with the pins of the explorer's witness. Replays
     and controls run under the tracer when it is built (run_checked), which judges each as a run
-    of the program without its pins; Confirmation.strict is the verdict that needs it."""
+    of the program without its pins; Confirmation.strict is the verdict that needs it.
+    keep_as, (campaign, prefix), keeps the trace of each replay and control with KEEP_TRACES set
+    (stretto.keep), named <prefix>__<class>-<level>-<pin> and __replay or __control after it."""
     out = []
     seen = set()
     controls: dict = {}
 
-    def control(pins: List[str]) -> Replay:
+    def kept(f: Finding, pin: Optional[str], role: str) -> Optional[Tuple[str, str]]:
+        return None if keep_as is None else (keep_as[0], f"{keep_as[1]}__{f.cls}-{f.level}-{pin_name(pin)}__{role}")
+
+    def control(pins: List[str], name: Optional[Tuple[str, str]]) -> Replay:
         if t is None or not pins:
             return Replay(None, "")
         key = tuple(pins)
         if key not in controls:
-            controls[key] = run_checked(np, exe, list(args), pins, timeout, mpi)
+            controls[key] = run_checked(np, exe, list(args), pins, timeout, mpi, keep_as=name)
         return controls[key]
 
     for f in rep.findings:
@@ -1009,7 +1032,7 @@ def confirm(rep: Report, np: int, exe: str, args: List[str] = (), timeout: int =
         if key in seen:
             continue
         seen.add(key)
-        rp = run_checked(np, exe, list(args), pins, timeout, mpi)
+        rp = run_checked(np, exe, list(args), pins, timeout, mpi, keep_as=kept(f, pin, "replay"))
         r, res = rp.proc, rp.result
         applied = all(pins_applied(x, r.stderr) for x in pins)
         want = expected_outcomes(f)
@@ -1021,7 +1044,7 @@ def confirm(rep: Report, np: int, exe: str, args: List[str] = (), timeout: int =
                                                        _reported(r.stderr, pins) | rp.seen, rp.ended)
         else:
             matched = all_matched(pins, r.stderr, required, rp.seen)
-        ctl = control(ctl_pins) if want and res in want and matched else Replay(None, "")
+        ctl = control(ctl_pins, kept(f, pin, "control")) if want and res in want and matched else Replay(None, "")
         # a pin on another operation than the traced one: the replay diverged before it, and its
         # outcome says nothing about the alternative, whichever it is
         mis = rp.misapplied + ctl.misapplied

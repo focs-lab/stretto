@@ -1,6 +1,7 @@
 """Keeping the traces a rerun records (stretto.keep, KEEP_TRACES): one compressed tar per trace
 directory, a manifest line for each, no archive ever overwritten, nothing at all when
-KEEP_TRACES is not set; and the shell drivers' keep_trace (experiments/harness.sh)."""
+KEEP_TRACES is not set; the shell drivers' keep_trace (experiments/harness.sh); and the
+replays' traces, kept by stretto.confirm when the tracer is built."""
 import concurrent.futures
 import csv
 import glob
@@ -17,9 +18,11 @@ from unittest import mock
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
 sys.path.insert(0, os.path.join(ROOT, "analysis"))
-from stretto import keep, report, trace  # noqa: E402
+from stretto import confirm as C, keep, report, trace  # noqa: E402
 
 GOLDEN = os.path.join(HERE, "golden", "openmpi")
+MPI = os.environ.get("MPI", "openmpi")
+REQUIRE = os.environ.get("STRETTO_REQUIRE_TRACES") == "1"
 
 
 def manifest(base):
@@ -138,6 +141,9 @@ class Keep(unittest.TestCase):
         self.assertEqual(keep.safe("../x"), "_._x")
         self.assertLessEqual(len(keep.safe("x" * 400)), 150)
         self.assertNotEqual(keep.safe("x" * 400), keep.safe("x" * 399))
+        self.assertEqual(C.pin_name("STRETTO_PIN=1:0:0:0@0:4:1a2b"), "1.0.0.0")
+        self.assertEqual(C.pin_name("STRETTO_PIN_PROBE=1:0:2"), "probe-1.0.2")
+        self.assertEqual(C.pin_name(None), "nopin")
         with self.env(self.base):
             path = keep.keep(self.trace, "petsc/scan", "ex2 thresh=0.01/np4 run 1")
         self.assertEqual(os.path.relpath(path, self.base), os.path.join("petsc", "scan", "ex2_thresh=0.01_np4_run_1.tar.xz"))
@@ -178,6 +184,40 @@ class ShellKeep(unittest.TestCase):
             r = bash(f'keep_trace "{GOLDEN}/04_orphan_send" e4/e4 x || echo stopped', KEEP_TRACES=os.path.join(d, "blocker"))
             self.assertEqual(r.stdout, "stopped\n")
             self.assertIn("KEEP-ERROR", r.stderr)
+
+
+class KeptReplays(unittest.TestCase):
+    """A confirmation's replay and control under the tracer, kept with their pins and output.
+    Needs the tracer, the replay library and the idioms built and traced, as test_replay_e2e."""
+
+    def test_confirm_keeps_each_replay_and_control(self):
+        d = next(iter(glob.glob(os.path.join(ROOT, "idioms", "04_*"))), "")
+        exe = os.path.join(d, "bin", MPI, "main")
+        tdir = os.path.join(ROOT, "traces", MPI, os.path.basename(d))
+        missing = [p for p in (C.tracer_lib(MPI), os.path.join(ROOT, "replay", "bin", MPI, "libstretto-pin.so"), exe)
+                   if not os.path.exists(p)] + ([] if glob.glob(os.path.join(tdir, "rank-*.jsonl")) else [tdir])
+        if missing:
+            if REQUIRE:
+                self.fail(f"not built or traced: {missing}")
+            self.skipTest(f"not built or traced: {missing}")
+        t = trace.load(tdir)
+        rep = report.analyze(t)
+        with tempfile.TemporaryDirectory() as base, mock.patch.dict(os.environ, {keep.ENV: base}):
+            res = [c for c in C.confirm(rep, 3, exe, timeout=20, t=t, mpi=MPI, keep_as=("idioms", "04")) if c.finding.cls == "1d"]
+            self.assertTrue(res)
+            rows = manifest(base)
+            names = {r["name"] for r in rows}
+            for c in res:
+                stem = f"04__{c.finding.cls}-{c.finding.level}-{C.pin_name(c.finding.pin)}"
+                self.assertIn(stem + "__replay", names)
+                self.assertIn(stem + "__control", names)
+            r = next(r for r in rows if r["name"].endswith("__replay"))
+            with tarfile.open(os.path.join(base, r["archive"])) as tar:
+                note = tar.extractfile(f"{r['name']}/replay.txt").read().decode()
+                self.assertTrue([m for m in tar.getnames() if m.endswith(".jsonl")])
+            self.assertIn("pins:\nSTRETTO_PIN=", note)
+            self.assertIn("[stretto-pin]", note)
+            self.assertIn("--- stdout", note)
 
 
 if __name__ == "__main__":
