@@ -48,13 +48,16 @@ declare -A URL=([mfem-4.10.tar.gz]=https://github.com/mfem/mfem/archive/refs/tag
                 [metis-4.0.3.tar.gz]=https://github.com/mfem/tpls/raw/gh-pages/metis-4.0.3.tar.gz
                 [hypre-3.2.0.tar.gz]=https://github.com/hypre-space/hypre/archive/refs/tags/v3.2.0.tar.gz)
 # driver name, process counts, example and its arguments (meshes from MFEM's data/; each run
-# and replay runs in a fresh directory, where the examples write their solutions)
+# and replay runs in a fresh directory, where the examples write their solutions). ex6p on the
+# triangle mesh and ex15p run at 4 processes only: at 8 a run has 3 and 5 million records, and
+# the validity check of each replay, which analyses the replay's own trace, took the container
+# past its 48 GB with two replays at a time
 DRIVERS="ex6p|4 8|ex6p -m $M/data/star.mesh -no-vis -md 4000
 ex6p-norebalance|4 8|ex6p -m $M/data/star.mesh -no-vis -md 4000 -no-reb
 ex6p-quad|4|ex6p -m $M/data/inline-quad.mesh -no-vis -md 4000 -reb
 ex6p-pref|4|ex6p -m $M/data/star.mesh -no-vis -md 4000 -pref
-ex6p-tri|4 8|ex6p -m $M/data/square-disc.mesh -no-vis -md 4000
-ex15p|4 8|ex15p -m $M/data/star-hilbert.mesh -no-vis -tf 0.2
+ex6p-tri|4|ex6p -m $M/data/square-disc.mesh -no-vis -md 4000
+ex15p|4|ex15p -m $M/data/star-hilbert.mesh -no-vis -tf 0.2
 ex15p-hex|4|ex15p -m $M/data/inline-hex.mesh -no-vis -tf 0.1"
 
 step_fetch() {
