@@ -126,7 +126,9 @@ that stress testing at the default limits does (F1 \NinjaMBIRandomfone, \NinjaMB
 \MBB's errors show in the run itself: by design, every incorrect program's error is
 expected to be observable~\citep{jammer24quality}, so a score there measures detection, not
 prediction. \tool's predicted findings alone score \MBBfonepredicted, while the observed checks
-score \MBBfoneunion, against \MBBfoneMUST and \MBBfoneMUSTsym for \MUST. The \nMBBfp false
+score \MBBfoneunion, against \MBBfoneMUST and \MBBfoneMUSTsym for \MUST; on the \nMBBStressProgs
+programs stress testing runs, \MBBfoneunionstress against its \MBBfonestress
+(\MBBfonestresseager forced down). The \nMBBfp false
 positives are
 correct-labelled gather and reduce programs whose runs Open MPI ends with \texttt{MPI\_ERR\_ARG}. The \nMBBfnunion misses are local
 concurrency errors, a buffer reused during a pending nonblocking operation, invisible to a matching
