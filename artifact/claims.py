@@ -38,7 +38,7 @@ RQ_OF = [
     (4, r"^nReads"),
     (6, r"^n?Ninja(Hypre|Replica|MG|Petsc)"),
     (2, r"^n?NinjaMBI|^nMBIMUST|^nTsanLC|^(MBI|MBB)fone|^n(MBI|MBB)(tp|fn|fp|progs|notBuilt|correct|errors|race|Stress|Clean|OnlyStretto|LC)|^n?Guard|^n?Reps"
-        r"|^n?PRV"),
+        r"|^n?PRV|^n?(MBI|MBB)(Union|Sign)"),
     (3, r"^nEtwo|^B[a-z]+OMPI$"),
     (4, r"^n(MBI|MBB)(one|sp|obs)[A-Z]"),
     (5, r"^TraceOverhead|^LuAnalysis|^LuEvents|^AMGtime|^Nek(GB|Minutes|PerAlt|Records)|^nEfour|^n?Scale"),
@@ -314,6 +314,27 @@ def claims(n: dict) -> list:
           ["nValidMGReplays", "nValidMGRuns"], lambda r, v: r > 0 and r == v, over=["nValidMGReplays"])
     claim(6, "deal.II 9.3.0-rc1, a sample run again: every cross alternative prints wrong values in a run of the program",
           ["nValidDealReplays", "nValidDealConfNew"], lambda r, c: r > 0 and r == c, over=["nValidDealReplays"])
+    # statistics of the evaluation (experiments/tables.py, section "Statistics")
+    claim(6, "stress testing's runs with delays never hang HYPRE 2.10.1, and their 95% upper bound on the hang rate is above 5%",
+          ["nHypreStressDelayHang", "nHypreStressDelayHangCIHi"], lambda h, hi: h == 0 and hi > 0.05, over=["nHypreStressDelayRuns"])
+    claim(6, "NINJA's application-centric mode hangs HYPRE 2.10.1 at 8 processes more often than stress testing's runs with "
+             "delays, at 95% confidence (the intervals are disjoint)",
+          ["nNinjaHypreEightAppHangSetupCILo", "nHypreStressDelayHangCIHi"], lambda lo, hi: lo > hi,
+          over=["nNinjaHypreEightAppRuns", "nHypreStressDelayRuns"])
+    claim(6, "NPB MG 2.4.1: the traced runs have the same alternatives, so the replays are each distinct alternative once per "
+             "traced run",
+          ["nMGDistinctTraces", "nMGDistinctPins", "nMGReplayed", "nMGTraced"], lambda d, p, r, t: d == 1 and r == p * t,
+          over=["nMGTraced", "nMGDistinctPins"])
+    claim(2, "on MBI, every labelled error Stretto finds is found by MUST 1.9.2 or by stress testing at the default limits",
+          ["nMBIUnionStrettoNeither"], lambda n: n == 0, over=["nMBIUnionErrors", "nMBIUnionStretto"])
+    claim(2, "on MBI, Stretto's lead over stress testing at the default limits is not significant at the 5% level "
+             "(exact two-sided sign test)",
+          ["nMBISignStressStretto", "nMBISignStressOther", "MBISignStressP"], lambda s, o, p: s > o and p > 0.05,
+          over=["nMBIUnionErrors"])
+    claim(2, "on MBI, Stretto finds significantly more labelled errors than MUST 1.9.2 under both scorings "
+             "(exact two-sided sign test, 5%)",
+          ["nMBISignMUSTStretto", "nMBISignMUSTOther", "MBISignMUSTP", "nMBISignMUSTsymStretto", "nMBISignMUSTsymOther",
+           "MBISignMUSTsymP"], lambda s, o, p, ss, so, sp: s > o and p < 0.05 and ss > so and sp < 0.05, over=["nMBIUnionErrors"])
     return out
 
 
