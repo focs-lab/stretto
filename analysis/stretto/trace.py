@@ -533,7 +533,13 @@ def _build(t: Trace, raw_ranks: Dict[int, List[dict]]) -> None:
     folded = {rank: _fold_begins([r for r in recs if r.get("op") != "site"]) for rank, recs in raw_ranks.items()}
     for rank, recs in folded.items():
         t.ranks[rank] = [Rec(rank, i, r["op"], r) for i, r in enumerate(recs)]
-        t.threads[rank] = len({r.get("tid") for r in recs} - {None}) or 1
+        # under MPI_THREAD_MULTIPLE every record names its thread (a site table overflow aside);
+        # below it (since 22 Oct 2026) those of a thread other than the initialising one do, and
+        # a record without a thread is the initialising thread's
+        tids = {r.get("tid") for r in recs if r["op"] != "overflow"}
+        if max((r.get("thread", 0) for r in recs if r["op"] == "init"), default=0) >= 3:
+            tids.discard(None)
+        t.threads[rank] = len(tids) or 1
         for r in recs:
             if r["op"] == "init":
                 t.np = max(t.np, r.get("np", 0))

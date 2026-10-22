@@ -1355,11 +1355,16 @@ class C_TracerRecords(unittest.TestCase):
 
     def test_begin_pairs_with_the_same_thread(self):
         # thread 1 is inside a blocking receive while thread 2 sends: the begin is not blocked
-        t = mk({0: [{"op": "begin", "call": "recv", "src": 1, "tag": 1, "comm": 0, "count": 1, "tsize": 4, "tid": 1},
+        # (MPI_THREAD_MULTIPLE: every record names its thread, the ones mk adds aside)
+        t = mk({0: [{"op": "init", "np": 3, "thread": 3},
+                    {"op": "begin", "call": "recv", "src": 1, "tag": 1, "comm": 0, "count": 1, "tsize": 4, "tid": 1},
                     {**send(2, 9), "tid": 2}, {**recv(1, 1, 1, 1), "tid": 1}],
                 1: [send(0, 1)], 2: [recv(0, 9, 0, 9)]})
         self.assertEqual(t.blocked_calls(), [])
         self.assertEqual(t.threads[0], 2)
+        # below MULTIPLE (since 22 Oct 2026) a record without a thread is the initialising thread's
+        t = mk({0: [{**send(1, 1), "tid": 5}], 1: [recv(0, 1, 0, 1)]})
+        self.assertEqual(t.threads, {0: 2, 1: 1})
 
     def test_side_record_inside_a_wait_is_not_a_blocked_call(self):
         # an Idup completed by a Waitall registers its communicator between the begin and the
@@ -1377,6 +1382,21 @@ class C_TracerRecords(unittest.TestCase):
         rep = analyze(t)
         self.assertFalse(rep.by_class("1f"))
         self.assertTrue(any("THREAD_MULTIPLE" in n for n in rep.notes))
+
+    def test_several_threads_below_multiple_give_observed_findings_only(self):
+        # MPI_THREAD_SERIALIZED (2): the tracer names the thread of every record that the
+        # initialising thread did not make; the rank's call order then depends on scheduling
+        t = mk({0: [{"op": "init", "np": 3, "thread": 2}, recv(T.ANY, 1, 1, 1, widx=0), {**recv(T.ANY, 1, 2, 1, widx=1), "tid": 7}],
+                1: [send(0, 1)], 2: [send(0, 1)]})
+        self.assertEqual(t.threads[0], 2)
+        rep = analyze(t)
+        self.assertEqual([f for f in rep.findings if f.level != "observed"], [])
+        self.assertTrue(any("several threads called MPI on ranks [0]" in n for n in rep.notes), rep.notes)
+        # one thread only, named or not: predictions as usual
+        t = mk({0: [{"op": "init", "np": 3, "thread": 1}, recv(T.ANY, 1, 1, 1, widx=0), recv(T.ANY, 1, 2, 1, widx=1)],
+                1: [send(0, 1)], 2: [send(0, 1)]})
+        self.assertEqual(t.threads[0], 1)
+        self.assertTrue(analyze(t, with_sp=False).by_class("1f"))
 
     def test_freed_receive_takes_its_message_unobserved(self):
         t = mk({0: [irecv(1, 1, 0), {"op": "reqfree", "req": 0}], 1: [send(0, 1)]})

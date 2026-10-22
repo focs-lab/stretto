@@ -6,8 +6,10 @@
 
    Record kinds (all carry "r" and "seq"):
      init      np, thread (provided level), version (of this format, TRACE_VERSION).
-               Under MPI_THREAD_MULTIPLE every record also
-               carries tid (the calling thread), since per-rank order is then not total.
+               Under MPI_THREAD_MULTIPLE every record also carries tid (the calling
+               thread), since per-rank order is then not total; under the other levels the
+               records of a thread other than the one that initialised MPI carry it (several
+               threads may call MPI under MPI_THREAD_SERIALIZED, or a misused FUNNELED).
      begin     call=<recv|wait|probe|coll|send> + the call's arguments; emitted BEFORE a
                potentially blocking call. The loader drops a begin followed by its
                record; an unpaired begin means the rank was killed inside that call.
@@ -103,7 +105,8 @@ static FILE *g_out = NULL;
 static int g_rank = -1;
 static long g_seq __attribute__((unused)) = 0;
 static int g_truncated = 0;
-static int g_multi = 0;           /* MPI_THREAD_MULTIPLE was provided: records carry tid */
+static int g_multi = 0;           /* MPI_THREAD_MULTIPLE was provided: every record carries tid */
+static long g_init_tid = 0;       /* the thread that initialised MPI: below MULTIPLE, the records of any other carry tid */
 static long g_payload = 0;        /* STRETTO_PAYLOAD: record message contents up to this many bytes */
 static pthread_mutex_t g_mu = PTHREAD_MUTEX_INITIALIZER;
 
@@ -212,6 +215,12 @@ static int site_id_locked(void *ra) {
 }
 #endif
 
+/* The calling thread's id, a system call the first time only. */
+static __thread long t_tid;
+static inline __attribute__((unused)) long my_tid(void) {
+    if (!t_tid) t_tid = (long)gettid();
+    return t_tid;
+}
 static void rb_emit_kind(rec_t *b, int failed_poll) {
 #ifndef STRETTO_PIN_ONLY
     pthread_mutex_lock(&g_mu);
@@ -227,7 +236,8 @@ static void rb_emit_kind(rec_t *b, int failed_poll) {
         g_poll_body = failed_poll ? strdup(b->p) : NULL;
         int site = site_id_locked(b->site);
         char head[96];
-        if (g_multi) snprintf(head, sizeof head, "{\"r\":%d,\"seq\":%ld,\"tid\":%ld,", g_rank, g_seq++, (long)gettid());
+        long tid = my_tid();
+        if (g_multi || tid != g_init_tid) snprintf(head, sizeof head, "{\"r\":%d,\"seq\":%ld,\"tid\":%ld,", g_rank, g_seq++, tid);
         else snprintf(head, sizeof head, "{\"r\":%d,\"seq\":%ld,", g_rank, g_seq++);
         fwrite(head, 1, strlen(head), g_out);
         fwrite(b->p, 1, b->len, g_out);
@@ -1148,6 +1158,7 @@ static void open_trace(int provided) {
 #endif
     stretto_pin_init(g_rank);
     g_multi = provided == MPI_THREAD_MULTIPLE;
+    g_init_tid = my_tid();
     guard_init(provided);
     int np; PMPI_Comm_size(MPI_COMM_WORLD, &np);
     REC(b, "init"); rb_printf(&b, ",\"np\":%d,\"thread\":%d,\"version\":%d", np, provided, TRACE_VERSION);

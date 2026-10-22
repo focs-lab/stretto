@@ -245,12 +245,17 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
         rep.notes.append(f"{untraced} collective(s) lack only ranks without a trace file: the trace is incomplete, "
                          "so they are not reported as 2-collective")
 
-    # ---- under MPI_THREAD_MULTIPLE a rank's records come from several threads, so its
-    # program order is not total and no alternative can be certified from it
+    # ---- a rank whose records come from several threads (MPI_THREAD_MULTIPLE, SERIALIZED, or a
+    # misused FUNNELED): its call order depends on the threads' scheduling, not only on its
+    # results, so its program order is not total and no alternative can be certified from it
     multi = [rank for rank, n in t.threads.items() if n > 1]
-    if t.thread_level >= 3 and multi:
-        rep.notes.append(f"MPI_THREAD_MULTIPLE with several calling threads on ranks {multi}: per-rank program order is not total, alternatives are not predicted (observed findings only)")
-        rep.degrade("threads", f"several calling threads on ranks {multi}: alternatives not predicted")
+    if multi:
+        if t.thread_level >= 3:
+            rep.notes.append(f"MPI_THREAD_MULTIPLE with several calling threads on ranks {multi}: per-rank program order is not total, alternatives are not predicted (observed findings only)")
+        else:
+            rep.notes.append(f"several threads called MPI on ranks {multi} (thread level {t.thread_level}): per-rank program "
+                             "order is not total, alternatives are not predicted (observed findings only)")
+        rep.degrade("threads", f"several calling threads on ranks {multi} (thread level {t.thread_level}): alternatives not predicted")
         return rep
     # ---- communication outside the modelled fragment (one-sided, neighbourhood collectives,
     # dynamic processes, MPI-4 calls the tracer does not model): the trace is not a complete

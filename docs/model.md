@@ -581,5 +581,11 @@ shaped collectives and metadata branches.
   completion, two pending operations owning the same bytes. These are observed findings
   (class 3-local) and outside the model: no matching changes them, and predicting one for
   another run would need the program's accesses, not its calls.
-- MPI_THREAD_MULTIPLE: per-rank program order is not total; the trace records thread ids and
-  the analysis stops at observed findings.
+- Several threads calling MPI (MPI_THREAD_MULTIPLE, SERIALIZED, or a misused FUNNELED): a
+  rank's call order then depends on the threads' scheduling, not only on its results, so it
+  is not a function of them as the definition of a program needs, and per-rank program order
+  is not total. The tracer records the calling thread at every level (on every record under
+  MULTIPLE, on the records of threads other than the initialising one below it), and the
+  analysis stops at observed findings when a rank's records come from more than one thread.
+  Before 22 Oct 2026 the thread was recorded under MULTIPLE only, and a SERIALIZED rank with
+  several calling threads was analysed as one deterministic sequence.
