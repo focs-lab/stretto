@@ -3,7 +3,8 @@
 A trace is one JSONL file per rank (see tracer/mpitrace.c). Every record becomes one
 `Rec` with two graph nodes, issue `(rank, idx, 'i')` and complete `(rank, idx, 'c')`.
 Blocking operations complete at their own record; nonblocking ones complete at the
-wait/test record that completed their request. An operation that never completed in
+wait/test record that completed their request, or at an earlier MPI_Request_get_status
+that found the request complete. An operation that never completed in
 the observed run (a blocked call in a deadlocked run, an unwaited request) has
 `completed == False` and no complete node takes part in delivery or rendezvous edges.
 
@@ -558,6 +559,7 @@ def _build(t: Trace, raw_ranks: Dict[int, List[dict]]) -> None:
         coll_ord: Dict[int, int] = {}
         pending_req: Dict[int, object] = {}
         cancelled_ops: List[object] = []       # the operations a cancel record names
+        status_at: Dict[int, dict] = {}        # request -> the first MPI_Request_get_status that found it complete
         for rec in recs:
             raw = rec.raw
             op = rec.op
@@ -604,7 +606,15 @@ def _build(t: Trace, raw_ranks: Dict[int, List[dict]]) -> None:
                 t.recvs[r.key] = r
             elif call == "wait":
                 if raw.get("kind") == "getstatus":
-                    continue                       # MPI_Request_get_status completes nothing
+                    # MPI_Request_get_status leaves the request to a later wait or test, but a
+                    # true flag is a result, as a successful test's is: the operation completed
+                    # there, so it is its completion node (a false flag, like a failed test,
+                    # says nothing, since the model has no progress guarantee)
+                    if not blocked and raw.get("flag"):
+                        for q in raw.get("reqs", []):
+                            if q is not None and q >= 0 and q in pending_req:
+                                status_at.setdefault(q, {**raw, "idx": rec.idx})
+                    continue
                 if raw.get("kind") in ("waitany", "testany", "waitsome", "testsome"):
                     t.waitany.append(rec)
                 if blocked:
@@ -616,7 +626,8 @@ def _build(t: Trace, raw_ranks: Dict[int, List[dict]]) -> None:
                     obj = pending_req.pop(q, None)
                     if obj is None:
                         continue
-                    obj.complete_idx = rec.idx
+                    st = status_at.pop(q, None)
+                    obj.complete_idx = rec.idx if st is None else st["idx"]
                     obj.completed = True
                     if isinstance(obj, Send) and "cancelled" in d:
                         obj.cancelled = bool(d["cancelled"])       # the completion status is authoritative
@@ -634,7 +645,10 @@ def _build(t: Trace, raw_ranks: Dict[int, List[dict]]) -> None:
                     obj.cancelled = True     # provisional; the completion status (if any) decides
             elif call == "reqfree":
                 obj = pending_req.pop(raw.get("req"), None)
-                if isinstance(obj, Recv):
+                st = status_at.pop(raw.get("req"), None)
+                if obj is not None and st is not None:
+                    _complete_at_status(obj, st, worldg, rank)
+                elif isinstance(obj, Recv):
                     obj.freed = True         # the receive completes unobserved: its message is not an orphan
             elif call == "probe":
                 comm = gid(rank, raw["comm"])
@@ -658,6 +672,10 @@ def _build(t: Trace, raw_ranks: Dict[int, List[dict]]) -> None:
                     c.completed = False
                     pending_req[c.req] = c
                 t.colls.append(c)
+        for q, st in status_at.items():        # found complete, and no later call returned it
+            obj = pending_req.get(q)
+            if obj is not None:
+                _complete_at_status(obj, st, worldg, rank)
         # the model has no cancellation: a cancel that succeeded withdrew an operation at a
         # point no matching rule describes, and one whose outcome the trace does not have may
         # have; a cancel that failed changed nothing (an implementation may always let it fail)
@@ -685,6 +703,22 @@ def _build(t: Trace, raw_ranks: Dict[int, List[dict]]) -> None:
         for rec in recs:
             if rec.op in ("send", "recv", "irecv", "coll"):
                 rec.raw = None
+
+
+def _complete_at_status(obj, st: dict, worldg, rank: int) -> None:
+    """A request that an MPI_Request_get_status record st found complete and that no later wait
+    or test returned (freed, or never completed): it completed at st. A receive's status is in
+    st when the tracer wrote it there (since 22 Oct 2026); without it the receive's message is
+    unknown and the receive counts as freed, which the analysis treats as unmatched."""
+    obj.complete_idx = st["idx"]
+    obj.completed = True
+    if isinstance(obj, Recv):
+        obj.msrc = worldg(obj.comm, st.get("msrc"), rank)
+        obj.mtag, obj.mcount = st.get("mtag"), st.get("mcount")
+        obj.cancelled = bool(st.get("cancelled"))
+        if obj.msrc is None or obj.cancelled:
+            obj.completed = False
+            obj.freed = not obj.cancelled
 
 
 def _comm_ids(t: Trace, folded: Dict[int, List[dict]], all_ranks: List[int]) -> Dict[Tuple[int, int], int]:

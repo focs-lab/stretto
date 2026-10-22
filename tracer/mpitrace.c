@@ -55,7 +55,9 @@
                its request id if it has one) overlaps the operation's, and one of the two
                writes to it. The init record carries guard:1 when the guard is on, guard:0 when
                it was asked for and is off (MPI_THREAD_MULTIPLE).
-   A record of kind wait with kind getstatus (MPI_Request_get_status) completes nothing.
+   A record of kind wait with kind getstatus (MPI_Request_get_status) leaves its request to a
+   later completion call; with flag 1 the operation has completed, and a receive's record
+   carries its msrc, mtag and mcount.
    Ranks in send/recv records are comm-local; the loader translates them.
 
    Payloads (STRETTO_PAYLOAD=<bytes>, off when unset or 0): a send carries data, the message
@@ -1450,11 +1452,22 @@ static void done_entry(rec_t *b, int first, MPI_Request before, MPI_Request *slo
     }
     rb_printf(b, "}");
 }
-/* MPI_Request_get_status completes nothing: recorded as a poll (a loop over it is one). */
+/* MPI_Request_get_status leaves the request to a later completion call: recorded as a poll (a
+   loop over it is one). A true flag says the operation completed; for a receive the record then
+   carries its status, since a request that is freed afterwards is never returned with one. */
 int MPI_Request_get_status(MPI_Request req, int *flag, MPI_Status *st) {
     GUARD;
+    MPI_Status mine; if (st == MPI_STATUS_IGNORE) st = &mine;
     int rc = PMPI_Request_get_status(req, flag, st);
-    REC(b, "wait"); rb_printf(&b, ",\"kind\":\"getstatus\",\"flag\":%d", *flag); reqs_list(&b, 1, &req, NULL); rb_printf(&b, ",\"done\":[]"); rb_emit_kind(&b, !*flag);
+    REC(b, "wait"); rb_printf(&b, ",\"kind\":\"getstatus\",\"flag\":%d", *flag); reqs_list(&b, 1, &req, NULL); rb_printf(&b, ",\"done\":[]");
+    if (*flag && rc == MPI_SUCCESS && req != MPI_REQUEST_NULL) {
+        pthread_mutex_lock(&g_mu);
+        reqent *e = req_find_locked(req, NULL);
+        int kind = e ? e->kind : -1; MPI_Datatype dt = e ? e->dt : MPI_DATATYPE_NULL;
+        pthread_mutex_unlock(&g_mu);
+        if (kind == 1) status_fields(&b, st, dt, 1);
+    }
+    rb_emit_kind(&b, !*flag);
     return rc;
 }
 static inline __attribute__((always_inline)) void begin_wait(const char *kind, int n, MPI_Request reqs[], MPI_Request *slots) {

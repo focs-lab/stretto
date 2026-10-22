@@ -627,6 +627,43 @@ class C_Cancellation(unittest.TestCase):
         self.assertEqual([f for f in analyze(t, with_sp=False).findings if f.level != "observed"], [])
 
 
+class C_RequestGetStatus(unittest.TestCase):
+    """A true MPI_Request_get_status is a result: the operation completed there, as at a
+    successful test, so its match precedes the query (audit of 22 Oct 2026)."""
+
+    @staticmethod
+    def status(req, flag=1, **st):
+        return {"op": "wait", "kind": "getstatus", "flag": flag, "reqs": [req], "done": [], **st}
+
+    def test_true_flag_orders_the_match_before_the_query(self):
+        # rank 0 finds its Irecv(ANY) complete, then sends x; rank 1 sends s1 only after x. In
+        # MPI the receive cannot take s1, which comes after the query that found it matched;
+        # with the completion at the wait the steal r <- s1 was accepted.
+        t = mk({0: [irecv(T.ANY, 1, 0), self.status(0), send(1, 9), wait((0, 2, 1)), recv(1, 1, 1, 1)],
+                1: [recv(0, 9, 0, 9), send(0, 1)], 2: [send(0, 1)]})
+        r = t.recvs[(0, 0)]
+        self.assertEqual((r.complete_idx, t.observed[r.key]), (2, (2, 0)))
+        self.assertEqual([a for a in candidates_full(t)[0] if a.recv == r.key and a.send == (1, 0)], [])
+        rep = analyze(t, with_sp=False)
+        self.assertFalse([f for f in rep.findings if f.recv == r.key and f.send == (1, 0)])
+        prog = dsl.program_from_trace(t)
+        self.assertEqual(prog[0][1], dsl.Wait("q0"))
+
+    def test_false_flag_says_nothing(self):
+        t = mk({0: [irecv(1, 1, 0), self.status(0, flag=0), wait((0, 1, 1))], 1: [send(0, 1)]})
+        self.assertEqual(t.recvs[(0, 0)].complete_idx, 3)
+
+    def test_freed_after_a_true_flag(self):
+        # the request is freed after the query found it complete: the status in the record
+        # (written since 22 Oct 2026) names the message, so the receive is matched there
+        t = mk({0: [irecv(1, 1, 0), self.status(0, msrc=1, mtag=1, mcount=1), {"op": "reqfree", "req": 0}],
+                1: [send(0, 1)]})
+        r = t.recvs[(0, 0)]
+        self.assertEqual((r.completed, r.freed, r.complete_idx), (True, False, 2))
+        self.assertEqual(t.observed, {(0, 0): (1, 0)})
+        self.assertFalse(analyze(t, with_sp=False).by_class("1c"))
+
+
 class C_TypeSignatures(unittest.TestCase):
     def test_contiguous_equals_repeated_basic(self):
         self.assertTrue(types.compatible("MPI_INT*4", 1, "MPI_INT", 4))

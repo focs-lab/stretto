@@ -7,7 +7,12 @@ get, a test in `analysis/tests` before it is written up as a theorem.
 
 A trace σ is one sequence of records per rank. Each record `e` has two nodes, `issue(e)` and
 `complete(e)`. Blocking operations complete at their own record; a nonblocking operation
-completes at the wait/test record that completed its request.
+completes at the wait/test record that completed its request, or at the first
+`MPI_Request_get_status` that found it complete, if that comes earlier: a true flag is a result,
+like a successful test's, so the match precedes it and rule 1 cuts after it (before 22 Oct 2026
+such queries were dropped, and an alternative could need the match after the query that had
+seen it done; `C_RequestGetStatus`). A false flag, like a failed test, says nothing, since the
+model guarantees no progress.
 
 Objects:
 

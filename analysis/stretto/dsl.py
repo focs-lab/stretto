@@ -141,7 +141,12 @@ def program_from_trace(t, positions: Optional[Dict[int, List[int]]] = None) -> P
                     ops.append(Recv(r.src, r.tag, r.capacity, r.comm, None if r.blocking else f"q{r.req}"))
             elif call == "wait":
                 kind = raw.get("kind")
-                if rec.op == "blocked":
+                if kind == "getstatus":
+                    # a true MPI_Request_get_status found its request complete: a wait there, as for
+                    # a successful test (the later wait or test that returns it then returns at once)
+                    if rec.op != "blocked" and raw.get("flag"):
+                        ops.extend(Wait(f"q{q}") for q in raw.get("reqs", []) if q is not None and q >= 0)
+                elif rec.op == "blocked":
                     reqs = tuple(f"q{q}" for q in raw.get("reqs", []) if q is not None and q >= 0)
                     if kind in ("waitany", "testany"):
                         ops.append(Waitany(reqs))
