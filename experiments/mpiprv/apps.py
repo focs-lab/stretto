@@ -14,9 +14,10 @@ Each configuration runs from a copy of its directory:
             of its horizon and with its control (experiments/replay_sample.py)
   guard     a second traced run with the buffer guard (STRETTO_GUARD=1), analysed
   confirm   the error findings of either trace that carry a pin, each replayed with its pin and
-            a control (`stretto confirm`, with Open MPI's default eager limits); the error
-            predictions of the plain trace that hold only below the eager threshold (B=0, B < n)
-            again under rendezvous for every message above 8 bytes (column rendezvous)
+            a control (`stretto confirm`, with Open MPI's default eager limits); what either
+            trace says holds only below the eager threshold (an error predicted for B=0 or B < n,
+            a finished run that needs buffering) again with every message above 8 bytes sent by
+            rendezvous (columns rendezvous and guard_rendezvous)
 Replays and confirmations need a control that finishes, so they are skipped when the traced run
 itself did not end with status 0 (kf-ray's rank 0 ends with a segmentation fault).
 Writes experiments/results/mpiprv/apps.csv and apps-replays.csv; the runs stay under
@@ -75,6 +76,7 @@ RENDEZVOUS = ["--mca", "btl", "self,tcp", "--mca", "btl_tcp_if_include", "lo", "
               "--mca", "btl_self_eager_limit", "64"]
 sys.path.insert(0, os.path.join(ROOT, "analysis"))
 from stretto import trace as strace  # noqa: E402
+from stretto.trace import ANY  # noqa: E402
 from stretto.confirm import all_matched, classify_rc, horizon_pins, required_matches, run_pinned  # noqa: E402
 from stretto.report import analyze as s_analyze  # noqa: E402
 
@@ -116,10 +118,23 @@ def analyse(tdir, timeout):
     return res, j["findings"]
 
 
+def observed_pins(t):
+    """STRETTO_PIN for every wildcard receive of the trace, to the sender it took."""
+    tok = []
+    for r in sorted(t.recvs.values(), key=lambda r: (r.rank, r.idx)):
+        sk = t.observed.get(r.key)
+        if r.widx is None or sk is None:
+            continue
+        m = t.sends[sk]
+        tok.append(f"{r.rank}:{r.widx}:{m.rank}" + (f":{m.tag}" if r.tag == ANY else ""))
+    return ["STRETTO_PIN=" + ",".join(tok)] if tok else []
+
+
 def rendezvous_replays(d, exe, args, np_, tdir, timeout):
-    """The error predictions of the trace that hold only below the eager threshold (B=0, B < n),
-    which a replay with Open MPI's default limits cannot show: each replayed with the pins of its
-    horizon at B = 0, and its control, under RENDEZVOUS."""
+    """What holds only below the eager threshold, which a replay with Open MPI's default limits
+    cannot show, replayed under RENDEZVOUS: each error prediction for B = 0 or B < n with the pins
+    of its horizon at B = 0, and its control; and a finished run that would deadlock below a
+    threshold (2-buffering) with every wildcard receive pinned to the sender it took."""
     try:
         t = strace.load(tdir)
     except Exception:  # noqa: BLE001
@@ -127,7 +142,13 @@ def rendezvous_replays(d, exe, args, np_, tdir, timeout):
     rep = s_analyze(t, with_sp=True, sp_max_events=600, max_states=30000)
     res = set()
     for f in rep.findings:
-        if f.cls not in ERROR_CLASSES or f.recv is None or f.send is None or not (f.B == "B=0" or f.B.startswith("B <")):
+        if f.cls not in ERROR_CLASSES or not (f.B == "B=0" or f.B.startswith("B <")):
+            continue
+        if f.cls == "2-buffering" and f.recv is None:
+            r = run_pinned(np_, exe, args.split(), observed_pins(t), timeout, mpirun_args=RENDEZVOUS, cwd=d)
+            res.add(f"observed run ({f.B}): {classify_rc(r.returncode, r.stderr, r.elapsed, timeout)}")
+            continue
+        if f.recv is None or f.send is None:
             continue
         hp = horizon_pins(t, f, 0)
         if hp is None:
@@ -229,6 +250,7 @@ def main():
                         f"{c['cls']}:{c['verdict']}" for c in cs).items())) or f"error rc={rc}"
             if replayable:
                 row["rendezvous"] = rendezvous_replays(d, exe, a, np_, os.path.join(d, "trace"), args.replay_timeout)
+                row["guard_rendezvous"] = rendezvous_replays(d, exe, a, np_, os.path.join(d, "trace-guard"), args.replay_timeout)
             os.environ.clear()
             os.environ.update(saved)
             rows.append(row)
@@ -244,7 +266,7 @@ def main():
         rows.sort(key=lambda r: (order.get(f"{r['app']}-{r['np']}", 0), int(r["np"])))
     keys = ["app", "np", "command", "run", "records", "sends", "recvs", "wildcards", "probes", "colls", "classes", "confirmed",
             "errors", "alternatives", "replays", "replay_results", "rendezvous", "analysis_s", "analysis_kb", "analysis_rc",
-            "guard_run", "guard_classes", "guard_local", "guard_confirmed", "summary", "commit"]
+            "guard_run", "guard_classes", "guard_local", "guard_confirmed", "guard_rendezvous", "summary", "commit"]
     with open(os.path.join(OUT, "apps.csv"), "w", newline="") as fh:
         w = csv.DictWriter(fh, fieldnames=keys, extrasaction="ignore", lineterminator="\n")
         w.writeheader()
