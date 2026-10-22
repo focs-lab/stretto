@@ -1503,6 +1503,75 @@ class C_ClosureOrderRandom(unittest.TestCase):
         self.assertGreater(exempt, 0)        # and defers to the probe's own closure when it cuts the probe
 
 
+def legacy_profile(bps, verdict, floor: int, full: bool):
+    """The dictionary report._profiles_fast filled before 22 Oct 2026 (C_ProfileReadsAsDict)."""
+    prof = {}
+
+    def judge(B):
+        prof[B] = verdict(B)
+        return prof[B]
+
+    for B in bps[:floor]:
+        prof[B] = False
+    if full:
+        for B in bps[floor:]:
+            judge(B)
+        return prof
+    lo, hi = judge(bps[floor]), judge(None)
+    sizes = bps[floor + 1:-1]
+    if lo == hi:
+        for B in sizes:
+            prof[B] = lo
+        return prof
+    if lo and not hi:
+        for B in sizes:
+            judge(B)
+        return prof
+    a, b, first = 0, len(sizes) - 1, len(sizes)
+    while a <= b:
+        m = (a + b) // 2
+        if judge(sizes[m]):
+            first, b = m, m - 1
+        else:
+            a = m + 1
+    for i, B in enumerate(sizes):
+        prof.setdefault(B, i >= first)
+    return prof
+
+
+class C_ProfileReadsAsDict(unittest.TestCase):
+    """report.Profile, the compact profile of an alternative, reads as the dictionary it
+    replaced: the same items in the same order, which the report's "B in ..." ranges follow,
+    and the same summary over any set of realisable thresholds."""
+
+    def test_random_profiles(self):
+        from stretto.report import bisect_profile
+        rng = __import__("random").Random(5)
+        for _ in range(3000):
+            # 0 is a breakpoint twice when the trace has empty messages
+            bps = [0] * rng.choice([1, 1, 2]) + sorted(rng.sample(range(1, 100), rng.randint(0, 9))) + [None]
+            pos = {B: i for i, B in enumerate(bps)}
+            floor = rng.randrange(len(bps))
+            full = rng.random() < 0.2
+            if rng.random() < 0.6:
+                first = rng.randrange(len(bps) + 1)
+                val = {B: i >= first for i, B in enumerate(bps)}
+            else:
+                val = {B: rng.random() < 0.5 for B in bps}
+            old = legacy_profile(bps, val.__getitem__, floor, full)
+            notes = []
+            new, seen = bisect_profile(bps, pos, val.__getitem__, lambda v: v, floor, full, lambda: notes.append(1))
+            self.assertEqual(list(new.items()), list(old.items()), (bps, floor, full, val))
+            self.assertEqual((len(new), new, dict(new)), (len(old), old, old))
+            self.assertTrue(set(seen) <= set(bps) and all(seen[B] == val[B] for B in seen))
+            self.assertEqual(bool(notes), not full and val[bps[floor]] and not val[None])
+            for real in (set(bps[floor:]), set(rng.sample(bps, rng.randint(1, len(bps))))):
+                self.assertEqual(profile_summary({B: ok for B, ok in new.items() if B in real}),
+                                 profile_summary({B: ok for B, ok in old.items() if B in real}))
+            self.assertEqual(new.summary(), profile_summary({B: ok for B, ok in old.items() if B in set(bps[floor:])}),
+                             (bps, floor, full, val))
+
+
 def ready_before_receive_trace():
     """E6's synthetic program 017 (seed 20261016), reduced: rank 1 sends s0, then the ready send
     s1, then x; rank 0 posts Irecv(ANY, ANY), receives x, then the receive r2 that takes s1, and
