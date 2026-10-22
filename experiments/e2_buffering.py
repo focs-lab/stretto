@@ -27,7 +27,7 @@ from stretto.feasible import feasible_profile, profile_summary  # noqa: E402
 from stretto.matching import candidates_full  # noqa: E402
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from provenance import code_commit  # noqa: E402
-from b_impl import tcp  # noqa: E402
+from b_impl import TABLE, tcp, tcp_header  # noqa: E402
 
 
 def profile_at(prof, B):
@@ -50,14 +50,9 @@ def main() -> int:
     ap.add_argument("--timeout", type=int, default=20)
     args = ap.parse_args()
     replays = []
-    header = None             # the TCP transport's header: threshold B = eager limit - header
+    # the TCP transport's header: threshold B = eager limit - header
     bi = os.path.join(os.path.dirname(args.out), "b_impl.csv")
-    if not os.path.exists(bi):
-        bi = os.path.join(ROOT, "experiments", "results", "b_impl.csv")
-    if os.path.exists(bi):
-        for r in csv.DictReader(open(bi)):
-            if r["setting"] == "openmpi-tcp-64" and r.get("path") == "persistent" and int(r["eager_max_bytes"]) >= 0:
-                header = 64 - int(r["eager_max_bytes"])
+    header = tcp_header(bi if os.path.exists(bi) else TABLE)
     dirs = args.dirs or sorted(glob.glob(os.path.join(ROOT, "traces", "openmpi", "*")) +
                                glob.glob(os.path.join(ROOT, "experiments", "results", "*", "*", "trace")))
     rows = []

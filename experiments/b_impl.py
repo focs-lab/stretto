@@ -58,6 +58,18 @@ def tcp(limit: int):
 
 
 SETTINGS = {"openmpi-default": [], "openmpi-forced-rendezvous": VADER, "openmpi-tcp-64": tcp(64)}
+TABLE = os.path.join(ROOT, "experiments", "results", "b_impl.csv")
+
+
+def tcp_header(path: str = TABLE):
+    """h, the TCP transport's header in bytes, from a table this script wrote: with eager limit
+    L every send path buffers L - h bytes. None if the table or its TCP row is missing."""
+    if not os.path.exists(path):
+        return None
+    for r in csv.DictReader(open(path)):
+        if r["setting"] == "openmpi-tcp-64" and r.get("path") == "persistent" and int(r["eager_max_bytes"]) >= 0:
+            return 64 - int(r["eager_max_bytes"])
+    return None
 
 
 def hangs(exe: str, n: int, path: str, mpirun_args, timeout: int) -> bool:
@@ -71,7 +83,7 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--timeout", type=int, default=5)
     ap.add_argument("--max-bytes", type=int, default=1 << 20)
-    ap.add_argument("--out", default=os.path.join(ROOT, "experiments", "results", "b_impl.csv"))
+    ap.add_argument("--out", default=TABLE)
     args = ap.parse_args()
     rows = []
     with tempfile.TemporaryDirectory() as d:

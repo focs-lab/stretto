@@ -4,9 +4,10 @@
 # under experiments/results/ and logs to experiments/results/run-remaining.log. MUST runs are
 # separate (experiments/mbi/run_must.py, experiments/amg/must.sh): they need docker on the host.
 #
-# usage: experiments/run_remaining.sh [step ...]     steps: build tests mbi mbb stress e2 e6 amg e4 e3 guard reps e6reads
-#        (no step: all but guard, reps and e6reads, in that order; guard traces the corpora again
-#        with the buffer guard, reps traces MBI REPS more times, e6reads runs E6 with read bounds)
+# usage: experiments/run_remaining.sh [step ...]     steps: build tests mbi mbb stress e2 e6 amg e4 e3 guard reps e6reads stresseager
+#        (no step: all but guard, reps, e6reads and stresseager, in that order; guard traces the
+#        corpora again with the buffer guard, reps traces MBI REPS more times, e6reads runs E6 with
+#        read bounds, stresseager runs the stress baseline with the eager threshold forced down)
 #   JOBS     parallel programs in the corpus steps (default 6)
 #   TIMEOUT  per program run and per replay, seconds (default 60); MUST gets the same
 set -uo pipefail
@@ -63,6 +64,15 @@ step_stress() {
     python3 experiments/stress_baseline.py experiments/results/mbi/mbi.csv --runs 30 --jobs "$JOBS" --timeout "$TIMEOUT"
     python3 experiments/stress_baseline.py experiments/results/mbb/mbb.csv --runs 30 --jobs "$JOBS" --timeout "$TIMEOUT" \
         --select '^(P2P|COLL)/(CallOrdering|Correct)'
+}
+step_stresseager() {
+    # the baseline again with no payload byte buffered (stress_baseline.py --eager 0: E2's TCP
+    # setting at the least eager limit Open MPI accepts), the same runs, delays and timeout; on
+    # MPI-BugBench the call-ordering and correct programs, which step stress means to select
+    # (its pattern has '/' where the program names have '__', so it selects none)
+    python3 experiments/stress_baseline.py experiments/results/mbi/mbi.csv --runs 30 --jobs "$JOBS" --timeout "$TIMEOUT" --eager 0 &&
+    python3 experiments/stress_baseline.py experiments/results/mbb/mbb.csv --runs 30 --jobs "$JOBS" --timeout "$TIMEOUT" --eager 0 \
+        --select '^(P2P|COLL)__(CallOrdering|Correct)'
 }
 step_e2() {
     python3 experiments/b_impl.py
