@@ -48,7 +48,12 @@ def contained_deadlock(t: Trace, M, changed: Set[Key], cut: Dict[int, int], issu
     moved the cut (stretto.reads.ReadBounds.rule1); right after the changed receive otherwise."""
     lengths = {rank: len(recs) for rank, recs in t.ranks.items()}
     if rule1 is None:
-        rule1 = {t.recvs[rk].rank: _cidx(t.recvs[rk]) + 1 for rk in changed}
+        # per rank, the earliest completion of its changed receives, as in rule 1 of the
+        # horizon: a swap changes two receives of one rank, and its cut follows the first
+        rule1 = {}
+        for rk in changed:
+            r = t.recvs[rk]
+            rule1[r.rank] = min(rule1.get(r.rank, _cidx(r) + 1), _cidx(r) + 1)
 
     def in_h(rank: int, idx: int) -> bool:
         return idx < cut[rank]

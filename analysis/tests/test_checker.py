@@ -1419,6 +1419,30 @@ class C_ContainedDeadlock(unittest.TestCase):
         rep = analyze(t, with_sp=False)
         self.assertEqual([f for f in rep.findings if f.cls == "1d" and f.level == "L1"], [])
 
+    def test_swap_is_cut_after_its_first_changed_receive(self):
+        """Rule 1 cuts the rank of a swap after the earlier of its two changed receives (audit
+        of 22 Oct 2026, item 6). Rank 0: Irecv r(ANY), Irecv r2(ANY), Wait r, Send z -> 3, Recv
+        x from 3, Wait r2; rank 3 receives z, then sends x. Under the swap the horizon ends
+        after Wait r, so rank 0's Send z, at which it would block at B = 0 with rank 3 waiting
+        for it, is an unknown continuation. The map of where rule 1 cut each rank kept the
+        completion of whichever changed receive came last out of the set, the later one with
+        the set in posting order, and the report then gave an L1 deadlock of ranks 0 and 3."""
+        from stretto.deadlock import contained_deadlock
+        t = mk({0: [irecv(T.ANY, 1, 10), irecv(T.ANY, 1, 11), wait((10, 1, 1)), send(3, 5), recv(3, 2, 3, 2), wait((11, 2, 1))],
+                1: [send(0, 1)], 2: [send(0, 1)], 3: [recv(0, 5, 0, 5), send(0, 2)]})
+        swaps = [a for a in candidates_full(t)[0] if a.kind == "swap"]
+        self.assertEqual(len(swaps), 2)
+        for a in swaps:
+            for B in (0, None):
+                v = check(t, a.M, a.changed, B, "L1")
+                self.assertTrue(v.feasible, v.reason)
+                self.assertEqual(v.cut[0], 4)              # right after Wait r
+                for order in (sorted(a.changed), sorted(a.changed, reverse=True)):
+                    self.assertIsNone(contained_deadlock(t, a.M, order, v.cut, v.issued, B), (a.describe(t), B, order))
+        for generic in (False, True):
+            rep = analyze(t, with_sp=False, generic=generic)
+            self.assertEqual([str(f) for f in rep.findings if f.cls == "1d" and f.level == "L1"], [])
+
 
 class C_LoaderRejectsDamagedTraces(unittest.TestCase):
     def write(self, d, rank, lines):
