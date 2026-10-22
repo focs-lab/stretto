@@ -894,12 +894,14 @@ def _profiles_fast(t: Trace, alts, probes, waits, full: bool = False, reads=None
     instead; the tests and the E2 harness compare the two. Observed(t, B) is built on the
     first check at B and serves every later one at that threshold. With read bounds, an
     alternative that rule H1 rejects is judged again with the longer window of rule H1' (the
-    generic check); either verdict is sound, so the profile is their union. H1' alone need not
-    be monotone (later receives of the window become judged as B grows), but its horizon
-    contains H1's with every node, edge and obligation of it, so H1' accepts only what the
-    generic H1 check accepts: where the generic check confirms the fast check's rejections,
-    the union is H1's profile, which T2 makes monotone. ob_inf: the Observed(t, None) the caller
-    built for the enumeration, whose graph and clocks then serve B = inf too."""
+    generic check); either verdict is sound, so the profile is their union. Neither H1' nor
+    the union need be monotone in B: later receives of the window become judged as B grows,
+    and H1' can accept what H1 rejects, since a send of the window can keep a call that a
+    rule of H1 removes (a receive left pending makes rule H:pending cut its rank before a send
+    the changed receive takes) without closing a cycle (docs/firstread.md). So an
+    alternative whose bounds keep a window is judged at every breakpoint. ob_inf: the
+    Observed(t, None) the caller built for the enumeration, whose graph and clocks then serve
+    B = inf too."""
     bps = breakpoints(t) + [None]
     ix = t.fast_indexes()
     obs: Dict[Optional[int], fast.Observed] = {} if ob_inf is None or ob_inf.ix is not ix else {None: ob_inf}
@@ -947,16 +949,19 @@ def _profiles_fast(t: Trace, alts, probes, waits, full: bool = False, reads=None
                 unconfirmed[0] += 1
             return fv
 
-        def alt_at(B, a=a, h1=alt_h1, ext=reads is not None and reads.extends(t, a.changed, a.M)):
+        ext = reads is not None and reads.extends(t, a.changed, a.M)
+
+        def alt_at(B, a=a, h1=alt_h1, ext=ext):
             v = h1(B)
             if ext and not v.feasible:
                 g = check(t, a.M, a.changed, B, "L1", bounds=reads)     # rule H1'
                 if g.feasible:
                     return g
             return v
-        # T2 covers steals at blocking receives: a swap re-matches two receives, and at a
-        # nonblocking receive the judged receives can change with B (proof appendix)
-        exact = a.kind == "steal" and t.recvs[a.recv].blocking
+        # T2 covers steals at blocking receives under rule H1: a swap re-matches two receives,
+        # at a nonblocking receive the judged receives can change with B (proof appendix), and
+        # the union with H1' need not be monotone
+        exact = a.kind == "steal" and t.recvs[a.recv].blocking and not ext
         pr.alt[i], seen = profile(alt_at, lambda v: v.feasible, a.describe(t), floor, not exact)
         pr.alt_reason[i] = seen[None].reason
     def probe_at(B, p, s):
@@ -1000,7 +1005,8 @@ def observed_floor(bps: List[Optional[int]], obs: Dict[Optional[int], bool]) -> 
 def _profiles_generic(t: Trace, alts, probes, waits, reads=None) -> _Profiles:
     """The generic checker (feasible.check), profiling each item from the observed run's
     threshold B0 to infinity and bisecting between them (T2); swaps in full. With read
-    bounds, an alternative's profile is the union of its profiles under rules H1 and H1'."""
+    bounds, an alternative's profile is the union of its profiles under rules H1 and H1', the
+    latter judged at every breakpoint (H1' need not be monotone in B)."""
     pr = _Profiles(feasible_profile(t, t.observed, set(), mode="SP", full=False, strong_only=True),
                    observed_feasible_at(t, 0), [], [], [], [], [], [],
                    real=feasible_profile(t, t.observed, set(), mode="SP", full=False))
@@ -1010,7 +1016,7 @@ def _profiles_generic(t: Trace, alts, probes, waits, reads=None) -> _Profiles:
         full = not (a.kind == "steal" and t.recvs[a.recv].blocking)
         prof = feasible_profile(t, a.M, a.changed, mode="L1", full=full, floor=B0)
         if reads is not None and reads.extends(t, a.changed, a.M):
-            p2 = feasible_profile(t, a.M, a.changed, mode="L1", full=full, floor=B0, bounds=reads)
+            p2 = feasible_profile(t, a.M, a.changed, mode="L1", full=True, bounds=reads)
             prof = {B: ok or p2.get(B, False) for B, ok in prof.items()}
         pr.alt.append(prof)
         pr.alt_reason.append(check(t, a.M, a.changed, None, "L1").reason)

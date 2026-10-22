@@ -232,6 +232,72 @@ class ReadBoundsInTheHorizon(unittest.TestCase):
                 self.assertEqual(sorted(str(x) for x in f.findings), sorted(str(x) for x in g.findings))
 
 
+def union_trace():
+    """Rank 0 (d) receives r from any source (it took rank 3's message), sends x to rank 1 (e)
+    and, after reading r's result, receives r2 from e. Rank 1 posts r_e1 from any source (it
+    took x) and r_e2 from rank 2 (it took y), sends s to d and waits for both; rank 2 sends y,
+    rank 3 sends to d. For r taking s, rule H1 cuts d right after r: x is never sent, r_e1 stays
+    pending and could take y, so rule H:pending cuts e at r_e2 and s is never sent. H1' keeps x
+    in the window: r_e1 takes x, r_e2 takes y and s is sent, and no cycle closes."""
+    return mk({0: [recv(T.ANY, 1, 3, 1, widx=0), send(1, 2), recv(1, 1, 1, 1)],
+               1: [irecv(T.ANY, 2, 10), irecv(2, 2, 11), send(0, 1), wait((10, 0, 2)), wait((11, 2, 2))],
+               2: [send(1, 2)], 3: [send(0, 1)]})
+
+
+class HorizonUnion(unittest.TestCase):
+    """H1' accepts an alternative that H1 rejects, so neither it nor the union is monotone in
+    B by theorem T2: the report judges such an alternative at every breakpoint."""
+
+    def setUp(self):
+        self.t = union_trace()
+        self.a = steal(self.t, (0, 0), (1, 0))
+        r, r2 = self.t.recvs[(0, 0)], self.t.recvs[(0, 1)]
+        self.b = Table({(0, r.idx): r2.idx})            # the result of r is read right before r2
+        self.bps = breakpoints(self.t) + [None]
+
+    def expected(self):
+        t, a, b = self.t, self.a, self.b
+        return {B: check(t, a.M, a.changed, B, "L1").feasible or check(t, a.M, a.changed, B, "L1", bounds=b).feasible
+                for B in self.bps}
+
+    def test_h1_rejects_and_h1_prime_accepts(self):
+        t, a, b = self.t, self.a, self.b
+        for B in self.bps:
+            self.assertFalse(check(t, a.M, a.changed, B, "L1").feasible, B)
+            self.assertTrue(check(t, a.M, a.changed, B, "L1", bounds=b).feasible, B)
+
+    def test_the_report_states_the_union(self):
+        from stretto.feasible import profile_summary
+        want = profile_summary(self.expected())[2]
+        for generic in (False, True):
+            rep = analyze(self.t, with_sp=False, generic=generic, reads=self.b)
+            f = [f for f in rep.findings if (f.recv, f.send) == ((0, 0), (1, 0)) and f.level == "L1" and f.cls != "1d"]
+            self.assertEqual([x.B for x in f], [want], (generic, [str(x) for x in rep.findings]))
+            self.assertNotIn(((0, 0), (1, 0)), [(f.recv, f.send) for f in analyze(self.t, with_sp=False, generic=generic).findings
+                                                if f.level == "L1"])
+
+    def test_profile_at_every_breakpoint(self):
+        """With an H1' verdict that holds only between the ends of the B range, a bisection
+        would take the ends' common verdict for every threshold; the profile must be right at
+        each one."""
+        from unittest import mock
+        from stretto import report
+        t, a, b = self.t, self.a, self.b
+        self.assertGreaterEqual(len(self.bps), 3)
+        mid = self.bps[1]
+        real = report.check
+
+        def only_mid(t_, M, changed, B, mode="L1", **kw):
+            v = real(t_, M, changed, B, mode, **kw)
+            if kw.get("bounds") is not None and B != mid:
+                return real(t_, M, changed, B, mode)      # H1': as H1 away from mid
+            return v
+        alts = [a]
+        with mock.patch.object(report, "check", only_mid):
+            pr = report._profiles_fast(t, alts, [], [], reads=b)
+        self.assertEqual({B: pr.alt[0][B] for B in self.bps}, {B: B == mid for B in self.bps})
+
+
 def loop_trace():
     """The shape of MBI's MessageRace_Loop_Isend_Recv: rank 0 receives four messages from ANY,
     then two from rank 3; ranks 1 and 2 send two each to 0 and one to 3; rank 3 forwards a

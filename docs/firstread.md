@@ -157,8 +157,24 @@ window adds their obligations: a later receive that accepts the message the chan
 gave up, and took a later message of the same channel, makes the alternative unrealisable as
 stated, although H1, which says nothing about that receive, accepts it. Both claims are sound
 (H1 is a bound too), so an alternative is judged with H1 and, when H1 rejects it, with H1'; its
-profile over the thresholds is the union, monotone in B as each part is (theorem T2: rule 1
-does not mention B). A deadlock contained in the H1' horizon is an L1 finding (theorem T7,
+profile over the thresholds is the union.
+
+H1' can also accept what H1 rejects. The containment of the H1 horizon in the H1' one carries
+acyclicity and obligations over, but not the survival of a call: a send of the window can keep
+a call that a rule of H1 removes, while the edges it adds reach only matches and completions,
+so no cycle closes. Rank d receives r from any source (it took g's message) and then, before
+reading r's result, sends x to e and receives r2 from e; rank e posts r_e1 from any source
+(which took x) and r_e2 from f (which took y), sends s to d, and waits for both; f sends y.
+For r taking s instead, H1 cuts d right after r: x is never sent, r_e1 stays pending, rule
+H:pending removes the posting of r_e2 and with it s, and r has no message. H1' keeps x: r_e1
+takes x, r_e2 takes y, s is sent, and the path c(r) -> x -> m(r_e1) -> m(r_e2) -> c(Wait r_e2)
+never reaches the issue of s. Nothing makes the H1' verdict monotone in B either (later
+receives of the window become judged as B grows), so theorem T2, which makes the H1 profile of
+a steal at a blocking receive an interval and its bisection exact, says nothing about the
+union: an alternative whose bounds keep a window is judged at every breakpoint
+(`report._profiles_fast`, `test_reads.HorizonUnion`).
+
+A deadlock contained in the H1' horizon is an L1 finding (theorem T7,
 `deadlock.contained_deadlock` with the cut of rule 1 at the bound): the ranks of the deadlock
 stop at operations every program consistent with the trace and its bounds issues.
 
