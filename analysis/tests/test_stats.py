@@ -89,5 +89,34 @@ class Wilson(unittest.TestCase):
             tables.NUM.update(saved)
 
 
+class DistinctPins(unittest.TestCase):
+    """The alternatives behind replays: a pin names a receive or probe by rank and ordinal, and the
+    source it is pinned to; the same pin from another trace of the same configuration is the same
+    alternative."""
+
+    def test_a_pin_as_the_tables_record_it(self):
+        self.assertEqual(tables.pin_id("STRETTO_PIN_PROBE=2:3:4"), ("probe", 2, 3, 4))
+        self.assertEqual(tables.pin_id("STRETTO_PIN=14:371:6"), ("recv", 14, 371, 6))
+
+    def test_replays_of_one_alternative_count_once(self):
+        rs = [{"np": "16", "run": run, "pin": pin} for run in ("1", "2", "3")
+              for pin in ("STRETTO_PIN=4:22:12", "STRETTO_PIN=4:23:12", "STRETTO_PIN=4:22:11")]
+        self.assertEqual(tables.distinct_pins(rs, "np"), 3)
+        self.assertEqual(tables.distinct_pins(rs, "np", "run"), 9)     # the run in the scope: one per trace
+
+    def test_scope_kind_and_source_tell_alternatives_apart(self):
+        rs = [{"np": "4", "pin": "STRETTO_PIN_PROBE=1:3:2"}, {"np": "8", "pin": "STRETTO_PIN_PROBE=1:3:2"},
+              {"np": "4", "pin": "STRETTO_PIN=1:3:2"}, {"np": "4", "pin": "STRETTO_PIN_PROBE=1:3:3"},
+              {"np": "4", "pin": ""}, {"np": "4"}]
+        self.assertEqual(tables.distinct_pins(rs, "np"), 4)
+        self.assertEqual(tables.distinct_pins(rs), 3)
+
+    def test_only_replayed_rows_count(self):
+        self.assertTrue(tables._replayed({"pin": "STRETTO_PIN=1:2:3", "replay": "TIMEOUT"}))
+        for r in ({"pin": "STRETTO_PIN=1:2:3", "replay": "no horizon"}, {"pin": "", "replay": "FINISHED"},
+                  {"pin": "STRETTO_PIN=1:2:3", "replay": ""}, {"pin": "STRETTO_PIN=1:2:3", "replay": "traced run TIMEOUT"}):
+            self.assertFalse(tables._replayed(r), r)
+
+
 if __name__ == "__main__":
     unittest.main()

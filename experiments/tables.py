@@ -9,7 +9,8 @@ The statistics of the last section of docs/results.md ("Statistics") have macros
                                         is <count> ('[0.47, 0.76]', and each bound alone); a bound
                                         that is exactly 0 or 1 is written so, any other with the
                                         decimals (at least two) that give its distance to 0 or 1
-                                        two significant digits ('[0, 0.046]', '[0.0044, 0.13]')"""
+                                        two significant digits ('[0, 0.046]', '[0.0044, 0.13]')
+  n<campaign>...DistinctPins            the distinct pinned alternatives behind a campaign's replays"""
 from __future__ import annotations
 import collections
 import csv
@@ -74,6 +75,21 @@ def ci(name: str, k: int, n: int) -> str:
     num(name + "CIHi", hi)
     num(name + "CI", f"[{lo}, {hi}]")
     return f"[{lo}, {hi}]"
+
+
+def pin_id(pin: str) -> tuple:
+    """A pinned alternative as the campaign tables record it: 'STRETTO_PIN_PROBE=2:3:4' is
+    ('probe', 2, 3, 4), the probe of rank 2 with ordinal 3 among that rank's probes, pinned to
+    source 4; STRETTO_PIN=r:i:s pins the receive of rank r with ordinal i the same way."""
+    var, _, spec = pin.partition("=")
+    rank, ordinal, source = (int(x) for x in spec.split(":"))
+    return ("probe" if var == "STRETTO_PIN_PROBE" else "recv", rank, ordinal, source)
+
+
+def distinct_pins(rs, *scope) -> int:
+    """The distinct alternatives the rows rs pin: rows with the same pin_id and the same values
+    of the scope columns (the program, its version, the process count) pin the same one."""
+    return len({(*(r.get(c) for c in scope), pin_id(r["pin"])) for r in rs if r.get("pin")})
 
 
 def commits(rs) -> str:
@@ -2884,6 +2900,116 @@ def _intervals() -> list:
     return out
 
 
+def _replayed(r) -> bool:
+    """A campaign row that pinned an alternative and replayed it (not one without a horizon to
+    pin, nor the row of a traced run that failed)."""
+    res = r.get("replay") or ""
+    return bool(r.get("pin")) and res not in ("", "no horizon") and not res.startswith("traced run")
+
+
+def _distinct() -> list:
+    """The distinct pinned alternatives behind the replays of E5c to E5f."""
+    out = ["", "### Distinct alternatives behind the replays", "",
+           "A replay pins one alternative: the receive (`STRETTO_PIN`) or probe (`STRETTO_PIN_PROBE`) it changes, named by",
+           "its rank and its ordinal among that rank's receives or probes, and the source it is pinned to (the `pin` column",
+           "of the campaign tables; the other pins of its horizon follow from the trace). Replays pin the same alternative",
+           "when these agree in the same program, version and process count (in E5f, driver and level count too). An",
+           "ordinal names the same call in two traces as far as the rank's calls come in the same order, as in the traces",
+           "of one configuration here. Replays of one alternative from different traces are separate runs, but they test",
+           "the same alternative, so a count of replays counts it once per trace that has it.", "",
+           "| campaign | processes | kind | replays | traced runs with one | distinct alternatives | replays per alternative | macro |",
+           "|---|---|---|---|---|---|---|---|"]
+    total = {}
+
+    def row(label, nps, kind, rs, macro, *scope):
+        per = collections.Counter((*(r.get(c) for c in scope), pin_id(r["pin"])) for r in rs)
+        runs = len({(*(r.get(c) for c in scope), r.get("run")) for r in rs})
+        num(macro, len(per))
+        total[macro] = (len(rs), len(per))
+        lo, hi = min(per.values()), max(per.values())
+        out.append(f"| {label} | {nps} | {kind} | {len(rs)} | {runs} | {len(per)} | {lo if lo == hi else f'{lo}–{hi}'} | `{macro}` |")
+
+    hy = [r for r in rows(os.path.join(RES, "hypre", "predict.csv")) if _replayed(r)]
+    kind = lambda r: r.get("kind") or "cross"     # noqa: E731  (rows before the classification: cross, as in E5c)
+    for np_, word in (("4", "Four"), ("8", "Eight")):
+        for k, m in (("cross", ""), ("same", "Local")):
+            sel = [r for r in hy if r["np"] == np_ and kind(r) == k]
+            if sel:
+                row("HYPRE 2.10.1 (E5c)", np_, k, sel, f"nHypre{word}{m}DistinctPins", "np")
+            if sel and k == "cross":      # the probes they change, whatever the source
+                num(f"nHypre{word}DistinctProbes", len({pin_id(r["pin"])[1:3] for r in sel}))
+    cross = [r for r in hy if kind(r) == "cross"]
+    if cross:
+        row("HYPRE 2.10.1 (E5c)", "/".join(sorted({r["np"] for r in cross}, key=int)), "cross", cross, "nHypreDistinctPins", "np")
+    mg_all = rows(os.path.join(RES, "npbmg", "predict-2.4.1.csv"))
+    mg = [r for r in mg_all if _replayed(r)]
+    if mg:
+        row("NPB MG 2.4.1 (E5d)", "/".join(sorted({r["np"] for r in mg}, key=int)), "-", mg, "nMGDistinctPins", "np")
+    dl = [r for r in rows(os.path.join(RES, "dealii", "predict-9.3.0-rc1.csv")) if _replayed(r)]
+    for k, m in (("cross", ""), ("same", "Same")):
+        sel = [r for r in dl if r.get("kind") == k]
+        if sel:
+            row("deal.II 9.3.0-rc1 (E5e)", "/".join(sorted({r["np"] for r in sel}, key=int)), k, sel, f"nDeal{m}DistinctPins", "np")
+    ps = rows(os.path.join(RES, "petsc", "parasails.csv"))
+    new = []
+    for prefix, label, rs in (("HypreNew", "HYPRE 3.2.0 `ex5` (E5f)", _new_rows(rows(os.path.join(RES, "hypre3", "predict.csv")), "ex5", "3.2.0")),
+                              ("Petsc", "PETSc 3.26.0 `ex2` (E5f)", _new_rows([r for r in ps if "nothresh" not in r["driver"]], "ex2", "3.26.0"))):
+        cross = [r for r in rs if r["kind"] == "cross" and r["levels"] >= 2 and _replayed(r)]
+        for np_ in sorted({r["np"] for r in cross}):
+            row(label, np_, "cross, two levels", [r for r in cross if r["np"] == np_], f"n{prefix}{NP_WORD[np_]}DistinctPins",
+                "driver", "drv", "np", "levels")
+        if cross:
+            row(label, "/".join(str(n) for n in sorted({r["np"] for r in cross})), "cross, two levels", cross,
+                f"n{prefix}DistinctPins", "driver", "drv", "np", "levels")
+        new += cross
+    if new:
+        row("HYPRE 3.2.0, `ex5` and `ex2` (E5f)", "/".join(str(n) for n in sorted({r["np"] for r in new})), "cross, two levels", new,
+            "nHypreNewAllDistinctPins", "driver", "drv", "np", "levels")
+    said = [f"{total[m][0]} {what} test {total[m][1]} alternatives" for m, what in
+            (("nHypreDistinctPins", "cross replays of HYPRE 2.10.1"), ("nMGDistinctPins", "replays of NPB MG"),
+             ("nDealDistinctPins", "cross replays of deal.II"), ("nHypreNewAllDistinctPins", "cross replays of HYPRE 3.2.0"))
+            if m in total]
+    if said:
+        out += ["", "So the " + (", the ".join(said[:-1]) + ", and the " if len(said) > 1 else "") + said[-1] + "."]
+    if mg:
+        # MG's traced runs, and what the replays of each alternative print
+        traces = {}
+        for r in mg_all:
+            t = traces.setdefault((r["np"], r["run"]), (r.get("records"), r.get("alternatives"), r.get("traced_norm"), set()))
+            if r.get("pin"):
+                t[3].add(pin_id(r["pin"]))
+        same_traces = len({(k[0], *t[:3], frozenset(t[3])) for k, t in traces.items()})
+        outcomes = len({(r["np"], pin_id(r["pin"]), r["replay"], r.get("norm") or "") for r in mg})
+        fin = [r for r in mg if r["replay"] == "FINISHED" and r.get("norm")]
+        changed = [r for r in fin if r["norm"] != r.get("traced_norm")]
+        by_pin = collections.defaultdict(set)
+        for r in fin:
+            by_pin[(r["np"], pin_id(r["pin"]))].add(r["norm"] != r.get("traced_norm"))
+        mixed = sum(1 for v in by_pin.values() if len(v) > 1)
+        no_ctl = [r for r in mg if r.get("norm") and r["norm"] != r.get("control_norm") and r["norm"] == r.get("traced_norm")]
+        ctl = [r for r in mg if r.get("control") == "FINISHED"]
+        ctl_traced = sum(1 for r in ctl if r.get("control_norm") == r.get("traced_norm"))
+        num("nMGDistinctTraces", same_traces)
+        num("nMGDistinctOutcomes", outcomes)
+        num("nMGChangedTraced", len(changed))
+        num("nMGDistinctChanged", distinct_pins(changed, "np"))
+        num("nMGDistinctMixed", mixed)
+        out += ["", f"NPB MG 2.4.1: the {len(traces)} traced runs "
+                + ("have the same number of records, the same alternatives and the same residual" if same_traces == 1 else
+                   f"fall into {same_traces} kinds by their number of records, their alternatives and their residual")
+                + f" (`nMGDistinctTraces` = {same_traces}). Their {len(mg)} replays "
+                f"have {outcomes} distinct outcomes (alternative, result, residual; `nMGDistinctOutcomes`). {len(changed)} replays "
+                f"finished with a residual other than the traced run's (`nMGChangedTraced`), which "
+                + (f"every control that finished printed ({ctl_traced})" if ctl_traced == len(ctl) else
+                   f"{ctl_traced} of the {len(ctl)} controls that finished printed")
+                + f"; they pin {distinct_pins(changed, 'np')} distinct alternatives (`nMGDistinctChanged`), "
+                f"{mixed} of which change it in some finished replays and not in others (`nMGDistinctMixed`)."
+                + (f" E5d's count of replays that change the result compares with the control's residual, so it also counts "
+                   f"{len(no_ctl)} replay{'s' if len(no_ctl) > 1 else ''} whose residual is the traced run's and whose control "
+                   "printed none." if no_ctl else "")]
+    return out
+
+
 def statistics_section() -> str:
     """The statistics of the evaluation, from the same tables as the sections above, and some
     from their macros: run after them (the macro names: the module docstring)."""
@@ -2892,6 +3018,7 @@ def statistics_section() -> str:
            "Statistics of the evaluation, from the tables of the sections above. Their macros are named after the counts",
            "they qualify (the docstring of `experiments/tables.py`).", ""]
     out += _intervals()
+    out += _distinct()
     return "\n".join(out) + "\n"
 
 

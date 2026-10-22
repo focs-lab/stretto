@@ -1755,3 +1755,35 @@ NINJA (E10, E5f):
 | NPB MG 2.4.1, 16 processes, system-centric noise: runs whose residual changes | 1 of 20 | [0.0089, 0.24] | `nNinjaMGSixteenSystemChangedCI` |
 | NPB MG 2.4.1, 16 processes, random noise: runs whose residual changes | 8 of 20 | [0.22, 0.61] | `nNinjaMGSixteenRandomChangedCI` |
 | NPB MG 2.4.1, 16 processes, no noise: runs whose residual changes | 0 of 20 | [0, 0.16] | `nNinjaMGSixteenPlainChangedCI` |
+
+### Distinct alternatives behind the replays
+
+A replay pins one alternative: the receive (`STRETTO_PIN`) or probe (`STRETTO_PIN_PROBE`) it changes, named by
+its rank and its ordinal among that rank's receives or probes, and the source it is pinned to (the `pin` column
+of the campaign tables; the other pins of its horizon follow from the trace). Replays pin the same alternative
+when these agree in the same program, version and process count (in E5f, driver and level count too). An
+ordinal names the same call in two traces as far as the rank's calls come in the same order, as in the traces
+of one configuration here. Replays of one alternative from different traces are separate runs, but they test
+the same alternative, so a count of replays counts it once per trace that has it.
+
+| campaign | processes | kind | replays | traced runs with one | distinct alternatives | replays per alternative | macro |
+|---|---|---|---|---|---|---|---|
+| HYPRE 2.10.1 (E5c) | 4 | cross | 18 | 15 | 2 | 3–15 | `nHypreFourDistinctPins` |
+| HYPRE 2.10.1 (E5c) | 4 | same | 40 | 20 | 4 | 3–17 | `nHypreFourLocalDistinctPins` |
+| HYPRE 2.10.1 (E5c) | 8 | cross | 272 | 20 | 16 | 10–20 | `nHypreEightDistinctPins` |
+| HYPRE 2.10.1 (E5c) | 8 | same | 220 | 20 | 22 | 3–17 | `nHypreEightLocalDistinctPins` |
+| HYPRE 2.10.1 (E5c) | 4/8 | cross | 290 | 35 | 18 | 3–20 | `nHypreDistinctPins` |
+| NPB MG 2.4.1 (E5d) | 16 | - | 480 | 3 | 160 | 3 | `nMGDistinctPins` |
+| deal.II 9.3.0-rc1 (E5e) | 4 | cross | 1440 | 20 | 142 | 2–20 | `nDealDistinctPins` |
+| deal.II 9.3.0-rc1 (E5e) | 4 | same | 1920 | 20 | 190 | 2–20 | `nDealSameDistinctPins` |
+| HYPRE 3.2.0 `ex5` (E5f) | 4 | cross, two levels | 20 | 10 | 2 | 10 | `nHypreNewFourDistinctPins` |
+| HYPRE 3.2.0 `ex5` (E5f) | 8 | cross, two levels | 60 | 10 | 6 | 10 | `nHypreNewEightDistinctPins` |
+| HYPRE 3.2.0 `ex5` (E5f) | 4/8 | cross, two levels | 80 | 20 | 8 | 10 | `nHypreNewDistinctPins` |
+| PETSc 3.26.0 `ex2` (E5f) | 4 | cross, two levels | 20 | 10 | 2 | 10 | `nPetscFourDistinctPins` |
+| PETSc 3.26.0 `ex2` (E5f) | 8 | cross, two levels | 60 | 10 | 6 | 10 | `nPetscEightDistinctPins` |
+| PETSc 3.26.0 `ex2` (E5f) | 4/8 | cross, two levels | 80 | 20 | 8 | 10 | `nPetscDistinctPins` |
+| HYPRE 3.2.0, `ex5` and `ex2` (E5f) | 4/8 | cross, two levels | 160 | 40 | 16 | 10 | `nHypreNewAllDistinctPins` |
+
+So the 290 cross replays of HYPRE 2.10.1 test 18 alternatives, the 480 replays of NPB MG test 160 alternatives, the 1440 cross replays of deal.II test 142 alternatives, and the 160 cross replays of HYPRE 3.2.0 test 16 alternatives.
+
+NPB MG 2.4.1: the 3 traced runs have the same number of records, the same alternatives and the same residual (`nMGDistinctTraces` = 1). Their 480 replays have 161 distinct outcomes (alternative, result, residual; `nMGDistinctOutcomes`). 383 replays finished with a residual other than the traced run's (`nMGChangedTraced`), which every control that finished printed (478); they pin 128 distinct alternatives (`nMGDistinctChanged`), 0 of which change it in some finished replays and not in others (`nMGDistinctMixed`). E5d's count of replays that change the result compares with the control's residual, so it also counts 1 replay whose residual is the traced run's and whose control printed none.
