@@ -8,7 +8,9 @@ thread is deterministic given what it reads, every program that can produce the 
 considered, and a thread stops at its first read whose value differs; the resulting set of
 runs is sound and maximal. RVPredict~\citep{huang14rvpredict} and
 SeqCheck~\citep{cai21seqcheck} let such a thread run on to its next branch, and symbolic
-predictive analysis keeps the recorded branch conditions~\citep{wang09ctp}. Correct
+predictive analysis keeps the recorded branch conditions~\citep{wang09ctp}. SDP~\citep{genc19sdp}
+lets a read take another writer when nothing after it depends on the value, as read bounds do
+for MPI (\cref{thm:firstread}). Correct
 reorderings~\citep{smaragdakis12cp} keep every read's writer. WCP~\citep{kini17wcp} weakened
 happens-before soundly in linear time, and SHB~\citep{mathur18shb} made it sound beyond the
 first race, with relaxed correct reorderings that let a thread's last read change. M2~\citep{pavlogiannis20m2} and
@@ -20,28 +22,29 @@ order and test acyclicity over a closure, the shape of our check; reversing one 
 message-passing analogue. \Cref{thm:sound} follows the unified soundness
 template~\citep{liu25soundness}, with MPI's rules at $\Bt$ for the memory model and a matching
 over the horizon for the bug; the template covers locks under multicopy-atomic models, not
-message passing. Our witness is uniform over the programs consistent on $\Hpre$.
+message passing. Our witness is uniform over the programs consistent on $\Hpre$; the horizon is a
+strong trace prefix~\citep{ang24strong}.
 
 \paragraph{Message races and reachability testing.} Race analysis of
-traces~\citep{tai97race} and reachability testing~\citep{lei06reachability} compute, from one
-trace of a message-passing program, the race set of each receive: the sends not causally after
+traces~\citep{tai97race} and reachability testing~\citep{lei06reachability} compute from one
+message-passing trace the race set of each receive: the sends not causally after
 it that are the earliest unconsumed message of their source, as our steals are. A race variant
 changes receives to members of their race sets and removes what a changed receive may
-control, which for blocking traffic corresponds to our horizon. Removing that part is what makes
+control, which for blocking traffic matches our horizon. Removing it makes
 a variant feasible ``regardless of the program's control and data
-flow''~\citep[p.\,390]{lei06reachability}, and each variant is executed by prefix-based replay.
-The first paper of the line proves feasibility for the read--write sequences of shared
+flow''~\citep[p.\,390]{lei06reachability}.
+The line's first paper proves feasibility for the read--write sequences of shared
 memory~\citep{hwang94apsec}; for message passing we found it asserted, not proved. The model has no
 nonblocking receives, probes, collectives or buffering threshold, and happens-before
 concurrency suffices there; for MPI it does not (\cref{sec:graph}). Trace race detection covers
 nonblocking operations~\citep{cypher95race} and first and unaffected
 races~\citep{netzer96msgrace,park04unaffected,park07mpirace}. The MAD
 environment computed the racing messages of MPI programs with the same one-per-source bound,
-cut the trace at the causal future of an exchanged message, and replayed the rest with the
+cut the trace at the causal future of an exchanged message, and replayed the rest with
 other wildcards pinned~\citep{kranzlmueller00thesis,kranzlmueller00mad}. For MPI's semantics,
 \tool proves the feasibility these works assert or test.
 
-\paragraph{Prediction for MPI.} Trace-based prediction of alternative matchings began with SMT
+\paragraph{Prediction for MPI\@.} Trace-based prediction of alternative matchings began with SMT
 encodings for MCAPI that search the arrival orders of a trace for assertion
 violations~\citep{elwakil10padtad,huang13ase}, a problem shown NP-complete~\citep{huang13ase},
 and with a predictor of orphaning deadlocks from one PMPI trace~\citep{sharma12maaped}.
@@ -55,60 +58,54 @@ with logical clocks~\citep{cluster22matchsets,li24parco,internetware24}. MOPPER,
 analysis~\citep{huang20ase} and Hermes state soundness and completeness relative to
 single-path programs, or to recorded path conditions, under fixed buffering models. None
 certifies an alternative for every program consistent with the trace or computes its
-threshold profile. MPI-PRV~\citep{yao26mpiprv} is sound one-trace prediction for MPI without a
-solver, carrying trace equivalence and pattern-language monitoring~\citep{ang24pattern} to
-temporal properties of real applications; it keeps the observed match of every wildcard
-receive and assumes zero buffering, so alternative matchings are out of its scope.
+threshold profile. MPI-PRV~\citep{yao26mpiprv} carries pattern-language
+monitoring~\citep{ang24pattern} to temporal properties of MPI traces without a solver; it
+keeps every wildcard match and assumes zero buffering (\cref{app:mpiprv}).
 
 \paragraph{Exhaustive exploration.} ISP~\citep{vakkalanka08isp} explores the matchings of a
 program on one input, rewriting wildcard receives into specific ones during
 replay~\citep{gopalakrishnan11cacm}. DAMPI~\citep{vo10dampi} takes from one run the sends not
-causally after a wildcard receive, subject to non-overtaking, replays each choice, and reaches
-thousands of processes by giving up completeness. MPI-SV~\citep{yu20mpisv} and
-CIVL~\citep{siegel15civl} verify symbolically. These tools pay for every competing wildcard or
-give up completeness; we re-execute only to confirm. The stress baseline of \cref{sec:eval} follows
+causally after a wildcard receive, subject to non-overtaking, replays each choice, and
+scales by giving up completeness. MPI-SV~\citep{yu20mpisv} and
+CIVL~\citep{siegel15civl} verify symbolically. We re-execute only to confirm.
+Our stress baseline follows
 randomised concurrency testing~\citep{wolff24rff,zhao25surw}.
 
 \paragraph{Complexity of message-passing consistency.} Our check is the VCh-rf problem
 of \citet{shi26popl} for MPI's channels. Their hardness comes from channels with several
 producers and from count capacities; an MPI queue has one producer per (source, destination,
-communicator) and blocking is a per-message threshold, so given the whole matching every
-constraint is a conjunction and the check an acyclicity test. In shared memory keeping a read's
-writer is a disjunction, and predicting a race that needs one reversed critical section is
-W[1]-hard~\citep{mathur21syncp}.
+communicator) and blocking is a
+per-message threshold, so given the whole matching every constraint is a conjunction and the check
+an acyclicity test. In shared memory keeping a read's writer is a disjunction, and predicting a
+race that needs one reversed critical section is W[1]-hard~\citep{mathur21syncp}.
 
 \paragraph{Buffering.} Slack elasticity holds for deterministic programs~\citep{manohar98slack}.
-For MPI programs with wildcards, adding buffering can add deadlocks, and neither zero nor
-infinite buffering exposes all of them~\citep{vakkalanka10slack}. Without wildcards, a program is
-deadlock-free iff it is deadlock-free with zero buffering~\citep{siegel05ppopp,siegel07europvm}.
-Aislinn verifies programs under the eager and rendezvous threshold we
+With wildcards, adding buffering can add MPI deadlocks and neither zero nor infinite buffering
+exposes all~\citep{vakkalanka10slack}; without them, zero buffering
+suffices~\citep{siegel05ppopp,siegel07europvm}. Aislinn verifies programs under the threshold we
 model~\citep{bohm16aislinn}.
 
-\paragraph{Message passing beyond MPI\@.} Trace analyses of Go report alternative
-communications under a straight-line model~\citep{sulzmann17hvc} or by vector
-clocks~\citep{sulzmann18go}, and AdvocateGo replays alternative partners found by
-happens-before~\citep{advocatego}. Race variants for Erlang's selective
-receive~\citep{vidal22racevariants} are our steal and horizon without blocking, with a theorem
-on non-redundancy; Bita~\citep{tasharofi13bita}, DCatch~\citep{liu17dcatch} and
-dl$^2$~\citep{gao25dl2} force, trigger or observe such bugs. None proves an alternative feasible.
+\paragraph{Message passing beyond MPI\@.} Go trace analyses report alternative communications
+under a straight-line model~\citep{sulzmann17hvc} or by vector clocks~\citep{sulzmann18go}, and
+AdvocateGo replays partners found by happens-before~\citep{advocatego}. Erlang's race
+variants~\citep{vidal22racevariants} are our steal and horizon without blocking;
+Bita~\citep{tasharofi13bita}, DCatch~\citep{liu17dcatch} and dl$^2$~\citep{gao25dl2} expose
+such bugs. None proves an alternative feasible.
 
 \paragraph{Confirmation by re-execution.} In shared memory, predictions are confirmed by
-controlled scheduling~\citep{bensalem06confirmation,joshi09deadlockfuzzer}, directed random
-testing~\citep{sen08racefuzzer}, exact replay of the observed prefix~\citep{sorrentino10penelope}
+controlled scheduling~\citep{bensalem06confirmation,joshi09deadlockfuzzer}, directed
+testing~\citep{sen08racefuzzer}, prefix replay~\citep{sorrentino10penelope}
 or re-execution~\citep{farzan12exceptionull,huang15mcr}. In message passing, reachability
-testing and MAD replay a prefix with the other wildcards pinned, ISP and DAMPI rewrite wildcard
-receives into specific ones~\citep{gopalakrishnan11cacm}, MOPPER can rerun a predicted matching
+testing and MAD replay a prefix with the other wildcards pinned, MOPPER can rerun a predicted
+matching
 under ISP~\citep{forejt17mopper}, and MPIWiz~\citep{xue09mpiwiz} and record and
-replay~\citep{netzer92replay,sato15rempi} reproduce recorded sources. Specific to \tool are pins
-over a horizon that follows rendezvous and ordering dependences, a log of each
-pinned match, a control replay that must finish, and confirmation per threshold.
+replay~\citep{netzer92replay,sato15rempi} reproduce recorded sources. Specific to \tool are
+horizon pins that follow rendezvous and ordering dependences, a log of each
+pinned match, a finishing control and confirmation per threshold.
 
-\paragraph{Runtime checkers and benchmarks.} \MUST~\citep{hilbrich12must} checks the observed
-run online for argument, resource and type errors and for deadlocks. It treats standard sends
-as unbuffered and, when a run stalls at a wildcard receive, tries its other matching sends.
-Since version 1.10 it checks MPI buffers through
-ThreadSanitizer~\citep{jenke23tsanfibers}. PARCOACH~\citep{saillard14parcoach} checks
-collective ordering. NINJA~\citep{sato17ninja} injects network
-noise to expose message races and reproduced the HYPRE race we predict;
-\cref{sec:eval} compares \tool with \MUST and NINJA. MBI~\citep{laurent21mbi} and
-\MBB~\citep{jammer24mbb} are the standard corpora.
+\paragraph{Runtime checkers.} \MUST~\citep{hilbrich12must} checks the observed run online for
+argument, resource and type errors and for deadlocks, treating standard sends as unbuffered and,
+when a run stalls at a wildcard receive, trying its other matching sends; since version 1.10 it
+also checks buffers through ThreadSanitizer~\citep{jenke23tsanfibers}. PARCOACH~\citep{saillard14parcoach}
+checks collective ordering. NINJA~\citep{sato17ninja} injects network noise and
+reproduced the HYPRE race we predict.

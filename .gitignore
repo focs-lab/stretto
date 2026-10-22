@@ -49,8 +49,20 @@ experiments/results/*/must.csv
 experiments/results/*/must.log
 experiments/results/must.done
 experiments/results/nekbone/*
+# the MPI-PRV baseline's builds, runs and traces (experiments/mpiprv/)
+experiments/mpiprv/work/
 !experiments/results/nekbone/summary8.txt
 !experiments/results/nekbone/replay_sample.csv
+# the scale campaign (experiments/scale/run.sh): per trace the sample's rows and log, the analysis
+# time and the traced run's output; not the reports (AMG's at 64 processes is 200 MB), the empty
+# error logs, or AMG's run logs, almost all Open MPI warnings naming host and process
+!experiments/results/scale/samples/
+experiments/results/scale/samples/*
+!experiments/results/scale/samples/*.csv
+!experiments/results/scale/samples/*.sample
+!experiments/results/scale/samples/*.time
+!experiments/results/scale/samples/hypre-*.run
+!experiments/results/scale/samples/lu-*.run
 # the commit the sync writes on the experiment machine
 /COMMIT
 # what artifact/reproduce.sh writes: logs and the numbers the paper was built with

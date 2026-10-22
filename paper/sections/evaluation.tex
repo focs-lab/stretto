@@ -61,7 +61,11 @@ change, and in \nMBIReplayInconclusiveHung the recorded run itself hung. Each of
 its pins and reached the predicted outcome, so without the control it would have counted as a
 confirmation. The \nReadsReplayFindings findings that read bounds promote to \Lone, replayed
 with their witnesses' pins, give \nReadsReplayConfirmed confirmed, \nReadsReplayInconclusive
-inconclusive and \nReadsReplayNotConfirmed not confirmed. On AMG, a
+inconclusive and \nReadsReplayNotConfirmed not confirmed. Rerun under the tracer,
+\nValidRuns of \nValidReplays replays of the confirming campaigns and \nValidControlRuns of
+\nValidControls controls are runs of the unpinned program, and \nValidConfNew of the \nValidConfOld
+confirmations among them stand; the application replays are samples from new traced runs, and on
+MBI \nValidVerdictChanged verdicts of racing loops differ from the committed ones. On AMG, a
 random sample of \nAMGsample of its alternatives, which claim no failure, was replayed: all
 \nAMGsampleMatched matched their pins, \nAMGsampleFinish finished, and so did
 \nAMGsampleControls controls. On Nekbone, whose late alternatives pin tens of thousands of
@@ -78,7 +82,7 @@ others exited with an error. The buffering replays are in RQ3 and HYPRE's in RQ6
 the recorded run itself; \emph{predicted} findings are claims about other runs of a program,
 \cls{2-buffering} on a run that finished among them.
 A hang the harness kills counts as an error for \tool; for \MUST both scorings are shown.
-The stress row covers the MBI programs only.}
+The stress rows cover the MBI programs only.}
 \label{tab:rq2}
 \small
 \begin{tabular}{@{}lrrrrr@{}}
@@ -98,9 +102,9 @@ races, which \MUST judges in the run it sees) and \MBIfonestress for stress test
 recorded run shows an error in \nMBItpobserved programs, and prediction adds \nMBItpPredOnly,
 \nMBItpPredBuf buffering thresholds and \nMBItpPredSP consequences under the single-path
 assumption. Of the \nMBIOnlyStretto errors that \tool reports and \MUST does not,
-\nMBICleanPred are predicted from a run that finished cleanly. They come from
-\nMBICleanTemplates program templates, \nMBICleanConfirmed of them are confirmed by replay,
-and stress testing makes \nMBICleanPredStress of them fail as well. The \nMBIfnunion misses
+\nMBICleanPred, from \nMBICleanTemplates templates, are predicted from a clean run;
+\nMBICleanConfirmed are confirmed by replay and stress testing makes \nMBICleanPredStress fail
+as well. The \nMBIfnunion misses
 are message races whose payload is the sender's rank and whose program checks it (RQ4).
 One run samples one schedule, so we ran MBI \nRepsRuns more times. The run itself shows
 \nRepsObsAlways labelled errors in every run, \nRepsObsSometimes in some and \nRepsObsNever in
@@ -110,28 +114,26 @@ from \nRepsCleanPredicted of the \nRepsCleanRuns runs that showed nothing; the r
 value-checking programs.
 
 Stress testing makes \nMBIStressFound of the \nMBIStressErr fail, mostly in its first run;
-\nMBIStressLater need more than one. The \nMBIStressPredMissed it never makes fail are the buffering programs, which deadlock only if the implementation
-does not buffer a 4-byte send. Open MPI buffers every message that small, so no delay exposes
-them. \tool predicts each of them from one finished run, as realisable only from a threshold of
-4~bytes. The replays of RQ3 confirm the threshold for the eight that send to another rank, so
-stress testing with a lower eager limit would expose those too. \MUST reports these programs
-as well, because it treats standard sends as unbuffered~\citep{hilbrich12must}; what \tool
-adds there is the threshold. NINJA, in each of its three modes, makes exactly the errors
-fail that stress testing does (F1 \NinjaMBIRandomfone, \NinjaMBISystemfone and
-\NinjaMBIAppfone; its application-centric mode crashes on \nNinjaMBIAppFP correct programs).
+\nMBIStressLater need more than one. The \nMBIStressPredMissed it never makes fail are the
+buffering programs: they deadlock only if a 4-byte send is not buffered, and Open MPI buffers
+it. \tool predicts each from one finished run, as realisable only from 4~bytes on. With the
+eager limit forced to \nMBIStressEagerBytes~bytes on TCP (RQ3), stress testing hangs the
+\nMBIStressEagerBufFound that send to another rank, not the \nMBIStressEagerPredMissedSelf that
+send to themselves, and fails no correct program (F1 \MBIfonestresseager, as \tool's, with
+\nMBIStressEagerOnlyStress errors only it finds and \nMBIStressEagerOnlyStretto only \tool). Testing needs the
+suspicion that buffering matters, and a low limit hides races that need buffering, as HYPRE's does
+(RQ6); \tool gives the threshold from one run at the
+default setting. \MUST reports them as well, treating standard sends as
+unbuffered~\citep{hilbrich12must}. Each of NINJA's three modes makes exactly the errors fail
+that stress testing at the default limits does (F1 \NinjaMBIRandomfone, \NinjaMBISystemfone and
+\NinjaMBIAppfone; the application-centric one crashes on \nNinjaMBIAppFP correct programs).
 
-\MBB's errors show in the run itself: by design, the error of every incorrect program is
-expected to be observable~\citep{jammer24quality}, so a score on \MBB measures detection, not
-prediction. \tool's predicted findings alone score \MBBfonepredicted, while the observed checks
-score \MBBfoneunion, against \MBBfoneMUST and \MBBfoneMUSTsym for \MUST. The \nMBBfp false
-positives are
-correct-labelled gather and reduce programs whose runs Open MPI ends with \texttt{MPI\_ERR\_ARG}. The \nMBBfnunion misses are local
-concurrency errors, a buffer reused while a nonblocking operation is pending, which a matching
-model does not see. With the buffer guard (\cref{sec:implementation}) the run
-itself shows \nMBBLCguard of the \nMBBLC and nothing else (F1 \MBBfoneguard), and under MPICH
-\nGuardLCMPICHfound of \nGuardLCMPICHbuilt; MBI's score does not change. \MUST~1.11.2 with its
-ThreadSanitizer analysis~\citep{jenke23tsanfibers} finds \nTsanLCfound of these, none that the
-guard misses.
+\MBB's errors show in the run itself by design~\citep{jammer24quality}, so a score there measures
+detection, not prediction: \tool's observed checks score \MBBfoneunion (its predicted findings alone
+\MBBfonepredicted), against \MBBfoneMUST and \MBBfoneMUSTsym for \MUST, and \MBBfoneguard with the buffer
+guard (\cref{sec:implementation}), which shows \nMBBLCguard of the \nMBBLC local-concurrency errors
+that a matching model does not see. \Cref{app:mbb} gives the details and compares stress testing,
+\MUST's ThreadSanitizer analysis and MPI-PRV there.
 
 \subsection{RQ3: buffering}
 
@@ -144,15 +146,14 @@ alternatives, \nEtwoBdep are feasible at some thresholds only. The profiles of
 shared-memory transport buffers \BimplOMPI bytes by default; with its eager limit forced down,
 \mpicall{Send} and \mpicall{Isend} still send up to \BminOMPI bytes inline, while persistent
 sends buffer \BpersOMPI; the TCP transport with a 64-byte limit buffers \BtcpOMPI bytes on
-every path. An earlier run of the replays below forced the shared-memory limit down instead, and
-two persistent-send programs hung there where the single threshold of the send path predicted
-they would finish; after measuring per path, we moved the replays to TCP.
+every path. Forcing the shared-memory limit down instead had hung two persistent-send programs
+that one threshold per send path said would finish, so the replays moved to TCP.
 
 Each of the \nEtwoReplayPrograms programs whose run finished and needs a threshold is rerun
 three times. With the default limits it must finish again (\nEtwoReplayDefaultOK did). On TCP,
-with the threshold one byte below the predicted bound, it must hang: \nEtwoReplayBelowOK of
-\nEtwoReplayBelowTestable did. The other four send to themselves, which the self transport
-does inline up to 256 bytes, so no setting tests them. With the threshold at the bound, it
+one byte below the predicted bound, it must hang: \nEtwoReplayBelowOK of
+\nEtwoReplayBelowTestable did. The other four send to themselves,
+which goes inline up to 256 bytes at any setting. With the threshold at the bound, it
 must finish: \nEtwoReplayAtOK of \nEtwoReplayAt did. \nEtwoReplayBad replays went against
 the prediction.
 
@@ -166,9 +167,9 @@ the prediction.
 \Ltwo twin finishes. The MBI races that \tool misses abort unless the payload, the sender's
 rank, is~3; the single path has no branch to reach the abort, and their \Ltwo twins, written
 knowing the labels, certify it (\cls{1e}) in every case. Without read bounds no corpus program has a contained deadlock
-(\cref{thm:l1dead}). With the bounds the static analysis computes from the sources, the
+(\cref{thm:l1dead}). With the bounds computed statically from the sources, the
 consequences of \nReadsMoved erroneous programs, \nReadsMovedClean with a clean run, move from
-\LoneSP to \Lone, through deadlocks contained in the longer horizon or witnesses that respect
+\LoneSP to \Lone, through deadlocks contained in the longer horizon or witnesses within
 the bounds (\cref{thm:firstread}); \Lone alone then scores F1 \nReadsFoneLOne instead of
 \nReadsFoneLOneBase, with \nReadsNewFP new false positives. The value-checking programs read
 the payload first and stay at \Ltwo.
@@ -188,6 +189,14 @@ events, and \AMGtime\,s for AMG with its \nAMGalts probe alternatives. On Nekbon
 communication suite, \NekRecords million records, it took \NekMinutes minutes and \NekGB\,GB,
 outside the timed leg, to check \nNekChecked receive alternatives, \nNekAlts of them accepted:
 about \NekPerAlt\,s per check against the whole graph (\cref{thm:cost}).
+Also outside it, from \nScaleNpMin to \nScaleNpMax processes (oversubscribed above 24
+hardware threads), AMG's analysis grows from \ScaleAMGSixteenTime\,s and \ScaleAMGSixteenGB\,GB to
+\ScaleAMGSixtyFourTime\,s and \ScaleAMGSixtyFourGB\,GB and its probe alternatives from
+\nScaleAMGSixteenProbeAlts to \nScaleAMGSixtyFourProbeAlts, each costing time about linear in the
+trace (\ScaleAMGSixteenPerAlt to \ScaleAMGSixtyFourPerAlt\,ms); HYPRE's grows from
+\ScaleHypreSixteenTime to \ScaleHypreSixtyFourTime\,s, LU's \ScaleLuTimeRatio-fold for a
+\ScaleLuRecordsRatio-fold trace. All \nScaleSample sampled replays and their controls matched
+their pins and finished.
 
 \subsection{RQ6: real applications}
 
@@ -222,19 +231,19 @@ fix, no trace has a cross alternative, and its same alternatives finish too:
 \nHypreFixedFourLocalFinish of \nHypreFixedFourLocalAlts on four processes and
 \nHypreFixedEightLocalFinish of \nHypreFixedEightLocalAlts on eight. Its other
 \nHypreFixedEightLocalOther replays and \nHypreFixedEightLocalControlsFailed controls, and the
-remaining replay of version~2.10.1, exited with status~15 without finishing; plain runs launched
+remaining replay of 2.10.1, exited with status~15 without finishing; plain runs launched
 the same way never did, their output was not kept, and we count them as neither hanging nor
 finishing.
 Stress testing never hit the hang: \nHypreStressRuns untraced runs of
-version~2.10.1, half of them with random delays, all finished. NINJA, built for this race,
+version~2.10.1, half with random delays, all finished. NINJA, built for this race,
 hangs it in \nNinjaHypreEightAppHangSetup of \nNinjaHypreEightAppRuns runs on eight processes
 in its application-centric mode and in \nNinjaHypreEightRandomShortHangSetup of
 \nNinjaHypreEightRandomShortRuns with 10\% of sends delayed by 50\,ms; on four processes only
 random noise does (\nNinjaHypreFourRandomShortHangSetup of \nNinjaHypreFourRandomShortRuns),
 and never on 2.11.0.
 
-A trace has a cross alternative only if it recorded an order in which a neighbour could reach
-the next exchange while this rank still probes. The run finishes either way: the order is
+A trace has a cross alternative only if its order lets a neighbour reach
+the next exchange while this rank probes. The run finishes either way: the order is
 common, the hang it allows is not.
 
 \begin{table}[t]
@@ -314,27 +323,26 @@ hit: \nDealStressDelayChanged of \nDealStressDelayRuns runs with random delays p
 \paragraph{Wildcard-heavy correct code.} AMG's solver exchanges its matrix data with probes on
 any source. One traced run on eight processes, with \nAMGsends messages, \nAMGwild wildcard
 receives and \nAMGprobes probes, gives \nAMGalts probe alternatives and \nAMGrecvAlts
-same-shape receive alternatives. All of them are warnings or information, and none is a
-contained deadlock. The sample of RQ1 finished under every pin. In Nekbone, every finding is a \cls{1f} at the binary-tree reduction \texttt{gp2}, whose inner
+same-shape receive alternatives. All are warnings or information, none a
+contained deadlock. RQ1's sample finished under every pin. In Nekbone, every finding is a \cls{1f} at the binary-tree reduction \texttt{gp2}, whose inner
 nodes take their children's contributions with one tag from any source. Only the
 communication suite's timing test calls it; the solver sums with \mpicall{Allreduce}. The
 check accepts \nNekAlts alternatives there, the same four at each of the test's calls, and
-rejects \nNekRejected for a single reason: the
+rejects \nNekRejected for one reason: the
 other sender's next message with that tag is sent only after the receive completes, so no
-execution delivers it to that receive. Its sample in RQ1 finished under every pin as well.
+execution delivers it there. Its RQ1 sample finished under every pin too.
 
 \subsection{Threats to validity}
 
-All runs used one node, at the process counts given above, and the corpora's programs are
+All runs used one node and at most \nScaleNpMax processes, and the corpora's programs are
 small; the exhaustive comparison of RQ1 reaches \nEsixMaxEvents events. Of
 \cref{tab:rq2}'s runs only MBI's were repeated, without \MUST. The \Ltwo twins are
-written knowing the labels, and the HYPRE campaign replays only the probe whose tag the documented fix
-changed. \MUST sees a run of its own under MPICH, not the traced execution,
-and the harness's timeout decides what counts as a hang for both.
-Stress testing and NINJA ran at the default eager limits with one setting per mode; other
-settings or a lower limit may find more. The model assumes a
-complete trace of the modelled fragment (a call outside it restricts the report to observed
+written knowing the labels, and the HYPRE campaign replays only the probe whose tag the fix
+changed. \MUST sees its own run under MPICH, not the traced one,
+and for both the harness's timeout decides what is a hang.
+NINJA ran at the default eager limits, one setting per mode, stress testing at those and
+the lowest; other settings may find more. The model assumes a
+complete trace of the modelled fragment (a call outside it limits the report to observed
 findings), one threshold for all standard sends of a run, and an angelic choice in
-\mpicall{Waitany}. The HYPRE campaign uses one input and two process counts, the MG campaign
-one class and one count, the deal.II campaign one test. We did not run MPI-PRV~\citep{yao26mpiprv}, which keeps every
-wildcard match fixed.
+\mpicall{Waitany}. HYPRE's campaign uses one input and two process counts, MG's
+one class and one count, deal.II's one test.

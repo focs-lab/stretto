@@ -5,12 +5,14 @@ names the code commits its rows were produced with (the `commit` column). The co
 E2, E6 and the E3 and E7 inputs come from `experiments/run_remaining.sh` on the second, shared machine
 (the container of `experiments/container/`, 12 cores of one NUMA node); the HYPRE campaign from
 `experiments/hypre/campaign.sh`, the NPB MG and deal.II campaigns from `experiments/npbmg/run.sh` and
-`experiments/dealii/run.sh`, and Nekbone from `experiments/nekbone/run.sh` there. The MUST verdicts
+`experiments/dealii/run.sh`, Nekbone from `experiments/nekbone/run.sh` and the scale campaign (E11)
+from `experiments/scale/run.sh` there. The MUST verdicts
 are carried over from MUST 1.9.2 runs under MPICH in MPI-BugBench's own container, with the same timeout
 per program, and those of MUST 1.11.2 from the image of `experiments/must/`; NINJA's runs come from
 `experiments/ninja/campaign.sh`. The E4 times, the AMG trace and its analysis time come from one announced timed leg at commit
 576e917 (`experiments/timing_leg.sh`, the host otherwise idle), and AMG's replay sample from that
-trace; the leg's times are the only timing claims.
+trace; the leg's times are the only timing claims. The replays of E8c, every confirmation claim's replays run again
+under the tracer, come from the commands of "Replays as runs of the program" in `experiments/RUNBOOK.md`.
 
 ## E1: predictions vs benchmark labels
 
@@ -39,6 +41,8 @@ Buffer guard run: 115 programs (rows by code commit: 7117573 (115)); 3-local in 
 | MUST 1.9.2, a timeout or a run without a report counted as an error | 52 | 0 | 13 | 50 | 1.00 | 0.80 | 0.89 |
 | MUST 1.11.2 (same source, its own run under MPICH) | 40 | 0 | 25 | 50 | 1.00 | 0.62 | 0.76 |
 | MUST 1.11.2, a timeout or a run without a report counted as an error | 45 | 0 | 20 | 50 | 1.00 | 0.69 | 0.82 |
+| MUST 1.11.2 with ThreadSanitizer (same source, its own run under MPICH) | 42 | 0 | 23 | 50 | 1.00 | 0.65 | 0.79 |
+| MUST 1.11.2 with ThreadSanitizer, a timeout or a run without a report counted as an error | 48 | 5 | 17 | 45 | 0.91 | 0.74 | 0.81 |
 
 MUST verdicts: ERROR 46, OK 63, RE 2, TIMEOUT 4. In the first MUST row a run
 that timed out, crashed or did not compile counts as no error reported. A Stretto run that the harness
@@ -48,6 +52,15 @@ report (RE) the same way; the two rows bracket the comparison. Both tools ran ea
 the same timeout; MUST under MPICH, Stretto under Open MPI, so they did not see the same run.
 
 MUST 1.11.2 verdicts (rows by code commit: 3b8e846 (115)): ERROR 40, OK 70, RE 1, TIMEOUT 4. Labelled errors it reports and MUST 1.9.2 does not: 3 (MessageRace 3); the reverse: 9 (MessageRace 9). Correct programs it reports: 0.
+
+MUST 1.11.2 with ThreadSanitizer verdicts (rows by code commit: 3b8e846 (115)): ERROR 42, OK 62, RE 2, TIMEOUT 9. Labelled errors it reports and MUST 1.9.2 does not: 4 (MessageRace 4); the reverse: 8 (MessageRace 8). Correct programs it reports: 0. Programs with a data race reported: 0.
+
+MUST 1.11.2 runs from `experiments/must/Dockerfile` (MPI-BugBench's MUST image with 1.11.2: Debian 12,
+MPICH 4.0.2, clang 14), the same harness and timeout as 1.9.2 (`scripts/must_run.sh`). With ThreadSanitizer the
+program is compiled with `must-tsan-cc --wrap-target mpicc.mpich` and run with `--must:tsan`; a data race counts
+as an error (MPI-BugBench's harness maps MUST_WARNING_DATARACE to no error class). As MUST's own tests do for
+clang 14 and later, the run sets MUST_DISABLE_TSAN_ONREPORT=1, so the races are in ThreadSanitizer's report
+rather than MUST's: with the hook on, the runs hung after the first race.
 
 Labelled errors Stretto reports and MUST does not on the same program: **15**, of which
 predicted on a run that showed nothing itself: **4**. With at least one finding replay-confirmed
@@ -153,6 +166,10 @@ Buffer guard run: 388 programs (rows by code commit: 7117573 (388)); 3-local in 
 
 | MUST 1.9.2 (same source, its own run under MPICH) | 213 | 4 | 23 | 148 | 0.98 | 0.90 | 0.94 |
 | MUST 1.9.2, a timeout or a run without a report counted as an error | 219 | 9 | 17 | 143 | 0.96 | 0.93 | 0.94 |
+| MUST 1.11.2 (same source, its own run under MPICH) | 213 | 4 | 23 | 148 | 0.98 | 0.90 | 0.94 |
+| MUST 1.11.2, a timeout or a run without a report counted as an error | 219 | 9 | 17 | 143 | 0.96 | 0.93 | 0.94 |
+| MUST 1.11.2 with ThreadSanitizer (same source, its own run under MPICH) | 222 | 4 | 14 | 148 | 0.98 | 0.94 | 0.96 |
+| MUST 1.11.2 with ThreadSanitizer, a timeout or a run without a report counted as an error | 236 | 25 | 0 | 127 | 0.90 | 1.00 | 0.95 |
 
 MUST verdicts: ERROR 217, OK 160, RE 5, TIMEOUT 6. In the first MUST row a run
 that timed out, crashed or did not compile counts as no error reported. A Stretto run that the harness
@@ -160,6 +177,17 @@ killed at the timeout is reported as a blocked rank (2-blocked) and one whose ra
 as an abort, both errors, so the second MUST row credits MUST's timeouts and its runs that ended without a
 report (RE) the same way; the two rows bracket the comparison. Both tools ran each program once, with
 the same timeout; MUST under MPICH, Stretto under Open MPI, so they did not see the same run.
+
+MUST 1.11.2 verdicts (rows by code commit: 3b8e846 (396)): ERROR 217, OK 160, RE 4, TIMEOUT 7. Labelled errors it reports and MUST 1.9.2 does not: 0; the reverse: 0. Correct programs it reports: 4 (P2P__Correct-mpi_improbe-001, P2P__Correct-mpi_imrecv-001, P2P__Correct-mpi_mprobe-001, P2P__Correct-mpi_mrecv-001).
+
+MUST 1.11.2 with ThreadSanitizer verdicts (rows by code commit: 3b8e846 (396)): ERROR 226, OK 127, RE 25, TIMEOUT 10. Labelled errors it reports and MUST 1.9.2 does not: 17 (LocalConcurrency 17); the reverse: 8 (CallOrdering 8). Correct programs it reports: 4 (P2P__Correct-mpi_improbe-001, P2P__Correct-mpi_imrecv-001, P2P__Correct-mpi_mprobe-001, P2P__Correct-mpi_mrecv-001). Programs with a data race reported: 17 (LocalConcurrency 17).
+
+MUST 1.11.2 runs from `experiments/must/Dockerfile` (MPI-BugBench's MUST image with 1.11.2: Debian 12,
+MPICH 4.0.2, clang 14), the same harness and timeout as 1.9.2 (`scripts/must_run.sh`). With ThreadSanitizer the
+program is compiled with `must-tsan-cc --wrap-target mpicc.mpich` and run with `--must:tsan`; a data race counts
+as an error (MPI-BugBench's harness maps MUST_WARNING_DATARACE to no error class). As MUST's own tests do for
+clang 14 and later, the run sets MUST_DISABLE_TSAN_ONREPORT=1, so the races are in ThreadSanitizer's report
+rather than MUST's: with the hook on, the runs hung after the first race.
 
 Labelled errors Stretto reports and MUST does not on the same program: **6**, of which
 predicted on a run that showed nothing itself: **0**. With at least one finding replay-confirmed
@@ -204,13 +232,130 @@ mean 0.05, max 2.
 ### Stress-testing baseline: MBI
 
 Up to 30 runs per program with random send and receive delays per rank, stopping at the first run that
-does not finish (`experiments/stress_baseline.py`).
+does not finish (`experiments/stress_baseline.py`, `stress.csv`). Programs: 115. Rows by code commit: c27c793 (115).
 
 Labelled-error programs: 65. Stress testing makes 53 fail (median run of the first failure 1;
 16 only after the first run). Stretto reports 61 from one run, 22 of them predicted from a
 run that finished; stress testing never makes 12 of those fail (P2PBuffering_Circular_Isend_Irecv_nok, P2PBuffering_Circular_Isend_Recv_nok, P2PBuffering_Circular_Send_Irecv_nok, P2PBuffering_Circular_Send_Recv_nok, P2PBuffering_Isend_Irecv_Isend_Irecv_nok, P2PBuffering_Isend_Recv_Isend_Recv_nok, P2PBuffering_SameProcess_Isend_Irecv_nok, P2PBuffering_SameProcess_Isend_Recv_nok, P2PBuffering_SameProcess_Send_Irecv_nok, P2PBuffering_SameProcess_Send_Recv_nok, P2PBuffering_Send_Irecv_Send_Irecv_nok, P2PBuffering_Send_Recv_Send_Recv_nok).
-Correct programs that failed under stress (a hang under load or a delay): 0.
+Correct programs that fail: 0.
+Of the 53 failures, 49 are hangs killed at the timeout and the others end with SIGNAL:6 (4).
 
+| | TP | FP | FN | TN | F1 |
+|---|---|---|---|---|---|
+| Stretto, observed or predicted, on these programs | 61 | 0 | 4 | 50 | 0.97 |
+| random delays, default limits | 53 | 0 | 12 | 50 | 0.90 |
+
+### Stress-testing baseline with the eager limit forced down: MBI
+
+The same baseline (up to 30 runs per program, the same random delays, seed and timeout) with Open MPI's eager
+threshold forced down to 0 payload bytes in every run (`stress_baseline.py --eager`, `stress-eager.csv`):
+`--mca btl self,tcp --mca btl_tcp_if_include lo --mca btl_tcp_eager_limit 56 --mca btl_self_eager_limit 56`.
+This is the setting E2 replays a buffering finding with below its bound, at the least eager limit the TCP
+transport accepts; the shared-memory transport is left out because it sends up to 256 bytes inline whatever its
+limit, and the self transport does the same for a send to the sending rank.
+Programs: 115. Rows by code commit: 0dabfce (115).
+
+Labelled-error programs: 65. Forced down, stress testing makes 61 fail (15 only after the first run).
+Against the default limits: 8 of these do not fail there, and 0 that fail there never fail here. Of the 12 errors Stretto predicts that the default limits never expose, 8 fail and 4 still never fail (P2PBuffering_SameProcess_Isend_Irecv_nok, P2PBuffering_SameProcess_Isend_Recv_nok, P2PBuffering_SameProcess_Send_Irecv_nok, P2PBuffering_SameProcess_Send_Recv_nok), 4 of them sending to their own rank (untestable below their bound in E2).
+Correct programs that fail: 0.
+Of the 61 failures, 57 are hangs killed at the timeout and the others end with SIGNAL:6 (4).
+Against Stretto's verdict from one run: 4 errors Stretto reports are never made to fail (P2PBuffering_SameProcess_Isend_Irecv_nok, P2PBuffering_SameProcess_Isend_Recv_nok, P2PBuffering_SameProcess_Send_Irecv_nok, P2PBuffering_SameProcess_Send_Recv_nok),
+and 4 made to fail Stretto does not report (MessageRace_Irecv_Isend_nok, MessageRace_Irecv_Send_nok, MessageRace_Recv_Isend_nok, MessageRace_Recv_Send_nok).
+
+| | TP | FP | FN | TN | F1 |
+|---|---|---|---|---|---|
+| random delays, eager limit forced down | 61 | 0 | 4 | 50 | 0.97 |
+
+Programs whose outcome the forced limit changes:
+
+| program | label | default limits | eager limit forced down |
+|---|---|---|---|
+| P2PBuffering_Circular_Isend_Irecv_nok | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| P2PBuffering_Circular_Isend_Recv_nok | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| P2PBuffering_Circular_Send_Irecv_nok | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| P2PBuffering_Circular_Send_Recv_nok | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| P2PBuffering_Isend_Irecv_Isend_Irecv_nok | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| P2PBuffering_Isend_Recv_Isend_Recv_nok | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| P2PBuffering_Send_Irecv_Send_Irecv_nok | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| P2PBuffering_Send_Recv_Send_Recv_nok | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+
+### Stress-testing baseline: MPI-BugBench level 2
+
+Up to 30 runs per program with random send and receive delays per rank, stopping at the first run that
+does not finish (`experiments/stress_baseline.py`, `stress.csv`). Programs: 365. Rows by code commit: 604c639 (365).
+
+Labelled-error programs: 213. Stress testing makes 172 fail (median run of the first failure 1;
+0 only after the first run). Stretto reports 213 from one run, 7 of them predicted from a
+run that finished; stress testing never makes 7 of those fail (P2P__CallOrdering-ANY_TAG-001, P2P__CallOrdering-unmatched-mpi_irsend-001, P2P__CallOrdering-unmatched-mpi_isend-001, P2P__CallOrdering-unmatched-mpi_rsend-001, P2P__CallOrdering-unmatched-mpi_rsend_init-001, P2P__CallOrdering-unmatched-mpi_send-001, P2P__CallOrdering-unmatched-mpi_send_init-001).
+Correct programs that fail: 4 (COLL__Correct-mpi_gather-002, COLL__Correct-mpi_reduce-002, COLL__Correct-mpi_reduce-003, COLL__Correct-mpi_reduce-004), 3 of them ending as the traced run did (column `run` of the corpus table); COLL__Correct-mpi_reduce-003 ends with APP-ERROR:13, the traced run with MPI-ERROR:MPI_ERR_ARG (13 is the error class of MPI_ERR_ARG, the exit status of Open MPI's fatal error handler, whose message was not captured).
+Of the 176 failures, 168 are hangs killed at the timeout and the others end with APP-ERROR:13 (1), MPI-ERROR:MPI_ERR_ARG (3), MPI-ERROR:MPI_ERR_TRUNCATE (4).
+
+| | TP | FP | FN | TN | F1 |
+|---|---|---|---|---|---|
+| Stretto, observed or predicted, on these programs | 213 | 4 | 0 | 148 | 0.99 |
+| random delays, default limits | 172 | 4 | 41 | 148 | 0.88 |
+
+### Stress-testing baseline with the eager limit forced down: MPI-BugBench level 2
+
+The same baseline (up to 30 runs per program, the same random delays, seed and timeout) with Open MPI's eager
+threshold forced down to 0 payload bytes in every run (`stress_baseline.py --eager`, `stress-eager.csv`):
+`--mca btl self,tcp --mca btl_tcp_if_include lo --mca btl_tcp_eager_limit 56 --mca btl_self_eager_limit 56`.
+This is the setting E2 replays a buffering finding with below its bound, at the least eager limit the TCP
+transport accepts; the shared-memory transport is left out because it sends up to 256 bytes inline whatever its
+limit, and the self transport does the same for a send to the sending rank.
+Programs: 365. Rows by code commit: 0dabfce (365).
+
+Labelled-error programs: 213. Forced down, stress testing makes 208 fail (0 only after the first run).
+Against the default limits: 36 of these do not fail there, and 0 that fail there never fail here. Of the 7 errors Stretto predicts that the default limits never expose, all 7 fail.
+Correct programs that fail: 4 (COLL__Correct-mpi_gather-002, COLL__Correct-mpi_reduce-002, COLL__Correct-mpi_reduce-003, COLL__Correct-mpi_reduce-004), 4 of them ending as the traced run at the default limits did (column `run` of the corpus table). At the default limits 4 of them fail too, 3 ending the same way, and 0 other correct programs fail.
+Of the 212 failures, 204 are hangs killed at the timeout and the others end with MPI-ERROR:MPI_ERR_ARG (4), SIGNAL:11 (4).
+Against Stretto's verdict from one run: 5 errors Stretto reports are never made to fail (COLL__CallOrdering-unmatched-mpi_iallreduce-mpi_ialltoall-001, COLL__CallOrdering-unmatched-mpi_ibcast-mpi_iscan-001, COLL__CallOrdering-unmatched-mpi_ibcast-mpi_iscatter-001, COLL__CallOrdering-unmatched-mpi_ireduce-mpi_igather-001, COLL__CallOrdering-unmatched-mpi_iscatter-mpi_iscan-001),
+and 0 made to fail Stretto does not report.
+
+| | TP | FP | FN | TN | F1 |
+|---|---|---|---|---|---|
+| random delays, eager limit forced down | 208 | 4 | 5 | 148 | 0.98 |
+
+Programs whose outcome the forced limit changes:
+
+| program | label | default limits | eager limit forced down |
+|---|---|---|---|
+| COLL__CallOrdering-unmatched-mpi_bcast-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| COLL__CallOrdering-unmatched-mpi_bcast-mpi_gather-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| COLL__CallOrdering-unmatched-mpi_bcast-mpi_igather-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| COLL__CallOrdering-unmatched-mpi_bcast-mpi_ireduce-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| COLL__CallOrdering-unmatched-mpi_bcast-mpi_reduce-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| COLL__CallOrdering-unmatched-mpi_exscan-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| COLL__CallOrdering-unmatched-mpi_exscan-mpi_gather-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| COLL__CallOrdering-unmatched-mpi_exscan-mpi_igather-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| COLL__CallOrdering-unmatched-mpi_exscan-mpi_ireduce-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| COLL__CallOrdering-unmatched-mpi_iallreduce-mpi_igather-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| COLL__CallOrdering-unmatched-mpi_iallreduce-mpi_ireduce-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| COLL__CallOrdering-unmatched-mpi_ialltoall-mpi_igather-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| COLL__CallOrdering-unmatched-mpi_ialltoall-mpi_ireduce-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| COLL__CallOrdering-unmatched-mpi_ibcast-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| COLL__CallOrdering-unmatched-mpi_ibcast-mpi_igather-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| COLL__CallOrdering-unmatched-mpi_ibcast-mpi_ireduce-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| COLL__CallOrdering-unmatched-mpi_iscan-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| COLL__CallOrdering-unmatched-mpi_iscatter-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| COLL__CallOrdering-unmatched-mpi_iscatter-mpi_igather-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| COLL__CallOrdering-unmatched-mpi_scan-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| COLL__CallOrdering-unmatched-mpi_scan-mpi_igather-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| COLL__CallOrdering-unmatched-mpi_scan-mpi_ireduce-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| COLL__CallOrdering-unmatched-mpi_scatter-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| COLL__CallOrdering-unmatched-mpi_scatter-mpi_gather-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| COLL__CallOrdering-unmatched-mpi_scatter-mpi_igather-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| COLL__CallOrdering-unmatched-mpi_scatter-mpi_ireduce-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| P2P__CallOrdering-ANY_TAG-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| P2P__CallOrdering-unmatched-mpi_bsend-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| P2P__CallOrdering-unmatched-mpi_bsend_init-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| P2P__CallOrdering-unmatched-mpi_ibsend-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| P2P__CallOrdering-unmatched-mpi_irsend-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| P2P__CallOrdering-unmatched-mpi_isend-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| P2P__CallOrdering-unmatched-mpi_rsend-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| P2P__CallOrdering-unmatched-mpi_rsend_init-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| P2P__CallOrdering-unmatched-mpi_send-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| P2P__CallOrdering-unmatched-mpi_send_init-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
 
 ### Repeated runs: how often each verdict holds (MBI)
 
@@ -742,28 +887,28 @@ operation's buffer accesses as a concurrent thread, and plain MUST runs. A race 
 
 | program | buffer guard | MUST 1.11.2 with ThreadSanitizer | MUST 1.11.2 | MUST 1.9.2 |
 |---|---|---|---|---|
-| COLL__LocalConcurrency-mpi_iallreduce-001 | 3-local | ERROR | - | OK |
-| COLL__LocalConcurrency-mpi_ialltoall-001 | 3-local | ERROR | - | OK |
-| COLL__LocalConcurrency-mpi_ibcast-001 | 3-local | ERROR | - | OK |
-| COLL__LocalConcurrency-mpi_igather-001 | 3-local | ERROR | - | OK |
-| COLL__LocalConcurrency-mpi_ireduce-001 | 3-local | ERROR | - | OK |
-| COLL__LocalConcurrency-mpi_iscan-001 | 3-local | ERROR | - | OK |
-| COLL__LocalConcurrency-mpi_iscatter-001 | 3-local | ERROR | - | OK |
-| P2P__LocalConcurrency-mpi_irecv-001 | 3-local | ERROR | - | ERROR |
-| P2P__LocalConcurrency-mpi_irecv-002 | 3-local | ERROR | - | ERROR |
-| P2P__LocalConcurrency-receive-mpi_imrecv-001 | 3-local | ERROR | - | ERROR |
-| P2P__LocalConcurrency-receive-mpi_irecv-001 | 3-local | ERROR | - | OK |
-| P2P__LocalConcurrency-receive-mpi_precv_init-001 | 3-local | OK | - | RE |
-| P2P__LocalConcurrency-receive-mpi_recv_init-001 | 3-local | ERROR | - | OK |
-| P2P__LocalConcurrency-send-mpi_bsend_init-001 | 3-local | ERROR | - | OK |
-| P2P__LocalConcurrency-send-mpi_ibsend-001 | 3-local | ERROR | - | OK |
-| P2P__LocalConcurrency-send-mpi_irsend-001 | 3-local | ERROR | - | OK |
-| P2P__LocalConcurrency-send-mpi_isend-001 | 3-local | ERROR | - | OK |
-| P2P__LocalConcurrency-send-mpi_issend-001 | 3-local | ERROR | - | OK |
-| P2P__LocalConcurrency-send-mpi_psend_init-001 | 3-local | OK | - | RE |
-| P2P__LocalConcurrency-send-mpi_rsend_init-001 | 3-local | ERROR | - | OK |
-| P2P__LocalConcurrency-send-mpi_send_init-001 | 3-local | ERROR | - | OK |
-| P2P__LocalConcurrency-send-mpi_ssend_init-001 | 3-local | ERROR | - | OK |
+| COLL__LocalConcurrency-mpi_iallreduce-001 | 3-local | ERROR | OK | OK |
+| COLL__LocalConcurrency-mpi_ialltoall-001 | 3-local | ERROR | OK | OK |
+| COLL__LocalConcurrency-mpi_ibcast-001 | 3-local | ERROR | OK | OK |
+| COLL__LocalConcurrency-mpi_igather-001 | 3-local | ERROR | OK | OK |
+| COLL__LocalConcurrency-mpi_ireduce-001 | 3-local | ERROR | OK | OK |
+| COLL__LocalConcurrency-mpi_iscan-001 | 3-local | ERROR | OK | OK |
+| COLL__LocalConcurrency-mpi_iscatter-001 | 3-local | ERROR | OK | OK |
+| P2P__LocalConcurrency-mpi_irecv-001 | 3-local | ERROR | ERROR | ERROR |
+| P2P__LocalConcurrency-mpi_irecv-002 | 3-local | ERROR | ERROR | ERROR |
+| P2P__LocalConcurrency-receive-mpi_imrecv-001 | 3-local | ERROR | ERROR | ERROR |
+| P2P__LocalConcurrency-receive-mpi_irecv-001 | 3-local | ERROR | OK | OK |
+| P2P__LocalConcurrency-receive-mpi_precv_init-001 | 3-local | OK | OK | RE |
+| P2P__LocalConcurrency-receive-mpi_recv_init-001 | 3-local | ERROR | OK | OK |
+| P2P__LocalConcurrency-send-mpi_bsend_init-001 | 3-local | ERROR | OK | OK |
+| P2P__LocalConcurrency-send-mpi_ibsend-001 | 3-local | ERROR | OK | OK |
+| P2P__LocalConcurrency-send-mpi_irsend-001 | 3-local | ERROR | OK | OK |
+| P2P__LocalConcurrency-send-mpi_isend-001 | 3-local | ERROR | OK | OK |
+| P2P__LocalConcurrency-send-mpi_issend-001 | 3-local | ERROR | OK | OK |
+| P2P__LocalConcurrency-send-mpi_psend_init-001 | 3-local | TIMEOUT | OK | RE |
+| P2P__LocalConcurrency-send-mpi_rsend_init-001 | 3-local | ERROR | OK | OK |
+| P2P__LocalConcurrency-send-mpi_send_init-001 | 3-local | ERROR | OK | OK |
+| P2P__LocalConcurrency-send-mpi_ssend_init-001 | 3-local | ERROR | OK | OK |
 
 Programs: 22. The guard reports 22, MUST with ThreadSanitizer 20; both 20, only the guard 2, only MUST 0. The guard run's code commit: 7117573; MUST's rows: 3b8e846 (22).
 
@@ -915,6 +1060,297 @@ Explorer verdicts: hb-only not realised 3, hb-only realised with other matches c
 | 013 | stretto-only | realised, judged pairs only | `recv(1, 4) src=ANY tag=1 cap=4096B <- send(2, 6)->1 tag=1 4B; observed send(0, 1)->1 tag=1 4B` | nonblocking, nothing sent while pending | taken in the run by an earlier receive of its rank (a swap) |
 | 056 | stretto-only | realised, judged pairs only | `recv(1, 2) src=ANY tag=1 cap=4096B <- send(0, 1)->1 tag=1 64B; observed send(2, 1)->1 tag=1 4096B` | nonblocking, nothing sent while pending | taken in the run by an earlier receive of its rank (a swap) |
 
+## E8c: confirming replays judged as runs of the program
+
+The replays behind every confirmation claim are run again with the tracer preloaded: it applies the pins as
+the replay library does and records the run with the original envelopes, and the replay's own trace is judged
+as a run of the program without the pins (`stretto.confirm.unpinned_violation`): MPI's matching order on its
+matches (non-overtaking on both sides, probes) and an acyclic constraint graph. A receive still pending where
+the run stopped is read as unmatched or as matched to a message nobody else took, and the run passes if some
+reading does. A replay that hangs is judged up to where it stopped and at its end: a receive or probe still
+waiting there that would, without its pin, take a message nobody took is no state the program stays in. The
+controls are judged the same way. A confirmation under the *old rule* needs every required pin matched, the
+predicted outcome and a control that finished; the *new rule* also needs the replay to be a run of the
+program. The MBI campaigns replay every finding again (rows, one per finding and class); the application
+campaigns replay a random sample of alternatives of new traced runs (the earlier traces were not kept),
+with the seed in the table, and AMG and Nekbone the same alternatives of the same trace as their samples.
+A required pin counts as matched when the replay library reports it or, since 13f2174, when the replay's own
+trace shows the pinned receive or probe took its pinned source (`stretto.confirm.trace_matches`).
+Rows by code commit: 58fa178 (349), 13f2174 (30).
+
+| campaign | alternatives to draw from | replays | runs of the program | not runs | undetermined | controls that are runs | confirmed, old rule | confirmed, new rule |
+|---|---|---|---|---|---|---|---|---|
+| MBI (E1), every replay | 72 findings, 72 of the 72 replayed for the claims | 72 | 72 | 0 | 0 | 70 of 70 | 38 | 38 |
+| MBI with read bounds (E3b), every replay | 61 findings, 61 of the 61 replayed for the claims | 61 | 61 | 0 | 0 | 61 of 61 | 25 | 25 |
+| NPB MG 2.4.1 (E5d), a sample | 480 in 3 traced runs, seed 20261022 | 60 | 60 | 0 | 0 | 60 of 60 | 46 | 46 |
+| deal.II 9.3.0-rc1 (E5e), cross alternatives, a sample | 360 in 5 traced runs, seed 20261022 | 60 | 60 | 0 | 0 | 60 of 60 | 60 | 60 |
+| HYPRE 2.10.1 (E5c), cross alternatives, a sample | 146 in 20 traced runs, seed 20261022 | 60 | 60 | 0 | 0 | 60 of 60 | 60 | 60 |
+| AMG (E5), the sample of E5 | the sample of 30 | 30 | 30 | 0 | 0 | 30 of 30 | 30 | 30 |
+| Nekbone (E5b), the sample of E5b | the sample of 30 | 30 | 30 | 0 | 0 | 30 of 30 | 30 | 30 |
+| **all** | | 373 | 373 | 0 | 0 | 371 of 371 | 289 | 289 |
+
+Replays of MBI whose verdict under the old rule differs from that of the committed replay with the same finding and pins (the outcome of one run of a racing program is one schedule):
+
+| campaign | program | class | pin | committed | this run |
+|---|---|---|---|---|---|
+| MBI (E1), every replay | MessageRace_Loop_Isend_Irecv_nok | 1d | 0/0/3 | confirmed (TIMEOUT, control FINISHED) | inconclusive (TIMEOUT, control TIMEOUT) |
+| MBI (E1), every replay | MessageRace_Loop_Isend_Irecv_nok | 1d | 0/0/1,0/1/3 | inconclusive (TIMEOUT, control TIMEOUT) | confirmed (TIMEOUT, control FINISHED) |
+| MBI (E1), every replay | MessageRace_Loop_Isend_Recv_nok | 1d | 0/0/3 | confirmed (TIMEOUT, control FINISHED) | inconclusive (TIMEOUT, control TIMEOUT) |
+| MBI (E1), every replay | MessageRace_Loop_Isend_Recv_nok | 1d | 0/0/2,0/1/3 | confirmed (TIMEOUT, control FINISHED) | inconclusive (TIMEOUT, control TIMEOUT) |
+| MBI (E1), every replay | MessageRace_Loop_Send_Irecv_nok | 1d | 0/0/3 | inconclusive (TIMEOUT, control TIMEOUT) | confirmed (TIMEOUT, control FINISHED) |
+
+Replays that hung, the predicted outcome of 1c, 1d and HYPRE's cross alternatives, and were judged at their end as well: 191, of which 191 are runs of the program.
+
+Every replay and every control is a run of the program without its pins: no pin forced a match or a hang that the program cannot have, so no confirmation rests on the pins alone.
+
+## E9: MPI-PRV
+
+MPI-PRV ("Efficient Predictive Monitoring of Message Passing Interface Programs", ISSTA 2026) from its
+artifact image, pinned by digest (`experiments/mpiprv/README.md`), in a container with four processors of
+the second machine, outside any timed leg: its times are indicative. Stretto's tracer, an LD_PRELOAD library
+built for the same Open MPI 4.1.6, runs inside the same image.
+Rows by code commit: 1110e11 (840), 8ab453c (294), fdb226d (105), e624aae (29), 3b4fc21 (3).
+
+### Its own evaluation, rerun
+
+RQ1 (`RQ1/TestallProp.sh`, the ten properties, each on its own buggy program), 5 rounds: every property reported in 5 of them.
+
+| property | program | rounds reported | reported sequence (first round) |
+|---|---|---|---|
+| Prop1 | CallOrdering_Finalize_nok.c | 5 of 5 | `p0_MPIFinalize p1_Irecv` |
+| Prop2 | Concurrency_Recv_Isend_nok.c | 5 of 5 | `p0_Isend p0_Write p1_Recv` |
+| Prop3 | Concurrency_Irecv_Send_nok.c | 5 of 5 | `p1_Irecv p1_Use p0_Isend` |
+| Prop4 | Communicator_free_error.c | 5 of 5 | `p1_ComCreate p0_ComFree p1_ComUse` |
+| Prop5 | MPI_Ptr_uaferror.c | 5 of 5 | `p1_CreatePtr p1_FreePtr p0_Use` |
+| Prop6 | MPIRMA_Use_error_nok.c | 5 of 5 | `p1_Wincreate p0_Winfree p0_Winfree p1_WinPut` |
+| Prop7 | MPIRMA_doublefree_nok.c | 5 of 5 | `p1_Wincreate p1_Winfree` |
+| Prop8 | LocalConcurrency_Recv_init_Send_nok.c | 5 of 5 | `p1_Recvinit p1_Start p1_write p1_Wait` |
+| Prop9 | CallOrdering_Ireduce_Barrier_nok.c | 5 of 5 | `p1_Ireduce p0_Barrier p1_Wait` |
+| Prop10 | ResLeak_Comm_create_nok.c | 5 of 5 | `p0_CommCreate p0_Nofree p0_MPIFinalize` |
+
+Its motivating example (Adept Kernel MPI, `stencil.c`, the marker `usea0()` before the interior loop; pattern `Irecv Use Isend`, 4 ranks): `MPI-PRV.sh` analyses the trace shipped with the example; the other rows are fresh runs of the instrumented kernel shipped with it. The last column says whether the reported send goes to the reported receiving rank (in this stencil rank r receives only from r - 1 and r + 1).
+
+| trace | events | reported | sequence | send to the receiving rank |
+|---|---|---|---|---|
+| shipped | 2608 | PASS | `p3_Irecv p3_Use p0_Isend` | no |
+| fresh1 | 2608 | PASS | `p0_Irecv p0_Use p1_Isend` | yes |
+| fresh2 | 2608 | PASS | `p0_Irecv p0_Use p2_Isend` | no |
+| fresh3 | 2608 | PASS | `p0_Irecv p0_Use p3_Isend` | no |
+| fresh4 | 2608 | PASS | `p0_Irecv p0_Use p3_Isend` | no |
+| fresh5 | 2608 | PASS | `p0_Irecv p0_Use p1_Isend` | yes |
+
+RQ2/RQ3 (`RQ2-3/MPI-PRV_result.sh`): MPI-PRV on the trace shipped for each application and process count, with that application's pattern. The artifact's scripts write the result column of their table as a constant (√, whatever the analyser prints); `reported` is what the analyser printed. `absent` lists the pattern's events that never occur in the trace.
+
+| application | np | pattern | events | absent | reported | analysis (s), here | analysis (s), artifact's table |
+|---|---|---|---|---|---|---|---|
+| DTG | 5 | Irecv Use Isend | 15 | Irecv Use Isend | none | 0.01 | 0.003253 |
+| integrate | 2 | Irecv Use Isend | 8 | Irecv Use Isend | none | 0.01 | 0.005034 |
+| integrate | 8 | Irecv Use Isend | 50 | Irecv Use Isend | none | 0.03 | 0.013153 |
+| integrate | 10 | Irecv Use Isend | 64 | Irecv Use Isend | none | 0.02 | 0.012260 |
+| diffusion2d | 4 | Irecv Use Isend | 46 | Irecv Use Isend | none | 0.02 | 0.008679 |
+| Gauss_elim | 2 | Irecv Use Isend | 18 | Irecv Use Isend | none | 0.01 | 0.003510 |
+| Gauss_elim | 4 | Irecv Use Isend | 40 | Irecv Use Isend | none | 0.02 | 0.007199 |
+| Gauss_elim | 8 | Irecv Use Isend | 84 | Irecv Use Isend | none | 0.03 | 0.018424 |
+| image-manip | 4 | Irecv Use Isend | 16 | Irecv Use Isend | none | 0.01 | 0.003326 |
+| image-manip | 24 | Irecv Use Isend | 56 | Irecv Use Isend | none | 0.03 | 0.011543 |
+| image-manip | 127 | Irecv Use Isend | 262 | Irecv Use Isend | none | 0.12 | 0.087029 |
+| Congrad | 4 | Irecv Use Isend | 12 | Irecv Use Isend | none | 0.00 | 0.003714 |
+| poisson_mpi | 4 | Irecv Create Isend | 9196 | Create | none | 2.38 | 1.735981 |
+| poisson_mpi | 8 | Irecv Create Isend | 21904 | Create | none | 5.72 | 3.413356 |
+| poisson_mpi | 24 | Irecv Create Isend | 80524 | Create | none | 23.05 | 13.432528 |
+| poisson_mpi | 64 | Irecv Create Isend | 292888 | Create | none | 98.33 | 60.665897 |
+| poisson_mpi | 96 | Irecv Create Isend | 409092 | Create | none | 149.20 | 97.569582 |
+| poisson_mpi | 127 | Irecv Create Isend | 206011 | Create | none | 82.85 | 55.273440 |
+| Heat | 4 | Irecv Use Isend | 64 | Irecv Use | none | 0.03 | 0.014367 |
+| adept-kernel-mpi | 4 | Irecv Create Isend | 2608 | Create | none | 0.59 | 0.467616 |
+| adept-kernel-mpi | 8 | Irecv Create Isend | 5816 | Create | none | 1.31 | 1.054731 |
+| adept-kernel-mpi | 24 | Irecv Create Isend | 18648 | Create | none | 4.68 | 3.280217 |
+| adept-kernel-mpi | 64 | Irecv Create Isend | 50728 | Create | none | 15.36 | 10.201579 |
+| adept-kernel-mpi | 127 | Irecv Create Isend | 101254 | Create | none | 39.22 | 26.577784 |
+| kf-ray | 11 | Isend MPIFinalize Irecv | 140 | Isend Irecv | none | 0.05 | 0.029808 |
+| clustalW | 5 | Isend MPIFinalize Irecv | 37 | Isend Irecv | none | 0.02 | 0.008015 |
+| clustalW | 20 | Isend MPIFinalize Irecv | 172 | Isend Irecv | none | 0.06 | 0.040489 |
+| clustalW | 127 | Isend MPIFinalize Irecv | 1135 | Isend Irecv | none | 0.42 | 0.360099 |
+| ParMETIS | 4 | Isend MPIFinalize Irecv | 598174 |  | none | 241.86 | 153.753854 |
+| MiniAMR | 4 | Isend Create Irecv | 7608 | Create | none | 1.95 | 1.311203 |
+| MiniAMR | 8 | Isend Create Irecv | 22816 | Create | none | 5.51 | 3.565693 |
+| MiniAMR | 16 | Isend Create Irecv | 53232 | Create | none | 13.68 | 8.394478 |
+| MiniAMR | 24 | Isend Create Irecv | 87448 | Create | none | 23.28 | 14.268092 |
+| MiniAMR | 64 | Isend Create Irecv | 273728 | Create | none | 85.09 | 53.882190 |
+| MiniAMR | 96 | Isend Create Irecv | 425792 | Create | none | 147.34 | 95.300166 |
+| MiniAMR | 124 | Isend Create Irecv | 463848 | Create | none | 174.78 | 114.605275 |
+
+Reported in 0 of 36 configurations.
+
+### Correct programs that ask for a reordering no execution has (`experiments/mpiprv/probes.sh`)
+
+Each program is correct; `expected` is *none* when no execution has the pattern's order, and *matched* for the controls, whose observed order is the pattern.
+
+| case | program | pattern | expected | reported | sequence |
+|---|---|---|---|---|---|
+| wild_irecv-src1 | MPI_Irecv from the sender, MPI_Wait, marker | Irecv Use Isend | none | 0 of 5 |  |
+| wild_irecv-any | the same, MPI_ANY_SOURCE | Irecv Use Isend | none | 5 of 5 | `p0_Irecv p0_Use p1_Isend` |
+| wild_recv-src1 | MPI_Recv from the sender, marker | Recv Use Send | none | 0 of 5 |  |
+| wild_recv-any | the same, MPI_ANY_SOURCE | Recv Use Send | none | 5 of 5 | `p0_Recv p0_Use p1_Send` |
+| order-barrier-BA | A, MPI_Barrier / MPI_Barrier, B | B A | none | 5 of 5 | `p1_B p0_A` |
+| order-barrier-AB | the same, the observed order (control) | A B | matched | 5 of 5 | `p0_A p1_B` |
+| order-sendrecv-BA | A, MPI_Send / MPI_Recv, B | B A | none | 0 of 5 |  |
+| order-sendrecv-AB | the same, the observed order (control) | A B | matched | 5 of 5 | `p0_A p1_B` |
+| unrelated | rank 0 receives from 1 and uses; later rank 2 sends to 3 | Irecv Use Isend | none | 5 of 5 | `p0_Irecv p0_Use p2_Isend` |
+| lc-error | MPI-BugBench receive-mpi_irecv-001, marker at its labelled access (error) | Irecv Use Isend | matched | 20 of 20 | `p0_Irecv p0_Use p1_Isend` |
+| lc-twin | its twin: the access and marker after MPI_Wait (correct) | Irecv Use Isend | none | 0 of 20 |  |
+| lc-twin-loaded | the twin, with four busy loops on the same processors | Irecv Use Isend | none | 4 of 20 | `p0_Irecv p0_Use p1_Isend` |
+
+### The Adept Kernel report (`experiments/mpiprv/adept.sh`)
+
+The example's sources built without instrumentation; `fixed` completes the two halo sends the original never waits for, `mutant` is the fixed kernel with its waits moved after the edge updates (the error the report describes, put in on purpose); `delay` runs make one rank sleep before each MPI_Isend. The result is the hash of a0 and a1 on every rank at their free(); `after marker` and `after loop` count the halo sends posted after the receiving rank's marker, and after its whole interior loop, out of all halo sends.
+
+| run | command | result | same result as normal | sends after marker | after loop | of | delayed rank's sends after loop | of | guard records |
+|---|---|---|---|---|---|---|---|---|---|
+| normal | `src/kernel -b stencil -o 27 -s 512 -d double -a normal LD_PRELOAD=sum.so ` | a09e3039 | True | - | - | - | - | - |   |
+| overlapped-1 | `src/kernel -b stencil -o 27 -s 512 -d double -a overlapped LD_PRELOAD=order.so ` | 66f6b516 | False | 68 | 0 | 600 | - | - |   |
+| overlapped-2 | `src/kernel -b stencil -o 27 -s 512 -d double -a overlapped LD_PRELOAD=order.so ` | efa73d3e | False | 49 | 0 | 600 | - | - |   |
+| fixed | `fixed/kernel -b stencil -o 27 -s 512 -d double -a overlapped LD_PRELOAD=order.so ` | a09e3039 | True | 80 | 0 | 600 | - | - |   |
+| fixed-delay1 | `fixed/kernel -b stencil -o 27 -s 512 -d double -a overlapped LD_PRELOAD=order.so ADEPT_DELAY=1:2500` | a09e3039 | True | 209 | 200 | 600 | 200 | 200 |   |
+| fixed-delay2 | `fixed/kernel -b stencil -o 27 -s 512 -d double -a overlapped LD_PRELOAD=order.so ADEPT_DELAY=2:2500` | a09e3039 | True | 294 | 200 | 600 | 200 | 200 |   |
+| mutant | `mutant/kernel -b stencil -o 27 -s 512 -d double -a overlapped LD_PRELOAD=order.so ` | a6679322 | False | 35 | 0 | 600 | - | - |   |
+| mutant-delay1 | `mutant/kernel -b stencil -o 27 -s 512 -d double -a overlapped LD_PRELOAD=order.so ADEPT_DELAY=1:2500` | a6679322 | False | 213 | 200 | 600 | 200 | 200 |   |
+| guard | `src/kernel -b stencil -o 27 -s 512 -d double -a overlapped LD_PRELOAD=libstretto-trace.so STRETTO_TRACE_DIR=/w/experiments/mpiprv/work/adept/guard.trace STRETTO_GUARD=1` | - | - | - | - | - | - | - | 600 access:write:isend*600 |
+| guard-fixed | `fixed/kernel -b stencil -o 27 -s 512 -d double -a overlapped LD_PRELOAD=libstretto-trace.so STRETTO_TRACE_DIR=/w/experiments/mpiprv/work/adept/guard-fixed.trace STRETTO_GUARD=1` | - | - | - | - | - | - | - | 0  |
+
+Guard records by site (`adept-guard.txt`; count, site, function and source line):
+
+```
+# guard: Adept Kernel MPI (src), -a overlapped -b stencil -o 27 -s 512 -d double, 4 ranks, Stretto's tracer with STRETTO_GUARD=1; run at commit 1110e11, summarised at commit 10210ff
+600 kernel+0x106a5 double_stencil27_overlapped stencil.c:1875
+# guard-fixed: Adept Kernel MPI (fixed), -a overlapped -b stencil -o 27 -s 512 -d double, 4 ranks, Stretto's tracer with STRETTO_GUARD=1; run at commit 1110e11, summarised at commit 10210ff
+```
+
+### MPI-PRV on Stretto's corpora (`experiments/mpiprv/run.py`)
+
+Programs run: 250; outside MPI-PRV's declared scope (probes, message races, buffering), listed and not scored: 6 (P2P__Correct-mpi_improbe-001, P2P__Correct-mpi_imrecv-001, P2P__Correct-mpi_mprobe-001, P2P__Correct-mpi_mrecv-001, P2P__LocalConcurrency-receive-mpi_imrecv-001, twin:P2P__LocalConcurrency-receive-mpi_imrecv-001); not built with Open MPI 4.1.6: 8. Rows by code commit: 1110e11 (774).
+
+Arm a: the shipped properties whose events are all MPI calls (1, 6, 7, 9), program unchanged. Arm b: the buffer properties (2, 3, 8, with both members of the paper's unions) with markers inserted by a script that does not read the labels. Arm c: the same properties with markers at the labelled lines and at the moved lines of the twins, an upper bound. Twins are the local-concurrency errors corrected (the labelled access moved after the completing call), labelled correct. `a+b` is the tool run with every shipped property and the blind markers: an error if either arm reports one.
+
+All programs in scope: 244 programs, 59 labelled errors.
+
+| | TP | FP | FN | TN | precision | recall | F1 |
+|---|---|---|---|---|---|---|---|
+| MPI-PRV, arm a (no markers) | 11 | 31 | 48 | 154 | 0.26 | 0.19 | 0.22 |
+| MPI-PRV, arm b (blind markers) | 11 | 0 | 48 | 185 | 1.00 | 0.19 | 0.31 |
+| MPI-PRV, arm c (markers at the labels) | 11 | 4 | 48 | 181 | 0.73 | 0.19 | 0.30 |
+| MPI-PRV, arms a and b | 22 | 31 | 37 | 154 | 0.42 | 0.37 | 0.39 |
+| Stretto with the buffer guard (`stretto_corpus.py`) | 27 | 4 | 32 | 181 | 0.87 | 0.46 | 0.60 |
+
+Local-concurrency errors and the correct programs (the domain of the buffer properties): 212 programs, 27 labelled errors.
+
+| | TP | FP | FN | TN | precision | recall | F1 |
+|---|---|---|---|---|---|---|---|
+| MPI-PRV, arm a (no markers) | 8 | 31 | 19 | 154 | 0.21 | 0.30 | 0.24 |
+| MPI-PRV, arm b (blind markers) | 11 | 0 | 16 | 185 | 1.00 | 0.41 | 0.58 |
+| MPI-PRV, arm c (markers at the labels) | 11 | 4 | 16 | 181 | 0.73 | 0.41 | 0.52 |
+| MPI-PRV, arms a and b | 19 | 31 | 8 | 154 | 0.38 | 0.70 | 0.49 |
+| Stretto with the buffer guard (`stretto_corpus.py`) | 25 | 4 | 2 | 181 | 0.86 | 0.93 | 0.89 |
+
+Arm a's reports by pattern (labelled errors / correct programs): P1 11 / 31.
+
+
+By group, programs in scope reported as errors (a / b / c; Stretto with the guard):
+
+| group | programs | arm a | arm b | arm c | Stretto | not recorded by the instrumentation |
+|---|---|---|---|---|---|---|
+| MBI CommunicatorLeak | 6 | 0 | 0 | 0 | 0 | MPI_Comm_free (3), MPI_Comm_create (2), MPI_Comm_group (2), MPI_Group_free (2), MPI_Comm_dup (2), MPI_Comm_split (2) |
+| MBI GroupLeak | 2 | 0 | 0 | 0 | 0 | MPI_Comm_group (2), MPI_Group_excl (2), MPI_Group_free (2) |
+| MBI LocalConcurrency | 8 | 1 | 6 | 6 | 6 | MPI_Request_free (8), MPI_Send_init (3) |
+| MBI MissingStart | 2 | 0 | 0 | 0 | 2 | MPI_Request_free (2), MPI_Send_init (2) |
+| MBI MissingWait | 16 | 2 | 0 | 0 | 0 | MPI_Request_free (4), MPI_Send_init (2), MPI_Iallgather (1), MPI_Iallgatherv (1), MPI_Iallreduce (1), MPI_Ialltoall (1) |
+| MBI OperatorLeak | 2 | 0 | 0 | 0 | 0 | MPI_Op_create (2), MPI_Op_free (1) |
+| MBI RequestLeak | 2 | 1 | 0 | 0 | 0 | MPI_Request_free (2), MPI_Send_init (2) |
+| MBI TypeLeak | 2 | 0 | 0 | 0 | 0 | MPI_Type_contiguous (2), MPI_Type_free (1) |
+| MBI correct | 10 | 1 | 0 | 0 | 0 | MPI_Request_free (4), MPI_Comm_free (3), MPI_Send_init (2), MPI_Comm_group (2), MPI_Group_free (2), MPI_Comm_create (1) |
+| MPI-BugBench LocalConcurrency | 19 | 7 | 5 | 5 | 19 | MPI_Request_free (5), MPI_Buffer_attach (2), MPI_Buffer_detach (2), MPI_Iallreduce (1), MPI_Ialltoall (1), MPI_Ibcast (1) |
+| MPI-BugBench correct | 148 | 20 | 0 | 0 | 4 | MPI_Comm_free (43), MPI_Bcast (27), MPI_Comm_split (22), MPI_Comm_dup (14), MPI_Request_free (11), MPI_Allreduce (10) |
+| twins of the local-concurrency errors (correct) | 27 | 10 | 0 | 4 | 0 | MPI_Request_free (13), MPI_Send_init (4), MPI_Buffer_attach (2), MPI_Buffer_detach (2), MPI_Iallreduce (1), MPI_Ialltoall (1) |
+
+Correct programs reported as errors:
+
+| program | arm | reported |
+|---|---|---|
+| P2P__Correct-mpi_bsend-001 | a | `P1: p1_MPIFinalize p0_Irecv` |
+| P2P__Correct-mpi_bsend-002 | a | `P1: p1_MPIFinalize p0_Irecv` |
+| P2P__Correct-mpi_bsend_init-001 | a | `P1: p1_MPIFinalize p0_Irecv` |
+| P2P__Correct-mpi_bsend_init-002 | a | `P1: p1_MPIFinalize p0_Irecv` |
+| P2P__Correct-mpi_ibsend-001 | a | `P1: p1_MPIFinalize p0_Irecv` |
+| P2P__Correct-mpi_ibsend-002 | a | `P1: p1_MPIFinalize p0_Irecv` |
+| P2P__Correct-mpi_irsend-001 | a | `P1: p1_MPIFinalize p0_Irecv` |
+| P2P__Correct-mpi_irsend-002 | a | `P1: p1_MPIFinalize p0_Irecv` |
+| P2P__Correct-mpi_issend-001 | a | `P1: p1_MPIFinalize p0_Irecv` |
+| P2P__Correct-mpi_issend-002 | a | `P1: p1_MPIFinalize p0_Irecv` |
+| P2P__Correct-mpi_rsend-001 | a | `P1: p1_MPIFinalize p0_Irecv` |
+| P2P__Correct-mpi_rsend-002 | a | `P1: p1_MPIFinalize p0_Irecv` |
+| P2P__Correct-mpi_rsend_init-001 | a | `P1: p1_MPIFinalize p0_Irecv` |
+| P2P__Correct-mpi_rsend_init-002 | a | `P1: p1_MPIFinalize p0_Irecv` |
+| P2P__Correct-mpi_send_init-001 | a | `P1: p1_MPIFinalize p0_Irecv` |
+| P2P__Correct-mpi_send_init-002 | a | `P1: p1_MPIFinalize p0_Irecv` |
+| P2P__Correct-mpi_ssend-002 | a | `P1: p1_MPIFinalize p0_Irecv` |
+| P2P__Correct-mpi_ssend-003 | a | `P1: p1_MPIFinalize p0_Irecv` |
+| P2P__Correct-mpi_ssend_init-001 | a | `P1: p1_MPIFinalize p0_Irecv` |
+| P2P__Correct-mpi_ssend_init-002 | a | `P1: p1_MPIFinalize p0_Irecv` |
+| ReqLifecycle_Send_init_Irecv_ok | a | `P1: p1_MPIFinalize p0_Irecv` |
+| twin:LocalConcurrency_Irecv_Send_init_nok | a | `P1: p0_MPIFinalize p1_Irecv` |
+| twin:LocalConcurrency_Recv_init_Isend_nok | c | `P8: p1_Recvinit p1_Start p1_write p0_Wait` |
+| twin:LocalConcurrency_Recv_init_Send_init_nok | c | `P8: p1_Recvinit p0_Start p1_write p0_Wait` |
+| twin:P2P__LocalConcurrency-mpi_irecv-001 | a | `P1: p1_MPIFinalize p0_Irecv` |
+| twin:P2P__LocalConcurrency-mpi_irecv-001 | c | `P3send: p0_Irecv p0_Use p1_Send` |
+| twin:P2P__LocalConcurrency-mpi_irecv-002 | a | `P1: p1_MPIFinalize p0_Irecv` |
+| twin:P2P__LocalConcurrency-receive-mpi_recv_init-001 | c | `P8: p0_Recvinit p0_Start p0_write p1_Wait` |
+| twin:P2P__LocalConcurrency-send-mpi_bsend_init-001 | a | `P1: p1_MPIFinalize p0_Irecv` |
+| twin:P2P__LocalConcurrency-send-mpi_ibsend-001 | a | `P1: p1_MPIFinalize p0_Irecv` |
+| twin:P2P__LocalConcurrency-send-mpi_irsend-001 | a | `P1: p1_MPIFinalize p0_Irecv` |
+| twin:P2P__LocalConcurrency-send-mpi_issend-001 | a | `P1: p1_MPIFinalize p0_Irecv` |
+| twin:P2P__LocalConcurrency-send-mpi_rsend_init-001 | a | `P1: p1_MPIFinalize p0_Irecv` |
+| twin:P2P__LocalConcurrency-send-mpi_send_init-001 | a | `P1: p1_MPIFinalize p0_Irecv` |
+| twin:P2P__LocalConcurrency-send-mpi_ssend_init-001 | a | `P1: p1_MPIFinalize p0_Irecv` |
+
+### Stretto on MPI-PRV's applications (`experiments/mpiprv/apps.py`)
+
+The artifact's binaries (built with its instrumentation, which only appends its events to a file), its command lines and process counts up to 24 ranks, traced by Stretto inside its image; replays are every L1 alternative (30 at most), each with the pins of its horizon and a control; `confirmed` replays the error findings with a pin (`stretto confirm`, Open MPI's default eager limits); `under rendezvous` replays the predictions that need B = 0 or B below a message size, with every message above 8 bytes sent by rendezvous (replay result / pins / control). Stretto's analysis time includes the single-path explorer, bounded as in the corpus harness (600 events, 30 000 states per alternative); MPI-PRV's is its analysis of the artifact's own trace of the same configuration, for its one pattern (table above).
+
+| application | np | run | records | wildcard receives | classes | alternatives | replays | confirmed | under rendezvous | analysis (s) | MPI-PRV (s) | with the guard: run, classes, confirmed, under rendezvous |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| DTG | 5 | rc=0 | 55 | 3 | 1c*1 1d*1 1f*1 | 1 | FINISHED/matched/control-FINISHED*1 | 1c:not-confirmed*1 1d:not-confirmed*1 | 1c at B=0: TIMEOUT/matched/control-FINISHED; 1d at B=0: TIMEOUT/matched/control-FINISHED | 0.09 | 0.01 | rc=0 1f*1 2-buffering*1  observed run (B < 40): TIMEOUT |
+| integrate | 2 | rc=0 | 62 | 0 |  | 0 |  |  |  | 0.09 | 0.01 | rc=0    |
+| integrate | 8 | rc=0 | 320 | 0 |  | 0 |  |  |  | 0.08 | 0.03 | rc=0    |
+| integrate | 10 | rc=0 | 406 | 0 |  | 0 |  |  |  | 0.08 | 0.02 | rc=0    |
+| diffusion2d | 4 | rc=0 | 143 | 0 | 1c*6 2-buffering*1 | 0 |  |  | observed run (B < 16): TIMEOUT | 0.10 | 0.02 | rc=0 1c*6 2-buffering*1  observed run (B < 16): TIMEOUT |
+| Gauss_elim | 2 | rc=0 | 64 | 2 |  | 0 |  |  |  | 0.09 | 0.01 | rc=0    |
+| Gauss_elim | 4 | rc=0 | 134 | 6 | 1f*2 | 2 | FINISHED/matched/control-FINISHED*2 |  |  | 0.35 | 0.02 | rc=0 1f*2   |
+| Gauss_elim | 8 | rc=0 | 274 | 14 | 1f*6 | 6 | FINISHED/matched/control-FINISHED*6 |  |  | 7.13 | 0.03 | rc=0 1f*6   |
+| image-manip | 4 | rc=0 | 76 | 4 | 1b*3 | 3 | FINISHED/matched/control-FINISHED*3 |  |  | 0.11 | 0.01 | rc=0 1b*3   |
+| image-manip | 24 | rc=0 | 357 | 4 | 1b*6 | 6 | FINISHED/matched/control-FINISHED*6 |  |  | 0.34 | 0.03 | rc=0 1b*6   |
+| image-manip | 127 | skipped (more than 24 ranks) |  |  |  |  |  |  |  |  | 0.12 |     |
+| Congrad | 4 | rc=0 | 388 | 0 |  | 0 |  |  |  | 0.08 | 0.00 | rc=0    |
+| poisson_mpi | 4 | rc=0 | 27152 | 0 | 1c*4518 | 0 |  |  |  | 0.59 | 2.38 | rc=0 1c*4608 3-local*76698   |
+| poisson_mpi | 8 | rc=0 | 60132 | 0 | 1c*11060 | 0 |  |  |  | 1.42 | 5.72 | rc=0 1c*11340 3-local*187746   |
+| poisson_mpi | 24 | rc=0 | 241476 | 0 | 1c*47012 | 0 |  |  |  | 6.33 | 23.05 | rc=0 1c*78706 3-local*1293809   |
+| poisson_mpi | 64 | skipped (more than 24 ranks) |  |  |  |  |  |  |  |  | 98.33 |     |
+| poisson_mpi | 96 | skipped (more than 24 ranks) |  |  |  |  |  |  |  |  | 149.20 |     |
+| poisson_mpi | 127 | skipped (more than 24 ranks) |  |  |  |  |  |  |  |  | 82.85 |     |
+| Heat | 4 | rc=0 | 192 | 4 | 1b*2 1c*2 1d*2 | 2 | TIMEOUT/matched/control-FINISHED*2 | 1b:n/a*2 1c:confirmed*2 1d:confirmed*2 |  | 0.20 | 0.03 | rc=0 1b*2 1c*2 1d*2 3-local*4 1b:n/a*2 1c:confirmed*2 1d:confirmed*2  |
+| adept-kernel-mpi | 4 | rc=0 | 3254 | 0 |  | 0 |  |  |  | 0.13 | 0.59 | rc=0 3-local*600   |
+| adept-kernel-mpi | 8 | rc=0 | 7314 | 0 |  | 0 |  |  |  | 0.20 | 1.31 | rc=0 3-local*1400   |
+| adept-kernel-mpi | 24 | rc=0 | 23554 | 0 |  | 0 |  |  |  | 0.52 | 4.68 | rc=0 3-local*4600   |
+| adept-kernel-mpi | 64 | skipped (more than 24 ranks) |  |  |  |  |  |  |  |  | 15.36 |     |
+| adept-kernel-mpi | 127 | skipped (more than 24 ranks) |  |  |  |  |  |  |  |  | 39.22 |     |
+| kf-ray | 11 | rc=139 | 610 | 90 | 1c*315 1d*315 1f*315 abort*1 | 315 | not replayed: the traced run ended with rc=139 |  |  | 614.14 | 0.05 | rc=139 1c*315 1d*315 1f*315 abort*1   |
+| clustalW | 5 | rc=0 | 126 | 16 | 1f*6 | 6 | FINISHED/matched/control-FINISHED*6 |  |  | 8.39 | 0.02 | rc=0 1f*6   |
+| clustalW | 20 | rc=0 | 561 | 76 | 1f*171 | 171 | FINISHED/matched/control-FINISHED*30 |  |  | 883.46 | 0.06 | rc=0 1f*171   |
+| clustalW | 127 | skipped (more than 24 ranks) |  |  |  |  |  |  |  |  | 0.42 |     |
+| ParMETIS | 4 | rc=0 | 1237494 | 0 |  | 0 |  |  |  | 42.63 | 241.86 | rc=0    |
+| MiniAMR | 4 | rc=0 | 51236 | 0 |  | 0 |  |  |  | 1.02 | 1.95 | rc=0    |
+| MiniAMR | 8 | rc=0 | 125280 | 0 |  | 0 |  |  |  | 2.74 | 5.51 | rc=0    |
+| MiniAMR | 16 | rc=0 | 273376 | 0 | waitany-order*3800 | 0 |  |  |  | 16.62 | 13.68 | rc=0 waitany-order*3800   |
+
 ## E10: NINJA (noise injection)
 
 NINJA v1.0.2 (`experiments/ninja/build.sh`), the noise injector of the paper that reported the HYPRE ParaSails race
@@ -1010,3 +1446,36 @@ more than 1e-8 off the reference. Rows by code commit: 3b8e846 (81).
 | 16 | random, 10% of sends by 0.05 s | 20 | 20 | 8 | 8 |
 | 16 | system-centric | 20 | 20 | 1 | 1 |
 | 16 | application-centric | 20 | 20 | 9 | 9 |
+
+## E11: scale (16 to 64 processes)
+
+HYPRE 2.10.1's `ij -solver 8 -pout 0` (ParaSails, MPICH build), AMG with 16^3 points per process (`-problem 1`,
+Open MPI) and NPB LU class A (MPICH build), each traced once per process count; each trace analysed in one
+process under `/usr/bin/time` (`--no-sp`), and a random sample of its alternatives replayed with the pins of
+their horizon and a control (`experiments/scale/run.sh`, `experiments/replay_sample.py`). Process counts above
+the container's processors (24 hardware threads, 12 cores, in the committed campaign) oversubscribe it, so these
+runs measure the analysis, which runs in one process, not the traced program's speed. They ran outside a timed
+leg, with other containers on the machine: the times show the cost and are not timing claims. Peak memory is
+the analysis's maximum resident set. *Per record* is the analysis time over the trace's records, *per
+alternative* the time over the alternatives reported, *per alternative and record* that over the records too.
+Rows by code commit: b7c886f (9).
+
+| application | processes | traced run | records | wildcard receives | probes | findings by class | analysis (s) | peak memory (GB) | per record (µs) | per alternative (ms) | per alternative and record (ns) | replays | pins matched | finished | controls finished | control pins matched |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| HYPRE 2.10.1, ParaSails | 16 | FINISHED | 167802 | 23 | 78760 | probe-alt 187, 1f 8 | 12.4 | 0.7 | 74.0 | 63.7 | 379.6 | 10 | 10 | 10 | 10 | 10 |
+| HYPRE 2.10.1, ParaSails | 32 | FINISHED | 425093 | 40 | 203910 | probe-alt 202, 1f 9 | 34.2 | 2.1 | 80.4 | 162.0 | 381.2 | 10 | 10 | 10 | 10 | 10 |
+| HYPRE 2.10.1, ParaSails | 64 | FINISHED | 962967 | 70 | 465867 | probe-alt 215, 1f 7 | 90.9 | 5.7 | 94.4 | 409.5 | 425.3 | 10 | 10 | 10 | 10 | 10 |
+| AMG | 16 | FINISHED | 329453 | 103 | 26019 | probe-alt 16934, 1f 10 | 65.2 | 2.1 | 197.8 | 3.8 | 11.7 | 10 | 10 | 10 | 10 | 10 |
+| AMG | 32 | FINISHED | 976135 | 209 | 86879 | probe-alt 91578, 1f 16 | 704.1 | 7.4 | 721.3 | 7.7 | 7.9 | 10 | 10 | 10 | 10 | 10 |
+| AMG | 64 | FINISHED | 2573046 | 497 | 130465 | probe-alt 501881, 1f 66 | 10837.6 | 37.5 | 4212.0 | 21.6 | 8.4 | 10 | 10 | 10 | 10 | 10 |
+| NPB LU, class A | 16 | FINISHED | 3049940 | 0 | 0 | none | 87.3 | 5.2 | 28.6 | - | - | 0 | 0 | 0 | 0 | 0 |
+| NPB LU, class A | 32 | FINISHED | 6608024 | 0 | 0 | none | 185.2 | 11.0 | 28.0 | - | - | 0 | 0 | 0 | 0 | 0 |
+| NPB LU, class A | 64 | FINISHED | 14232316 | 0 | 0 | none | 419.1 | 23.4 | 29.4 | - | - | 0 | 0 | 0 | 0 | 0 |
+
+Traced runs that finished: 9 of 9; analyses that finished: 9 of 9. Sampled replays: 60 (1f 4, probe-alt 56); with every pin matched: 60; finished: 60; controls finished: 60, with every pin matched: 60. A trace without wildcard receives or probes (LU) has no alternative to sample.
+
+Where the time goes. LU has no alternative: its analysis costs 28 to 29 µs per record at every
+process count. AMG's alternatives grow with the processes, and so does the time each one takes, about in
+proportion to the trace (theorem T4 bounds the time per alternative by a quasi-linear function of the trace):
+per alternative and record, 8 to 12 ns. AMG's analysis time is therefore about the number of
+its alternatives times the length of its trace.

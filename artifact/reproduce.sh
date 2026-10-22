@@ -21,9 +21,12 @@
 #
 # usage: artifact/reproduce.sh <target> ...         (from any directory)
 #   CPUS     processors the containers may use (default: all of them)
-#   MEMORY   memory limit of a container (default 24g; Nekbone gets 48g)
+#   MEMORY   memory limit of a container (default 24g; Nekbone and the scale step get 48g)
 #   JOBS     programs run at a time in the corpus steps (default 6), replays in HYPRE's (4)
 #   NEKBONE  0: leave Nekbone out of rq1 and rq5 (it needs 48 GB and about an hour)
+#   SCALE    0: leave the runs from 16 to 64 processes out of rq5 (38 GB and about 7 hours)
+#   MPIPRV   0: leave MPI-PRV out of rq2 (its image takes 24 GB of disk; the runs about 6 GB
+#            and 3.5 hours on four processors)
 set -euo pipefail
 R="$(cd "$(dirname "$0")/.." && pwd)"; cd "$R"
 export IMAGE="${IMAGE:-stretto-exp:24.04}" CPUS="${CPUS:-0-$(($(nproc) - 1))}" DETACH=0
@@ -52,6 +55,30 @@ claims() {   # claims <rq ...>: regenerate the numbers, check the claims, compar
 corpora() { once corpora box corpora experiments/run_remaining.sh build tests mbi mbb; }
 amg() { once amg box amg experiments/amg/run.sh all; }
 nekbone() { [ "${NEKBONE:-1}" = 0 ] || MEMORY=48g once nekbone box nekbone experiments/nekbone/run.sh all; }
+# HYPRE, AMG and NPB LU from 16 to 64 processes; HYPRE is built here unless rq6 built it, and
+# scale/run.sh appends to its table, so the table starts afresh
+scale() {
+    [ "${SCALE:-1}" = 0 ] || MEMORY=48g once scale box scale bash -c \
+        "{ [ -x third_party/apps/hypre/hypre-2.10.1/src/test/ij ] || { experiments/hypre/run.sh fetch \
+        && experiments/hypre/run.sh build; }; } && rm -f experiments/results/scale/scale.csv \
+        && experiments/scale/run.sh all"
+}
+
+# MPI-PRV (section E9): its artifact image pulled by digest, its own RQ1, RQ2 and motivating
+# example rerun, the probes, the Adept check, its marker arms on the corpora and Stretto on its
+# applications (experiments/mpiprv/README.md); the corpus step has built the tracer and the
+# replay library, which run inside MPI-PRV's image too
+mpiprv() {
+    [ "${MPIPRV:-1}" = 0 ] && return
+    once mpiprv bash -c 'set -e; P=experiments/mpiprv
+        docker pull "$(grep -o "mpiprv/mpiprv@sha256:[0-9a-f]*" $P/prv.sh)"
+        $P/prv.sh $P/rq1.sh
+        $P/prv.sh $P/probes.sh
+        $P/prv.sh "python3 $P/run.py --rq1-check && python3 $P/run.py"
+        $P/prv.sh $P/adept.sh
+        $P/prv.sh python3 $P/apps.py' 2>&1 | tee -a "$OUT/mpiprv.log"
+    box mpiprv-stretto python3 experiments/mpiprv/stretto_corpus.py
+}
 
 t_image() {
     docker build -t "$IMAGE" experiments/container
@@ -66,7 +93,8 @@ t_tables() { claims 1 2 3 4 5 6; }
 t_rq1() { corpora; box rq1 experiments/run_remaining.sh e6; amg; nekbone; claims 1; }
 t_rq2() {
     corpora
-    box rq2 experiments/run_remaining.sh stress
+    # stress testing on both corpora at the default eager limits, then with the limit forced down
+    box rq2 experiments/run_remaining.sh stress stresseager
     # MUST runs in its own image, started from the host, with the corpus run's timeout
     for c in mbi mbb; do
         MUST_CPUS="$CPUS" python3 experiments/mbi/run_must.py "experiments/results/$c/$c.csv" --jobs 3 --timeout 60 2>&1 | tee -a "$OUT/rq2.log"
@@ -83,6 +111,7 @@ t_rq2() {
     box guard experiments/run_remaining.sh guard
     box reps experiments/run_remaining.sh reps
     box ninja bash -c "experiments/ninja/build.sh && RAND_DELAYS=50000 experiments/ninja/campaign.sh mbi"
+    mpiprv
     claims 2
 }
 t_rq3() { corpora; box rq3 experiments/run_remaining.sh e2; claims 3; }
@@ -91,6 +120,7 @@ t_rq5() {
     # times are claims only on an otherwise idle machine (experiments/RUNBOOK.md, timed leg)
     box rq5 experiments/timing_leg.sh
     nekbone
+    scale
     claims 5
 }
 t_rq6() {
@@ -112,7 +142,7 @@ t_paper() {
         && $P > /dev/null && BIBINPUTS=. bibtex build/main > /dev/null && $P > /dev/null && $P > build/pdflatex.log && ls -l build/main.pdf'
 }
 
-[ $# -gt 0 ] || { sed -n '2,30p' "$0"; exit 2; }
+[ $# -gt 0 ] || { sed -n '2,29p' "$0"; exit 2; }
 for t in "$@"; do
     declare -F "t_$t" > /dev/null || { echo "unknown target: $t" >&2; exit 2; }
     log "start $t"

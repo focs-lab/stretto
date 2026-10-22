@@ -55,6 +55,30 @@ it has no alternative, so E6 lost its 2 pairs and every other row is the same. T
 read bounds had come from the traces of an earlier corpus run; their corpus rows now come from
 the traces E6 uses (310 pairs instead of 308).
 
+The stress baseline with the eager limit forced down is opt-in too: `run_remaining.sh
+stresseager` runs `stress_baseline.py --eager 0` on MBI and on MPI-BugBench's call-ordering and
+correct programs, with the runs, delays and timeout of `stress`, and writes `stress-eager.csv`
+next to each corpus table. Every run uses E2's TCP setting at the least eager limit Open MPI
+accepts (56 bytes, its header: no payload byte is buffered; below that it refuses to start), so
+it needs `experiments/results/b_impl.csv`. The tables of 22 Oct 2026 come from a copy
+of commit 0dabfce with the harness files of 1a0ec98, the only files in which the two differ; the
+rows record the copy's `COMMIT`, 0dabfce. They ran in the experiment image on 4 processors
+(`CPUS=18-19,58-59`, `MEMORY=8g`, containers `stretto-eager-mbi` and `stretto-eager-mbb`),
+`TIMEOUT=60`, MBI at `JOBS=2` in 37 minutes and MPI-BugBench at `JOBS=4` in 63 minutes, one
+after the other. The programs are the binaries the corpus runs built: MBI's are identical byte
+for byte in the runs of 20 and 21 Oct, while MPI-BugBench's correct programs are numbered as in
+`mbb.csv` only in those of 21 Oct, which the runs used. The replay library was built in the copy.
+
+Step `stress` selects MPI-BugBench's call-ordering and correct programs since commit 604c639;
+before it, its pattern had '/' where the program names have '__' and selected none, so the
+default-limit baseline first ran on that corpus on 22 Oct 2026. `experiments/results/mbb/stress.csv`
+comes from a copy of commit 604c639 (its `COMMIT`) with the MPI-BugBench binaries of the
+forced-down run above, so both settings ran the same 365 programs (the copy's `mbb.csv` agrees
+with that run's in every program's name, label, process count and build), and the replay
+library built in the copy. It ran in the experiment image on the same 4 processors
+(`CPUS=18-19,58-59`, `MEMORY=8g`, container `stretto-mbbstress-mbb`), `JOBS=4`, `TIMEOUT=60`,
+in 57 minutes (01:13 to 02:10 UTC). MBI's `stress.csv` is that of the corpus rerun of 21 Oct.
+
 Variables the scripts read (all optional):
 
 | variable | script | meaning (default) |
@@ -68,13 +92,16 @@ Variables the scripts read (all optional):
 | `STRETTO_PIN`, `STRETTO_PIN_PROBE` | replay library | `rank:ordinal:world-src[:tag],...` for wildcard receives and probes (`replay/pin.h`) |
 | `STRETTO_SEND_DELAY_MS`, `STRETTO_RECV_DELAY_MS`, `STRETTO_DELAY_AT` | replay library | sleeps before sends/receives, per rank or at the k-th one (`replay/pin.h`) |
 | `STRETTO_REQUIRE_TRACES` | tests | `1`: idiom tests fail instead of skipping without traces (Open MPI idioms fall back to `analysis/tests/golden`) |
+| `STRETTO_KEEP_REPLAYS` | `stretto.confirm.run_checked` (every replay script) | a directory: keep there the trace, pins and stderr of each replay or control that is not, or not known to be, a run of the program (off) |
 | `STRETTO_COMMIT` | experiment scripts | the code commit written into every CSV row; unset, the `COMMIT` file at the root is read, else git is asked (`experiments/provenance.py`) |
 | `MUST_IMAGE`, `MUST_CPUS`, `MUST_KEEP` | `scripts/must_run.sh`, `experiments/amg/must.sh` | image (`mbb-must:latest`), cpuset, keep the work directory |
 | `MUST_ARGS` | `experiments/amg/must.sh` | MUST layout (default `--must:distributed`; empty for the centralised one) |
 | `STRETTO_MACHINE_LOCK`, `STRETTO_CPUS` | `scripts/heavy.sh` | the shared-host lock file and the processors a heavy job may use |
 | `IMAGE`, `CPUS`, `MEMORY`, `NAME`, `MACHINE`, `DETACH` | `experiments/container/run.sh` | container image, cpuset (`0-11,40-51`), memory (`24g`), name, the host name the summaries print (the host's), `0` to run in the foreground (detached) |
 | `DOCKER_ARGS` | `experiments/container/run.sh` | more `docker run` options; `--cap-add SYS_PTRACE` lets the MPI libraries use single-copy transfers (`experiments/guard/run.sh`) |
-| `CPUS`, `MEMORY`, `JOBS`, `NEKBONE` | `artifact/reproduce.sh` | as above, but `CPUS` defaults to every processor; `NEKBONE=0` leaves Nekbone out |
+| `CPUS`, `MEMORY`, `JOBS`, `NEKBONE`, `SCALE`, `MPIPRV` | `artifact/reproduce.sh` | as above, but `CPUS` defaults to every processor; `NEKBONE=0` leaves Nekbone out, `SCALE=0` the runs from 16 to 64 processes, `MPIPRV=0` MPI-PRV (E9) |
+| `PRV_IMAGE`, `CPUS`, `MEMORY`, `DOCKER_ARGS`; `REPS`, `TWIN_REPS`, `DELAY`, `MAXNP` | `experiments/mpiprv/prv.sh`; its scripts | MPI-PRV's image (the pinned digest), cpuset (every processor), memory (`16g`), more `docker run` options (`--cap-add SYS_PTRACE`); rounds of its RQ1 and runs per probe (5), runs of the twin probes (20), the Adept delay in ms (2500), the largest process count `apps.py` runs (24) |
+| `NPS`, `SAMPLE`, `TIMEOUT` | `experiments/scale/run.sh` | process counts (`16 32 64`), replays sampled per trace (10), seconds per replay (120) |
 | `BENCHMARKS`, `CLASSES`, `CSV` | `experiments/e4_overhead.sh` | which NPB rows to measure and which table to write |
 | `DOCKER_BUILD_ARGS` | `third_party/fetch.sh must` | e.g. `--cgroup-parent=docker.slice` on the development host |
 
@@ -161,6 +188,28 @@ run it in a container with a memory cap of at least 40 GB (`MEMORY=48g` on
 `docker events` beyond create and start; sample `docker stats` into a file to see the peak.
 MACSio's one wildcard site lies in `src-stuff/`, outside the built program, so MACSio is not
 traced.
+
+## Scale: 16 to 64 processes (E11)
+
+`experiments/scale/run.sh [hypre|amg|lu|all]`, inside the container after `third_party/fetch.sh
+apps npb` and `experiments/hypre/run.sh build`, traces HYPRE 2.10.1's `ij` with ParaSails
+(MPICH), AMG with 16^3 points per process (Open MPI) and NPB LU class A (MPICH) at each process
+count of `NPS`, analyses each trace in one process under `/usr/bin/time`, and replays `SAMPLE`
+of its alternatives with the pins of their horizon and a control (`experiments/replay_sample.py`,
+which analyses the trace again). One row per trace goes to `experiments/results/scale/scale.csv`;
+`samples/<app>-<np>.{csv,sample,time,run}` hold the sample's rows and log, the analysis time and
+peak memory, and the traced run's output. The reports (`samples/<app>-<np>.report`; AMG's at 64
+processes is 200 MB) are not committed, nor are AMG's run logs. Those are mostly warnings, one
+per single-copy transfer that Open MPI tried and the container refused (`process_vm_readv`),
+each naming host and process; every AMG run still converged in 20 iterations.
+
+The campaign of 21 Oct 2026 ran at commit b7c886f on the second machine, in one container
+(`NAME=stretto-scale CPUS=0-11,40-51 MEMORY=48g`: 12 cores, 24 hardware threads) with
+`NPS="16 32 64" SAMPLE=10`, from 15:08 to 22:17 UTC. AMG at 64 processes took most of those
+7 hours: its analysis 3 hours and 37.5 GB, its sample, which analyses the trace again, nearly 3
+more. It was not a timed leg (other containers ran on the machine's other processors), so its
+times show the cost and are not timing claims; and process counts above 24 oversubscribe the
+container, so the runs measure the analysis, not the traced program's speed.
 
 ## Real bug: HYPRE
 
@@ -250,11 +299,106 @@ done
 
 MUST builds the ThreadSanitizer tool layouts at run time into `MUST_CACHE`; run one program
 per process count with `MUST_TSAN=1` first, so that parallel runs do not build the same layout.
-On 21 Oct 2026 the window of `CPUS=20-25,60-65` left room for the plain run on MBI
-(`mbi/must1112.csv`, merged into `mbi.csv`) and for the run with ThreadSanitizer on MPI-BugBench's
-22 local-concurrency programs alone (`run_must.py` on a copy of `mbb.csv` with those rows; its
-table is `mbb/must1112tsan-lc.csv`, which E8 reads); the plain run on MPI-BugBench and both
-corpus runs with ThreadSanitizer are still to do.
+The four runs of 21 Oct 2026 (UTC) took 12 minutes (MBI, plain), 46 (MPI-BugBench, plain), 16
+(MBI with ThreadSanitizer) and 80 (MPI-BugBench with ThreadSanitizer) on `CPUS=20-25,60-65`, from
+the copy deployed at commit 3b8e846; their tables `<corpus>/must1112*.csv` were then merged
+(`run_must.py --merge-only --column ...`) into the corpus tables of the current commit.
+
+## Baseline: MPI-PRV (E9)
+
+`experiments/mpiprv/` runs MPI-PRV's artifact image, `mpiprv/mpiprv` pinned by digest in
+`experiments/mpiprv/prv.sh` (24 GB on disk), unchanged; `experiments/mpiprv/README.md` lists
+each script and its table. Stretto's tracer and pin library, built for Open MPI in the
+experiment image, run inside MPI-PRV's image too, since both use the Ubuntu package of Open MPI
+4.1.6. Every script but `stretto_corpus.py` (experiment image) runs through `prv.sh`, which
+sources the image's `/root/.bashrc`, runs as root with `--cap-add SYS_PTRACE` and hands the
+files back. The runs of 21 and 22 Oct 2026 (UTC) used `CPUS=26-27,66-67` of the second machine
+and `MEMORY=16g`, one step at a time, from copies deployed at the commits their rows name:
+`rq1.sh` (RQ1, the motivating example, RQ2) 27 minutes, `probes.sh` 3, `run.py` 8, `adept.sh`
+43, `apps.py` 1 h 46 min (most of it clustalW at 20 processes and kf-ray's analyses),
+`stretto_corpus.py` 2; about 6 GB under `experiments/mpiprv/work/`. Without the capability Open
+MPI's single-copy transfers fail and the artifact's RQ1 program for property 6 hangs. kf-ray's
+rank 0 ends with a segmentation fault with or without the tracer, so `apps.py` does not replay
+it. `artifact/reproduce.sh rq2` runs every step (`MPIPRV=0` leaves them out).
+
+## Replays as runs of the program (E8c)
+
+A replay pins wildcard receives and probes to named sources, which makes it another program:
+it can match every pin of an alternative that no run of the program has (E8b, idiom 14).
+`stretto.confirm.run_checked` therefore runs every replay and control with the tracer
+preloaded when the tracer is built. The tracer applies the pins as the replay library does
+and records the run with the original envelopes, and `judge_replay` reads that trace back:
+the replay counts as a run of the program if its matches keep MPI's matching order and its
+constraint graph is acyclic, with each receive still pending at the end read as unmatched or
+as matched to a message no other receive took; a replay that hangs is judged at its end too
+(a receive or probe still waiting there that takes, without its pin, a message nobody took
+is no state the program stays in). `confirm`, `run_mbi.py`, `replay_sample.py` and the
+campaigns' `predict.py` write `run_valid`, `violation`, `control_valid` and
+`control_violation` into every replay row; `run_mbi.py` adds `strict_verdict`, the verdict
+that also needs `run_valid`.
+
+The rerun of every confirmation claim is in `experiments/results/valid/`, made in a copy of
+the tree at the commit its rows name (`git archive HEAD`, `COMMIT` written) in containers on
+12 processors of the second machine, with the inputs of the earlier campaigns mounted
+read-only:
+
+```bash
+J="export PYTHONPATH=/w/analysis OMPI_MCA_rmaps_base_oversubscribe=1 OMPI_MCA_hwloc_base_binding_policy=none"
+# MBI, E1 and E3b: every replay again, from the corpus run's program directories (trace and
+# binary), copied to work/mbi; the table and its replays.csv are read, not rewritten
+P='^(MessageRace_(Allgather_Send_Irecv|Alltoall_Send_Irecv|Bcast_Send_Irecv|Gather_Isend_Irecv|Gather_Send_Irecv|Loop_Isend_Irecv|Loop_Isend_Recv|Loop_Send_Irecv|Loop_Send_Recv|Reduce_Isend_Irecv|tag_ANY_TAG_1_Send_Recv)_nok|MessageRace_tag_ANY_TAG_ANY_TAG_Send_Recv_ok)$'
+experiments/container/run.sh bash -c "$J; python3 experiments/mbi/run_mbi.py --replay-only --select '$P' --work work/mbi \
+  --out experiments/results/mbi/mbi.csv --replays-out experiments/results/valid/mbi.csv --jobs 3 --timeout 60 \
+  --max-states 30000 --sp-max-events 600"
+# the same with read bounds (the replays of E3b): add --reads experiments/results/reads/mbi and
+# --replays-out experiments/results/valid/reads.csv
+# NPB MG 2.4.1 (the build of npbmg/run.sh mounted at /mg), deal.II 9.3.0-rc1 (the build of
+# dealii/run.sh mounted where it was built, /w/third_party/apps/dealii) and HYPRE 2.10.1
+# (HYPRE_DIR mounted at /h): new traced runs, every alternative pooled, a sample of 60 drawn
+# with the seed 20261022 and replayed with its control
+D=/w/third_party/apps/dealii
+python3 experiments/npbmg/predict.py /mg/NPB2.4.1/NPB2.4-MPI/bin --version 2.4.1 --runs 3 --np 16 --sample 60 \
+  --timeout 120 --jobs 1 --out experiments/results/valid/npbmg.csv
+python3 experiments/dealii/predict.py $D/drivers-9.3.0-rc1 --version 9.3.0-rc1 --runs 5 --np 4 --kinds cross --sample 60 \
+  --expected "$D/dealii-9.3.0-rc1/tests/remote_point_evaluation/mapping_01.mpirun={np}.output" \
+  --normalize $D/dealii-9.3.0-rc1/cmake/scripts/normalize.pl --timeout 120 --jobs 2 --out experiments/results/valid/dealii.csv
+python3 experiments/hypre/predict.py /h/hypre-2.10.1/test --runs 10 --np 4 8 --kinds cross --sample 60 \
+  --timeout 60 --jobs 2 --out experiments/results/valid/hypre.csv
+# AMG and Nekbone: the alternatives of their committed samples, on the traces they were drawn
+# from (amg/run.sh and nekbone/run.sh, mounted at /amgtrace and /nektrace); Nekbone in two
+# halves of 15 rows, one container each (40 GB), whose tables are joined
+python3 experiments/replay_sample.py --from-csv experiments/results/amg/replay_sample.csv --timeout 600 \
+  --out experiments/results/valid/amg.csv /amgtrace 8 /amg/amg -P 2 2 2 -n 16 16 16 -problem 1
+(cd /nek && python3 /w/experiments/replay_sample.py --from-csv /w/work/nek/half1.csv \
+  --mpi mpich --timeout 600 --out /w/work/nek/valid1.csv /nektrace 8 ./nekbone data)
+```
+
+A check of one Nekbone replay's trace (ten million records) takes about 17 GB and seven
+minutes in one process; `replay_sample.py --from-csv` lets the original trace go before the
+first replay, so a 40 GB container holds one sample.
+
+The traces of the earlier application campaigns were not kept (`predict.py` removes each
+after its replays), so their pins cannot be replayed again; the new samples come from new
+traced runs of the same builds. A replay under the tracer runs a little slower than under the
+replay library. Open MPI's `mpirun` merges the ranks' stderr in chunks (Notes), so a pin's
+report line can be cut apart; the first rerun of Nekbone's sample (at 58fa178) counted three
+of its first four replays as missing a pin, while a repetition of the first reported every
+one of its 20,277 required pins, so the replays now also read the pins taken from their own
+trace (13f2174) and Nekbone's sample was run again from the start. `experiments/tables.py`
+reports the campaigns side by side in E8c of `docs/results.md`.
+
+The reruns of 22 Oct took about eight hours on `CPUS=12-17,52-57`, up to four containers at a
+time, with `STRETTO_KEEP_REPLAYS` set (nothing was kept: every replay and control was judged a
+run of the program). A first rerun of the MBI replays shared the processors with three other
+campaign containers; three of its controls, of programs that finish in half a second, then
+hit the 60 s timeout, and one replay ended with a segmentation fault of a rank, which twelve
+repetitions of the same replay (six under the tracer, six under the replay library) did not
+show again. The committed MBI tables come from a second rerun with the processors to
+themselves; both reruns judged every replay and control a run of the program. A replay of
+`MessageRace_Allgather_Send_Irecv_nok` with its second receive pinned to a tag nobody sends
+(`STRETTO_PIN=1:0:2:0,1:1:0:7`) shows what the check catches: the run hangs in the wait for
+that receive while rank 0's message, which the receive takes without its pin, is still
+there, and `judge_replay` says so.
 
 ## Checking that a faster analysis reports the same
 
@@ -300,4 +444,6 @@ operating-system sets. Nothing runs during an announced timed benchmark leg.
   by another rank's line, and a replay then counts a pin as not taken that was. Of the deal.II
   replays of ten further traces made with their stderr kept (21 Oct), five had pins counted
   as not taken; all nine of those reports were in the output, cut apart by another rank's
-  line.
+  line. A replay under the tracer (`run_checked`, since 22 Oct) also counts a pin as taken
+  when its own trace shows the pinned receive completed from the pinned source
+  (`trace_matches`).

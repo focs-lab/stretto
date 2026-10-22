@@ -40,7 +40,7 @@ report. Exhaustive verifiers such as ISP~\citep{vakkalanka08isp},
 DAMPI~\citep{vo10dampi}, MPI-SV~\citep{yu20mpisv} and CIVL~\citep{siegel15civl}
 enumerate the schedules of a program. They pay for every competing wildcard or give up
 completeness. Predictive analyses take one trace. MPI-PRV~\citep{yao26mpiprv} predicts
-violations of temporal properties soundly and without a solver, but it keeps every wildcard
+violations of temporal properties without a solver, but it keeps every wildcard
 match of the trace fixed and assumes zero buffering. Reachability
 testing~\citep{tai97race,lei06reachability} changes matches: it derives the messages that
 could have raced for each receive, asserts that the resulting variants are feasible, and runs
@@ -112,8 +112,9 @@ skeleton of the program's dependence on message metadata.
   and noise injection, a differential check of soundness against an exhaustive explorer, and
   real applications. On \nMBIprogs MBI programs about matching, \tool finds \nMBItpunion of
   the \nMBIerrors labelled errors with no false error report (F1 \MBIfoneunion, against
-  \MBIfoneMUST for \MUST and \MBIfonestress for randomised runs); neither those nor noise injection expose
-  the \nMBItpPredBuf buffering thresholds among them. From single clean runs of HYPRE~2.10.1, \tool reports the ParaSails race as a probe
+  \MBIfoneMUST for \MUST and \MBIfonestress for randomised runs, \MBIfonestresseager with the eager
+  limit forced down); at the default limits neither those nor noise injection expose the
+  \nMBItpPredBuf buffering thresholds among them. From single clean runs of HYPRE~2.10.1, \tool reports the ParaSails race as a probe
   alternative (\Lone), a warning, in \nHypreExposed of \nHypreTraced runs. Replayed at the
   probe whose tag the documented fix changed, all \nHypreCrossAlts such alternatives hang while their
   controls finish, and the fixed version has none.

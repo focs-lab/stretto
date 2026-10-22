@@ -4,9 +4,10 @@
 # under experiments/results/ and logs to experiments/results/run-remaining.log. MUST runs are
 # separate (experiments/mbi/run_must.py, experiments/amg/must.sh): they need docker on the host.
 #
-# usage: experiments/run_remaining.sh [step ...]     steps: build tests mbi mbb stress e2 e6 amg e4 e3 guard reps e6reads
-#        (no step: all but guard, reps and e6reads, in that order; guard traces the corpora again
-#        with the buffer guard, reps traces MBI REPS more times, e6reads runs E6 with read bounds)
+# usage: experiments/run_remaining.sh [step ...]     steps: build tests mbi mbb stress e2 e6 amg e4 e3 guard reps e6reads stresseager
+#        (no step: all but guard, reps, e6reads and stresseager, in that order; guard traces the
+#        corpora again with the buffer guard, reps traces MBI REPS more times, e6reads runs E6 with
+#        read bounds, stresseager runs the stress baseline with the eager threshold forced down)
 #   JOBS     parallel programs in the corpus steps (default 6)
 #   TIMEOUT  per program run and per replay, seconds (default 60); MUST gets the same
 set -uo pipefail
@@ -58,11 +59,21 @@ step_reps() {
             --out "experiments/results/reps/mbi-$k.csv" --work "experiments/results/reps/mbi-$k" || return 1
     done
 }
+# the stress baseline's MPI-BugBench programs: the call-ordering and correct ones. The corpus
+# table names a program by its path with '/' replaced by '__' (MBB_SELECT above matches paths).
+MBB_STRESS_SELECT='^(P2P|COLL)__(CallOrdering|Correct)'
 step_stress() {
     # the baseline: up to 30 runs per program with random delays, until one does not finish
-    python3 experiments/stress_baseline.py experiments/results/mbi/mbi.csv --runs 30 --jobs "$JOBS" --timeout "$TIMEOUT"
+    python3 experiments/stress_baseline.py experiments/results/mbi/mbi.csv --runs 30 --jobs "$JOBS" --timeout "$TIMEOUT" &&
     python3 experiments/stress_baseline.py experiments/results/mbb/mbb.csv --runs 30 --jobs "$JOBS" --timeout "$TIMEOUT" \
-        --select '^(P2P|COLL)/(CallOrdering|Correct)'
+        --select "$MBB_STRESS_SELECT"
+}
+step_stresseager() {
+    # the baseline again with no payload byte buffered (stress_baseline.py --eager 0: E2's TCP
+    # setting at the least eager limit Open MPI accepts), the same programs, runs, delays and timeout
+    python3 experiments/stress_baseline.py experiments/results/mbi/mbi.csv --runs 30 --jobs "$JOBS" --timeout "$TIMEOUT" --eager 0 &&
+    python3 experiments/stress_baseline.py experiments/results/mbb/mbb.csv --runs 30 --jobs "$JOBS" --timeout "$TIMEOUT" --eager 0 \
+        --select "$MBB_STRESS_SELECT"
 }
 step_e2() {
     python3 experiments/b_impl.py

@@ -1,0 +1,24 @@
+# guard: Adept Kernel MPI (src), -a overlapped -b stencil -o 27 -s 512 -d double, 4 ranks, Stretto's tracer with STRETTO_GUARD=1; run at commit 1110e11, summarised at commit 10210ff
+# guard records: count, site (module+offset), function and source line (addr2line -f -i)
+600 kernel+0x106a5 double_stencil27_overlapped stencil.c:1875
+# guard records by kind
+    600 "what":"access","kind":"write"
+# stretto analyze --no-sp: the findings by class, then the first two
+    600 3-local
+trace: 4 ranks, 600 sends, 600 receives, 0 wildcard receives, 0 probes, 404 collective records, 5 communicators
+[     3-local] observed rank 0 wrote to the send buffer of its pending isend to 1 tag 0 (2097152 B) before the operation completed
+              - write at byte 4104 of the buffer, by the instruction at kernel+0x106a5
+              - MPI owns the buffer from the call to the completion: a send may carry either value; a receive may overwrite the write, or the program reads data still arriving
+              - the operation was issued at record #4 (kernel+0x108fa)
+[     3-local] observed rank 0 wrote to the send buffer of its pending isend to 1 tag 0 (2097152 B) before the operation completed
+              - write at byte 4104 of the buffer, by the instruction at kernel+0x106a5
+              - MPI owns the buffer from the call to the completion: a send may carry either value; a receive may overwrite the write, or the program reads data still arriving
+              - the operation was issued at record #9 (kernel+0x108fa)
+
+# guard-fixed: Adept Kernel MPI (fixed), -a overlapped -b stencil -o 27 -s 512 -d double, 4 ranks, Stretto's tracer with STRETTO_GUARD=1; run at commit 1110e11, summarised at commit 10210ff
+# guard records: count, site (module+offset), function and source line (addr2line -f -i)
+# guard records by kind
+# stretto analyze --no-sp: the findings by class, then the first two
+trace: 4 ranks, 600 sends, 600 receives, 0 wildcard receives, 0 probes, 404 collective records, 5 communicators
+no findings
+

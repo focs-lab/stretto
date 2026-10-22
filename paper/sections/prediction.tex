@@ -126,7 +126,7 @@ posting, which $r$ may well take. DAMPI's protocol gives $r$ its final clock at 
 a later receive that must be matched after it, which rejects this steal; its theorem shows a
 reported match concurrent with $r$ in that order, not realisable, and it can miss
 matches~\citep{vo11thesis}. On our \nHBTraces corpus and application traces, placing receives
-at their posting misses \nHBPostMissed pairs the check accepts, \nHBMGPostMissed of them NPB
+at their posting misses \nHBPostMissed pairs the check accepts, among them \nHBMGPostMissed alternatives of NPB
 MG's documented bug (RQ6), and all \nHBReplayStrettoOnly we replayed were realised by runs of
 the program. Placing them at their completion selected no impossible pair there, only on this
 example (idiom~14) and on \nHBSynCompOnlyNotRealised of \nHBSynPrograms random programs.

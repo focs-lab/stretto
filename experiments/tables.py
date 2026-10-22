@@ -370,6 +370,29 @@ def e2():
     return "\n".join(out) + "\n"
 
 
+# Open MPI's fatal error handler ends the job with the error class as its exit status, so a
+# run whose error message the harness did not capture is recorded as APP-ERROR:<class>; the
+# classes of Open MPI 4.1.6's mpi.h the stress tables meet
+OMPI_ERROR_CLASS = {13: "MPI_ERR_ARG", 15: "MPI_ERR_TRUNCATE", 16: "MPI_ERR_OTHER", 17: "MPI_ERR_INTERN"}
+
+
+def fp_outcomes(fp, by, traced="the traced run") -> str:
+    """How the correct programs a stress table fails end, against how their traced run ended."""
+    if not fp:
+        return ""
+    alike = [r for r in fp if by[r["program"]].get("run") == r["outcome"]]
+    out = f", {len(alike)} of them ending as {traced} did (column `run` of the corpus table)"
+    for r in fp:
+        if r in alike:
+            continue
+        out += f"; {r['program']} ends with {r['outcome']}, {traced} with {by[r['program']].get('run') or 'nothing recorded'}"
+        m = re.fullmatch(r"APP-ERROR:(\d+)", r["outcome"])
+        if m and int(m.group(1)) in OMPI_ERROR_CLASS:
+            out += (f" ({m.group(1)} is the error class of {OMPI_ERROR_CLASS[int(m.group(1))]}, the exit status of Open MPI's"
+                    " fatal error handler, whose message was not captured)")
+    return out
+
+
 def stress(name, path, key=None):
     """The stress-testing baseline (experiments/stress_baseline.py) against Stretto's one run."""
     st = rows(os.path.join(os.path.dirname(path), "stress.csv"))
@@ -387,14 +410,22 @@ def stress(name, path, key=None):
     fp = [r for r in ok if r["first_failure"]]
     firsts = sorted(int(r["first_failure"]) for r in found)
     med = firsts[len(firsts) // 2] if firsts else "-"
+    hung = [r for r in found + fp if r["outcome"] == "TIMEOUT"]
+    other = collections.Counter(r["outcome"] for r in found + fp if r["outcome"] != "TIMEOUT")
+    tp, fn_ = len(found), len(err) - len(found)
+    fpn, tn = len(fp), len(ok) - len(fp)
+    prec = tp / (tp + fpn) if tp + fpn else 0.0
+    rec = tp / (tp + fn_) if tp + fn_ else 0.0
+    c = {"tp": tp, "fp": fpn, "fn": fn_, "tn": tn, "f1": 2 * prec * rec / (prec + rec) if prec + rec else 0.0}
+    # Stretto's verdicts from one run on the same programs: the baseline may run a subset of
+    # the corpus (stress_baseline.py --select), whose score differs from the whole corpus's
+    cs = score.confusion([by[r["program"]] for r in err + ok], score.verdict)
     if key:
-        tp, fn_ = len(found), len(err) - len(found)
-        fpn, tn = len(fp), len(ok) - len(fp)
-        prec = tp / (tp + fpn) if tp + fpn else 0.0
-        rec = tp / (tp + fn_) if tp + fn_ else 0.0
-        CONF[(key, "stress")] = {"tp": tp, "fp": fpn, "fn": fn_, "tn": tn, "f1": 2 * prec * rec / (prec + rec) if prec + rec else 0.0}
-        num(f"{key}fonestress", CONF[(key, "stress")]["f1"])
+        CONF[(key, "stress")] = c
+        num(f"{key}fonestress", c["f1"])
+        num(f"{key}foneunionstress", cs["f1"])
         num(f"n{key}StressRuns", runs)
+        num(f"n{key}StressProgs", len(err) + len(ok))
         num(f"n{key}StressErr", len(err))
         num(f"n{key}StressFound", len(found))
         num(f"n{key}StressLater", len(later))
@@ -407,15 +438,125 @@ def stress(name, path, key=None):
         clean = {n for n, r in by.items() if r["expect"] == "ERROR" and score.must_verdict(r) != "ERROR"
                  and score.predicted_verdict(r) == "ERROR" and score.observed_verdict(r) != "ERROR"}
         num(f"n{key}CleanPredStress", sum(1 for r in found if r["program"] in clean))
+    names = lambda sel: " (" + ", ".join(r["program"] for r in sel) + ")" if sel else ""    # noqa: E731
     return "\n".join([
         f"### Stress-testing baseline: {name}", "",
         f"Up to {runs} runs per program with random send and receive delays per rank, stopping at the first run that",
-        "does not finish (`experiments/stress_baseline.py`).", "",
+        f"does not finish (`experiments/stress_baseline.py`, `stress.csv`). Programs: {len(st)}. Rows by code commit: {commits(st)}.", "",
         f"Labelled-error programs: {len(err)}. Stress testing makes {len(found)} fail (median run of the first failure {med};",
         f"{len(later)} only after the first run). Stretto reports {len(rem)} from one run, {len(pred)} of them predicted from a",
-        f"run that finished; stress testing never makes {len(pred_missed)} of those fail"
-        + (f" ({', '.join(r['program'] for r in pred_missed)})" if pred_missed else "") + ".",
-        f"Correct programs that failed under stress (a hang under load or a delay): {len(fp)}.", ""])
+        f"run that finished; stress testing never makes {len(pred_missed)} of those fail{names(pred_missed)}.",
+        f"Correct programs that fail: {len(fp)}{names(fp)}{fp_outcomes(fp, by)}.",
+        f"Of the {len(found) + len(fp)} failures, {len(hung)} are hangs killed at the timeout"
+        + (" and the others end with " + ", ".join(f"{o} ({n})" for o, n in sorted(other.items())) if other else "") + ".", "",
+        "| | TP | FP | FN | TN | F1 |", "|---|---|---|---|---|---|",
+        f"| Stretto, observed or predicted, on these programs | {cs['tp']} | {cs['fp']} | {cs['fn']} | {cs['tn']} | {cs['f1']:.2f} |",
+        f"| random delays, default limits | {c['tp']} | {c['fp']} | {c['fn']} | {c['tn']} | {c['f1']:.2f} |", ""])
+
+
+def stress_eager(name, path, key=None):
+    """The stress-testing baseline again with the eager threshold forced down in every run
+    (stress_baseline.py --eager: stress-eager.csv), against the same baseline at the default
+    limits (stress.csv)."""
+    d = os.path.dirname(path)
+    se = rows(os.path.join(d, "stress-eager.csv"))
+    if not se:
+        return ""
+    st = {r["program"]: r for r in rows(os.path.join(d, "stress.csv"))}
+    by = {r["name"]: r for r in score.compiled(rows(path))}
+    err = [r for r in se if r["expect"] == "ERROR" and r["program"] in by]
+    ok = [r for r in se if r["expect"] == "OK" and r["program"] in by]
+    found = [r for r in err if r["first_failure"]]
+    later = [r for r in found if int(r["first_failure"]) > 1]
+    fp = [r for r in ok if r["first_failure"]]
+    runs = max(int(r["runs"]) for r in se)
+    eager = ", ".join(sorted({r["eager_bytes"] for r in se}))
+    args = ", ".join(sorted({f"`{r['mpirun_args']}`" for r in se}))
+    hung = [r for r in found + fp if r["outcome"] == "TIMEOUT"]
+    other = collections.Counter(r["outcome"] for r in found + fp if r["outcome"] != "TIMEOUT")
+    # the errors Stretto predicts from one run that the runs at the default limits never make
+    # fail (the buffering programs on MBI), and how many of them the forced limit exposes; E2's
+    # replays mark the ones that send to their own rank untestable below their bound
+    pred = [r for r in err if score.predicted_verdict(by[r["program"]]) == "ERROR"]
+    missed = [r for r in pred if r["program"] in st and not st[r["program"]]["first_failure"]]
+    missed_found = [r for r in missed if r["first_failure"]]
+    still = [r for r in missed if not r["first_failure"]]
+    untestable = {r["trace"].split("/")[-2] for r in rows(os.path.join(RES, "e2_replay.csv")) if r["verdict"] == "untestable"}
+    still_self = [r for r in still if r["program"] in untestable]
+    new = [r for r in err if r["first_failure"] and r["program"] in st and not st[r["program"]]["first_failure"]]
+    lost = [r for r in err if not r["first_failure"] and r["program"] in st and st[r["program"]]["first_failure"]]
+    # against Stretto's verdict from one run: the errors only one of the two reports
+    only_stretto = [r for r in err if not r["first_failure"] and score.verdict(by[r["program"]]) == "ERROR"]
+    only_stress = [r for r in found if score.verdict(by[r["program"]]) != "ERROR"]
+    c = {"tp": len(found), "fp": len(fp), "fn": len(err) - len(found), "tn": len(ok) - len(fp)}
+    prec = c["tp"] / (c["tp"] + c["fp"]) if c["tp"] + c["fp"] else 0.0
+    rec = c["tp"] / (c["tp"] + c["fn"]) if c["tp"] + c["fn"] else 0.0
+    c["f1"] = 2 * prec * rec / (prec + rec) if prec + rec else 0.0
+    if key:
+        CONF[(key, "stresseager")] = c
+        num(f"{key}fonestresseager", c["f1"])
+        num(f"n{key}StressEagerRuns", runs)
+        num(f"n{key}StressEagerBytes", eager)
+        num(f"n{key}StressEagerErr", len(err))
+        num(f"n{key}StressEagerFound", len(found))
+        num(f"n{key}StressEagerLater", len(later))
+        num(f"n{key}StressEagerFP", len(fp))
+        num(f"n{key}StressEagerHung", len(hung))
+        num(f"n{key}StressEagerNew", len(new))
+        num(f"n{key}StressEagerLost", len(lost))
+        num(f"n{key}StressEagerBufFound", len(missed_found))
+        num(f"n{key}StressEagerPredMissed", len(still))
+        num(f"n{key}StressEagerPredMissedSelf", len(still_self))
+        num(f"n{key}StressEagerOnlyStretto", len(only_stretto))
+        num(f"n{key}StressEagerOnlyStress", len(only_stress))
+
+    def outcome(r):
+        if not r:
+            return "not run"
+        return f"fails in run {r['first_failure']} ({r['outcome']})" if r["first_failure"] else f"finishes all {r['runs']} runs"
+    names = lambda sel: " (" + ", ".join(r["program"] for r in sel) + ")" if sel else ""    # noqa: E731
+    # the correct programs that fail at either setting, and whether they end alike at both
+    fp_both = [r for r in fp if r["program"] in st and st[r["program"]]["first_failure"]]
+    fp_alike = [r for r in fp_both if st[r["program"]]["outcome"] == r["outcome"]]
+    fp_default = [r for r in ok if not r["first_failure"] and r["program"] in st and st[r["program"]]["first_failure"]]
+    if key and st:
+        num(f"n{key}StressEagerFPBoth", len(fp_both))
+        num(f"n{key}StressEagerFPDefault", len(fp_default))
+    if st:
+        against = (f"Against the default limits: {len(new)} of these do not fail there, and {len(lost)} that fail there never fail"
+                   f" here{names(lost)}. Of the {len(missed)} errors Stretto predicts that the default limits never expose,"
+                   + (f" {len(missed_found)} fail and {len(still)} still never fail{names(still)}, {len(still_self)} of them sending to"
+                      " their own rank (untestable below their bound in E2)." if still else f" all {len(missed_found)} fail."))
+        against_ok = (f" At the default limits {len(fp_both)} of them fail too, {len(fp_alike)} ending the same way, and"
+                      f" {len(fp_default)} other correct programs fail{names(fp_default)}." if fp or fp_default else "")
+    else:
+        against = "The baseline at the default limits has no table for this corpus, so there is nothing to compare with."
+        against_ok = ""
+    out = [f"### Stress-testing baseline with the eager limit forced down: {name}", "",
+           f"The same baseline (up to {runs} runs per program, the same random delays, seed and timeout) with Open MPI's eager",
+           f"threshold forced down to {eager} payload bytes in every run (`stress_baseline.py --eager`, `stress-eager.csv`):",
+           f"{args}.",
+           "This is the setting E2 replays a buffering finding with below its bound, at the least eager limit the TCP",
+           "transport accepts; the shared-memory transport is left out because it sends up to 256 bytes inline whatever its",
+           "limit, and the self transport does the same for a send to the sending rank.",
+           f"Programs: {len(se)}. Rows by code commit: {commits(se)}.", "",
+           f"Labelled-error programs: {len(err)}. Forced down, stress testing makes {len(found)} fail ({len(later)} only after the first run).",
+           against,
+           f"Correct programs that fail: {len(fp)}{names(fp)}{fp_outcomes(fp, by, 'the traced run at the default limits')}."
+           + against_ok,
+           f"Of the {len(found) + len(fp)} failures, {len(hung)} are hangs killed at the timeout"
+           + (" and the others end with " + ", ".join(f"{o} ({n})" for o, n in sorted(other.items())) if other else "") + ".",
+           f"Against Stretto's verdict from one run: {len(only_stretto)} errors Stretto reports are never made to fail{names(only_stretto)},",
+           f"and {len(only_stress)} made to fail Stretto does not report{names(only_stress)}.", "",
+           "| | TP | FP | FN | TN | F1 |", "|---|---|---|---|---|---|",
+           f"| random delays, eager limit forced down | {c['tp']} | {c['fp']} | {c['fn']} | {c['tn']} | {c['f1']:.2f} |", ""]
+    diff = [r for r in se if r["program"] in by and r["program"] in st and bool(r["first_failure"]) != bool(st[r["program"]]["first_failure"])]
+    if diff:
+        out += ["Programs whose outcome the forced limit changes:", "",
+                "| program | label | default limits | eager limit forced down |", "|---|---|---|---|"]
+        out += [f"| {r['program']} | {r['expect']} | {outcome(st[r['program']])} | {outcome(r)} |" for r in diff]
+        out.append("")
+    return "\n".join(out)
 
 
 def hypre():
@@ -760,6 +901,11 @@ def pin_log():
             + (" (the others: " + ", ".join(f"{n} {res}" for res, n in sorted(other.items())) + ")" if other else "") + ".\n")
 
 
+# the corpora whose stress-testing rows the paper's effectiveness table shows; the body has no
+# room for MPI-BugBench's, which are in docs/results.md and the text's macros
+RQ2_STRESS = ("MBI",)
+
+
 def write_paper_numbers():
     """paper/generated/numbers.tex: one macro per number of this run (macros not computed here
     keep their provisional values from STATIC); paper/generated/rq2.tex: the effectiveness table body."""
@@ -776,7 +922,8 @@ def write_paper_numbers():
     body = []
     labels = (("union", "\\tool, observed or predicted"), ("observed", "\\tool, observed in the run"),
               ("predicted", "\\tool, predicted"), ("guard", "\\tool with the buffer guard"), ("MUST", "\\MUST, a timeout not counted"), ("MUSTsym", "\\MUST, a timeout or failed run counted as an error"),
-              ("stress", "random delays, up to \\n{key}StressRuns runs"))
+              ("stress", "random delays, up to \\n{key}StressRuns runs"),
+              ("stresseager", "random delays, eager limit forced down"))
     for key, title in (("MBI", "MBI"), ("MBB", "\\MBB level~2")):
         if not any((key, l) in CONF for l, _ in labels):
             continue
@@ -785,9 +932,13 @@ def write_paper_numbers():
             c = CONF.get((key, l))
             if l == "guard" and c == CONF.get((key, "union")):    # the guard changed no verdict: no row
                 continue
+            if l == "stresseager" and (key, "stress") not in CONF:  # shown next to the default limits only
+                continue
+            if l.startswith("stress") and key not in RQ2_STRESS:
+                continue
             if c:
                 label = text.replace("{key}", key)
-                if l == "stress":       # the baseline runs a subset of the corpus (stress_baseline.py --select)
+                if l.startswith("stress"):      # the baseline runs a subset of the corpus (stress_baseline.py --select)
                     label += f" ({c['tp'] + c['fp'] + c['fn'] + c['tn']} programs)"
                 body.append(f"{label} & {c['tp']} & {c['fp']} & {c['fn']} & {c['tn']} & {c['f1']:.2f} \\\\")
         body.append("\\midrule")
@@ -1374,6 +1525,156 @@ def e8_hb():
 EVIDENCE = ("realised", "realised, run did not finish", "realised, other pins unmatched", "realised, truncation error",
             "pins only", "not realised", "control failed")
 
+# the campaigns whose replays were run again under the tracer (experiments/results/valid/), with
+# what a confirmation is in each: the claim its replays make
+VALID = (("mbi", "MBI (E1), every replay", "MBI"),
+         ("reads", "MBI with read bounds (E3b), every replay", "Reads"),
+         ("npbmg", "NPB MG 2.4.1 (E5d), a sample", "MG"),
+         ("dealii", "deal.II 9.3.0-rc1 (E5e), cross alternatives, a sample", "Deal"),
+         ("hypre", "HYPRE 2.10.1 (E5c), cross alternatives, a sample", "Hypre"),
+         ("amg", "AMG (E5), the sample of E5", "AMG"),
+         ("nekbone", "Nekbone (E5b), the sample of E5b", "Nek"))
+
+
+def _valid_confirmed(name, r) -> bool:
+    """Is the replay of row r a confirmation under the rule of its campaign (every required pin
+    matched, the predicted outcome reached, the control finished)? The predicted outcome is the
+    finding's in MBI (the verdict column), a hang for HYPRE's cross alternatives, another
+    residual than the control's for MG, other values than the expected ones for deal.II, and a
+    run that finishes for the samples of AMG and Nekbone, whose alternatives are warnings."""
+    yes = lambda k: r.get(k) == "True"   # noqa: E731
+    if name in ("mbi", "reads"):
+        return r.get("verdict") == "confirmed"
+    ok = yes("matched") and r.get("control") == "FINISHED"
+    if name == "hypre":
+        return ok and r.get("replay") == "TIMEOUT"
+    if name == "npbmg":
+        return ok and r.get("replay") == "FINISHED" and bool(r.get("norm")) and r["norm"] != r.get("control_norm")
+    if name == "dealii":
+        return ok and r.get("replay") == "FINISHED" and yes("differs")
+    return ok and r.get("replay") == "FINISHED" and yes("control_matched")
+
+
+def _why_kind(v: str) -> str:
+    """The kind of violation a replay's trace shows (stretto.confirm.unpinned_violation)."""
+    for prefix, kind in (("end of the run", "the end: a waiting operation takes, unpinned, a message nobody took"),
+                         ("receiver order", "receiver-side order: an earlier receive takes the message"),
+                         ("non-overtaking", "sender-side order (non-overtaking)"), ("probe order", "a probe's order"),
+                         ("constraint cycle", "a constraint cycle"), ("trace unreadable", "trace unreadable"),
+                         ("undetermined", "undetermined")):
+        if v.startswith(prefix):
+            return kind
+    return v.split(":")[0]
+
+
+def valid():
+    """The replays behind the confirmation claims run again with the tracer preloaded, which
+    applies the pins and records each run; its own trace is then judged as a run of the program
+    without the pins (stretto.confirm.unpinned_violation, judge_replay). experiments/results/valid/:
+    mbi.csv and reads.csv (run_mbi.py --replay-only --replays-out), npbmg.csv, dealii.csv,
+    hypre.csv (the campaigns' predict.py --sample), amg.csv and nekbone.csv (replay_sample.py
+    --from-csv)."""
+    d = os.path.join(RES, "valid")
+    got = [(name, label, key, rows(os.path.join(d, f"{name}.csv"))) for name, label, key in VALID]
+    got = [g for g in got if g[3]]
+    if not got:
+        return "_no results_\n"
+    out = ["The replays behind every confirmation claim are run again with the tracer preloaded: it applies the pins as",
+           "the replay library does and records the run with the original envelopes, and the replay's own trace is judged",
+           "as a run of the program without the pins (`stretto.confirm.unpinned_violation`): MPI's matching order on its",
+           "matches (non-overtaking on both sides, probes) and an acyclic constraint graph. A receive still pending where",
+           "the run stopped is read as unmatched or as matched to a message nobody else took, and the run passes if some",
+           "reading does. A replay that hangs is judged up to where it stopped and at its end: a receive or probe still",
+           "waiting there that would, without its pin, take a message nobody took is no state the program stays in. The",
+           "controls are judged the same way. A confirmation under the *old rule* needs every required pin matched, the",
+           "predicted outcome and a control that finished; the *new rule* also needs the replay to be a run of the",
+           "program. The MBI campaigns replay every finding again (rows, one per finding and class); the application",
+           "campaigns replay a random sample of alternatives of new traced runs (the earlier traces were not kept),",
+           "with the seed in the table, and AMG and Nekbone the same alternatives of the same trace as their samples.",
+           "A required pin counts as matched when the replay library reports it or, since 13f2174, when the replay's own",
+           "trace shows the pinned receive or probe took its pinned source (`stretto.confirm.trace_matches`).",
+           f"Rows by code commit: {commits([r for g in got for r in g[3]])}.", "",
+           "| campaign | alternatives to draw from | replays | runs of the program | not runs | undetermined | controls that are runs | confirmed, old rule | confirmed, new rule |",
+           "|---|---|---|---|---|---|---|---|---|"]
+    tot = collections.Counter()
+    bad = []
+    for name, label, key, rs in got:
+        if name in ("mbi", "reads"):
+            rep = rs
+            # the same findings and pins as the replays the claims were made from?
+            before = collections.Counter((r["program"], r["cls"], r["pin"]) for r in rows(os.path.join(RES, name, "replays.csv")))
+            now = collections.Counter((r["program"], r["cls"], r["pin"]) for r in rs)
+            same = sum((before & now).values())
+            pool = f"{len(rs)} findings, {same} of the {sum(before.values())} replayed for the claims"
+            num(f"nValid{key}SamePins", same)
+            num(f"nValid{key}Committed", sum(before.values()))
+            num(f"nValid{key}CommittedConfirmed", sum(1 for r in rows(os.path.join(RES, name, "replays.csv")) if r.get("verdict") == "confirmed"))
+        else:
+            rep = [r for r in rs if r.get("pin") and r.get("replay") not in (None, "", "no horizon")]
+            if name in ("amg", "nekbone"):
+                pool = f"the sample of {len(rep)}"
+            else:
+                per_run = {(r.get("np"), r.get("run")): r for r in rs if not (r.get("replay") or "").startswith("traced run")}
+                n = sum(int(r.get("alternatives") or 0) for r in per_run.values())
+                seeds = sorted({r.get("seed") for r in rs if r.get("seed")})
+                pool = f"{n} in {len(per_run)} traced runs" + (f", seed {', '.join(seeds)}" if seeds else "")
+                num(f"nValid{key}Pool", n)
+                num(f"nValid{key}Traced", len(per_run))
+        runs = sum(1 for r in rep if r.get("run_valid") == "True")
+        notr = [r for r in rep if r.get("run_valid") == "False"]
+        und = sum(1 for r in rep if r.get("run_valid") not in ("True", "False"))
+        ctl = [r for r in rep if r.get("control") not in (None, "")]
+        ctl_runs = sum(1 for r in ctl if r.get("control_valid") == "True")
+        old = [r for r in rep if _valid_confirmed(name, r)]
+        new = [r for r in old if r.get("run_valid") == "True"]
+        out.append(f"| {label} | {pool} | {len(rep)} | {runs} | {len(notr)} | {und} | {ctl_runs} of {len(ctl)} | {len(old)} | {len(new)} |")
+        hung = [r for r in rep if (r.get("result") or r.get("replay")) == "TIMEOUT"]
+        for m, v in (("Replays", len(rep)), ("Runs", runs), ("NotRuns", len(notr)), ("Undetermined", und), ("Controls", len(ctl)),
+                     ("ControlRuns", ctl_runs), ("ConfOld", len(old)), ("ConfNew", len(new)), ("Hung", len(hung)),
+                     ("HungRuns", sum(1 for r in hung if r.get("run_valid") == "True"))):
+            num(f"nValid{key}{m}", v)
+            tot[m] += v
+        bad += [(label, r) for r in notr]
+        bad += [(label + ", control", {**r, "violation": r.get("control_violation", ""), "result": r.get("control"),
+                                       "replay": r.get("control")}) for r in ctl if r.get("control_valid") == "False"]
+    for m, v in tot.items():
+        num(f"nValid{m}", v)
+    out.append(f"| **all** | | {tot['Replays']} | {tot['Runs']} | {tot['NotRuns']} | {tot['Undetermined']} | "
+               f"{tot['ControlRuns']} of {tot['Controls']} | {tot['ConfOld']} | {tot['ConfNew']} |")
+    # MBI: the same findings and pins as the committed replays, whose verdicts the run may change
+    # (a control that hangs this time, a replay that crashes)
+    diff = []
+    for name, label, key, rs in got:
+        if name not in ("mbi", "reads"):
+            continue
+        before = {(r["program"], r["cls"], r["pin"]): r for r in rows(os.path.join(RES, name, "replays.csv"))}
+        for r in rs:
+            b = before.get((r["program"], r["cls"], r["pin"]))
+            if b and b.get("verdict") != r.get("verdict"):
+                diff.append(f"| {label} | {r['program']} | {r['cls']} | {r['pin']} | {b.get('verdict')} ({b.get('result')}, control "
+                            f"{b.get('control') or '-'}) | {r.get('verdict')} ({r.get('result')}, control {r.get('control') or '-'}) |")
+    num("nValidVerdictChanged", len(diff))
+    if diff:
+        out += ["", "Replays of MBI whose verdict under the old rule differs from that of the committed replay with the same finding "
+                    "and pins (the outcome of one run of a racing program is one schedule):", "",
+                "| campaign | program | class | pin | committed | this run |", "|---|---|---|---|---|---|"] + diff
+    out += ["", f"Replays that hung, the predicted outcome of 1c, 1d and HYPRE's cross alternatives, and were judged at their end "
+                f"as well: {tot['Hung']}, of which {tot['HungRuns']} are runs of the program."]
+    if not bad and not tot["Undetermined"]:
+        out += ["", "Every replay and every control is a run of the program without its pins: no pin forced a match or a hang "
+                    "that the program cannot have, so no confirmation rests on the pins alone."]
+    if bad:
+        kinds = collections.Counter((label, _why_kind(r.get("violation", ""))) for label, r in bad)
+        out += ["", "Replays and controls that are no run of the program, by what their trace shows:", "",
+                "| campaign | violation | runs |", "|---|---|---|"]
+        out += [f"| {label} | {kind} | {n} |" for (label, kind), n in sorted(kinds.items())]
+        out += ["", "Each of them (the first 40):", "", "| campaign | replay | result | what its trace shows |", "|---|---|---|---|"]
+        for label, r in bad[:40]:
+            what = r.get("program") or r.get("finding", "")[:60] or f"np {r.get('np')} run {r.get('run')}"
+            out.append(f"| {label} | {what} `{r.get('pin', '')[:80]}` | {r.get('result') or r.get('replay') or ''} | "
+                       f"{r.get('violation', '').replace('|', '/')[:240]} |")
+    return "\n".join(out) + "\n"
+
 
 MUST_TAGS = {"must1112": "MUSTeleven", "must1112tsan": "MUSTeleventsan"}   # macro names of score.MUST_COLUMNS
 
@@ -1424,7 +1725,7 @@ def must_versions_notes(rs, key, path):
             num(f"n{key}{tag}Timeout", kinds.get("TIMEOUT", 0))
             if col.endswith("tsan"):
                 num(f"n{key}{tag}Races", len(races))
-    if any(r.get("must1112tsan") for r in rs):
+    if any(r.get(col) for r in rs for col, _ in score.MUST_COLUMNS):
         out += ["", "MUST 1.11.2 runs from `experiments/must/Dockerfile` (MPI-BugBench's MUST image with 1.11.2: Debian 12,",
                 "MPICH 4.0.2, clang 14), the same harness and timeout as 1.9.2 (`scripts/must_run.sh`). With ThreadSanitizer the",
                 "program is compiled with `must-tsan-cc --wrap-target mpicc.mpich` and run with `--must:tsan`; a data race counts",
@@ -1436,14 +1737,14 @@ def must_versions_notes(rs, key, path):
 
 def must_tsan_local():
     """MUST 1.11.2 with ThreadSanitizer against the buffer guard on MPI-BugBench's
-    local-concurrency programs, both under MPICH (guard: lc.txt; MUST: the column of mbb.csv, or
-    mbb/must1112tsan-lc.csv, run_must.py's table of a run on these programs alone)."""
+    local-concurrency programs, both under MPICH (guard: lc.txt; MUST: the column of mbb.csv, its
+    commit from run_must.py's own table, mbb/must1112tsan.csv)."""
     mbb = {r["name"]: r for r in rows(os.path.join(RES, "mbb", "mbb.csv"))}
-    side = {r["name"]: r for r in rows(os.path.join(RES, "mbb", "must1112tsan-lc.csv"))}
-    lc = [dict(r, must1112tsan=r.get("must1112tsan") or side.get(r["name"], {}).get("must1112tsan", ""))
-          for r in mbb.values() if r.get("detail") == "LocalConcurrency"]
+    lc = [r for r in mbb.values() if r.get("detail") == "LocalConcurrency"]
     if not any(r.get("must1112tsan") for r in lc):
         return ""
+    names = {r["name"] for r in lc}
+    side = {r["name"]: r for r in rows(os.path.join(RES, "mbb", "must1112tsan.csv")) if r["name"] in names}
     p = os.path.join(RES, "guard", "lc.txt")
     text = open(p).read() if os.path.exists(p) else ""
     guard = {m.group(1): "3-local" in m.group(2) for m in re.finditer(r"^mpich\s+(\S+)\s+(.*)$", text, re.M)}
@@ -1644,6 +1945,382 @@ def ninja():
     return "\n".join(out) + "\n"
 
 
+SCALE_APPS = (("hypre", "Hypre", "HYPRE 2.10.1, ParaSails"), ("amg", "AMG", "AMG"), ("lu", "Lu", "NPB LU, class A"))
+NP_WORD = {4: "Four", 8: "Eight", 16: "Sixteen", 32: "ThirtyTwo", 64: "SixtyFour", 128: "HundredTwentyEight"}
+
+
+def scale():
+    """E11: HYPRE, AMG and NPB LU traced beyond eight processes, each trace analysed under
+    /usr/bin/time and a sample of its alternatives replayed with controls (experiments/scale/run.sh:
+    scale.csv, one row per trace; samples/<app>-<np>.csv, the sample's rows; samples/<app>-<np>.time)."""
+    d = os.path.join(RES, "scale")
+    rs = rows(os.path.join(d, "scale.csv"))
+    if not rs:
+        return "## E11: scale\n\n_no results_\n"
+    nps = sorted({int(r["np"]) for r in rs})
+
+    def classes(r):
+        """'1f 8;probe-alt 187' -> {'1f': 8, 'probe-alt': 187}"""
+        return {k: int(v) for k, v in (c.strip().rsplit(" ", 1) for c in (r.get("findings") or "").split(";") if c.strip())}
+
+    def analysed(r):
+        """The analysis printed its trace header and /usr/bin/time no failure (a nonzero status or a signal)."""
+        p = os.path.join(d, "samples", f"{r['app']}-{r['np']}.time")
+        t = open(p).read() if os.path.exists(p) else ""
+        return bool(r.get("wildcard_receives") and r.get("analysis_s")) and "Command" not in t
+
+    def sample(r):
+        """The sample's rows that were replayed (replay_sample.py skips an alternative without a horizon)."""
+        return [x for x in rows(os.path.join(d, "samples", f"{r['app']}-{r['np']}.csv")) if x.get("replay") not in (None, "", "no horizon")]
+
+    out = [f"## E11: scale ({nps[0]} to {nps[-1]} processes)", "",
+           "HYPRE 2.10.1's `ij -solver 8 -pout 0` (ParaSails, MPICH build), AMG with 16^3 points per process (`-problem 1`,",
+           "Open MPI) and NPB LU class A (MPICH build), each traced once per process count; each trace analysed in one",
+           "process under `/usr/bin/time` (`--no-sp`), and a random sample of its alternatives replayed with the pins of",
+           "their horizon and a control (`experiments/scale/run.sh`, `experiments/replay_sample.py`). Process counts above",
+           "the container's processors (24 hardware threads, 12 cores, in the committed campaign) oversubscribe it, so these",
+           "runs measure the analysis, which runs in one process, not the traced program's speed. They ran outside a timed",
+           "leg, with other containers on the machine: the times show the cost and are not timing claims. Peak memory is",
+           "the analysis's maximum resident set. *Per record* is the analysis time over the trace's records, *per",
+           "alternative* the time over the alternatives reported, *per alternative and record* that over the records too.",
+           f"Rows by code commit: {commits(rs)}.", "",
+           "| application | processes | traced run | records | wildcard receives | probes | findings by class | analysis (s) "
+           "| peak memory (GB) | per record (µs) | per alternative (ms) | per alternative and record (ns) | replays "
+           "| pins matched | finished | controls finished | control pins matched |",
+           "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
+    done = [r for r in rs if analysed(r)]
+    replayed = []
+    by_app = collections.defaultdict(dict)
+    per_rec = collections.defaultdict(list)       # µs per record, per application
+    per_alt_rec = collections.defaultdict(list)   # ns per alternative and record
+    for app, key, label in SCALE_APPS:
+        for r in sorted((r for r in rs if r["app"] == app), key=lambda r: int(r["np"])):
+            np_ = int(r["np"])
+            c = classes(r)
+            alts = sum(c.values())
+            secs, gb, recs = float(r["analysis_s"]), int(r["peak_kb"]) * 1024 / 1e9, int(r["records"])   # %M is in KiB
+            per = secs / alts * 1e3 if alts else None
+            per_rec[key].append(secs / recs * 1e6)
+            if per:
+                per_alt_rec[key].append(per / recs * 1e6)
+            s = sample(r)
+            replayed += s
+            out.append(f"| {label} | {np_} | {r['traced_run']} | {recs} | {r['wildcard_receives']} | {r['probes']} | "
+                       + (", ".join(f"{k} {v}" for k, v in sorted(c.items(), key=lambda kv: -kv[1])) or "none")
+                       + f" | {secs:.1f} | {gb:.1f} | {secs / recs * 1e6:.1f} | {f'{per:.1f}' if per else '-'} "
+                       f"| {f'{per / recs * 1e6:.1f}' if per else '-'} | {r['sample']} | {r['matched']} | {r['finished']} "
+                       f"| {r['controls_finished']} | {sum(x.get('control_matched') == 'True' for x in s)} |")
+            k = f"Scale{key}{NP_WORD[np_]}"
+            num(k + "Time", round(secs))
+            num(k + "GB", f"{gb:.1f}")
+            num(k + "Records", f"{recs / 1e6:.2f}")
+            if int(r["wildcard_receives"] or 0) or int(r["probes"] or 0):     # LU has none
+                num(f"n{k}Wild", int(r["wildcard_receives"] or 0))
+                num(f"n{k}Alts", alts)
+                num(f"n{k}ProbeAlts", c.get("probe-alt", 0))
+            if per:
+                num(k + "PerAlt", f"{per:.1f}")
+            by_app[key][np_] = (secs, recs)
+    for key, b in by_app.items():
+        lo, hi = b[min(b)], b[max(b)]
+        num(f"Scale{key}TimeRatio", f"{hi[0] / lo[0]:.1f}")       # from the fewest processes to the most
+        num(f"Scale{key}RecordsRatio", f"{hi[1] / lo[1]:.1f}")
+    num("nScaleNpMin", nps[0])
+    num("nScaleNpMax", nps[-1])
+    num("nScaleTraces", len(rs))
+    num("nScaleTracedFinished", sum(r["traced_run"] == "FINISHED" for r in rs))
+    num("nScaleAnalysed", len(done))
+    num("nScaleSample", sum(int(r["sample"] or 0) for r in rs))
+    num("nScaleSampleMatched", sum(int(r["matched"] or 0) for r in rs))
+    num("nScaleSampleFinish", sum(int(r["finished"] or 0) for r in rs))
+    num("nScaleSampleControls", sum(int(r["controls_finished"] or 0) for r in rs))
+    num("nScaleSampleControlsMatched", sum(x.get("control_matched") == "True" for x in replayed))
+    sampled = collections.Counter(x["cls"] for x in replayed)
+    out += ["", f"Traced runs that finished: {sum(r['traced_run'] == 'FINISHED' for r in rs)} of {len(rs)}; analyses that finished: "
+            f"{len(done)} of {len(rs)}. Sampled replays: {len(replayed)} ("
+            + ", ".join(f"{k} {v}" for k, v in sorted(sampled.items())) + f"); with every pin matched: "
+            f"{sum(x.get('matched') == 'True' for x in replayed)}; finished: {sum(x.get('replay') == 'FINISHED' for x in replayed)}; "
+            f"controls finished: {sum(x.get('control') == 'FINISHED' for x in replayed)}, with every pin matched: "
+            f"{sum(x.get('control_matched') == 'True' for x in replayed)}. A trace without wildcard receives or probes (LU) has no "
+            "alternative to sample."]
+    rng = lambda xs, fmt: f"{min(xs):{fmt}} to {max(xs):{fmt}}"   # noqa: E731
+    if per_rec.get("Lu") and per_alt_rec.get("AMG"):
+        out += ["", f"Where the time goes. LU has no alternative: its analysis costs {rng(per_rec['Lu'], '.0f')} µs per record at every",
+                "process count. AMG's alternatives grow with the processes, and so does the time each one takes, about in",
+                "proportion to the trace (theorem T4 bounds the time per alternative by a quasi-linear function of the trace):",
+                f"per alternative and record, {rng(per_alt_rec['AMG'], '.0f')} ns. AMG's analysis time is therefore about the number of",
+                "its alternatives times the length of its trace."]
+    return "\n".join(out) + "\n"
+
+
+def e9():
+    """MPI-PRV (experiments/mpiprv/): its own evaluation rerun from its artifact image, correct
+    programs that ask it for reorderings no execution has, the check of its Adept Kernel
+    report, its marker arms on Stretto's corpora, and Stretto on its applications."""
+    d = os.path.join(RES, "mpiprv")
+    if not os.path.isdir(d):
+        return "_no results_\n"
+    def R(f):
+        return rows(os.path.join(d, f))
+    every = []
+    out = ["MPI-PRV (\"Efficient Predictive Monitoring of Message Passing Interface Programs\", ISSTA 2026) from its",
+           "artifact image, pinned by digest (`experiments/mpiprv/README.md`), in a container with four processors of",
+           "the second machine, outside any timed leg: its times are indicative. Stretto's tracer, an LD_PRELOAD library",
+           "built for the same Open MPI 4.1.6, runs inside the same image."]
+
+    rq1 = R("rq1.csv")
+    if rq1:
+        every += rq1
+        rounds = sorted({r["rep"] for r in rq1}, key=int)
+        props = sorted({r["prop"] for r in rq1}, key=lambda p: int(p[4:]))
+        full = [k for k in rounds if all(r["result"] == "PASS" for r in rq1 if r["rep"] == k)]
+        num("nPRVrqOneRounds", len(rounds))
+        num("nPRVrqOneFull", len(full))
+        num("nPRVrqOneProps", len(props))
+        out += ["", "### Its own evaluation, rerun", "",
+                f"RQ1 (`RQ1/TestallProp.sh`, the ten properties, each on its own buggy program), {len(rounds)} rounds: every "
+                f"property reported in {len(full)} of them.", "",
+                "| property | program | rounds reported | reported sequence (first round) |", "|---|---|---|---|"]
+        for p in props:
+            rs = [r for r in rq1 if r["prop"] == p]
+            out.append(f"| {p} | {rs[0]['program']} | {sum(r['result'] == 'PASS' for r in rs)} of {len(rs)} | `{rs[0]['matched']}` |")
+
+    ap_ = R("adept-prv.csv")
+    if ap_:
+        every += ap_
+        def related(seq):
+            # in the stencil, rank r receives only from r - 1 and r + 1
+            m = re.match(r"p(\d+)_Irecv p\d+_Use p(\d+)_Isend", seq or "")
+            return "-" if not m else ("yes" if abs(int(m.group(1)) - int(m.group(2))) == 1 else "no")
+        out += ["", "Its motivating example (Adept Kernel MPI, `stencil.c`, the marker `usea0()` before the interior loop; "
+                "pattern `Irecv Use Isend`, 4 ranks): `MPI-PRV.sh` analyses the trace shipped with the example; the other "
+                "rows are fresh runs of the instrumented kernel shipped with it. The last column says whether the reported "
+                "send goes to the reported receiving rank (in this stencil rank r receives only from r - 1 and r + 1).", "",
+                "| trace | events | reported | sequence | send to the receiving rank |", "|---|---|---|---|---|"]
+        for r in ap_:
+            out.append(f"| {r['run']} | {r['events']} | {r['result']} | `{r['matched']}` | {related(r['matched'])} |")
+        num("nPRVadeptReports", sum(r["result"] == "PASS" for r in ap_))
+        num("nPRVadeptTraces", len(ap_))
+        num("nPRVadeptRelated", sum(related(r["matched"]) == "yes" for r in ap_))
+
+    rq2 = R("rq2.csv")
+    if rq2:
+        every += rq2
+        ok = [r for r in rq2 if r["result"] in ("matched", "none")]
+        num("nPRVrqTwoConfigs", len(ok))
+        num("nPRVrqTwoMatched", sum(r["result"] == "matched" for r in ok))
+        num("nPRVrqTwoAbsent", sum(1 for r in ok if r.get("absent")))
+        out += ["", "RQ2/RQ3 (`RQ2-3/MPI-PRV_result.sh`): MPI-PRV on the trace shipped for each application and process "
+                "count, with that application's pattern. The artifact's scripts write the result column of their table as "
+                "a constant (√, whatever the analyser prints); `reported` is what the analyser printed. `absent` lists the "
+                "pattern's events that never occur in the trace.", "",
+                "| application | np | pattern | events | absent | reported | analysis (s), here | analysis (s), artifact's table |",
+                "|---|---|---|---|---|---|---|---|"]
+        for r in rq2:
+            out.append(f"| {r['app']} | {r['np']} | {r['pattern']} | {r['events']} | {r.get('absent', '')} | {r['result']} | "
+                       f"{r['analysis_s']} | {r['artifact_s']} |")
+        out += ["", f"Reported in {sum(r['result'] == 'matched' for r in ok)} of {len(ok)} configurations."]
+
+    pr = R("probes.csv")
+    if pr:
+        every += pr
+        what = {"wild_irecv-src1": "MPI_Irecv from the sender, MPI_Wait, marker", "wild_irecv-any": "the same, MPI_ANY_SOURCE",
+                "wild_recv-src1": "MPI_Recv from the sender, marker", "wild_recv-any": "the same, MPI_ANY_SOURCE",
+                "order-barrier-BA": "A, MPI_Barrier / MPI_Barrier, B", "order-barrier-AB": "the same, the observed order (control)",
+                "order-sendrecv-BA": "A, MPI_Send / MPI_Recv, B", "order-sendrecv-AB": "the same, the observed order (control)",
+                "unrelated": "rank 0 receives from 1 and uses; later rank 2 sends to 3",
+                "lc-error": "MPI-BugBench receive-mpi_irecv-001, marker at its labelled access (error)",
+                "lc-twin": "its twin: the access and marker after MPI_Wait (correct)",
+                "lc-twin-loaded": "the twin, with four busy loops on the same processors"}
+        out += ["", "### Correct programs that ask for a reordering no execution has (`experiments/mpiprv/probes.sh`)", "",
+                "Each program is correct; `expected` is *none* when no execution has the pattern's order, and *matched* "
+                "for the controls, whose observed order is the pattern.", "",
+                "| case | program | pattern | expected | reported | sequence |", "|---|---|---|---|---|---|"]
+        cases = list(dict.fromkeys(r["case"] for r in pr))
+        for c in cases:
+            rs = [r for r in pr if r["case"] == c]
+            seqs = sorted({r["matched"] for r in rs if r["matched"]})
+            out.append(f"| {c} | {what.get(c, rs[0]['source'])} | {rs[0]['pattern']} | {rs[0]['expected']} | "
+                       f"{sum(r['result'] == 'matched' for r in rs)} of {len(rs)} | {', '.join(f'`{s}`' for s in seqs)} |")
+            key = "nPRVprobe" + re.sub(r"[^A-Za-z]", "", c.title())
+            num(key, sum(r["result"] == "matched" for r in rs))
+            num(key + "Runs", len(rs))
+
+    ad = R("adept.csv")
+    if ad:
+        every += ad
+        out += ["", "### The Adept Kernel report (`experiments/mpiprv/adept.sh`)", "",
+                "The example's sources built without instrumentation; `fixed` completes the two halo sends the original "
+                "never waits for, `mutant` is the fixed kernel with its waits moved after the edge updates (the error the "
+                "report describes, put in on purpose); `delay` runs make one rank sleep before each MPI_Isend. The result is "
+                "the hash of a0 and a1 on every rank at their free(); `after marker` and `after loop` count the halo sends "
+                "posted after the receiving rank's marker, and after its whole interior loop, out of all halo sends.", "",
+                "| run | command | result | same result as normal | sends after marker | after loop | of | "
+                "delayed rank's sends after loop | of | guard records |",
+                "|---|---|---|---|---|---|---|---|---|---|"]
+        for r in ad:
+            out.append(f"| {r['run']} | `{r['command']}` | {r['result_id']} | {r['same_result_as_normal']} | "
+                       f"{r['sends_after_marker']} | {r['sends_after_loop']} | {r['send_pairs']} | "
+                       f"{r.get('delayed_sends_after_loop', '-')} | {r.get('delayed_sends', '-')} | "
+                       f"{r['guard_records'] if r['guard_records'] != '-' else ''} {r['guard_kinds']} |")
+        by = {r["run"]: r for r in ad}
+        for k, key in (("fixed-delay1", "DelayOne"), ("fixed-delay2", "DelayTwo"), ("mutant-delay1", "MutantDelay")):
+            if k in by:
+                num(f"nPRVadept{key}Late", by[k]["sends_after_loop"])
+                num(f"nPRVadept{key}Pairs", by[k]["send_pairs"])
+                if by[k].get("delayed_sends", "-") != "-":
+                    num(f"nPRVadept{key}DelayedLate", by[k]["delayed_sends_after_loop"])
+                    num(f"nPRVadept{key}Delayed", by[k]["delayed_sends"])
+        num("nPRVadeptFixedSame", sum(1 for r in ad if r["run"].startswith("fixed") and r["same_result_as_normal"] == "True"))
+        num("nPRVadeptFixedRuns", sum(1 for r in ad if r["run"].startswith("fixed")))
+        num("nPRVadeptOrigSame", sum(1 for r in ad if r["run"].startswith("overlapped") and r["same_result_as_normal"] == "True"))
+        num("nPRVadeptOrigRuns", sum(1 for r in ad if r["run"].startswith("overlapped")))
+        num("nPRVadeptMutantSame", sum(1 for r in ad if r["run"].startswith("mutant") and r["same_result_as_normal"] == "True"))
+        if "guard" in by:
+            num("nPRVadeptGuard", by["guard"]["guard_records"])
+        if "guard-fixed" in by:
+            num("nPRVadeptGuardFixed", by["guard-fixed"]["guard_records"])
+        p = os.path.join(d, "adept-guard.txt")
+        if os.path.exists(p):
+            out += ["", "Guard records by site (`adept-guard.txt`; count, site, function and source line):", "", "```"]
+            out += [l.rstrip() for l in open(p) if re.match(r"(# guard(-fixed)?:|\d+ \S+\+0x)", l)]
+            out += ["```"]
+
+    co = R("corpus.csv")
+    if co:
+        every += co
+        st = {r["program"]: r for r in R("stretto-corpus.csv")}
+        every += list(st.values())
+        built = [r for r in co if r.get("build") == "ok"]
+        progs = {r["program"]: r for r in built}
+        insc = [p for p, r in progs.items() if r["scope"] == "in"]
+        outsc = sorted(p for p, r in progs.items() if r["scope"] != "in")
+        notbuilt = sorted({r["program"] for r in co if r.get("build") != "ok"})
+        num("nPRVcorpus", len(progs))
+        num("nPRVinScope", len(insc))
+        num("nPRVoutScope", len(outsc))
+        out += ["", "### MPI-PRV on Stretto's corpora (`experiments/mpiprv/run.py`)", "",
+                f"Programs run: {len(progs)}; outside MPI-PRV's declared scope (probes, message races, buffering), listed and "
+                f"not scored: {len(outsc)} ({', '.join(outsc) or '-'}); not built with Open MPI 4.1.6: {len(notbuilt)}. "
+                f"Rows by code commit: {commits(co)}.", "",
+                "Arm a: the shipped properties whose events are all MPI calls (1, 6, 7, 9), program unchanged. Arm b: the "
+                "buffer properties (2, 3, 8, with both members of the paper's unions) with markers inserted by a script "
+                "that does not read the labels. Arm c: the same properties with markers at the labelled lines and at the "
+                "moved lines of the twins, an upper bound. Twins are the local-concurrency errors corrected (the labelled "
+                "access moved after the completing call), labelled correct. `a+b` is the tool run with every shipped "
+                "property and the blind markers: an error if either arm reports one.", ""]
+        V = {arm: {r["program"]: r["verdict"] for r in built if r["arm"] == arm} for arm in "abc"}
+        V["a+b"] = {p: "ERROR" if "ERROR" in (V["a"].get(p), V["b"].get(p)) else "OK" for p in progs}
+        V["S"] = {p: r["verdict"] for p, r in st.items() if r.get("build") == "ok"}
+        lc_dom = [p for p in insc if progs[p]["expect"] == "OK" or progs[p]["detail"] == "LocalConcurrency"]
+        for title, ps, tag in (("All programs in scope", insc, ""),
+                               ("Local-concurrency errors and the correct programs (the domain of the buffer properties)",
+                                lc_dom, "LC")):
+            out += [f"{title}: {len(ps)} programs, {sum(progs[p]['expect'] == 'ERROR' for p in ps)} labelled errors.", "",
+                    "| | TP | FP | FN | TN | precision | recall | F1 |", "|---|---|---|---|---|---|---|---|"]
+            for arm, label in (("a", "MPI-PRV, arm a (no markers)"), ("b", "MPI-PRV, arm b (blind markers)"),
+                               ("c", "MPI-PRV, arm c (markers at the labels)"), ("a+b", "MPI-PRV, arms a and b"),
+                               ("S", "Stretto with the buffer guard (`stretto_corpus.py`)")):
+                rs = [{"expect": progs[p]["expect"], "verdict": V[arm][p]} for p in ps if p in V[arm]]
+                if not rs:
+                    continue
+                c = score.confusion(rs, lambda r: r["verdict"])
+                out.append(conf_row(label, c))
+                A = {"a+b": "AB", "S": "Stretto"}.get(arm, arm.upper()) + tag
+                num(f"PRVfone{A}", c["f1"])
+                for k in ("tp", "fp", "fn", "tn"):
+                    num(f"nPRV{k}{A}", c[k])
+            out.append("")
+        # which patterns arm a's reports come from, on labelled errors and on correct programs
+        by_pat = collections.Counter((m.split(":")[0], r["expect"]) for r in built if r["arm"] == "a" and r["scope"] == "in"
+                                     and r["verdict"] == "ERROR" for m in r["matched"].split(" | ") if m)
+        if by_pat:
+            out.append("Arm a's reports by pattern (labelled errors / correct programs): " + "; ".join(
+                f"{p} {by_pat[(p, 'ERROR')]} / {by_pat[(p, 'OK')]}" for p in sorted({p for p, _ in by_pat})) + ".")
+            out.append("")
+        def group(r):
+            if r["program"].startswith("twin:"):
+                return "twins of the local-concurrency errors (correct)"
+            return f"{'MPI-BugBench' if r['corpus'] == 'mbb' else 'MBI'} {r['detail'] if r['expect'] == 'ERROR' else 'correct'}"
+        groups = sorted({group(progs[p]) for p in insc})
+        out += ["", "By group, programs in scope reported as errors (a / b / c; Stretto with the guard):", "",
+                "| group | programs | arm a | arm b | arm c | Stretto | not recorded by the instrumentation |",
+                "|---|---|---|---|---|---|---|"]
+        for g in groups:
+            ps = [p for p in insc if group(progs[p]) == g]
+            cnt = {arm: sum(1 for r in built if r["program"] in ps and r["arm"] == arm and r["verdict"] == "ERROR") for arm in "abc"}
+            sv = sum(1 for p in ps if st.get(p, {}).get("verdict") == "ERROR")
+            calls = collections.Counter(c for p in ps for c in (progs[p]["outside_model"] or "").split())
+            out.append(f"| {g} | {len(ps)} | {cnt['a']} | {cnt['b']} | {cnt['c']} | {sv if st else '-'} | "
+                       f"{', '.join(f'{k} ({v})' for k, v in calls.most_common(6))} |")
+        fps = sorted({(r["program"], r["arm"], r["matched"]) for r in built if r["scope"] == "in" and r["expect"] == "OK"
+                      and r["verdict"] == "ERROR"})
+        if fps:
+            out += ["", "Correct programs reported as errors:", "", "| program | arm | reported |", "|---|---|---|"]
+            out += [f"| {p} | {a} | `{m.replace('|', ';')}` |" for p, a, m in fps]
+        num("nPRVtwinFP", len({p for p, a, _ in fps if p.startswith("twin:") and a == "c"}))
+        num("nPRVtwins", sum(1 for p in insc if p.startswith("twin:")))
+
+    apps = R("apps.csv")
+    if apps:
+        every += apps
+        ran = [r for r in apps if r.get("run", "").startswith("rc=")]
+        rq2t = {(r["app"], r["np"]): r for r in rq2} if rq2 else {}
+        num("nPRVapps", len({r["app"] for r in ran}))
+        num("nPRVappConfigs", len(ran))
+        num("nPRVappsWild", len({r["app"] for r in ran if int(r.get("wildcards") or 0) > 0}))
+        num("nPRVappsAlts", sum(int(r.get("alternatives") or 0) for r in ran))
+        num("nPRVappsGuardLocal", sum(1 for r in ran if int(r.get("guard_local") or 0) > 0))
+        reps = R("apps-replays.csv")
+        num("nPRVappsReplays", len(reps))
+        num("nPRVappsReplayFinished", sum(1 for r in reps if r.get("replay") == "FINISHED" and r.get("matched") == "True"
+                                          and r.get("control") == "FINISHED"))
+        num("nPRVappsReplayHang", sum(1 for r in reps if r.get("replay") == "TIMEOUT" and r.get("matched") == "True"
+                                      and r.get("control") == "FINISHED"))
+
+        def counts(text):          # "1d:confirmed*2 1c*3" -> {"1d:confirmed": 2, "1c": 3}
+            return {k: int(v) for k, v in re.findall(r"(\S+)\*(\d+)", text or "")}
+
+        def hangs(item):           # a replay under rendezvous that hangs as predicted
+            res = item.split(": ", 1)[-1]
+            return res.startswith("TIMEOUT") and "unmatched" not in res and ("control-" not in res or res.endswith("control-FINISHED"))
+        heat = next((r for r in apps if r["app"] == "Heat" and r.get("run", "").startswith("rc=")), None)
+        if heat:
+            num("nPRVheatDeadlock", counts(heat.get("classes")).get("1d", 0))
+            num("nPRVheatDeadlockConfirmed", counts(heat.get("confirmed")).get("1d:confirmed", 0))
+            num("nPRVheatAlts", int(heat.get("alternatives") or 0))
+            num("nPRVheatReplayHang", counts(heat.get("replay_results")).get("TIMEOUT/matched/control-FINISHED", 0))
+        rdv = [(r["app"], x.strip()) for r in apps for col in ("rendezvous", "guard_rendezvous")
+               for x in (r.get(col) or "").split(";") if x.strip()]
+        num("nPRVappsRendezvous", len(rdv))
+        num("nPRVappsRendezvousHang", sum(1 for _, x in rdv if hangs(x)))
+        num("nPRVdtgRendezvous", sum(1 for a, _ in rdv if a == "DTG"))
+        num("nPRVdtgRendezvousHang", sum(1 for a, x in rdv if a == "DTG" and hangs(x)))
+        out += ["", "### Stretto on MPI-PRV's applications (`experiments/mpiprv/apps.py`)", "",
+                "The artifact's binaries (built with its instrumentation, which only appends its events to a file), its "
+                "command lines and process counts up to 24 ranks, traced by Stretto inside its image; replays are every "
+                "L1 alternative (30 at most), each with the pins of its horizon and a control; `confirmed` replays the "
+                "error findings with a pin (`stretto confirm`, Open MPI's default eager limits); `under rendezvous` "
+                "replays the predictions that need B = 0 or B below a message size, with every message above 8 bytes "
+                "sent by rendezvous (replay result / pins / control). Stretto's analysis time includes the single-path "
+                "explorer, bounded as in the corpus harness (600 events, 30 000 states per alternative); MPI-PRV's is its "
+                "analysis of the artifact's own trace of the same configuration, for its one pattern (table above).", "",
+                "| application | np | run | records | wildcard receives | classes | alternatives | replays | confirmed | "
+                "under rendezvous | "
+                "analysis (s) | MPI-PRV (s) | with the guard: run, classes, confirmed, under rendezvous |",
+                "|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
+        for r in apps:
+            m = rq2t.get((r["app"], str(r["np"])), {})
+            out.append(f"| {r['app']} | {r['np']} | {r.get('run', '')} | {r.get('records', '')} | {r.get('wildcards', '')} | "
+                       f"{r.get('classes', '')} | {r.get('alternatives', '')} | {r.get('replay_results', '')} | "
+                       f"{r.get('confirmed', '')} | {r.get('rendezvous', '')} | {r.get('analysis_s', '')} | "
+                       f"{m.get('analysis_s', '')} | "
+                       f"{r.get('guard_run', '')} {r.get('guard_classes', '')} {r.get('guard_confirmed', '')} "
+                       f"{r.get('guard_rendezvous', '')} |")
+    out.insert(4, f"Rows by code commit: {commits(every)}.")
+    return "\n".join(out) + "\n"
+
+
 def leg_commits():
     cs = sorted({r["commit"] for r in rows(os.path.join(RES, "e4", "e4.csv")) if r.get("commit")})
     return ", ".join(cs) or "unknown"
@@ -1655,17 +2332,21 @@ def main():
            "E2, E6 and the E3 and E7 inputs come from `experiments/run_remaining.sh` on the second, shared machine",
            "(the container of `experiments/container/`, 12 cores of one NUMA node); the HYPRE campaign from",
            "`experiments/hypre/campaign.sh`, the NPB MG and deal.II campaigns from `experiments/npbmg/run.sh` and",
-           "`experiments/dealii/run.sh`, and Nekbone from `experiments/nekbone/run.sh` there. The MUST verdicts",
+           "`experiments/dealii/run.sh`, Nekbone from `experiments/nekbone/run.sh` and the scale campaign (E11)",
+           "from `experiments/scale/run.sh` there. The MUST verdicts",
            "are carried over from MUST 1.9.2 runs under MPICH in MPI-BugBench's own container, with the same timeout",
            "per program, and those of MUST 1.11.2 from the image of `experiments/must/`; NINJA's runs come from",
            "`experiments/ninja/campaign.sh`. The E4 times, the AMG trace and its analysis time come from one announced timed leg at commit",
            f"{leg_commits()} (`experiments/timing_leg.sh`, the host otherwise idle), and AMG's replay sample from that",
-           "trace; the leg's times are the only timing claims.",
+           "trace; the leg's times are the only timing claims. The replays of E8c, every confirmation claim's replays run again",
+           "under the tracer, come from the commands of \"Replays as runs of the program\" in `experiments/RUNBOOK.md`.",
            "", "## E1: predictions vs benchmark labels", "",
            e1("MPI Bugs Initiative (MBI): message-race, tag-matching, probe and buffering programs", os.path.join(RES, "mbi", "mbi.csv"), "MBI"),
            e1("MPI-BugBench level 2: point-to-point and collective call-ordering, missing-call, local-concurrency and correct programs", os.path.join(RES, "mbb", "mbb.csv"), "MBB"),
            stress("MBI", os.path.join(RES, "mbi", "mbi.csv"), "MBI"),
+           stress_eager("MBI", os.path.join(RES, "mbi", "mbi.csv"), "MBI"),
            stress("MPI-BugBench level 2", os.path.join(RES, "mbb", "mbb.csv"), "MBB"),
+           stress_eager("MPI-BugBench level 2", os.path.join(RES, "mbb", "mbb.csv"), "MBB"),
            "### Repeated runs: how often each verdict holds (MBI)", "", reps(),
            "## E2: buffering ablation", "", e2(),
            "## E3: level ablation", "", e3(),
@@ -1681,7 +2362,10 @@ def main():
            "## E7: the value skeleton on MBI (level L2)", "", e7(),
            "## E8: the buffer guard (local concurrency, class 3-local)", "", guard() + must_tsan_local(),
            "## E8b: happens-before candidate selection against the check", "", e8_hb(),
-           "## E10: NINJA (noise injection)", "", ninja()]
+           "## E8c: confirming replays judged as runs of the program", "", valid(),
+           "## E9: MPI-PRV", "", e9(),
+           "## E10: NINJA (noise injection)", "", ninja(),
+           scale()]
     path = os.path.join(ROOT, "docs", "results.md")
     open(path, "w").write("\n".join(doc))
     print("wrote", path)

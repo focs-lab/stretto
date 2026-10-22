@@ -24,11 +24,12 @@ destination comes from a message's status.
 From single clean runs of HYPRE~2.10.1, \tool reports the message race in its ParaSails
 preconditioner that took 10\,392 compute-node hours to diagnose, as a probe alternative in
 \nHypreExposed of \nHypreTraced traced runs. Replayed at the probe whose tag the documented fix
-changed, all \nHypreCrossAlts such alternatives hang while their controls finish. Random
-delays hung it in none of \nHypreStressRuns runs and NINJA, a noise injector built for this race,
-in at most \nNinjaHypreEightAppHangSetup of \nNinjaHypreEightAppRuns; the fixed version
-has no such alternative. \tool also predicts the documented wildcard bugs of NPB MG~2.4.1 and deal.II~9.3.0-rc1. On \nMBIprogs
+changed, all \nHypreCrossAlts such alternatives hang while their controls finish. Untraced runs,
+half with random delays, hung it in none of \nHypreStressRuns, and NINJA, a noise injector built for this race,
+in \nNinjaHypreEightAppHangSetup of \nNinjaHypreEightAppRuns in its best setting; the fixed version
+has no cross-exchange alternative. \tool also predicts the documented wildcard bugs of NPB MG~2.4.1 and deal.II~9.3.0-rc1. On \nMBIprogs
 programs of the MPI Bugs Initiative about matching, it finds \nMBItpunion of \nMBIerrors
 labelled errors with no false error report: \nMBItpobserved shown by the traced run,
 \nMBItpPredBuf buffering thresholds and \nMBItpPredSP single-path consequences (F1
-\MBIfoneunion, against \MBIfoneMUST for \MUST and \MBIfonestress for randomised runs).
+\MBIfoneunion, against \MBIfoneMUST--\MBIfoneMUSTsym for \MUST, \MBIfonestress for randomised runs at default
+limits and \MBIfonestresseager, on partly other errors, with the eager limit forced down).

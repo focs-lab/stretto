@@ -22,7 +22,7 @@ class & level & meaning & counts as \\
 \cls{1c} & \LoneSP, \Ltwo & a send is never received after the change & error \\
 \cls{1d} & \Lone, \LoneSP, \Ltwo & deadlock after the change & error \\
 \cls{1e} & \Ltwo & the continuation diverges from the trace, or the program aborts on its own check & error \\
-\cls{2-buffering} & observed & the recorded run is not realisable at $\Bt=0$ & error \\
+\cls{2-buffering} & observed & the recorded run is not realisable at $\Bt=0$ (a prediction if it finished) & error \\
 \cls{2-collective} & observed & ranks disagree on a collective & error \\
 \cls{2-blocked} & observed & the run ended with a rank blocked or spinning & error \\
 \cls{2-ready} & observed & a ready send was started before its receive was posted & error \\
@@ -201,4 +201,7 @@ stays unpinned. A finding is \emph{confirmed} when three conditions hold:
 \end{itemize}
 Otherwise it is \emph{inconclusive}. The first and the last condition matter because
 forcing an impossible match also hangs. A pinned receive can only match its pinned source,
-so its completion, which the library logs, is the evidence of the forced match.
+so its completion, which the library logs, is the evidence of the forced match. A pin also
+changes the program, making a wildcard receive a receive from one rank; the replay and its
+control are therefore traced, and each trace must be a run of the unpinned program, in which no
+wildcard could have taken another pending message, judged where a hung run stopped.

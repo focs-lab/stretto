@@ -1,0 +1,10 @@
+app,np,mpi,traced_run,records,wildcard_receives,probes,findings,analysis_s,peak_kb,sample,matched,finished,controls_finished,commit
+hypre,16,mpich,FINISHED,167802,23,78760,1f 8;probe-alt 187,12.42,694396,10,10,10,10,b7c886f
+hypre,32,mpich,FINISHED,425093,40,203910,1f 9;probe-alt 202,34.19,2067312,10,10,10,10,b7c886f
+hypre,64,mpich,FINISHED,962967,70,465867,1f 7;probe-alt 215,90.91,5528268,10,10,10,10,b7c886f
+amg,16,openmpi,FINISHED,329453,103,26019,1f 10;probe-alt 16934,65.16,2036312,10,10,10,10,b7c886f
+amg,32,openmpi,FINISHED,976135,209,86879,1f 16;probe-alt 91578,704.08,7188364,10,10,10,10,b7c886f
+amg,64,openmpi,FINISHED,2573046,497,130465,1f 66;probe-alt 501881,10837.64,36662316,10,10,10,10,b7c886f
+lu,16,mpich,FINISHED,3049940,0,0,,87.35,5049796,0,0,0,0,b7c886f
+lu,32,mpich,FINISHED,6608024,0,0,,185.22,10735188,0,0,0,0,b7c886f
+lu,64,mpich,FINISHED,14232316,0,0,,419.11,22817500,0,0,0,0,b7c886f

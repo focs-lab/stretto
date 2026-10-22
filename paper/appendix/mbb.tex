@@ -1,0 +1,20 @@
+\section{MPI-BugBench and local concurrency}
+\label{app:mbb}
+
+\MBB's errors show in the run itself: by design, every incorrect program's error is
+expected to be observable~\citep{jammer24quality}, so a score there measures detection, not
+prediction. \tool's predicted findings alone score \MBBfonepredicted, while the observed checks
+score \MBBfoneunion, against \MBBfoneMUST and \MBBfoneMUSTsym for \MUST; on the \nMBBStressProgs
+programs stress testing runs, \MBBfoneunionstress against its \MBBfonestress
+(\MBBfonestresseager forced down). The \nMBBfp false
+positives are
+correct-labelled gather and reduce programs whose runs Open MPI ends with \texttt{MPI\_ERR\_ARG}. The \nMBBfnunion misses are local
+concurrency errors, a buffer reused during a pending nonblocking operation, invisible to a matching
+model. With the buffer guard (\cref{sec:implementation}) the run
+itself shows \nMBBLCguard of the \nMBBLC and nothing else (F1 \MBBfoneguard), and under MPICH
+\nGuardLCMPICHfound of \nGuardLCMPICHbuilt; MBI's score does not change. \MUST~1.11.2 with its
+ThreadSanitizer analysis~\citep{jenke23tsanfibers} finds \nTsanLCfound of these, none that the
+guard misses (F1 \MBBfoneMUSTeleventsan and \MBBfoneMUSTeleventsansym). MPI-PRV~\citep{yao26mpiprv},
+with markers placed by a script, finds
+\nPRVtpBLC local-concurrency errors of both corpora, the guard \nPRVtpStrettoLC (\cref{app:mpiprv}).
+

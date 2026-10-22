@@ -48,6 +48,9 @@ says about the runs it did not see.
 5. **Consequence and replay.** Each accepted alternative is classified, and confirmed by a
    rerun that pins every wildcard receive of its horizon (`replay/`), with a control rerun that
    pins the observed matches; a confirmation needs every pin matched and the control to finish.
+   A pin turns a wildcard receive into a receive from one rank, which is another program, so
+   the rerun runs under the tracer, and its own trace must also be a run of the program without
+   the pins, up to where it ended.
 
 The theory (soundness, monotonicity in the buffering limit, completeness relative to the
 horizon, cost) is in [`docs/model.md`](docs/model.md) and in the paper under
@@ -65,11 +68,18 @@ judges the run it sees) and stress testing with random delays.
 
 | corpus | programs | Stretto, one run | false positives | MUST 1.9.2 | stress testing |
 |---|---:|---:|---:|---:|---:|
-| MBI (message races, probes, buffering) | 115 | **0.97** | 0 | 0.83–0.89 | 0.90 |
-| MPI-BugBench level 2 | 388 | **0.95**, 0.99 with the buffer guard | 4 | 0.94–0.94 | – |
+| MBI (message races, probes, buffering) | 115 | **0.97** | 0 | 0.83–0.89 | 0.90, 0.97 with the eager limit forced down |
+| MPI-BugBench level 2 | 388 | **0.95**, 0.99 with the buffer guard | 4 | 0.94–0.94 | 0.88, 0.98 forced down, on its 365 call-ordering and correct programs (Stretto 0.99 on them) |
 
 Every MBI error that stress testing never exposes (12 programs, the
-buffering-dependent deadlocks) is predicted from a run that finished. The MPI-BugBench misses
+buffering-dependent deadlocks) is predicted from a run that finished. With Open MPI's eager limit
+forced down so that it buffers no payload byte, the same stress runs hang
+8 of them, those that send to another rank, and fail
+no correct program
+(F1 0.97); the other
+4 send to their own rank, which Open MPI buffers at any limit.
+Testing finds them once one suspects that buffering matters; Stretto finds them from one run at
+the default setting and reports the threshold. The MPI-BugBench misses
 are programs that touch a buffer while a nonblocking call still uses it, which no MPI call
 records. The buffer guard (`STRETTO_GUARD=1`) watches those buffers in the run itself and finds
 20 of the 20 under Open MPI and 22 of
@@ -131,10 +141,24 @@ plain runs.
 confirmed, 31 inconclusive (the control itself hung),
 0 contradicted. Random samples of 30 alternatives on AMG
 and on Nekbone: every replay matched its pins and finished, and so did every control.
+A pin makes a wildcard receive a receive from one rank, which is another program, so the
+replays behind these results (every MBI replay, samples of the application campaigns) were run
+again under the tracer and each one's own trace judged as a run of the program without the
+pins: 373 of 373 are, and 289 of the 289 confirmations among them
+stand when a confirmation needs that too.
 
 **Cost.** Tracing slows NPB by 1.01–1.17× (its own timers). Analysis: lu.A on 16
 processes (3.05 M events) in 55 s, AMG in 15.5 s, Nekbone
 (10.1 M records) in 34 min and 33 GB.
+
+**Scale.** From 16 to 64 processes, in a container of 24 hardware threads that the
+larger counts oversubscribe (so these runs measure the analysis, not the programs), the analysis
+of AMG grows from 65 s and 2.1 GB to 10 838 s and 37.5 GB. Its probe alternatives
+grow from 16 934 to 501 881, and each takes time about in proportion to the trace
+(3.8 ms at 0.33 M records, 21.6 ms at 2.57 M), so the total is about the
+number of alternatives times the length of the trace. HYPRE's analysis grows from
+12 to 91 s; LU's, with no wildcards, 4.8-fold with its 4.7-fold trace. All
+60 sampled replays matched their pins and finished, and so did every control.
 
 Full tables: [`docs/results.md`](docs/results.md).
 <!-- results:end -->

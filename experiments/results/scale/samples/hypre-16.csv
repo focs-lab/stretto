@@ -1,0 +1,11 @@
+finding,cls,pin,site,pins,replay,matched,control,control_matched,commit
+"iprobe(6, 18) src=ANY tag=1000 could observe send(2, 33)->6 tag=1000 8B instead of send(3, 32)->6 tag=1000 8B",probe-alt,STRETTO_PIN_PROBE=6:17:2,ij+0xd6696,195,FINISHED,True,FINISHED,True,b7c886f
+"probe(5, 0) src=ANY tag=226 could observe send(6, 2)->5 tag=226 400B instead of send(4, 3)->5 tag=226 400B",probe-alt,STRETTO_PIN_PROBE=5:0:6,ij+0x135a95,17,FINISHED,True,FINISHED,True,b7c886f
+"probe(7, 10) src=ANY tag=226 could observe send(5, 20)->7 tag=226 400B instead of send(9, 8)->7 tag=226 400B",probe-alt,STRETTO_PIN_PROBE=7:10:5,ij+0x135a95,126,FINISHED,True,FINISHED,True,b7c886f
+"recv(6, 27) src=ANY tag=17 cap=8B <- send(3, 29)->6 tag=17 8B (observed send(4, 27)->6 tag=17 8B); recv(6, 28) src=ANY tag=17 cap=8B left without send(3, 29)->6",1f,STRETTO_PIN=6:0:3,ij+0xa56f6,184,FINISHED,True,FINISHED,True,b7c886f
+"iprobe(4, 2445) src=ANY tag=2000 could observe send(3, 40)->4 tag=2000 400B instead of send(5, 38)->4 tag=2000 400B",probe-alt,STRETTO_PIN_PROBE=4:19:3,ij+0xd6696,215,FINISHED,True,FINISHED,True,b7c886f
+"probe(5, 6) src=ANY tag=222 could observe send(7, 10)->5 tag=222 400B instead of send(6, 11)->5 tag=222 400B",probe-alt,STRETTO_PIN_PROBE=5:6:7,ij+0x127e03,83,FINISHED,True,FINISHED,True,b7c886f
+"probe(4, 8) src=ANY tag=223 could observe send(3, 14)->4 tag=223 3444B instead of send(2, 12)->4 tag=223 3444B",probe-alt,STRETTO_PIN_PROBE=4:8:3,ij+0x12a7a8,87,FINISHED,True,FINISHED,True,b7c886f
+"probe(8, 4) src=ANY tag=223 could observe send(9, 4)->8 tag=223 3044B instead of send(7, 9)->8 tag=223 3444B",probe-alt,STRETTO_PIN_PROBE=8:4:9,ij+0x128124,53,FINISHED,True,FINISHED,True,b7c886f
+"probe(8, 7) src=ANY tag=223 could observe send(7, 12)->8 tag=223 3444B instead of send(6, 12)->8 tag=223 3444B",probe-alt,STRETTO_PIN_PROBE=8:7:7,ij+0x12a7a8,87,FINISHED,True,FINISHED,True,b7c886f
+"probe(3, 10) src=ANY tag=226 could observe send(6, 16)->3 tag=226 400B instead of send(1, 17)->3 tag=226 400B",probe-alt,STRETTO_PIN_PROBE=3:10:6,ij+0x135a95,125,FINISHED,True,FINISHED,True,b7c886f

@@ -99,12 +99,16 @@ def readme(root: str, num: dict) -> None:
             ("Stretto, one run", v("MBIfoneunion"), BLUE),
             ("MUST 1.9.2", v("MBIfoneMUST"), GREY),
             ("MUST, a timeout or crash as an error", v("MBIfoneMUSTsym"), GREY),
-            (f"stress testing, up to {t('nMBIStressRuns')} runs", v("MBIfonestress"), ORANGE)]),
+            (f"stress testing, up to {t('nMBIStressRuns')} runs", v("MBIfonestress"), ORANGE),
+            ("stress, eager limit forced down", v("MBIfonestresseager"), ORANGE)]),
         (f"MPI-BugBench level 2 ({t('nMBBprogs')} programs)", [
             ("Stretto, one run", v("MBBfoneunion"), BLUE),
             ("Stretto with the buffer guard", v("MBBfoneguard"), BLUE),
             ("MUST 1.9.2", v("MBBfoneMUST"), GREY),
-            ("MUST, a timeout or crash as an error", v("MBBfoneMUSTsym"), GREY)]),
+            ("MUST, a timeout or crash as an error", v("MBBfoneMUSTsym"), GREY),
+            (f"Stretto, on the {t('nMBBStressProgs')} stress-tested",v("MBBfoneunionstress"), BLUE),
+            (f"stress testing, up to {t('nMBBStressRuns')} runs", v("MBBfonestress"), ORANGE),
+            ("stress, eager limit forced down", v("MBBfonestresseager"), ORANGE)]),
     ])
     fractions(os.path.join(figs, "hypre.svg"), "HYPRE 2.10.1, ParaSails: a documented hang, predicted from one run", [
         ("Traced runs that predict it", "one clean run each, 4 and 8 processes", v("nHypreExposed"), v("nHypreTraced"), BLUE),
@@ -174,6 +178,26 @@ only what needs no single-path assumption rises from {t('nReadsFoneLOneBase')} t
 value checks still need L2. Against the explorer with read bounds, {t('nReadsEsixUnsound')} of
 {t('nReadsEsixPairs')} judged alternatives are unsound.
 """
+    scale = ""
+    if v("nScaleTraces"):
+        scale = f"""
+**Scale.** From {t('nScaleNpMin')} to {t('nScaleNpMax')} processes, in a container of 24 hardware threads that the
+larger counts oversubscribe (so these runs measure the analysis, not the programs), the analysis
+of AMG grows from {t('ScaleAMGSixteenTime')} s and {t('ScaleAMGSixteenGB')} GB to {t('ScaleAMGSixtyFourTime')} s and {t('ScaleAMGSixtyFourGB')} GB. Its probe alternatives
+grow from {t('nScaleAMGSixteenProbeAlts')} to {t('nScaleAMGSixtyFourProbeAlts')}, and each takes time about in proportion to the trace
+({t('ScaleAMGSixteenPerAlt')} ms at {t('ScaleAMGSixteenRecords')} M records, {t('ScaleAMGSixtyFourPerAlt')} ms at {t('ScaleAMGSixtyFourRecords')} M), so the total is about the
+number of alternatives times the length of the trace. HYPRE's analysis grows from
+{t('ScaleHypreSixteenTime')} to {t('ScaleHypreSixtyFourTime')} s; LU's, with no wildcards, {t('ScaleLuTimeRatio')}-fold with its {t('ScaleLuRecordsRatio')}-fold trace. All
+{t('nScaleSample')} sampled replays matched their pins and finished, and so did every control.
+"""
+    valid = ""
+    if v("nValidReplays"):
+        valid = f"""
+A pin makes a wildcard receive a receive from one rank, which is another program, so the
+replays behind these results (every MBI replay, samples of the application campaigns) were run
+again under the tracer and each one's own trace judged as a run of the program without the
+pins: {t('nValidRuns')} of {t('nValidReplays')} are, and {t('nValidConfNew')} of the {t('nValidConfOld')} confirmations among them
+stand when a confirmation needs that too."""
     block = f"""<!-- results:begin -->
 <!-- Written by experiments/tables.py from experiments/results/; do not edit by hand. -->
 
@@ -184,11 +208,18 @@ judges the run it sees) and stress testing with random delays.
 
 | corpus | programs | Stretto, one run | false positives | MUST 1.9.2 | stress testing |
 |---|---:|---:|---:|---:|---:|
-| MBI (message races, probes, buffering) | {t('nMBIprogs')} | **{t('MBIfoneunion')}** | {t('nMBIfp')} | {t('MBIfoneMUST')}–{t('MBIfoneMUSTsym')} | {t('MBIfonestress')} |
-| MPI-BugBench level 2 | {t('nMBBprogs')} | **{t('MBBfoneunion')}**, {t('MBBfoneguard')} with the buffer guard | {t('nMBBfp')} | {t('MBBfoneMUST')}–{t('MBBfoneMUSTsym')} | – |
+| MBI (message races, probes, buffering) | {t('nMBIprogs')} | **{t('MBIfoneunion')}** | {t('nMBIfp')} | {t('MBIfoneMUST')}–{t('MBIfoneMUSTsym')} | {t('MBIfonestress')}, {t('MBIfonestresseager')} with the eager limit forced down |
+| MPI-BugBench level 2 | {t('nMBBprogs')} | **{t('MBBfoneunion')}**, {t('MBBfoneguard')} with the buffer guard | {t('nMBBfp')} | {t('MBBfoneMUST')}–{t('MBBfoneMUSTsym')} | {t('MBBfonestress')}, {t('MBBfonestresseager')} forced down, on its {t('nMBBStressProgs')} call-ordering and correct programs (Stretto {t('MBBfoneunionstress')} on them) |
 
 Every MBI error that stress testing never exposes ({t('nMBIStressPredMissed')} programs, the
-buffering-dependent deadlocks) is predicted from a run that finished. The MPI-BugBench misses
+buffering-dependent deadlocks) is predicted from a run that finished. With Open MPI's eager limit
+forced down so that it buffers no payload byte, the same stress runs hang
+{t('nMBIStressEagerBufFound')} of them, those that send to another rank, and fail
+{'no correct program' if t('nMBIStressEagerFP') == '0' else t('nMBIStressEagerFP') + ' correct programs'}
+(F1 {t('MBIfonestresseager')}); the other
+{t('nMBIStressEagerPredMissedSelf')} send to their own rank, which Open MPI buffers at any limit.
+Testing finds them once one suspects that buffering matters; Stretto finds them from one run at
+the default setting and reports the threshold. The MPI-BugBench misses
 are programs that touch a buffer while a nonblocking call still uses it, which no MPI call
 records. The buffer guard (`STRETTO_GUARD=1`) watches those buffers in the run itself and finds
 {t('nMBBLCguard')} of the {t('nMBBLC')} under Open MPI and {t('nGuardLCMPICHfound')} of
@@ -216,12 +247,12 @@ PPoPP 2017); HYPRE's changelog for 2.11.0 places the fix in ParaSails.{ninja}
 {t('nEsixPairs')} judged alternatives are unsound. Replays on MBI: {t('nMBIReplayConfirmed')}
 confirmed, {t('nMBIReplayInconclusive')} inconclusive (the control itself hung),
 {t('nMBIReplayNotConfirmed')} contradicted. Random samples of {t('nAMGsample')} alternatives on AMG
-and on Nekbone: every replay matched its pins and finished, and so did every control.
+and on Nekbone: every replay matched its pins and finished, and so did every control.{valid}
 
 **Cost.** Tracing slows NPB by {t('TraceOverhead')}× (its own timers). Analysis: lu.A on 16
 processes ({t('LuEvents')} M events) in {t('LuAnalysis')} s, AMG in {t('AMGtime')} s, Nekbone
 ({t('NekRecords')} M records) in {t('NekMinutes')} min and {t('NekGB')} GB.
-
+{scale}
 Full tables: [`docs/results.md`](docs/results.md).
 <!-- results:end -->"""
     path = os.path.join(root, "README.md")

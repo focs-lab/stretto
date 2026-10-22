@@ -1,0 +1,21 @@
+# experiments/mpiprv/adept_variants.py fixed
+1820a1821,1824
+>     MPI_Wait(&req1, MPI_STATUS_IGNORE);
+>     if ((world_rank > 0) && (world_rank < (world_size-1))) {
+> 	MPI_Wait(&req3, MPI_STATUS_IGNORE);
+>     }
+# experiments/mpiprv/adept_variants.py mutant
+1817,1820d1816
+<     MPI_Wait(&req2, MPI_STATUS_IGNORE);
+<     if ((world_rank > 0) && (world_rank < (world_size-1))) {
+< 	MPI_Wait(&req4, MPI_STATUS_IGNORE);
+<     }
+1871a1868,1875
+>     MPI_Wait(&req2, MPI_STATUS_IGNORE);
+>     if ((world_rank > 0) && (world_rank < (world_size-1))) {
+> 	MPI_Wait(&req4, MPI_STATUS_IGNORE);
+>     }
+>     MPI_Wait(&req1, MPI_STATUS_IGNORE);
+>     if ((world_rank > 0) && (world_rank < (world_size-1))) {
+> 	MPI_Wait(&req3, MPI_STATUS_IGNORE);
+>     }
