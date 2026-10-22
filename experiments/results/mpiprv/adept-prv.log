@@ -1,0 +1,126 @@
+### MPI-PRV.sh (the trace shipped with the example)
+
+=== Executing MPI-PRV command ===
+Trace: "output-4.txt"
+Pattern: "./MPIaspect/Pattern.txt"
+Concurrent processes: 4
+Read time: 0s
+
+Pattern Matched!
+p3_Irecv p3_Use p0_Isend 
+Program execution time: 0.006237 seconds
+
+=== MPI-PRV analysis results ===
+Pattern Matched!
+p3_Irecv p3_Use p0_Isend 
+Program execution time: 0.006237 seconds
+### fresh run 1
+Running with 4 MPI processes.
+Benchmark is stencil.
+Operation 27
+Size is 512.
+Data type is double
+Algorithm is overlapped
+
+--- Stencil - 27 point
+--- Timings ------------------------------------------------------------------------
+|
+| Start: 470565.878663718   End: 470659.974139430   Duration: 94.095475712 s
+|
+------------------------------------------------------------------------------------
+Trace: "fresh1.txt"
+Pattern: "./MPIaspect/Pattern.txt"
+Concurrent processes: 4
+Read time: 0s
+
+Pattern Matched!
+p0_Irecv p0_Use p1_Isend 
+Program execution time: 0.009675 seconds
+### fresh run 2
+Running with 4 MPI processes.
+Benchmark is stencil.
+Operation 27
+Size is 512.
+Data type is double
+Algorithm is overlapped
+
+--- Stencil - 27 point
+--- Timings ------------------------------------------------------------------------
+|
+| Start: 470661.466721979   End: 470719.725498805   Duration: 58.258776826 s
+|
+------------------------------------------------------------------------------------
+Trace: "fresh2.txt"
+Pattern: "./MPIaspect/Pattern.txt"
+Concurrent processes: 4
+Read time: 0s
+
+Pattern Matched!
+p0_Irecv p0_Use p2_Isend 
+Program execution time: 0.007347 seconds
+### fresh run 3
+Running with 4 MPI processes.
+Benchmark is stencil.
+Operation 27
+Size is 512.
+Data type is double
+Algorithm is overlapped
+
+--- Stencil - 27 point
+--- Timings ------------------------------------------------------------------------
+|
+| Start: 470721.443613652   End: 470779.394904925   Duration: 57.951291273 s
+|
+------------------------------------------------------------------------------------
+Trace: "fresh3.txt"
+Pattern: "./MPIaspect/Pattern.txt"
+Concurrent processes: 4
+Read time: 0s
+
+Pattern Matched!
+p0_Irecv p0_Use p3_Isend 
+Program execution time: 0.008777 seconds
+### fresh run 4
+Running with 4 MPI processes.
+Benchmark is stencil.
+Operation 27
+Size is 512.
+Data type is double
+Algorithm is overlapped
+
+--- Stencil - 27 point
+--- Timings ------------------------------------------------------------------------
+|
+| Start: 470780.963704656   End: 470840.163970786   Duration: 59.200266130 s
+|
+------------------------------------------------------------------------------------
+Trace: "fresh4.txt"
+Pattern: "./MPIaspect/Pattern.txt"
+Concurrent processes: 4
+Read time: 0s
+
+Pattern Matched!
+p0_Irecv p0_Use p3_Isend 
+Program execution time: 0.008545 seconds
+### fresh run 5
+Running with 4 MPI processes.
+Benchmark is stencil.
+Operation 27
+Size is 512.
+Data type is double
+Algorithm is overlapped
+
+--- Stencil - 27 point
+--- Timings ------------------------------------------------------------------------
+|
+| Start: 470841.697337732   End: 470899.775260594   Duration: 58.077922862 s
+|
+------------------------------------------------------------------------------------
+Trace: "fresh5.txt"
+Pattern: "./MPIaspect/Pattern.txt"
+Concurrent processes: 4
+Read time: 0s
+
+Pattern Matched!
+p0_Irecv p0_Use p1_Isend 
+Program execution time: 0.006154 seconds

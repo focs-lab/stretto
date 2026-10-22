@@ -1,0 +1,7 @@
+run,trace,events,result,matched,analysis_s,commit
+shipped,output-4.txt,2608,PASS,"p3_Irecv p3_Use p0_Isend",0.006237,1110e11
+fresh1,fresh1.txt,2608,PASS,"p0_Irecv p0_Use p1_Isend",0.009675,1110e11
+fresh2,fresh2.txt,2608,PASS,"p0_Irecv p0_Use p2_Isend",0.007347,1110e11
+fresh3,fresh3.txt,2608,PASS,"p0_Irecv p0_Use p3_Isend",0.008777,1110e11
+fresh4,fresh4.txt,2608,PASS,"p0_Irecv p0_Use p3_Isend",0.008545,1110e11
+fresh5,fresh5.txt,2608,PASS,"p0_Irecv p0_Use p1_Isend",0.006154,1110e11

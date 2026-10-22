@@ -1,0 +1,8 @@
+pattern,program,result,commit
+P1,CallOrdering_Finalize_nok,matched:p0_MPIFinalize p1_Irecv,1110e11
+P2,Concurrency_Recv_Isend_nok,matched:p0_Isend p0_Write p1_Recv,1110e11
+P3,Concurrency_Irecv_Send_nok,matched:p1_Irecv p1_Use p0_Isend,1110e11
+P6,MPIRMA_Use_error_nok,matched:p1_Wincreate p0_Winfree p0_Winfree p1_WinPut,1110e11
+P7,MPIRMA_doublefree_nok,matched:p1_Wincreate p1_Winfree,1110e11
+P8,LocalConcurrency_Recv_init_Send_nok,matched:p1_Recvinit p1_Start p1_write p1_Wait,1110e11
+P9,CallOrdering_Ireduce_Barrier_nok,matched:p1_Ireduce p0_Barrier p1_Wait,1110e11
