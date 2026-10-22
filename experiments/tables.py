@@ -1433,14 +1433,14 @@ def must_versions_notes(rs, key, path):
 
 def must_tsan_local():
     """MUST 1.11.2 with ThreadSanitizer against the buffer guard on MPI-BugBench's
-    local-concurrency programs, both under MPICH (guard: lc.txt; MUST: the column of mbb.csv, or
-    mbb/must1112tsan-lc.csv, run_must.py's table of a run on these programs alone)."""
+    local-concurrency programs, both under MPICH (guard: lc.txt; MUST: the column of mbb.csv, its
+    commit from run_must.py's own table, mbb/must1112tsan.csv)."""
     mbb = {r["name"]: r for r in rows(os.path.join(RES, "mbb", "mbb.csv"))}
-    side = {r["name"]: r for r in rows(os.path.join(RES, "mbb", "must1112tsan-lc.csv"))}
-    lc = [dict(r, must1112tsan=r.get("must1112tsan") or side.get(r["name"], {}).get("must1112tsan", ""))
-          for r in mbb.values() if r.get("detail") == "LocalConcurrency"]
+    lc = [r for r in mbb.values() if r.get("detail") == "LocalConcurrency"]
     if not any(r.get("must1112tsan") for r in lc):
         return ""
+    names = {r["name"] for r in lc}
+    side = {r["name"]: r for r in rows(os.path.join(RES, "mbb", "must1112tsan.csv")) if r["name"] in names}
     p = os.path.join(RES, "guard", "lc.txt")
     text = open(p).read() if os.path.exists(p) else ""
     guard = {m.group(1): "3-local" in m.group(2) for m in re.finditer(r"^mpich\s+(\S+)\s+(.*)$", text, re.M)}
