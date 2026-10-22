@@ -54,6 +54,7 @@ from stretto import confirm as confirm_mod, reads, report, trace  # noqa: E402
 from stretto.confirm import classify_rc  # noqa: E402
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from provenance import code_commit  # noqa: E402
+from selection import DEFAULT_SELECT, selects  # noqa: E402
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from score import CRASH  # noqa: E402
 
@@ -215,10 +216,21 @@ REPLAY_KEYS = ["program", "cls", "level", "certainty", "pin", "result", "pin_app
 
 def replay_only(args) -> int:
     rp = os.path.join(os.path.dirname(args.out), "replays.csv")
-    rows = list(csv.DictReader(open(args.out)))
+    if not os.path.exists(args.out):
+        print(f"run_mbi.py --replay-only: no table {args.out}", file=sys.stderr)
+        return 1
+    with open(args.out) as fh:
+        rows = list(csv.DictReader(fh))
+    if not rows:
+        print(f"run_mbi.py --replay-only: {args.out} has no rows", file=sys.stderr)
+        return 1
     keys = list(rows[0].keys()) + [k for k in ("analysis", "commit") if k not in rows[0]]
     replays = list(csv.DictReader(open(rp))) if os.path.exists(rp) else []
-    todo = [r for r in rows if r["build"] == "ok" and re.search(args.select, r["name"])]
+    todo = [r for r in rows if r["build"] == "ok" and selects(args.select, r["name"])]
+    if not todo:
+        print(f"run_mbi.py --replay-only: --select {args.select!r} selects no compiled program of {args.out}; nothing written",
+              file=sys.stderr)
+        return 1
     with ThreadPoolExecutor(max_workers=args.jobs) as ex:
         for i, f in enumerate(as_completed([ex.submit(replay_one, r, args) for r in todo]), 1):
             row = f.result()
@@ -260,8 +272,10 @@ def options(**given) -> argparse.Namespace:
 
 def parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--select", default=r"MessageRace|ANY|Probe|Correct", help="regex on file names")
-    ap.add_argument("--limit", type=int, default=0)
+    ap.add_argument("--select", default=None,
+                    help="regex on program names, as table names (P2P__CallOrdering__x) or paths (P2P/CallOrdering/x.c), "
+                         "experiments/selection.py; default: the campaign's selection of the corpus")
+    ap.add_argument("--limit", type=int, default=0, help="only the first N programs selected (needs --out)")
     ap.add_argument("--must", action="store_true")
     ap.add_argument("--confirm", action="store_true", help="replay every error finding with its pin")
     ap.add_argument("--guard", action="store_true", help="trace with the buffer guard on (STRETTO_GUARD=1)")
@@ -285,23 +299,40 @@ def parser() -> argparse.ArgumentParser:
 def main() -> int:
     args = parser().parse_args()
     args.gencodes = CORPORA[args.corpus]
+    partial = args.select is not None and args.select != DEFAULT_SELECT[args.corpus] or bool(args.limit)
+    if args.select is None:
+        args.select = DEFAULT_SELECT[args.corpus]
     # a run with the guard keeps its programs' directories apart, so it never replaces the traces
     # of the plain run that E3 and the replays read
     base = os.path.join(ROOT, "experiments", "results", *(["guard"] if args.guard else []))
     args.results = args.work or os.path.join(base, args.corpus)
-    args.out = args.out or (os.path.join(base, f"{args.corpus}.csv") if args.guard else os.path.join(args.results, f"{args.corpus}.csv"))
+    canonical = os.path.join(base, f"{args.corpus}.csv") if args.guard else os.path.join(args.results, f"{args.corpus}.csv")
     if args.replay_only:
+        args.out = args.out or canonical
         args.confirm = True
         return replay_only(args)
+    # the canonical table is written only by a run of the campaign's selection: a part of the
+    # corpus (another --select, --limit) goes to --out, never over the whole table
+    if partial and not args.out:
+        print(f"run_mbi.py: a selection other than the corpus's ({DEFAULT_SELECT[args.corpus]!r}) or --limit would overwrite "
+              f"{os.path.relpath(canonical, ROOT)} with part of it; give --out", file=sys.stderr)
+        return 2
+    args.out = args.out or canonical
+    if not os.path.isdir(args.gencodes):
+        print(f"run_mbi.py: no corpus at {args.gencodes} (third_party/fetch.sh corpora)", file=sys.stderr)
+        return 1
     names = []
     for dp, _, fs in os.walk(args.gencodes):
         for f in fs:
             rel = os.path.relpath(os.path.join(dp, f), args.gencodes)
-            if f.endswith(".c") and re.search(args.select, rel):
+            if f.endswith(".c") and selects(args.select, rel):
                 names.append(rel)
     names.sort()
     if args.limit:
         names = names[:args.limit]
+    if not names:
+        print(f"run_mbi.py: --select {args.select!r} selects no program of {args.gencodes}; nothing written", file=sys.stderr)
+        return 1
     os.makedirs(args.results, exist_ok=True)
     rows = []
     with ThreadPoolExecutor(max_workers=args.jobs) as ex:

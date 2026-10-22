@@ -29,8 +29,8 @@ python3 -m stretto oracle tr                  # exhaustive exploration of the tr
 python3 -m stretto confirm tr ./app args --np 4 --timeout 20
 
 # corpus runs
-python3 experiments/mbi/run_mbi.py --corpus mbi --select 'MessageRace_' --confirm    # MBI
-python3 experiments/mbi/run_mbi.py --corpus mbb --select '^P2P/' --confirm            # MPI-BugBench level 2
+python3 experiments/mbi/run_mbi.py --corpus mbi --confirm                            # MBI, the campaign's selection
+python3 experiments/mbi/run_mbi.py --corpus mbb --select '^P2P/' --confirm --out /tmp/p2p.csv   # part of MPI-BugBench level 2
 python3 experiments/mbi/run_must.py experiments/results/mbi/mbi.csv                   # MUST via container
 python3 experiments/mbi/reanalyze.py experiments/results/mbi/mbi.csv                  # re-analyse kept traces
 python3 experiments/mbi/score.py experiments/results/mbi/mbi.csv                      # MBB-style scoring

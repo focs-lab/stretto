@@ -37,25 +37,24 @@ step_tests() {
     [ $t = 0 ] || { log "unit tests failed (experiments/results/unit-tests.log)"; rc=1; }
     return $rc
 }
-# MBI: every wildcard, probe, tag-matching and buffering program (115). MPI-BugBench level 2:
-# point-to-point and collective call-ordering, missing-call and local-concurrency programs, and
-# every correct program (for false positives).
-MBI_SELECT='MessageRace|ANY|Probe|Correct|ParamMatching_Tag|Buffering'
-MBB_SELECT='^(P2P|COLL)/(CallOrdering|MissingCall|LocalConcurrency|Correct)'
+# The corpus steps select each corpus's programs by run_mbi.py's default, the campaign's
+# selection (experiments/selection.py): MBI's wildcard, probe, tag-matching and buffering
+# programs (115); MPI-BugBench level 2's point-to-point and collective call-ordering,
+# missing-call and local-concurrency programs, and every correct program (for false positives).
 step_mbi() {
-    python3 experiments/mbi/run_mbi.py --corpus mbi --select "$MBI_SELECT" \
+    python3 experiments/mbi/run_mbi.py --corpus mbi \
         --jobs "$JOBS" --timeout "$TIMEOUT" --confirm --max-states 30000 --sp-max-events 600
 }
 step_mbb() {
-    python3 experiments/mbi/run_mbi.py --corpus mbb --select "$MBB_SELECT" \
+    python3 experiments/mbi/run_mbi.py --corpus mbb \
         --jobs "$JOBS" --timeout "$TIMEOUT" --confirm --max-states 30000 --sp-max-events 600
 }
 step_guard() {
     # both corpora traced again with the buffer guard (into experiments/results/guard/), then
     # the guard's own checks on the real stack (experiments/guard/run.sh)
-    python3 experiments/mbi/run_mbi.py --corpus mbi --guard --select "$MBI_SELECT" \
+    python3 experiments/mbi/run_mbi.py --corpus mbi --guard \
         --jobs "$JOBS" --timeout "$TIMEOUT" --max-states 30000 --sp-max-events 600 &&
-    python3 experiments/mbi/run_mbi.py --corpus mbb --guard --select "$MBB_SELECT" \
+    python3 experiments/mbi/run_mbi.py --corpus mbb --guard \
         --jobs "$JOBS" --timeout "$TIMEOUT" --max-states 30000 --sp-max-events 600 &&
     REPS=3 experiments/guard/run.sh all
 }
@@ -63,14 +62,14 @@ step_reps() {
     # MBI traced again REPS times (default 10), without replays: how often one traced run of
     # each program shows or predicts its error. Tables in experiments/results/reps/mbi-<k>.csv.
     for k in $(seq 1 "${REPS:-10}"); do
-        python3 experiments/mbi/run_mbi.py --corpus mbi --select "$MBI_SELECT" --jobs "$JOBS" --timeout "$TIMEOUT" \
+        python3 experiments/mbi/run_mbi.py --corpus mbi --jobs "$JOBS" --timeout "$TIMEOUT" \
             --max-states 30000 --sp-max-events 600 \
             --out "experiments/results/reps/mbi-$k.csv" --work "experiments/results/reps/mbi-$k" || return 1
     done
 }
-# the stress baseline's MPI-BugBench programs: the call-ordering and correct ones. The corpus
-# table names a program by its path with '/' replaced by '__' (MBB_SELECT above matches paths).
-MBB_STRESS_SELECT='^(P2P|COLL)__(CallOrdering|Correct)'
+# the stress baseline's MPI-BugBench programs: the call-ordering and correct ones (a pattern
+# selects by table name or path alike, experiments/selection.py)
+MBB_STRESS_SELECT='^(P2P|COLL)/(CallOrdering|Correct)'
 step_stress() {
     # the baseline: up to 30 runs per program with random delays, until one does not finish
     python3 experiments/stress_baseline.py experiments/results/mbi/mbi.csv --runs 30 --jobs "$JOBS" --timeout "$TIMEOUT" &&

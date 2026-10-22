@@ -161,6 +161,70 @@ class NinjaRerun(unittest.TestCase):
             self.assertEqual(sorted((r["program"], r["commit"]) for r in rs), [("p", "b"), ("q", "a")])
 
 
+class Selection(unittest.TestCase):
+    """--select means the same in every corpus script, and an empty or partial selection never
+    replaces a canonical table."""
+
+    def setUp(self):
+        sys.path.insert(0, os.path.join(ROOT, "experiments"))
+        import selection
+        self.sel = selection
+
+    def test_paths_and_table_names_select_alike(self):
+        s = self.sel.selects
+        for pat in ("^P2P/CallOrdering", "^P2P__CallOrdering", r"CallOrdering/x\.c$"):
+            self.assertTrue(s(pat, "P2P__CallOrdering__x"), pat)
+            self.assertTrue(s(pat, "P2P/CallOrdering/x.c"), pat)
+        self.assertFalse(s("^COLL/", "P2P__CallOrdering__x"))
+        self.assertTrue(s("MessageRace", "MessageRace_Loop_Isend_Recv_nok"))
+
+    def test_the_mbb_stress_pattern_selects_the_same_programs_either_way(self):
+        with open(os.path.join(ROOT, "experiments", "results", "mbb", "mbb.csv")) as fh:
+            import csv
+            names = [r["name"] for r in csv.DictReader(fh)]
+        old = [n for n in names if self.sel.selects("^(P2P|COLL)__(CallOrdering|Correct)", n)]
+        new = [n for n in names if self.sel.selects("^(P2P|COLL)/(CallOrdering|Correct)", n)]
+        self.assertTrue(old)
+        self.assertEqual(old, new)
+        self.assertEqual(len([n for n in names if self.sel.selects(self.sel.DEFAULT_SELECT["mbb"], n)]), len(names))
+
+    def run_main(self, mod, argv):
+        saved = sys.argv
+        sys.argv = argv
+        try:
+            return mod.main()
+        except SystemExit as e:
+            return e.code
+        finally:
+            sys.argv = saved
+
+    def test_run_mbi_refuses_to_write_a_part_or_nothing(self):
+        import tempfile
+        run_mbi = module("experiments/mbi/run_mbi.py", "run_mbi_selection")
+        with tempfile.TemporaryDirectory() as d:
+            open(os.path.join(d, "Only_one_ok.c"), "w").close()
+            run_mbi.CORPORA["mbi"] = d
+            self.assertEqual(self.run_main(run_mbi, ["run_mbi.py", "--corpus", "mbi", "--select", "Only", "--work", d]), 2)
+            self.assertEqual(self.run_main(run_mbi, ["run_mbi.py", "--corpus", "mbi", "--limit", "1", "--work", d]), 2)
+            out = os.path.join(d, "part.csv")
+            self.assertEqual(self.run_main(run_mbi, ["run_mbi.py", "--corpus", "mbi", "--select", "Nothing", "--out", out, "--work", d]), 1)
+            self.assertFalse(os.path.exists(out))
+            run_mbi.CORPORA["mbi"] = os.path.join(d, "missing")
+            self.assertEqual(self.run_main(run_mbi, ["run_mbi.py", "--corpus", "mbi", "--out", out, "--work", d]), 1)
+            self.assertFalse(os.path.exists(out))
+
+    def test_stress_refuses_an_empty_selection_and_missing_binaries(self):
+        import tempfile
+        stress = module("experiments/stress_baseline.py", "stress_under_test")
+        with tempfile.TemporaryDirectory() as d:
+            table = os.path.join(d, "mbi.csv")
+            with open(table, "w") as fh:
+                fh.write("name,expect,np,build\nA_nok,ERROR,2,ok\n")
+            self.assertNotEqual(self.run_main(stress, ["stress_baseline.py", table, "--select", "B_"]), 0)
+            self.assertNotEqual(self.run_main(stress, ["stress_baseline.py", table]), 0)        # A_nok/main is missing
+            self.assertFalse(os.path.exists(os.path.join(d, "stress.csv")))
+
+
 def bash(script: str) -> int:
     """Status of a bash script run with experiments/harness.sh sourced."""
     import subprocess
