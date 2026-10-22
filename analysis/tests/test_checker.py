@@ -1090,6 +1090,42 @@ class C_MatchNodes(unittest.TestCase):
             closure_equals_fixpoint(self, t)
 
 
+class C_RematchedCompetitor(unittest.TestCase):
+    """Rule 6 in the fast closure under an alternative (audit of 22 Oct 2026, item 1). The fast
+    closure's suffix query names the competitor of a pending receive by the message each later
+    receive took in the run; a re-matched receive is the first competitor of a pending receive
+    that accepts its new message, which that query never sees. Rank 0: Irecv r'(ANY, tag 1);
+    Recv r(ANY, ANY), which takes rank 3's tag-2 message; Send x -> 1; Recv r2(ANY, ANY), which
+    takes rank 2's tag-1 message s; Wait r', which takes rank 1's s', sent after x. The steal
+    r <- s cuts rank 0 after r, so x is never sent, s' never issued, and r' stays pending: it
+    accepts s and is posted before r, so MPI gives s to r' and never to r. The fast check
+    accepted the steal."""
+
+    def trace(self):
+        return mk({0: [irecv(T.ANY, 1, 10), recv(T.ANY, T.ANY, 3, 2), send(1, 5), recv(T.ANY, T.ANY, 2, 1), wait((10, 1, 1))],
+                   1: [recv(0, 5, 0, 5), send(0, 1)], 2: [send(0, 1)], 3: [send(0, 2)]})
+
+    def test_pending_receive_takes_the_stolen_message(self):
+        t = self.trace()
+        r, s = (0, 1), (2, 0)
+        a = next(a for a in candidates_full(t)[0] if a.recv == r and a.send == s)
+        self.assertEqual(a.kind, "steal")
+        for B in breakpoints(t) + [None]:
+            g = check(t, a.M, a.changed, B, "L1")
+            self.assertEqual(g.reason, "witness cut by the horizon closure", f"B={B}")
+            f = fast.Observed(t, B).check_alternative(a)
+            self.assertIsNotNone(f)
+            self.assertEqual((f.feasible, f.reason), (False, g.reason), f"B={B}")
+        for generic in (False, True):
+            self.assertNotIn((r, s), [(x.recv, x.send) for x in analyze(t, with_sp=False, generic=generic).findings])
+        # ground truth: the straight-line program has no execution in which r takes s
+        res = explore.explore(dsl.program_from_trace(t), None, force={r: s}, comms=t.comm_members)
+        self.assertEqual(res.outcomes_with(r, s), [])
+        fast_equals_generic(self, t)
+        closure_equals_fixpoint(self, t)
+        closure_orders_agree(self, t)
+
+
 class C_ProbesReadyRoots(unittest.TestCase):
     """Rules the audit of 20 Oct 2026 found missing (docs/model.md §2b, gap c)."""
 

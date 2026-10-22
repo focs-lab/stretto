@@ -204,6 +204,26 @@ class Indexes:
             self._build_sends()
         r0 = self.recv_of0
         self.r6s = {k: Suffix2([comp.get(r0[s.key], INF) if s.key in r0 else INF for s in v]) for k, v in self.sq.items()}
+        # rule 6 for a re-matched receive: comp0 names competitors by their observed messages,
+        # but under an alternative the changed receive y takes a new message m, and a receive
+        # posted before y that accepts m, left pending, deprives y of it. Per (R, Q) and
+        # envelope class (comm, source or ANY, tag or ANY) of the receive that took each send
+        # R -> Q, the positions of those sends in sq[(R, Q)] and the suffix minima of the
+        # receives' posting indexes: cutting R's sends from some position on finds the
+        # earliest receive of each class left pending in one bisection (Observed.closure)
+        self.r6c: Dict[Tuple[int, int, int, int, int], Tuple[List[int], List[int]]] = {}
+        for (R, Q), v in self.sq.items():
+            for i, s in enumerate(v):
+                rk = r0.get(s.key)
+                if rk is not None:
+                    x = t.recvs[rk]
+                    ent = self.r6c.setdefault((R, Q, x.comm, x.src, x.tag), ([], []))
+                    ent[0].append(i)
+                    ent[1].append(x.idx)
+        for _, idxs in self.r6c.values():
+            for j in range(len(idxs) - 2, -1, -1):
+                if idxs[j + 1] < idxs[j]:
+                    idxs[j] = idxs[j + 1]
         self._recvs = True
 
     def _build_colls(self) -> None:
@@ -432,6 +452,23 @@ class Observed:
             if best_r is not None:
                 lower(rank, best, lambda r=r, rk2=best_r, best=best: f"{ix.probe_at[(rank, best)] if rk2[0] == 'probe' else t.recvs[rk2]} is deprived: {r}, posted before it and still pending, takes the message")
 
+        def pending_before(R: int, Q: int, i: int, y: Recv, m: Send) -> bool:
+            """Rule 6 for a re-matched receive y of Q with its new message m: is a receive of Q
+            posted before y that accepts m left pending by the removal of R's sends to Q from
+            position i on? The suffix query on comp0 names competitors by their observed
+            messages, so it misses y when what y took in the run is one the pending receive
+            does not accept (the generic check indexes M'). A receive that took a send of R
+            has the source ANY or R; one that accepts m has the source ANY or m's and the tag
+            ANY or m's (Indexes.r6c)."""
+            for src in ((ANY, R) if m.rank == R else (ANY,)):
+                for tag in (ANY, m.tag):
+                    e = ix.r6c.get((R, Q, m.comm, src, tag))
+                    if e is not None:
+                        j = bisect_left(e[0], i)
+                        if j < len(e[0]) and e[1][j] < y.idx:
+                            return True
+            return False
+
         # A rank whose cut moved only a little since it was last processed, as in a chain of
         # probe closures, has its newly removed records taken one by one: what the suffix-minimum
         # queries below would add over them, at a few lookups per record instead of O(P log n)
@@ -507,6 +544,10 @@ class Observed:
             for rank, idx in cuts:
                 lower(rank, idx)
         new_by_send = {sk: rk for rk, sk in new_pairs.items()}
+        # the re-matched receives by rank, with their new messages (rule 6 below)
+        new_on: Dict[int, List[Tuple[Recv, Send]]] = {}
+        for rk, sk in new_pairs.items():
+            new_on.setdefault(rk[0], []).append((t.recvs[rk], t.sends[sk]))
         if changed or changed_probes or changed_events or work or ix.unmatched_completed or dropped_recvs or self.orphans_blocking or dropped_sends or ix.orphan_ready:
             ix.ready()
         if start is None:
@@ -572,6 +613,9 @@ class Observed:
                                     rule6(t.recvs[ix.recv_of0[ix.sq[key][j].key]])
                         else:
                             lower(Q, v, lambda key=key, pos=pos, Q=Q, v=v: f"{ix.recv_at[(Q, v)]} never gets {t.sends[t.observed[ix.recv_at[(Q, v)].key]]}: {t.recvs[ix.recv_of0[ix.sq[key][pos].key]]}, posted before it and still pending, takes the message")
+                    for y, m in new_on.get(Q, ()):
+                        if y.idx < cut[Q] and pending_before(R, Q, i, y, m):
+                            lower(Q, y.idx, lambda y=y, m=m: f"{y} never gets {m}: a receive posted before it that accepts the message is still pending and takes it")
             for sk, rk in new_by_send.items():
                 if sk[0] == R and t.sends[sk].idx >= new and issued.get(R) != t.sends[sk].idx:
                     r = t.recvs[rk]

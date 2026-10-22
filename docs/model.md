@@ -115,7 +115,13 @@ O(n + m) per alternative and threshold; it is the reference. The fast checks
 the closure runs as a worklist over ranks, where a cut on one rank finds the earliest
 receive, rendezvous sender, collective or probe it drags along by a suffix-minimum query on
 a per-pair-of-ranks list, O(P log n) per lowering of a rank (and a scan of the rank's later
-collectives); matching order follows from the
+collectives). Those lists name the competitor of a pending receive by the message each later
+receive took in the run, so the changed receive, which now takes another message, is looked up
+apart: per envelope class, the earliest receive left pending by the cut among the receivers of
+the removed sends (`Indexes.r6c`), which deprives the changed receive if it is posted before it
+and accepts the new message. Before 22 Oct 2026 the fast check missed that case and accepted a
+steal that MPI cannot produce, with a pending Irecv(ANY, tag 1) before a blocking Recv(ANY,
+ANY) that steals a tag-1 message (`C_RematchedCompetitor`). Matching order follows from the
 kernel that enumerated the candidate (the send is the earliest unconsumed one of its
 source), so only the receives of the changed rank are looked at; and, for a steal at a
 *blocking* receive, acyclicity reduces to reachability queries on the observed graph of the
