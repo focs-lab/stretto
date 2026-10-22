@@ -14,12 +14,22 @@
 #                     timeout's -k kill of a launcher that ignored SIGTERM, which Open MPI's does
 #                     when its ranks are deadlocked: a hang too (stretto.confirm.classify_rc).
 #                     Before that, 137 is a memory cap or a kill, not a hang.
+# keep_trace DIR CAMPAIGN NAME
+#                     with KEEP_TRACES set, archive the trace directory DIR as
+#                     $KEEP_TRACES/CAMPAIGN/NAME.tar.xz with a line in its MANIFEST.tsv
+#                     (stretto.keep), once the run that recorded it is over; without it, nothing.
+#                     Silent; a trace that cannot be kept fails with KEEP-ERROR on stderr.
 
 PRELOAD_BANNER='^\[stretto-pin\] rank 0: loaded'
+HARNESS_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 need_file() { local f; for f; do [ -f "$f" ] || { echo "HARNESS-ERROR: missing $f" >&2; return 1; }; done; }
 preload_ok() { grep -q "$PRELOAD_BANNER" "$1" 2>/dev/null; }
 preload_ok_in() { grep -q "$PRELOAD_BANNER" <<< "$1"; }
 harness_error() { echo "HARNESS-ERROR: $*" >&2; return 1; }
+keep_trace() {
+    [ -n "${KEEP_TRACES:-}" ] || return 0
+    PYTHONPATH="$HARNESS_ROOT/analysis" python3 -m stretto.keep "$@"
+}
 run_result() {
     local rc=$1 s=$2 to=$3
     if [ "$rc" = 0 ]; then echo FINISHED
