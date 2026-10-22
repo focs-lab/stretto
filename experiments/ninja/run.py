@@ -73,12 +73,15 @@ def setting(mode: str, args) -> str:
     return f"ratio={args.rand_ratio:g}% delay={args.rand_delay}us" + (" as shipped" if args.shipped else "")
 
 
+def ninja_lib(args) -> str:
+    return os.path.join(NINJA, args.mpi, "libninja.so" if args.shipped else "libninja-fixed.so")
+
+
 def run_once(np_: int, exe: str, argv: list, mode: str, wd: str, args) -> dict:
     """One run in working directory wd. mode 'learn' is the system-centric learning run."""
     env_args = []
     if mode != "plain":
-        lib = "libninja.so" if args.shipped else "libninja-fixed.so"
-        env_args += ["-x", f"LD_PRELOAD={os.path.join(NINJA, args.mpi, lib)}"]
+        env_args += ["-x", f"LD_PRELOAD={ninja_lib(args)}"]
         for k, v in mode_env(mode, args).items():
             env_args += ["-x", f"{k}={v}"]
     prog = ["/usr/bin/stdbuf", "-oL", exe] if args.line_buffered else [exe]
@@ -243,6 +246,11 @@ def main() -> int:
     p.add_argument("--jobs", type=int, default=3)
     p.add_argument("--select", default=".")
     args = ap.parse_args()
+    # the dynamic loader skips an LD_PRELOAD entry it cannot open with only a warning on
+    # stderr, so without the library every run would be a plain run recorded as a NINJA one
+    if args.mode != "plain" and not os.path.isfile(ninja_lib(args)):
+        sys.exit(f"run.py: {ninja_lib(args)} is missing; build NINJA first (experiments/ninja/build.sh fetch build) "
+                 "or point NINJA_DIR at a build")
     if args.cmd == "runs" and not args.label:
         args.label = os.path.basename(args.exe)
     return cmd_runs(args) if args.cmd == "runs" else cmd_corpus(args)
