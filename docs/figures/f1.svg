@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="860" height="454" viewBox="0 0 860 454" role="img" aria-label="F1 score on labelled MPI benchmarks (higher is better)">
-<rect x="1" y="1" width="858" height="452" rx="14" fill="#FFFDF8" stroke="#E2DDD2" stroke-width="2"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="860" height="556" viewBox="0 0 860 556" role="img" aria-label="F1 score on labelled MPI benchmarks (higher is better)">
+<rect x="1" y="1" width="858" height="554" rx="14" fill="#FFFDF8" stroke="#E2DDD2" stroke-width="2"/>
 <text x="28" y="40" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="19" font-weight="600" fill="#14213D">F1 score on labelled MPI benchmarks (higher is better)</text>
 <text x="28" y="76" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#14213D">MBI: message races, probes, buffering (115 programs)</text>
 <text x="276" y="106" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" fill="#14213D" text-anchor="end">Stretto, one run</text>
@@ -39,8 +39,20 @@
 <rect x="290" y="398" width="470" height="20" rx="4" fill="#E9ECF2"/>
 <rect x="290" y="398" width="441.8" height="20" rx="4" fill="#9AA3B2"/>
 <text x="772" y="413" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#14213D">0.94</text>
-<line x1="525.0" y1="78" x2="525.0" y2="424" stroke="#9AA3B2" stroke-width="1" stroke-dasharray="3 4"/>
-<text x="525.0" y="440" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="#9AA3B2" text-anchor="middle">0.5</text>
-<line x1="760.0" y1="78" x2="760.0" y2="424" stroke="#9AA3B2" stroke-width="1" stroke-dasharray="3 4"/>
-<text x="760.0" y="440" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="#9AA3B2" text-anchor="middle">1.0</text>
+<text x="276" y="446" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" fill="#14213D" text-anchor="end">Stretto, on the 365 stress-tested</text>
+<rect x="290" y="432" width="470" height="20" rx="4" fill="#E9ECF2"/>
+<rect x="290" y="432" width="465.3" height="20" rx="4" fill="#1F5FA8"/>
+<text x="772" y="447" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#14213D">0.99</text>
+<text x="276" y="480" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" fill="#14213D" text-anchor="end">stress testing, up to 30 runs</text>
+<rect x="290" y="466" width="470" height="20" rx="4" fill="#E9ECF2"/>
+<rect x="290" y="466" width="413.6" height="20" rx="4" fill="#E8873A"/>
+<text x="772" y="481" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#14213D">0.88</text>
+<text x="276" y="514" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" fill="#14213D" text-anchor="end">stress, eager limit forced down</text>
+<rect x="290" y="500" width="470" height="20" rx="4" fill="#E9ECF2"/>
+<rect x="290" y="500" width="460.6" height="20" rx="4" fill="#E8873A"/>
+<text x="772" y="515" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#14213D">0.98</text>
+<line x1="525.0" y1="78" x2="525.0" y2="526" stroke="#9AA3B2" stroke-width="1" stroke-dasharray="3 4"/>
+<text x="525.0" y="542" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="#9AA3B2" text-anchor="middle">0.5</text>
+<line x1="760.0" y1="78" x2="760.0" y2="526" stroke="#9AA3B2" stroke-width="1" stroke-dasharray="3 4"/>
+<text x="760.0" y="542" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="#9AA3B2" text-anchor="middle">1.0</text>
 </svg>
