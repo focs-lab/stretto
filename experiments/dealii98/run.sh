@@ -19,11 +19,13 @@
 #   build    p4est with the Open MPI wrappers, then deal.II in Release with MPI and p4est and
 #            nothing else that can be switched off, -j$MAKE_JOBS, then the tests as programs
 #   predict  RUNS traced runs of each test, analysed, every alternative replayed with its
-#            horizon pins and its control (experiments/scout.py), JOBS at a time
+#            horizon pins and its control (experiments/scout.py), JOBS at a time, except that
+#            of the alternatives within one exchange (kind "same", of no error class) a sample
+#            of SAME_SAMPLE per test is replayed ("all" replays every one)
 #   all
 # Writes experiments/results/dealii98/predict.csv.
 # usage: experiments/dealii98/run.sh [fetch|build|predict|all]
-#        RUNS (5), JOBS (1), MAKE_JOBS (12), DEALII98_DIR (third_party/apps/dealii98)
+#        RUNS (5), JOBS (1), SAME_SAMPLE (20), MAKE_JOBS (12), DEALII98_DIR (third_party/apps/dealii98)
 set -uo pipefail
 R="$(cd "$(dirname "$0")/../.." && pwd)"; cd "$R"
 D="${DEALII98_DIR:-$R/third_party/apps/dealii98}"
@@ -116,11 +118,12 @@ CMAKE
     (cd "$B" && "$CMAKE" -S "$D/drivers-src-$V" -B . -DDEAL_II_DIR="$D/install-$V" -DTEST_SOURCES="$srcs" \
          > "$D/drivers-$V.log" 2>&1 && make -j"$j" >> "$D/drivers-$V.log" 2>&1) || { echo "build of the tests failed" >&2; return 1; }
 }
+same_sample() { [ "${SAME_SAMPLE:-20}" = all ] || echo "--same-sample ${SAME_SAMPLE:-20}"; }
 step_predict() {
     rm -f "$OUT/predict.csv"
     while read -r t np; do
         python3 experiments/scout.py --code dealii --version "$V" --driver "$t" --np "$np" --runs "$RUNS" \
-            --jobs "${JOBS:-1}" --timeout 120 --output-file output --normalize-script "$S/cmake/scripts/normalize.pl" \
+            --jobs "${JOBS:-1}" --timeout 120 $(same_sample) --output-file output --normalize-script "$S/cmake/scripts/normalize.pl" \
             --out "$OUT/predict.csv" -- "$B/$(basename "$t")" || return 1
     done <<< "$TESTS"
 }
