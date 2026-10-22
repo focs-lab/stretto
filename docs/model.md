@@ -114,6 +114,39 @@ traced idiom. (Relation to POPL'26 Thm 1.9: with rf fixed and every channel sync
 consistency is acyclicity of the send-receive graph; MPI's per-pair single-producer queues
 keep it linear for mixed regimes.)
 
+Probe closures in a chain. The fast check of a probe alternative (p, s) splits it in two. The
+horizon is the closure of the observed matching with rule 1 cutting p's rank right after p,
+in which p itself is exempt from rules 5 and 6, since it reports s and not the message it saw
+(`Observed.closure(changed_probes=[p])`); it does not depend on s. What does depend on s is
+judged on that horizon, per alternative (`Observed.check_probe`): p is kept, s is issued
+inside the horizon, no earlier receive of p's rank without a message accepts s, and no earlier
+receive that accepts s has lost its message to the horizon (it would stay pending and take s:
+rule 6 for s's envelope, which the generic check builds into its closure). The closure part is
+shared between the probes of a rank. Write F_c for the rules with rule 1 cutting at c, without
+the exemption; F_c is deflationary and monotone (appendix, lemma on the worklist), and for
+c1 ≤ c2 on one rank F_c1 ≤ F_c2 pointwise, as cutting earlier only adds a target. Every
+fixpoint Z of F_c1 then satisfies Z = F_c1(Z) ⊆ F_c2(Z), so it lies below gfp(F_c2), and
+gfp(F_c1) is the greatest fixpoint of F_c1 below min(c1, gfp(F_c2)): the worklist reaches it
+from that prefix, and as F_c1 and F_c2 differ in rule 1 only, the only work left is the new cut
+and what it removes. The report takes each rank's probes last to first
+(`report._profiles_fast`), so each closure continues the previous one
+(`Observed.probe_closure`): on AMG's trace a chained closure processes 3.8 ranks on average at
+16 processes, 4.7 at 32 and 5.7 at 64. A rank whose cut moved by at most 2P records since it
+was last processed has those records taken one by one, the rules applied to each, instead of
+the suffix-minimum queries over its whole removed suffix, whose earlier part was applied
+before. A chained closure equals the probe's own exempt closure whenever it keeps p: the
+exemption drops only rule instances that target p, which then did not fire, and since every
+condition of a rule says that some event is not in the prefix, they do not fire on the exempt
+closure either, which contains the chained one; so each is a fixpoint of the other's rules.
+When the chain cuts p, the probe's own closure is computed instead (on AMG's traces at 16, 32
+and 64 processes, at B0 and at B = ∞, the chain never cut a probe; on random runs it does below
+B0, where the observed run is not realisable). Along a chain the cut of each rank only
+decreases, so the closures of all the
+probes of a rank together lower each rank at most once per record: O(n P log n) per rank and
+threshold, against that much per probe for unchained closures in the worst case. Tests:
+`closure_orders_agree` on the idioms, the module's traces, E6's random programs and random runs
+with many probes per rank (`C_ClosureOrderRandom`), and `test_probe_chain_that_cuts_the_probe`.
+
 Pruning. `matching.candidates_full` drops a kernel head s of a wildcard receive r when the
 completion c(r) reaches issue(s) in the observed graph at B = ∞ (`observed_hb`, or the vector
 clocks of `fast.Observed`): an execution with r ← s has issue(s) → m(r, s) → c(r). The observed
@@ -320,8 +353,9 @@ and completion-order alternatives, needs O(n log n) preparation per trace and th
 clocks per threshold, O((n + m) P), and then costs O(P log n) per lowering of a rank in its
 closure. A lowering lands on a record, so a closure costs at most O(n P log n), within a
 factor P of (ii), and O(P² log n) when each rank is lowered once, which the Lamport order of
-its worklist makes the usual case (§2, cost). The bound of (ii) is the generic check's, whose
-worklist takes records, not ranks, and holds whatever the order.
+its worklist makes the usual case (§2, cost); the chained closures of a rank's probes cost
+O(n P log n) per threshold together (§2, probe closures). The bound of (ii) is the generic
+check's, whose worklist takes records, not ranks, and holds whatever the order.
 *Sketch.* (i) by construction of `matching.candidates_full`; (ii) each rule of the closure is
 evaluated at the start and then once per record whose issue it depends on, records lose their
 issue at most once because cuts only decrease, and the cut states are ordered (index, issue

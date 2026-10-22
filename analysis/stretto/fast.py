@@ -142,6 +142,9 @@ class Indexes:
         self.r2 = {k: Suffix2([_cidx(t.recvs[r0[s.key]]) if s.key in r0 and t.recvs[r0[s.key]].completed else INF for s in v])
                    for k, v in self.sq.items()}
         self.r5 = {k: Suffix2([probe_min.get(s.key, INF) for s in v]) for k, v in self.sq.items()}
+        # the same, record by record, for the closure's short spans (Observed.closure)
+        self.probe_min = probe_min
+        self.send_at: Dict[Tuple[int, int], Send] = {(s.rank, s.idx): s for s in t.sends.values()}
         self._sends = True
 
     def _build_recvs(self) -> None:
@@ -286,6 +289,8 @@ class Observed:
         self._obs_closure = None
         self._observed: Dict[bool, Verdict] = {}
         self._probe_closure: Optional[Tuple[Key, Tuple[Dict[int, int], Dict[int, int]]]] = None
+        self._base = None                 # closure() of the observed matching (probe_closure)
+        self._chain = None                # (rank, idx, (cut, issued)) of the last probe_closure
 
     def r3(self, key: Tuple[int, int]) -> Suffix2:
         """Rule-3 index for the receives on key[0] matched to sends from key[1]: value =
@@ -308,13 +313,19 @@ class Observed:
                 exclude2: Optional[Tuple[int, int, int]] = None, exclude3: Optional[Tuple[int, int, int]] = None,
                 changed_probes: Iterable[Probe] = (), changed_events: Iterable[Tuple[int, int]] = (),
                 mode: str = "L1", hangs: Optional[Dict[int, str]] = None,
-                bounds=None) -> Tuple[Dict[int, int], Dict[int, int]]:
+                bounds=None, cuts: Iterable[Tuple[int, int]] = (),
+                start: Optional[Tuple[Dict[int, int], Dict[int, int]]] = None) -> Tuple[Dict[int, int], Dict[int, int]]:
         """The horizon closure (horizon.compute_cut) for the observed matching with the
         receives in new_pairs re-matched, dropped_recvs left without a send and
         dropped_sends without a receive. exclude2 = (R, Q, position) names a stale entry of
         the rule-2 index (the changed receive's observed send), exclude3 one of the rule-3
         index (the receive that lost the send now taken by the changed receive). bounds: read
-        bounds for rule 1, as in horizon.compute_cut. Returns (cut, issued).
+        bounds for rule 1, as in horizon.compute_cut. cuts: (rank, index) pairs that rule 1
+        cuts at, as for a changed probe or event but without exempting the record before the
+        cut from rules 5 and 6. start: the (cut, issued) of a closure computed with the same
+        arguments but fewer cuts, a fixpoint of the same rules, to continue from instead of
+        the whole trace (its rule-1 cuts and the seeds of rules 2, 3, 6 and 7 hold there
+        already). Returns (cut, issued).
 
         The worklist holds ranks whose cut moved. It is taken in the order of the Lamport
         times of the observed run (Indexes.lamport), the earliest removed record first: a
@@ -327,8 +338,9 @@ class Observed:
         rank, so a closure that records hangs keeps the old order and its texts."""
         t, ix, B = self.t, self.ix, self.B
         new_pairs = new_pairs or {}
-        cut = dict(ix.length)
-        issued: Dict[int, int] = {}
+        dropped_sends = list(dropped_sends)
+        cut = dict(start[0]) if start is not None else dict(ix.length)
+        issued: Dict[int, int] = dict(start[1]) if start is not None else {}
         work: List = []
         probe_ranks = {p.rank: p.idx for p in changed_probes}
         changed_probe_at = {(p.rank, p.idx) for p in changed_probes}
@@ -395,6 +407,70 @@ class Observed:
             if best_r is not None:
                 lower(rank, best, lambda r=r, rk2=best_r, best=best: f"{ix.probe_at[(rank, best)] if rk2[0] == 'probe' else t.recvs[rk2]} is deprived: {r}, posted before it and still pending, takes the message")
 
+        # A rank whose cut moved only a little since it was last processed, as in a chain of
+        # probe closures, has its newly removed records taken one by one: what the suffix-minimum
+        # queries below would add over them, at a few lookups per record instead of O(P log n)
+        # per lowering. Only for the observed matching without exemptions (no re-matched,
+        # dropped or changed receive or probe), where the queries read nothing else.
+        plain = lam is not None and not new_pairs and not dropped_keys and not dropped_sends \
+            and exclude2 is None and exclude3 is None and not changed_probes
+        span = 2 * len(ix.length)
+        r0 = ix.recv_of0
+
+        def records(R: int, a: int, b: int) -> None:
+            """Rules 2, 3, 5, 6, 7 and 4 for the records a..b-1 of rank R, removed since R was
+            last processed (the record at the cut keeps its issue if issued names it)."""
+            kept_at = issued.get(R)
+            for idx in range(a, b):
+                s = ix.send_at.get((R, idx))
+                if s is not None:
+                    gone = kept_at != idx                  # the send is not issued any more
+                    rk = r0.get(s.key)
+                    if rk is not None:
+                        if gone:
+                            v = ix.comp0.get(rk, INF)      # rule 6
+                            if v < cut[s.dst]:
+                                lower(s.dst, v)
+                        x = t.recvs[rk]
+                        if x.completed:                    # rule 2
+                            lower(x.rank, _cidx(x))
+                    if gone:
+                        v = ix.probe_min.get(s.key)        # rule 5
+                        if v is not None:
+                            lower(s.dst, v)
+                    continue
+                x = ix.recv_at.get((R, idx))
+                if x is not None:
+                    sk = t.observed.get(x.key)
+                    if sk is not None:
+                        s = t.sends[sk]
+                        if s.completed and send_blocks(s, B):     # rule 3
+                            lower(s.rank, _cidx(s), None, s.blocking)
+                        if s.ready_mode:                          # rule 7
+                            lower(s.rank, s.idx)
+            for comm in ix.comms_of.get(R, ()):                   # rule 4, as in the loop below
+                key = (R, comm)
+                cidx = ix.coll_idx[key]
+                i, j = bisect_left(cidx, a), bisect_left(cidx, b)
+                if i == j:
+                    continue
+                need = set(t.comm_members.get(comm, []))
+                pos = {r: k for k, r in enumerate(t.comm_ranks.get(comm, []))}
+                pending = set(t.comm_ranks.get(comm, []) or [c.rank for c in ix.coll_set[(comm, ix.colls_of[key][0].ordinal)]]) - {R}
+                for k in range(i, j):
+                    if not pending:
+                        break
+                    group = ix.coll_set[(comm, ix.colls_of[key][k].ordinal)]
+                    have = {c.rank for c in group if c.idx < cut[c.rank]}
+                    for c in group:
+                        if c.rank not in pending:
+                            continue
+                        if not c.completed or _cidx(c) >= cut[c.rank]:
+                            pending.discard(c.rank)
+                        elif not coll_can_complete(c, have, need, pos):
+                            lower(c.rank, _cidx(c))
+                            pending.discard(c.rank)
+
         if mode == "L1":
             for rk in changed:
                 r = t.recvs[rk]
@@ -403,31 +479,34 @@ class Observed:
                 lower(p.rank, p.idx + 1)
             for rank, idx in changed_events:
                 lower(rank, idx + 1)
+            for rank, idx in cuts:
+                lower(rank, idx)
         new_by_send = {sk: rk for rk, sk in new_pairs.items()}
-        if changed or changed_probes or changed_events or ix.unmatched_completed or dropped_recvs or self.orphans_blocking or dropped_sends or ix.orphan_ready:
+        if changed or changed_probes or changed_events or work or ix.unmatched_completed or dropped_recvs or self.orphans_blocking or dropped_sends or ix.orphan_ready:
             ix.ready()
-        for r in ix.unmatched_completed:
-            if r.key not in new_pairs:
-                lower(r.rank, _cidx(r), lambda r=r: f"{r} never completes: no send for it")
-        for r in dropped_recvs:
-            if r.completed:
-                lower(r.rank, _cidx(r), lambda r=r: f"{r} never completes: no send for it")
-        for s in self.orphans_blocking:
-            if s.key not in new_by_send:
-                lower(s.rank, _cidx(s), lambda s=s: f"{s} never completes: rendezvous with no posted receive", _cidx(s) == s.idx)
-        for s in dropped_sends:
-            if s.completed and send_blocks(s, B):
-                lower(s.rank, _cidx(s), lambda s=s: f"{s} never completes: rendezvous with no posted receive", _cidx(s) == s.idx)
-        # rule 7: ready sends without a receive
-        for s in ix.orphan_ready + [s for s in dropped_sends if s.ready_mode]:
-            if s.key not in new_by_send:
-                lower(s.rank, s.idx, lambda s=s: f"{s} is a ready send whose receive is never posted")
-        for r in ix.unmatched_completed:
-            if r.key not in new_pairs and r.idx < cut[r.rank]:
-                rule6(r)
-        for r in dropped_recvs:
-            if r.completed and r.idx < cut[r.rank]:
-                rule6(r)
+        if start is None:
+            for r in ix.unmatched_completed:
+                if r.key not in new_pairs:
+                    lower(r.rank, _cidx(r), lambda r=r: f"{r} never completes: no send for it")
+            for r in dropped_recvs:
+                if r.completed:
+                    lower(r.rank, _cidx(r), lambda r=r: f"{r} never completes: no send for it")
+            for s in self.orphans_blocking:
+                if s.key not in new_by_send:
+                    lower(s.rank, _cidx(s), lambda s=s: f"{s} never completes: rendezvous with no posted receive", _cidx(s) == s.idx)
+            for s in dropped_sends:
+                if s.completed and send_blocks(s, B):
+                    lower(s.rank, _cidx(s), lambda s=s: f"{s} never completes: rendezvous with no posted receive", _cidx(s) == s.idx)
+            # rule 7: ready sends without a receive
+            for s in ix.orphan_ready + [s for s in dropped_sends if s.ready_mode]:
+                if s.key not in new_by_send:
+                    lower(s.rank, s.idx, lambda s=s: f"{s} is a ready send whose receive is never posted")
+            for r in ix.unmatched_completed:
+                if r.key not in new_pairs and r.idx < cut[r.rank]:
+                    rule6(r)
+            for r in dropped_recvs:
+                if r.completed and r.idx < cut[r.rank]:
+                    rule6(r)
         while work:
             if lam is None:
                 R, new = work.pop()
@@ -437,9 +516,17 @@ class Observed:
                 R = heappop(work)[1]
                 new = cut[R]
                 st = (new, issued.get(R) == new)
-                if done.get(R) == st:
+                prev = done.get(R)
+                if prev == st:
                     continue
                 done[R] = st
+                if plain:
+                    if prev is None:     # last processed in the closure continued from, or never
+                        prev = (start[0][R], start[1].get(R) == start[0][R]) if start is not None else (ix.length[R], False)
+                    end = prev[0] + prev[1]        # a send at the old cut that kept its issue loses it
+                    if end - new <= span:
+                        records(R, new, end)
+                        continue
             # rule 6: the receives of R's removed sends stay pending; Q is cut at the smallest
             # competitor among them (a send cut at its own record with its issue kept is
             # still delivered, so it starts the suffix after itself)
@@ -708,6 +795,31 @@ class Observed:
                     return f"receiver order: earlier {r2} accepts {t.sends[sk]} and has no message in this matching"
         return None
 
+    def probe_closure(self, p: Probe) -> Tuple[Dict[int, int], Dict[int, int]]:
+        """closure(changed_probes=[p]), continued from the closure of the last probe asked for
+        when that one is a later probe of the same rank. The two differ in where rule 1 cuts
+        the rank, and the closure is monotone in the cut, so the earlier probe's horizon is the
+        later one's lowered at the earlier probe and closed again: the probes of a rank, taken
+        last to first (report._profiles_fast), cost about one closure together instead of one
+        each. The chain applies rules 5 and 6 to every probe, the changed one included, which
+        the closure of a changed probe exempts; the two closures are equal unless the chain
+        cuts the probe itself, and then the probe's own closure is computed instead. On AMG's
+        trace at 64 processes a probe's own closure processes each of the 64 ranks once, about
+        34 ms, as the cascade from a probe removes the rest of the run; chained, it processes
+        5.7 ranks on average."""
+        ch = self._chain
+        if ch is None or ch[0] != p.rank or ch[1] <= p.idx:
+            if self._base is None:
+                self._base = self.closure()               # the observed matching: rules 2-7 only
+            start = self._base
+        else:
+            start = ch[2]
+        cut, issued = self.closure(cuts=[(p.rank, p.idx + 1)], start=start)
+        self._chain = (p.rank, p.idx, (cut, issued))
+        if cut[p.rank] <= p.idx:
+            return self.closure(changed_probes=[p])
+        return cut, issued
+
     def check_probe(self, p: Probe, s: Send) -> Optional[Verdict]:
         """The probe reports s instead of what it saw. Its completion has no kept successor
         (the closure cuts right after it), so no cycle can pass through the new edges; what
@@ -720,7 +832,7 @@ class Observed:
         # alternatives come one after another (matching.probe_candidates): the last probe's
         # closure serves them all
         if self._probe_closure is None or self._probe_closure[0] != p.key:
-            self._probe_closure = (p.key, self.closure(changed_probes=[p]))
+            self._probe_closure = (p.key, self.probe_closure(p))
         cut, issued = self._probe_closure[1]
         if p.idx >= cut[p.rank]:
             return Verdict(False, "witness cut by the horizon closure", cut)

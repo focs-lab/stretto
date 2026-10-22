@@ -692,7 +692,9 @@ def closure_orders_agree(tc, t):
     """fast.Observed.closure taken in Lamport order (the default) and last in first out (its
     order before 22 Oct 2026): the same cut and issued sends for the observed matching in both
     modes and the same verdicts and cuts for every alternative, probe alternative and
-    completion-order alternative, at every breakpoint."""
+    completion-order alternative, at every breakpoint. And the chained closures of the probes
+    (Observed.probe_closure), taken last to first as the report takes them, equal each probe's
+    own closure."""
     ordered, lifo = fast.Indexes(t), fast.Indexes(t)
     lifo._lam = False
     hb = fast.Observed(t, None, fast.Indexes(t)).reaches
@@ -713,6 +715,9 @@ def closure_orders_agree(tc, t):
             out += [v(ob.check_probe(p, s)) for p, s in probes]
             out += [v(ob.check_event(rec.rank, rec.idx, s_j)) for rec, _, _, s_j in waits]
             res.append(out)
+            chained = fast.Observed(t, B, ix)
+            for p in sorted({p.key: p for p, _ in probes}.values(), key=lambda p: p.key, reverse=True):
+                tc.assertEqual(chained.probe_closure(p), fast.Observed(t, B, ix).closure(changed_probes=[p]), f"{p} at B={B}")
         tc.assertEqual(res[0], res[1], f"B={B}")
 
 
@@ -756,6 +761,20 @@ class C_FastEqualsGeneric(unittest.TestCase):
         ob = fast.Observed(t, None)
         cut, _ = ob.closure(changed_probes=[t.probes[(0, 0)]])
         self.assertEqual((cut[0], cut[1], cut[3]), (2, 1, 1))
+
+    def test_probe_chain_that_cuts_the_probe(self):
+        """The chain of probe closures applies rule 6 to the changed probe, which the probe's own
+        closure exempts: a pending Irecv whose message is not in the trace deprives the probe
+        posted after it in the chain, and only the next receive in the probe's own closure.
+        The chain then defers to the probe's closure."""
+        pr = {"op": "probe", "kind": "probe", "src": 0, "anysrc": 1, "tag": 1, "comm": 0, "flag": 1, "msrc": 2, "mtag": 1}
+        t = mk({0: [irecv(T.ANY, 1, 0), pr, recv(2, 1, 2, 1), wait((0, 1, 1))], 1: [], 2: [send(0, 1)], 3: [send(0, 1)]})
+        p = t.probes[(0, 0)]
+        ob = fast.Observed(t, None)
+        self.assertEqual(ob.closure()[0][0], p.idx)                  # without the exemption: the probe is cut
+        self.assertEqual(ob.probe_closure(p), ob.closure(changed_probes=[p]))
+        self.assertEqual(ob.probe_closure(p)[0][0], p.idx + 1)
+        closure_orders_agree(self, t)
 
 
 class C_MatchNodes(unittest.TestCase):
@@ -1349,9 +1368,85 @@ def e6_traces(n: int, max_states: int):
         yield t
 
 
+def random_probe_trace(rng, nranks: int, rounds: int = 4):
+    """The trace of random_probe_records."""
+    return mk(random_probe_records(rng, nranks, rounds))
+
+
+def random_probe_records(rng, nranks: int, rounds: int = 4):
+    """A random run with many probes per rank, written in the tracer's format as it goes: in
+    each round the ranks send to one another (standard sends of one to three ints, tags 1 and
+    2), probe with ANY_SOURCE, and ANY_TAG or a tag, for a message in flight and then mostly
+    receive it from the probed source, receive with ANY_SOURCE, and post Irecv(ANY_SOURCE)s that
+    a later wait completes; the round ends with a barrier or a broadcast. A receive takes, and
+    a probe reports, the earliest message of its source that it accepts, and an Irecv is
+    matched when it is posted, so the records are those of an execution with every message
+    buffered: the observed graph at B = inf is acyclic, and at small B rendezvous edges may
+    close cycles."""
+    recs = {r: [] for r in range(nranks)}
+    inflight = {}                       # (src, dst) -> tags of the messages not yet taken, in order
+    pending = {r: [] for r in range(nranks)}
+    req = [100]
+
+    def avail(dst, tag=None):
+        return [s for (s, d), tags in sorted(inflight.items()) if d == dst and tags and (tag is None or tag in tags)]
+
+    def take(s, d, tg):
+        inflight[(s, d)].remove(tg)     # the first message of that tag
+
+    for rnd in range(rounds):
+        for _ in range(rng.randint(10 * nranks, 16 * nranks)):
+            r = rng.randrange(nranks)
+            act = rng.random()
+            if act < 0.35:
+                dst = rng.choice([q for q in range(nranks) if q != r])
+                tg = rng.choice([1, 2])
+                recs[r].append(send(dst, tg, count=rng.randint(1, 3)))
+                inflight.setdefault((r, dst), []).append(tg)
+            elif act < 0.65:
+                tag = rng.choice([1, 2, None])
+                cands = avail(r, tag)
+                if not cands:
+                    continue
+                s = rng.choice(cands)
+                tg = inflight[(s, r)][0] if tag is None else tag
+                pr = {"op": "probe", "kind": rng.choice(["probe", "iprobe"]), "src": 0, "anysrc": 1, "comm": 0, "flag": 1,
+                      "msrc": s, "mtag": tg}
+                pr.update({"tag": 0, "anytag": 1} if tag is None else {"tag": tag})
+                recs[r].append(pr)
+                if rng.random() < 0.8:
+                    recs[r].append(recv(s, tg, s, tg))
+                    take(s, r, tg)
+            elif act < 0.8:
+                tg = rng.choice([1, 2])
+                cands = avail(r, tg)
+                if cands:
+                    s = rng.choice(cands)
+                    recs[r].append(recv(T.ANY, tg, s, tg))
+                    take(s, r, tg)
+            elif act < 0.9:
+                tg = rng.choice([1, 2])
+                cands = avail(r, tg)
+                if cands:
+                    s = rng.choice(cands)
+                    req[0] += 1
+                    recs[r].append(irecv(T.ANY, tg, req[0]))
+                    take(s, r, tg)
+                    pending[r].append((req[0], s, tg))
+            elif pending[r]:
+                recs[r].append(wait(pending[r].pop(0)))
+        c = coll("barrier") if rng.random() < 0.5 else coll("bcast", root=rng.randrange(nranks))
+        for r in range(nranks):
+            recs[r].append(dict(c))
+    for r in range(nranks):
+        recs[r].extend(wait(x) for x in pending[r])
+    return recs
+
+
 class C_ClosureOrderRandom(unittest.TestCase):
-    """closure_orders_agree on E6's random programs: wildcard receives, every send mode,
-    sub-communicators and collectives."""
+    """closure_orders_agree on random traces: E6's programs (wildcard receives, every send mode,
+    no probes) and traces with many probes per rank, so that the chained probe closures meet
+    long chains, cuts that reach the probe and rendezvous cascades."""
 
     def test_e6_programs(self):
         n = 0
@@ -1360,6 +1455,26 @@ class C_ClosureOrderRandom(unittest.TestCase):
                 closure_orders_agree(self, t)
             n += 1
         self.assertEqual(n, 30)
+
+    def test_traces_with_many_probes(self):
+        rng = __import__("random").Random(20261022)
+        probes = kept = exempt = 0
+        for i in range(60):
+            t = random_probe_trace(rng, rng.choice([3, 4, 5]))
+            self.assertIsNotNone(t.fast_indexes().lamport())
+            with self.subTest(trace=i):
+                closure_orders_agree(self, t)
+            probes += len(probe_candidates(t))
+            for B in (0, None):
+                ob = fast.Observed(t, B)
+                for p in sorted(t.probes.values(), key=lambda p: p.key, reverse=True):
+                    chained = ob.closure(cuts=[(p.rank, p.idx + 1)], start=ob.closure())[0][p.rank] > p.idx
+                    own = ob.closure(changed_probes=[p])[0][p.rank] > p.idx
+                    kept += chained
+                    exempt += own and not chained
+        self.assertGreater(probes, 300)
+        self.assertGreater(kept, 2000)       # the chain serves most probes as it is
+        self.assertGreater(exempt, 0)        # and defers to the probe's own closure when it cuts the probe
 
 
 def ready_before_receive_trace():

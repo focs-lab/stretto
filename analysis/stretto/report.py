@@ -716,14 +716,15 @@ def _profiles_fast(t: Trace, alts, probes, waits, full: bool = False, reads=None
         return ob
 
     def profile(prof: Dict[Optional[int], bool], verdict, value, what: str = "", floor: int = 0,
-                full_item: bool = False) -> Dict[Optional[int], Verdict]:
+                full_item: bool = False, notes: Optional[List[str]] = None) -> Dict[Optional[int], Verdict]:
         """Fill prof over bps[floor:] from verdict(B); value(Verdict) is the bool profiled.
         Returns the verdicts actually computed, by threshold. floor is the index of the
         least breakpoint at which the observed run is realisable: theorem T2 holds from there
         on, so the bisection starts there and the thresholds below are not stated. Feasible
         at the floor and infeasible at B = inf contradicts T2; the item is then judged at
-        every breakpoint (the exact profile) and the report says so. full_item judges every
-        breakpoint for an item T2 does not cover (a swap re-matches two receives)."""
+        every breakpoint (the exact profile) and the report says so, in notes if given (else
+        pr.notes). full_item judges every breakpoint for an item T2 does not cover (a swap
+        re-matches two receives)."""
         seen: Dict[Optional[int], Verdict] = {}
 
         def judge(B: Optional[int]) -> bool:
@@ -744,7 +745,8 @@ def _profiles_fast(t: Trace, alts, probes, waits, full: bool = False, reads=None
                 prof[B] = lo
             return seen
         if lo and not hi:
-            pr.notes.append(f"profile of {what} is not monotone in B (feasible at B={bps[floor]}, infeasible at inf), judged at every breakpoint; theorem T2 does not cover it")
+            (pr.notes if notes is None else notes).append(
+                f"profile of {what} is not monotone in B (feasible at B={bps[floor]}, infeasible at inf), judged at every breakpoint; theorem T2 does not cover it")
             for B in sizes:
                 judge(B)
             return seen
@@ -798,9 +800,15 @@ def _profiles_fast(t: Trace, alts, probes, waits, full: bool = False, reads=None
         return fv if fv is not None else check(t, t.observed, set(), B, "L1", extra_edges=[(s_j.issue_node(), rec.complete)],
                                                changed_events={(rec.rank, rec.idx)}, must_issue=[s_j.key])
 
-    for j, (p, s) in enumerate(probes):
+    # last to first, so that at each threshold the probes of a rank come latest first and each
+    # closure continues the previous one (fast.Observed.probe_closure); notes in list order
+    probe_notes: List[List[str]] = [[] for _ in probes]
+    for j in reversed(range(len(probes))):
+        p, s = probes[j]
         pr.probe_reason[j] = profile(pr.probe[j], lambda B, p=p, s=s: probe_at(B, p, s), lambda v: v.feasible,
-                                     f"{p} sees {s}", floor)[None].reason
+                                     f"{p} sees {s}", floor, notes=probe_notes[j])[None].reason
+    for n in probe_notes:
+        pr.notes.extend(n)
     for k, (rec, j, r_j, s_j) in enumerate(waits):
         pr.wait_reason[k] = profile(pr.wait[k], lambda B, rec=rec, s_j=s_j: wait_at(B, rec, s_j),
                                     lambda v: v.feasible, f"completion order of rank {rec.rank} #{rec.idx} index {j}", floor)[None].reason
