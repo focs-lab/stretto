@@ -211,10 +211,19 @@ def claims(n: dict) -> list:
     claim(3, "at the predicted bound every program finishes",
           ["nEtwoReplayAt", "nEtwoReplayAtOK"], lambda a, ok: a == ok)
     claim(5, "from 16 to 64 processes every traced run and every analysis finished, and every sampled replay "
-             "and its control matched their pins and finished",
-          ["nScaleTraces", "nScaleTracedFinished", "nScaleAnalysed", "nScaleSample", "nScaleSampleMatched",
-           "nScaleSampleFinish", "nScaleSampleControls", "nScaleSampleControlsMatched"],
-          lambda t, tf, a, s, m, f, c, cm: t > 0 and t == tf == a and s > 0 and s == m == f == c == cm)
+             "matched its pins",
+          ["nScaleTraces", "nScaleTracedFinished", "nScaleAnalysed", "nScaleSample", "nScaleSampleMatched"],
+          lambda t, tf, a, s, m: t > 0 and t == tf == a and s > 0 and s == m)
+    claim(5, "AMG's analysis is within 10% of a time linear in its records plus its alternatives, and each "
+             "alternative costs less at 64 processes than at 16",
+          ["ScaleAMGFitDev", "ScaleAMGSixteenPerAlt", "ScaleAMGSixtyFourPerAlt"], lambda d, lo, hi: d < 10 and hi < lo)
+    claim(5, "every sampled replay that did not finish is a request-probe alternative of HYPRE 2.10.1, the ParaSails race",
+          ["nScaleSample", "nScaleSampleFinish", "nScaleSampleUnfinished", "nScaleSampleUnfinishedRequest"],
+          lambda s, f, u, r: s - f == u == r)
+    claim(5, "every sampled control that did not finish exited with status 15, and every other matched its pins",
+          ["nScaleSample", "nScaleSampleControls", "nScaleSampleControlsFailed", "nScaleSampleControlsStatusFifteen",
+           "nScaleSampleControlsMatched"],
+          lambda s, c, fl, ff, cm: s - c == fl == ff and cm == c)
     claim(6, "HYPRE 2.10.1: every cross alternative hangs when replayed",
           ["nHypreCrossAlts", "nHypreCrossHang"], lambda a, h: a > 0 and a == h)
     for p in ("Four", "Eight"):

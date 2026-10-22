@@ -151,14 +151,13 @@ stand when a confirmation needs that too.
 processes (3.05 M events) in 55 s, AMG in 15.5 s, Nekbone
 (10.1 M records) in 34 min and 33 GB.
 
-**Scale.** From 16 to 64 processes, in a container of 24 hardware threads that the
+**Scale.** From 16 to 64 processes, in a container of 12 hardware threads that the
 larger counts oversubscribe (so these runs measure the analysis, not the programs), the analysis
-of AMG grows from 65 s and 2.1 GB to 10 838 s and 37.5 GB. Its probe alternatives
-grow from 16 934 to 501 881, and each takes time about in proportion to the trace
-(3.8 ms at 0.33 M records, 21.6 ms at 2.57 M), so the total is about the
-number of alternatives times the length of the trace. HYPRE's analysis grows from
-12 to 91 s; LU's, with no wildcards, 4.8-fold with its 4.7-fold trace. All
-60 sampled replays matched their pins and finished, and so did every control.
+of AMG grows from 31 s and 1.0 GB to 416 s and 8.7 GB, about linear in its records
+(0.33 M to 2.51 M) plus its probe alternatives (16 934 to 501 881): each alternative
+takes 1.8 ms at 16 processes and 0.8 ms at 64 (74 µs per record plus 0.46 ms per alternative fits each trace within 2%). HYPRE's
+analysis grows from 4 to 43 s; LU's, with no wildcards, 4.8-fold with its
+4.7-fold trace. All 60 sampled replays matched their pins and all but one finished: the one left takes a request probe of HYPRE's ParaSails, the race above; one control exited with status 15, the unexplained exit of some of HYPRE's replays and controls in E5c.
 
 Full tables: [`docs/results.md`](docs/results.md).
 <!-- results:end -->

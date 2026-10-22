@@ -24,7 +24,7 @@
 #   MEMORY   memory limit of a container (default 24g; Nekbone and the scale step get 48g)
 #   JOBS     programs run at a time in the corpus steps (default 6), replays in HYPRE's (4)
 #   NEKBONE  0: leave Nekbone out of rq1 and rq5 (it needs 48 GB and about an hour)
-#   SCALE    0: leave the runs from 16 to 64 processes out of rq5 (38 GB and about 7 hours)
+#   SCALE    0: leave the runs from 16 to 64 processes out of rq5 (24 GB and about 80 minutes on 6 cores)
 #   MPIPRV   0: leave MPI-PRV out of rq2 (its image takes 24 GB of disk; the runs about 6 GB
 #            and 3.5 hours on four processors)
 set -euo pipefail

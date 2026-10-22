@@ -180,15 +180,30 @@ value checks still need L2. Against the explorer with read bounds, {t('nReadsEsi
 """
     scale = ""
     if v("nScaleTraces"):
+        unfinished, request = v("nScaleSampleUnfinished") or 0, v("nScaleSampleUnfinishedRequest") or 0
+        failed, fifteen = v("nScaleSampleControlsFailed") or 0, v("nScaleSampleControlsStatusFifteen") or 0
+        n_word = lambda n: {1: "one", 2: "two", 3: "three"}.get(n, str(n))   # noqa: E731
+        replays = ("finished" if not unfinished else
+                   f"all but {n_word(unfinished)} finished: " + (
+                       ("the one left takes a request probe of HYPRE's ParaSails, the race above" if unfinished == 1 else
+                        "each of those left takes a request probe of HYPRE's ParaSails, the race above")
+                       if request == unfinished else f"{n_word(request)} of those left take a request probe of HYPRE's ParaSails"))
+        controls = ("every control finished" if not failed else
+                    f"{n_word(failed)} control{'s' if failed > 1 else ''} exited with status 15, the unexplained exit of "
+                    "some of HYPRE's replays and controls in E5c" if fifteen == failed else f"{n_word(failed)} controls did not finish")
+        linear = (v("ScaleAMGFitDev") is not None and v("ScaleAMGFitDev") < 10)
+        fit = (f" ({t('ScaleAMGFitRecord')} µs per record plus {t('ScaleAMGFitAlt')} ms per alternative fits each trace within "
+               f"{t('ScaleAMGFitDev')}%)" if linear else "")
+        matched = (f"All {t('nScaleSample')} sampled replays matched their pins" if v("nScaleSampleMatched") == v("nScaleSample")
+                   else f"{t('nScaleSampleMatched')} of {t('nScaleSample')} sampled replays matched their pins")
         scale = f"""
-**Scale.** From {t('nScaleNpMin')} to {t('nScaleNpMax')} processes, in a container of 24 hardware threads that the
+**Scale.** From {t('nScaleNpMin')} to {t('nScaleNpMax')} processes, in a container of 12 hardware threads that the
 larger counts oversubscribe (so these runs measure the analysis, not the programs), the analysis
-of AMG grows from {t('ScaleAMGSixteenTime')} s and {t('ScaleAMGSixteenGB')} GB to {t('ScaleAMGSixtyFourTime')} s and {t('ScaleAMGSixtyFourGB')} GB. Its probe alternatives
-grow from {t('nScaleAMGSixteenProbeAlts')} to {t('nScaleAMGSixtyFourProbeAlts')}, and each takes time about in proportion to the trace
-({t('ScaleAMGSixteenPerAlt')} ms at {t('ScaleAMGSixteenRecords')} M records, {t('ScaleAMGSixtyFourPerAlt')} ms at {t('ScaleAMGSixtyFourRecords')} M), so the total is about the
-number of alternatives times the length of the trace. HYPRE's analysis grows from
-{t('ScaleHypreSixteenTime')} to {t('ScaleHypreSixtyFourTime')} s; LU's, with no wildcards, {t('ScaleLuTimeRatio')}-fold with its {t('ScaleLuRecordsRatio')}-fold trace. All
-{t('nScaleSample')} sampled replays matched their pins and finished, and so did every control.
+of AMG grows from {t('ScaleAMGSixteenTime')} s and {t('ScaleAMGSixteenGB')} GB to {t('ScaleAMGSixtyFourTime')} s and {t('ScaleAMGSixtyFourGB')} GB{', about linear in' if linear else ', with'} its records
+({t('ScaleAMGSixteenRecords')} M to {t('ScaleAMGSixtyFourRecords')} M) {'plus' if linear else 'and'} its probe alternatives ({t('nScaleAMGSixteenProbeAlts')} to {t('nScaleAMGSixtyFourProbeAlts')}): each alternative
+takes {t('ScaleAMGSixteenPerAlt')} ms at {t('nScaleNpMin')} processes and {t('ScaleAMGSixtyFourPerAlt')} ms at {t('nScaleNpMax')}{fit}. HYPRE's
+analysis grows from {t('ScaleHypreSixteenTime')} to {t('ScaleHypreSixtyFourTime')} s; LU's, with no wildcards, {t('ScaleLuTimeRatio')}-fold with its
+{t('ScaleLuRecordsRatio')}-fold trace. {matched} and {replays}; {controls}.
 """
     valid = ""
     if v("nValidReplays"):
