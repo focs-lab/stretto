@@ -9,7 +9,8 @@
 # Two calls of one exchange with nothing collective between them would let a probe take the
 # next call's message, as in deal.II 9.3.0-rc1 (experiments/dealii/). The drivers are MFEM's
 # own adaptive examples: ex6p (static adaptive refinement, with and without rebalancing, and
-# with p-refinement) and ex15p (dynamic refinement, derefinement and rebalancing).
+# with p-refinement) and ex15p (dynamic refinement, derefinement and rebalancing). ex6p
+# rebalances by default (-reb is the default, -no-reb turns it off; with -pref it does not).
 # MFEM's one other wildcard site is the conforming local refinement of triangles,
 # ParMesh::LocalRefinement (mesh/pmesh.cpp), which sends each neighbour the splitting of the
 # shared edges with tag 0 and receives it from that neighbour with MPI_ANY_TAG, once per round
@@ -49,7 +50,7 @@ declare -A URL=([mfem-4.10.tar.gz]=https://github.com/mfem/mfem/archive/refs/tag
 # driver name, process counts, example and its arguments (meshes from MFEM's data/; each run
 # and replay runs in a fresh directory, where the examples write their solutions)
 DRIVERS="ex6p|4 8|ex6p -m $M/data/star.mesh -no-vis -md 4000
-ex6p-rebalance|4 8|ex6p -m $M/data/star.mesh -no-vis -md 4000 -reb
+ex6p-norebalance|4 8|ex6p -m $M/data/star.mesh -no-vis -md 4000 -no-reb
 ex6p-quad|4|ex6p -m $M/data/inline-quad.mesh -no-vis -md 4000 -reb
 ex6p-pref|4|ex6p -m $M/data/star.mesh -no-vis -md 4000 -pref
 ex6p-tri|4 8|ex6p -m $M/data/square-disc.mesh -no-vis -md 4000
