@@ -433,6 +433,41 @@ class BoundsFromAMap(unittest.TestCase):
         self.assertEqual(SiteMap(m, self.resolve).limit(t, 0, k, k), k + 1)
         self.assertEqual(SiteMap(m, lambda t, r, i: None).limit(t, 0, k, k), k + 1)
 
+    def test_same_file_name_in_two_directories(self):
+        """The map knows a/util.c and b/util.c; only a/util.c has MPI calls on lines 10 and 11.
+        A record of b/util.c whose line says 10 (a line table that differs from clang's) is not
+        a call of a/util.c: it has no candidate. Before 22 Oct 2026 records were matched by file
+        name and line, and it took the free sites of a/util.c. A path that does not tell the two
+        apart gives no candidate either."""
+        m = {"format": "stretto-firstread 1", "units": ["/src/a/util.c", "/src/b/util.c"],
+             "sites": [{"id": 0, "file": "/src/a/util.c", "line": 10, "col": 3, "function": "f", "call": "MPI_Recv"},
+                       {"id": 1, "file": "/src/a/util.c", "line": 11, "col": 3, "function": "f", "call": "MPI_Send"},
+                       {"id": 2, "file": "/src/b/util.c", "line": 30, "col": 3, "function": "f", "call": "MPI_Recv"}],
+             "results": [{"post": 0, "complete": 0, "free": [1]}, {"post": 2, "complete": 2, "free": []}]}
+        t, k = self.trace([at(send(3, 5), 1)])
+        for where, bound in (("/build/a/util.c", k + 2), ("/build/b/util.c", k + 1), ("util.c", k + 1)):
+            lines = {0: 10, 1: 11}
+
+            def resolve(t, rank, idx, where=where):
+                s = t.site_record(rank, idx)
+                return None if s is None or s["id"] not in lines else ("f", where, lines[s["id"]])
+            self.assertEqual(SiteMap(m, resolve).limit(t, 0, k, k), bound, where)
+
+    def test_select_source(self):
+        import tempfile
+        from stretto.reads import select_source, sha256_of
+        self.assertEqual(select_source("/x/p.c", ["/src/p.c"]), "/src/p.c")
+        self.assertIsNone(select_source("/x/p.c", []))
+        self.assertEqual(select_source("/b/src/x/u.c", ["/a/src/x/u.c", "/a/src/y/u.c"]), "/a/src/x/u.c")
+        self.assertIsNone(select_source("/b/z/u.c", ["/a/x/u.c", "/a/y/u.c"]))
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, "u.c")
+            with open(p, "w") as fh:
+                fh.write("int x;\n")
+            digest = sha256_of(p)
+            self.assertEqual(select_source(p, ["/a/x/u.c", "/a/y/u.c"], {"/a/y/u.c": digest, "/a/x/u.c": "0" * 64}), "/a/y/u.c")
+            self.assertIsNone(select_source(p, ["/a/x/u.c", "/a/y/u.c"], {"/a/y/u.c": digest, "/a/x/u.c": digest}))
+
     def test_rejects_other_files(self):
         with self.assertRaises(ValueError):
             SiteMap({"sites": [], "results": []}, self.resolve)

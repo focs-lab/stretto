@@ -34,11 +34,12 @@ package, so the tool shares its tests) and writes JSON:
   `objects` names them, and `why` says why the list is empty when the analysis cannot follow
   them;
 - `sources`: the SHA-256 of every source the sites come from. Sites are matched to a trace's
-  call sites by function, file name and line, so a map of edited sources, or of another tree,
+  call sites by function, source and line, so a map of edited sources, or of another tree,
   would put bounds on other calls and widen the horizon unsoundly: `stretto analyze --reads`
   refuses a map whose sources differ from those the traced program names (addr2line on the
   traced objects), or that no call site of the trace lies in, unless `--reads-unchecked` is
-  given (maps made before the hashes need it).
+  given (maps made before the hashes need it), and certifies records only in the sources it
+  checked.
 
 The image `experiments/container/Dockerfile.firstread` is the experiment image plus clang 18
 from the same archive snapshot (`versions-firstread.txt`); the experiment image itself is
@@ -117,9 +118,16 @@ the result objects (they cannot reach them by rule 1); nothing but the C runtime
 ## Bounds on a trace
 
 `stretto/reads.py` names each record's call site (the return address the tracer recorded) with
-`addr2line`, and matches it to the static sites with the same function, file name and line
+`addr2line`, and matches it to the static sites with the same function, source and line
 whose MPI call can produce a record of that kind (`reads.FAMILIES`, from what
-`tracer/mpitrace.c` writes for each call). For a record k that delivers the result of a
+`tracer/mpitrace.c` writes for each call). The source is the file of the map that the call
+site's path names (`reads.select_source`): the map's only file of that name; else the one
+whose path shares the most trailing directories with it (the map and the binary may come
+from copies of the tree under different roots, which keep the layout below them); else the
+one whose recorded SHA-256 the file at that path has. Two files of one name that none of these
+tell apart (`util.c` in two directories, common in large codes) give the record no
+candidate. Matching by file name alone, as before 22 Oct 2026, could give a record of one
+`util.c` the free sites of another. For a record k that delivers the result of a
 receive r (r's own record if r blocks, the wait or test that completed it otherwise) with
 posting record p, the *bound* is the index of the first later record of the rank that is not
 certified: a record is certified if it has candidate sites and every candidate is free for

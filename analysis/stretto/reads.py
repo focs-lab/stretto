@@ -121,7 +121,7 @@ Resolver = Callable[[Trace, int, int], Optional[Tuple[str, str, int]]]
 
 
 def addr2line_resolver(objdir: Optional[str] = None) -> Resolver:
-    """(function, file name, line) of a record's call site with addr2line (stretto.sites).
+    """(function, source path, line) of a record's call site with addr2line (stretto.sites).
     objdir: where to look for an object whose recorded path no longer exists (a run made in a
     container under another mount point), by its file name."""
     from .sites import symbolize
@@ -139,7 +139,7 @@ def addr2line_resolver(objdir: Optional[str] = None) -> Resolver:
         fn, loc = where.rsplit(" at ", 1)
         path, _, line = loc.rpartition(":")
         try:
-            return fn, os.path.basename(path), int(line)
+            return fn, path, int(line)
         except ValueError:
             return None
     return resolve
@@ -155,24 +155,70 @@ def sha256_of(path: str) -> str:
         return hashlib.sha256(fh.read()).hexdigest()
 
 
-def check_sources(rmap: dict, t: Trace, objdir: Optional[str] = None) -> int:
+def _tail(a: str, b: str) -> int:
+    """How many trailing path components a and b have in common."""
+    pa, pb = os.path.normpath(a).split(os.sep)[::-1], os.path.normpath(b).split(os.sep)[::-1]
+    n = 0
+    for x, y in zip(pa, pb):
+        if x != y:
+            break
+        n += 1
+    return n
+
+
+def select_source(path: str, cands: Iterable[str], digests: Optional[Dict[str, str]] = None) -> Optional[str]:
+    """The source of a map that the path of a traced call site names, among cands, the map's
+    sources with the same file name: the only one; else the one that shares the most trailing
+    path components with path (the trace's tree and the map's may be mounted at different
+    roots, but keep their layout below them), if no other shares as many; else the one whose
+    SHA-256 (digests) the file at path has, if it is the only one. None when no candidate
+    is left or several are: two sources of one name in different directories (common in large
+    codes) whose paths do not tell them apart, and whose records are then not certified."""
+    cands = list(dict.fromkeys(cands))
+    if len(cands) <= 1:
+        return cands[0] if cands else None
+    score = {c: _tail(path, c) for c in cands}
+    best = max(score.values())
+    top = [c for c in cands if score[c] == best]
+    if len(top) == 1:
+        return top[0]
+    if digests and os.path.isfile(path):
+        d = sha256_of(path)
+        hit = [c for c in top if digests.get(c) == d]
+        if len(hit) == 1:
+            return hit[0]
+    return None
+
+
+def map_files(rmap: dict) -> Dict[str, List[str]]:
+    """The files a first-read map knows (its units, the sources it hashed, the files of its
+    sites), by file name."""
+    by_name: Dict[str, List[str]] = {}
+    for f in [*rmap.get("units", []), *(rmap.get("sources") or {}), *(s["file"] for s in rmap.get("sites", []))]:
+        names = by_name.setdefault(os.path.basename(f), [])
+        if f not in names:
+            names.append(f)
+    return by_name
+
+
+def check_sources(rmap: dict, t: Trace, objdir: Optional[str] = None) -> Dict[str, str]:
     """Refuse (MapMismatch) a first-read map that does not belong to the traced program. The map
-    names its sites by function, file name and line, so a map made from edited sources, or from
+    names its sites by function, source and line, so a map made from edited sources, or from
     another tree, would put a site's bounds on another call and widen the horizon unsoundly.
-    The map records the SHA-256 of every source its sites come from (sources); every source the
-    trace's call sites lie in (addr2line on the traced objects, as the bounds are found) that
-    the map has must hash the same, at the path the program names or, failing that, at the
-    path the map recorded. A map without hashes is refused, and so is one that no call site of
-    the trace lies in. Returns how many sources were checked."""
+    The map records the SHA-256 of every source its sites come from (sources); the source of
+    the map that a path of the trace's call sites names (addr2line on the traced objects, as
+    the bounds are found; select_source) must hash the same, at the path the program names or,
+    failing that, at the path the map recorded. A map without hashes is refused, and so is one
+    that no call site of the trace lies in. Returns, for each path of the trace checked so, the
+    source of the map it names: SiteMap.load certifies records at those paths alone."""
     from .sites import symbolize
     srcs = rmap.get("sources")
     if not srcs:
         raise MapMismatch("the map records no hashes of its sources (it predates them): remake it with python3 -m "
                           "stretto.firstread, or accept it unchecked")
-    by_name: Dict[str, List[Tuple[str, str]]] = {}
-    for path, digest in srcs.items():
-        by_name.setdefault(os.path.basename(path), []).append((path, digest))
-    checked: Dict[str, bool] = {}
+    by_name = map_files(rmap)
+    checked: Dict[str, str] = {}                     # traced path -> the map's source it names
+    seen: Set[str] = set()
     # one call of addr2line per site, not per rank: the same call has another address in each
     # process, but the same offset in its object
     distinct = {}
@@ -185,41 +231,51 @@ def check_sources(rmap: dict, t: Trace, objdir: Optional[str] = None) -> int:
         if " at " not in where:
             continue
         path = where.rsplit(" at ", 1)[1].rpartition(":")[0]
-        cands = by_name.get(os.path.basename(path))
-        if not cands or path in checked:
+        if path in seen:
             continue
-        f = path if os.path.isfile(path) else next((p for p, _ in cands if os.path.isfile(p)), None)
+        seen.add(path)
+        src = select_source(path, by_name.get(os.path.basename(path), ()), srcs)
+        if src is None or src not in srcs:
+            continue                               # not a source of the map, or not one it hashed: no candidate there
+        f = path if os.path.isfile(path) else (src if os.path.isfile(src) else None)
         if f is None:
             raise MapMismatch(f"cannot read {path}, the source of traced call sites, to check the map against it")
-        if sha256_of(f) not in {d for _, d in cands}:
-            raise MapMismatch(f"{path}: the source the traced program was built from differs from the one the map was made from")
-        checked[path] = True
+        if sha256_of(f) != srcs[src]:
+            raise MapMismatch(f"{path}: the source the traced program was built from differs from the one the map was made from ({src})")
+        checked[path] = src
     if not checked:
         raise MapMismatch("no call site of the trace lies in a source the map was made from: a map of another program "
                           "(or objects without debug information)")
-    return len(checked)
+    return checked
 
 
 class SiteMap(ReadBounds):
     """Bounds from a first-read map: a record after k is certified if its call site matches
-    static sites (same function, file name and line, a call of its kind) and every one of them
-    is free for every pair of static sites the posting and the delivering records can be.
-    SiteMap.load checks, given the trace, that the map belongs to the traced program
-    (check_sources)."""
+    static sites (same function, source and line, a call of its kind) and every one of them is
+    free for every pair of static sites the posting and the delivering records can be. The
+    source is the one of the map that the call site's path names (select_source): a file name
+    that two of the map's sources share, in directories the path does not tell apart, gives
+    no candidate. SiteMap.load checks, given the trace, that the map belongs to the traced
+    program (check_sources), and then certifies records at the paths it checked alone (paths:
+    traced path -> source; None: select_source for every path)."""
 
-    def __init__(self, rmap: dict, resolve: Optional[Resolver] = None):
+    def __init__(self, rmap: dict, resolve: Optional[Resolver] = None, paths: Optional[Dict[str, str]] = None):
         if not str(rmap.get("format", "")).startswith("stretto-firstread"):
             raise ValueError("not a first-read map (stretto.firstread)")
         self.resolve = resolve or addr2line_resolver()
+        self.digests: Dict[str, str] = rmap.get("sources") or {}
+        self.by_name = map_files(rmap)
         self.call: Dict[int, str] = {}
         self.at: Dict[Tuple[str, str, int], List[int]] = {}
         for s in rmap["sites"]:
             self.call[s["id"]] = s["call"]
-            self.at.setdefault((s["function"], os.path.basename(s["file"]), s["line"]), []).append(s["id"])
+            self.at.setdefault((s["function"], s["file"], s["line"]), []).append(s["id"])
         self.free: Dict[Tuple[Optional[int], int], FrozenSet[int]] = {
             (r["post"], r["complete"]): frozenset(r["free"]) for r in rmap["results"]}
         self._cands: Dict[Tuple[int, int, Optional[FrozenSet[str]]], Tuple[int, ...]] = {}
         self._limits: Dict[Tuple[int, int, Optional[int]], int] = {}
+        self.paths = paths
+        self._source: Dict[str, Optional[str]] = {}
 
     @classmethod
     def load(cls, path: str, resolve: Optional[Resolver] = None, t: Optional[Trace] = None,
@@ -229,11 +285,20 @@ class SiteMap(ReadBounds):
         maps recorded their sources, accepted knowingly)."""
         with open(path) as fh:
             rmap = json.load(fh)
-        if not unchecked:
-            if t is None:
-                raise MapMismatch("a first-read map is checked against the trace it is used with: give the trace")
-            check_sources(rmap, t, objdir)
-        return cls(rmap, resolve)
+        if unchecked:
+            return cls(rmap, resolve)
+        if t is None:
+            raise MapMismatch("a first-read map is checked against the trace it is used with: give the trace")
+        return cls(rmap, resolve, check_sources(rmap, t, objdir))
+
+    def source(self, path: str) -> Optional[str]:
+        """The source of the map that a traced call site's path names (select_source; the one
+        check_sources checked it against, when it did), or None."""
+        if self.paths is not None:
+            return self.paths.get(path)
+        if path not in self._source:
+            self._source[path] = select_source(path, self.by_name.get(os.path.basename(path), ()), self.digests)
+        return self._source[path]
 
     def candidates(self, t: Trace, rank: int, idx: int, fam: Optional[FrozenSet[str]] = None) -> Tuple[int, ...]:
         """The static sites record idx of rank may come from (of the calls fam, or of the
@@ -244,7 +309,8 @@ class SiteMap(ReadBounds):
         c = self._cands.get(key)
         if c is None:
             where = self.resolve(t, rank, idx)
-            ids = self.at.get(where, []) if where is not None else []
+            src = self.source(where[1]) if where is not None else None
+            ids = self.at.get((where[0], src, where[2]), []) if src is not None else []
             c = self._cands[key] = tuple(i for i in ids if fam is None or self.call[i] in fam)
         return c
 

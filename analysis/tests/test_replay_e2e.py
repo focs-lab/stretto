@@ -115,7 +115,12 @@ class ReadMap(unittest.TestCase):
         with open(src, "rb") as fh:
             digest = hashlib.sha256(fh.read()).hexdigest()
         rmap = {"format": "stretto-firstread 1", "sites": [], "results": [], "sources": {src: digest}}
-        self.assertEqual(reads.check_sources(rmap, t), 1)
+        self.assertEqual(set(reads.check_sources(rmap, t).values()), {src})
+        # a second source of that name elsewhere is told apart by its directories; two that the
+        # traced path does not tell apart, with the same content, leave no source checked
+        self.assertEqual(set(reads.check_sources(dict(rmap, sources={src: digest, "/elsewhere/main.c": digest}), t).values()), {src})
+        with self.assertRaisesRegex(reads.MapMismatch, "another program"):
+            reads.check_sources(dict(rmap, sources={"/a/x/main.c": digest, "/a/y/main.c": digest}), t)
         with self.assertRaisesRegex(reads.MapMismatch, "differs"):
             reads.check_sources(dict(rmap, sources={src: "0" * 64}), t)
         with self.assertRaisesRegex(reads.MapMismatch, "no hashes"):
