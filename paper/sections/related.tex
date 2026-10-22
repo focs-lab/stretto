@@ -62,10 +62,10 @@ keeps every wildcard match and assumes zero buffering (\cref{app:mpiprv}).
 \paragraph{Exhaustive exploration.} ISP~\citep{vakkalanka08isp} explores the matchings of a
 program on one input, rewriting wildcard receives into specific ones during
 replay~\citep{gopalakrishnan11cacm}. DAMPI~\citep{vo10dampi} takes from one run the sends not
-causally after a wildcard receive, subject to non-overtaking, replays each choice, and reaches
-thousands of processes by giving up completeness. MPI-SV~\citep{yu20mpisv} and
+causally after a wildcard receive, subject to non-overtaking, replays each choice, and
+scales by giving up completeness. MPI-SV~\citep{yu20mpisv} and
 CIVL~\citep{siegel15civl} verify symbolically. We re-execute only to confirm.
-The stress baseline of \cref{sec:eval} follows
+Our stress baseline follows
 randomised concurrency testing~\citep{wolff24rff,zhao25surw}.
 
 \paragraph{Complexity of message-passing consistency.} Our check is the VCh-rf problem
@@ -91,8 +91,8 @@ Bita~\citep{tasharofi13bita}, DCatch~\citep{liu17dcatch} and dl$^2$~\citep{gao25
 trigger or observe such bugs. None proves an alternative feasible.
 
 \paragraph{Confirmation by re-execution.} In shared memory, predictions are confirmed by
-controlled scheduling~\citep{bensalem06confirmation,joshi09deadlockfuzzer}, directed random
-testing~\citep{sen08racefuzzer}, exact replay of the observed prefix~\citep{sorrentino10penelope}
+controlled scheduling~\citep{bensalem06confirmation,joshi09deadlockfuzzer}, directed
+testing~\citep{sen08racefuzzer}, prefix replay~\citep{sorrentino10penelope}
 or re-execution~\citep{farzan12exceptionull,huang15mcr}. In message passing, reachability
 testing and MAD replay a prefix with the other wildcards pinned, ISP and DAMPI rewrite wildcard
 receives into specific ones~\citep{gopalakrishnan11cacm}, MOPPER can rerun a predicted matching
@@ -101,11 +101,9 @@ replay~\citep{netzer92replay,sato15rempi} reproduce recorded sources. Specific t
 over a horizon that follows rendezvous and ordering dependences, a log of each
 pinned match, a control replay that must finish, and confirmation per threshold.
 
-\paragraph{Runtime checkers and benchmarks.} \MUST~\citep{hilbrich12must} checks the observed
-run online for argument, resource and type errors and for deadlocks. It treats standard sends
-as unbuffered and, when a run stalls at a wildcard receive, tries its other matching sends.
-Since version 1.10 it checks MPI buffers through
-ThreadSanitizer~\citep{jenke23tsanfibers}. PARCOACH~\citep{saillard14parcoach} checks
-collective ordering. NINJA~\citep{sato17ninja} injects network
-noise to expose message races and reproduced the HYPRE race we predict;
-\cref{sec:eval} compares \tool with \MUST and NINJA.
+\paragraph{Runtime checkers.} \MUST~\citep{hilbrich12must} checks the observed run online for
+argument, resource and type errors and for deadlocks, treating standard sends as unbuffered and,
+when a run stalls at a wildcard receive, trying its other matching sends; since version 1.10 it
+also checks buffers through ThreadSanitizer~\citep{jenke23tsanfibers}. PARCOACH~\citep{saillard14parcoach}
+checks collective ordering. NINJA~\citep{sato17ninja} injects network noise and
+reproduced the HYPRE race we predict.

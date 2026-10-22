@@ -98,9 +98,9 @@ races, which \MUST judges in the run it sees) and \MBIfonestress for stress test
 recorded run shows an error in \nMBItpobserved programs, and prediction adds \nMBItpPredOnly,
 \nMBItpPredBuf buffering thresholds and \nMBItpPredSP consequences under the single-path
 assumption. Of the \nMBIOnlyStretto errors that \tool reports and \MUST does not,
-\nMBICleanPred are predicted from a run that finished cleanly. They come from
-\nMBICleanTemplates program templates, \nMBICleanConfirmed of them are confirmed by replay,
-and stress testing makes \nMBICleanPredStress of them fail as well. The \nMBIfnunion misses
+\nMBICleanPred, from \nMBICleanTemplates templates, are predicted from a clean run;
+\nMBICleanConfirmed are confirmed by replay and stress testing makes \nMBICleanPredStress fail
+as well. The \nMBIfnunion misses
 are message races whose payload is the sender's rank and whose program checks it (RQ4).
 One run samples one schedule, so we ran MBI \nRepsRuns more times. The run itself shows
 \nRepsObsAlways labelled errors in every run, \nRepsObsSometimes in some and \nRepsObsNever in
@@ -115,8 +115,9 @@ buffering programs: they deadlock only if a 4-byte send is not buffered, and Ope
 it. \tool predicts each from one finished run, as realisable only from 4~bytes on. With the
 eager limit forced to \nMBIStressEagerBytes~bytes on TCP (RQ3), stress testing hangs the
 \nMBIStressEagerBufFound that send to another rank, not the \nMBIStressEagerPredMissedSelf that
-send to themselves, and fails no correct program (F1 \MBIfonestresseager). It needs the
-suspicion that buffering matters; \tool needs none, and gives the threshold from one run at the
+send to themselves, and fails no correct program (F1 \MBIfonestresseager, as \tool's, with
+\nMBIStressEagerOnlyStress errors only it finds and \nMBIStressEagerOnlyStretto only \tool). Testing needs the
+suspicion that buffering matters; \tool gives the threshold from one run at the
 default setting. \MUST reports them as well, treating standard sends as
 unbuffered~\citep{hilbrich12must}. Each of NINJA's three modes makes exactly the errors fail
 that stress testing at the default limits does (F1 \NinjaMBIRandomfone, \NinjaMBISystemfone and
@@ -148,9 +149,8 @@ alternatives, \nEtwoBdep are feasible at some thresholds only. The profiles of
 shared-memory transport buffers \BimplOMPI bytes by default; with its eager limit forced down,
 \mpicall{Send} and \mpicall{Isend} still send up to \BminOMPI bytes inline, while persistent
 sends buffer \BpersOMPI; the TCP transport with a 64-byte limit buffers \BtcpOMPI bytes on
-every path. An earlier run of the replays below forced the shared-memory limit down instead, and
-two persistent-send programs hung there where the single threshold of the send path predicted
-they would finish; after measuring per path, we moved the replays to TCP.
+every path. Forcing the shared-memory limit down instead had hung two persistent-send programs
+that one threshold per send path said would finish, so the replays moved to TCP.
 
 Each of the \nEtwoReplayPrograms programs whose run finished and needs a threshold is rerun
 three times. With the default limits it must finish again (\nEtwoReplayDefaultOK did). On TCP,
@@ -245,8 +245,8 @@ in its application-centric mode and in \nNinjaHypreEightRandomShortHangSetup of
 random noise does (\nNinjaHypreFourRandomShortHangSetup of \nNinjaHypreFourRandomShortRuns),
 and never on 2.11.0.
 
-A trace has a cross alternative only if it recorded an order in which a neighbour could reach
-the next exchange while this rank still probes. The run finishes either way: the order is
+A trace has a cross alternative only if its order lets a neighbour reach
+the next exchange while this rank probes. The run finishes either way: the order is
 common, the hang it allows is not.
 
 \begin{table}[t]

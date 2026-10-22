@@ -1,13 +1,11 @@
 \section{Limitations and Conclusion}
 \label{sec:conclusion}
 
-\paragraph{Limitations.} The model covers point-to-point calls, probes,
-completion calls and collectives by shape. RMA, neighbourhood collectives, partitioned
-communication and memory accesses are outside it; the optional guard reports buffer reuse
-during a nonblocking operation.
-Under \texttt{MPI\_THREAD\_MULTIPLE} or after a premature ready send we report observed
-findings only. Read bounds need C
-sources; other consequences come from the single-path explorer, replays or twins.
+\paragraph{Limitations.} The model covers point-to-point calls, probes, completion calls and
+collectives by shape, not RMA, neighbourhood collectives, partitioned communication or memory
+accesses; the optional guard reports buffer reuse during a nonblocking operation. Under
+\texttt{MPI\_THREAD\_MULTIPLE} or after a premature ready send we report observed findings only;
+read bounds need C sources.
 
 \paragraph{Conclusion.} One recorded run of an MPI program determines more than the run
 itself: over the horizon, an alternative matching is feasible iff a constraint graph with match
