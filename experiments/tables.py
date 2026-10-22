@@ -1369,6 +1369,156 @@ def e8_hb():
 EVIDENCE = ("realised", "realised, run did not finish", "realised, other pins unmatched", "realised, truncation error",
             "pins only", "not realised", "control failed")
 
+# the campaigns whose replays were run again under the tracer (experiments/results/valid/), with
+# what a confirmation is in each: the claim its replays make
+VALID = (("mbi", "MBI (E1), every replay", "MBI"),
+         ("reads", "MBI with read bounds (E3b), every replay", "Reads"),
+         ("npbmg", "NPB MG 2.4.1 (E5d), a sample", "MG"),
+         ("dealii", "deal.II 9.3.0-rc1 (E5e), cross alternatives, a sample", "Deal"),
+         ("hypre", "HYPRE 2.10.1 (E5c), cross alternatives, a sample", "Hypre"),
+         ("amg", "AMG (E5), the sample of E5", "AMG"),
+         ("nekbone", "Nekbone (E5b), the sample of E5b", "Nek"))
+
+
+def _valid_confirmed(name, r) -> bool:
+    """Is the replay of row r a confirmation under the rule of its campaign (every required pin
+    matched, the predicted outcome reached, the control finished)? The predicted outcome is the
+    finding's in MBI (the verdict column), a hang for HYPRE's cross alternatives, another
+    residual than the control's for MG, other values than the expected ones for deal.II, and a
+    run that finishes for the samples of AMG and Nekbone, whose alternatives are warnings."""
+    yes = lambda k: r.get(k) == "True"   # noqa: E731
+    if name in ("mbi", "reads"):
+        return r.get("verdict") == "confirmed"
+    ok = yes("matched") and r.get("control") == "FINISHED"
+    if name == "hypre":
+        return ok and r.get("replay") == "TIMEOUT"
+    if name == "npbmg":
+        return ok and r.get("replay") == "FINISHED" and bool(r.get("norm")) and r["norm"] != r.get("control_norm")
+    if name == "dealii":
+        return ok and r.get("replay") == "FINISHED" and yes("differs")
+    return ok and r.get("replay") == "FINISHED" and yes("control_matched")
+
+
+def _why_kind(v: str) -> str:
+    """The kind of violation a replay's trace shows (stretto.confirm.unpinned_violation)."""
+    for prefix, kind in (("end of the run", "the end: a waiting operation takes, unpinned, a message nobody took"),
+                         ("receiver order", "receiver-side order: an earlier receive takes the message"),
+                         ("non-overtaking", "sender-side order (non-overtaking)"), ("probe order", "a probe's order"),
+                         ("constraint cycle", "a constraint cycle"), ("trace unreadable", "trace unreadable"),
+                         ("undetermined", "undetermined")):
+        if v.startswith(prefix):
+            return kind
+    return v.split(":")[0]
+
+
+def valid():
+    """The replays behind the confirmation claims run again with the tracer preloaded, which
+    applies the pins and records each run; its own trace is then judged as a run of the program
+    without the pins (stretto.confirm.unpinned_violation, judge_replay). experiments/results/valid/:
+    mbi.csv and reads.csv (run_mbi.py --replay-only --replays-out), npbmg.csv, dealii.csv,
+    hypre.csv (the campaigns' predict.py --sample), amg.csv and nekbone.csv (replay_sample.py
+    --from-csv)."""
+    d = os.path.join(RES, "valid")
+    got = [(name, label, key, rows(os.path.join(d, f"{name}.csv"))) for name, label, key in VALID]
+    got = [g for g in got if g[3]]
+    if not got:
+        return "_no results_\n"
+    out = ["The replays behind every confirmation claim are run again with the tracer preloaded: it applies the pins as",
+           "the replay library does and records the run with the original envelopes, and the replay's own trace is judged",
+           "as a run of the program without the pins (`stretto.confirm.unpinned_violation`): MPI's matching order on its",
+           "matches (non-overtaking on both sides, probes) and an acyclic constraint graph. A receive still pending where",
+           "the run stopped is read as unmatched or as matched to a message nobody else took, and the run passes if some",
+           "reading does. A replay that hangs is judged up to where it stopped and at its end: a receive or probe still",
+           "waiting there that would, without its pin, take a message nobody took is no state the program stays in. The",
+           "controls are judged the same way. A confirmation under the *old rule* needs every required pin matched, the",
+           "predicted outcome and a control that finished; the *new rule* also needs the replay to be a run of the",
+           "program. The MBI campaigns replay every finding again (rows, one per finding and class); the application",
+           "campaigns replay a random sample of alternatives of new traced runs (the earlier traces were not kept),",
+           "with the seed in the table, and AMG and Nekbone the same alternatives of the same trace as their samples.",
+           "A required pin counts as matched when the replay library reports it or, since 13f2174, when the replay's own",
+           "trace shows the pinned receive or probe took its pinned source (`stretto.confirm.trace_matches`).",
+           f"Rows by code commit: {commits([r for g in got for r in g[3]])}.", "",
+           "| campaign | alternatives to draw from | replays | runs of the program | not runs | undetermined | controls that are runs | confirmed, old rule | confirmed, new rule |",
+           "|---|---|---|---|---|---|---|---|---|"]
+    tot = collections.Counter()
+    bad = []
+    for name, label, key, rs in got:
+        if name in ("mbi", "reads"):
+            rep = rs
+            # the same findings and pins as the replays the claims were made from?
+            before = collections.Counter((r["program"], r["cls"], r["pin"]) for r in rows(os.path.join(RES, name, "replays.csv")))
+            now = collections.Counter((r["program"], r["cls"], r["pin"]) for r in rs)
+            same = sum((before & now).values())
+            pool = f"{len(rs)} findings, {same} of the {sum(before.values())} replayed for the claims"
+            num(f"nValid{key}SamePins", same)
+            num(f"nValid{key}Committed", sum(before.values()))
+            num(f"nValid{key}CommittedConfirmed", sum(1 for r in rows(os.path.join(RES, name, "replays.csv")) if r.get("verdict") == "confirmed"))
+        else:
+            rep = [r for r in rs if r.get("pin") and r.get("replay") not in (None, "", "no horizon")]
+            if name in ("amg", "nekbone"):
+                pool = f"the sample of {len(rep)}"
+            else:
+                per_run = {(r.get("np"), r.get("run")): r for r in rs if not (r.get("replay") or "").startswith("traced run")}
+                n = sum(int(r.get("alternatives") or 0) for r in per_run.values())
+                seeds = sorted({r.get("seed") for r in rs if r.get("seed")})
+                pool = f"{n} in {len(per_run)} traced runs" + (f", seed {', '.join(seeds)}" if seeds else "")
+                num(f"nValid{key}Pool", n)
+                num(f"nValid{key}Traced", len(per_run))
+        runs = sum(1 for r in rep if r.get("run_valid") == "True")
+        notr = [r for r in rep if r.get("run_valid") == "False"]
+        und = sum(1 for r in rep if r.get("run_valid") not in ("True", "False"))
+        ctl = [r for r in rep if r.get("control") not in (None, "")]
+        ctl_runs = sum(1 for r in ctl if r.get("control_valid") == "True")
+        old = [r for r in rep if _valid_confirmed(name, r)]
+        new = [r for r in old if r.get("run_valid") == "True"]
+        out.append(f"| {label} | {pool} | {len(rep)} | {runs} | {len(notr)} | {und} | {ctl_runs} of {len(ctl)} | {len(old)} | {len(new)} |")
+        hung = [r for r in rep if (r.get("result") or r.get("replay")) == "TIMEOUT"]
+        for m, v in (("Replays", len(rep)), ("Runs", runs), ("NotRuns", len(notr)), ("Undetermined", und), ("Controls", len(ctl)),
+                     ("ControlRuns", ctl_runs), ("ConfOld", len(old)), ("ConfNew", len(new)), ("Hung", len(hung)),
+                     ("HungRuns", sum(1 for r in hung if r.get("run_valid") == "True"))):
+            num(f"nValid{key}{m}", v)
+            tot[m] += v
+        bad += [(label, r) for r in notr]
+        bad += [(label + ", control", {**r, "violation": r.get("control_violation", ""), "result": r.get("control"),
+                                       "replay": r.get("control")}) for r in ctl if r.get("control_valid") == "False"]
+    for m, v in tot.items():
+        num(f"nValid{m}", v)
+    out.append(f"| **all** | | {tot['Replays']} | {tot['Runs']} | {tot['NotRuns']} | {tot['Undetermined']} | "
+               f"{tot['ControlRuns']} of {tot['Controls']} | {tot['ConfOld']} | {tot['ConfNew']} |")
+    # MBI: the same findings and pins as the committed replays, whose verdicts the run may change
+    # (a control that hangs this time, a replay that crashes)
+    diff = []
+    for name, label, key, rs in got:
+        if name not in ("mbi", "reads"):
+            continue
+        before = {(r["program"], r["cls"], r["pin"]): r for r in rows(os.path.join(RES, name, "replays.csv"))}
+        for r in rs:
+            b = before.get((r["program"], r["cls"], r["pin"]))
+            if b and b.get("verdict") != r.get("verdict"):
+                diff.append(f"| {label} | {r['program']} | {r['cls']} | {r['pin']} | {b.get('verdict')} ({b.get('result')}, control "
+                            f"{b.get('control') or '-'}) | {r.get('verdict')} ({r.get('result')}, control {r.get('control') or '-'}) |")
+    num("nValidVerdictChanged", len(diff))
+    if diff:
+        out += ["", "Replays of MBI whose verdict under the old rule differs from that of the committed replay with the same finding "
+                    "and pins (the outcome of one run of a racing program is one schedule):", "",
+                "| campaign | program | class | pin | committed | this run |", "|---|---|---|---|---|---|"] + diff
+    out += ["", f"Replays that hung, the predicted outcome of 1c, 1d and HYPRE's cross alternatives, and were judged at their end "
+                f"as well: {tot['Hung']}, of which {tot['HungRuns']} are runs of the program."]
+    if not bad and not tot["Undetermined"]:
+        out += ["", "Every replay and every control is a run of the program without its pins: no pin forced a match or a hang "
+                    "that the program cannot have, so no confirmation rests on the pins alone."]
+    if bad:
+        kinds = collections.Counter((label, _why_kind(r.get("violation", ""))) for label, r in bad)
+        out += ["", "Replays and controls that are no run of the program, by what their trace shows:", "",
+                "| campaign | violation | runs |", "|---|---|---|"]
+        out += [f"| {label} | {kind} | {n} |" for (label, kind), n in sorted(kinds.items())]
+        out += ["", "Each of them (the first 40):", "", "| campaign | replay | result | what its trace shows |", "|---|---|---|---|"]
+        for label, r in bad[:40]:
+            what = r.get("program") or r.get("finding", "")[:60] or f"np {r.get('np')} run {r.get('run')}"
+            out.append(f"| {label} | {what} `{r.get('pin', '')[:80]}` | {r.get('result') or r.get('replay') or ''} | "
+                       f"{r.get('violation', '').replace('|', '/')[:240]} |")
+    return "\n".join(out) + "\n"
+
 
 def leg_commits():
     cs = sorted({r["commit"] for r in rows(os.path.join(RES, "e4", "e4.csv")) if r.get("commit")})
@@ -1385,7 +1535,8 @@ def main():
            "are carried over from MUST 1.9.2 runs under MPICH in MPI-BugBench's own container, with the same timeout",
            "per program. The E4 times, the AMG trace and its analysis time come from one announced timed leg at commit",
            f"{leg_commits()} (`experiments/timing_leg.sh`, the host otherwise idle), and AMG's replay sample from that",
-           "trace; the leg's times are the only timing claims.",
+           "trace; the leg's times are the only timing claims. The replays of E8c, every confirmation claim's replays run again",
+           "under the tracer, come from the commands of \"Replays as runs of the program\" in `experiments/RUNBOOK.md`.",
            "", "## E1: predictions vs benchmark labels", "",
            e1("MPI Bugs Initiative (MBI): message-race, tag-matching, probe and buffering programs", os.path.join(RES, "mbi", "mbi.csv"), "MBI"),
            e1("MPI-BugBench level 2: point-to-point and collective call-ordering, missing-call, local-concurrency and correct programs", os.path.join(RES, "mbb", "mbb.csv"), "MBB"),
@@ -1405,7 +1556,8 @@ def main():
            "## E6: polynomial checker vs exhaustive explorer", "", e6(),
            "## E7: the value skeleton on MBI (level L2)", "", e7(),
            "## E8: the buffer guard (local concurrency, class 3-local)", "", guard(),
-           "## E8b: happens-before candidate selection against the check", "", e8_hb()]
+           "## E8b: happens-before candidate selection against the check", "", e8_hb(),
+           "## E8c: confirming replays judged as runs of the program", "", valid()]
     path = os.path.join(ROOT, "docs", "results.md")
     open(path, "w").write("\n".join(doc))
     print("wrote", path)

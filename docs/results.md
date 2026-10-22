@@ -9,7 +9,8 @@ E2, E6 and the E3 and E7 inputs come from `experiments/run_remaining.sh` on the 
 are carried over from MUST 1.9.2 runs under MPICH in MPI-BugBench's own container, with the same timeout
 per program. The E4 times, the AMG trace and its analysis time come from one announced timed leg at commit
 576e917 (`experiments/timing_leg.sh`, the host otherwise idle), and AMG's replay sample from that
-trace; the leg's times are the only timing claims.
+trace; the leg's times are the only timing claims. The replays of E8c, every confirmation claim's replays run again
+under the tracer, come from the commands of "Replays as runs of the program" in `experiments/RUNBOOK.md`.
 
 ## E1: predictions vs benchmark labels
 
@@ -873,3 +874,46 @@ Explorer verdicts: hb-only not realised 3, hb-only realised with other matches c
 | 037 | hb-only | realised, judged pairs only | `recv(1, 2) src=ANY tag=1 cap=4096B <- send(0, 2)->1 tag=1 4096B; observed send(2, 0)->1 tag=1 64B` | nonblocking, nothing sent while pending | send causally follows the receive's completion |
 | 013 | stretto-only | realised, judged pairs only | `recv(1, 4) src=ANY tag=1 cap=4096B <- send(2, 6)->1 tag=1 4B; observed send(0, 1)->1 tag=1 4B` | nonblocking, nothing sent while pending | taken in the run by an earlier receive of its rank (a swap) |
 | 056 | stretto-only | realised, judged pairs only | `recv(1, 2) src=ANY tag=1 cap=4096B <- send(0, 1)->1 tag=1 64B; observed send(2, 1)->1 tag=1 4096B` | nonblocking, nothing sent while pending | taken in the run by an earlier receive of its rank (a swap) |
+
+## E8c: confirming replays judged as runs of the program
+
+The replays behind every confirmation claim are run again with the tracer preloaded: it applies the pins as
+the replay library does and records the run with the original envelopes, and the replay's own trace is judged
+as a run of the program without the pins (`stretto.confirm.unpinned_violation`): MPI's matching order on its
+matches (non-overtaking on both sides, probes) and an acyclic constraint graph. A receive still pending where
+the run stopped is read as unmatched or as matched to a message nobody else took, and the run passes if some
+reading does. A replay that hangs is judged up to where it stopped and at its end: a receive or probe still
+waiting there that would, without its pin, take a message nobody took is no state the program stays in. The
+controls are judged the same way. A confirmation under the *old rule* needs every required pin matched, the
+predicted outcome and a control that finished; the *new rule* also needs the replay to be a run of the
+program. The MBI campaigns replay every finding again (rows, one per finding and class); the application
+campaigns replay a random sample of alternatives of new traced runs (the earlier traces were not kept),
+with the seed in the table, and AMG and Nekbone the same alternatives of the same trace as their samples.
+A required pin counts as matched when the replay library reports it or, since 13f2174, when the replay's own
+trace shows the pinned receive or probe took its pinned source (`stretto.confirm.trace_matches`).
+Rows by code commit: 58fa178 (349), 13f2174 (30).
+
+| campaign | alternatives to draw from | replays | runs of the program | not runs | undetermined | controls that are runs | confirmed, old rule | confirmed, new rule |
+|---|---|---|---|---|---|---|---|---|
+| MBI (E1), every replay | 72 findings, 72 of the 72 replayed for the claims | 72 | 72 | 0 | 0 | 70 of 70 | 38 | 38 |
+| MBI with read bounds (E3b), every replay | 61 findings, 61 of the 61 replayed for the claims | 61 | 61 | 0 | 0 | 61 of 61 | 25 | 25 |
+| NPB MG 2.4.1 (E5d), a sample | 480 in 3 traced runs, seed 20261022 | 60 | 60 | 0 | 0 | 60 of 60 | 46 | 46 |
+| deal.II 9.3.0-rc1 (E5e), cross alternatives, a sample | 360 in 5 traced runs, seed 20261022 | 60 | 60 | 0 | 0 | 60 of 60 | 60 | 60 |
+| HYPRE 2.10.1 (E5c), cross alternatives, a sample | 146 in 20 traced runs, seed 20261022 | 60 | 60 | 0 | 0 | 60 of 60 | 60 | 60 |
+| AMG (E5), the sample of E5 | the sample of 30 | 30 | 30 | 0 | 0 | 30 of 30 | 30 | 30 |
+| Nekbone (E5b), the sample of E5b | the sample of 30 | 30 | 30 | 0 | 0 | 30 of 30 | 30 | 30 |
+| **all** | | 373 | 373 | 0 | 0 | 371 of 371 | 289 | 289 |
+
+Replays of MBI whose verdict under the old rule differs from that of the committed replay with the same finding and pins (the outcome of one run of a racing program is one schedule):
+
+| campaign | program | class | pin | committed | this run |
+|---|---|---|---|---|---|
+| MBI (E1), every replay | MessageRace_Loop_Isend_Irecv_nok | 1d | 0/0/3 | confirmed (TIMEOUT, control FINISHED) | inconclusive (TIMEOUT, control TIMEOUT) |
+| MBI (E1), every replay | MessageRace_Loop_Isend_Irecv_nok | 1d | 0/0/1,0/1/3 | inconclusive (TIMEOUT, control TIMEOUT) | confirmed (TIMEOUT, control FINISHED) |
+| MBI (E1), every replay | MessageRace_Loop_Isend_Recv_nok | 1d | 0/0/3 | confirmed (TIMEOUT, control FINISHED) | inconclusive (TIMEOUT, control TIMEOUT) |
+| MBI (E1), every replay | MessageRace_Loop_Isend_Recv_nok | 1d | 0/0/2,0/1/3 | confirmed (TIMEOUT, control FINISHED) | inconclusive (TIMEOUT, control TIMEOUT) |
+| MBI (E1), every replay | MessageRace_Loop_Send_Irecv_nok | 1d | 0/0/3 | inconclusive (TIMEOUT, control TIMEOUT) | confirmed (TIMEOUT, control FINISHED) |
+
+Replays that hung, the predicted outcome of 1c, 1d and HYPRE's cross alternatives, and were judged at their end as well: 191, of which 191 are runs of the program.
+
+Every replay and every control is a run of the program without its pins: no pin forced a match or a hang that the program cannot have, so no confirmation rests on the pins alone.

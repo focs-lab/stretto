@@ -134,6 +134,11 @@ plain runs.
 confirmed, 31 inconclusive (the control itself hung),
 0 contradicted. Random samples of 30 alternatives on AMG
 and on Nekbone: every replay matched its pins and finished, and so did every control.
+A pin makes a wildcard receive a receive from one rank, which is another program, so the
+replays behind these results (every MBI replay, samples of the application campaigns) were run
+again under the tracer and each one's own trace judged as a run of the program without the
+pins: 373 of 373 are, and 289 of the 289 confirmations among them
+stand when a confirmation needs that too.
 
 **Cost.** Tracing slows NPB by 1.01–1.17× (its own timers). Analysis: lu.A on 16
 processes (3.05 M events) in 55 s, AMG in 15.5 s, Nekbone
