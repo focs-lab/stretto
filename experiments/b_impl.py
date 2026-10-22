@@ -11,9 +11,16 @@ Settings: the defaults; the shared-memory transport with its eager limit forced 
 moves only the persistent path below 256 bytes); and the TCP transport, which has no inline path,
 with its eager limit set to 64 bytes: there every path buffers L - h bytes for limit L, h the
 transport's header, which E2 uses to put the threshold just below and at a predicted bound.
-Output: experiments/results/b_impl.csv (setting, path, mpirun arguments, largest eager payload,
-smallest hanging payload, commit).
-usage: b_impl.py [--timeout S] [--max-bytes N]"""
+
+With --mpi mpich the program is built with MPICH's wrapper and launched with Open MPI's mpirun,
+as every MPICH run here is (the image's MPICH 4.2.0 is built with PMIx, and its own hydra
+starts each rank as a singleton). Its settings: the defaults, where two ranks on one node talk
+through the ch4 shared-memory module; MPIR_CVAR_NOLOCAL=1, which makes MPICH treat every rank
+as remote, so that messages go through its netmod, UCX, with UCX's own choice of transport;
+and the same with UCX restricted to TCP, the netmod path with no shared memory under it.
+Output: experiments/results/b_impl.csv, or b_impl_mpich.csv with --mpi mpich (setting, path,
+mpirun arguments, largest eager payload, smallest hanging payload, commit).
+usage: b_impl.py [--mpi openmpi|mpich] [--timeout S] [--max-bytes N] [--out CSV]"""
 from __future__ import annotations
 import argparse
 import csv
@@ -25,7 +32,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from provenance import code_commit  # noqa: E402
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-MPICC, MPIRUN = "/usr/bin/mpicc.openmpi", "/usr/bin/mpirun.openmpi"
+MPICC = {"openmpi": "/usr/bin/mpicc.openmpi", "mpich": "/usr/bin/mpicc.mpich"}
+MPIRUN = "/usr/bin/mpirun.openmpi"
 PROGRAM = r'''
 #include <mpi.h>
 #include <stdlib.h>
@@ -57,8 +65,11 @@ def tcp(limit: int):
             "--mca", "btl_self_eager_limit", str(limit)]
 
 
-SETTINGS = {"openmpi-default": [], "openmpi-forced-rendezvous": VADER, "openmpi-tcp-64": tcp(64)}
+SETTINGS = {"openmpi": {"openmpi-default": [], "openmpi-forced-rendezvous": VADER, "openmpi-tcp-64": tcp(64)},
+            "mpich": {"mpich-default": [], "mpich-nolocal": ["-x", "MPIR_CVAR_NOLOCAL=1"],
+                      "mpich-nolocal-ucx-tcp": ["-x", "MPIR_CVAR_NOLOCAL=1", "-x", "UCX_TLS=tcp,self"]}}
 TABLE = os.path.join(ROOT, "experiments", "results", "b_impl.csv")
+TABLES = {"openmpi": TABLE, "mpich": os.path.join(ROOT, "experiments", "results", "b_impl_mpich.csv")}
 
 
 def tcp_header(path: str = TABLE):
@@ -76,21 +87,25 @@ def hangs(exe: str, n: int, path: str, mpirun_args, timeout: int) -> bool:
     cmd = ["/usr/bin/timeout", "-k", "2", str(timeout), MPIRUN, "-np", "2", *mpirun_args, exe, str(n), path]
     r = subprocess.run(cmd, capture_output=True, text=True, stdin=subprocess.DEVNULL,
                        env={**os.environ, "OMPI_MCA_rmaps_base_oversubscribe": "1"})
+    if r.returncode not in (0, 124):    # a run that fails is neither eager nor rendezvous
+        sys.exit(f"b_impl.py: {' '.join(cmd)} exited with status {r.returncode}:\n{r.stderr[-2000:]}")
     return r.returncode == 124
 
 
 def main() -> int:
     ap = argparse.ArgumentParser()
+    ap.add_argument("--mpi", choices=sorted(SETTINGS), default="openmpi")
     ap.add_argument("--timeout", type=int, default=5)
     ap.add_argument("--max-bytes", type=int, default=1 << 20)
-    ap.add_argument("--out", default=TABLE)
+    ap.add_argument("--out", default=None)
     args = ap.parse_args()
+    args.out = args.out or TABLES[args.mpi]
     rows = []
     with tempfile.TemporaryDirectory() as d:
         src, exe = os.path.join(d, "h2h.c"), os.path.join(d, "h2h")
         open(src, "w").write(PROGRAM)
-        subprocess.run([MPICC, "-O0", "-o", exe, src], check=True)
-        for name, margs in SETTINGS.items():
+        subprocess.run([MPICC[args.mpi], "-O0", "-o", exe, src], check=True)
+        for name, margs in SETTINGS[args.mpi].items():
             for path in PATHS:
                 row = {"setting": name, "path": path, "mpirun_args": " ".join(margs)}
                 lo, hi = 0, args.max_bytes          # lo finishes, hi hangs (or is the cap)
