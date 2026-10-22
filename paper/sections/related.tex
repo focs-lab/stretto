@@ -55,42 +55,40 @@ with logical clocks~\citep{cluster22matchsets,li24parco,internetware24}. MOPPER,
 analysis~\citep{huang20ase} and Hermes state soundness and completeness relative to
 single-path programs, or to recorded path conditions, under fixed buffering models. None
 certifies an alternative for every program consistent with the trace or computes its
-threshold profile. MPI-PRV~\citep{yao26mpiprv} is sound one-trace prediction for MPI without a
-solver, carrying trace equivalence and pattern-language monitoring~\citep{ang24pattern} to
-temporal properties of real applications; it keeps the observed match of every wildcard
-receive and assumes zero buffering, so alternative matchings are out of its scope.
+threshold profile. MPI-PRV~\citep{yao26mpiprv} carries pattern-language
+monitoring~\citep{ang24pattern} to temporal properties of MPI traces without a solver; it
+keeps every wildcard match and assumes zero buffering (\cref{app:mpiprv}).
 
 \paragraph{Exhaustive exploration.} ISP~\citep{vakkalanka08isp} explores the matchings of a
 program on one input, rewriting wildcard receives into specific ones during
 replay~\citep{gopalakrishnan11cacm}. DAMPI~\citep{vo10dampi} takes from one run the sends not
 causally after a wildcard receive, subject to non-overtaking, replays each choice, and reaches
 thousands of processes by giving up completeness. MPI-SV~\citep{yu20mpisv} and
-CIVL~\citep{siegel15civl} verify symbolically. These tools pay for every competing wildcard or
-give up completeness; we re-execute only to confirm. The stress baseline of \cref{sec:eval} follows
+CIVL~\citep{siegel15civl} verify symbolically. We re-execute only to confirm.
+The stress baseline of \cref{sec:eval} follows
 randomised concurrency testing~\citep{wolff24rff,zhao25surw}.
 
 \paragraph{Complexity of message-passing consistency.} Our check is the VCh-rf problem
 of \citet{shi26popl} for MPI's channels. Their hardness comes from channels with several
 producers and from count capacities; an MPI queue has one producer per (source, destination,
-communicator) and blocking is a per-message threshold, so given the whole matching every
-constraint is a conjunction and the check an acyclicity test. In shared memory keeping a read's
-writer is a disjunction, and predicting a race that needs one reversed critical section is
-W[1]-hard~\citep{mathur21syncp}.
+communicator) and blocking is a
+per-message threshold, so given the whole matching every constraint is a conjunction and the check
+an acyclicity test. In shared memory keeping a read's writer is a disjunction, and predicting a
+race that needs one reversed critical section is W[1]-hard~\citep{mathur21syncp}.
 
 \paragraph{Buffering.} Slack elasticity holds for deterministic programs~\citep{manohar98slack}.
-For MPI programs with wildcards, adding buffering can add deadlocks, and neither zero nor
-infinite buffering exposes all of them~\citep{vakkalanka10slack}. Without wildcards, a program is
-deadlock-free iff it is deadlock-free with zero buffering~\citep{siegel05ppopp,siegel07europvm}.
-Aislinn verifies programs under the eager and rendezvous threshold we
+With wildcards, adding buffering can add MPI deadlocks and neither zero nor infinite buffering
+exposes all~\citep{vakkalanka10slack}; without them, zero buffering
+suffices~\citep{siegel05ppopp,siegel07europvm}. Aislinn verifies programs under the threshold we
 model~\citep{bohm16aislinn}.
 
-\paragraph{Message passing beyond MPI\@.} Trace analyses of Go report alternative
-communications under a straight-line model~\citep{sulzmann17hvc} or by vector
-clocks~\citep{sulzmann18go}, and AdvocateGo replays alternative partners found by
-happens-before~\citep{advocatego}. Race variants for Erlang's selective
-receive~\citep{vidal22racevariants} are our steal and horizon without blocking, with a theorem
-on non-redundancy; Bita~\citep{tasharofi13bita}, DCatch~\citep{liu17dcatch} and
-dl$^2$~\citep{gao25dl2} force, trigger or observe such bugs. None proves an alternative feasible.
+\paragraph{Message passing beyond MPI\@.} Go trace analyses report alternative communications
+under a straight-line model~\citep{sulzmann17hvc} or by vector clocks~\citep{sulzmann18go}, and
+AdvocateGo replays partners found by happens-before~\citep{advocatego}. Erlang's race
+variants~\citep{vidal22racevariants} are our steal and horizon without blocking, with a theorem on
+non-redundancy;
+Bita~\citep{tasharofi13bita}, DCatch~\citep{liu17dcatch} and dl$^2$~\citep{gao25dl2} force,
+trigger or observe such bugs. None proves an alternative feasible.
 
 \paragraph{Confirmation by re-execution.} In shared memory, predictions are confirmed by
 controlled scheduling~\citep{bensalem06confirmation,joshi09deadlockfuzzer}, directed random
@@ -110,5 +108,4 @@ Since version 1.10 it checks MPI buffers through
 ThreadSanitizer~\citep{jenke23tsanfibers}. PARCOACH~\citep{saillard14parcoach} checks
 collective ordering. NINJA~\citep{sato17ninja} injects network
 noise to expose message races and reproduced the HYPRE race we predict;
-\cref{sec:eval} compares \tool with \MUST and NINJA. MBI~\citep{laurent21mbi} and
-\MBB~\citep{jammer24mbb} are the standard corpora.
+\cref{sec:eval} compares \tool with \MUST and NINJA.

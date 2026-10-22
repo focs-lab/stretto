@@ -121,7 +121,7 @@ fail that stress testing does (F1 \NinjaMBIRandomfone, \NinjaMBISystemfone and
 \NinjaMBIAppfone; its application-centric mode crashes on \nNinjaMBIAppFP correct programs).
 
 \MBB's errors show in the run itself: by design, every incorrect program's error is
-expected to be observable~\citep{jammer24quality}, so a score on \MBB measures detection, not
+expected to be observable~\citep{jammer24quality}, so a score there measures detection, not
 prediction. \tool's predicted findings alone score \MBBfonepredicted, while the observed checks
 score \MBBfoneunion, against \MBBfoneMUST and \MBBfoneMUSTsym for \MUST. The \nMBBfp false
 positives are
@@ -131,7 +131,9 @@ model. With the buffer guard (\cref{sec:implementation}) the run
 itself shows \nMBBLCguard of the \nMBBLC and nothing else (F1 \MBBfoneguard), and under MPICH
 \nGuardLCMPICHfound of \nGuardLCMPICHbuilt; MBI's score does not change. \MUST~1.11.2 with its
 ThreadSanitizer analysis~\citep{jenke23tsanfibers} finds \nTsanLCfound of these, none that the
-guard misses (F1 \MBBfoneMUSTeleventsan and \MBBfoneMUSTeleventsansym).
+guard misses (F1 \MBBfoneMUSTeleventsan and \MBBfoneMUSTeleventsansym). MPI-PRV~\citep{yao26mpiprv},
+with markers placed by a script, finds
+\nPRVtpBLC local-concurrency errors of both corpora, the guard \nPRVtpStrettoLC (\cref{app:mpiprv}).
 
 \subsection{RQ3: buffering}
 
@@ -344,5 +346,4 @@ or a lower limit may find more. The model assumes a
 complete trace of the modelled fragment (a call outside it limits the report to observed
 findings), one threshold for all standard sends of a run, and an angelic choice in
 \mpicall{Waitany}. The HYPRE campaign uses one input and two process counts, MG's
-one class and one count, deal.II's one test. We did not run MPI-PRV~\citep{yao26mpiprv}, which keeps every
-wildcard match fixed.
+one class and one count, deal.II's one test.
