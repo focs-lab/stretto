@@ -229,9 +229,19 @@ Premises of every theorem below, stated because the proofs use them: message del
 arbitrary (any interleaving the matching rules allow is an execution); a Waitany or Waitsome
 may return any completed request; a send that does not block at B completes at once
 (unbounded buffering below the threshold); collectives synchronise by their shape and do not
-depend on B; no cancel succeeded in σ; and σ records every communication call of the run. The
-last premise is not yet enforced: calls outside the modelled fragment pass the tracer silently
-(audit finding C-1).
+depend on B; no cancel succeeded in σ; and σ records every communication call of the run.
+
+The report enforces the last premise as far as the trace shows it, and states observed findings
+only (with a note that names the reason) when it fails: a call the tracer marks `unmodelled`
+(one-sided windows, neighbourhood collectives, dynamic processes, generalised requests and the
+MPI-4 calls it does not model); a rank without a trace file; a receive that took a
+message no send in the trace matches (a sender the tracer did not see, such as a Fortran
+library under Open MPI, which calls `PMPI_*` directly); and the tracer's message table
+overflowing, which leaves the receives of probed messages without their envelope. A
+collective that lacks only ranks without a trace file is then not an observed `2-collective`
+error either: the trace is incomplete, not the program. Before 22 Oct 2026 the last three only
+added notes, and predictions were made on a happens-before relation with message edges
+missing (`C_IncompleteTrace`).
 
 Cancellation is outside the model: a cancel that succeeds withdraws an operation at a point that
 no matching rule describes (a cancelled send is pending until its cancel, and a receive posted

@@ -1305,8 +1305,48 @@ class C_TracerRecords(unittest.TestCase):
         t = mk({0: [{"op": "overflow", "what": "message table"}, irecv(1, 1, 0),
                     {"op": "wait", "kind": "getstatus", "flag": 1, "reqs": [0], "done": []}, wait((0, 1, 1))],
                 1: [send(0, 1)]})
-        self.assertTrue(any("overflowed" in w for w in t.warnings))
+        self.assertTrue(any(r == "tracer-overflow" and "message table overflowed" in d for r, d in t.incomplete), t.incomplete)
         self.assertEqual(t.observed, {(0, 0): (1, 0)})
+
+
+class C_IncompleteTrace(unittest.TestCase):
+    """A trace that is not a complete record of the run's communication gets observed findings
+    only, with the reason (audit of 22 Oct 2026)."""
+
+    def _race(self, extra0=(), np=None, **ranks):
+        raw = {0: [recv(T.ANY, 1, 1, 1, widx=0), recv(T.ANY, 1, 2, 1, widx=1), *extra0], 1: [send(0, 1)], 2: [send(0, 1)]}
+        raw.update({int(k[1:]): v for k, v in ranks.items()})
+        return mk({r: v for r, v in raw.items() if v is not None}, np=np)
+
+    def test_complete_trace_predicts(self):
+        self.assertTrue([f for f in analyze(self._race(), with_sp=False).findings if f.level == "L1"])
+
+    def test_missing_rank(self):
+        # rank 3 has no file: the barrier is not a 2-collective error, and nothing is predicted
+        t = self._race(extra0=[coll("barrier")], np=4, r1=[send(0, 1), coll("barrier")], r2=[send(0, 1), coll("barrier")])
+        self.assertEqual(t.missing, [3])
+        rep = analyze(t, with_sp=False)
+        self.assertEqual(rep.by_class("2-collective"), [])
+        self.assertEqual([f for f in rep.findings if f.level != "observed"], [])
+        self.assertTrue(any("no trace file" in n and "observed findings only" in n for n in rep.notes), rep.notes)
+        self.assertTrue(any("lack only ranks without a trace file" in n for n in rep.notes), rep.notes)
+        self.assertEqual(rep.status(), "degraded:missing-ranks")
+
+    def test_a_receive_from_an_untraced_sender(self):
+        # rank 2's send was made by code the tracer does not see (Fortran under Open MPI)
+        t = self._race(r2=[])
+        self.assertTrue(any(r == "unmatched-completions" and "no send in the trace matches" in d for r, d in t.incomplete), t.incomplete)
+        rep = analyze(t, with_sp=False)
+        self.assertEqual([f for f in rep.findings if f.level != "observed"], [])
+        self.assertEqual(rep.status(), "degraded:unmatched-completions")
+
+    def test_site_table_overflow_is_only_a_note(self):
+        # the records are whole, only call sites stop being named: degraded, still predicting
+        t = self._race(r1=[{"op": "overflow", "what": "site table"}, send(0, 1)])
+        self.assertEqual(t.incomplete, [])
+        rep = analyze(t, with_sp=False)
+        self.assertTrue([f for f in rep.findings if f.level == "L1"])
+        self.assertEqual(rep.status(), "degraded:tracer-overflow")
 
 
 class C_TraceFromExecution(unittest.TestCase):

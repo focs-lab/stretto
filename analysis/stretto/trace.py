@@ -245,6 +245,7 @@ class Trace:
     bad_lines: int = 0
     warnings: List[str] = field(default_factory=list)
     unmodelled: List[Tuple[int, str]] = field(default_factory=list)   # (rank, call) outside the modelled fragment
+    incomplete: List[Tuple[str, str]] = field(default_factory=list)  # (reason, detail): why the trace is not a complete record of the run's communication (report.Report.degrade)
     guards: List[Rec] = field(default_factory=list)      # the buffer guard's records (misused buffers of pending operations)
     guard: Dict[int, int] = field(default_factory=dict)  # rank -> 1 guard on, 0 asked for but off (absent: not asked for)
     sites: Dict[Tuple[int, int], dict] = field(default_factory=dict)    # (rank, site id) -> the tracer's site record
@@ -512,7 +513,14 @@ def _build(t: Trace, raw_ranks: Dict[int, List[dict]]) -> None:
                 if "guard" in r:
                     t.guard[rank] = r["guard"]
             elif r["op"] == "overflow":
-                t.warnings.append(f"rank {rank}: the tracer's {r.get('what')} overflowed; later records of that kind may be incomplete")
+                what = r.get("what")
+                if what in ("site table", "guard table"):
+                    # call sites stop being named, or the buffer guard stops following buffers:
+                    # the communication records are whole
+                    t.warnings.append(f"rank {rank}: the tracer's {what} overflowed; later records of that kind may be incomplete")
+                else:
+                    # the message table: the Mrecv/Imrecv of a probed message lost its envelope
+                    t.incomplete.append(("tracer-overflow", f"the tracer's {what} overflowed on rank {rank}, so later records lack fields"))
             elif r["op"] == "unmodelled":
                 t.unmodelled.append((rank, r.get("call", "?")))
         t.guards.extend(rec for rec in t.ranks[rank] if rec.op == "guard")
@@ -521,7 +529,7 @@ def _build(t: Trace, raw_ranks: Dict[int, List[dict]]) -> None:
     if t.np:
         t.missing = [r for r in range(t.np) if r not in t.ranks]
         if t.missing:
-            t.warnings.append(f"missing trace files for ranks {t.missing}")
+            t.incomplete.append(("missing-ranks", f"ranks {t.missing} have no trace file"))
     all_ranks = list(range(t.np)) if t.np else sorted(t.ranks)
     comm_map = _comm_ids(t, folded, all_ranks)   # (rank, local id) -> global id
 
@@ -776,6 +784,7 @@ def _reconstruct_observed(t: Trace) -> None:
         if not s.cancelled:
             queues.setdefault((s.rank, s.dst, s.comm, s.tag), []).append(s)
     ptr: Dict[Tuple[int, int, int, int], int] = {}
+    sendless: List[str] = []
     for rank in sorted(t.ranks):
         events = sorted(list(t.recvs_of(rank)) + [p for p in t.probes.values() if p.rank == rank],
                         key=lambda x: x.idx)
@@ -804,6 +813,14 @@ def _reconstruct_observed(t: Trace) -> None:
             i = ptr.get(key, 0)
             if not q or i >= len(q):
                 t.warnings.append(f"{e}: completed from {e.msrc} tag {e.mtag} but no such send in the trace")
+                sendless.append(f"{e} from {e.msrc} tag {e.mtag}")
                 continue
             t.observed[e.key] = q[i].key
             ptr[key] = i + 1
+    if sendless:
+        # a sender the tracer did not see (a library calling PMPI directly, as Open MPI's Fortran
+        # bindings do, or a rank without a trace file): the happens-before lacks these messages
+        t.incomplete.append(("unmatched-completions",
+                             f"{len(sendless)} receive(s) took a message that no send in the trace matches "
+                             f"(first: {sendless[0]}): a sender that was not traced, such as a Fortran library "
+                             "under Open MPI, or a rank without a trace file"))

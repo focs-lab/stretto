@@ -275,6 +275,8 @@ def declines(t: Trace) -> Optional[str]:
         return "MPI_THREAD_MULTIPLE with several calling threads"
     if t.unmodelled:
         return "calls outside the modelled fragment"
+    if t.incomplete:
+        return "an incomplete trace"
     if any(observed_ready_errors(t)):
         return "a ready send issued before its receive was posted"
     return None
