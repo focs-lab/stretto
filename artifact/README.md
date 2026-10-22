@@ -20,7 +20,7 @@ and then checks the paper's claims against the numbers it produced (`artifact/cl
 - About 10 GB of disk: the experiment image is 0.9 GB, MUST's image 2.8 GB, the TeX image
   for the paper 5.3 GB, Nekbone's trace 1.2 GB. MPI-PRV's image (`rq2`, unless `MPIPRV=0`)
   takes 24 GB more, and its runs about 6 GB; the HYPRE 3.2.0 and PETSc builds (`rq6`, unless
-  `NEWBUG=0`) 1.3 GB.
+  `NEWBUG=0`) 1.3 GB. Keeping every trace of `all` (`KEEP_TRACES`, below) takes about 5 GB more.
 - Network access for `image` and `inputs` (the Ubuntu archive snapshot, GitHub, GitLab, the
   RWTH Aachen GitLab and the NAS web site).
 
@@ -153,6 +153,35 @@ one code version.
 `~` a difference in a count taken from the runs or in a time, and with `!` one in a number
 the inputs fix.
 
+## Keeping the traces
+
+The scripts analyse the traces they record and then delete them, or leave the last one in
+place for the next run of the step to replace. With `KEEP_TRACES` set to a directory, every
+trace a rerun records is kept there, traced runs, replays and controls alike, as one `.tar.xz`
+per trace directory (`analysis/stretto/keep.py`); it is off by default:
+
+```bash
+KEEP_TRACES=artifact/out/traces artifact/reproduce.sh all
+```
+
+An archive is `<KEEP_TRACES>/<campaign>/<name>.tar.xz`: the campaign is the table the run's rows
+go to, as its path under `experiments/results/` (`mbi/mbi`, `hypre/predict`, `valid/nekbone`),
+or the step for a trace kept in place (`amg`, `nekbone`, `e4/e4`), and the name is the run as
+those rows name it (the program; `np8-run03`; for a replay or control the changed pin and
+`-replay` or `-control`). A replay's archive also holds `replay.txt`: its command, pins,
+outcome and output. No archive is overwritten: a step run twice keeps both runs' traces, the
+second as `<name>~2`. `MANIFEST.tsv` there has a line per archive with the directory it came
+from, its sizes before and after, its SHA-256 and the code commit. A relative directory is the
+copy's and must be one git ignores, such as `artifact/out/traces` (`reproduce.sh` refuses
+another, whose files would mark every row's commit `-dirty`); an absolute one is mounted into
+the containers. The tables come out the same with it and without it.
+
+A full rerun records about 26 000 traces, 220 GB before compression, which take about 5 GB
+kept (two thirds of the uncompressed size is Nekbone's replays) and about an hour of one
+processor to compress, spread over the steps. The runs that record no trace of Stretto's
+tracer keep nothing: the stress, delayed and NINJA runs, E2's replays, MUST's and MPI-PRV's own
+runs. `experiments/RUNBOOK.md` ("Keeping every trace") lists the names of each campaign.
+
 ## Layout
 
 | path | what |
@@ -164,4 +193,5 @@ the inputs fix.
 | `experiments/reads/run.sh`, `experiments/e8_hb.py`, `experiments/valid/run.sh` | E3b (read bounds), E8b (happens-before selection), E8c (the confirmations' replays as runs of the program) |
 | `experiments/results/` | the result tables; `docs/results.md` is generated from them |
 | `experiments/RUNBOOK.md` | how the paper's runs were done on a shared machine, and every variable the scripts read |
+| `analysis/stretto/keep.py`, `experiments/harness.sh` | `KEEP_TRACES`: every trace a rerun records, archived |
 | `third_party/fetch.sh` | the inputs at the pinned versions |

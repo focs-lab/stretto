@@ -43,12 +43,33 @@
 #            synthetic programs about 25), then up to 30 replays per program and class
 #   VALID    0: leave E8c out of rq6: every replay behind a confirmation claim run again under the
 #            tracer (experiments/valid/run.sh), about 8 hours on 12 processors, Nekbone's in 48 GB
+#   KEEP_TRACES  a directory in which every driver keeps every trace it records, traced runs,
+#            replays and controls alike, one .tar.xz per trace with a line in MANIFEST.tsv
+#            (analysis/stretto/keep.py); off by default. A relative directory is the copy's and
+#            must be one git ignores, such as artifact/out/traces; an absolute one is mounted
+#            into the containers. A full rerun keeps about 5 GB (about 220 GB of traces before
+#            compression) and spends about an hour of one processor compressing them; the
+#            tables come out the same with it and without it
 set -eEuo pipefail
 R="$(cd "$(dirname "$0")/.." && pwd)"; cd "$R"
 export IMAGE="${IMAGE:-stretto-exp:24.04}" CPUS="${CPUS:-0-$(($(nproc) - 1))}" DETACH=0
 OUT=artifact/out; mkdir -p "$OUT"
 TEX_IMAGE="${TEX_IMAGE:-latexml/ar5ivist@sha256:cb395e7a60491ca75deab279b7b0fcdcd93f7d13c366bdf22a6391446839774a}"
 log() { echo "== $(date '+%F %T') $*"; }
+
+# KEEP_TRACES reaches the containers through experiments/container/run.sh and
+# experiments/mpiprv/prv.sh. A directory inside the copy that git does not ignore would make
+# every row of the rerun record a "-dirty" commit (experiments/provenance.py), so it is refused.
+if [ -n "${KEEP_TRACES:-}" ]; then
+    export KEEP_TRACES
+    k="$(realpath -m "$( [ "${KEEP_TRACES#/}" != "$KEEP_TRACES" ] && echo "$KEEP_TRACES" || echo "$R/$KEEP_TRACES")")"
+    r="$(realpath "$R")"
+    if [ "${k#"$r"/}" != "$k" ] && git rev-parse HEAD > /dev/null 2>&1 && ! git check-ignore -q "${k#"$r"/}/MANIFEST.tsv"; then
+        log "KEEP_TRACES=$KEEP_TRACES is inside the copy and not ignored by git (every row would record a -dirty commit): use artifact/out/traces or a directory outside"
+        exit 2
+    fi
+    log "keeping every trace in $k (MANIFEST.tsv there)"
+fi
 
 # the commit every result row records (experiments/provenance.py): before each step, when the copy
 # has its history, COMMIT and COMMIT.files are written from git again, so that a step after a pull
@@ -246,7 +267,7 @@ t_paper() {   # the paper's sources are kept apart from this repository; PAPER_D
         && $P > /dev/null && BIBINPUTS=. bibtex build/main > /dev/null && $P > /dev/null && $P > build/pdflatex.log && ls -l build/main.pdf'
 }
 
-[ $# -gt 0 ] || { sed -n '2,45p' "$0"; exit 2; }
+[ $# -gt 0 ] || { sed -n '2,/^[^#]/{/^#/p}' "$0"; exit 2; }
 # errexit stops the script at the first failing step; say where before it does
 trap 'rc=$?; log "stopped: a step of ${t:-the setup} failed with status $rc"' ERR
 for t in "$@"; do

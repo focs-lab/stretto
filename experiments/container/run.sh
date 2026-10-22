@@ -10,6 +10,9 @@
 #   DETACH   0: run in the foreground and return the command's exit status (default 1)
 #   DOCKER_ARGS  more docker run options, split at spaces (for example "--cap-add SYS_PTRACE",
 #            which lets the MPI libraries' single-copy transports use process_vm_readv)
+#   KEEP_TRACES  passed on to the command (stretto.keep: where the drivers keep every trace they
+#            record); a relative directory is the repository's, an absolute one is mounted at its
+#            own path
 # usage: experiments/container/run.sh <command ...>      (run from the repository root)
 set -euo pipefail
 IMAGE="${IMAGE:-stretto-exp:24.04}"
@@ -18,7 +21,12 @@ MEMORY="${MEMORY:-24g}"
 NAME="${NAME:-stretto-exp}"
 detach=(-d); [ "${DETACH:-1}" = 0 ] && detach=()
 read -r -a extra <<< "${DOCKER_ARGS:-}"
-exec docker run ${detach[@]+"${detach[@]}"} ${extra[@]+"${extra[@]}"} --rm --name "$NAME" --hostname "${MACHINE:-$(hostname)}" \
+keep=()
+if [ -n "${KEEP_TRACES:-}" ]; then
+    keep=(-e KEEP_TRACES)
+    case "$KEEP_TRACES" in /*) mkdir -p "$KEEP_TRACES"; keep+=(-v "$KEEP_TRACES:$KEEP_TRACES");; esac
+fi
+exec docker run ${detach[@]+"${detach[@]}"} ${extra[@]+"${extra[@]}"} ${keep[@]+"${keep[@]}"} --rm --name "$NAME" --hostname "${MACHINE:-$(hostname)}" \
   --ipc host --cpuset-cpus "$CPUS" --memory "$MEMORY" --memory-swap "$MEMORY" \
   --user "$(id -u):$(id -g)" -e HOME=/tmp \
   -v "$PWD:/w" -w /w "$IMAGE" nice -n 10 "$@"

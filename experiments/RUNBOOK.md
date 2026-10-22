@@ -102,6 +102,7 @@ Variables the scripts read (all optional):
 | `STRETTO_SEND_DELAY_MS`, `STRETTO_RECV_DELAY_MS`, `STRETTO_DELAY_AT` | replay library | sleeps before sends/receives, per rank or at the k-th one (`replay/pin.h`) |
 | `STRETTO_REQUIRE_TRACES` | tests | `1`: idiom tests fail instead of skipping without traces (Open MPI idioms fall back to `analysis/tests/golden`) |
 | `STRETTO_KEEP_REPLAYS` | `stretto.confirm.run_checked` (every replay script) | a directory: keep there the trace, pins and stderr of each replay or control that is not, or not known to be, a run of the program (off) |
+| `KEEP_TRACES` | every driver that traces (`stretto.keep`; `keep_trace` in `experiments/harness.sh`), `experiments/container/run.sh`, `experiments/mpiprv/prv.sh`, `artifact/reproduce.sh` | a directory: keep there every trace a run records, traced runs, replays and controls, one `.tar.xz` each with a line in `MANIFEST.tsv` ("Keeping every trace" below; off) |
 | `STRETTO_COMMIT` | experiment scripts | the code commit written into every CSV row; unset, the `COMMIT` file at the root is read, else git is asked (`experiments/provenance.py`) |
 | `MUST_IMAGE`, `MUST_CPUS`, `MUST_KEEP` | `scripts/must_run.sh`, `experiments/amg/must.sh` | image (`mbb-must:latest`), cpuset, keep the work directory |
 | `MUST_ARGS` | `experiments/amg/must.sh` | MUST layout (default `--must:distributed`; empty for the centralised one) |
@@ -181,7 +182,9 @@ minutes on `CPUS=0-11,40-51`. The whole host is idle for it: the
 leg is announced to the other lanes with a START and an END message, nothing of theirs runs
 in between, and anything that did run is written into `experiments/results/timing-leg.log`
 next to the rows it may have touched (which are then rerun inside the window). `MACHINE=<name>`
-on `container/run.sh` sets the host name the summaries print.
+on `container/run.sh` sets the host name the summaries print. With `KEEP_TRACES` set, E4 keeps
+each trace after its analysis is timed and before the next plain run starts, the archive
+written through to the disk ("Keeping every trace").
 
 ## Second application: Nekbone
 
@@ -658,6 +661,62 @@ between two template instantiations, each of which has its own static mutex. The
 and wrote the control's output; every control finished with the traced output. deal.II 9.8.0
 also still takes a `CollectiveMutex` around both `RemotePointEvaluation` exchanges
 (`mpi_remote_point_evaluation.h`, lines 776-777 and 987-988), the fix of the 9.3.0-rc1 race.
+
+## Keeping every trace
+
+The drivers delete the traces they record once they have analysed them (a replay's as soon as it
+is judged, a traced run's once its alternatives are drawn), or leave one in place for the next
+run of the step to replace (`amg/trace8`, the corpus programs' `trace`, the idioms'). With
+`KEEP_TRACES` set to a directory, each driver hands every trace it records to `stretto.keep` as
+soon as the run is over, or after its analysis where that is timed (E4, the scale runs, the
+guard's applications), and an archive of the directory is written:
+
+```bash
+KEEP_TRACES=artifact/out/traces artifact/reproduce.sh all     # or on any driver, in or out of the container
+```
+
+- An archive is `<KEEP_TRACES>/<campaign>/<name>.tar.xz`, the trace's files under `<name>/`.
+  The campaign is the table the run's rows go to, as its path under `experiments/results/`
+  without `.csv` (`mbi/mbi`, `guard/mbb`, `reps/mbi-3`, `hypre/predict`, `npbmg/predict-2.4.1`,
+  `petsc/scan`, `valid/nekbone`, `scale/samples/amg-64`), or the step for a trace with no table
+  of its own (`amg`, `nekbone`, `hypre`, `scale`, `e4/e4`, `guard/apps`, `idioms/openmpi`,
+  `mpiprv/apps`, `mpiprv/adept`); `--keep-campaign` names another on `run_mbi.py`, the
+  `predict.py` scripts, `scout.py` and `replay_sample.py`. The name is the run as the rows name
+  it: the program (`MessageRace_Bcast_Send_Irecv_nok`), the process count and run
+  (`np8-run03`, `np4-levels2-run07`, `lu.A.16.rep3`), and for a replay or control the class,
+  level or kind, the changed pin and `replay` or `control` (`np8-run03-probe-5.12.2-replay`,
+  `MessageRace_Bcast_Send_Irecv_nok__1d-L1+SP-1.0.0.0__control`,
+  `07-probe-alt-probe-3.41.1-replay` for the seventh row of a replay sample). A replay's archive
+  also holds `replay.txt`: the command, the pins, the outcome, the verdict on its trace, and its
+  stderr (the pin lines confirmation reads) and stdout.
+- Nothing is overwritten: a name taken already gets `~2`, `~3`, so a step run twice keeps the
+  traces of both runs.
+- `<KEEP_TRACES>/MANIFEST.tsv` has one line per archive: campaign, name, archive, source (the
+  trace directory), files, bytes, archive_bytes, sha256, commit, time. Drivers in several
+  containers append to it at once, each line under `flock`.
+- A relative directory is the repository's (the containers mount it at `/w`) and must be one git
+  ignores, as `artifact/out/traces` is: a new file under the code would make every row's commit
+  `-dirty`, so `reproduce.sh` refuses such a directory. An absolute directory is mounted into the
+  containers at its own path (`container/run.sh`, `mpiprv/prv.sh`, which also hands MPI-PRV's
+  root-owned archives back).
+- A trace that cannot be kept (a full disk) stops the driver with `KEEP-ERROR`, E4 at the end of
+  the leg; unset, no driver does anything it did not do before, and set, the tables are the same.
+- Not kept, because they record no trace of the tracer: the stress runs, plain and delayed, and
+  NINJA's, E2's buffering replays, AMG's single-pin confirmation and MPI-PRV's applications'
+  rendezvous replays (the replay library), MUST's runs, MPI-PRV's own (its `output.txt` stays
+  under `experiments/mpiprv/work/`), the re-executions of L2 (`stretto.rerun`, a log of the
+  shim), E6's and E8b's synthetic programs (written by the generator, not traced) and the runs
+  inside the unit tests.
+
+Size: a full rerun (`all`, every step on) records about 26 000 traces, 220 GB before
+compression, estimated from the committed tables (records per traced run, every replay and
+control the size of its traced run) and from traces of each application. xz at preset 1 makes
+them about 5 GB: Nekbone's trace and its 120 replays and controls (its own sample and E8c's)
+are 146 GB of it, kept in 2.5 GB (60 times smaller); the scale runs 22 GB in 1 GB, deal.II's
+10 600 traces 25 GB in 0.6 GB, everything else under 0.3 GB a campaign. Compression takes about an hour of one
+processor over the whole rerun (30 to 80 MB/s), 17 minutes of it in each of Nekbone's two
+samples. gzip -6 would keep about 12 GB at 1.6 times the speed; xz -6 makes files at most a
+quarter smaller than preset 1 at a tenth of its speed or less.
 
 ## Checking that a faster analysis reports the same
 
