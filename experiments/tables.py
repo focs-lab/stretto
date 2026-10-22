@@ -2,12 +2,20 @@
 """Compose docs/results.md from the experiment CSVs, the paper's numbers
 (experiments/generated/numbers.tex, one macro per number, and experiments/generated/rq2.tex, the body of
 the effectiveness table), and the README's results with their charts (experiments/figures.py).
-Re-run after any experiment."""
+Re-run after any experiment.
+
+The statistics of the last section of docs/results.md ("Statistics") have macros of their own:
+  <count>CI, <count>CILo, <count>CIHi   the Wilson 95% interval of the proportion whose count macro
+                                        is <count> ('[0.47, 0.76]', and each bound alone); a bound
+                                        that is exactly 0 or 1 is written so, any other with the
+                                        decimals (at least two) that give its distance to 0 or 1
+                                        two significant digits ('[0, 0.046]', '[0.0044, 0.13]')"""
 from __future__ import annotations
 import collections
 import csv
 import glob
 import json
+import math
 import os
 import re
 import statistics
@@ -28,6 +36,44 @@ CONF: dict = {}      # (corpus, row label) -> confusion counts, for experiments/
 
 def num(name: str, value) -> None:
     NUM[name] = value if isinstance(value, str) else (f"{value:.2f}" if isinstance(value, float) else f"{value:,}".replace(",", "\\,"))
+
+
+Z95 = 1.959963984540054      # the standard normal distribution's 0.975 quantile: two-sided 95%
+
+
+def wilson(k: int, n: int, z: float = Z95) -> tuple:
+    """Wilson's score interval of the proportion k of n: the p whose score test accepts k/n,
+    |k/n - p| <= z * sqrt(p * (1 - p) / n). It stays inside [0, 1], and at k = 0 or k = n,
+    where the normal approximation's is empty, its bound there is exactly 0 or 1."""
+    if n <= 0 or not 0 <= k <= n:
+        raise ValueError(f"no proportion of {k} in {n}")
+    z2 = z * z
+    centre = (k + z2 / 2) / (n + z2)
+    half = z * math.sqrt(k * (n - k) / n + z2 / 4) / (n + z2)
+    return (0.0 if k == 0 else max(0.0, centre - half), 1.0 if k == n else min(1.0, centre + half))
+
+
+def bound_text(x: float) -> str:
+    """A bound of an interval of proportions as text: an exact 0 or 1 as such, any other with as
+    many decimals, at least two, as give its distance to 0 or 1, whichever is nearer, two
+    significant digits (0.47, 0.046, 0.99929)."""
+    if x in (0, 1):
+        return str(int(x))
+    return f"{x:.{max(2, 1 - math.floor(math.log10(min(x, 1 - x))))}f}"
+
+
+def bounds_text(lo: float, hi: float) -> tuple:
+    return bound_text(lo), bound_text(hi)
+
+
+def ci(name: str, k: int, n: int) -> str:
+    """The macros of the Wilson 95% interval of k of n, named after the count's macro name:
+    name + 'CI' ('[0.47, 0.76]'), name + 'CILo' and name + 'CIHi'. Returns the interval as text."""
+    lo, hi = bounds_text(*wilson(k, n))
+    num(name + "CILo", lo)
+    num(name + "CIHi", hi)
+    num(name + "CI", f"[{lo}, {hi}]")
+    return f"[{lo}, {hi}]"
 
 
 def commits(rs) -> str:
@@ -2713,6 +2759,142 @@ def e9():
     return "\n".join(out) + "\n"
 
 
+# The proportions of the evaluation that get a Wilson 95% interval, by the macros of their counts,
+# in groups: (title, ((count, out of, what is counted), ...)). NINJA's are added by name
+# (_ninja_proportions), and those whose macros a run did not write are left out.
+PROPORTIONS = (
+    ("Traced runs with a cross alternative (the race predicted from one run)", (
+        ("nHypreFourExposed", "nHypreFourRuns", "HYPRE 2.10.1, 4 processes"),
+        ("nHypreEightExposed", "nHypreEightRuns", "HYPRE 2.10.1, 8 processes"),
+        ("nHypreExposed", "nHypreTraced", "HYPRE 2.10.1, both process counts"),
+        ("nHypreFixedExposed", "nHypreFixedTraced", "HYPRE 2.11.0, the fix"),
+        ("nHypreNewTwoExposed", "nHypreNewTwoTraced", "HYPRE 3.2.0 `ex5`, two levels"),
+        ("nPetscTwoExposed", "nPetscTwoTraced", "PETSc 3.26.0 `ex2`, two levels"),
+        ("nHypreNewAllExposed", "nHypreNewAllTraced", "HYPRE 3.2.0, `ex5` and `ex2` at two levels"),
+        ("nHypreNewFixTwoExposed", "nHypreNewFixTwoTraced", "HYPRE 3.2.0 `ex5` with the fix, two levels"),
+        ("nMGExposed", "nMGTraced", "NPB MG 2.4.1"),
+        ("nMGFixedExposed", "nMGFixedTraced", "NPB MG 3.3.1, the fix"),
+        ("nDealExposed", "nDealTraced", "deal.II 9.3.0-rc1"),
+        ("nDealFixedExposed", "nDealFixedTraced", "deal.II 9.3.0, the fix"))),
+    ("Untraced runs, plain and with the replay library's random delays (stress testing)", (
+        ("nHypreStressDelayHang", "nHypreStressDelayRuns", "HYPRE 2.10.1, runs with delays that hang"),
+        ("nHypreStressHang", "nHypreStressRuns", "HYPRE 2.10.1, runs that hang"),
+        ("nHypreNewStressTwoDelayHang", "nHypreNewStressTwoDelayRuns", "HYPRE 3.2.0 `ex5`, two levels, runs with delays that hang"),
+        ("nPetscStressTwoDelayHang", "nPetscStressTwoDelayRuns", "PETSc 3.26.0 `ex2`, two levels, runs with delays that hang"),
+        ("nHypreNewAllStressDelayHang", "nHypreNewAllStressDelayRuns", "HYPRE 3.2.0, `ex5` and `ex2` at two levels, runs with delays that hang"),
+        ("nHypreNewAllStressHang", "nHypreNewAllStressRuns", "HYPRE 3.2.0, `ex5` and `ex2` at two levels, runs that hang"),
+        ("nHypreNewFixStressHang", "nHypreNewFixStressRuns", "HYPRE 3.2.0 `ex5` with the fix, runs that hang"),
+        ("nMGStressChanged", "nMGStressRuns", "NPB MG 2.4.1, runs whose residual changes"),
+        ("nDealStressPlainChanged", "nDealStressPlainRuns", "deal.II 9.3.0-rc1, plain runs that print wrong values"),
+        ("nDealStressDelayChanged", "nDealStressDelayRuns", "deal.II 9.3.0-rc1, runs with delays that print wrong values"),
+        ("nDealStressChanged", "nDealStressRuns", "deal.II 9.3.0-rc1, runs that print wrong values"))),
+    ("Replay samples and controls", (
+        ("nAMGsampleFailed", "nAMGsample", "AMG: sampled alternatives whose replay did not finish with its pins matched, "
+                                           "or whose control did not finish"),
+        ("nNeksampleFailed", "nNeksample", "Nekbone: the same"),
+        ("nDealControlsSame", "nDealControls", "deal.II 9.3.0-rc1: controls of the cross replays that print the expected values"))))
+
+NINJA_PROGRAMS = (("Hypre", "HYPRE 2.10.1"), ("HypreFixed", "HYPRE 2.11.0, the fix"), ("HypreNew", "HYPRE 3.2.0 `ex5`, two levels"),
+                  ("HypreNewFix", "HYPRE 3.2.0 `ex5` with the fix, two levels"), ("Petsc", "PETSc 3.26.0 `ex2`, two levels"))
+NINJA_NOISE = (("App", "application-centric noise"), ("System", "system-centric noise"), ("Random", "random noise"),
+               ("RandomShort", "random noise, the shorter delay"), ("RandomLong", "random noise, the longer delay"), ("Plain", "no noise"))
+
+
+def _ninja_proportions() -> tuple:
+    """NINJA's rates (E10, E5f) by the macro names _ninja_runs, hypre_new and ninja() give them:
+    the runs that hang (in the setup, where the table tells) per program, process count and
+    noise, and over a program's modes and process counts; MG's runs whose residual changes."""
+    progs, noises = [p for p, _ in NINJA_PROGRAMS], [k for k, _ in NINJA_NOISE]
+    per = []
+    for k in NUM:
+        m = re.fullmatch(r"nNinja(HypreNewFix|HypreNew|HypreFixed|Hypre|Petsc)(Four|Eight)([A-Za-z]+)Runs", k)
+        if m and m.group(3) in noises:
+            base = k[:-len("Runs")]
+            hang = base + "HangSetup" if base + "HangSetup" in NUM else base + "Hang"
+            what = (f"{dict(NINJA_PROGRAMS)[m.group(1)]}, {4 if m.group(2) == 'Four' else 8} processes, "
+                    f"{dict(NINJA_NOISE)[m.group(3)]}: runs that hang" + (" in the setup" if hang.endswith("Setup") else ""))
+            per.append(((progs.index(m.group(1)), m.group(2) == "Eight", noises.index(m.group(3))), (hang, k, what)))
+    out = [p for _, p in sorted(per)]
+    out += [("nNinjaHypreHang", "nNinjaHypreRuns", "HYPRE 2.10.1, every noise and process count: runs that hang in the setup"),
+            ("nNinjaHypreFixedHang", "nNinjaHypreFixedRuns", "HYPRE 2.11.0, the fix, every noise and process count: runs that hang in the setup"),
+            ("nNinjaHypreNewHangSetup", "nNinjaHypreNewRuns", "HYPRE 3.2.0 `ex5`, every noise and process count: runs that hang in the setup"),
+            ("nNinjaHypreNewFixHangSetup", "nNinjaHypreNewFixRuns",
+             "HYPRE 3.2.0 `ex5` with the fix, every noise and process count: runs that hang in the setup")]
+    out += [(f"nNinjaPetsc{key}Hang", f"nNinjaPetsc{key}Runs", f"PETSc 3.26.0 `ex2`, {text}, both process counts: runs that hang")
+            for key, text in NINJA_NOISE if key in ("App", "System", "Random")]
+    out += [(f"nNinjaMG{word}{key}Changed", f"nNinjaMG{word}{key}Runs", f"NPB MG 2.4.1, {np_} processes, {text}: "
+             "runs whose residual changes") for np_, word in ((16, "Sixteen"), (32, "ThirtyTwo")) for key, text in NINJA_NOISE]
+    return tuple(out)
+
+
+def _count(name: str):
+    """The value of a count macro as an int; None if this run did not write it."""
+    try:
+        return int(NUM[name].replace("\\,", ""))
+    except (KeyError, ValueError):
+        return None
+
+
+def _stats_counts() -> None:
+    """The counts the intervals need that the sections above do not write: the untraced runs with
+    delays of E5c and E5f (the plain runs cannot change the schedule but by chance), and the
+    sampled alternatives of E5 and E5b whose replay or control failed."""
+    st = rows(os.path.join(RES, "hypre", "stress.csv"))
+    if st:
+        delayed = [r for r in st if r["setting"] == "delays"]
+        num("nHypreStressDelayRuns", len(delayed))
+        num("nHypreStressDelayHang", sum(r["result"] == "TIMEOUT" for r in delayed))
+    two = []
+    for prefix, rs in (("HypreNew", [(int(r["levels"]), r) for r in rows(os.path.join(RES, "hypre3", "stress.csv"))]),
+                       ("Petsc", [(int(m.group(1)), r) for r in rows(os.path.join(RES, "petsc", "stress.csv"))
+                                  for m in [re.search(r"parasails(\d)", r["driver"])] if m])):
+        sel = [r for lv, r in rs if lv >= 2 and r["setting"] == "delays"]
+        if sel:
+            num(f"n{prefix}StressTwoDelayHang", sum(r["result"] == "TIMEOUT" for r in sel))
+            two += sel
+    if two:
+        num("nHypreNewAllStressDelayRuns", len(two))
+        num("nHypreNewAllStressDelayHang", sum(r["result"] == "TIMEOUT" for r in two))
+    for app, prefix in (("amg", "AMG"), ("nekbone", "Nek")):
+        rs = rows(os.path.join(RES, app, "replay_sample.csv"))
+        if rs:
+            num(f"n{prefix}sampleFailed", sum(1 for r in rs if not (r.get("replay") == "FINISHED" and r.get("matched") == "True"
+                                                                    and r.get("control") == "FINISHED")))
+
+
+def _intervals() -> list:
+    out = ["### Wilson 95% intervals", "",
+           "Each proportion of k in n below has Wilson's score interval at 95%: the proportions p whose score test",
+           "accepts k/n, |k/n - p| <= 1.96 sqrt(p(1 - p)/n). It takes the n runs (traced runs, untraced runs, sampled",
+           "alternatives) as independent trials of one setting, as each starts the program afresh. The replays of one",
+           "alternative are not independent trials (the distinct alternatives below), so the replay counts get none.",
+           "Its macro is the count's with `CI` appended, and `CILo` and `CIHi` are its bounds alone."]
+    for title, props in PROPORTIONS + (("NINJA (E10, E5f)", _ninja_proportions()),):
+        lines = []
+        for k_name, n_name, what in props:
+            k, n = _count(k_name), _count(n_name)
+            if k is None or not n:
+                continue
+            if not 0 <= k <= n:
+                lines.append(f"| {what} | {k} of {n} | none: the count exceeds the runs | |")
+                continue
+            lines.append(f"| {what} | {k} of {n} | {ci(k_name, k, n)} | `{k_name}CI` |")
+        if lines:
+            out += ["", f"{title}:", "", "| | k of n | 95% interval | macro |", "|---|---|---|---|"] + lines
+    return out
+
+
+def statistics_section() -> str:
+    """The statistics of the evaluation, from the same tables as the sections above, and some
+    from their macros: run after them (the macro names: the module docstring)."""
+    _stats_counts()
+    out = ["## Statistics", "",
+           "Statistics of the evaluation, from the tables of the sections above. Their macros are named after the counts",
+           "they qualify (the docstring of `experiments/tables.py`).", ""]
+    out += _intervals()
+    return "\n".join(out) + "\n"
+
+
 def leg_commits():
     cs = sorted({r["commit"] for r in rows(os.path.join(RES, "e4", "e4.csv")) if r.get("commit")})
     return ", ".join(cs) or "unknown"
@@ -2759,7 +2941,8 @@ def main():
            "## E8c: confirming replays judged as runs of the program", "", valid(),
            "## E9: MPI-PRV", "", e9(),
            "## E10: NINJA (noise injection)", "", ninja(),
-           scale()]
+           scale(),
+           statistics_section()]
     path = os.path.join(ROOT, "docs", "results.md")
     open(path, "w").write("\n".join(doc))
     print("wrote", path)

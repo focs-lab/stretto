@@ -1654,3 +1654,104 @@ own runs, so the traces differ a little): analysis time, peak memory and time pe
 | NPB LU, class A | 16 | 3049940 / 3049940 | 0 / 0 | 87.3 / 89.6 | 5.2 / 5.3 | - / - |
 | NPB LU, class A | 32 | 6608024 / 6608024 | 0 / 0 | 185.2 / 199.1 | 11.0 / 11.2 | - / - |
 | NPB LU, class A | 64 | 14232316 / 14232316 | 0 / 0 | 419.1 / 434.6 | 23.4 / 23.7 | - / - |
+
+## Statistics
+
+Statistics of the evaluation, from the tables of the sections above. Their macros are named after the counts
+they qualify (the docstring of `experiments/tables.py`).
+
+### Wilson 95% intervals
+
+Each proportion of k in n below has Wilson's score interval at 95%: the proportions p whose score test
+accepts k/n, |k/n - p| <= 1.96 sqrt(p(1 - p)/n). It takes the n runs (traced runs, untraced runs, sampled
+alternatives) as independent trials of one setting, as each starts the program afresh. The replays of one
+alternative are not independent trials (the distinct alternatives below), so the replay counts get none.
+Its macro is the count's with `CI` appended, and `CILo` and `CIHi` are its bounds alone.
+
+Traced runs with a cross alternative (the race predicted from one run):
+
+| | k of n | 95% interval | macro |
+|---|---|---|---|
+| HYPRE 2.10.1, 4 processes | 15 of 20 | [0.53, 0.89] | `nHypreFourExposedCI` |
+| HYPRE 2.10.1, 8 processes | 20 of 20 | [0.84, 1] | `nHypreEightExposedCI` |
+| HYPRE 2.10.1, both process counts | 35 of 40 | [0.74, 0.945] | `nHypreExposedCI` |
+| HYPRE 2.11.0, the fix | 0 of 40 | [0, 0.088] | `nHypreFixedExposedCI` |
+| HYPRE 3.2.0 `ex5`, two levels | 20 of 20 | [0.84, 1] | `nHypreNewTwoExposedCI` |
+| PETSc 3.26.0 `ex2`, two levels | 20 of 20 | [0.84, 1] | `nPetscTwoExposedCI` |
+| HYPRE 3.2.0, `ex5` and `ex2` at two levels | 40 of 40 | [0.912, 1] | `nHypreNewAllExposedCI` |
+| HYPRE 3.2.0 `ex5` with the fix, two levels | 0 of 20 | [0, 0.16] | `nHypreNewFixTwoExposedCI` |
+| NPB MG 2.4.1 | 3 of 3 | [0.44, 1] | `nMGExposedCI` |
+| NPB MG 3.3.1, the fix | 0 of 3 | [0, 0.56] | `nMGFixedExposedCI` |
+| deal.II 9.3.0-rc1 | 20 of 20 | [0.84, 1] | `nDealExposedCI` |
+| deal.II 9.3.0, the fix | 0 of 20 | [0, 0.16] | `nDealFixedExposedCI` |
+
+Untraced runs, plain and with the replay library's random delays (stress testing):
+
+| | k of n | 95% interval | macro |
+|---|---|---|---|
+| HYPRE 2.10.1, runs with delays that hang | 0 of 40 | [0, 0.088] | `nHypreStressDelayHangCI` |
+| HYPRE 2.10.1, runs that hang | 0 of 80 | [0, 0.046] | `nHypreStressHangCI` |
+| HYPRE 3.2.0 `ex5`, two levels, runs with delays that hang | 0 of 80 | [0, 0.046] | `nHypreNewStressTwoDelayHangCI` |
+| PETSc 3.26.0 `ex2`, two levels, runs with delays that hang | 0 of 80 | [0, 0.046] | `nPetscStressTwoDelayHangCI` |
+| HYPRE 3.2.0, `ex5` and `ex2` at two levels, runs with delays that hang | 0 of 160 | [0, 0.023] | `nHypreNewAllStressDelayHangCI` |
+| HYPRE 3.2.0, `ex5` and `ex2` at two levels, runs that hang | 0 of 320 | [0, 0.012] | `nHypreNewAllStressHangCI` |
+| HYPRE 3.2.0 `ex5` with the fix, runs that hang | 1 of 320 | [0.00055, 0.017] | `nHypreNewFixStressHangCI` |
+| NPB MG 2.4.1, runs whose residual changes | 8 of 80 | [0.052, 0.19] | `nMGStressChangedCI` |
+| deal.II 9.3.0-rc1, plain runs that print wrong values | 1 of 50 | [0.0035, 0.10] | `nDealStressPlainChangedCI` |
+| deal.II 9.3.0-rc1, runs with delays that print wrong values | 42 of 50 | [0.71, 0.917] | `nDealStressDelayChangedCI` |
+| deal.II 9.3.0-rc1, runs that print wrong values | 43 of 100 | [0.34, 0.53] | `nDealStressChangedCI` |
+
+Replay samples and controls:
+
+| | k of n | 95% interval | macro |
+|---|---|---|---|
+| AMG: sampled alternatives whose replay did not finish with its pins matched, or whose control did not finish | 0 of 30 | [0, 0.11] | `nAMGsampleFailedCI` |
+| Nekbone: the same | 0 of 30 | [0, 0.11] | `nNeksampleFailedCI` |
+| deal.II 9.3.0-rc1: controls of the cross replays that print the expected values | 1437 of 1440 | [0.9939, 0.99929] | `nDealControlsSameCI` |
+
+NINJA (E10, E5f):
+
+| | k of n | 95% interval | macro |
+|---|---|---|---|
+| HYPRE 2.10.1, 4 processes, application-centric noise: runs that hang in the setup | 0 of 40 | [0, 0.088] | `nNinjaHypreFourAppHangSetupCI` |
+| HYPRE 2.10.1, 4 processes, system-centric noise: runs that hang in the setup | 0 of 40 | [0, 0.088] | `nNinjaHypreFourSystemHangSetupCI` |
+| HYPRE 2.10.1, 4 processes, random noise, the shorter delay: runs that hang in the setup | 8 of 40 | [0.10, 0.35] | `nNinjaHypreFourRandomShortHangSetupCI` |
+| HYPRE 2.10.1, 4 processes, random noise, the longer delay: runs that hang in the setup | 1 of 40 | [0.0044, 0.13] | `nNinjaHypreFourRandomLongHangSetupCI` |
+| HYPRE 2.10.1, 8 processes, application-centric noise: runs that hang in the setup | 25 of 40 | [0.47, 0.76] | `nNinjaHypreEightAppHangSetupCI` |
+| HYPRE 2.10.1, 8 processes, system-centric noise: runs that hang in the setup | 0 of 40 | [0, 0.088] | `nNinjaHypreEightSystemHangSetupCI` |
+| HYPRE 2.10.1, 8 processes, random noise, the shorter delay: runs that hang in the setup | 11 of 40 | [0.16, 0.43] | `nNinjaHypreEightRandomShortHangSetupCI` |
+| HYPRE 2.11.0, the fix, 4 processes, application-centric noise: runs that hang in the setup | 0 of 40 | [0, 0.088] | `nNinjaHypreFixedFourAppHangSetupCI` |
+| HYPRE 2.11.0, the fix, 4 processes, system-centric noise: runs that hang in the setup | 0 of 40 | [0, 0.088] | `nNinjaHypreFixedFourSystemHangSetupCI` |
+| HYPRE 2.11.0, the fix, 4 processes, random noise, the shorter delay: runs that hang in the setup | 0 of 40 | [0, 0.088] | `nNinjaHypreFixedFourRandomShortHangSetupCI` |
+| HYPRE 2.11.0, the fix, 8 processes, application-centric noise: runs that hang in the setup | 0 of 40 | [0, 0.088] | `nNinjaHypreFixedEightAppHangSetupCI` |
+| HYPRE 2.11.0, the fix, 8 processes, system-centric noise: runs that hang in the setup | 0 of 40 | [0, 0.088] | `nNinjaHypreFixedEightSystemHangSetupCI` |
+| HYPRE 2.11.0, the fix, 8 processes, random noise, the shorter delay: runs that hang in the setup | 0 of 40 | [0, 0.088] | `nNinjaHypreFixedEightRandomShortHangSetupCI` |
+| HYPRE 3.2.0 `ex5`, two levels, 4 processes, application-centric noise: runs that hang in the setup | 9 of 40 | [0.12, 0.38] | `nNinjaHypreNewFourAppHangSetupCI` |
+| HYPRE 3.2.0 `ex5`, two levels, 4 processes, system-centric noise: runs that hang in the setup | 1 of 40 | [0.0044, 0.13] | `nNinjaHypreNewFourSystemHangSetupCI` |
+| HYPRE 3.2.0 `ex5`, two levels, 4 processes, random noise: runs that hang in the setup | 7 of 40 | [0.087, 0.32] | `nNinjaHypreNewFourRandomHangSetupCI` |
+| HYPRE 3.2.0 `ex5`, two levels, 8 processes, application-centric noise: runs that hang in the setup | 5 of 40 | [0.055, 0.26] | `nNinjaHypreNewEightAppHangSetupCI` |
+| HYPRE 3.2.0 `ex5`, two levels, 8 processes, system-centric noise: runs that hang in the setup | 0 of 40 | [0, 0.088] | `nNinjaHypreNewEightSystemHangSetupCI` |
+| HYPRE 3.2.0 `ex5`, two levels, 8 processes, random noise: runs that hang in the setup | 9 of 40 | [0.12, 0.38] | `nNinjaHypreNewEightRandomHangSetupCI` |
+| HYPRE 3.2.0 `ex5` with the fix, two levels, 4 processes, application-centric noise: runs that hang in the setup | 0 of 40 | [0, 0.088] | `nNinjaHypreNewFixFourAppHangSetupCI` |
+| HYPRE 3.2.0 `ex5` with the fix, two levels, 4 processes, system-centric noise: runs that hang in the setup | 0 of 40 | [0, 0.088] | `nNinjaHypreNewFixFourSystemHangSetupCI` |
+| HYPRE 3.2.0 `ex5` with the fix, two levels, 4 processes, random noise: runs that hang in the setup | 0 of 40 | [0, 0.088] | `nNinjaHypreNewFixFourRandomHangSetupCI` |
+| HYPRE 3.2.0 `ex5` with the fix, two levels, 8 processes, application-centric noise: runs that hang in the setup | 1 of 40 | [0.0044, 0.13] | `nNinjaHypreNewFixEightAppHangSetupCI` |
+| HYPRE 3.2.0 `ex5` with the fix, two levels, 8 processes, system-centric noise: runs that hang in the setup | 0 of 40 | [0, 0.088] | `nNinjaHypreNewFixEightSystemHangSetupCI` |
+| HYPRE 3.2.0 `ex5` with the fix, two levels, 8 processes, random noise: runs that hang in the setup | 0 of 40 | [0, 0.088] | `nNinjaHypreNewFixEightRandomHangSetupCI` |
+| PETSc 3.26.0 `ex2`, two levels, 4 processes, application-centric noise: runs that hang | 0 of 40 | [0, 0.088] | `nNinjaPetscFourAppHangCI` |
+| PETSc 3.26.0 `ex2`, two levels, 4 processes, system-centric noise: runs that hang | 0 of 40 | [0, 0.088] | `nNinjaPetscFourSystemHangCI` |
+| PETSc 3.26.0 `ex2`, two levels, 4 processes, random noise: runs that hang | 9 of 40 | [0.12, 0.38] | `nNinjaPetscFourRandomHangCI` |
+| PETSc 3.26.0 `ex2`, two levels, 8 processes, application-centric noise: runs that hang | 0 of 40 | [0, 0.088] | `nNinjaPetscEightAppHangCI` |
+| PETSc 3.26.0 `ex2`, two levels, 8 processes, system-centric noise: runs that hang | 0 of 40 | [0, 0.088] | `nNinjaPetscEightSystemHangCI` |
+| PETSc 3.26.0 `ex2`, two levels, 8 processes, random noise: runs that hang | 8 of 40 | [0.10, 0.35] | `nNinjaPetscEightRandomHangCI` |
+| HYPRE 2.10.1, every noise and process count: runs that hang in the setup | 45 of 280 | [0.12, 0.21] | `nNinjaHypreHangCI` |
+| HYPRE 2.11.0, the fix, every noise and process count: runs that hang in the setup | 0 of 240 | [0, 0.016] | `nNinjaHypreFixedHangCI` |
+| HYPRE 3.2.0 `ex5`, every noise and process count: runs that hang in the setup | 31 of 240 | [0.093, 0.18] | `nNinjaHypreNewHangSetupCI` |
+| HYPRE 3.2.0 `ex5` with the fix, every noise and process count: runs that hang in the setup | 1 of 240 | [0.00074, 0.023] | `nNinjaHypreNewFixHangSetupCI` |
+| PETSc 3.26.0 `ex2`, application-centric noise, both process counts: runs that hang | 0 of 80 | [0, 0.046] | `nNinjaPetscAppHangCI` |
+| PETSc 3.26.0 `ex2`, system-centric noise, both process counts: runs that hang | 0 of 80 | [0, 0.046] | `nNinjaPetscSystemHangCI` |
+| PETSc 3.26.0 `ex2`, random noise, both process counts: runs that hang | 17 of 80 | [0.14, 0.31] | `nNinjaPetscRandomHangCI` |
+| NPB MG 2.4.1, 16 processes, application-centric noise: runs whose residual changes | 9 of 20 | [0.26, 0.66] | `nNinjaMGSixteenAppChangedCI` |
+| NPB MG 2.4.1, 16 processes, system-centric noise: runs whose residual changes | 1 of 20 | [0.0089, 0.24] | `nNinjaMGSixteenSystemChangedCI` |
+| NPB MG 2.4.1, 16 processes, random noise: runs whose residual changes | 8 of 20 | [0.22, 0.61] | `nNinjaMGSixteenRandomChangedCI` |
+| NPB MG 2.4.1, 16 processes, no noise: runs whose residual changes | 0 of 20 | [0, 0.16] | `nNinjaMGSixteenPlainChangedCI` |
