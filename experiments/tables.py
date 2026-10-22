@@ -337,6 +337,14 @@ def e2():
                 num("BpersOMPI", int(r["eager_max_bytes"]))          # persistent sends skip the inline path
             if r["setting"] == "openmpi-tcp-64" and path_ == "send":
                 num("BtcpOMPI", int(r["eager_max_bytes"]))           # the TCP limit minus its header
+        bm = rows(os.path.join(RES, "b_impl_mpich.csv"))
+        if bm:
+            out += [f"| {r['setting']} | {r.get('path', 'send')} | `{r['mpirun_args'] or '-'}` | {r['eager_max_bytes']} | {r['rendezvous_min_bytes']} |" for r in bm]
+            out += ["", "MPICH 4.2.0 (`b_impl_mpich.csv`) is Ubuntu's ch4:ucx build; -1: no exchange hung up to the largest",
+                    f"size tried. Its rows name the code commit {commits(bm)}."]
+            for r in bm:
+                if r["setting"] == "mpich-default" and (r.get("path") or "send") == "send":
+                    num("BimplMPICH", int(r["eager_max_bytes"]))     # MPICH's default eager payload
     rp = rows(os.path.join(RES, "e2_replay.csv"))
     if rp:
         new = any(r["setting"] in ("below the bound", "at the bound") for r in rp)

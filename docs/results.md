@@ -459,6 +459,18 @@ bytes inline on the MPI_Send and MPI_Isend paths whatever the shared-memory limi
 | openmpi-tcp-64 | send | `--mca btl self,tcp --mca btl_tcp_if_include lo --mca btl_tcp_eager_limit 64 --mca btl_self_eager_limit 64` | 8 | 9 |
 | openmpi-tcp-64 | isend | `--mca btl self,tcp --mca btl_tcp_if_include lo --mca btl_tcp_eager_limit 64 --mca btl_self_eager_limit 64` | 8 | 9 |
 | openmpi-tcp-64 | persistent | `--mca btl self,tcp --mca btl_tcp_if_include lo --mca btl_tcp_eager_limit 64 --mca btl_self_eager_limit 64` | 8 | 9 |
+| mpich-default | send | `-` | 650633 | 650634 |
+| mpich-default | isend | `-` | 650633 | 650634 |
+| mpich-default | persistent | `-` | 650633 | 650634 |
+| mpich-nolocal | send | `-x MPIR_CVAR_NOLOCAL=1` | 650633 | 650634 |
+| mpich-nolocal | isend | `-x MPIR_CVAR_NOLOCAL=1` | 650633 | 650634 |
+| mpich-nolocal | persistent | `-x MPIR_CVAR_NOLOCAL=1` | 650633 | 650634 |
+| mpich-nolocal-ucx-tcp | send | `-x MPIR_CVAR_NOLOCAL=1 -x UCX_TLS=tcp,self` | 1048576 | -1 |
+| mpich-nolocal-ucx-tcp | isend | `-x MPIR_CVAR_NOLOCAL=1 -x UCX_TLS=tcp,self` | 1048576 | -1 |
+| mpich-nolocal-ucx-tcp | persistent | `-x MPIR_CVAR_NOLOCAL=1 -x UCX_TLS=tcp,self` | 1048576 | -1 |
+
+MPICH 4.2.0 (`b_impl_mpich.csv`) is Ubuntu's ch4:ucx build; -1: no exchange hung up to the largest
+size tried. Its rows name the code commit 553173e (9).
 
 Replays of the 17 programs whose observed run finished and is realisable only from a threshold on
 (`e2_buffering.py --replay`): with the default limits the run must finish again; on the TCP transport, whose
