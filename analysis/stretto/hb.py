@@ -31,11 +31,12 @@ the check start from the same candidates. A send taken in the run by an earlier 
 never a head: the rules do not consider swaps.
 
 The rules. For a head s of r:
-  (a) POST, selection at the posting clock: s is selected iff not issue(r) hb issue(s). This is
-      DAMPI's rule ("A Scalable and Distributed Dynamic Formal Verifier for MPI Programs",
-      SC 2010, `vo10dampi` in paper/refs.bib): a send is a potential match of a wildcard
-      receive if it is not causally after the receive, with the clock the receive had when it
-      was posted, and only the first such send of each source counts (non-overtaking).
+  (a) POST, selection at the posting clock: s is selected iff not issue(r) hb issue(s): a send
+      is a potential match of a wildcard receive if it is not causally after the receive, with
+      the clock the receive had when it was posted, and only the first such send of each source
+      counts (non-overtaking). DAMPI ("A Scalable and Distributed Dynamic Formal Verifier for
+      MPI Programs", SC 2010) gives a nonblocking receive a later clock, at its wait or at a
+      later receive that must be matched after it.
   (b) COMP, selection at the completion clock: s is selected iff not c(r) hb issue(s), where
       c(r) is the completion of r (the wait or test that returned it). A receive that never
       completed has no completion clock; c(r) is then the last record of its rank, so every

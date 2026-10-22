@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Compose docs/results.md from the experiment CSVs, the paper's numbers
-(paper/generated/numbers.tex, one macro per number, and paper/generated/rq2.tex, the body of
+(experiments/generated/numbers.tex, one macro per number, and experiments/generated/rq2.tex, the body of
 the effectiveness table), and the README's results with their charts (experiments/figures.py).
 Re-run after any experiment."""
 from __future__ import annotations
@@ -22,8 +22,8 @@ sys.path.insert(0, os.path.join(ROOT, "experiments"))
 import figures  # noqa: E402  (the README's charts and results block)
 
 rows = score.rows
-NUM: dict = {}       # macro name -> text, written to paper/generated/numbers.tex
-CONF: dict = {}      # (corpus, row label) -> confusion counts, for paper/generated/rq2.tex
+NUM: dict = {}       # macro name -> text, written to experiments/generated/numbers.tex
+CONF: dict = {}      # (corpus, row label) -> confusion counts, for experiments/generated/rq2.tex
 
 
 def num(name: str, value) -> None:
@@ -1193,9 +1193,9 @@ RQ2_STRESS = ("MBI",)
 
 
 def write_paper_numbers():
-    """paper/generated/numbers.tex: one macro per number of this run (macros not computed here
-    keep their provisional values from STATIC); paper/generated/rq2.tex: the effectiveness table body."""
-    gen = os.path.join(ROOT, "paper", "generated")
+    """experiments/generated/numbers.tex: one macro per number of this run (macros not computed here
+    keep their provisional values from STATIC); experiments/generated/rq2.tex: the effectiveness table body."""
+    gen = os.path.join(ROOT, "experiments", "generated")
     os.makedirs(gen, exist_ok=True)
     lines = ["% Written by experiments/tables.py from the CSV files under experiments/results/. Do not edit.", ""]
     for k in sorted(NUM):
@@ -1664,7 +1664,8 @@ def e8_hb():
     out = ["Every pair (wildcard receive or probe, send) that a happens-before rule selects or the analysis enumerates,",
            "judged three ways (`experiments/e8_hb.py`, definitions in `analysis/stretto/hb.py`): rule (a) selects a",
            "send that is the non-overtaking head of its source and not causally after the receive's *posting*",
-           "(DAMPI's rule); rule (b) the same at the receive's *completion*; the check is the report's verdict",
+           "(DAMPI takes a later clock, at the wait or at a later receive matched after it); rule (b) the same at the",
+           "receive's *completion*; the check is the report's verdict",
            "(feasible at some threshold at which the observed run is realisable). Happens-before is the run's causal",
            "order (program order, message to the completion that returned it, probes, collectives by shape), with",
            "exact vector clocks. The rules coincide at blocking receives and probes; they differ only at a",

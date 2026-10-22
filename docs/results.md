@@ -1073,7 +1073,8 @@ Programs: 22. The guard reports 22, MUST with ThreadSanitizer 20; both 20, only 
 Every pair (wildcard receive or probe, send) that a happens-before rule selects or the analysis enumerates,
 judged three ways (`experiments/e8_hb.py`, definitions in `analysis/stretto/hb.py`): rule (a) selects a
 send that is the non-overtaking head of its source and not causally after the receive's *posting*
-(DAMPI's rule); rule (b) the same at the receive's *completion*; the check is the report's verdict
+(DAMPI takes a later clock, at the wait or at a later receive matched after it); rule (b) the same at the
+receive's *completion*; the check is the report's verdict
 (feasible at some threshold at which the observed run is realisable). Happens-before is the run's causal
 order (program order, message to the completion that returned it, probes, collectives by shape), with
 exact vector clocks. The rules coincide at blocking receives and probes; they differ only at a
