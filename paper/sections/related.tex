@@ -87,15 +87,15 @@ under a straight-line model~\citep{sulzmann17hvc} or by vector clocks~\citep{sul
 AdvocateGo replays partners found by happens-before~\citep{advocatego}. Erlang's race
 variants~\citep{vidal22racevariants} are our steal and horizon without blocking, with a theorem on
 non-redundancy;
-Bita~\citep{tasharofi13bita}, DCatch~\citep{liu17dcatch} and dl$^2$~\citep{gao25dl2} force,
-trigger or observe such bugs. None proves an alternative feasible.
+Bita~\citep{tasharofi13bita}, DCatch~\citep{liu17dcatch} and dl$^2$~\citep{gao25dl2} expose
+such bugs. None proves an alternative feasible.
 
 \paragraph{Confirmation by re-execution.} In shared memory, predictions are confirmed by
 controlled scheduling~\citep{bensalem06confirmation,joshi09deadlockfuzzer}, directed
 testing~\citep{sen08racefuzzer}, prefix replay~\citep{sorrentino10penelope}
 or re-execution~\citep{farzan12exceptionull,huang15mcr}. In message passing, reachability
-testing and MAD replay a prefix with the other wildcards pinned, ISP and DAMPI rewrite wildcard
-receives into specific ones~\citep{gopalakrishnan11cacm}, MOPPER can rerun a predicted matching
+testing and MAD replay a prefix with the other wildcards pinned, MOPPER can rerun a predicted
+matching
 under ISP~\citep{forejt17mopper}, and MPIWiz~\citep{xue09mpiwiz} and record and
 replay~\citep{netzer92replay,sato15rempi} reproduce recorded sources. Specific to \tool are pins
 over a horizon that follows rendezvous and ordering dependences, a log of each

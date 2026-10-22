@@ -201,4 +201,7 @@ stays unpinned. A finding is \emph{confirmed} when three conditions hold:
 \end{itemize}
 Otherwise it is \emph{inconclusive}. The first and the last condition matter because
 forcing an impossible match also hangs. A pinned receive can only match its pinned source,
-so its completion, which the library logs, is the evidence of the forced match.
+so its completion, which the library logs, is the evidence of the forced match. A pin also
+changes the program, making a wildcard receive a receive from one rank; the replay and its
+control are therefore traced, and each trace must be a run of the unpinned program, in which no
+wildcard could have taken another pending message, judged where a hung run stopped.

@@ -61,7 +61,10 @@ change, and in \nMBIReplayInconclusiveHung the recorded run itself hung. Each of
 its pins and reached the predicted outcome, so without the control it would have counted as a
 confirmation. The \nReadsReplayFindings findings that read bounds promote to \Lone, replayed
 with their witnesses' pins, give \nReadsReplayConfirmed confirmed, \nReadsReplayInconclusive
-inconclusive and \nReadsReplayNotConfirmed not confirmed. On AMG, a
+inconclusive and \nReadsReplayNotConfirmed not confirmed. Rerun under the tracer,
+\nValidRuns of \nValidReplays replays of the confirming campaigns and \nValidControlRuns of
+\nValidControls controls are runs of the unpinned program, and \nValidConfNew of the \nValidConfOld
+confirmations among them stand. On AMG, a
 random sample of \nAMGsample of its alternatives, which claim no failure, was replayed: all
 \nAMGsampleMatched matched their pins, \nAMGsampleFinish finished, and so did
 \nAMGsampleControls controls. On Nekbone, whose late alternatives pin tens of thousands of
@@ -154,9 +157,9 @@ that one threshold per send path said would finish, so the replays moved to TCP.
 
 Each of the \nEtwoReplayPrograms programs whose run finished and needs a threshold is rerun
 three times. With the default limits it must finish again (\nEtwoReplayDefaultOK did). On TCP,
-with the threshold one byte below the predicted bound, it must hang: \nEtwoReplayBelowOK of
-\nEtwoReplayBelowTestable did. The other four send to themselves, which the self transport
-does inline up to 256 bytes, so no setting tests them. With the threshold at the bound, it
+one byte below the predicted bound, it must hang: \nEtwoReplayBelowOK of
+\nEtwoReplayBelowTestable did. The other four send to themselves,
+which goes inline up to 256 bytes at any setting. With the threshold at the bound, it
 must finish: \nEtwoReplayAtOK of \nEtwoReplayAt did. \nEtwoReplayBad replays went against
 the prediction.
 
@@ -340,12 +343,12 @@ execution delivers it there. Its RQ1 sample finished under every pin too.
 All runs used one node and at most \nScaleNpMax processes, and the corpora's programs are
 small; the exhaustive comparison of RQ1 reaches \nEsixMaxEvents events. Of
 \cref{tab:rq2}'s runs only MBI's were repeated, without \MUST. The \Ltwo twins are
-written knowing the labels, and the HYPRE campaign replays only the probe whose tag the documented fix
+written knowing the labels, and the HYPRE campaign replays only the probe whose tag the fix
 changed. \MUST sees its own run under MPICH, not the traced one,
 and for both the harness's timeout decides what is a hang.
-NINJA ran at the default eager limits, one setting per mode, and stress testing at those and
-at the lowest; other settings may find more. The model assumes a
+NINJA ran at the default eager limits, one setting per mode, stress testing at those and
+the lowest; other settings may find more. The model assumes a
 complete trace of the modelled fragment (a call outside it limits the report to observed
 findings), one threshold for all standard sends of a run, and an angelic choice in
-\mpicall{Waitany}. The HYPRE campaign uses one input and two process counts, MG's
+\mpicall{Waitany}. HYPRE's campaign uses one input and two process counts, MG's
 one class and one count, deal.II's one test.
