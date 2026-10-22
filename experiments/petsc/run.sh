@@ -5,7 +5,13 @@
 # from MPI_ANY_SOURCE in its NBX variant; mpimesg.c, PetscGatherMessageLengths; the legacy
 # MatStash and VecStash; MatIncreaseOverlap) take a fresh tag from PetscCommDuplicate or
 # PetscCommGetNewTag per call or per object, and their exchanges begin with a collective count
-# or end with a barrier, so a probe of one call cannot see a message of the next. PETSc also
+# or end with a barrier, so a probe of one call cannot see a message of the next. Three older
+# sites do not follow that pattern and get drivers of their own: PCTFS (src/ksp/pc/impls/tfs/
+# comm.c, gs.c) receives from MPI_ANY_SOURCE on MPI_COMM_WORLD itself with fixed tags (MSGTAG0-6
+# in tfs.h, plus the sender's or the receiver's rank); MatGetRowMaxAbs_MPISBAIJ (src/mat/impls/
+# sbaij/mpi/mpisbaij.c) receives from MPI_ANY_SOURCE with MPI_ANY_TAG on the matrix's own
+# communicator, which is the user's, not a PETSc duplicate (PCJACOBI with -pc_jacobi_type rowmax
+# calls it); and MatIncreaseOverlap_MPISBAIJ (sbaijov.c) probes from MPI_ANY_SOURCE. PETSc also
 # drives HYPRE: PETSc 3.26.0 downloads HYPRE 3.2.0, and PCHYPRE exposes ParaSails' number of
 # pattern levels and its threshold as -pc_hypre_parasails_nlevels and -pc_hypre_parasails_thresh,
 # so PETSc's own KSP tutorial ex2 reaches the ParaSails race of experiments/hypre3/ with
@@ -24,7 +30,10 @@
 #   parasails  RUNS traced runs of ex2 with ParaSails at two pattern levels and at one (the
 #            default), at 4 and 8 processes, analysed, every alternative replayed with its
 #            horizon pins and its control (experiments/scout.py), JOBS at a time
-#   predict  the same for the drivers of PETSc's own wildcard sites (DRIVERS below)
+#   predict  the same for the drivers of PETSc's own wildcard sites (DRIVERS below), except
+#            that of the alternatives within one exchange (scout.py's kind "same", of no error
+#            class), hundreds per run in PetscCommBuildTwoSided, a sample of SAME_SAMPLE per
+#            driver is replayed ("all" replays every one)
 #   stress   STRESS_RUNS untraced runs of ex2 with ParaSails at two levels per process count,
 #            plain and with random send and receive delays (the budget and delays of
 #            experiments/hypre/campaign.sh), TIMEOUT seconds each; and at one level, the default
@@ -37,7 +46,7 @@
 #            ex45 (3D seven-point Laplacian) at 4 and 8 processes
 # Writes experiments/results/petsc/{parasails,predict,stress,ninja,scan}.csv.
 # usage: experiments/petsc/run.sh [fetch|build|parasails|predict|stress|ninja|scan|all]
-#        RUNS (5), STRESS_RUNS (40), SCAN_RUNS (2), TIMEOUT (30), JOBS (1), MAKE_JOBS (12),
+#        RUNS (5), STRESS_RUNS (40), SCAN_RUNS (2), TIMEOUT (30), JOBS (1), MAKE_JOBS (12), SAME_SAMPLE (20),
 #        PETSC_SRC_DIR (third_party/apps/petsc), NINJA_DIR (third_party/ninja)
 set -uo pipefail
 R="$(cd "$(dirname "$0")/../.." && pwd)"; cd "$R"
@@ -67,7 +76,10 @@ DRIVERS="ex2-gamg|4 8|ex2 -m 32 -n 32 -pc_type gamg
 ex2-asm2|4|ex2 -m 32 -n 32 -pc_type asm -pc_asm_overlap 2
 ex2-boomeramg|4|ex2 -m 32 -n 32 -pc_type hypre -pc_hypre_type boomeramg
 ex3|4|ex3 -m 16
-ex3-legacy|4|ex3 -m 16 -matstash_legacy -vec_assembly_legacy -build_twosided allreduce"
+ex3-legacy|4|ex3 -m 16 -matstash_legacy -vec_assembly_legacy -build_twosided allreduce
+ex2-tfs|4 8|ex2 -m 32 -n 32 -pc_type tfs
+ex2-sbaij-rowmax|4 8|ex2 -m 32 -n 32 -mat_type sbaij -mat_ignore_lower_triangular -pc_type jacobi -pc_jacobi_type rowmax
+ex2-sbaij-asm2|4|ex2 -m 32 -n 32 -mat_type sbaij -mat_ignore_lower_triangular -pc_type asm -pc_asm_overlap 2 -sub_pc_type icc"
 
 step_fetch() {
     mkdir -p "$D" && cd "$D" || return 1
@@ -88,14 +100,16 @@ step_build() {
     fi
     make -C "$TUT" ex2 ex3 ex45 > "$D/tutorials.log" 2>&1 || { echo "build of the tutorials failed" >&2; return 1; }
 }
-scout() {   # scout <table> <drivers>
-    rm -f "$OUT/$1.csv"
+scout() {   # scout <table> <drivers> [more scout.py options]
+    local table="$1" drivers="$2"; shift 2
+    rm -f "$OUT/$table.csv"
     while IFS='|' read -r name nps cmd; do
         read -r -a a <<< "$cmd"
         python3 experiments/scout.py --code petsc --version "$V" --driver "$name" --np $nps --runs "$RUNS" \
-            --jobs "${JOBS:-1}" --timeout "$TIMEOUT" --out "$OUT/$1.csv" -- "$TUT/${a[0]}" "${a[@]:1}" || return 1
-    done <<< "$2"
+            --jobs "${JOBS:-1}" --timeout "$TIMEOUT" "$@" --out "$OUT/$table.csv" -- "$TUT/${a[0]}" "${a[@]:1}" || return 1
+    done <<< "$drivers"
 }
+same_sample() { [ "${SAME_SAMPLE:-20}" = all ] || echo "--same-sample ${SAME_SAMPLE:-20}"; }
 step_parasails() { scout parasails "$PARASAILS"; }
 step_scan() {
     # where does the race reach? SCAN_RUNS traced runs per setting, analysed only (no replay):
@@ -113,7 +127,7 @@ step_scan() {
         done; done; done; done
     done
 }
-step_predict() { scout predict "$DRIVERS"; }
+step_predict() { scout predict "$DRIVERS" $(same_sample); }
 step_ninja() {
     local np m
     rm -f "$OUT/ninja.csv"
