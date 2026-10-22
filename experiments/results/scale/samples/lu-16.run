@@ -44,11 +44,11 @@
  Class           =                        A
  Size            =             64x  64x  64
  Iterations      =                      250
- Time in seconds =                    17.66
+ Time in seconds =                    18.04
  Total processes =                       16
  Active processes=                       16
- Mop/s total     =                  6753.67
- Mop/s/process   =                   422.10
+ Mop/s total     =                  6611.44
+ Mop/s/process   =                   413.21
  Operation type  =           floating point
  Verification    =               SUCCESSFUL
  Version         =                    3.4.3
