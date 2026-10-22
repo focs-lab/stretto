@@ -105,7 +105,10 @@ def readme(root: str, num: dict) -> None:
             ("Stretto, one run", v("MBBfoneunion"), BLUE),
             ("Stretto with the buffer guard", v("MBBfoneguard"), BLUE),
             ("MUST 1.9.2", v("MBBfoneMUST"), GREY),
-            ("MUST, a timeout or crash as an error", v("MBBfoneMUSTsym"), GREY)]),
+            ("MUST, a timeout or crash as an error", v("MBBfoneMUSTsym"), GREY),
+            (f"Stretto, on the {t('nMBBStressProgs')} stress-tested",v("MBBfoneunionstress"), BLUE),
+            (f"stress testing, up to {t('nMBBStressRuns')} runs", v("MBBfonestress"), ORANGE),
+            ("stress, eager limit forced down", v("MBBfonestresseager"), ORANGE)]),
     ])
     fractions(os.path.join(figs, "hypre.svg"), "HYPRE 2.10.1, ParaSails: a documented hang, predicted from one run", [
         ("Traced runs that predict it", "one clean run each, 4 and 8 processes", v("nHypreExposed"), v("nHypreTraced"), BLUE),
@@ -206,7 +209,7 @@ judges the run it sees) and stress testing with random delays.
 | corpus | programs | Stretto, one run | false positives | MUST 1.9.2 | stress testing |
 |---|---:|---:|---:|---:|---:|
 | MBI (message races, probes, buffering) | {t('nMBIprogs')} | **{t('MBIfoneunion')}** | {t('nMBIfp')} | {t('MBIfoneMUST')}–{t('MBIfoneMUSTsym')} | {t('MBIfonestress')}, {t('MBIfonestresseager')} with the eager limit forced down |
-| MPI-BugBench level 2 | {t('nMBBprogs')} | **{t('MBBfoneunion')}**, {t('MBBfoneguard')} with the buffer guard | {t('nMBBfp')} | {t('MBBfoneMUST')}–{t('MBBfoneMUSTsym')} | – |
+| MPI-BugBench level 2 | {t('nMBBprogs')} | **{t('MBBfoneunion')}**, {t('MBBfoneguard')} with the buffer guard | {t('nMBBfp')} | {t('MBBfoneMUST')}–{t('MBBfoneMUSTsym')} | {t('MBBfonestress')}, {t('MBBfonestresseager')} forced down, on its {t('nMBBStressProgs')} call-ordering and correct programs (Stretto {t('MBBfoneunionstress')} on them) |
 
 Every MBI error that stress testing never exposes ({t('nMBIStressPredMissed')} programs, the
 buffering-dependent deadlocks) is predicted from a run that finished. With Open MPI's eager limit

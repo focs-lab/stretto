@@ -370,6 +370,29 @@ def e2():
     return "\n".join(out) + "\n"
 
 
+# Open MPI's fatal error handler ends the job with the error class as its exit status, so a
+# run whose error message the harness did not capture is recorded as APP-ERROR:<class>; the
+# classes of Open MPI 4.1.6's mpi.h the stress tables meet
+OMPI_ERROR_CLASS = {13: "MPI_ERR_ARG", 15: "MPI_ERR_TRUNCATE", 16: "MPI_ERR_OTHER", 17: "MPI_ERR_INTERN"}
+
+
+def fp_outcomes(fp, by, traced="the traced run") -> str:
+    """How the correct programs a stress table fails end, against how their traced run ended."""
+    if not fp:
+        return ""
+    alike = [r for r in fp if by[r["program"]].get("run") == r["outcome"]]
+    out = f", {len(alike)} of them ending as {traced} did (column `run` of the corpus table)"
+    for r in fp:
+        if r in alike:
+            continue
+        out += f"; {r['program']} ends with {r['outcome']}, {traced} with {by[r['program']].get('run') or 'nothing recorded'}"
+        m = re.fullmatch(r"APP-ERROR:(\d+)", r["outcome"])
+        if m and int(m.group(1)) in OMPI_ERROR_CLASS:
+            out += (f" ({m.group(1)} is the error class of {OMPI_ERROR_CLASS[int(m.group(1))]}, the exit status of Open MPI's"
+                    " fatal error handler, whose message was not captured)")
+    return out
+
+
 def stress(name, path, key=None):
     """The stress-testing baseline (experiments/stress_baseline.py) against Stretto's one run."""
     st = rows(os.path.join(os.path.dirname(path), "stress.csv"))
@@ -387,14 +410,22 @@ def stress(name, path, key=None):
     fp = [r for r in ok if r["first_failure"]]
     firsts = sorted(int(r["first_failure"]) for r in found)
     med = firsts[len(firsts) // 2] if firsts else "-"
+    hung = [r for r in found + fp if r["outcome"] == "TIMEOUT"]
+    other = collections.Counter(r["outcome"] for r in found + fp if r["outcome"] != "TIMEOUT")
+    tp, fn_ = len(found), len(err) - len(found)
+    fpn, tn = len(fp), len(ok) - len(fp)
+    prec = tp / (tp + fpn) if tp + fpn else 0.0
+    rec = tp / (tp + fn_) if tp + fn_ else 0.0
+    c = {"tp": tp, "fp": fpn, "fn": fn_, "tn": tn, "f1": 2 * prec * rec / (prec + rec) if prec + rec else 0.0}
+    # Stretto's verdicts from one run on the same programs: the baseline may run a subset of
+    # the corpus (stress_baseline.py --select), whose score differs from the whole corpus's
+    cs = score.confusion([by[r["program"]] for r in err + ok], score.verdict)
     if key:
-        tp, fn_ = len(found), len(err) - len(found)
-        fpn, tn = len(fp), len(ok) - len(fp)
-        prec = tp / (tp + fpn) if tp + fpn else 0.0
-        rec = tp / (tp + fn_) if tp + fn_ else 0.0
-        CONF[(key, "stress")] = {"tp": tp, "fp": fpn, "fn": fn_, "tn": tn, "f1": 2 * prec * rec / (prec + rec) if prec + rec else 0.0}
-        num(f"{key}fonestress", CONF[(key, "stress")]["f1"])
+        CONF[(key, "stress")] = c
+        num(f"{key}fonestress", c["f1"])
+        num(f"{key}foneunionstress", cs["f1"])
         num(f"n{key}StressRuns", runs)
+        num(f"n{key}StressProgs", len(err) + len(ok))
         num(f"n{key}StressErr", len(err))
         num(f"n{key}StressFound", len(found))
         num(f"n{key}StressLater", len(later))
@@ -407,15 +438,20 @@ def stress(name, path, key=None):
         clean = {n for n, r in by.items() if r["expect"] == "ERROR" and score.must_verdict(r) != "ERROR"
                  and score.predicted_verdict(r) == "ERROR" and score.observed_verdict(r) != "ERROR"}
         num(f"n{key}CleanPredStress", sum(1 for r in found if r["program"] in clean))
+    names = lambda sel: " (" + ", ".join(r["program"] for r in sel) + ")" if sel else ""    # noqa: E731
     return "\n".join([
         f"### Stress-testing baseline: {name}", "",
         f"Up to {runs} runs per program with random send and receive delays per rank, stopping at the first run that",
-        "does not finish (`experiments/stress_baseline.py`).", "",
+        f"does not finish (`experiments/stress_baseline.py`, `stress.csv`). Programs: {len(st)}. Rows by code commit: {commits(st)}.", "",
         f"Labelled-error programs: {len(err)}. Stress testing makes {len(found)} fail (median run of the first failure {med};",
         f"{len(later)} only after the first run). Stretto reports {len(rem)} from one run, {len(pred)} of them predicted from a",
-        f"run that finished; stress testing never makes {len(pred_missed)} of those fail"
-        + (f" ({', '.join(r['program'] for r in pred_missed)})" if pred_missed else "") + ".",
-        f"Correct programs that failed under stress (a hang under load or a delay): {len(fp)}.", ""])
+        f"run that finished; stress testing never makes {len(pred_missed)} of those fail{names(pred_missed)}.",
+        f"Correct programs that fail: {len(fp)}{names(fp)}{fp_outcomes(fp, by)}.",
+        f"Of the {len(found) + len(fp)} failures, {len(hung)} are hangs killed at the timeout"
+        + (" and the others end with " + ", ".join(f"{o} ({n})" for o, n in sorted(other.items())) if other else "") + ".", "",
+        "| | TP | FP | FN | TN | F1 |", "|---|---|---|---|---|---|",
+        f"| Stretto, observed or predicted, on these programs | {cs['tp']} | {cs['fp']} | {cs['fn']} | {cs['tn']} | {cs['f1']:.2f} |",
+        f"| random delays, default limits | {c['tp']} | {c['fp']} | {c['fn']} | {c['tn']} | {c['f1']:.2f} |", ""])
 
 
 def stress_eager(name, path, key=None):
@@ -479,14 +515,23 @@ def stress_eager(name, path, key=None):
             return "not run"
         return f"fails in run {r['first_failure']} ({r['outcome']})" if r["first_failure"] else f"finishes all {r['runs']} runs"
     names = lambda sel: " (" + ", ".join(r["program"] for r in sel) + ")" if sel else ""    # noqa: E731
+    # the correct programs that fail at either setting, and whether they end alike at both
+    fp_both = [r for r in fp if r["program"] in st and st[r["program"]]["first_failure"]]
+    fp_alike = [r for r in fp_both if st[r["program"]]["outcome"] == r["outcome"]]
+    fp_default = [r for r in ok if not r["first_failure"] and r["program"] in st and st[r["program"]]["first_failure"]]
+    if key and st:
+        num(f"n{key}StressEagerFPBoth", len(fp_both))
+        num(f"n{key}StressEagerFPDefault", len(fp_default))
     if st:
         against = (f"Against the default limits: {len(new)} of these do not fail there, and {len(lost)} that fail there never fail"
                    f" here{names(lost)}. Of the {len(missed)} errors Stretto predicts that the default limits never expose,"
-                   f" {len(missed_found)} fail and {len(still)} still never fail{names(still)}, {len(still_self)} of them sending to"
-                   " their own rank (untestable below their bound in E2).")
+                   + (f" {len(missed_found)} fail and {len(still)} still never fail{names(still)}, {len(still_self)} of them sending to"
+                      " their own rank (untestable below their bound in E2)." if still else f" all {len(missed_found)} fail."))
+        against_ok = (f" At the default limits {len(fp_both)} of them fail too, {len(fp_alike)} ending the same way, and"
+                      f" {len(fp_default)} other correct programs fail{names(fp_default)}." if fp or fp_default else "")
     else:
-        against = ("The baseline at the default limits has no table for this corpus (step stress of `run_remaining.sh` selects"
-                   " none of its programs), so there is nothing to compare with.")
+        against = "The baseline at the default limits has no table for this corpus, so there is nothing to compare with."
+        against_ok = ""
     out = [f"### Stress-testing baseline with the eager limit forced down: {name}", "",
            f"The same baseline (up to {runs} runs per program, the same random delays, seed and timeout) with Open MPI's eager",
            f"threshold forced down to {eager} payload bytes in every run (`stress_baseline.py --eager`, `stress-eager.csv`):",
@@ -497,9 +542,8 @@ def stress_eager(name, path, key=None):
            f"Programs: {len(se)}. Rows by code commit: {commits(se)}.", "",
            f"Labelled-error programs: {len(err)}. Forced down, stress testing makes {len(found)} fail ({len(later)} only after the first run).",
            against,
-           f"Correct programs that fail: {len(fp)}{names(fp)}"
-           + (f", {sum(1 for r in fp if by[r['program']].get('run') == r['outcome'])} of them ending as the traced run at the"
-              " default limits did (column `run` of the corpus table)" if fp else "") + ".",
+           f"Correct programs that fail: {len(fp)}{names(fp)}{fp_outcomes(fp, by, 'the traced run at the default limits')}."
+           + against_ok,
            f"Of the {len(found) + len(fp)} failures, {len(hung)} are hangs killed at the timeout"
            + (" and the others end with " + ", ".join(f"{o} ({n})" for o, n in sorted(other.items())) if other else "") + ".",
            f"Against Stretto's verdict from one run: {len(only_stretto)} errors Stretto reports are never made to fail{names(only_stretto)},",
@@ -857,6 +901,11 @@ def pin_log():
             + (" (the others: " + ", ".join(f"{n} {res}" for res, n in sorted(other.items())) + ")" if other else "") + ".\n")
 
 
+# the corpora whose stress-testing rows the paper's effectiveness table shows; the body has no
+# room for MPI-BugBench's, which are in docs/results.md and the text's macros
+RQ2_STRESS = ("MBI",)
+
+
 def write_paper_numbers():
     """paper/generated/numbers.tex: one macro per number of this run (macros not computed here
     keep their provisional values from STATIC); paper/generated/rq2.tex: the effectiveness table body."""
@@ -884,6 +933,8 @@ def write_paper_numbers():
             if l == "guard" and c == CONF.get((key, "union")):    # the guard changed no verdict: no row
                 continue
             if l == "stresseager" and (key, "stress") not in CONF:  # shown next to the default limits only
+                continue
+            if l.startswith("stress") and key not in RQ2_STRESS:
                 continue
             if c:
                 label = text.replace("{key}", key)

@@ -60,8 +60,7 @@ stresseager` runs `stress_baseline.py --eager 0` on MBI and on MPI-BugBench's ca
 correct programs, with the runs, delays and timeout of `stress`, and writes `stress-eager.csv`
 next to each corpus table. Every run uses E2's TCP setting at the least eager limit Open MPI
 accepts (56 bytes, its header: no payload byte is buffered; below that it refuses to start), so
-it needs `experiments/results/b_impl.csv`. Step `stress` itself has never run on MPI-BugBench:
-its pattern has '/' where the program names have '__'. The tables of 22 Oct 2026 come from a copy
+it needs `experiments/results/b_impl.csv`. The tables of 22 Oct 2026 come from a copy
 of commit 0dabfce with the harness files of 1a0ec98, the only files in which the two differ; the
 rows record the copy's `COMMIT`, 0dabfce. They ran in the experiment image on 4 processors
 (`CPUS=18-19,58-59`, `MEMORY=8g`, containers `stretto-eager-mbi` and `stretto-eager-mbb`),
@@ -69,6 +68,16 @@ rows record the copy's `COMMIT`, 0dabfce. They ran in the experiment image on 4 
 after the other. The programs are the binaries the corpus runs built: MBI's are identical byte
 for byte in the runs of 20 and 21 Oct, while MPI-BugBench's correct programs are numbered as in
 `mbb.csv` only in those of 21 Oct, which the runs used. The replay library was built in the copy.
+
+Step `stress` selects MPI-BugBench's call-ordering and correct programs since commit 604c639;
+before it, its pattern had '/' where the program names have '__' and selected none, so the
+default-limit baseline first ran on that corpus on 22 Oct 2026. `experiments/results/mbb/stress.csv`
+comes from a copy of commit 604c639 (its `COMMIT`) with the MPI-BugBench binaries of the
+forced-down run above, so both settings ran the same 365 programs (the copy's `mbb.csv` agrees
+with that run's in every program's name, label, process count and build), and the replay
+library built in the copy. It ran in the experiment image on the same 4 processors
+(`CPUS=18-19,58-59`, `MEMORY=8g`, container `stretto-mbbstress-mbb`), `JOBS=4`, `TIMEOUT=60`,
+in 57 minutes (01:13 to 02:10 UTC). MBI's `stress.csv` is that of the corpus rerun of 21 Oct.
 
 Variables the scripts read (all optional):
 

@@ -232,12 +232,18 @@ mean 0.05, max 2.
 ### Stress-testing baseline: MBI
 
 Up to 30 runs per program with random send and receive delays per rank, stopping at the first run that
-does not finish (`experiments/stress_baseline.py`).
+does not finish (`experiments/stress_baseline.py`, `stress.csv`). Programs: 115. Rows by code commit: c27c793 (115).
 
 Labelled-error programs: 65. Stress testing makes 53 fail (median run of the first failure 1;
 16 only after the first run). Stretto reports 61 from one run, 22 of them predicted from a
 run that finished; stress testing never makes 12 of those fail (P2PBuffering_Circular_Isend_Irecv_nok, P2PBuffering_Circular_Isend_Recv_nok, P2PBuffering_Circular_Send_Irecv_nok, P2PBuffering_Circular_Send_Recv_nok, P2PBuffering_Isend_Irecv_Isend_Irecv_nok, P2PBuffering_Isend_Recv_Isend_Recv_nok, P2PBuffering_SameProcess_Isend_Irecv_nok, P2PBuffering_SameProcess_Isend_Recv_nok, P2PBuffering_SameProcess_Send_Irecv_nok, P2PBuffering_SameProcess_Send_Recv_nok, P2PBuffering_Send_Irecv_Send_Irecv_nok, P2PBuffering_Send_Recv_Send_Recv_nok).
-Correct programs that failed under stress (a hang under load or a delay): 0.
+Correct programs that fail: 0.
+Of the 53 failures, 49 are hangs killed at the timeout and the others end with SIGNAL:6 (4).
+
+| | TP | FP | FN | TN | F1 |
+|---|---|---|---|---|---|
+| Stretto, observed or predicted, on these programs | 61 | 0 | 4 | 50 | 0.97 |
+| random delays, default limits | 53 | 0 | 12 | 50 | 0.90 |
 
 ### Stress-testing baseline with the eager limit forced down: MBI
 
@@ -273,6 +279,21 @@ Programs whose outcome the forced limit changes:
 | P2PBuffering_Send_Irecv_Send_Irecv_nok | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
 | P2PBuffering_Send_Recv_Send_Recv_nok | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
 
+### Stress-testing baseline: MPI-BugBench level 2
+
+Up to 30 runs per program with random send and receive delays per rank, stopping at the first run that
+does not finish (`experiments/stress_baseline.py`, `stress.csv`). Programs: 365. Rows by code commit: 604c639 (365).
+
+Labelled-error programs: 213. Stress testing makes 172 fail (median run of the first failure 1;
+0 only after the first run). Stretto reports 213 from one run, 7 of them predicted from a
+run that finished; stress testing never makes 7 of those fail (P2P__CallOrdering-ANY_TAG-001, P2P__CallOrdering-unmatched-mpi_irsend-001, P2P__CallOrdering-unmatched-mpi_isend-001, P2P__CallOrdering-unmatched-mpi_rsend-001, P2P__CallOrdering-unmatched-mpi_rsend_init-001, P2P__CallOrdering-unmatched-mpi_send-001, P2P__CallOrdering-unmatched-mpi_send_init-001).
+Correct programs that fail: 4 (COLL__Correct-mpi_gather-002, COLL__Correct-mpi_reduce-002, COLL__Correct-mpi_reduce-003, COLL__Correct-mpi_reduce-004), 3 of them ending as the traced run did (column `run` of the corpus table); COLL__Correct-mpi_reduce-003 ends with APP-ERROR:13, the traced run with MPI-ERROR:MPI_ERR_ARG (13 is the error class of MPI_ERR_ARG, the exit status of Open MPI's fatal error handler, whose message was not captured).
+Of the 176 failures, 168 are hangs killed at the timeout and the others end with APP-ERROR:13 (1), MPI-ERROR:MPI_ERR_ARG (3), MPI-ERROR:MPI_ERR_TRUNCATE (4).
+
+| | TP | FP | FN | TN | F1 |
+|---|---|---|---|---|---|
+| Stretto, observed or predicted, on these programs | 213 | 4 | 0 | 148 | 0.99 |
+| random delays, default limits | 172 | 4 | 41 | 148 | 0.88 |
 
 ### Stress-testing baseline with the eager limit forced down: MPI-BugBench level 2
 
@@ -285,8 +306,8 @@ limit, and the self transport does the same for a send to the sending rank.
 Programs: 365. Rows by code commit: 0dabfce (365).
 
 Labelled-error programs: 213. Forced down, stress testing makes 208 fail (0 only after the first run).
-The baseline at the default limits has no table for this corpus (step stress of `run_remaining.sh` selects none of its programs), so there is nothing to compare with.
-Correct programs that fail: 4 (COLL__Correct-mpi_gather-002, COLL__Correct-mpi_reduce-002, COLL__Correct-mpi_reduce-003, COLL__Correct-mpi_reduce-004), 4 of them ending as the traced run at the default limits did (column `run` of the corpus table).
+Against the default limits: 36 of these do not fail there, and 0 that fail there never fail here. Of the 7 errors Stretto predicts that the default limits never expose, all 7 fail.
+Correct programs that fail: 4 (COLL__Correct-mpi_gather-002, COLL__Correct-mpi_reduce-002, COLL__Correct-mpi_reduce-003, COLL__Correct-mpi_reduce-004), 4 of them ending as the traced run at the default limits did (column `run` of the corpus table). At the default limits 4 of them fail too, 3 ending the same way, and 0 other correct programs fail.
 Of the 212 failures, 204 are hangs killed at the timeout and the others end with MPI-ERROR:MPI_ERR_ARG (4), SIGNAL:11 (4).
 Against Stretto's verdict from one run: 5 errors Stretto reports are never made to fail (COLL__CallOrdering-unmatched-mpi_iallreduce-mpi_ialltoall-001, COLL__CallOrdering-unmatched-mpi_ibcast-mpi_iscan-001, COLL__CallOrdering-unmatched-mpi_ibcast-mpi_iscatter-001, COLL__CallOrdering-unmatched-mpi_ireduce-mpi_igather-001, COLL__CallOrdering-unmatched-mpi_iscatter-mpi_iscan-001),
 and 0 made to fail Stretto does not report.
@@ -294,6 +315,47 @@ and 0 made to fail Stretto does not report.
 | | TP | FP | FN | TN | F1 |
 |---|---|---|---|---|---|
 | random delays, eager limit forced down | 208 | 4 | 5 | 148 | 0.98 |
+
+Programs whose outcome the forced limit changes:
+
+| program | label | default limits | eager limit forced down |
+|---|---|---|---|
+| COLL__CallOrdering-unmatched-mpi_bcast-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| COLL__CallOrdering-unmatched-mpi_bcast-mpi_gather-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| COLL__CallOrdering-unmatched-mpi_bcast-mpi_igather-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| COLL__CallOrdering-unmatched-mpi_bcast-mpi_ireduce-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| COLL__CallOrdering-unmatched-mpi_bcast-mpi_reduce-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| COLL__CallOrdering-unmatched-mpi_exscan-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| COLL__CallOrdering-unmatched-mpi_exscan-mpi_gather-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| COLL__CallOrdering-unmatched-mpi_exscan-mpi_igather-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| COLL__CallOrdering-unmatched-mpi_exscan-mpi_ireduce-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| COLL__CallOrdering-unmatched-mpi_iallreduce-mpi_igather-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| COLL__CallOrdering-unmatched-mpi_iallreduce-mpi_ireduce-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| COLL__CallOrdering-unmatched-mpi_ialltoall-mpi_igather-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| COLL__CallOrdering-unmatched-mpi_ialltoall-mpi_ireduce-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| COLL__CallOrdering-unmatched-mpi_ibcast-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| COLL__CallOrdering-unmatched-mpi_ibcast-mpi_igather-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| COLL__CallOrdering-unmatched-mpi_ibcast-mpi_ireduce-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| COLL__CallOrdering-unmatched-mpi_iscan-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| COLL__CallOrdering-unmatched-mpi_iscatter-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| COLL__CallOrdering-unmatched-mpi_iscatter-mpi_igather-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| COLL__CallOrdering-unmatched-mpi_scan-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| COLL__CallOrdering-unmatched-mpi_scan-mpi_igather-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| COLL__CallOrdering-unmatched-mpi_scan-mpi_ireduce-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| COLL__CallOrdering-unmatched-mpi_scatter-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| COLL__CallOrdering-unmatched-mpi_scatter-mpi_gather-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| COLL__CallOrdering-unmatched-mpi_scatter-mpi_igather-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| COLL__CallOrdering-unmatched-mpi_scatter-mpi_ireduce-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| P2P__CallOrdering-ANY_TAG-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| P2P__CallOrdering-unmatched-mpi_bsend-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| P2P__CallOrdering-unmatched-mpi_bsend_init-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| P2P__CallOrdering-unmatched-mpi_ibsend-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| P2P__CallOrdering-unmatched-mpi_irsend-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| P2P__CallOrdering-unmatched-mpi_isend-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| P2P__CallOrdering-unmatched-mpi_rsend-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| P2P__CallOrdering-unmatched-mpi_rsend_init-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| P2P__CallOrdering-unmatched-mpi_send-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
+| P2P__CallOrdering-unmatched-mpi_send_init-001 | ERROR | finishes all 30 runs | fails in run 1 (TIMEOUT) |
 
 ### Repeated runs: how often each verdict holds (MBI)
 

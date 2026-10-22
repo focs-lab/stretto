@@ -69,7 +69,7 @@ judges the run it sees) and stress testing with random delays.
 | corpus | programs | Stretto, one run | false positives | MUST 1.9.2 | stress testing |
 |---|---:|---:|---:|---:|---:|
 | MBI (message races, probes, buffering) | 115 | **0.97** | 0 | 0.83–0.89 | 0.90, 0.97 with the eager limit forced down |
-| MPI-BugBench level 2 | 388 | **0.95**, 0.99 with the buffer guard | 4 | 0.94–0.94 | – |
+| MPI-BugBench level 2 | 388 | **0.95**, 0.99 with the buffer guard | 4 | 0.94–0.94 | 0.88, 0.98 forced down, on its 365 call-ordering and correct programs (Stretto 0.99 on them) |
 
 Every MBI error that stress testing never exposes (12 programs, the
 buffering-dependent deadlocks) is predicted from a run that finished. With Open MPI's eager limit

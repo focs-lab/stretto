@@ -41,7 +41,7 @@ RQ_OF = [
 # numbers the inputs fix: a difference there is unexpected; every other number is a time or a
 # count taken from recorded runs, which depends on their schedule
 FIXED = re.compile(r"^n(MBI|MBB)(progs|notBuilt|correct|errors|race)$|^B[a-z]+OMPI$|^n(AMG|Nek)sample$|^nEfourReps$"
-                   r"|^nMBIStressRuns$|^n(MBI|MBB)StressEager(Runs|Bytes|Err)$|^nHypre(Fixed)?(Traced|(Four|Eight)(Local)?Runs)$|^nHypreStressRuns$"
+                   r"|^n(MBI|MBB)Stress(Runs|Progs)$|^n(MBI|MBB)StressEager(Runs|Bytes|Err)$|^nHypre(Fixed)?(Traced|(Four|Eight)(Local)?Runs)$|^nHypreStressRuns$"
                    r"|^nMBBLC$|^nGuardLC(OMPI|MPICH)built$|^nGuardCases$|^nGuardAppRuns$"
                    r"|^nReps(Runs|Progs|Errors)$|^nDeal(Fixed)?Traced$|^nDealRanks$|^nDealStress(Plain|Delay)?Runs$"
                    r"|^nNinja(Hypre|Replica|MG)[A-Za-z]*Runs$|^nNinjaMBIerrors$|^nTsanLC$"
@@ -143,6 +143,9 @@ def claims(n: dict) -> list:
           ["nMBIStressEagerErr", "nMBIStressEagerFP"], lambda e, fp: e > 0 and fp == 0)
     claim(2, "on MPI-BugBench, Stretto's F1 is at least MUST's",
           ["MBBfoneunion", "MBBfoneMUST"], lambda s, m: s >= m)
+    claim(2, "on the MPI-BugBench programs stress testing runs, Stretto's F1 is above stress testing's at the default "
+          "limits and at least its F1 with the eager limit forced down",
+          ["MBBfoneunionstress", "MBBfonestress", "MBBfonestresseager"], lambda s, d, e: s > d and s >= e)
     claim(2, "with the buffer guard, every MPI-BugBench local-concurrency program gets 3-local and nothing else changes",
           ["nMBBLC", "nMBBLCguard", "nMBBfp", "nMBBfpguard", "MBIfoneunion", "MBIfoneguard"],
           lambda lc, g, fp, fpg, s, sg: lc > 0 and lc == g and fp == fpg and s == sg)
