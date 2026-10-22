@@ -7,8 +7,12 @@
 # PetscCommGetNewTag per call or per object, and their exchanges begin with a collective count
 # or end with a barrier, so a probe of one call cannot see a message of the next. PETSc also
 # drives HYPRE: PETSc 3.26.0 downloads HYPRE 3.2.0, and PCHYPRE exposes ParaSails' number of
-# pattern levels as -pc_hypre_parasails_nlevels, so PETSc's own KSP tutorial reaches the race
-# of experiments/hypre3/ unmodified.
+# pattern levels and its threshold as -pc_hypre_parasails_nlevels and -pc_hypre_parasails_thresh,
+# so PETSc's own KSP tutorial ex2 reaches the ParaSails race of experiments/hypre3/ with
+# command-line options only. The driver and the options are all PETSc's own; nothing is patched.
+# The second pattern level requests new off-processor rows only when the pattern is dense enough,
+# so the headline uses a threshold below PETSc's default 0.1 (a denser, more accurate ParaSails);
+# at the default the second level adds nothing and no cross alternative appears.
 #
 # Steps, inside the experiment container, from the repository root, Open MPI build:
 #   fetch    download PETSc 3.26.0 (GitHub), f2cblaslapack 3.8.0.q2 (PETSc's site) and HYPRE
@@ -46,9 +50,13 @@ declare -A SHA=([petsc-3.26.0.tar.gz]=3f1d722dd3b189a6c5ed0a114abcaae624feb9f525
 declare -A URL=([petsc-3.26.0.tar.gz]=https://github.com/petsc/petsc/archive/refs/tags/v3.26.0.tar.gz
                 [f2cblaslapack-3.8.0.q2.tar.gz]=https://web.cels.anl.gov/projects/petsc/download/externalpackages/f2cblaslapack-3.8.0.q2.tar.gz
                 [hypre-3.2.0.tar.gz]=https://github.com/hypre-space/hypre/archive/refs/tags/v3.2.0.tar.gz)
-# driver name, process counts, arguments of ex2 or ex3
-PARASAILS="ex2-parasails2|4 8|ex2 -m 32 -n 32 -pc_type hypre -pc_hypre_type parasails -pc_hypre_parasails_nlevels 2
-ex2-parasails1|4 8|ex2 -m 32 -n 32 -pc_type hypre -pc_hypre_type parasails"
+# driver name, process counts, arguments of ex2 or ex3. The ParaSails group: two pattern levels
+# with a dense pattern (the race); one level, the same pattern (a control with no cross); and
+# two levels at the default threshold (the pattern converges at level 1, so no cross).
+PS="ex2 -m 48 -n 48 -pc_type hypre -pc_hypre_type parasails"
+PARASAILS="ex2-parasails2-dense|4 8|$PS -pc_hypre_parasails_nlevels 2 -pc_hypre_parasails_thresh 0.01
+ex2-parasails1-dense|4 8|$PS -pc_hypre_parasails_nlevels 1 -pc_hypre_parasails_thresh 0.01
+ex2-parasails2|4 8|$PS -pc_hypre_parasails_nlevels 2"
 DRIVERS="ex2-gamg|4 8|ex2 -m 32 -n 32 -pc_type gamg
 ex2-asm2|4|ex2 -m 32 -n 32 -pc_type asm -pc_asm_overlap 2
 ex2-boomeramg|4|ex2 -m 32 -n 32 -pc_type hypre -pc_hypre_type boomeramg
@@ -91,9 +99,9 @@ step_ninja() {
         for m in random system app; do
             local extra=(); [ $m = random ] && extra=(--rand-ratio 10 --rand-delay 50000)
             python3 experiments/ninja/run.py runs --np $np --mode $m "${extra[@]}" --runs "$STRESS_RUNS" --timeout "$TIMEOUT" \
-                --mpi openmpi --label ex2-parasails2 --out "$OUT/ninja.csv" --marks "solved=iterations" \
-                --value "iterations *([0-9]+)" -- "$TUT/ex2" -m 32 -n 32 -pc_type hypre -pc_hypre_type parasails \
-                -pc_hypre_parasails_nlevels 2 || return 1
+                --mpi openmpi --label ex2-parasails2-dense --out "$OUT/ninja.csv" --marks "solved=iterations" \
+                --value "iterations *([0-9]+)" -- "$TUT/ex2" -m 48 -n 48 -pc_type hypre -pc_hypre_type parasails \
+                -pc_hypre_parasails_nlevels 2 -pc_hypre_parasails_thresh 0.01 || return 1
         done
     done
 }
@@ -112,10 +120,11 @@ step_stress() {
                     fi
                     t0=$SECONDS
                     (cd "$w" && /usr/bin/timeout -k 5 $TIMEOUT mpirun.openmpi --oversubscribe -np $np "${env[@]}" "$TUT/ex2" \
-                         -m 32 -n 32 -pc_type hypre -pc_hypre_type parasails -pc_hypre_parasails_nlevels $nl < /dev/null > "$w/out" 2>&1)
+                         -m 48 -n 48 -pc_type hypre -pc_hypre_type parasails -pc_hypre_parasails_nlevels $nl \
+                         -pc_hypre_parasails_thresh 0.01 < /dev/null > "$w/out" 2>&1)
                     rc=$?; r=FINISHED; [ $rc = 0 ] || { [ $rc = 124 ] && r=TIMEOUT || r="rc=$rc"; }
                     it=$(sed -n 's/.*iterations *\([0-9]*\).*/\1/p' "$w/out" | head -1)
-                    echo "$V,ex2-parasails$nl,$np,$i,$setting,$r,$((SECONDS - t0)),$it,$STRETTO_COMMIT" | tee -a "$OUT/stress.csv"
+                    echo "$V,ex2-parasails$nl-dense,$np,$i,$setting,$r,$((SECONDS - t0)),$it,$STRETTO_COMMIT" | tee -a "$OUT/stress.csv"
                 done
             done
         done
