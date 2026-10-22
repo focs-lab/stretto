@@ -52,6 +52,7 @@ step_summary() {
       echo "rejected by reason: $(grep "^  x " "$D/report8.txt" | sed 's/.*: //' | sort | uniq -c | awk '{n=$1; $1=""; printf "%s%s %s", s, substr($0, 2), n; s="; "}')"
       echo "records: $(cat "$D"/trace8/rank-*.jsonl | wc -l)"
       echo "host: $(hostname), one process; $(tail -1 "$D/analyze8.err")"
+      echo "analysis commit: ${STRETTO_COMMIT:-$(python3 experiments/provenance.py)}"
     } > "$D/summary8.txt"
     cat "$D/summary8.txt"
 }

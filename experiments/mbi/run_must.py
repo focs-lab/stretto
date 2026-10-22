@@ -34,10 +34,15 @@ if not args.merge_only:
             print(f"[{i}/{len(rows)}] {name:<50} {v[:70]}", flush=True)
     print("wrote", out)
 # merge the verdicts into the harness table's column
-verdicts = {r["name"]: r[col] for r in csv.DictReader(open(out))}
+side = list(csv.DictReader(open(out)))
+verdicts = {r["name"]: r[col] for r in side}
+commits = {r["name"]: r.get("commit", "") for r in side}
 for r in rows:
     r[col] = verdicts.get(r["name"], r.get(col, ""))
-keys = list(rows[0].keys()) + ([] if col in rows[0] else [col])
+    # the commit of the harness that ran MUST, next to its verdict (the table's own commit column
+    # names the code that traced the program)
+    r[col + "_commit"] = commits.get(r["name"], r.get(col + "_commit", ""))
+keys = list(rows[0].keys()) + [k for k in (col, col + "_commit") if k not in rows[0]]
 with open(args.csv, "w", newline="") as fh:
     w = csv.DictWriter(fh, fieldnames=keys, lineterminator="\n"); w.writeheader(); w.writerows(rows)
 print("merged into", args.csv)

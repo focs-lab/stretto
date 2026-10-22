@@ -37,6 +37,7 @@ step_summary() {
     { grep -m1 '^trace:' "$D/report8.txt"
       echo "findings by class: $(grep -o '^\[ *[0-9a-z-]* *\]' "$D/report8.txt" | tr -d '[] ' | sort | uniq -c | awk '{printf "%s %s, ", $2, $1}' | sed 's/, $//')"
       echo "host: $(hostname), one process; $(tail -1 "$D/analyze8.err")"
+      echo "analysis commit: ${STRETTO_COMMIT:-$(python3 experiments/provenance.py)}"
     } > "$D/summary8.txt"
     cat "$D/summary8.txt"
 }
