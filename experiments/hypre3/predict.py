@@ -148,7 +148,13 @@ def main() -> int:
     def replay(j, f, kind, tag):
         row, t, names, levels, _ = traced[j]
         np = row["np"]
-        res = {**row, "pin": f.pin, "kind": kind, "tag": tag, "site": names.get(f.site) or f.site}
+        s = t.sends[f.send]
+        # the thresholds at which the alternative is realisable, and the size of its message: a
+        # cross alternative needs the sender of the next level's request to have completed the
+        # Waitall of its own replies, one of which goes to the probing rank, which has not yet
+        # posted its receive, so that reply must be buffered (B at least its size)
+        res = {**row, "pin": f.pin, "kind": kind, "tag": tag, "site": names.get(f.site) or f.site, "B": f.B,
+               "bytes": s.count * s.tsize}
         hp = horizon_pins(t, f)
         if hp is None:
             return {**res, "replay": "no horizon"}
@@ -179,7 +185,7 @@ def main() -> int:
 def write(path, rows):
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     keys = ["version", "driver", "np", "levels", "run", "records", "cross", "same", "other", "traced_residual",
-            "pin", "kind", "tag", "site", "replay", "matched", "residual", "run_valid", "violation",
+            "pin", "kind", "tag", "site", "B", "bytes", "replay", "matched", "residual", "run_valid", "violation",
             "control", "control_matched", "control_residual", "control_valid", "control_violation", "seed", "commit"]
     with open(path, "w", newline="") as fh:
         w = csv.DictWriter(fh, fieldnames=keys, extrasaction="ignore", lineterminator="\n")
