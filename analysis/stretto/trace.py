@@ -290,12 +290,21 @@ class Trace:
         """Ranks with at least one send to dst on comm, ascending."""
         return self._sources_to.get((dst, comm), [])
 
-    def earlier_competitors(self, r: Recv, s: Send) -> List[Recv]:
+    def earlier_competitors(self, r: Recv, s: Send) -> Tuple[Recv, ...]:
         """Receiver side of matching order (docs/model.md §2, condition 3'): for each envelope
         class that accepts s, the latest receive of r's rank posted before r. Every earlier
         receive that accepts s lies in one of the four classes (source s.rank or ANY, tag
         s.tag or ANY), and inside a class each receive accepts whatever a later one does, so
-        the order reaches the rest of the class through the class members' own pairs."""
+        the order reaches the rest of the class through the class members' own pairs. r may
+        also be a probe. Kept per pair: every constraint graph of the trace asks again, one per
+        threshold, for every pair of the observed matching."""
+        k = (r.key, s.key, type(r) is Recv)
+        out = self._competitors.get(k)
+        if out is None:
+            out = self._competitors[k] = tuple(self._earlier_competitors(r, s))
+        return out
+
+    def _earlier_competitors(self, r, s: Send) -> List[Recv]:
         out = []
         for src in (s.rank, ANY):
             for tag in (s.tag, ANY):
@@ -307,10 +316,18 @@ class Trace:
                         out.append(self._recv_class[key][j - 1])
         return out
 
-    def earlier_sends(self, r: Recv, s: Send) -> List[Send]:
+    def earlier_sends(self, r: Recv, s: Send) -> Tuple[Send, ...]:
         """Sender side of matching order (condition 2): for each tag r accepts, the latest
         send of s's channel issued before s that r could take. A receive that accepts one of
-        a tag's sends accepts all of them, so the order chains through that send's own pair."""
+        a tag's sends accepts all of them, so the order chains through that send's own pair.
+        r may also be a probe. Kept per pair, as earlier_competitors."""
+        k = (r.key, s.key, type(r) is Recv)
+        out = self._earlier.get(k)
+        if out is None:
+            out = self._earlier[k] = tuple(self._earlier_sends(r, s))
+        return out
+
+    def _earlier_sends(self, r, s: Send) -> List[Send]:
         q = (s.rank, s.dst, s.comm)
         tags = (r.tag,) if r.tag != ANY else self._tags_on.get(q, ())
         out = []
@@ -353,6 +370,8 @@ class Trace:
 
     def index(self) -> None:
         self._fast = None
+        self._competitors: Dict = {}         # earlier_competitors and earlier_sends, per pair
+        self._earlier: Dict = {}
         self._by_req = {}
         for s in self.sends.values():
             if s.req is not None:
