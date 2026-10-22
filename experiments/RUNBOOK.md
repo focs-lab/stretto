@@ -448,6 +448,18 @@ processes has up to five million records, keeping ten traces in memory went past
 container's 48 GB (two drivers were killed with status 137), and one feasibility check of such a
 trace takes minutes.
 
+The scouts of 22 Oct used the tracer from before communicator creation was recorded at every
+member: a trace of it that has an `MPI_Comm_split`, `MPI_Comm_split_type`, `MPI_Comm_create`,
+`MPI_Cart_create` or `MPI_Graph_create` now loads as degraded (`creation-unknown`, observed
+findings only), since the ranks that obtained `MPI_COMM_NULL` left no record. One traced run per
+driver and process count with that tracer shows which tables rest on such traces: every driver
+of `mfem/predict.csv` (HYPRE's sub-communicators, created by `MPI_Comm_create` a different number
+of times per rank, for example 11, 9, 7 and 8 in `ex6p` at 4 processes), and in
+`petsc/predict.csv` the drivers `ex2-boomeramg` (the same, on 3 of 4 ranks) and `ex2-tfs`
+(PCTFS's `MPI_Comm_create`, once per rank); no other driver of `petsc/predict.csv`, nor
+`petsc/scan.csv` or `dealii98/predict.csv`, creates a communicator that way. Their rows stay as
+they were made; a rerun with the current tracer re-traces those drivers.
+
 ### HYPRE 3.2.0 ParaSails: a level race in the current release
 
 `experiments/hypre3/run.sh [fetch|build|predict|stress|ninja|all]` downloads HYPRE 3.2.0
