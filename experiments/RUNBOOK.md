@@ -85,6 +85,7 @@ Variables the scripts read (all optional):
 |---|---|---|
 | `JOBS` | `run_remaining.sh` | parallel programs (6) |
 | `TIMEOUT` | `run_remaining.sh`; `scripts/env.sh` | seconds per run, replay and MUST run (60 in the corpus harness; 15 for a bare `mpi_run`) |
+| `STRETTO_MPIRUN_MPICH`, `STRETTO_MPIRUN_OPENMPI`, `STRETTO_MPIRUN` | `stretto confirm` and every replay (`stretto.confirm.run_pinned`) | the launcher of a program built with that MPI (default Open MPI's `mpirun` for both: Ubuntu's MPICH is built with PMIx and its hydra starts every rank as a singleton); a hydra `mpiexec` gets the environment by `-genv` |
 | `MPI` | `scripts/*.sh`, Makefiles | `openmpi` or `mpich`: which wrapper, library and idiom binaries |
 | `STRETTO_TRACE_DIR` | tracer | where the ranks write `rank-N.jsonl` (`./traces`) |
 | `STRETTO_PAYLOAD` | tracer; `scripts/run_idiom.sh`, `experiments/guard/run.sh` | record message contents up to this many packed bytes per buffer (off); level L2 by re-execution needs them |

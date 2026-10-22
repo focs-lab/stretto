@@ -421,6 +421,39 @@ class PinIdentity(unittest.TestCase):
         self.assertEqual(len(C.misapplied_pins(Run(), f"APP-ERROR:{C.PIN_MISAPPLIED}")), 1)   # the line lost, the exit code kept
 
 
+class Launcher(unittest.TestCase):
+    """confirm launches a program with the launcher of the MPI it was built with."""
+
+    def fake(self, d, name, version):
+        path = os.path.join(d, name)
+        with open(path, "w") as fh:
+            fh.write(f"#!/bin/sh\necho '{version}'\n")
+        os.chmod(path, 0o755)
+        return path
+
+    def test_the_launcher_follows_the_mpi(self):
+        saved = {k: os.environ.pop(k, None) for k in ("STRETTO_MPIRUN", "STRETTO_MPIRUN_MPICH", "STRETTO_MPIRUN_OPENMPI")}
+        try:
+            with tempfile.TemporaryDirectory() as d:
+                hydra = self.fake(d, "mpiexec.hydra", "HYDRA build details:\n    Version: 4.2.0")
+                orte = self.fake(d, "mpirun", "mpirun (Open MPI) 4.1.6")
+                os.environ["STRETTO_MPIRUN_MPICH"] = hydra
+                os.environ["STRETTO_MPIRUN_OPENMPI"] = orte
+                self.assertEqual(C.launcher("mpich"), (hydra, "hydra"))
+                self.assertEqual(C.launcher("openmpi"), (orte, "openmpi"))
+                self.assertEqual(C.launcher_env("hydra", "STRETTO_PIN", "0:0:1@0:5"), ["-genv", "STRETTO_PIN", "0:0:1@0:5"])
+                self.assertEqual(C.launcher_env("openmpi", "STRETTO_PIN", "0:0:1@0:5"), ["-x", "STRETTO_PIN=0:0:1@0:5"])
+                os.environ["STRETTO_MPIRUN_MPICH"] = os.path.join(d, "missing")
+                with self.assertRaises(C.HarnessError):
+                    C.launcher("mpich")
+            del os.environ["STRETTO_MPIRUN_MPICH"], os.environ["STRETTO_MPIRUN_OPENMPI"]
+            self.assertEqual(C.DEFAULT_LAUNCHERS["mpich"], "/usr/bin/mpirun.openmpi")   # Ubuntu's MPICH speaks PMIx
+        finally:
+            for k, v in saved.items():
+                if v is not None:
+                    os.environ[k] = v
+
+
 class Verdicts(unittest.TestCase):
     def test_strict_verdict(self):
         self.assertEqual(strict_verdict("confirmed", "True"), "confirmed")

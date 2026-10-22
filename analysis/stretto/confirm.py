@@ -805,6 +805,48 @@ def truncation_shown(changed: Optional[Tuple[str, int, int]], pins, stderr: str,
     return bool(need) and all(k in matched or k in shown for k in need)
 
 
+# The launcher of a program built with each MPI. Open MPI's mpirun runs both: Ubuntu's MPICH is
+# built with PMIx, and its own hydra launcher starts every rank as a singleton
+# (experiments/RUNBOOK.md, Notes). With another MPICH, set STRETTO_MPIRUN_MPICH to its mpiexec.
+DEFAULT_LAUNCHERS = {"openmpi": "/usr/bin/mpirun.openmpi", "mpich": "/usr/bin/mpirun.openmpi"}
+
+
+def launcher(mpi: str) -> Tuple[str, str]:
+    """(path, style) of the launcher for programs built with mpi: STRETTO_MPIRUN_<MPI> (for
+    example STRETTO_MPIRUN_MPICH=/usr/bin/mpiexec.hydra), else STRETTO_MPIRUN, else
+    DEFAULT_LAUNCHERS. style is "openmpi" (environment by -x NAME=VALUE) or "hydra" (by -genv
+    NAME VALUE), from what the launcher says of its version."""
+    path = (os.environ.get(f"STRETTO_MPIRUN_{mpi.upper()}") or os.environ.get("STRETTO_MPIRUN")
+            or DEFAULT_LAUNCHERS.get(mpi) or DEFAULT_LAUNCHERS["openmpi"])
+    if not (os.path.isfile(path) or shutil.which(path)):
+        raise HarnessError(f"no launcher {path} for {mpi} (set STRETTO_MPIRUN_{mpi.upper()})")
+    return path, _launcher_style(path)
+
+
+_STYLES: Dict[str, str] = {}
+
+
+def _launcher_style(path: str) -> str:
+    if path not in _STYLES:
+        try:
+            out = subprocess.run([path, "--version"], capture_output=True, text=True, timeout=30, stdin=subprocess.DEVNULL)
+            text = out.stdout + out.stderr
+        except (OSError, subprocess.TimeoutExpired):
+            text = ""
+        if "Open MPI" in text or "OpenRTE" in text:
+            _STYLES[path] = "openmpi"
+        elif "HYDRA" in text.upper() or "mpich" in text.lower():
+            _STYLES[path] = "hydra"
+        else:
+            _STYLES[path] = "openmpi" if "openmpi" in os.path.basename(path) or "orterun" in path else "hydra"
+    return _STYLES[path]
+
+
+def launcher_env(style: str, name: str, value: str) -> List[str]:
+    """The launcher arguments that give every rank the variable name=value."""
+    return ["-x", f"{name}={value}"] if style == "openmpi" else ["-genv", name, value]
+
+
 def run_pinned(np: int, exe: str, args: List[str], pin, timeout: int = 20, mpi: str = "openmpi",
                mpirun_args: Optional[List[str]] = None, extra_env: Optional[dict] = None,
                cwd: Optional[str] = None, preload: Optional[str] = None) -> subprocess.CompletedProcess:
@@ -818,14 +860,17 @@ def run_pinned(np: int, exe: str, args: List[str], pin, timeout: int = 20, mpi: 
     pinlib = preload or os.path.join(ROOT, "replay", "bin", mpi, "libstretto-pin.so")
     need_preload(pinlib)
     announces = preload is None or bool(pin) or any(k in (extra_env or {}) for k in DELAY_VARS)
-    env_args = ["-x", f"LD_PRELOAD={pinlib}"]
+    mpirun, style = launcher(mpi)
+    if style != "openmpi" and mpirun_args:
+        raise HarnessError(f"launcher arguments {mpirun_args} are Open MPI's, and the launcher for {mpi} is {mpirun} ({style})")
+    env_args = launcher_env(style, "LD_PRELOAD", pinlib)
     with tempfile.TemporaryDirectory(prefix="stretto-pin-") as d:
         for assignment in ([pin] if isinstance(pin, str) else (pin or [])):
-            env_args += ["-x", pin_assignment(assignment, d)]   # "STRETTO_PIN=..." or "STRETTO_PIN_PROBE=..."
+            env_args += launcher_env(style, *pin_assignment(assignment, d).split("=", 1))   # STRETTO_PIN or STRETTO_PIN_PROBE
         for k, v in (extra_env or {}).items():
-            env_args += ["-x", f"{k}={v}"]
+            env_args += launcher_env(style, k, str(v))
         # no --foreground: timeout then signals the whole process group, so the ranks go with mpirun
-        cmd = ["/usr/bin/timeout", "-k", "5", str(timeout), "/usr/bin/mpirun.openmpi", "-np", str(np),
+        cmd = ["/usr/bin/timeout", "-k", "5", str(timeout), mpirun, "-np", str(np),
                *(mpirun_args or []), *env_args, exe, *args]
         t0 = time.monotonic()
         r = subprocess.run(cmd, capture_output=True, text=True, stdin=subprocess.DEVNULL, cwd=cwd,

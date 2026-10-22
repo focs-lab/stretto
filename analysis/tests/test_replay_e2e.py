@@ -50,6 +50,20 @@ class Preload(unittest.TestCase):
         r = C.run_pinned(3, exe, [], None, timeout=60)
         self.assertRegex(r.stderr, r"(?m)^\[stretto-pin\] rank 0: loaded \(replay library\)")
 
+    def test_an_mpich_program_runs_with_mpichs_library(self):
+        """mpi="mpich" preloads the MPICH build of the replay library, through the launcher for
+        MPICH (Open MPI's mpirun by default: Ubuntu's MPICH is built with PMIx)."""
+        exe, _ = idiom(self, 1)
+        exe = exe.replace(f"/bin/{MPI}/", "/bin/mpich/")
+        lib = os.path.join(ROOT, "replay", "bin", "mpich", "libstretto-pin.so")
+        if not (os.path.exists(exe) and os.path.exists(lib)):
+            if REQUIRE:
+                self.fail(f"not built: {exe} {lib}")
+            self.skipTest("MPICH builds missing")
+        r = C.run_pinned(3, exe, [], None, timeout=60, mpi="mpich")
+        self.assertRegex(r.stderr, r"(?m)^\[stretto-pin\] rank 0: loaded \(replay library\)")
+        self.assertEqual(C.classify_rc(r.returncode, r.stderr, r.elapsed, 60), "FINISHED")
+
     def test_a_missing_library_is_refused_before_the_run(self):
         exe, _ = idiom(self, 1)
         with self.assertRaisesRegex(C.HarnessError, "missing"):
