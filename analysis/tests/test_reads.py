@@ -308,6 +308,54 @@ class WitnessPromotion(unittest.TestCase):
             rep = analyze(t, with_sp=True, reads=NeverReads())
             self.assertTrue(self.promoted(rep), "a record the stopped rank never reaches does not matter")
 
+    def test_no_promotion_past_an_error(self):
+        """r0 takes rank 1's message, which it truncates; the explorer goes on, and r1 then has
+        no message: a deadlock in every single-path execution. A program aborts at r0's error
+        (default handler) or may branch on its code (MPI_ERRORS_RETURN), so the deadlock stays a
+        single-path claim, whatever the bounds; with a message that fits it is promoted. The
+        truncation itself, the first error, is promoted (as the alternative's own 1a is L1)."""
+        for long in (True, False):
+            t = mk({0: [recv(T.ANY, 1, 2, 1, widx=0), recv(1, 1, 1, 1, count=2 if long else 1)],
+                    1: [send(0, 1, count=2 if long else 1)], 2: [send(0, 1)]})
+            rep = analyze(t, with_sp=True, reads=NeverReads())
+            ends = [f for f in self.promoted(rep) if f.cls in ("1c", "1d")]
+            self.assertEqual(bool(ends), not long, [str(f) for f in rep.findings])
+            self.assertIn("L1+SP" if long else "L1", self.levels(rep, "1d"))
+            self.assertEqual([f.error for f in self.promoted(rep) if f.cls == "1a"], ["truncate"] if long else [])
+
+    def test_a_truncation_is_promoted_up_to_itself(self):
+        """r0 (8 bytes) takes rank 2's 4-byte message instead of rank 1's 8 bytes, which r1 (4
+        bytes) must then take: a truncation that follows from the change. The witness counts up
+        to that error: rank 0 is judged at r1, where it stops being certain, so the bound of r0
+        may end right after r1 (rank 0 goes on to MPI_Finalize in the witness). With r0's
+        result read before r1 the truncation stays a single-path claim."""
+        t = mk({0: [recv(T.ANY, 1, 1, 1, count=2, widx=0), recv(T.ANY, 1, 2, 1, widx=1)],
+                1: [send(0, 1, count=2)], 2: [send(0, 1)]})
+        r0, r1 = t.recvs[(0, 0)], t.recvs[(0, 1)]
+
+        def trunc(rep):
+            return sorted({f.level for f in rep.findings if f.cls == "1a" and f.error == "truncate"
+                           and (f.recv, f.send) == ((0, 0), (2, 0))})
+        self.assertEqual(trunc(analyze(t, with_sp=True)), ["L1+SP"])
+        self.assertEqual(trunc(analyze(t, with_sp=True, reads=Table({(0, r0.idx): r1.idx + 1}))), ["L1"])
+        self.assertEqual(trunc(analyze(t, with_sp=True, reads=ReadBounds())), ["L1+SP"])
+
+    def test_witness_condition_with_errors(self):
+        """witness_respects on a witness with a truncation: refused for its end, accepted for
+        the truncation itself, refused for another kind of error."""
+        from stretto import dsl, explore
+        from stretto.reads import witness_respects
+        t = mk({0: [recv(T.ANY, 1, 1, 1, count=2, widx=0), recv(T.ANY, 1, 2, 1, widx=1)],
+                1: [send(0, 1, count=2)], 2: [send(0, 1)]})
+        pos = {}
+        prog = dsl.program_from_trace(t, pos)
+        outs = explore.explore(prog, None, force={(0, 0): (2, 0)}, comms=t.comm_members).outcomes_with((0, 0), (2, 0))
+        self.assertTrue(outs and all("truncate" in o.error_kinds for o in outs))
+        for o in outs:
+            self.assertIn("MPI error", witness_respects(t, o, pos, NeverReads()))
+            self.assertIsNone(witness_respects(t, o, pos, NeverReads(), "truncate"))
+            self.assertIn("other than", witness_respects(t, o, pos, NeverReads(), "rsend-no-receive"))
+
     def test_a_rank_without_finalize_blocks_promotion(self):
         """A rank that ends its trace without MPI_Finalize goes on in the program: when it
         finishes its recorded calls in the witness, nothing says it stops there."""

@@ -474,13 +474,15 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
                     def witness(pred) -> Optional[str]:
                         return next((pin_from_execution(t, o) for o in outs if pred(o)), None)
 
-                    def respecting(pred) -> Optional[explore.Outcome]:
+                    def respecting(pred, claim: Optional[str] = None) -> Optional[explore.Outcome]:
                         """A witness of pred that every program consistent with the trace and its
                         read bounds also has (reads.witness_respects): the consequence is then an
-                        L1 finding, with that witness's pins."""
+                        L1 finding, with that witness's pins. claim: the MPI error the consequence
+                        is, which the witness must meet before any other; None for its end, which
+                        no error may precede."""
                         if reads is None:
                             return None
-                        return next((o for o in outs if pred(o) and witness_respects(t, o, positions, reads) is None), None)
+                        return next((o for o in outs if pred(o) and witness_respects(t, o, positions, reads, claim) is None), None)
 
                     def promote(cls: str, what: str, w: explore.Outcome, c: str, error: str = "") -> None:
                         rep.findings.append(Finding(
@@ -517,7 +519,7 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
                     for err, what in (("truncate", "truncation error"), ("rsend-no-receive", "ready-mode send with no posted receive")):
                         if err in kinds and not (base_outs and all(err in o.error_kinds for o in base_outs)):
                             c = certainty(lambda o, err=err: err in o.error_kinds)
-                            w = respecting(lambda o, err=err: err in o.error_kinds)
+                            w = respecting(lambda o, err=err: err in o.error_kinds, err)
                             if w is not None:
                                 promote("1a", what, w, c, err)
                             else:

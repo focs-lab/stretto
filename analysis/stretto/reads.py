@@ -309,31 +309,64 @@ def _outside(rec) -> Optional[str]:
     return None
 
 
-def witness_respects(t: Trace, o, positions: Dict[int, List[int]], bounds: ReadBounds) -> Optional[str]:
+def witness_respects(t: Trace, o, positions: Dict[int, List[int]], bounds: ReadBounds,
+                     claim: Optional[str] = None) -> Optional[str]:
     """None if the explorer's execution o of dsl.program_from_trace(t, positions) is an
     execution of every program consistent with the trace that reads no result before its
-    bound; otherwise why it may not be (docs/firstread.md). For every rank, every record it
-    issues in o, the one it stops at included, must precede the bound of each earlier receive
-    whose message in o differs from the trace's: up to there the program has read only results
-    equal to the trace's, so it issues the trace's calls, with the trace's payloads. A rank that
-    finishes must end with MPI_Finalize, and no rank may pass a record the explorer does not
-    model (_outside)."""
+    bound, as far as claim needs it; otherwise why it may not be (docs/firstread.md). For
+    every rank, every record it issues in o, the one it stops at included, must precede the
+    bound of each earlier receive whose message in o differs from the trace's: up to there the
+    program has read only results equal to the trace's, so it issues the trace's calls, with
+    the trace's payloads. A rank that finishes must end with MPI_Finalize, and no rank may pass
+    a record the explorer does not model (_outside).
+
+    The explorer goes on after an MPI error; a program need not: with the default error
+    handler it aborts in the call that returns the error, and with MPI_ERRORS_RETURN it may
+    test the error code right there. claim None stands for the end of o (a deadlock, orphan
+    messages), which comes after every error of o, so o must have none: no error the explorer
+    records, and no receive that takes, instead of the trace's message, one it errs on
+    (erroneous: a truncation, a type mismatch). A claim "truncate" or "rsend-no-receive"
+    stands for o up to its first error, which must be of that kind: o may have no error of
+    another kind, and a rank is judged only up to the completion of its first receive that
+    errs, which it has not passed when the first error happens."""
     if t.missing:
         return f"ranks without a trace: {t.missing}"
     if not o.stops:
         return "the witness has no positions"
     matched = dict(o.matching)
+    errs: Dict[Key, str] = {}           # receives that take another message than the trace's and err on it
+    for rk, sk in matched.items():
+        r, s = t.recvs.get(rk), t.sends.get(sk)
+        if r is not None and s is not None and sk != t.observed.get(rk):
+            e = erroneous(r, s)
+            if e is not None:
+                errs[rk] = e
+    # the explorer's own errors; its truncations are those of errs and those of receives that
+    # take the trace's message, which the traced run went past already
+    kinds = {k for k in o.error_kinds if k != "truncate"} | set(errs.values())
+    if claim is None and kinds:
+        return f"the witness meets an MPI error ({', '.join(sorted(kinds))}), where the program may abort or branch"
+    if claim is not None and kinds - {claim}:
+        return f"the witness meets an MPI error other than {claim} ({', '.join(sorted(kinds - {claim}))})"
+    caps: Dict[int, int] = {}
+    for rk in errs:
+        r = t.recvs[rk]
+        if r.completed:
+            caps[r.rank] = min(caps.get(r.rank, _cidx(r)), _cidx(r))
     for rank, pos, blocked in o.stops:
         where = positions.get(rank, [])
         recs = t.ranks[rank]
-        if pos >= len(where) and not blocked:
-            if not recs or recs[-1].op != "finalize":
-                return f"rank {rank} finishes its recorded calls without MPI_Finalize"
+        finished = pos >= len(where) and not blocked
+        if finished:
             last = len(recs) - 1
         elif blocked in ("send", "recv"):
             last = where[pos - 1]                  # issued, the process parked in it
         else:
             last = where[pos]                      # parked at a collective, or a wait that cannot complete
+        if rank in caps and caps[rank] < last:
+            last = caps[rank]                      # as far as the rank can be when the first error happens
+        elif finished and (not recs or recs[-1].op != "finalize"):
+            return f"rank {rank} finishes its recorded calls without MPI_Finalize"
         for rec in recs[:last + 1]:
             why = _outside(rec)
             if why:

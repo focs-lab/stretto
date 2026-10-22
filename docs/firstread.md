@@ -185,6 +185,17 @@ cancel, an abort, or the creation of a communicator (a collective the explorer d
 synchronise). A rank that finishes its recorded calls in the witness must end its trace with
 `MPI_Finalize`; otherwise the program goes on beyond what the trace shows.
 
+Nor is a witness used past an MPI error. The explorer goes on after a truncation (errors are
+not terminal there, which keeps its exploration commutative), but a program aborts in the
+call that returns the error under the default error handler and may test the error code under
+`MPI_ERRORS_RETURN`, so it may branch at once. A deadlock or an orphan message is the end of
+the witness, after all its errors, so its witness may have none: no error the explorer
+records, and no receive that takes, instead of the trace's message, one that is longer than
+it or of another type signature. A truncation (or a ready send without its receive) is
+promoted from a witness up to the first error, which must be of that kind (every error of the
+witness is), and each rank is judged only up to the completion of its first receive that errs,
+which it has not passed when the first error happens.
+
 ## Known imprecision
 
 - Objects that are globals, heap memory or parameters, and locals whose address escapes, are
