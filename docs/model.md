@@ -442,7 +442,12 @@ issue at most once because cuts only decrease, and the cut states are ordered (i
 removed) < (index, issue kept), so the worklist reaches the greatest fixpoint that the
 rescanning `compute_cut_fixpoint` reaches (tests `closure_equals_fixpoint` and the 503 corpus
 traces); the order edges suffice by the chain argument of §2 (equal verdicts with the
-scanning versions on 816 traces, 20 Oct 2026). Evidence of the practical cost: AMG at 8 ranks
+scanning versions on 816 traces, 20 Oct 2026). The O(T) lookups per pair of matching order
+include skipping the sends a matched Mprobe took from the queue before the receive: a rank's
+receives and Mprobes take each queue's messages in order, so the latest earlier send no Mprobe
+took is found in one step (`Trace.earlier_sends`); before 22 Oct 2026 it was found by a walk
+back over the taken ones, O(n) per pair on a channel served by Mprobe and Mrecv
+(`test_earlier_sends_skip_mprobed_ones_at_once`). Evidence of the practical cost: AMG at 8 ranks
 (39 643 sends, 53 wildcard receives, 10 978 probes, 3 263 probe alternatives, about 260 message
 sizes) 13.2 s and 0.56 GB on the second machine; Nekbone's communication suite at 8 ranks
 (10.4 million records, 18 759 alternatives) 63 min and 33.3 GB (31.0 GiB), about 0.2 s per

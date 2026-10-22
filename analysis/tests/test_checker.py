@@ -692,6 +692,44 @@ class C_CancelAndMprobe(unittest.TestCase):
         self.assertEqual(t.sends[(1, 0)].reserved_idx, t.probes[(0, 0)].idx)
         self.assertEqual(candidates_full(t)[0], [])
 
+    def test_earlier_sends_skip_mprobed_ones_at_once(self):
+        """Trace.earlier_sends gives, per tag, the latest earlier send of the channel that the
+        receive could take, skipping those a matched Mprobe posted before it took from the
+        queue. It walked back over them one by one, O(n) per pair and O(n^2) for a channel
+        served by Mprobe and Mrecv throughout (audit of 22 Oct 2026, item 15); now one lookup."""
+        n = 200
+        mp = {"op": "probe", "kind": "mprobe", "src": 1, "tag": 1, "comm": 0, "flag": 1, "msrc": 1, "mtag": 1}
+        mr = {**recv(1, 1, 1, 1), "mrecv": 1}
+        t = mk({0: [dict(x) for _ in range(n) for x in (mp, mr)] + [recv(T.ANY, 1, 1, 1)],
+                1: [send(0, 1) for _ in range(n + 1)]})
+        r, s = t.recvs[(0, n)], t.sends[(1, n)]
+        self.assertEqual(t.observed[r.key], s.key)
+        self.assertTrue(all(t.sends[(1, k)].reserved_idx is not None for k in range(n)))
+        calls = [0]
+        real = T.Send.available_to
+
+        def counting(self_, x):
+            calls[0] += 1
+            return real(self_, x)
+
+        T.Send.available_to = counting
+        try:
+            self.assertEqual(t.earlier_sends(r, s), ())
+        finally:
+            T.Send.available_to = real
+        self.assertLessEqual(calls[0], 2)
+        # the same answers as the walk, for receives and Mprobes at the start, middle and end
+        for x in [t.recvs[(0, k)] for k in (0, n // 2, n - 1, n)] + [t.probes[(0, k)] for k in (0, n // 2, n - 1)]:
+            for y in t.sends.values():
+                if x.accepts(y):
+                    walk = []
+                    for tag in ([x.tag] if x.tag != T.ANY else sorted({z.tag for z in t.sends_to(y.rank, y.dst, y.comm)})):
+                        q = [z for z in t.sends_to(y.rank, y.dst, y.comm) if z.tag == tag and z.idx < y.idx and not z.cancelled]
+                        while q and not q[-1].available_to(x):
+                            q.pop()
+                        walk += q[-1:]
+                    self.assertEqual(list(t.earlier_sends(x, y)), walk, (x, y))
+
 
 class C_Cancellation(unittest.TestCase):
     """The model has no cancel: a run in which a cancel succeeded, or whose outcome the trace

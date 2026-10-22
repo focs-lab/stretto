@@ -343,11 +343,29 @@ class Trace:
                 continue
             j = bisect_left(idx, s.idx) - 1
             sends = self._send_tag[key]
-            while j >= 0 and not sends[j].available_to(r):   # removed by an earlier matched probe
-                j -= 1
+            if j >= 0 and not sends[j].available_to(r):
+                # removed from the queue by a matched Mprobe posted before r. A rank's receives
+                # and Mprobes take each queue's messages in order, so every earlier send of the
+                # queue that an Mprobe took was taken earlier still: the answer is the latest
+                # earlier send no Mprobe took, one lookup instead of a walk back over them
+                j = self._unreserved(key)[j]
             if j >= 0:
                 out.append(sends[j])
         return out
+
+    def _unreserved(self, key) -> List[int]:
+        """For each send of a (channel, tag) list of _send_tag, the position of the latest send
+        at or before it that no Mprobe took (-1 if none). Built on first use, once the
+        reconstruction of the observed matching has marked the sends Mprobes took."""
+        u = self._unreserved_at.get(key)
+        if u is None:
+            u, last = [], -1
+            for j, x in enumerate(self._send_tag[key]):
+                if x.reserved_idx is None:
+                    last = j
+                u.append(last)
+            self._unreserved_at[key] = u
+        return u
 
     def observed_send(self, r: Recv) -> Optional[Send]:
         k = self.observed.get(r.key)
@@ -411,6 +429,7 @@ class Trace:
             if not s.cancelled:
                 self._send_tag.setdefault((s.rank, s.dst, s.comm, s.tag), []).append(s)
         self._send_tag_idx = {k: [s.idx for s in v] for k, v in self._send_tag.items()}
+        self._unreserved_at: Dict = {}
         self._tags_on = {}
         for src, dst, comm, tag in sorted(self._send_tag):
             self._tags_on.setdefault((src, dst, comm), []).append(tag)
