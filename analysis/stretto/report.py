@@ -241,12 +241,13 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
     # ---- profiles over the breakpoints: the observed run and every alternative (receive,
     # probe, completion order) judged at each threshold, threshold-major so that one
     # Observed(t, B) serves every check at B (stretto.fast), or the generic checker on request
-    hb = fast.Observed(t, None).reaches if not generic else observed_hb(t)
+    ob_inf = fast.Observed(t, None) if not generic else None     # also the profiles' B = inf
+    hb = ob_inf.reaches if not generic else observed_hb(t)
     alts, pruned = candidates_full(t, hb)
     rep.infeasible.extend((d, why) for d, why in pruned)
     probes = probe_candidates(t, hb)
     waits = _completion_alternatives(t, hb)
-    pr = _profiles_generic(t, alts, probes, waits, reads) if generic else _profiles_fast(t, alts, probes, waits, full_profile, reads)
+    pr = _profiles_generic(t, alts, probes, waits, reads) if generic else _profiles_fast(t, alts, probes, waits, full_profile, reads, ob_inf)
     rep.notes.extend(pr.notes)
     if reads is not None:
         n = sum(1 for a in alts if reads.extends(t, a.changed))
@@ -686,7 +687,8 @@ class _Profiles:
 CONFIRM_LIMIT = 200_000     # records up to which the generic check confirms the fast check's cycle rejections
 
 
-def _profiles_fast(t: Trace, alts, probes, waits, full: bool = False, reads=None) -> _Profiles:
+def _profiles_fast(t: Trace, alts, probes, waits, full: bool = False, reads=None,
+                   ob_inf: Optional[fast.Observed] = None) -> _Profiles:
     """The indexed checker (stretto.fast). Each item is judged at the two ends of the B range
     and, when the verdicts differ, bisected over the breakpoints between them: theorem T2
     (docs/model.md) makes the feasibility of a single-change alternative monotone in B, so
@@ -698,10 +700,11 @@ def _profiles_fast(t: Trace, alts, probes, waits, full: bool = False, reads=None
     be monotone (later receives of the window become judged as B grows), but its horizon
     contains H1's with every node, edge and obligation of it, so H1' accepts only what the
     generic H1 check accepts: where the generic check confirms the fast check's rejections,
-    the union is H1's profile, which T2 makes monotone."""
+    the union is H1's profile, which T2 makes monotone. ob_inf: the Observed(t, None) the caller
+    built for the enumeration, whose graph and clocks then serve B = inf too."""
     bps = breakpoints(t) + [None]
     ix = t.fast_indexes()
-    obs: Dict[Optional[int], fast.Observed] = {}
+    obs: Dict[Optional[int], fast.Observed] = {} if ob_inf is None or ob_inf.ix is not ix else {None: ob_inf}
     # the fast check decides reachability in the observed graph, which also holds events beyond
     # an alternative's horizon, so a rejection by a cycle can be one the rules do not make
     # (proof appendix, conservative step 2); on traces up to CONFIRM_LIMIT records the generic

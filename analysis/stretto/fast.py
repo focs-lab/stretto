@@ -108,6 +108,8 @@ class Indexes:
         self.recv_of0: Dict[Key, Key] = {sk: rk for rk, sk in t.observed.items()}
         self._sends = self._recvs = self._colls = self._unmatched = None
         self._lam = None                  # Lamport times (lamport()); False if unavailable
+        self._acyc: Dict[Optional[int], bool] = {}   # threshold -> observed graph acyclic (acyclic_known)
+        self._acyc_strong: Dict[Optional[int], bool] = {}   # the same over guaranteed edges
         # receives without an observed send, per rank in posting order; orphan sends
         self.unmatched: Dict[int, List[Recv]] = {}
         for r in sorted(t.recvs.values(), key=lambda r: (r.rank, r.idx)):
@@ -241,8 +243,29 @@ class Indexes:
         edges only disappear as B grows and the other edges do not depend on B, so a yes
         holds at every threshold and the alternatives need no graph per threshold."""
         if getattr(self, "_full0", None) is None:
-            self._full0 = build_graph(self.t, self.t.observed, None, 0).find_cycle() is None
+            ok = self._acyc.get(0)
+            self._full0 = build_graph(self.t, self.t.observed, None, 0).find_cycle() is None if ok is None else ok
+            self._acyc[0] = self._full0
         return self._full0
+
+    def acyclic_seen(self, B: Optional[int], ok: bool, strong: bool = False) -> None:
+        """Record whether the observed graph at threshold B (over guaranteed edges only, if
+        strong) is acyclic: Observed.graph, Observed.observed_verdict."""
+        (self._acyc_strong if strong else self._acyc)[B] = ok
+
+    def acyclic_known(self, B: Optional[int], strong: bool = False) -> Optional[bool]:
+        """Whether the observed graph at B (over guaranteed edges only, if strong) is acyclic,
+        if a graph already built decides it: the graphs share their nodes and lose rendezvous
+        edges as B grows (matching.send_blocks is antitone in B), so acyclic at B' <= B means
+        acyclic at B, cyclic at B' >= B cyclic."""
+        def le(x, y):                     # x <= y, None standing for infinity
+            return y is None or (x is not None and x <= y)
+        for B2, ok in (self._acyc_strong if strong else self._acyc).items():
+            if ok and le(B2, B):
+                return True
+            if not ok and le(B, B2):
+                return False
+        return None
 
     def strong_acyclic_at_zero(self) -> bool:
         """Is the observed matching's graph of guaranteed edges acyclic at B = 0 over the
@@ -251,6 +274,7 @@ class Indexes:
         is then None for all B) and the per-threshold graphs need not be built."""
         if getattr(self, "_strong0", None) is None:
             self._strong0 = build_graph(self.t, self.t.observed, None, 0, strong_only=True).find_cycle() is None
+            self._acyc_strong[0] = self._strong0
         return self._strong0
 
     def lamport(self, g: Optional[Graph] = None) -> Optional[Dict[int, array]]:
@@ -283,7 +307,8 @@ class Observed:
         self.orphans_blocking = [s for s in ix.orphans if send_blocks(s, B)]
         self._graph = None
         self._cycle: Optional[list] = None
-        self._vc = None
+        self._acyclic: Optional[bool] = None      # is the graph at B acyclic, once known
+        self._rows = self._rows_other = None      # vector clocks (_build_vc)
         self._reach: Dict = {}         # reachability by source node, when the graph is cyclic
         self._rank_pos: Dict[int, int] = {}
         self._obs_closure = None
@@ -630,16 +655,29 @@ class Observed:
     def graph(self):
         if self._graph is None:
             self._graph = build_graph(self.t, self.t.observed, None, self.B)
-            self._cycle = self._graph.find_cycle()
-            if self.B is None and self._cycle and self.ix._lam is None:
+            if self._acyclic is None:
+                self._cycle = self._graph.find_cycle()
+                self._acyclic = not self._cycle
+                self.ix.acyclic_seen(self.B, self._acyclic)
+            if self.B is None and not self._acyclic and self.ix._lam is None:
                 self.ix._lam = False          # the graph of Indexes.lamport, cyclic: no Lamport times
         return self._graph
 
-    def acyclic(self) -> bool:
-        if self.ix.acyclic_at_zero():
-            return True
-        self.graph()
-        return not self._cycle
+    def acyclic(self, keep: bool = False) -> bool:
+        """Is the observed graph at B acyclic? Known at once when it is at B = 0 or, since
+        the graph only loses rendezvous edges as B grows, at a smaller threshold (or cyclic
+        at a larger one: Indexes.acyclic_known); otherwise the graph is built, and kept if
+        cyclic, where reaches() searches it, or if keep (the vector clocks are built next)."""
+        if self._acyclic is None:
+            if self.ix.acyclic_at_zero():
+                self._acyclic = True
+            else:
+                self._acyclic = self.ix.acyclic_known(self.B)
+                if self._acyclic is None:
+                    self.graph()
+                    if self._acyclic and not keep:
+                        self._graph = None
+        return self._acyclic
 
     def reaches(self, a, b) -> bool:
         """a happens-before b in every execution with the observed matching at this B. a is an
@@ -647,71 +685,134 @@ class Observed:
         cannot realise at this B: a ready send issued before its receive, a collective of
         unknown shape that did not synchronise) has no vector clocks; the answer is then the
         graph's own reachability, as matching.observed_hb gives it."""
-        if self._vc is None:
-            self.graph()
-            if self._cycle:
+        if self._rows is None:
+            if not self.acyclic(keep=True):
+                self.graph()
                 reach = self._reach.get(a)
                 if reach is None:
                     reach = self._reach[a] = self._graph.reach_set(a)
                 return b in reach
             self._build_vc()
-        vb = self._vc.get(b)
-        if vb is None or a not in self._vc:
+        rb = self._row(b)
+        if rb is None or self._row(a) is None:
             return False
-        return vb[self._rank_pos[a[0]]] >= 2 * a[1] + (1 if a[2] == "c" else 0)
+        pa = 2 * a[1] + (1 if a[2] == "c" else 0)
+        if a[0] == b[0] and b[2] != "m":
+            return 2 * b[1] + (1 if b[2] == "c" else 0) >= pa     # program order on a's rank
+        return rb[self._rank_pos[a[0]]] >= pa
+
+    def _row(self, n):
+        """The clock row of node n (Observed._build_vc), None if n is not a node of the graph."""
+        if n[0] >= 0 and n[2] != "m":
+            rows = self._rows.get(n[0])
+            k = 2 * n[1] + (1 if n[2] == "c" else 0)
+            return rows[k] if rows is not None and 0 <= k < len(rows) else None
+        return self._rows_other.get(n)
 
     def _build_vc(self) -> None:
-        g = self.graph()
-        if self._cycle:
+        """Vector clocks of the observed graph at B, in one topological pass that pushes each
+        node's clock to its successors. A node of a rank keeps its row without its own
+        component, which reaches() reads off the node itself; so a node whose only
+        predecessor is the previous node of its rank, or a match node or hub, has its
+        predecessor's row and shares it, and rows are made only where a predecessor on another
+        rank joins: receive, collective and probe completions, match nodes, hubs. Rows are
+        held per rank by position, not in a dictionary keyed by node. Before 22 Oct 2026 every
+        node had a row of its own and a list of its predecessors, which at AMG's 64 processes
+        came to gigabytes per threshold. The graph is dropped once the clocks are built."""
+        if not self.acyclic():
             raise ValueError("observed graph is cyclic: no vector clocks")
-        ranks = sorted(self.t.ranks)
-        self._rank_pos = {r: i for i, r in enumerate(ranks)}
+        g = self.graph()
+        t = self.t
+        ranks = sorted(t.ranks)
+        rp = self._rank_pos = {r: i for i, r in enumerate(ranks)}
         P = len(ranks)
-        indeg: Dict = {n: 0 for n in g.nodes}
-        for a, succ in g.succ.items():
+        rows: Dict[int, list] = {rank: [None] * (2 * len(recs)) for rank, recs in t.ranks.items()}
+        other: Dict = {}
+        indeg = {rank: array("l", [0]) * (2 * len(recs)) for rank, recs in t.ranks.items()}
+        indeg_other: Dict = {}
+        for succ in g.succ.values():
             for b in succ:
-                indeg[b] = indeg.get(b, 0) + 1
-        ready = [n for n in g.nodes if indeg[n] == 0]
-        vc: Dict = {}
+                if b[0] >= 0 and b[2] != "m":
+                    indeg[b[0]][2 * b[1] + (b[2] == "c")] += 1
+                else:
+                    indeg_other[b] = indeg_other.get(b, 0) + 1
         # at B = inf this is the graph of Indexes.lamport: its Lamport times come with the clocks
-        lam = {rank: array("l", [0]) * (2 * len(recs)) for rank, recs in self.t.ranks.items()} \
+        lam = {rank: array("l", [0]) * (2 * len(recs)) for rank, recs in t.ranks.items()} \
             if self.B is None and self.ix._lam is None else None
         lam_other: Dict = {}
+        base = [-1] * P
+        ready = []
+        for n in g.nodes:
+            if n[0] >= 0 and n[2] != "m":
+                if indeg[n[0]][2 * n[1] + (n[2] == "c")] == 0:
+                    rows[n[0]][2 * n[1] + (n[2] == "c")] = base
+                    ready.append(n)
+            elif indeg_other.get(n, 0) == 0:
+                other[n] = base
+                ready.append(n)
+        acc: Dict = {}          # rows being joined at nodes with a predecessor still to come
+        succ_of = g.succ
         while ready:
             n = ready.pop()
-            v = [-1] * P
-            ln = 0
-            for a in self._preds(n):
-                va = vc[a]
-                for i in range(P):
-                    if va[i] > v[i]:
-                        v[i] = va[i]
-                if lam is not None:
-                    la = (lam[a[0]][2 * a[1] + (a[2] == "c")] if a[0] >= 0 and a[2] != "m" else lam_other[a]) + 1
-                    if la > ln:
-                        ln = la
-            if not is_hub(n) and not is_match(n):   # hubs and match nodes are no rank's events
-                v[self._rank_pos[n[0]]] = 2 * n[1] + (1 if n[2] == "c" else 0)
-                if lam is not None:
-                    lam[n[0]][2 * n[1] + (n[2] == "c")] = ln
-            elif lam is not None:
-                lam_other[n] = ln
-            vc[n] = v
-            for b in g.succ.get(n, ()):
-                indeg[b] -= 1
-                if indeg[b] == 0:
+            n0, n1, n2 = n
+            own = n0 >= 0 and n2 != "m"
+            if own:
+                pn = 2 * n1 + (n2 == "c")
+                r = rows[n0][pn]
+                k = rp[n0]
+                ln = lam[n0][pn] + 1 if lam is not None else 0
+            else:
+                r = other[n]
+                ln = lam_other.get(n, 0) + 1 if lam is not None else 0
+            for b in succ_of.get(n, ()):
+                b0, b1, b2 = b
+                b_own = b0 >= 0 and b2 != "m"
+                if b_own:
+                    pb = 2 * b1 + (b2 == "c")
+                    arr = indeg[b0]
+                    d = arr[pb] - 1
+                    arr[pb] = d
+                    if lam is not None and ln > lam[b0][pb]:
+                        lam[b0][pb] = ln
+                else:
+                    d = indeg_other[b] - 1
+                    indeg_other[b] = d
+                    if lam is not None and ln > lam_other.get(b, 0):
+                        lam_other[b] = ln
+                if d == 0 and b not in acc:
+                    # the only predecessor: its row, shared when it is the previous node of
+                    # b's rank or has no own component
+                    if not own or (b_own and b0 == n0):
+                        cur = r
+                    else:
+                        cur = list(r)
+                        if cur[k] < pn:
+                            cur[k] = pn
+                    if b_own:
+                        rows[b0][pb] = cur
+                    else:
+                        other[b] = cur
                     ready.append(b)
-        self._vc = vc
+                    continue
+                cur = acc.pop(b, None)
+                if cur is None:
+                    cur = list(r)
+                elif cur != r:
+                    cur = [x if x > y else y for x, y in zip(cur, r)]
+                if own and cur[k] < pn:
+                    cur[k] = pn
+                if d == 0:
+                    if b_own:
+                        rows[b0][pb] = cur
+                    else:
+                        other[b] = cur
+                    ready.append(b)
+                else:
+                    acc[b] = cur
+        self._rows, self._rows_other = rows, other
         if lam is not None:
             self.ix._lam = lam
-
-    def _preds(self, n):
-        if not hasattr(self, "_pred"):
-            self._pred: Dict = {}
-            for a, succ in self.graph().succ.items():
-                for b in succ:
-                    self._pred.setdefault(b, []).append(a)
-        return self._pred.get(n, ())
+        self._graph = None                    # the clocks answer reaches(); acyclic() is known
 
     # ------------------------------------------------------------------- checks
     def check_alternative(self, alt: Alternative, bounds=None) -> Optional[Verdict]:
@@ -734,7 +835,7 @@ class Observed:
             return None
         s_obs = t.observed_send(r)
         r2 = t.recvs[alt.stolen_from] if alt.stolen_from is not None else None
-        if not self.acyclic():
+        if not self.acyclic(keep=send_blocks(s, B) or s.ready_mode):     # kept for the clocks below
             return None          # the cycle may lie outside the horizon: the generic check decides
         self.ix.ready()
         exclude2 = (s_obs.rank, r.rank, self.ix.sq_pos[s_obs.key]) if s_obs is not None else None
@@ -874,11 +975,18 @@ class Observed:
                 cut, issued = self.closure(mode="SP", hangs=hangs)
                 self._obs_closure = cut, issued, hangs
             cut, issued, hangs = self._obs_closure
+            # a closure that removes nothing leaves the graph of the whole trace at B, whose
+            # acyclicity the graphs built at other thresholds may decide (Indexes.acyclic_known)
+            whole = not issued and all(cut[r] == n for r, n in self.ix.length.items())
             if self.ix.strong_acyclic_at_zero() if strong else self.ix.acyclic_at_zero():
+                cyc = None
+            elif whole and self.ix.acyclic_known(self.B, strong):
                 cyc = None
             else:
                 g = build_graph(self.t, self.t.observed, cut, self.B, strong_only=strong, issued=issued)
                 cyc = g.find_cycle()
+                if whole:
+                    self.ix.acyclic_seen(self.B, not cyc, strong)
             text = "hang under the single-path assumption: " + "; ".join(hangs[r] for r in sorted(hangs)) if hangs else ""
             if cyc:
                 v = Verdict(False, "constraint cycle", cut, cyc, hangs)

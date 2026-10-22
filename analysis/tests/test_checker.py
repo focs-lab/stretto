@@ -721,6 +721,27 @@ def closure_orders_agree(tc, t):
         tc.assertEqual(res[0], res[1], f"B={B}")
 
 
+def clocks_agree(tc, t):
+    """fast.Observed's vector clocks, whose rows are shared between the nodes of a rank up to the
+    next join, against the graph's own reachability for every pair of a rank's node and any
+    node, and Observed.acyclic, which the graphs of other thresholds decide where they can,
+    against a cycle search in the graph of each threshold, taken in an order that uses both."""
+    ix = fast.Indexes(t)
+    bps = breakpoints(t) + [None]
+    for B in [None] + bps[:-1] + [None]:
+        g = build_graph(t, t.observed, None, B)
+        acyclic = g.find_cycle() is None
+        ob = fast.Observed(t, B, ix)
+        tc.assertEqual(ob.acyclic(), acyclic, f"B={B}")
+        if not acyclic:
+            continue
+        nodes = [n for n in g.nodes if n[0] >= 0]
+        for a in (n for n in nodes if n[2] != "m"):
+            reach = g.reach_set(a)
+            for b in nodes:
+                tc.assertEqual(ob.reaches(a, b), a == b or b in reach, f"{a} -> {b} at B={B}")
+
+
 class C_FastEqualsGeneric(unittest.TestCase):
     def test_traces_of_this_module(self):
         # every in-memory trace the other tests build, re-created here
@@ -746,6 +767,7 @@ class C_FastEqualsGeneric(unittest.TestCase):
                 fast_equals_generic(self, t)
                 closure_equals_fixpoint(self, t)
                 closure_orders_agree(self, t)
+                clocks_agree(self, t)
 
     def test_closure_order_on_a_cascade(self):
         """A cascade over four ranks that the LIFO order processes rank 3 twice in: rank 0's
@@ -1453,6 +1475,8 @@ class C_ClosureOrderRandom(unittest.TestCase):
         for i, t in enumerate(e6_traces(30, 5000)):
             with self.subTest(program=i + 1):
                 closure_orders_agree(self, t)
+                if i < 10:
+                    clocks_agree(self, t)
             n += 1
         self.assertEqual(n, 30)
 
@@ -1464,6 +1488,8 @@ class C_ClosureOrderRandom(unittest.TestCase):
             self.assertIsNotNone(t.fast_indexes().lamport())
             with self.subTest(trace=i):
                 closure_orders_agree(self, t)
+                if i < 10:
+                    clocks_agree(self, t)
             probes += len(probe_candidates(t))
             for B in (0, None):
                 ob = fast.Observed(t, B)

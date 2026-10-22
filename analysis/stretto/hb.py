@@ -290,10 +290,11 @@ def judge(t: Trace, generic: bool = False) -> Optional[Dict[Tuple[str, Key, Key]
     analysis declines to predict (declines)."""
     if declines(t):
         return None
-    hb = observed_hb(t) if generic else fast.Observed(t, None).reaches
+    ob_inf = None if generic else fast.Observed(t, None)
+    hb = observed_hb(t) if generic else ob_inf.reaches
     alts, _ = candidates_full(t, hb)
     probes = probe_candidates(t, hb)
-    pr = _profiles_generic(t, alts, probes, []) if generic else _profiles_fast(t, alts, probes, [])
+    pr = _profiles_generic(t, alts, probes, []) if generic else _profiles_fast(t, alts, probes, [], ob_inf=ob_inf)
     realisable = {B for B, ok in pr.real.items() if ok} or set(pr.real)
     out: Dict[Tuple[str, Key, Key], Decision] = {}
 

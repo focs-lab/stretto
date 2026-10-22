@@ -17,7 +17,7 @@ from stretto import dsl, explore, trace  # noqa: E402
 from stretto.feasible import check, feasible_profile  # noqa: E402
 from stretto.matching import candidates  # noqa: E402
 from stretto.report import analyze  # noqa: E402
-from test_checker import closure_equals_fixpoint, closure_orders_agree, fast_equals_generic  # noqa: E402
+from test_checker import clocks_agree, closure_equals_fixpoint, closure_orders_agree, fast_equals_generic  # noqa: E402
 import idioms_dsl as I  # noqa: E402
 
 MPI = os.environ.get("MPI", "openmpi")
@@ -158,6 +158,7 @@ for _n in range(1, 12):
     setattr(CheckerSoundness, f"test_{_n:02d}_fast_equals_generic", lambda self, n=_n: fast_equals_generic(self, self._trace(n)))
     setattr(CheckerSoundness, f"test_{_n:02d}_closure_equals_fixpoint", lambda self, n=_n: closure_equals_fixpoint(self, self._trace(n)))
     setattr(CheckerSoundness, f"test_{_n:02d}_closure_orders_agree", lambda self, n=_n: closure_orders_agree(self, self._trace(n)))
+    setattr(CheckerSoundness, f"test_{_n:02d}_clocks_agree", lambda self, n=_n: clocks_agree(self, self._trace(n)))
 
 _EXPECTED = {1: [((0, 0), (2, 0))], 4: [((0, 0), (2, 0))], 5: [((0, 0), (2, 0))],
              6: [((0, 0), (2, 0))], 8: [((0, 0), (2, 0))], 9: [((0, 1), (1, 1))]}

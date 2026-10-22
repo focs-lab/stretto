@@ -87,7 +87,8 @@ kernel that enumerated the candidate (the send is the earliest unconsumed one of
 source), so only the receives of the changed rank are looked at; and, for a steal at a
 *blocking* receive, acyclicity reduces to reachability queries on the observed graph of the
 threshold, answered by vector clocks computed once per threshold (match nodes carry no
-timestamp of their own, like hubs). The worklist takes the rank
+timestamp of their own, like hubs; a row of the clock is stored only where a predecessor on
+another rank joins, and the nodes between two joins share it). The worklist takes the rank
 whose first removed record is earliest in the Lamport times of the observed run at B = ∞
 (`Indexes.lamport`): a removal makes the operations that need the removed one lose their
 completion, and those come later, so a rank is usually processed once, at the cut where it
