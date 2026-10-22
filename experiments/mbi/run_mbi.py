@@ -106,8 +106,9 @@ def features(path: str) -> dict:
 
 
 def pin_label(pin: str) -> str:
-    """STRETTO_PIN=1:0:0:0 -> 1/0/0/0 (rank/widx/src[/tag]); STRETTO_PIN_PROBE=... -> probe 1/0/2."""
-    name, _, spec = (pin or "").partition("=")
+    """STRETTO_PIN=1:0:0:0 -> 1/0/0/0 (rank/widx/src[/tag]); STRETTO_PIN_PROBE=... -> probe 1/0/2. The
+    identity a pin carries (stretto.confirm) is left out, as the tables name pins without it."""
+    name, _, spec = confirm_mod.strip_identity(pin or "").partition("=")
     return ("probe " if name.endswith("PROBE") else "") + spec.replace(":", "/")
 
 
@@ -194,7 +195,7 @@ def analyse(row: dict, out: str, exe: str, tracedir: str, args) -> None:
                             "pin_applied": c.pin_applied, "pin_matched": c.pin_matched, "control": c.control,
                             "verdict": c.verdict, "run_valid": c.run_valid, "violation": c.violation[:300],
                             "control_valid": c.control_valid, "control_violation": c.control_violation[:300],
-                            "strict_verdict": c.strict, "commit": code_commit(),
+                            "strict_verdict": c.strict, "misapplied": c.misapplied, "commit": code_commit(),
                             "stderr_tail": " ".join(c.stderr_tail.split())[-200:]} for c in res]
 
 
@@ -209,7 +210,7 @@ def crashed_status(rows) -> int:
 
 
 REPLAY_KEYS = ["program", "cls", "level", "certainty", "pin", "result", "pin_applied", "pin_matched", "control", "verdict",
-               "run_valid", "violation", "control_valid", "control_violation", "strict_verdict", "stderr_tail", "commit"]
+               "run_valid", "violation", "control_valid", "control_violation", "strict_verdict", "misapplied", "stderr_tail", "commit"]
 
 
 def replay_only(args) -> int:

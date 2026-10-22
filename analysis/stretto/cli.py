@@ -122,7 +122,7 @@ def cmd_confirm(args):
                            "result": c.result, "pin_applied": c.pin_applied, "pin_matched": c.pin_matched,
                            "control": c.control, "verdict": c.verdict, "run_valid": c.run_valid, "violation": c.violation,
                            "control_valid": c.control_valid, "control_violation": c.control_violation,
-                           "strict_verdict": c.strict} for c in res], indent=1))
+                           "strict_verdict": c.strict, "misapplied": c.misapplied} for c in res], indent=1))
     else:
         for c in res:
             print(f"[{c.finding.cls:>12}] {c.finding.level:<6} {c.pin:<28} -> {c.result:<14} "
@@ -131,6 +131,8 @@ def cmd_confirm(args):
                   + (f", run of the program: {c.run_valid}, strict: {c.strict}" if c.run_valid else ""))
             if c.violation:
                 print(f"               {c.violation}")
+            if c.misapplied:
+                print(f"               pin misapplied: {c.misapplied}")
         n = sum(1 for c in res if c.verdict == "confirmed")
         m = sum(1 for c in res if c.verdict == "not-confirmed")
         k = sum(1 for c in res if c.verdict == "inconclusive")

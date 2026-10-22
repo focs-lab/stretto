@@ -221,7 +221,11 @@ checksum only, and reads only on pages that lie wholly inside a point-to-point r
 `STRETTO_PIN="rank:idx:src[:tag],..."` pins the idx-th wildcard receive of a rank to a source;
 `STRETTO_PIN_PROBE` does the same for wildcard probes, and `STRETTO_PIN=@file` reads a list too
 long for one environment string. `STRETTO_SEND_DELAY_MS="rank:ms,..."` and
-`STRETTO_RECV_DELAY_MS` add delays, which the stress-testing baseline uses.
+`STRETTO_RECV_DELAY_MS` add delays, which the stress-testing baseline uses. The pins `stretto
+confirm` writes also carry the traced operation's identity, `rank:idx:src[:tag]@comm:tag:site`
+(its communicator's creation ordinal on the rank, its tag argument, its call site): a replay that
+diverged before a pin would otherwise pin another operation and report it matched. The replay
+library ends such a run with exit code 86, and the replay is inconclusive (`replay/pin.h`).
 
 ```bash
 scripts/replay_idiom.sh 04 0:0:2      # pin rank 0's first wildcard receive to rank 2: the predicted run

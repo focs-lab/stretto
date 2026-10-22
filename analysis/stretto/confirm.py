@@ -13,7 +13,12 @@ replay can match every pin of an alternative that no run of the program has. Whe
 is built, the replays and controls run under it (run_checked): it applies the pins and records
 the run with the original envelopes, and the replay's own trace is judged as a run of the
 program without the pins (unpinned_violation). The strict verdict (strict_verdict) confirms a
-finding only if, in addition, its replay is such a run up to where it ended."""
+finding only if, in addition, its replay is such a run up to where it ended.
+
+A pin names an operation by an ordinal, and carries the traced operation's communicator, tag
+and call site (pin_token): a replay whose pin falls on another operation, because it diverged
+before it, is ended by the replay library and judged inconclusive ("pin misapplied"), never
+confirmed or refuted."""
 from __future__ import annotations
 import itertools
 import math
@@ -74,6 +79,8 @@ class Confirmation:
     control_valid: str = ""     # the same for the control
     control_violation: str = ""
     strict: str = ""            # strict_verdict(verdict, run_valid)
+    misapplied: str = ""        # pins of the replay or control that fell on another operation than the
+                                # traced one (the run diverged before them): the verdict is inconclusive
 
 
 def strict_verdict(verdict: str, run_valid: str) -> str:
@@ -106,31 +113,199 @@ def classify_rc(rc: int, stderr: str, elapsed: Optional[float] = None, timeout: 
     return f"APP-ERROR:{rc}"
 
 
+# ------------------------------------------------------------------ pins and their identity
+#
+# A pin names an operation by its ordinal among the rank's wildcard receives (widx) or among its
+# wildcard probes that found a message (pidx), counted over every communicator, tag and call
+# site. A replay that diverges before the pin (one wildcard receive more or less, a polling loop
+# that finds a message in another order) would put the pin on another operation, which can only
+# take the pinned source and so reports "matched". Each token therefore carries the identity of
+# the traced operation after '@': its communicator (the tracer's local id, the communicator's
+# creation ordinal on the rank), its tag argument (-1 for ANY_TAG) and its call site (the offset
+# of the MPI call's return address in its object), "rank:idx:src[:tag]@comm:tag[:site]"; 'x'
+# leaves a part unchecked. The replay library compares them with the operation at the ordinal
+# and ends the run on a difference ("misapplied", replay/pin.h); its report lines carry the
+# run's identity, and the replay's own trace is compared too (trace_matches,
+# trace_misapplied). A token without '@', as pins were written before, is not checked.
+
+PIN_MISAPPLIED = 86      # the exit code the replay library ends a run with (replay/pin.h STRETTO_PIN_MISAPPLIED)
+
+Ident = Tuple[Optional[int], Optional[int], Optional[int]]     # (communicator, tag, site); None: unchecked
+
+
+@dataclass(frozen=True)
+class PinToken:
+    kind: str                 # "recv" (STRETTO_PIN) or "probe" (STRETTO_PIN_PROBE)
+    rank: int
+    idx: int                  # widx or pidx
+    src: int                  # the sender's world rank
+    tag: Optional[int]        # the tag an ANY_TAG operation takes, None if the pin names none
+    ident: Optional[Ident]    # the traced operation's identity, None in a token without it
+
+
+def _parse_ident(text: str) -> Ident:
+    f = (text.split(":") + ["x", "x", "x"])[:3]
+    return (None if f[0] == "x" else int(f[0]), None if f[1] == "x" else int(f[1]),
+            None if f[2] == "x" else int(f[2], 16))
+
+
+def _ident_text(ident: Ident) -> str:
+    c, g, s = ident
+    return f"{'x' if c is None else c}:{'x' if g is None else g}" + ("" if s is None else f":{s:x}")
+
+
+def pin_tokens(pins) -> List[PinToken]:
+    """The tokens of "STRETTO_PIN=..." and "STRETTO_PIN_PROBE=..." assignments (one, a list, or
+    None), in both formats."""
+    out = []
+    for a in ([pins] if isinstance(pins, str) else (pins or [])):
+        name, _, spec = a.partition("=")
+        kind = "probe" if name == "STRETTO_PIN_PROBE" else "recv"
+        for tok in re.split(r"[,\s]+", spec):
+            head, at, ident = tok.partition("@")
+            parts = head.split(":")
+            if len(parts) < 3:
+                continue
+            out.append(PinToken(kind, int(parts[0]), int(parts[1]), int(parts[2]),
+                                int(parts[3]) if len(parts) > 3 else None, _parse_ident(ident) if at else None))
+    return out
+
+
+def strip_identity(pins: str) -> str:
+    """The pins as written before they carried identities (for tables, whose pin columns name
+    the pins in that form)."""
+    return re.sub(r"@[^,\s]*", "", pins)
+
+
+def _local_comms(t) -> Dict[Tuple[int, int], int]:
+    """(rank, global communicator id) -> the communicator's local id on that rank, its creation
+    ordinal there (the "comm" field of the records, which the replay library sees), from the
+    communicator records the loader keeps; the loader's own mapping run backwards. Cached on t."""
+    cache = t.__dict__.get("_stretto_local_comms")
+    if cache is not None:
+        return cache
+    from . import trace as trace_mod
+    folded = {rank: [rec.raw for rec in recs if rec.op == "comm" and rec.raw is not None] for rank, recs in t.ranks.items()}
+    scratch = trace_mod.Trace()
+    scratch.ranks = {rank: [] for rank in t.ranks}
+    all_ranks = list(range(t.np)) if t.np else sorted(t.ranks)
+    try:
+        mapping = trace_mod._comm_ids(scratch, folded, all_ranks)
+    except (TypeError, AttributeError):       # the loader's mapping changed shape: communicators unchecked
+        mapping = {}
+    cache, seen = {}, set()
+    for (rank, local), g in mapping.items():
+        if (rank, g) in seen:
+            cache.pop((rank, g), None)         # two local ids of one rank on one communicator: unchecked
+            continue
+        seen.add((rank, g))
+        cache[(rank, g)] = local
+    t.__dict__["_stretto_local_comms"] = cache
+    return cache
+
+
+def identity(t, x) -> Ident:
+    """The identity of receive or probe x of trace t: its communicator's local id on its rank,
+    its tag argument (ANY_TAG is -1) and its call site's offset, None where the trace lacks it."""
+    site = t.site_of(x.rank, x.idx)
+    return _local_comms(t).get((x.rank, x.comm)), x.tag, (site[1] if site else None)
+
+
+def pin_token(t, x, src: int, tag: Optional[int] = None) -> str:
+    """The pin of receive or probe x of trace t to world rank src (and to tag, for an ANY_TAG
+    operation), with x's identity."""
+    idx = x.pidx if hasattr(x, "pidx") else x.widx
+    return f"{x.rank}:{idx}:{src}" + (f":{tag}" if x.tag == ANY and tag is not None else "") + "@" + _ident_text(identity(t, x))
+
+
+def _op_at(t, kind: str, rank: int, idx: int):
+    """The receive with widx idx, or the probe with pidx idx, of rank in trace t, or None. The
+    index is built once per trace: a replay's trace can hold millions of receives and its
+    horizon pin tens of thousands of them."""
+    ix = t.__dict__.get("_stretto_ordinals")
+    if ix is None:
+        ix = {("recv", r.rank, r.widx): r for r in t.recvs.values() if r.widx is not None}
+        ix.update({("probe", q.rank, q.pidx): q for q in t.probes.values() if q.pidx is not None})
+        t.__dict__["_stretto_ordinals"] = ix
+    return ix.get((kind, rank, idx))
+
+
+def with_identity(t, pins: List[str]) -> List[str]:
+    """The pins with the identity of the operation each names in trace t added where a token
+    has none (a finding's own pin, a witness's)."""
+    out = []
+    for a in pins:
+        name, _, spec = a.partition("=")
+        kind = "probe" if name == "STRETTO_PIN_PROBE" else "recv"
+        toks = []
+        for tok in spec.split(","):
+            parts = tok.split("@")[0].split(":")
+            x = _op_at(t, kind, int(parts[0]), int(parts[1])) if "@" not in tok and len(parts) >= 3 else None
+            toks.append(tok if x is None else tok + "@" + _ident_text(identity(t, x)))
+        out.append(f"{name}={','.join(toks)}")
+    return out
+
+
+def _agrees(expected: Optional[Ident], seen: Optional[Ident]) -> bool:
+    """Does an operation of identity seen fit a pin that expects identity expected? A pin
+    without one fits anything; one with one needs every part it names, equal."""
+    if expected is None:
+        return True
+    if seen is None:
+        return False
+    return all(e is None or e == s for e, s in zip(expected, seen))
+
+
+def _expected(pins) -> Dict[Tuple[str, int, int], Optional[Ident]]:
+    return {(k.kind, k.rank, k.idx): k.ident for k in pin_tokens(pins)}
+
+
+_LINE = re.compile(r"\[stretto-pin\] rank (\d+): (matched widx|applied widx|applied probe pidx)=(\d+)\b([^\n]*)")
+_LINE_ID = re.compile(r"\bid=(-?[0-9]+|x):(-?[0-9]+|x):([0-9a-f]+|x)")
+_MISAPPLIED = re.compile(r"\[stretto-pin\] rank \d+: (?:probe )?pin (?:widx|pidx)=\d+ misapplied[^\n]*")
+
+
+def _lines(stderr: str):
+    """(what, rank, idx, identity or None) of every pin report line: what is "matched",
+    "applied" (a receive) or "probe" (a probe that found its message). Read once per run: a
+    horizon can pin tens of thousands of receives, and a search of the whole output per pin is
+    quadratic."""
+    for m in _LINE.finditer(stderr):
+        i = _LINE_ID.search(m.group(4))
+        what = {"matched widx": "matched", "applied widx": "applied", "applied probe pidx": "probe"}[m.group(2)]
+        yield what, int(m.group(1)), int(m.group(3)), _parse_ident(":".join(i.groups())) if i else None
+
+
+def pins_misapplied(stderr: str) -> List[str]:
+    """The replay library's reports of a pin that fell on an operation of another identity."""
+    return [m.group(0) for m in _MISAPPLIED.finditer(stderr)]
+
+
 def pins_applied(pin: str, stderr: str) -> bool:
-    """Did the replay library report every pin of the spec as applied? The library prints
-    '[stretto-pin] rank R: applied widx=W ...' (or 'applied probe pidx=P') for each."""
-    name, _, spec = pin.partition("=")
-    probe = name == "STRETTO_PIN_PROBE"
-    for tok in spec.split(","):
-        parts = tok.split(":")
-        if len(parts) < 3:
-            return False
-        rank, idx = parts[0], parts[1]
-        pat = rf"\[stretto-pin\] rank {rank}: applied {'probe pidx' if probe else 'widx'}={idx}\b"
-        if not re.search(pat, stderr):
-            return False
-    return True
+    """Did the replay library report every pin of the spec as applied, on an operation of the
+    pin's identity? It prints '[stretto-pin] rank R: applied widx=W ... id=C:G:X' (or
+    'applied probe pidx=P ...', printed when the probe found its message) for each."""
+    want = _expected(pin)
+    seen = {}
+    for what, rank, idx, ident in _lines(stderr):
+        if what != "matched":
+            seen[("probe" if what == "probe" else "recv", rank, idx)] = ident
+    return bool(want) and all(k in seen and _agrees(e, seen[k]) for k, e in want.items())
 
 
-_REPORTED = re.compile(r"\[stretto-pin\] rank (\d+): (matched widx|applied probe pidx)=(\d+)\b")
-
-
-def _reported(stderr: str) -> Set[Tuple[str, int, int]]:
+def _reported(stderr: str, pins=None) -> Set[Tuple[str, int, int]]:
     """The pins a replay reported as taken: ("recv", rank, widx) for each 'matched widx=W',
-    ("probe", rank, pidx) for each 'applied probe pidx=P'. Read once per run: a horizon can
-    pin tens of thousands of receives, and a search of the whole output per pin is quadratic."""
-    return {("probe" if m.group(2).startswith("applied") else "recv", int(m.group(1)), int(m.group(3)))
-            for m in _REPORTED.finditer(stderr)}
+    ("probe", rank, pidx) for each 'applied probe pidx=P', on an operation whose identity fits
+    the pin of pins that names it (a line without an identity fits no pin that has one)."""
+    want = _expected(pins) if pins else {}
+    out = set()
+    for what, rank, idx, ident in _lines(stderr):
+        if what == "applied":
+            continue
+        key = ("probe" if what == "probe" else "recv", rank, idx)
+        if _agrees(want.get(key), ident):
+            out.add(key)
+    return out
 
 
 def _taken(pin: str, reported: Set[Tuple[str, int, int]]) -> bool:
@@ -144,31 +319,28 @@ def _taken(pin: str, reported: Set[Tuple[str, int, int]]) -> bool:
 
 
 def pins_matched(pin: str, stderr: str) -> bool:
-    """Did every pinned receive complete? '[stretto-pin] rank R: matched widx=W src=S' per
-    receive pin; a probe pin counts when the probe found its message ('applied probe pidx=P',
-    printed only then)."""
-    return _taken(pin, _reported(stderr))
+    """Did every pinned receive complete? '[stretto-pin] rank R: matched widx=W src=S id=...'
+    per receive pin; a probe pin counts when the probe found its message ('applied probe
+    pidx=P', printed only then); either on an operation of the pin's identity."""
+    return _taken(pin, _reported(stderr, pin))
 
 
 def control_pin(t, pin: str) -> Optional[str]:
-    """The same receives (or probes) pinned to the senders they took in the recorded run.
-    Receives that never completed there are left unpinned. None if no pin remains."""
-    name, _, spec = pin.partition("=")
-    probe = name == "STRETTO_PIN_PROBE"
+    """The same receives (or probes) pinned to the senders they took in the recorded run, with
+    their identity. Receives that never completed there are left unpinned. None if no pin
+    remains."""
+    name = pin.partition("=")[0]
     toks = []
-    for tok in spec.split(","):
-        parts = tok.split(":")
-        if len(parts) < 3:
+    for k in pin_tokens(pin):
+        x = _op_at(t, k.kind, k.rank, k.idx)
+        if x is None:
             continue
-        rank, idx = int(parts[0]), int(parts[1])
-        if probe:
-            x = next((p for p in t.probes.values() if p.rank == rank and p.pidx == idx), None)
-            src = t.sends[x.seen].rank if x is not None and x.seen is not None else None
+        if k.kind == "probe":
+            src = t.sends[x.seen].rank if x.seen is not None else None
         else:
-            x = next((r for r in t.recvs.values() if r.rank == rank and r.widx == idx), None)
-            src = x.msrc if x is not None else None
+            src = x.msrc
         if src is not None:
-            toks.append(f"{rank}:{idx}:{src}")
+            toks.append(pin_token(t, x, src))
     return f"{name}={','.join(toks)}" if toks else None
 
 
@@ -248,7 +420,7 @@ def _horizon(t, f: Finding, B=None, infeasible_ok: bool = False, M=None, changed
             if sk is None:
                 continue
             m = t.sends[sk]
-            rtok.append(f"{r.rank}:{r.widx}:{m.rank}" + (f":{m.tag}" if r.tag == ANY else ""))
+            rtok.append(pin_token(t, r, m.rank, m.tag))
             if alternative and r.completed and _cidx(r) < cut[r.rank]:
                 required.add(("recv", r.rank, r.widx))
         for q in sorted(t.probes.values(), key=lambda q: (q.rank, q.idx)):
@@ -259,7 +431,7 @@ def _horizon(t, f: Finding, B=None, infeasible_ok: bool = False, M=None, changed
             if sk is None:
                 continue
             m = t.sends[sk]
-            ptok.append(f"{q.rank}:{q.pidx}:{m.rank}" + (f":{m.tag}" if q.tag == ANY else ""))
+            ptok.append(pin_token(t, q, m.rank, m.tag))
             if alternative:
                 required.add(("probe", q.rank, q.pidx))
         out = []
@@ -278,13 +450,8 @@ def parse_pins(pins) -> Tuple[Dict[Tuple[int, int], Tuple[int, Optional[int]]], 
     None when the pin names none)."""
     recv: Dict[Tuple[int, int], Tuple[int, Optional[int]]] = {}
     probe: Dict[Tuple[int, int], Tuple[int, Optional[int]]] = {}
-    for a in ([pins] if isinstance(pins, str) else (pins or [])):
-        name, _, spec = a.partition("=")
-        out = probe if name == "STRETTO_PIN_PROBE" else recv
-        for tok in re.split(r"[,\s]+", spec):
-            parts = tok.split(":")
-            if len(parts) >= 3:
-                out[(int(parts[0]), int(parts[1]))] = (int(parts[2]), int(parts[3]) if len(parts) > 3 else None)
+    for k in pin_tokens(pins):
+        (probe if k.kind == "probe" else recv)[(k.rank, k.idx)] = (k.src, k.tag)
     return recv, probe
 
 
@@ -506,26 +673,42 @@ def trace_matches(t, pins) -> Set[Tuple[str, int, int]]:
     for a pinned receive that completed from its pinned source (with its pinned tag, if the pin
     names one), ("probe", rank, pidx) for a pinned probe that saw a message of its pinned
     source. The trace says what the run did; the replay library's report lines, which Open
-    MPI's mpirun merges from the ranks' stderr in chunks, can be cut apart and missed."""
-    rp, pp = parse_pins(pins)
+    MPI's mpirun merges from the ranks' stderr in chunks, can be cut apart and missed. A pin
+    with an identity counts only on an operation of that identity (trace_misapplied)."""
+    toks = {(k.kind, k.rank, k.idx): k for k in pin_tokens(pins)}
     out: Set[Tuple[str, int, int]] = set()
     for r in t.recvs.values():
-        pin = rp.get((r.rank, r.widx)) if r.widx is not None else None
-        if pin and r.completed and r.msrc == pin[0] and (pin[1] is None or r.mtag == pin[1]):
+        k = toks.get(("recv", r.rank, r.widx)) if r.widx is not None else None
+        if k and r.completed and r.msrc == k.src and (k.tag is None or r.mtag == k.tag) and _agrees(k.ident, identity(t, r)):
             out.add(("recv", r.rank, r.widx))
     for q in t.probes.values():
-        pin = pp.get((q.rank, q.pidx)) if q.pidx is not None else None
-        if pin and q.flag and q.msrc == pin[0] and (pin[1] is None or q.mtag == pin[1]):
+        k = toks.get(("probe", q.rank, q.pidx)) if q.pidx is not None else None
+        if k and q.flag and q.msrc == k.src and (k.tag is None or q.mtag == k.tag) and _agrees(k.ident, identity(t, q)):
             out.add(("probe", q.rank, q.pidx))
     return out
 
 
-def judge_replay(tracedir: str, result: str, pins=None, seen: Optional[set] = None) -> Tuple[str, str]:
+def trace_misapplied(t, pins) -> List[str]:
+    """The pins of pins whose ordinal falls, in the replay's own trace t, on an operation of
+    another identity than the traced one the pin names: the replay diverged before them."""
+    out = []
+    for k in pin_tokens(pins):
+        if k.ident is None:
+            continue
+        x = _op_at(t, k.kind, k.rank, k.idx)
+        if x is not None and not _agrees(k.ident, identity(t, x)):
+            out.append(f"rank {k.rank} {'pidx' if k.kind == 'probe' else 'widx'}={k.idx}: the replay's operation has "
+                       f"id={_ident_text(identity(t, x))}, the pin's id={_ident_text(k.ident)}")
+    return out
+
+
+def judge_replay(tracedir: str, result: str, pins=None, seen: Optional[set] = None,
+                 misapplied: Optional[list] = None) -> Tuple[str, str]:
     """("True", "") if the trace a replay recorded in tracedir is a run of the program without
     its pins up to where the run ended (unpinned_violation; result is the replay's
     classify_rc), ("False", the violation), or ("unknown", why) when the trace cannot be read or
     its readings are too many. seen, if given, receives the pins the trace shows taken
-    (trace_matches)."""
+    (trace_matches), misapplied the pins that fell on another operation (trace_misapplied)."""
     from . import trace as trace_mod
     try:
         t = trace_mod.load(tracedir)
@@ -533,6 +716,8 @@ def judge_replay(tracedir: str, result: str, pins=None, seen: Optional[set] = No
         return "unknown", f"trace unreadable: {e}"[:200]
     if seen is not None:
         seen |= trace_matches(t, pins)
+    if misapplied is not None:
+        misapplied += trace_misapplied(t, pins)
     why = unpinned_violation(t, finished=result == "FINISHED", hung=result == "TIMEOUT", pins=pins)
     if why is None:
         return "True", ""
@@ -542,9 +727,9 @@ def judge_replay(tracedir: str, result: str, pins=None, seen: Optional[set] = No
 def all_matched(pins: List[str], stderr: str, required: Optional[Set[Tuple[str, int, int]]] = None,
                 seen: Optional[Set[Tuple[str, int, int]]] = None) -> bool:
     """Every pin matched (pins_matched), or, given required (required_matches), every required one.
-    A pin counts when stderr reports it or when seen, the pins the replay's own trace shows taken
-    (Replay.seen, trace_matches), has it."""
-    reported = _reported(stderr) | (seen or set())
+    A pin counts when stderr reports it on an operation of its identity or when seen, the pins
+    the replay's own trace shows taken (Replay.seen, trace_matches), has it."""
+    reported = _reported(stderr, pins) | (seen or set())
     if required is None:
         return all(_taken(p, reported) for p in pins)
     return required <= reported
@@ -604,6 +789,17 @@ class Replay:
     valid: str = ""
     why: str = ""
     seen: Set[Tuple[str, int, int]] = field(default_factory=set)
+    misapplied: List[str] = field(default_factory=list)   # pins on another operation (misapplied_pins)
+
+
+def misapplied_pins(r: subprocess.CompletedProcess, result: str, from_trace: List[str] = ()) -> List[str]:
+    """Why the run's pins fell on other operations than the traced ones: the replay library's
+    report lines, the replay's own trace (trace_misapplied), or, when the lines were lost, the
+    exit code the library ends such a run with."""
+    out = pins_misapplied(r.stderr if r is not None else "") + list(from_trace)
+    if not out and result == f"APP-ERROR:{PIN_MISAPPLIED}":
+        out.append(f"the run ended with the exit code of a misapplied pin ({PIN_MISAPPLIED})")
+    return out
 
 
 def run_checked(np: int, exe: str, args: List[str], pin, timeout: int = 20, mpi: str = "openmpi",
@@ -618,14 +814,16 @@ def run_checked(np: int, exe: str, args: List[str], pin, timeout: int = 20, mpi:
     tracer = tracer_lib(mpi)
     if not os.path.exists(tracer):
         r = run_pinned(np, exe, args, pin, timeout, mpi, mpirun_args, extra_env, cwd)
-        return Replay(r, classify_rc(r.returncode, r.stderr, r.elapsed, timeout))
+        res = classify_rc(r.returncode, r.stderr, r.elapsed, timeout)
+        return Replay(r, res, misapplied=misapplied_pins(r, res))
     d = tempfile.mkdtemp(prefix="stretto-replay-")
     try:
         r = run_pinned(np, exe, args, pin, timeout, mpi, mpirun_args, {**(extra_env or {}), "STRETTO_TRACE_DIR": d},
                        cwd, preload=tracer)
         res = classify_rc(r.returncode, r.stderr, r.elapsed, timeout)
         seen: Set[Tuple[str, int, int]] = set()
-        valid, why = judge_replay(d, res, pin, seen)
+        mis: List[str] = []
+        valid, why = judge_replay(d, res, pin, seen, mis)
         keep = os.environ.get("STRETTO_KEEP_REPLAYS")
         if keep and valid != "True":
             os.makedirs(keep, exist_ok=True)
@@ -635,7 +833,7 @@ def run_checked(np: int, exe: str, args: List[str], pin, timeout: int = 20, mpi:
             with open(os.path.join(dest, "replay.txt"), "w") as fh:
                 fh.write(f"exe: {exe} {' '.join(args)}\nnp: {np}\nresult: {res}\nvalid: {valid}\nwhy: {why}\npins:\n"
                          + "\n".join([pin] if isinstance(pin, str) else (pin or [])) + f"\n--- stderr\n{r.stderr}")
-        return Replay(r, res, valid, why, seen)
+        return Replay(r, res, valid, why, seen, misapplied_pins(r, res, mis))
     finally:
         shutil.rmtree(d, ignore_errors=True)
 
@@ -691,7 +889,7 @@ def confirm(rep: Report, np: int, exe: str, args: List[str] = (), timeout: int =
         if hp is not None:
             pins, ctl_pins, required = hp
         elif pin is not None:
-            pins = [pin]
+            pins = with_identity(t, [pin]) if t is not None else [pin]
             cp = control_pin(t, pin) if t is not None else None
             ctl_pins = [cp] if cp else []
         else:
@@ -707,12 +905,18 @@ def confirm(rep: Report, np: int, exe: str, args: List[str] = (), timeout: int =
         matched = all_matched(pins, r.stderr, required, rp.seen)
         want = expected_outcomes(f)
         ctl = control(ctl_pins) if want and res in want and matched else Replay(None, "")
+        # a pin on another operation than the traced one: the replay diverged before it, and its
+        # outcome says nothing about the alternative, whichever it is
+        mis = rp.misapplied + ctl.misapplied
         if not want:
             verdict = "n/a"
+        elif mis:
+            verdict = "inconclusive"
         elif res not in want or not matched:
             verdict = "not-confirmed"
         else:
             verdict = "confirmed" if ctl.result == "FINISHED" else "inconclusive"
         out.append(Confirmation(f, " ".join(pins), res, verdict, r.stderr[-300:], applied, matched, ctl.result,
-                                rp.valid, rp.why, ctl.valid, ctl.why, strict_verdict(verdict, rp.valid)))
+                                rp.valid, rp.why, ctl.valid, ctl.why, strict_verdict(verdict, rp.valid),
+                                "; ".join(mis)[:300]))
     return out

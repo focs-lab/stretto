@@ -1,7 +1,9 @@
 #define _GNU_SOURCE
 #include "pin.h"
+#include <dlfcn.h>
 #include <mpi.h>
 #include <pthread.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -9,9 +11,23 @@
 
 #define HIDDEN __attribute__((visibility("hidden")))
 
+/* tracer/mpitrace.c, linked into the same library */
+int stretto_comm_ordinal(MPI_Comm c);
+void *stretto_call_site(void);
+
 static int g_rank = -1;
 static int g_nwild = 0, g_nsend = 0, g_nrecv = 0, g_nprobe = 0;
-struct pin { int idx, src, tag; };
+/* A pin: the idx-th wildcard receive (or probe that found a message) of the rank takes src (and
+   tag, for an ANY_TAG receive). Its identity, if the token gives one, is the traced operation's
+   communicator (its creation ordinal on the rank), its tag argument (-1 for ANY_TAG) and its call
+   site (offset in its object); each part is checked when given. seen_*: what the run's operation
+   had, for the report lines. */
+struct pin {
+    int idx, src, tag;
+    int ident, has_comm, has_otag, has_site;
+    int comm, otag; long site;
+    int seen_comm, seen_otag; long seen_site;
+};
 static struct pin *g_pins = NULL, *g_ppins = NULL;
 static int g_npins = 0, g_nppins = 0;
 static int g_send_delay_ms = 0, g_recv_delay_ms = 0;
@@ -61,24 +77,60 @@ static char *pin_spec(const char *name, int rank) {
     return buf;
 }
 
-/* rank:idx:src[:tag] tokens separated by commas (or whitespace, in a file); those of this
-   rank are kept. */
+/* The identity after '@' in a token: "comm:tag[:site]", decimal, decimal and hexadecimal, each
+   field 'x' when it is not to be checked. */
+static void parse_ident(char *s, struct pin *p) {
+    char *save = NULL;
+    int k = 0;
+    p->ident = 1;
+    for (char *f = strtok_r(s, ":", &save); f; f = strtok_r(NULL, ":", &save), k++) {
+        if (strcmp(f, "x") == 0) continue;
+        if (k == 0) { p->comm = atoi(f); p->has_comm = 1; }
+        else if (k == 1) { p->otag = atoi(f); p->has_otag = 1; }
+        else if (k == 2) { p->site = strtol(f, NULL, 16); p->has_site = 1; }
+    }
+}
+
+static int by_idx(const void *a, const void *b) {
+    const struct pin *x = a, *y = b;
+    return x->idx < y->idx ? -1 : x->idx > y->idx;
+}
+
+/* rank:idx:src[:tag][@comm:tag[:site]] tokens separated by commas (or whitespace, in a file);
+   those of this rank are kept, sorted by idx (a token without '@' is the format before pins
+   carried the operation's identity, and is applied without that check). A token that does not
+   parse ends the run: a replay with a pin dropped would not be the alternative's. */
 static int parse_pins(const char *name, int rank, struct pin **out) {
     char *copy = pin_spec(name, rank), *save = NULL;
     int n = 0, cap = 0;
     *out = NULL;
     if (!copy) return 0;
     for (char *tok = strtok_r(copy, ", \n", &save); tok; tok = strtok_r(NULL, ", \n", &save)) {
-        int r, idx, src, tag = MPI_ANY_TAG;
-        int k = sscanf(tok, "%d:%d:%d:%d", &r, &idx, &src, &tag);
-        if (k >= 3 && r == rank) {
-            if (n == cap) { cap = cap ? 2 * cap : 16; *out = realloc(*out, sizeof **out * cap); }
-            (*out)[n].idx = idx; (*out)[n].src = src; (*out)[n].tag = (k == 4) ? tag : MPI_ANY_TAG;
-            n++;
+        struct pin p;
+        memset(&p, 0, sizeof p);
+        char *at = strchr(tok, '@');
+        if (at) *at = '\0';
+        int r, k = sscanf(tok, "%d:%d:%d:%d", &r, &p.idx, &p.src, &p.tag);
+        if (k < 3) {
+            fprintf(stderr, "[stretto-pin] rank %d: %s: token '%s' does not parse\n", rank, name, tok);
+            PMPI_Abort(MPI_COMM_WORLD, 3);
         }
+        if (r != rank) continue;
+        if (k < 4) p.tag = MPI_ANY_TAG;
+        if (at) parse_ident(at + 1, &p);
+        if (n == cap) { cap = cap ? 2 * cap : 16; *out = realloc(*out, sizeof **out * cap); }
+        (*out)[n++] = p;
     }
     free(copy);
+    if (n > 1) qsort(*out, n, sizeof **out, by_idx);
     return n;
+}
+
+/* The first pin with this idx, by binary search (a horizon pins tens of thousands). */
+static struct pin *find_pin(struct pin *pins, int n, int idx) {
+    int lo = 0, hi = n;
+    while (lo < hi) { int mid = (lo + hi) / 2; if (pins[mid].idx < idx) lo = mid + 1; else hi = mid; }
+    return lo < n && pins[lo].idx == idx ? &pins[lo] : NULL;
 }
 
 HIDDEN void stretto_pin_init(int rank) {
@@ -133,6 +185,44 @@ static int to_comm_rank(MPI_Comm comm, int world_rank) {
     return r;
 }
 
+/* The identity of the operation in progress, as the trace records it: the communicator's
+   creation ordinal on this rank, the tag argument (-1 for ANY_TAG), and the return address of
+   the program's MPI call as an offset in its object (-1 if unknown). */
+static void current_ident(MPI_Comm comm, int otag, struct pin *p) {
+    Dl_info di;
+    void *ra = stretto_call_site();
+    p->seen_comm = stretto_comm_ordinal(comm);
+    p->seen_otag = otag == MPI_ANY_TAG ? -1 : otag;
+    p->seen_site = ra && dladdr(ra, &di) ? (long)((uintptr_t)ra - (uintptr_t)di.dli_fbase) : -1;
+}
+
+static int ident_holds(const struct pin *p) {
+    return !p->ident || ((!p->has_comm || p->comm == p->seen_comm) && (!p->has_otag || p->otag == p->seen_otag)
+                         && (!p->has_site || p->site == p->seen_site));
+}
+
+/* " id=comm:tag:site" of the run's operation, for the report lines */
+static const char *seen_ident(const struct pin *p, char *buf, size_t n) {
+    snprintf(buf, n, " id=%d:%d:%lx", p->seen_comm, p->seen_otag, p->seen_site < 0 ? 0 : p->seen_site);
+    if (p->seen_site < 0) { char *c = strrchr(buf, ':'); if (c) strcpy(c + 1, "x"); }
+    return buf;
+}
+
+/* The operation at the pin's ordinal is not the one the trace recorded there: the replay has
+   diverged before the pin, and pinning another operation would only look like the
+   alternative. The run ends, with its own exit code. */
+static void misapplied(const char *what, int idx, const struct pin *p) {
+    char seen[96], want[96], c[16] = "x", t[16] = "x", s[24] = "x";
+    if (p->has_comm) snprintf(c, sizeof c, "%d", p->comm);
+    if (p->has_otag) snprintf(t, sizeof t, "%d", p->otag);
+    if (p->has_site) snprintf(s, sizeof s, "%lx", p->site);
+    snprintf(want, sizeof want, "%s:%s:%s", c, t, s);
+    fprintf(stderr, "[stretto-pin] rank %d: %s=%d misapplied: the run's operation has%s, the trace's id=%s\n",
+            g_rank, what, idx, seen_ident(p, seen, sizeof seen), want);
+    fflush(stderr);
+    PMPI_Abort(MPI_COMM_WORLD, STRETTO_PIN_MISAPPLIED);
+}
+
 HIDDEN int stretto_pin_recv(int *src, int *tag, MPI_Comm comm, int *widx) {
     *widx = -1;
     if (*src != MPI_ANY_SOURCE && *tag != MPI_ANY_TAG) return 0;
@@ -140,59 +230,67 @@ HIDDEN int stretto_pin_recv(int *src, int *tag, MPI_Comm comm, int *widx) {
     int idx = g_nwild++;
     pthread_mutex_unlock(&g_pmu);
     *widx = idx;
-    for (int i = 0; i < g_npins; i++) {
-        if (g_pins[i].idx == idx) {
-            if (*src == MPI_ANY_SOURCE) {
-                int cr = to_comm_rank(comm, g_pins[i].src);
-                if (cr == MPI_UNDEFINED) {
-                    fprintf(stderr, "[stretto-pin] rank %d: pin widx=%d names world rank %d, not a member of the communicator: not applied\n", g_rank, idx, g_pins[i].src);
-                    return 0;
-                }
-                *src = cr;
-            }
-            if (*tag == MPI_ANY_TAG && g_pins[i].tag != MPI_ANY_TAG) *tag = g_pins[i].tag;
-            fprintf(stderr, "[stretto-pin] rank %d: applied widx=%d src=%d (world %d) tag=%d\n", g_rank, idx, *src, g_pins[i].src, *tag);
-            return 1;
+    struct pin *p = find_pin(g_pins, g_npins, idx);
+    if (!p) return 0;
+    char id[96];
+    current_ident(comm, *tag, p);
+    if (!ident_holds(p)) misapplied("pin widx", idx, p);
+    if (*src == MPI_ANY_SOURCE) {
+        int cr = to_comm_rank(comm, p->src);
+        if (cr == MPI_UNDEFINED) {
+            fprintf(stderr, "[stretto-pin] rank %d: pin widx=%d names world rank %d, not a member of the communicator: not applied\n", g_rank, idx, p->src);
+            return 0;
         }
+        *src = cr;
     }
-    return 0;
+    if (*tag == MPI_ANY_TAG && p->tag != MPI_ANY_TAG) *tag = p->tag;
+    fprintf(stderr, "[stretto-pin] rank %d: applied widx=%d src=%d (world %d) tag=%d%s\n", g_rank, idx, *src, p->src, *tag,
+            seen_ident(p, id, sizeof id));
+    return 1;
 }
 
 /* A pinned receive completed: it can only have matched the pinned source, so this line is
    the evidence that the forced match happened ("applied" only says the argument was set). */
 HIDDEN void stretto_pin_matched(int widx, int comm_src) {
-    fprintf(stderr, "[stretto-pin] rank %d: matched widx=%d src=%d\n", g_rank, widx, comm_src);
+    char id[96] = "";
+    struct pin *p = find_pin(g_pins, g_npins, widx);
+    fprintf(stderr, "[stretto-pin] rank %d: matched widx=%d src=%d%s\n", g_rank, widx, comm_src,
+            p ? seen_ident(p, id, sizeof id) : "");
 }
 
 static int g_pinned_probe = -1;   /* the pidx whose pin was applied by the last peek */
+static int g_misapplied_probe = -1;   /* the pidx whose pin the last peek found on another operation */
 
 HIDDEN int stretto_pin_probe(int *src, int *tag, MPI_Comm comm, int *pidx) {
     /* Peek only: the ordinal advances in stretto_pin_probe_commit(), called when the probe
        found a message. Failed polls (Iprobe/Improbe with flag 0) do not count, so the
        ordinal is the same in a traced run and in a pinned replay however long each busy
-       loop spins. */
+       loop spins. A probe whose identity differs from the pin's is not pinned; if it then
+       finds a message, it takes the pinned ordinal, and stretto_pin_probe_commit ends the run. */
     *pidx = -1;
     if (*src != MPI_ANY_SOURCE && *tag != MPI_ANY_TAG) return 0;
     pthread_mutex_lock(&g_pmu);
     int idx = g_nprobe;
     pthread_mutex_unlock(&g_pmu);
     *pidx = idx;
-    for (int i = 0; i < g_nppins; i++) {
-        if (g_ppins[i].idx == idx) {
-            if (*src == MPI_ANY_SOURCE) {
-                int cr = to_comm_rank(comm, g_ppins[i].src);
-                if (cr == MPI_UNDEFINED) {
-                    fprintf(stderr, "[stretto-pin] rank %d: probe pin pidx=%d names world rank %d, not a member of the communicator: not applied\n", g_rank, idx, g_ppins[i].src);
-                    return 0;
-                }
-                *src = cr;
-            }
-            if (*tag == MPI_ANY_TAG && g_ppins[i].tag != MPI_ANY_TAG) *tag = g_ppins[i].tag;
-            pthread_mutex_lock(&g_pmu); g_pinned_probe = idx; pthread_mutex_unlock(&g_pmu);
-            return 1;
-        }
+    struct pin *p = find_pin(g_ppins, g_nppins, idx);
+    if (!p) return 0;
+    current_ident(comm, *tag, p);
+    if (!ident_holds(p)) {
+        pthread_mutex_lock(&g_pmu); g_misapplied_probe = idx; g_pinned_probe = -1; pthread_mutex_unlock(&g_pmu);
+        return 0;
     }
-    return 0;
+    if (*src == MPI_ANY_SOURCE) {
+        int cr = to_comm_rank(comm, p->src);
+        if (cr == MPI_UNDEFINED) {
+            fprintf(stderr, "[stretto-pin] rank %d: probe pin pidx=%d names world rank %d, not a member of the communicator: not applied\n", g_rank, idx, p->src);
+            return 0;
+        }
+        *src = cr;
+    }
+    if (*tag == MPI_ANY_TAG && p->tag != MPI_ANY_TAG) *tag = p->tag;
+    pthread_mutex_lock(&g_pmu); g_pinned_probe = idx; g_misapplied_probe = -1; pthread_mutex_unlock(&g_pmu);
+    return 1;
 }
 
 HIDDEN void stretto_pin_probe_commit(int pidx, int src, int tag) {
@@ -200,8 +298,15 @@ HIDDEN void stretto_pin_probe_commit(int pidx, int src, int tag) {
     pthread_mutex_lock(&g_pmu);
     if (g_nprobe == pidx) {
         g_nprobe++;
+        struct pin *p = find_pin(g_ppins, g_nppins, pidx);
+        if (p && g_misapplied_probe == pidx) {
+            pthread_mutex_unlock(&g_pmu);
+            misapplied("probe pin pidx", pidx, p);
+        }
         if (g_pinned_probe == pidx) {
-            fprintf(stderr, "[stretto-pin] rank %d: applied probe pidx=%d src=%d tag=%d\n", g_rank, pidx, src, tag);
+            char id[96];
+            fprintf(stderr, "[stretto-pin] rank %d: applied probe pidx=%d src=%d tag=%d%s\n", g_rank, pidx, src, tag,
+                    p ? seen_ident(p, id, sizeof id) : "");
             g_pinned_probe = -1;
         }
     }

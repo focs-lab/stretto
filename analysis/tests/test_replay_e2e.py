@@ -65,5 +65,77 @@ class Preload(unittest.TestCase):
                 C.run_pinned(3, exe, [], None, timeout=60, preload=bad, extra_env={"STRETTO_SEND_DELAY_MS": "0:1"})
 
 
+class PinIdentity(unittest.TestCase):
+    """The pins carry the traced operation's communicator, tag and call site; the replay
+    library checks them where it applies a pin, reports them with every match, and ends a run
+    whose pin falls on another operation (replay/pin.h)."""
+
+    def analysed(self, n):
+        from stretto import report, trace
+        exe, tdir = idiom(self, n)
+        t = trace.load(tdir)
+        return exe, t, report.analyze(t)
+
+    def test_an_idiom_confirms_with_identity_pins(self):
+        """Idiom 04: rank 0's wildcard receive pinned to rank 2 leaves rank 1's message orphaned and
+        the run deadlocked; the replay's report lines and its own trace name the pinned receive."""
+        exe, t, rep = self.analysed(4)
+        res = [c for c in C.confirm(rep, 3, exe, timeout=20, t=t) if c.finding.cls == "1d"]
+        self.assertTrue(res)
+        for c in res:
+            self.assertEqual(c.verdict, "confirmed", c)
+            self.assertEqual(c.misapplied, "")
+            self.assertRegex(c.pin, r"STRETTO_PIN=0:0:2@0:4:[0-9a-f]+")
+            # matched on an operation of the pin's identity, by the library's line or the replay's
+            # trace (the tail of stderr can be mpirun's own report of the timeout's kill)
+            self.assertTrue(c.pin_matched, c)
+
+    def test_a_subcommunicator_pin_names_its_communicator(self):
+        """Idiom 12: the wildcard receive is on a communicator split from MPI_COMM_WORLD, the
+        rank's third (local id 2); the pin says so and the library sees the same."""
+        exe, t, rep = self.analysed(12)
+        r = next(r for r in t.recvs.values() if r.widx is not None)
+        self.assertEqual(C.identity(t, r)[0], 2)
+        tok = C.pin_token(t, r, t.observed_send(r).rank)
+        rp = C.run_checked(4, exe, [], [f"STRETTO_PIN={tok}"], timeout=20)
+        self.assertEqual(rp.misapplied, [])
+        self.assertTrue(C.all_matched([f"STRETTO_PIN={tok}"], rp.proc.stderr, None, rp.seen))
+
+    def test_a_pin_on_another_operation_ends_the_run(self):
+        """Idiom 09: the same horizon with the first receive's identity changed, as if the replay
+        had reached another wildcard receive at that ordinal (another tag, another communicator,
+        another call site): the library ends the run, the replay counts nothing as matched."""
+        exe, t, rep = self.analysed(9)
+        r = next(r for r in t.recvs.values() if r.widx == 0 and r.rank == 0)
+        src = t.observed_send(r).rank
+        good = C.pin_token(t, r, src)
+        c, g, s = C.identity(t, r)
+        for bad in (f"0:0:{src}@{c}:{g + 1}" + (f":{s:x}" if s is not None else ""),
+                    f"0:0:{src}@{c + 5}:{g}",
+                    f"0:0:{src}@{c}:{g}:{(s or 0) + 8:x}"):
+            pins = [f"STRETTO_PIN={bad}"]
+            rp = C.run_checked(3, exe, [], pins, timeout=20)
+            self.assertEqual(rp.result, f"APP-ERROR:{C.PIN_MISAPPLIED}", bad)
+            self.assertTrue(rp.misapplied, bad)
+            self.assertFalse(C.all_matched(pins, rp.proc.stderr, None, rp.seen), bad)
+        rp = C.run_checked(3, exe, [], [f"STRETTO_PIN={good}"], timeout=20)
+        self.assertEqual(rp.misapplied, [])
+
+    def test_a_probe_pin_on_another_probe_ends_the_run(self):
+        """Idiom 11: a polling loop of wildcard Iprobes; the pin of the first probe that found a
+        message, with another tag, falls on that probe in the replay and ends the run."""
+        exe, t, rep = self.analysed(11)
+        q = next((q for q in t.probes.values() if q.pidx == 0), None)
+        if q is None:
+            self.skipTest("no wildcard probe found a message in this trace")
+        c, g, s = C.identity(t, q)
+        src = t.sends[q.seen].rank
+        rp = C.run_checked(3, exe, [], [f"STRETTO_PIN_PROBE={q.rank}:0:{src}@{c}:{g + 1}"], timeout=20)
+        self.assertTrue(rp.misapplied)
+        rp = C.run_checked(3, exe, [], [f"STRETTO_PIN_PROBE={C.pin_token(t, q, src)}"], timeout=20)
+        self.assertEqual(rp.misapplied, [])
+        self.assertIn(("probe", q.rank, 0), C._reported(rp.proc.stderr, [f"STRETTO_PIN_PROBE={C.pin_token(t, q, src)}"]) | rp.seen)
+
+
 if __name__ == "__main__":
     unittest.main()
