@@ -434,10 +434,19 @@ in the newbug container (`--cpuset-cpus 6-9,12-19,46-49,52-59 -m 48g`). `HYPRE3_
 tree. The cross-level alternative is realisable at `B >= 920` bytes, the pruned-rows reply size;
 Open MPI's default shared-memory eager limit is 4040 bytes (`experiments/results/b_impl.csv`), so
 the race occurs at the default settings, which is why the replays hang with no eager limit forced.
+`predict.csv` is the first campaign (made at e3d3933, before the table had the `B` and `bytes`
+columns); `predict-fix.csv`, `stress*.csv` and `ninja*.csv` come from a copy at 0ca587d. The
+stress, NINJA and fixed-variant runs shared the container with the PETSc replay campaign, so
+they were not run on an idle machine. A first NINJA pass ran without `third_party/ninja` built:
+`run.py` preloads a library that is not there without complaint, so those runs were plain; it was
+discarded and NINJA built (`experiments/ninja/build.sh fetch build`) before the committed tables.
+The replay library's delays are sleeps before a call, so they cannot make a request issued before
+the level's Allreduce arrive after a request issued after it, which the race needs; NINJA delays
+sends in transit from a helper thread and can.
 
 ### PETSc 3.26.0: the same race through an unmodified driver
 
-`experiments/petsc/run.sh [fetch|build|parasails|predict|stress|ninja|all]` builds PETSc 3.26.0
+`experiments/petsc/run.sh [fetch|build|parasails|predict|stress|ninja|scan|all]` builds PETSc 3.26.0
 (`sha256 3f1d722d...`) with f2cblaslapack 3.8.0.q2 (`sha256 12fa8d50...`) and the HYPRE 3.2.0 it
 downloads, Open MPI wrappers, optimised. PCHYPRE exposes ParaSails' level count and threshold, so
 PETSc's own KSP tutorial `ex2` reaches the race with command-line options only, nothing patched:
@@ -452,10 +461,22 @@ threshold 0.01 ("dense"), its one-level control and the level count without a th
 (`parasails-default-m32.csv` is a first pass of the latter at `-m 32`, made at 3a87e3a); `predict` scouts
 PETSc's own wildcard sites (`PetscCommBuildTwoSided` NBX, `PetscGatherMessageLengths`, the legacy
 Mat/Vec stashes, `MatIncreaseOverlap`), which each take a fresh tag per call and begin or end with
-a collective, so they produce only same-exchange alternatives. `stress` and `ninja` are the
-baselines on the dense two-level case.
+a collective; it was not run (below). `stress` and `ninja` are the baselines on the dense
+two-level case, and `scan` (run from a copy at 518a9df) the reach of the race over threshold,
+level count and symmetry setting on `ex2` and on `ex45`'s 3D Laplacian, analysis only. The cross
+alternatives of `ex2` at `-m 48 -n 48` are realisable at `B >= 1340` bytes, again below Open MPI's
+default eager limit. The campaign of 22 Oct ran `RUNS=10 JOBS=2 STRESS_RUNS=40 TIMEOUT=30` from a
+copy at 0ca587d; the third ParaSails driver (the level count without a threshold) was stopped
+before its replays, as the scan covers it, and `stress` was stopped after its two-level block
+(160 runs) and 43 runs of the one-level control. NINJA's application-centric mode ended every
+`ex2` run after its learning run with exit status 59 (`APP-ERROR:59` in `ninja.csv`; not
+investigated), so only its random and system-centric modes give results on PETSc. The scan was
+stopped with `ex45` complete at 4 processes and, at 8, only the threshold 0.01 at one and two levels
+done (each 8-process `ex45` analysis takes about three minutes); to finish it, rerun
+`experiments/petsc/run.sh scan` (it starts the table afresh). There is no PETSc build with the
+fixed HYPRE, so the NINJA control of the fix was made on the HYPRE driver only.
 
-### MFEM 4.10 and deal.II 9.8.0: null results
+### MFEM 4.10 and deal.II 9.8.0: prepared, not run
 
 `experiments/mfem/run.sh` builds MFEM 4.10 (`sha256 d5aabe99...`) with METIS 4.0.3 and HYPRE
 3.2.0 and scouts its adaptive examples `ex6p` (static refinement, with rebalancing and with
@@ -463,9 +484,12 @@ p-refinement) and `ex15p` (dynamic refinement and derefinement), whose `ParNCMes
 `MPI_ANY_SOURCE` per message type. `experiments/dealii98/run.sh` builds deal.II 9.8.0
 (`sha256 d8d66aac...`, the tag's tests fetched one by one from commit 02c5025 and checksummed)
 with p4est 2.2 and scouts its own tests of `RemotePointEvaluation`, the consensus algorithms,
-`some_to_some`, `point_to_point`, the partitioners and cell weights. Each exchange of these codes
-has its own tag and is separated from the next by a collective or a CollectiveMutex, so the
-scout's cross-phase/cross-tag classes are empty and only same-exchange reorderings appear.
+`some_to_some`, `point_to_point`, the partitioners and cell weights. On 22 Oct MFEM was built
+(`fetch build`) but its `predict` step was not run, and deal.II's build was stopped part way;
+neither has results. By reading the code, deal.II 9.8.0 still takes a `CollectiveMutex` around
+both `RemotePointEvaluation` exchanges (`mpi_remote_point_evaluation.h`, lines 776-777 and
+987-988), the fix of the 9.3.0-rc1 race. The PETSc `predict` step (PETSc's own wildcard sites)
+was not run either.
 
 ## Shared-host protocol on the development host
 
