@@ -235,8 +235,10 @@ class Indexes:
             self.coll_set.setdefault((c.comm, c.ordinal), []).append(c)
         self.coll_idx = {k: [c.idx for c in v] for k, v in self.colls_of.items()}
         self.comms_of: Dict[int, List[int]] = {}
+        self.coll_ranks: Dict[int, Set[int]] = {}       # the ranks with a collective on each comm
         for R, comm in sorted(self.colls_of):
             self.comms_of.setdefault(R, []).append(comm)
+            self.coll_ranks.setdefault(comm, set()).add(R)
         self._colls = True
 
     def first_competitor(self, r: Recv, p6, skip_probes=frozenset()) -> int:
@@ -511,27 +513,40 @@ class Observed:
                         if s.ready_mode:                          # rule 7
                             lower(s.rank, s.idx)
             for comm in ix.comms_of.get(R, ()):                   # rule 4, as in the loop below
-                key = (R, comm)
-                cidx = ix.coll_idx[key]
+                cidx = ix.coll_idx[(R, comm)]
                 i, j = bisect_left(cidx, a), bisect_left(cidx, b)
-                if i == j:
-                    continue
-                need = set(t.comm_members.get(comm, []))
-                pos = {r: k for k, r in enumerate(t.comm_ranks.get(comm, []))}
-                pending = set(t.comm_ranks.get(comm, []) or [c.rank for c in ix.coll_set[(comm, ix.colls_of[key][0].ordinal)]]) - {R}
-                for k in range(i, j):
-                    if not pending:
-                        break
-                    group = ix.coll_set[(comm, ix.colls_of[key][k].ordinal)]
-                    have = {c.rank for c in group if c.idx < cut[c.rank]}
-                    for c in group:
-                        if c.rank not in pending:
-                            continue
-                        if not c.completed or _cidx(c) >= cut[c.rank]:
-                            pending.discard(c.rank)
-                        elif not coll_can_complete(c, have, need, pos):
-                            lower(c.rank, _cidx(c))
-                            pending.discard(c.rank)
+                if i < j:
+                    rule4(R, comm, i, j)
+
+        def rule4(R: int, comm: int, i: int, j: int) -> None:
+            """Rule 4 for R's collectives on comm at positions i..j-1 of colls_of[(R, comm)],
+            whose issue R no longer keeps: each member completes one only if the members its
+            shape requires still issue it. Groups are taken in order, and a member drops out of
+            the scan once its own issue of a group is cut, since it issues its later collectives
+            on the comm later still, and completes them later than that. A member cut at a
+            group's completion stays in: a nonblocking collective issued later can complete
+            earlier (Ibarrier b0, Ibarrier b1, Wait b1, ..., Wait b0), so a later group can
+            still remove a completion it keeps. Before 22 Oct 2026 such a member left the scan
+            at once, and so did every member of the other group of an intercommunicator."""
+            colls = ix.colls_of[(R, comm)]
+            members = ix.coll_ranks[comm]
+            pos = {r: k for k, r in enumerate(t.comm_ranks.get(comm, []))}
+            gone: Set[int] = set()
+            for k in range(i, j):
+                if len(gone) == len(members):
+                    break
+                group = ix.coll_set[(comm, colls[k].ordinal)]
+                need = set(t.comm_members.get(comm, [c.rank for c in group]))
+                have = {c.rank for c in group if c.idx < cut[c.rank]}
+                for c in group:
+                    if c.rank in gone:
+                        continue
+                    if c.idx >= cut[c.rank]:
+                        gone.add(c.rank)
+                    elif c.completed and _cidx(c) < cut[c.rank] and not coll_can_complete(c, have, need, pos):
+                        lower(c.rank, _cidx(c), lambda c=c: f"collective {c.name} #{c.ordinal} on comm {c.comm} never completes: a participant never reaches it")
+                        if c.idx >= cut[c.rank]:
+                            gone.add(c.rank)
 
         if mode == "L1":
             for rk in changed:
@@ -662,26 +677,10 @@ class Observed:
             # rule 4: collectives R no longer issues; each member completes only if the
             # members its shape requires still issue it
             for comm in ix.comms_of.get(R, ()):
-                key = (R, comm)
-                need = set(t.comm_members.get(comm, []))
-                pos = {r: i for i, r in enumerate(t.comm_ranks.get(comm, []))}
-                # groups in order from R's first removed collective; a member lowered at a
-                # group, or already cut before it, has nothing kept in the later groups, so
-                # the scan stops once no member of the communicator is left to consider
-                pending = set(t.comm_ranks.get(comm, []) or [c.rank for c in ix.coll_set[(comm, ix.colls_of[key][0].ordinal)]]) - {R}
-                for i in range(bisect_left(ix.coll_idx[key], new), len(ix.coll_idx[key])):
-                    if not pending:
-                        break
-                    group = ix.coll_set[(comm, ix.colls_of[key][i].ordinal)]
-                    have = {c.rank for c in group if c.idx < cut[c.rank]}
-                    for c in group:
-                        if c.rank not in pending:
-                            continue
-                        if not c.completed or _cidx(c) >= cut[c.rank]:
-                            pending.discard(c.rank)
-                        elif not coll_can_complete(c, have, need, pos):
-                            lower(c.rank, _cidx(c), lambda c=c: f"collective {c.name} #{c.ordinal} on comm {c.comm} never completes: a participant never reaches it")
-                            pending.discard(c.rank)
+                cidx = ix.coll_idx[(R, comm)]
+                i = bisect_left(cidx, new)
+                if i < len(cidx):
+                    rule4(R, comm, i, len(cidx))
             # rule 5: probes that observed a send of R now removed (a send cut at its own
             # record with its issue kept is still issued, so a probe can still see it)
             for Q in ix.targets.get(R, ()):

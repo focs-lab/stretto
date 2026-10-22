@@ -115,7 +115,10 @@ O(n + m) per alternative and threshold; it is the reference. The fast checks
 the closure runs as a worklist over ranks, where a cut on one rank finds the earliest
 receive, rendezvous sender, collective or probe it drags along by a suffix-minimum query on
 a per-pair-of-ranks list, O(P log n) per lowering of a rank (and a scan of the rank's later
-collectives). Those lists name the competitor of a pending receive by the message each later
+collectives, in which a member stays until its own issue of a group is cut, since a
+nonblocking collective issued later can complete earlier; before 22 Oct 2026 a member left
+the scan at the first completion it lost, and the other group of an intercommunicator was not
+scanned, `C_CollectiveRule`). Those lists name the competitor of a pending receive by the message each later
 receive took in the run, so the changed receive, which now takes another message, is looked up
 apart: per envelope class, the earliest receive left pending by the cut among the receivers of
 the removed sends (`Indexes.r6c`), which deprives the changed receive if it is posted before it

@@ -1126,6 +1126,73 @@ class C_RematchedCompetitor(unittest.TestCase):
         closure_orders_agree(self, t)
 
 
+class C_CollectiveRule(unittest.TestCase):
+    """Rule 4 in the fast closure (audit of 22 Oct 2026, item 4): when a rank stops issuing its
+    collectives, the scan over their groups dropped a member as soon as the member lost the
+    completion of one group, on the ground that its later collectives complete later still. A
+    nonblocking collective issued later can complete earlier, and the members of the other
+    group of an intercommunicator were never scanned at all."""
+
+    def out_of_order_trace(self):
+        # ranks 1 and 2 share a communicator and post Ibarrier b0, Ibarrier b1, wait for b1
+        # first and for b0 last; between the two, rank 2 sends x to rank 0. Rank 0's wildcard
+        # took rank 3's message s_obs; rank 3 then sends z to rank 1, which receives it before
+        # its Ibarriers. Every rank first takes part in the split that makes the communicator,
+        # ranks 0 and 3 obtaining MPI_COMM_NULL (trace version 2)
+        c2, null = comm("split", [1, 2], gord=0), comm("split", None)
+        return mk({0: [null, recv(T.ANY, 1, 3, 1), recv(2, 1, 2, 1)],
+                   1: [c2, recv(3, 5, 3, 5), coll("ibarrier", comm=2, req=20), coll("ibarrier", comm=2, req=21),
+                       wait((21, None, None)), wait((20, None, None))],
+                   2: [c2, coll("ibarrier", comm=2, req=20), coll("ibarrier", comm=2, req=21), wait((21, None, None)),
+                       send(0, 1), wait((20, None, None))],
+                   3: [null, send(0, 1), send(1, 5)]}, version=2)
+
+    def test_collectives_waited_out_of_issue_order(self):
+        """The steal r <- x leaves s_obs without a receive. At B = 0 it is a rendezvous send, so
+        rank 3 never sends z, rank 1 never issues its Ibarriers, and rank 2 never returns from
+        Wait b1: x is never sent. The fast closure took rank 2's completion of b0 away and left
+        the scan, kept Wait b1 and x, and accepted the steal at B = 0."""
+        t = self.out_of_order_trace()
+        r, x = (0, 0), (2, 0)
+        a = next(a for a in candidates_full(t)[0] if a.recv == r and a.send == x)
+        self.assertEqual(a.kind, "steal")
+        g = check(t, a.M, a.changed, 0, "L1")
+        self.assertEqual(g.reason, "witness cut by the horizon closure")
+        f = fast.Observed(t, 0).check_alternative(a)
+        self.assertEqual((f.feasible, f.reason), (False, g.reason))
+        self.assertEqual(feasible_profile(t, a.M, a.changed), {0: False, 4: True, None: True})
+        for generic in (False, True):
+            got = [fd.B for fd in analyze(t, with_sp=False, generic=generic).findings if (fd.recv, fd.send) == (r, x)]
+            self.assertEqual(got, ["B >= 4"], generic)
+        res = explore.explore(dsl.program_from_trace(t), 0, force={r: x}, comms=t.comm_members)
+        self.assertEqual(res.outcomes_with(r, x), [])
+        fast_equals_generic(self, t)
+        closure_equals_fixpoint(self, t)
+        closure_orders_agree(self, t)
+
+    def test_intercommunicator_barrier(self):
+        """Ranks {0, 1} and {2, 3} share an intercommunicator barrier. Rank 2's wildcard takes
+        rank 5's message instead of rank 4's, which cuts rank 2 before the barrier: no member
+        completes it. The fast closure lowered rank 3 only, the other member of rank 2's group
+        as the communicator lists it, and kept ranks 0 and 1 past the barrier."""
+        left = {"op": "comm", "name": "intercomm", "parent": 0, "id": 2, "inter": 1, "ranks": [2, 3], "local": [0, 1],
+                "members": [0, 1, 2, 3], "gord": 0}
+        right = dict(left, ranks=[0, 1], local=[2, 3])
+        t = mk({0: [left, coll("barrier", comm=2), send(1, 7)],
+                1: [left, coll("barrier", comm=2), recv(0, 7, 0, 7)],
+                2: [right, recv(T.ANY, 1, 4, 1), coll("barrier", comm=2), recv(5, 1, 5, 1)],
+                3: [right, coll("barrier", comm=2)],
+                4: [send(2, 1)], 5: [send(2, 1)]})
+        a = next(a for a in candidates_full(t)[0] if a.recv == (2, 0) and a.send == (5, 0))
+        barrier = {c.rank: c.idx for c in t.colls}
+        for B in (0, None):
+            v = check(t, a.M, a.changed, B, "L1")
+            self.assertTrue(v.feasible, v.reason)
+            self.assertEqual({R: v.cut[R] for R in (0, 1, 3)}, {R: barrier[R] for R in (0, 1, 3)})
+        fast_equals_generic(self, t)
+        closure_orders_agree(self, t)
+
+
 class C_ProbesReadyRoots(unittest.TestCase):
     """Rules the audit of 20 Oct 2026 found missing (docs/model.md §2b, gap c)."""
 
