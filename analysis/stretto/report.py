@@ -1,5 +1,6 @@
 """Classify feasible alternatives. See docs/analysis.md section B for the taxonomy."""
 from __future__ import annotations
+import json
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Set, Tuple
@@ -48,6 +49,19 @@ class Report:
     findings: List[Finding] = field(default_factory=list)
     infeasible: List[Tuple[str, str]] = field(default_factory=list)  # (alt description, reason)
     notes: List[str] = field(default_factory=list)
+    # what the analysis could not do, as (reason, detail): the report is then incomplete, and
+    # "no error found" does not mean that none can occur (README, "Exit status and output")
+    degraded: List[Tuple[str, str]] = field(default_factory=list)
+
+    def degrade(self, reason: str, detail: str = "") -> None:
+        if all(r != reason for r, _ in self.degraded):
+            self.degraded.append((reason, detail))
+
+    def status(self) -> str:
+        """"complete", or "degraded:" and the reasons, comma-separated: missing-ranks,
+        tracer-overflow, unmatched-completions, guard-off, threads, unmodelled, ready-send,
+        explorer-skipped, explorer-incomplete, unconfirmed-rejections."""
+        return "complete" if not self.degraded else "degraded:" + ",".join(r for r, _ in self.degraded)
 
     def by_class(self, cls: str) -> List[Finding]:
         return [f for f in self.findings if f.cls == cls]
@@ -132,6 +146,13 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
     finding when one of its witness executions respects the bounds (reads.witness_respects)."""
     rep = Report()
     rep.notes.extend(t.warnings)
+    if t.missing:
+        rep.degrade("missing-ranks", f"no trace file for ranks {t.missing}")
+    if any("overflowed" in w for w in t.warnings):
+        rep.degrade("tracer-overflow", "a table of the tracer filled up: later records of its kind may be incomplete")
+    lost = sum(1 for w in t.warnings if "but no such send" in w)
+    if lost:
+        rep.degrade("unmatched-completions", f"{lost} receive(s) completed from a send the trace does not have")
     if t.truncated:
         rep.notes.append(f"ranks without a finalize record (run killed or hung): {t.truncated}")
     for rec in t.blocked_calls():
@@ -203,6 +224,7 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
     if off:
         rep.notes.append(f"the buffer guard was asked for but off on ranks {off} (MPI_THREAD_MULTIPLE): "
                          "no local-concurrency findings from them")
+        rep.degrade("guard-off", f"the buffer guard was off on ranks {off}")
 
     # ---- family 2: observed collective ordering
     for cs in t.coll_sets():
@@ -220,6 +242,7 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
     multi = [rank for rank, n in t.threads.items() if n > 1]
     if t.thread_level >= 3 and multi:
         rep.notes.append(f"MPI_THREAD_MULTIPLE with several calling threads on ranks {multi}: per-rank program order is not total, alternatives are not predicted (observed findings only)")
+        rep.degrade("threads", f"several calling threads on ranks {multi}: alternatives not predicted")
         return rep
     # ---- communication outside the modelled fragment (one-sided, neighbourhood collectives,
     # dynamic processes, MPI-4 calls the tracer does not model): the trace is not a complete
@@ -229,6 +252,7 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
         ranks = sorted({r for r, _ in t.unmodelled})
         rep.notes.append(f"calls outside the modelled fragment on ranks {ranks}: {', '.join(calls)}; "
                          "alternatives are not predicted (observed findings only)")
+        rep.degrade("unmodelled", f"calls outside the modelled fragment ({', '.join(calls)}): alternatives not predicted")
         return rep
     # ---- family 2: ready sends the run issued before their receive was posted (erroneous). The
     # observed graph is then cyclic at every threshold: no B0 for theorem T2, no vector clocks,
@@ -240,6 +264,7 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
         rep.notes.append("a ready send of the run was issued before the receive it is matched to was posted (2-ready): "
                          "every execution with the recorded matching is erroneous and the model realises the run at no "
                          "threshold; alternatives are not predicted (observed findings only)")
+        rep.degrade("ready-send", "a ready send issued before its receive was posted: alternatives not predicted")
         return rep
 
     # ---- profiles over the breakpoints: the observed run and every alternative (receive,
@@ -253,6 +278,9 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
     waits = _completion_alternatives(t, hb)
     pr = _profiles_generic(t, alts, probes, waits, reads) if generic else _profiles_fast(t, alts, probes, waits, full_profile, reads, ob_inf)
     rep.notes.extend(pr.notes)
+    if any("not confirmed by the generic check" in n for n in pr.notes):
+        rep.degrade("unconfirmed-rejections", f"above {CONFIRM_LIMIT} records the generic check does not confirm the fast "
+                    "check's rejections, which may include alternatives the rules accept")
     if reads is not None:
         n = sum(1 for a in alts if reads.extends(t, a.changed))
         rep.notes.append(f"read bounds: {n} of {len(alts)} alternatives keep records of the changed rank after the "
@@ -369,6 +397,7 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
         nevents = sum(len(recs) for recs in t.ranks.values())
         if nevents > sp_max_events:
             rep.notes.append(f"L1+SP explorer skipped: {nevents} events > {sp_max_events}")
+            rep.degrade("explorer-skipped", f"{nevents} events > {sp_max_events}: no L1+SP consequence was looked for")
         else:
             positions: Dict[int, List[int]] = {}
             prog = dsl.program_from_trace(t, positions)
@@ -382,6 +411,7 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
                 except (explore.StateCapReached, explore.ExploreError) as e:
                     base[B] = None
                     rep.notes.append(f"L1+SP baseline at B={_fmt_B(B)} not explored ({e}): consequences are not compared with the observed run")
+                    rep.degrade("explorer-incomplete", "the single-path explorer did not finish an exploration")
             for rk, sk, f in sp_targets:
                 for B in (0, None):
                     try:
@@ -389,9 +419,11 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
                     except explore.StateCapReached:
                         rep.notes.append(f"L1+SP explorer hit the state cap ({max_states}) for {t.recvs[rk]} <- {t.sends[sk]} at B={_fmt_B(B)}")
                         f.detail.append(f"L1+SP at B={_fmt_B(B)}: state space too large, not explored")
+                        rep.degrade("explorer-incomplete", "the single-path explorer did not finish an exploration")
                         continue
                     except explore.ExploreError as e:
                         f.detail.append(f"L1+SP at B={_fmt_B(B)}: not explored ({e})")
+                        rep.degrade("explorer-incomplete", "the single-path explorer did not finish an exploration")
                         continue
                     outs = res.outcomes_with(rk, sk)
                     if not outs:
@@ -507,6 +539,7 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
                     res = explore.explore(twin, B, force={rk: sk}, max_states=max_states, comms=t.comm_members)
                 except (explore.StateCapReached, explore.ExploreError) as e:
                     f.detail.append(f"L2 at B={_fmt_B(B)}: {twin_label} not explored ({e})")
+                    rep.degrade("explorer-incomplete", "the single-path explorer did not finish an exploration")
                     continue
                 outs = res.outcomes_with(rk, sk)
                 if not outs:
@@ -1002,15 +1035,41 @@ def summary(t: Trace) -> str:
             f"{len(t.colls)} collective records, {len(t.comm_ranks)} communicators")
 
 
+JSON_SCHEMA = 2    # 1: the output before it had a schema, a status and finding ids
+
+
+def finding_ids(rep: Report) -> List[str]:
+    """A stable id per finding: its class and a hash of what it is about (family, class, level,
+    the changed receive, send and probe, certainty and error, and, for a finding about none of
+    them, its title), so that the id stays when a title's wording changes; a second finding
+    with the same content gets "-2", and so on."""
+    import hashlib
+    seen: Dict[str, int] = {}
+    out = []
+    for f in rep.findings:
+        keyed = f.recv is not None or f.send is not None or f.probe is not None
+        what = [f.family, f.cls, f.level, f.recv, f.send, f.probe, f.certainty, f.error, None if keyed else f.title]
+        h = f"{f.cls}-" + hashlib.sha1(json.dumps(what, default=list).encode()).hexdigest()[:10]
+        seen[h] = seen.get(h, 0) + 1
+        out.append(h if seen[h] == 1 else f"{h}-{seen[h]}")
+    return out
+
+
 def to_json(t: Trace, rep: Report) -> dict:
-    """Everything the text report shows: the summary line, notes, findings and the
-    rejected alternatives with their reasons."""
-    return {"summary": summary(t), "notes": rep.notes, "findings": [f.__dict__ for f in rep.findings],
+    """Everything the text report shows: the summary line, notes, findings and the rejected
+    alternatives with their reasons; and what a program reading it needs: the schema version,
+    the commit of the analysis code, the status (complete, or degraded:<reasons>, with each
+    reason's detail) and an id per finding (README, "Exit status and output")."""
+    from .version import analysis_commit
+    return {"schema": JSON_SCHEMA, "analysis_commit": analysis_commit(), "status": rep.status(),
+            "degraded": [{"reason": r, "detail": d} for r, d in rep.degraded],
+            "summary": summary(t), "notes": rep.notes,
+            "findings": [{"id": i, **f.__dict__} for i, f in zip(finding_ids(rep), rep.findings)],
             "infeasible": [{"alternative": d, "reason": why} for d, why in rep.infeasible]}
 
 
 def format_report(t: Trace, rep: Report, show_infeasible: bool = False) -> str:
-    lines = [summary(t)]
+    lines = [f"status: {rep.status()}" + "".join(f"; {r}: {d}" for r, d in rep.degraded), summary(t)]
     for n in rep.notes:
         lines.append(f"note: {n}")
     if not rep.findings:

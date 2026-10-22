@@ -310,6 +310,44 @@ class Provenance(unittest.TestCase):
                          "a, analysed at b (1), a (1)")
 
 
+class ReportOutput(unittest.TestCase):
+    """The text report's status line and the JSON a program reads (README, "Exit status and output")."""
+
+    def test_status_schema_and_ids(self):
+        from stretto import report, trace
+        t = trace.load(os.path.join(GOLDEN, "04_orphan_send"))
+        rep = report.analyze(t)
+        self.assertEqual(rep.status(), "complete")
+        text = report.format_report(t, rep).splitlines()
+        self.assertEqual(text[0], "status: complete")
+        self.assertTrue(text[1].startswith("trace: "))                 # the rest as before
+        j = report.to_json(t, rep)
+        self.assertEqual((j["schema"], j["status"], j["degraded"]), (2, "complete", []))
+        self.assertTrue(j["analysis_commit"])
+        ids = [f["id"] for f in j["findings"]]
+        self.assertEqual(len(ids), len(set(ids)))
+        self.assertTrue(all(i.startswith(f["cls"] + "-") for i, f in zip(ids, j["findings"])))
+        # stable: the same trace gives the same ids, and a title's wording does not enter them
+        self.assertEqual(ids, [f["id"] for f in report.to_json(t, report.analyze(t))["findings"]])
+        for f in rep.findings:
+            if f.recv is not None:
+                f.title = "reworded " + f.title
+        self.assertEqual(ids, report.finding_ids(rep))
+
+    def test_a_trace_outside_the_model_is_degraded(self):
+        from stretto import report, trace as T
+        t = T.Trace()
+        T._build(t, {0: [{"op": "init", "np": 2}, {"op": "unmodelled", "call": "MPI_Win_allocate_shared"}, {"op": "finalize"}],
+                     1: [{"op": "init", "np": 2}, {"op": "finalize"}]})
+        rep = report.analyze(t)
+        self.assertEqual(rep.status(), "degraded:unmodelled")
+        self.assertTrue(report.format_report(t, rep).startswith("status: degraded:unmodelled; unmodelled: "))
+        self.assertEqual(report.to_json(t, rep)["degraded"][0]["reason"], "unmodelled")
+        t = T.Trace()
+        T._build(t, {0: [{"op": "init", "np": 3}, {"op": "finalize"}], 1: [{"op": "init", "np": 3}, {"op": "finalize"}]})
+        self.assertEqual(report.analyze(t).status(), "degraded:missing-ranks")
+
+
 def bash(script: str) -> int:
     """Status of a bash script run with experiments/harness.sh sourced."""
     import subprocess

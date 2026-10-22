@@ -209,6 +209,34 @@ PYTHONPATH=analysis python3 -m stretto sites traces/mine          # findings gro
 Fortran codes are traced through the MPICH wrappers (`MPI=mpich`): Open MPI's Fortran bindings
 call `PMPI_*` directly and bypass the tracer.
 
+### Exit status and output
+
+`stretto analyze` exits with 0 when it reports no finding of an error class, 1 when it reports
+one, 2 when the trace (or a `--reads` map) cannot be loaded or a usage error stops it, and 3 on
+an internal error, with its traceback. A 0 says that no error was found, not that none can
+occur: the report is *degraded* when the analysis could not do all of its work, and the first
+line of the text report, `status: complete` or `status: degraded: ...`, says so, as does the
+JSON. The reasons:
+
+| reason | what was not done |
+|---|---|
+| `missing-ranks` | a rank left no trace file: its messages and collectives are missing |
+| `tracer-overflow` | a table of the tracer filled up: later records of its kind may be incomplete |
+| `unmatched-completions` | a receive completed from a send the trace does not have (an untraced caller, such as Fortran under Open MPI) |
+| `guard-off` | the buffer guard was asked for and off (MPI_THREAD_MULTIPLE) |
+| `threads` | several threads called MPI under MPI_THREAD_MULTIPLE: no alternative is predicted |
+| `unmodelled` | a call outside the modelled fragment (one-sided, neighbourhood collectives, ...): no alternative is predicted |
+| `ready-send` | the run issued a ready send before its receive: no alternative is predicted |
+| `explorer-skipped` | the trace has more events than `--sp-max-events`: no L1+SP consequence was looked for |
+| `explorer-incomplete` | an exploration of the single-path explorer hit its state cap or failed |
+| `unconfirmed-rejections` | above 200 000 records the fast check's rejections are not confirmed by the generic check |
+
+`--json` writes `{"schema": 2, "analysis_commit", "status", "degraded": [{"reason", "detail"}],
+"summary", "notes", "findings", "infeasible"}`. Each finding carries an `id`, its class and a hash
+of what it is about (the changed receive, send or probe, its level, certainty and error), which
+stays when the wording of its title changes. `stretto confirm` exits 0, or 2 when the replay
+library is missing or does not load.
+
 `-x STRETTO_GUARD=1` adds the buffer guard (class 3-local): between MPI calls the tracer
 write-protects the pages of buffers that pending nonblocking operations own and records the
 first access the program makes to them, checks each send buffer's checksum at its completion,

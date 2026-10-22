@@ -189,7 +189,7 @@ def main(argv=None) -> int:
     p = argparse.ArgumentParser(prog="stretto", description="sound prediction of alternative MPI matchings")
     sub = p.add_subparsers(dest="cmd", required=True)
     a = sub.add_parser("show", help="print events and the observed matching"); a.add_argument("tracedir"); a.set_defaults(fn=cmd_show)
-    a = sub.add_parser("analyze", help="predict alternatives and classify them; exit status 0 none found, 1 an error class found, 2 the trace cannot be loaded, 3 internal error")
+    a = sub.add_parser("analyze", help="predict alternatives and classify them; exit status 0 none found (also when the report is degraded: see its status line), 1 an error class found, 2 the trace cannot be loaded, 3 internal error")
     a.add_argument("tracedir"); _analysis_options(a); a.add_argument("--json", action="store_true")
     a.add_argument("-v", "--verbose", action="store_true", help="also list rejected alternatives"); a.set_defaults(fn=cmd_analyze)
     a = sub.add_parser("sites", help="list the call sites of the trace, named in the source when possible")
