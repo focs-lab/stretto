@@ -159,5 +159,57 @@ class PinLog(unittest.TestCase):
         self.assertIn("| **all** | 6 | 3 | 2 | 1 | 0 |", text)
 
 
+class SignTest(unittest.TestCase):
+    """The exact two-sided sign test of a paired comparison, from its discordant pairs."""
+
+    def test_known_values(self):
+        self.assertAlmostEqual(tables.sign_test(12, 4), 2 * (1 + 16 + 120 + 560 + 1820) / 2 ** 16, places=15)
+        self.assertAlmostEqual(tables.sign_test(15, 0), 2 / 2 ** 15, places=15)
+        self.assertAlmostEqual(tables.sign_test(9, 1), 2 * 11 / 2 ** 10, places=15)
+        self.assertEqual(tables.p_text(tables.sign_test(12, 4)), "0.077")
+        self.assertEqual(tables.p_text(tables.sign_test(15, 0)), "0.000061")
+        self.assertEqual(tables.p_text(tables.sign_test(41, 0)), "9.1e-13")
+        self.assertEqual(float(tables.p_text(tables.sign_test(41, 0))), 9.1e-13)
+
+    def test_even_splits_and_none(self):
+        for b, c in ((0, 0), (3, 3), (4, 5), (1, 0)):
+            self.assertEqual(tables.sign_test(b, c), 1.0, (b, c))
+        self.assertEqual(tables.p_text(1.0), "1")
+        self.assertEqual(tables.sign_test(7, 2), tables.sign_test(2, 7))
+        with self.assertRaises(ValueError):
+            tables.sign_test(-1, 2)
+
+    def test_it_falls_with_the_imbalance(self):
+        ps = [tables.sign_test(20 - c, c) for c in range(11)]
+        self.assertEqual(ps, sorted(ps))
+        self.assertLess(ps[0], 1e-5)
+
+
+class Baselines(unittest.TestCase):
+    """Which labelled errors each tool finds, by E1's scoring, over the ones the stress baseline ran."""
+
+    def test_union_of_must_and_stress(self):
+        h = "name,expect,detail,build,run,classes,levels,must"
+        corpus = ["a,ERROR,,,FINISHED,2-buffering,observed:2-buffering,MUST:ERROR",
+                  "b,ERROR,,,TIMEOUT,2-blocked,observed:2-blocked,MUST:TIMEOUT",
+                  "c,ERROR,,,FINISHED,,,MUST:OK",
+                  "d,ERROR,,,FINISHED,1c,L1+SP:1c,MUST:OK",
+                  "e,ERROR,,CE,FINISHED,,,MUST:OK",
+                  "f,OK,,,FINISHED,,,MUST:OK",
+                  "g,ERROR,,,FINISHED,,,MUST:OK"]
+        stress = ["a,ERROR,30,,,", "b,ERROR,1,1,TIMEOUT,", "c,ERROR,2,2,TIMEOUT,", "d,ERROR,30,,,", "e,ERROR,1,1,TIMEOUT,",
+                  "f,OK,30,,,"]                    # g: not run by the stress baseline
+        with tempfile.TemporaryDirectory() as d:
+            with open(os.path.join(d, "x.csv"), "w") as fh:
+                fh.write(h + "\n" + "".join(x + "\n" for x in corpus))
+            with open(os.path.join(d, "stress.csv"), "w") as fh:
+                fh.write("program,expect,runs,first_failure,outcome,commit\n" + "".join(x + "\n" for x in stress))
+            f = tables.baselines_found(os.path.join(d, "x.csv"))
+        self.assertEqual(f, {"Errors": {"a", "b", "c", "d"}, "Stretto": {"a", "b", "d"}, "MUST": {"a"},
+                             "MUSTsym": {"a", "b"}, "Stress": {"b", "c"}})
+        self.assertEqual(f["Stretto"] - (f["MUST"] | f["Stress"]), {"d"})
+        self.assertEqual((f["MUST"] | f["Stress"]) - f["Stretto"], {"c"})
+
+
 if __name__ == "__main__":
     unittest.main()

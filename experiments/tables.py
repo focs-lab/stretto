@@ -11,7 +11,10 @@ The statistics of the last section of docs/results.md ("Statistics") have macros
                                         decimals (at least two) that give its distance to 0 or 1
                                         two significant digits ('[0, 0.046]', '[0.0044, 0.13]')
   n<campaign>...DistinctPins            the distinct pinned alternatives behind a campaign's replays
-  nPin...All, nPin...<campaign>         the pin log over every application campaign, and by campaign"""
+  nPin...All, nPin...<campaign>         the pin log over every application campaign, and by campaign
+  n<corpus>Union...                     the labelled errors each tool and each union of baselines finds
+  n<corpus>Sign<baseline>Stretto/Other  the labelled errors Stretto finds and a baseline misses, and the
+  <corpus>Sign<baseline>P               reverse, with the exact two-sided sign test's p-value"""
 from __future__ import annotations
 import collections
 import csv
@@ -53,6 +56,29 @@ def wilson(k: int, n: int, z: float = Z95) -> tuple:
     centre = (k + z2 / 2) / (n + z2)
     half = z * math.sqrt(k * (n - k) / n + z2 / 4) / (n + z2)
     return (0.0 if k == 0 else max(0.0, centre - half), 1.0 if k == n else min(1.0, centre + half))
+
+
+def sign_test(b: int, c: int) -> float:
+    """The exact two-sided sign test of a paired comparison with b discordant pairs one way and
+    c the other (McNemar's exact test; the pairs alike carry no information): the probability
+    of a split at least as uneven as b to c if each pair went either way with probability 1/2."""
+    if b < 0 or c < 0:
+        raise ValueError(f"no counts {b} and {c}")
+    n = b + c
+    if n == 0:
+        return 1.0
+    return min(1.0, 2 * sum(math.comb(n, i) for i in range(min(b, c) + 1)) / 2 ** n)
+
+
+def p_text(p: float) -> str:
+    """A p-value with two significant digits, in positional notation down to 1e-6 (0.077,
+    0.000061) and in scientific notation below (9.1e-13)."""
+    if p >= 1:
+        return "1"
+    if p >= 1e-6:
+        return f"{p:.{max(2, 1 - math.floor(math.log10(p)))}f}"
+    mantissa, exponent = f"{p:.1e}".split("e")
+    return f"{mantissa}e{int(exponent)}"
 
 
 def bound_text(x: float) -> str:
@@ -3074,6 +3100,81 @@ def _pin_log_all() -> list:
     return out
 
 
+def baselines_found(path) -> dict:
+    """Which labelled errors of a corpus each tool finds, over the ones the stress baseline ran
+    (stress.csv next to the corpus table): Stretto by its verdict from one run (observed or
+    predicted, as E1's F1 counts it), MUST 1.9.2 under E1's two scorings (a timeout or failed run
+    not counted, and counted), and the stress baseline at the default limits (a run that did not
+    finish). Empty without a stress table or MUST verdicts."""
+    by = {r["name"]: r for r in score.compiled(rows(path))}
+    err = [(by[r["program"]], bool(r["first_failure"])) for r in rows(os.path.join(os.path.dirname(path), "stress.csv"))
+           if r["expect"] == "ERROR" and r["program"] in by]
+    if not err or not any(r.get("must") for r, _ in err):
+        return {}
+    return {"Errors": {r["name"] for r, _ in err},
+            "Stretto": {r["name"] for r, _ in err if score.verdict(r) == "ERROR"},
+            "MUST": {r["name"] for r, _ in err if score.must_verdict(r) == "ERROR"},
+            "MUSTsym": {r["name"] for r, _ in err if score.must_verdict_hangs(r) == "ERROR"},
+            "Stress": {r["name"] for r, failed in err if failed}}
+
+
+BASELINE_CORPORA = (("MBI", "MBI", "mbi"), ("MBB", "MPI-BugBench level 2", "mbb"))
+
+
+def _baselines() -> list:
+    """The baselines together on the corpora, and Stretto against each (paired sign tests)."""
+    got = [(key, title, f) for key, title, c in BASELINE_CORPORA for f in [baselines_found(os.path.join(RES, c, f"{c}.csv"))] if f]
+    if not got:
+        return []
+    table = collections.OrderedDict()      # (what, macro suffix) -> count per corpus
+    names = []
+    for key, title, f in got:
+        S, T = f["Stretto"], f["Stress"]
+        cells = [("labelled errors compared (the ones the stress baseline ran)", "Errors", f["Errors"]),
+                 ("found by Stretto (from one run, observed or predicted)", "Stretto", S),
+                 ("found by MUST 1.9.2", "MUST", f["MUST"]),
+                 ("found by MUST 1.9.2, a timeout or failed run counted", "MUSTsym", f["MUSTsym"]),
+                 ("found by the stress baseline at the default limits", "Stress", T),
+                 ("found by MUST 1.9.2 or the stress baseline", "MUSTStress", f["MUST"] | T),
+                 ("found by MUST 1.9.2 (timeouts counted) or the stress baseline", "MUSTsymStress", f["MUSTsym"] | T),
+                 ("found by Stretto and by neither MUST 1.9.2 nor the stress baseline", "StrettoNeither", S - (f["MUST"] | T)),
+                 ("the same, MUST's timeouts counted", "StrettoNeitherMUSTsym", S - (f["MUSTsym"] | T)),
+                 ("found by MUST 1.9.2 or the stress baseline and not by Stretto", "NotStretto", (f["MUST"] | T) - S),
+                 ("the same, MUST's timeouts counted", "NotStrettoMUSTsym", (f["MUSTsym"] | T) - S)]
+        for what, sfx, v in cells:
+            num(f"n{key}Union{sfx}", len(v))
+            table.setdefault((what, sfx), {})[key] = len(v)
+        for what, v in (("found by Stretto and by neither baseline", S - (f["MUST"] | T)),
+                        ("found by a baseline and not by Stretto", (f["MUST"] | T) - S)):
+            if v:
+                names.append(f"{title}, {what}: " + (", ".join(sorted(v)) if len(v) <= 20 else f"{len(v)} programs") + ".")
+    out = ["", "### The baselines together", "",
+           "Which labelled errors each tool finds, over the ones the stress baseline ran (on MBI, every one): Stretto by its",
+           "verdict from one run, observed or predicted, as E1's F1 counts it; MUST 1.9.2 under E1's two scorings; and the",
+           "stress baseline at the default limits, an error found when a run does not finish. A program found by one tool",
+           "and missed by another is what a single comparison of F1 scores does not show.", "",
+           "| labelled errors | " + " | ".join(t for _, t, _ in got) + " | macro |", "|---|" + "---|" * len(got) + "---|"]
+    for (what, sfx), per in table.items():
+        out.append(f"| {what} | " + " | ".join(str(per.get(k, "-")) for k, _, _ in got) + f" | `n<corpus>Union{sfx}` |")
+    if names:
+        out += [""] + names
+    out += ["", "Stretto against each baseline on the same labelled errors: the errors one finds and the other misses, and",
+            "the exact two-sided sign test of that split (the errors both find or both miss carry no information), the",
+            "probability of a split at least as uneven if each such error were as likely to go either way.", "",
+            "| corpus | against | Stretto only | the baseline only | p | macros |", "|---|---|---|---|---|---|"]
+    for key, title, f in got:
+        S = f["Stretto"]
+        for b, what in (("Stress", "the stress baseline at the default limits"), ("MUST", "MUST 1.9.2"),
+                        ("MUSTsym", "MUST 1.9.2, a timeout or failed run counted")):
+            x, y = len(S - f[b]), len(f[b] - S)
+            p = p_text(sign_test(x, y))
+            num(f"n{key}Sign{b}Stretto", x)
+            num(f"n{key}Sign{b}Other", y)
+            num(f"{key}Sign{b}P", p)
+            out.append(f"| {title} | {what} | {x} | {y} | {p} | `n{key}Sign{b}Stretto`, `n{key}Sign{b}Other`, `{key}Sign{b}P` |")
+    return out
+
+
 def statistics_section() -> str:
     """The statistics of the evaluation, from the same tables as the sections above, and some
     from their macros: run after them (the macro names: the module docstring)."""
@@ -3084,6 +3185,7 @@ def statistics_section() -> str:
     out += _intervals()
     out += _distinct()
     out += _pin_log_all()
+    out += _baselines()
     return "\n".join(out) + "\n"
 
 

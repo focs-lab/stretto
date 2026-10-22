@@ -1807,3 +1807,39 @@ reads the first four campaigns only.
 | **all** | 24740 | 74 | 49 | 15 | 10 | | `nPinRunsAll`, `nPinUnmatchedAll`, `nPinUnmatchedEndedAll`, ... |
 
 deal.II 9.3.0-rc1: of the 1440 cross replays that print wrong values, 1434 had every required pin matched and a control that finished (`nDealWrongConfirmed`), the confirmation rule of E1 and E8c.
+
+### The baselines together
+
+Which labelled errors each tool finds, over the ones the stress baseline ran (on MBI, every one): Stretto by its
+verdict from one run, observed or predicted, as E1's F1 counts it; MUST 1.9.2 under E1's two scorings; and the
+stress baseline at the default limits, an error found when a run does not finish. A program found by one tool
+and missed by another is what a single comparison of F1 scores does not show.
+
+| labelled errors | MBI | MPI-BugBench level 2 | macro |
+|---|---|---|---|
+| labelled errors compared (the ones the stress baseline ran) | 65 | 213 | `n<corpus>UnionErrors` |
+| found by Stretto (from one run, observed or predicted) | 61 | 213 | `n<corpus>UnionStretto` |
+| found by MUST 1.9.2 | 46 | 207 | `n<corpus>UnionMUST` |
+| found by MUST 1.9.2, a timeout or failed run counted | 52 | 213 | `n<corpus>UnionMUSTsym` |
+| found by the stress baseline at the default limits | 53 | 172 | `n<corpus>UnionStress` |
+| found by MUST 1.9.2 or the stress baseline | 65 | 213 | `n<corpus>UnionMUSTStress` |
+| found by MUST 1.9.2 (timeouts counted) or the stress baseline | 65 | 213 | `n<corpus>UnionMUSTsymStress` |
+| found by Stretto and by neither MUST 1.9.2 nor the stress baseline | 0 | 0 | `n<corpus>UnionStrettoNeither` |
+| the same, MUST's timeouts counted | 0 | 0 | `n<corpus>UnionStrettoNeitherMUSTsym` |
+| found by MUST 1.9.2 or the stress baseline and not by Stretto | 4 | 0 | `n<corpus>UnionNotStretto` |
+| the same, MUST's timeouts counted | 4 | 0 | `n<corpus>UnionNotStrettoMUSTsym` |
+
+MBI, found by a baseline and not by Stretto: MessageRace_Irecv_Isend_nok, MessageRace_Irecv_Send_nok, MessageRace_Recv_Isend_nok, MessageRace_Recv_Send_nok.
+
+Stretto against each baseline on the same labelled errors: the errors one finds and the other misses, and
+the exact two-sided sign test of that split (the errors both find or both miss carry no information), the
+probability of a split at least as uneven if each such error were as likely to go either way.
+
+| corpus | against | Stretto only | the baseline only | p | macros |
+|---|---|---|---|---|---|
+| MBI | the stress baseline at the default limits | 12 | 4 | 0.077 | `nMBISignStressStretto`, `nMBISignStressOther`, `MBISignStressP` |
+| MBI | MUST 1.9.2 | 15 | 0 | 0.000061 | `nMBISignMUSTStretto`, `nMBISignMUSTOther`, `MBISignMUSTP` |
+| MBI | MUST 1.9.2, a timeout or failed run counted | 11 | 2 | 0.022 | `nMBISignMUSTsymStretto`, `nMBISignMUSTsymOther`, `MBISignMUSTsymP` |
+| MPI-BugBench level 2 | the stress baseline at the default limits | 41 | 0 | 9.1e-13 | `nMBBSignStressStretto`, `nMBBSignStressOther`, `MBBSignStressP` |
+| MPI-BugBench level 2 | MUST 1.9.2 | 6 | 0 | 0.031 | `nMBBSignMUSTStretto`, `nMBBSignMUSTOther`, `MBBSignMUSTP` |
+| MPI-BugBench level 2 | MUST 1.9.2, a timeout or failed run counted | 0 | 0 | 1 | `nMBBSignMUSTsymStretto`, `nMBBSignMUSTsymOther`, `MBBSignMUSTsymP` |
