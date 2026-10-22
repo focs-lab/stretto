@@ -14,8 +14,10 @@
 # MFEM's one other wildcard site is the conforming local refinement of triangles,
 # ParMesh::LocalRefinement (mesh/pmesh.cpp), which sends each neighbour the splitting of the
 # shared edges with tag 0 and receives it from that neighbour with MPI_ANY_TAG, once per round
-# of green refinement, the rounds separated by an MPI_Allreduce. ex6p keeps a triangle mesh
-# conforming (Mesh::EnsureNCMesh leaves simplices alone), so ex6p on square-disc.mesh reaches it.
+# of green refinement, the rounds separated by an MPI_Allreduce. ex6p refines simplices
+# non-conformingly by default (Mesh::EnsureNCMesh(true)); with -cs it keeps a triangle mesh
+# conforming, and ex6p on square-disc.mesh then reaches LocalRefinement (ex6p-tri-cs; ex6p-tri is
+# the same mesh refined non-conformingly).
 #
 # Steps, inside the experiment container, from the repository root, Open MPI build:
 #   fetch    download MFEM 4.10 (GitHub), METIS 4.0.3 (the copy in MFEM's tpls repository on
@@ -57,6 +59,7 @@ ex6p-norebalance|4 8|ex6p -m $M/data/star.mesh -no-vis -md 4000 -no-reb
 ex6p-quad|4|ex6p -m $M/data/inline-quad.mesh -no-vis -md 4000 -reb
 ex6p-pref|4|ex6p -m $M/data/star.mesh -no-vis -md 4000 -pref
 ex6p-tri|4|ex6p -m $M/data/square-disc.mesh -no-vis -md 4000
+ex6p-tri-cs|4 8|ex6p -m $M/data/square-disc.mesh -no-vis -md 4000 -cs
 ex15p|4|ex15p -m $M/data/star-hilbert.mesh -no-vis -tf 0.2
 ex15p-hex|4|ex15p -m $M/data/inline-hex.mesh -no-vis -tf 0.1"
 
