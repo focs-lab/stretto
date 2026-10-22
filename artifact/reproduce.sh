@@ -93,7 +93,7 @@ t_tables() { claims 1 2 3 4 5 6; }
 t_rq1() { corpora; box rq1 experiments/run_remaining.sh e6; amg; nekbone; claims 1; }
 t_rq2() {
     corpora
-    # stress testing at the default eager limits, then with the limit forced down
+    # stress testing on both corpora at the default eager limits, then with the limit forced down
     box rq2 experiments/run_remaining.sh stress stresseager
     # MUST runs in its own image, started from the host, with the corpus run's timeout
     for c in mbi mbb; do
