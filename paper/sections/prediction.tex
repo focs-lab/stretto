@@ -125,11 +125,9 @@ placing it at its posting rejects it, but also every message sent causally after
 posting, which $r$ may well take. DAMPI's protocol gives $r$ its final clock at its wait or at
 a later receive that must be matched after it, which rejects this steal; its theorem shows a
 reported match concurrent with $r$ in that order, not realisable, and it can miss
-matches~\citep{vo11thesis}. On our \nHBTraces corpus and application traces, placing receives
-at their posting misses \nHBPostMissed pairs the check accepts, among them \nHBMGPostMissed alternatives of NPB
-MG's documented bug (RQ6), and all \nHBReplayStrettoOnly we replayed were realised by runs of
-the program. Placing them at their completion selected no impossible pair there, only on this
-example (idiom~14) and on \nHBSynCompOnlyNotRealised of \nHBSynPrograms random programs.
+matches~\citep{vo11thesis}. On our traces, placing receives at their posting misses
+alternatives that runs of the program realise, among them NPB MG's documented bug
+(\cref{app:apps}).
 
 \ref{G:fifo} and \ref{G:order} need only an edge from the latest earlier receive of each
 envelope class and send of each tag (\cref{app:chain}).

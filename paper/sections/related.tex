@@ -90,7 +90,7 @@ under a straight-line model~\citep{sulzmann17hvc} or by vector clocks~\citep{sul
 AdvocateGo replays partners found by happens-before~\citep{advocatego}. Erlang's race
 variants~\citep{vidal22racevariants} are our steal and horizon without blocking;
 Bita~\citep{tasharofi13bita}, DCatch~\citep{liu17dcatch} and dl$^2$~\citep{gao25dl2} expose
-such bugs. None proves an alternative feasible.
+such bugs. None proves feasibility.
 
 \paragraph{Confirmation by re-execution.} In shared memory, predictions are confirmed by
 controlled scheduling~\citep{bensalem06confirmation,joshi09deadlockfuzzer}, directed
@@ -99,9 +99,9 @@ or re-execution~\citep{farzan12exceptionull,huang15mcr}. In message passing, rea
 testing and MAD replay a prefix with the other wildcards pinned, MOPPER can rerun a predicted
 matching
 under ISP~\citep{forejt17mopper}, and MPIWiz~\citep{xue09mpiwiz} and record and
-replay~\citep{netzer92replay,sato15rempi} reproduce recorded sources. Specific to \tool are
-horizon pins that follow rendezvous and ordering dependences, a log of each
-pinned match, a finishing control and confirmation per threshold.
+replay~\citep{netzer92replay,sato15rempi} reproduce recorded sources. \tool adds horizon pins
+along rendezvous and ordering dependences, a match log, a control and per-threshold
+confirmation.
 
 \paragraph{Runtime checkers.} \MUST~\citep{hilbrich12must} checks the observed run online for
 argument, resource and type errors and for deadlocks, treating standard sends as unbuffered and,

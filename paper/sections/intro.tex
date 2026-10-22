@@ -23,7 +23,8 @@ and took months of debugging with print statements~\citep{laguna15cacm}. A messa
 in the HYPRE solver library hung a production code intermittently for 18 months; diagnosing
 it took 291 jobs and 10\,392 compute-node hours, and the fix was ten
 lines~\citep{sato17ninja}. HYPRE's change log places the fix in its ParaSails
-preconditioner~\citep{hypre-changelog}.
+preconditioner~\citep{hypre-changelog}. We found the race again, between ParaSails' pattern
+levels, in HYPRE's current release.
 
 \begin{figure}[t]
 \input{figures/tworuns}
@@ -117,7 +118,10 @@ skeleton of the program's dependence on message metadata.
   \nMBItpPredBuf buffering thresholds among them. From single clean runs of HYPRE~2.10.1, \tool reports the ParaSails race as a probe
   alternative (\Lone), a warning, in \nHypreExposed of \nHypreTraced runs. Replayed at the
   probe whose tag the documented fix changed, all \nHypreCrossAlts such alternatives hang while their
-  controls finish, and the fixed version has none.
+  controls finish, and the fixed version has none. The fix left the race between the levels of
+  ParaSails' sparsity pattern: in the current release, 3.2.0, \tool finds this new bug from every
+  two-level trace of an unmodified PETSc tutorial and of a hypre example, and all
+  \nHypreNewAllCrossAlts forced alternatives hang, while no plain or delayed run does.
   In NPB MG~2.4.1 it predicts the documented wildcard bug of the halo exchange: forced,
   \nMGChanged of \nMGReplayed replays compute another residual. In deal.II~9.3.0-rc1 it predicts
   a probe that takes the next call's message: all \nDealReplayed forced replays print wrong values.
