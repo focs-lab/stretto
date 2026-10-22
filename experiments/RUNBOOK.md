@@ -419,6 +419,25 @@ realisable-threshold range `B` and the message size, and the `run_valid`/`contro
 that say the replay and its control are runs of the program without the pins. The campaign
 scripts below drive it; each writes `experiments/results/<code>/`.
 
+Since 22 Oct each traced run's row also has `by_site`: every finding of the run by class, kind
+and call site, replayed or not, so that triage by site does not depend on the sample. A site is
+named by the outermost function its MPI call is inlined into, with the inlined location in
+brackets (PETSc calls MPI through inline wrappers in `petscsys.h`, which would otherwise name
+every site), from one `addr2line` per object; a library built without debug information (the
+deal.II Release build) leaves its sites as `object+offset`, which `addr2line -f -C -e <object>
+<offset-1>` names by symbol. `--same-sample S` replays every alternative of an error class, of
+another tag or of another exchange, and a seeded sample of `S` of the rest, the same-exchange
+alternatives, which PETSc's, MFEM's and deal.II's probe loops produce by the hundred or the
+hundred thousand per run. The campaign scripts pass `SAME_SAMPLE` (20 per driver; `all` replays
+every one). A receive alternative whose steal has no feasible horizon is replayed as the swap
+the analysis found (two receives posted together exchanging their messages, as in
+`PetscCommBuildTwoSided`); before that, 37 of PETSc's sampled alternatives were reported as
+`no horizon` and not replayed. Each trace stays on disk, not in memory, from its analysis until
+the sample is drawn, and each chosen alternative's horizon is computed once: an MFEM run at 8
+processes has up to five million records, keeping ten traces in memory went past the
+container's 48 GB (two drivers were killed with status 137), and one feasibility check of such a
+trace takes minutes.
+
 ### HYPRE 3.2.0 ParaSails: a level race in the current release
 
 `experiments/hypre3/run.sh [fetch|build|predict|stress|ninja|all]` downloads HYPRE 3.2.0
@@ -444,11 +463,25 @@ the race occurs at the default settings, which is why the replays hang with no e
 columns); `predict-fix.csv`, `stress*.csv` and `ninja*.csv` come from a copy at 0ca587d. The
 stress, NINJA and fixed-variant runs shared the container with the PETSc replay campaign, so
 they were not run on an idle machine. A first NINJA pass ran without `third_party/ninja` built:
-`run.py` preloads a library that is not there without complaint, so those runs were plain; it was
-discarded and NINJA built (`experiments/ninja/build.sh fetch build`) before the committed tables.
+`run.py` preloaded a library that was not there (the dynamic loader only warns), so those runs
+were plain; it was discarded and NINJA built (`experiments/ninja/build.sh fetch build`) before
+the committed tables. `run.py` now refuses to start a NINJA mode without the library.
 The replay library's delays are sleeps before a call, so they cannot make a request issued before
 the level's Allreduce arrive after a request issued after it, which the race needs; NINJA delays
 sends in transit from a helper thread and can.
+
+The race is realisable under MPICH's defaults too. `experiments/b_impl.py --mpi mpich` builds the
+head-to-head program with MPICH's wrapper, launches it with Open MPI's `mpirun` (as every MPICH run
+here: the image's MPICH 4.2.0 is built with PMIx and its own hydra starts singletons) and writes
+`experiments/results/b_impl_mpich.csv`. The image's MPICH is the `ch4:ucx` device. With its
+defaults, two ranks on one node buffer up to 650 633 bytes on every send path (`MPI_Send`,
+`MPI_Isend`, persistent); with `MPIR_CVAR_NOLOCAL=1`, which sends every message through the UCX
+netmod, the same; with UCX restricted to TCP no exchange up to the 1 MiB cap hangs. The race's
+cross-level alternatives are realisable from thresholds between 256 and 3 868 bytes (920 for
+`ex5`, 1 340 for PETSc's `ex2`, 256 to 3 868 for `ex45`, some of whose are realisable at any
+threshold), far below every one of these. UCX chooses its rendezvous threshold at run time from
+its model of the transports, so the shared-memory figure is this machine's, not a constant of
+MPICH.
 
 ### PETSc 3.26.0: the same race through an unmodified driver
 
@@ -465,9 +498,7 @@ cross alternative; with the threshold given, at 0.01, 0.05 or PETSc's default 0.
 level count of two or more does (`scan.csv`). `parasails` runs the two-level case with the
 threshold 0.01 ("dense"), its one-level control and the level count without a threshold
 (`parasails-default-m32.csv` is a first pass of the latter at `-m 32`, made at 3a87e3a); `predict` scouts
-PETSc's own wildcard sites (`PetscCommBuildTwoSided` NBX, `PetscGatherMessageLengths`, the legacy
-Mat/Vec stashes, `MatIncreaseOverlap`), which each take a fresh tag per call and begin or end with
-a collective; it was not run (below). `stress` and `ninja` are the baselines on the dense
+PETSc's own wildcard sites (below). `stress` and `ninja` are the baselines on the dense
 two-level case, and `scan` (run from a copy at 518a9df) the reach of the race over threshold,
 level count and symmetry setting on `ex2` and on `ex45`'s 3D Laplacian, analysis only. The cross
 alternatives of `ex2` at `-m 48 -n 48` are realisable at `B >= 1340` bytes, again below Open MPI's
@@ -476,26 +507,125 @@ copy at 0ca587d; the third ParaSails driver (the level count without a threshold
 before its replays, as the scan covers it, and `stress` was stopped after its two-level block
 (160 runs) and 43 runs of the one-level control. NINJA's application-centric mode ended every
 `ex2` run after its learning run with exit status 59 (`APP-ERROR:59` in `ninja.csv`; not
-investigated), so only its random and system-centric modes give results on PETSc. The scan was
-stopped with `ex45` complete at 4 processes and, at 8, only the threshold 0.01 at one and two levels
-done (each 8-process `ex45` analysis takes about three minutes); to finish it, rerun
-`experiments/petsc/run.sh scan` (it starts the table afresh). There is no PETSc build with the
-fixed HYPRE, so the NINJA control of the fix was made on the HYPRE driver only.
+investigated), so only its random and system-centric modes give results on PETSc. The first scan
+(at 518a9df) was stopped with `ex45` complete at 4 processes; the committed `scan.csv` is a whole
+rerun from a copy at f372280 (22 Oct, about an hour in the newbug container next to the other
+campaigns): 144 traced runs, all finished. Every one of the 96 runs with two or three levels has
+cross-level alternatives and none of the 48 with one; `ex45` at 8 processes adds alternatives
+realisable from 256 bytes, and 48 of the multi-level runs (all of them `ex45`) have some
+realisable at every threshold. There is no PETSc build with the fixed HYPRE, so the NINJA control
+of the fix was made on the HYPRE driver only.
 
-### MFEM 4.10 and deal.II 9.8.0: prepared, not run
+### PETSc 3.26.0's own wildcard sites: every alternative within one exchange
 
-`experiments/mfem/run.sh` builds MFEM 4.10 (`sha256 d5aabe99...`) with METIS 4.0.3 and HYPRE
-3.2.0 and scouts its adaptive examples `ex6p` (static refinement, with rebalancing and with
-p-refinement) and `ex15p` (dynamic refinement and derefinement), whose `ParNCMesh` exchanges probe
-`MPI_ANY_SOURCE` per message type. `experiments/dealii98/run.sh` builds deal.II 9.8.0
-(`sha256 d8d66aac...`, the tag's tests fetched one by one from commit 02c5025 and checksummed)
-with p4est 2.2 and scouts its own tests of `RemotePointEvaluation`, the consensus algorithms,
-`some_to_some`, `point_to_point`, the partitioners and cell weights. On 22 Oct MFEM was built
-(`fetch build`) but its `predict` step was not run, and deal.II's build was stopped part way;
-neither has results. By reading the code, deal.II 9.8.0 still takes a `CollectiveMutex` around
-both `RemotePointEvaluation` exchanges (`mpi_remote_point_evaluation.h`, lines 776-777 and
-987-988), the fix of the 9.3.0-rc1 race. The PETSc `predict` step (PETSc's own wildcard sites)
-was not run either.
+`experiments/petsc/run.sh predict` drives PETSc's own `MPI_ANY_SOURCE` sites with nine drivers
+built from the KSP tutorials `ex2` and `ex3` and their options: GAMG (`PetscCommBuildTwoSided`,
+`PetscGatherMessageLengths`), ASM with overlap 2 (`MatIncreaseOverlap`), BoomerAMG (HYPRE's
+`hypre_DataExchangeList` through PETSc), `ex3` (the Mat and Vec stashes) and `ex3` with the legacy
+stashes and the allreduce variant of `PetscCommBuildTwoSided`; and for the older sites that do not
+take a fresh tag per call, PCTFS (`comm.c` and `gs.c` on `MPI_COMM_WORLD` with fixed tags; powers
+of two only), SBAIJ with PCJACOBI's row maximum (`MatGetRowMaxAbs_MPISBAIJ`, `MPI_ANY_SOURCE` and
+`MPI_ANY_TAG`) and SBAIJ with ASM overlap 2, by default and with `-IncreaseOverlap_old`, the only
+setting in which `MatIncreaseOverlap_MPISBAIJ_Once` and its probes run. The campaign of 22 Oct
+(`RUNS=5 JOBS=2 SAME_SAMPLE=20`, from a copy at 77deb1b; `predict.csv`) traced 60 runs, all
+finished, and found 4 766 alternatives and 1 009 completion-order findings. All but 300 lie within
+one exchange: the `MPI_ANY_SOURCE` receives of `PetscCommBuildTwoSided_Allreduce`
+(`src/sys/utils/mpits.c:164`, the default variant below 1 024 processes), of
+`PetscGatherMessageLengths` and `PetscGatherMessageLengths2` (`mpimesg.c:107, 185, 258`) and of the
+legacy `VecStashScatterBegin_Private` (`src/vec/vec/utils/vecstash.c:264-265`), HYPRE's
+`hypre_DataExchangeList` under BoomerAMG, and the old SBAIJ overlap's probes (`sbaijov.c:259,
+313`). Each of these takes a fresh tag per call (`PetscCommDuplicate`, `PetscObjectGetNewTag`),
+starts with a collective and stores every message by its source, so the alternatives only reorder
+the sources. The 300 cross-tag alternatives are at `MatGetRowMaxAbs_MPISBAIJ`
+(`src/mat/impls/sbaij/mpi/mpisbaij.c:2797`): every rank sends its row maxima to every higher rank
+under its own rank as the tag, and every rank receives once per lower rank from `MPI_ANY_SOURCE`
+with `MPI_ANY_TAG` and keeps the maximum, which no order changes; the communicator is the matrix's,
+PETSc's inner duplicate of the user's, so no message of the user's can be taken. PCTFS's receives
+have none: their tags name the sender, and each exchange posts its receives before its sends. All
+480 replays (the 300 cross-tag ones and 20 sampled per driver) matched their pins, are runs of the
+program and printed the control's output, and every control finished with the traced output: no
+new race. A first pass at 1f4af5f pinned every receive alternative as a steal, and 37 of its
+sampled alternatives, swaps of two receives posted together, came out as `no horizon`; this table
+is the rerun with swaps. The row-maximum driver also shows, in 7 of its 10 traced runs, an
+observed `2-buffering` finding ("observed run deadlocks on any implementation with eager threshold
+< 2048 bytes"). It holds for the run's own matching, whose blocking sends to every higher rank
+precede the receives; with no buffering the receives take the messages in the one order a chain of
+synchronous sends allows (each rank first from its nearest lower sender) and the program
+completes, so it is not a deadlock of the program.
+
+### MFEM 4.10: every alternative within one exchange
+
+`experiments/mfem/run.sh` builds MFEM 4.10 (`sha256 d5aabe99...`) with METIS 4.0.3 and HYPRE 3.2.0
+and scouts eight drivers from its adaptive examples: `ex6p` on `star.mesh` with and without
+rebalancing (`-no-reb`; rebalancing is the default) at 4 and 8 processes, on `inline-quad.mesh`,
+with p-refinement, and on the triangle mesh `square-disc.mesh` refined non-conformingly (the
+default) and conformingly (`-cs`, 4 and 8 processes); and `ex15p` (dynamic refinement,
+derefinement and rebalancing) on `star-hilbert.mesh` and `inline-hex.mesh`. The campaign of 22 Oct
+(`RUNS=5 SAME_SAMPLE=20`, `JOBS` 1 or 2; each driver ran from the copy its rows name, as the script
+was corrected: f372280, 1f4af5f, 3b0f2ee, 855ab8a, a829798; `predict.csv`) traced 55 runs, all
+finished, and found 562 361 alternatives and 38 902 completion-order findings, all within one
+exchange: HYPRE's `hypre_DataExchangeList` probes (`src/utilities/exchange_data.c:324, 413`,
+named `hypre_MPI_Iprobe` since HYPRE's MPI wrappers are functions, not inlined; 519 540); MFEM's
+`VarMessage` probes from `MPI_ANY_SOURCE` (`general/communication.hpp:831, 843`) in
+`ParNCMesh::Refine` (`mesh/pncmesh.cpp:2140`), `RedistributeElements` (2641, 2768),
+`RecvRebalanceDofs` (2905), `Derefine` (2327), `CommunicateGhostData` (3756) and
+`ParFiniteElementSpace::BuildParallelConformingInterpolation` (`fem/pfespace.cpp:4314`); and the
+receives of `hypre_LocateAssumedPartition` (`src/parcsr_mv/par_csr_assumed_part.c:259`). Each
+exchange receives by the probed source and is bounded by collectives (`Refine`'s
+`MPI_Allreduce`, the `MPI_Ibarrier` of `RedistributeElements`). `ParMesh::LocalRefinement`'s
+`MPI_ANY_TAG` receive (`mesh/pmesh.cpp:3789`), reached only with `-cs`, has no alternative: it
+names its neighbour, which sends one message per round, and an `MPI_Allreduce` separates the
+rounds. Of the 160 replays (20 per driver), 150 matched their pins, are runs of the program and
+printed the control's output. The other 10, late in `ex15p` on the hex mesh, are inconclusive:
+the control or the replay does not finish in 120 s because the run leaves the traced schedule
+before the pinned probe (`BuildParallelConformingInterpolation` batches its row messages into
+rounds by how many `IProbe`s find nothing, which pins do not fix), and the validity check names
+a pinned probe still waiting. No new race.
+
+`ex6p` on the triangle mesh and `ex15p` on `star-hilbert.mesh` run at 4 processes only: at 8
+their runs have 3 and 5 million records, and with two replays at a time, each judged by analysing
+its own trace, the container went past 48 GB: the triangle mesh's scout was killed, and
+`ex15p`'s was stopped before its replays. Their 8-process analyses
+in those passes found 196 900 alternatives per run (5 runs) and 166 070 (4 runs), all within one
+exchange; they are not in the table. NINJA (`experiments/ninja/`) crashed MFEM's examples with a
+segmentation fault in every run, with no noise and without p-refinement too, so it gives no
+baseline on MFEM.
+
+By reading the code, `ParFiniteElementSpace::OrderPropagation` (`fem/pfespace.cpp:3705-3753`)
+sends with `MPI_Isend`, calls `MPI_Barrier`, receives with `MPI_Iprobe` until a probe finds
+nothing, and then drops what a second such loop finds. MPI does not make a message sent before a
+barrier visible to a probe after it, so an order message can miss its round. The analysis takes
+an `MPI_Iprobe` that found a message as finding that message and does not propose that it found
+none, so this lies outside its model. On a hex mesh with p-refinement (`ex6p -m inline-hex.mesh
+-pref`, 20 order messages per run), making one successful probe on one rank report no message
+(an LD_PRELOAD wrapper of `MPI_Iprobe`, 12 settings of rank and probe) left the output identical
+to the plain run's, so no consequence was shown; the 2D drivers send no order message at all.
+
+### deal.II 9.8.0: every alternative within one exchange
+
+`experiments/dealii98/run.sh` builds deal.II 9.8.0 (`sha256 d8d66aac...`, the tag's tests fetched
+one by one from commit 02c5025 and checksummed) with p4est 2.2, in Release with MPI and p4est
+only, and scouts eight of its own tests at 4 processes, each compared with its expected output
+after `cmake/scripts/normalize.pl`: `RemotePointEvaluation` (`mapping_01`), the consensus
+algorithms, two of `some_to_some`, `point_to_point_pattern_01`, `parallel_partitioner_05`,
+`cell_weights_01_back_and_forth_01` and `mpi_noncontiguous_partitioner_02`. The campaign of
+22 Oct (`RUNS=5 JOBS=2`, from a copy at f372280; `predict.csv`) traced 40 runs, all finished, and
+found 8 419 alternatives, all at probes from `MPI_ANY_SOURCE` within one exchange: the NBX
+consensus algorithm's request and answer probes (`ConsensusAlgorithms::NBX::maybe_answer_one_request`,
+tag 321, and `all_locally_originated_receives_are_completed`, tag 322), PEX's `answer_one_request`,
+`GridTools::internal::exchange_cell_data`, `compute_index_owner_and_requesters` and the index-owner
+`Dictionary`, and `RemotePointEvaluation::evaluate_and_process`; and 536 completion-order findings,
+which are not replayed. The consensus and some-to-some tests have none. Twenty alternatives, at
+tag 322 in two tests, are cross-phase only because an NBX answer can leave before or after its
+sender's `MPI_Ibarrier` inside the same exchange, and the phase counts that Ibarrier; answers are
+processed by their source. Consecutive consensus calls cannot mix: `run()` takes a
+`CollectiveMutex`, whose `lock` and `unlock` are both blocking `MPI_Barrier`s on the communicator
+in 9.8.0 (`source/base/mpi.cc`), so one call's late probe cannot see the next call's request even
+between two template instantiations, each of which has its own static mutex. The 120 replays (the
+20 cross-phase alternatives and 100 sampled ones) all matched their pins, are runs of the program
+and wrote the control's output; every control finished with the traced output. deal.II 9.8.0
+also still takes a `CollectiveMutex` around both `RemotePointEvaluation` exchanges
+(`mpi_remote_point_evaluation.h`, lines 776-777 and 987-988), the fix of the 9.3.0-rc1 race.
 
 ## Checking that a faster analysis reports the same
 
