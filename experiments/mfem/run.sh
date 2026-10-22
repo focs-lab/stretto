@@ -24,12 +24,13 @@
 #   predict  RUNS traced runs of each driver below, analysed, every alternative replayed with
 #            its horizon pins and its control (experiments/scout.py), JOBS at a time, except
 #            that of the alternatives within one exchange (kind "same", of no error class) a
-#            sample of SAME_SAMPLE per driver is replayed ("all" replays every one)
+#            sample of SAME_SAMPLE per driver is replayed ("all" replays every one); PAR
+#            drivers at a time
 #   all
 # Writes experiments/results/mfem/predict.csv.
 # usage: experiments/mfem/run.sh [fetch|build|predict|all]
-#        RUNS (5), JOBS (1), SAME_SAMPLE (20), MAKE_JOBS (12), MFEM_SRC_DIR (third_party/apps/mfem),
-#        HYPRE_BUILD
+#        RUNS (5), JOBS (1), SAME_SAMPLE (20), PAR (1), MAKE_JOBS (12),
+#        MFEM_SRC_DIR (third_party/apps/mfem), HYPRE_BUILD
 set -uo pipefail
 R="$(cd "$(dirname "$0")/../.." && pwd)"; cd "$R"
 D="${MFEM_SRC_DIR:-$R/third_party/apps/mfem}"
@@ -81,15 +82,32 @@ step_build() {
 }
 same_sample() { [ "${SAME_SAMPLE:-20}" = all ] || echo "--same-sample ${SAME_SAMPLE:-20}"; }
 step_predict() {
+    # PAR drivers at a time, each into a table of its own, joined in the drivers' order: the
+    # analysis of one adaptive run takes minutes on one processor (160 000 records and 4 000
+    # alternatives for ex6p -pref at 4 processes)
     rm -f "$OUT/predict.csv"
+    local parts n=0 name nps cmd p
+    parts=$(mktemp -d)
     while IFS='|' read -r name nps cmd; do
         read -r -a a <<< "$cmd"
+        n=$((n + 1)); p="$parts/$(printf %02d $n)"
         # Open MPI's shared-memory BTL prints a "Read -1 ... errno" line per refused single-copy
         # transfer in the container; it is not program output and differs run to run
-        python3 experiments/scout.py --code mfem --version "$V" --driver "$name" --np $nps --runs "$RUNS" \
-            --jobs "${JOBS:-1}" --timeout 120 $(same_sample) --ignore "errno|Read -1, expected" \
-            --out "$OUT/predict.csv" -- "$M/examples/${a[0]}" "${a[@]:1}" || return 1
+        (python3 experiments/scout.py --code mfem --version "$V" --driver "$name" --np $nps --runs "$RUNS" \
+             --jobs "${JOBS:-1}" --timeout 120 $(same_sample) --ignore "errno|Read -1, expected" \
+             --out "$p.csv" -- "$M/examples/${a[0]}" "${a[@]:1}" > "$p.log" 2>&1; echo $? > "$p.rc") < /dev/null &
+        while [ "$(jobs -rp | wc -l)" -ge "${PAR:-1}" ]; do wait -n; done
     done <<< "$DRIVERS"
+    wait
+    local ok=0
+    for p in "$parts"/*.rc; do
+        cat "${p%.rc}.log"
+        [ "$(cat "$p")" = 0 ] && [ -f "${p%.rc}.csv" ] || { echo "a driver failed: ${p%.rc}.log" >&2; ok=1; }
+    done
+    [ $ok = 0 ] || return 1
+    head -1 "$parts/01.csv" > "$OUT/predict.csv"
+    for p in "$parts"/*.csv; do tail -n +2 "$p" >> "$OUT/predict.csv"; done
+    rm -rf "$parts"
 }
 for step in "${@:-all}"; do
     case "$step" in
