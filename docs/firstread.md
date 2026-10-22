@@ -32,7 +32,13 @@ package, so the tool shares its tests) and writes JSON:
   index; a probe's status, flag and message handle). `free` lists the sites the program can
   reach after the call returns *only* along paths that read none of the result's objects,
   `objects` names them, and `why` says why the list is empty when the analysis cannot follow
-  them.
+  them;
+- `sources`: the SHA-256 of every source the sites come from. Sites are matched to a trace's
+  call sites by function, file name and line, so a map of edited sources, or of another tree,
+  would put bounds on other calls and widen the horizon unsoundly: `stretto analyze --reads`
+  refuses a map whose sources differ from those the traced program names (addr2line on the
+  traced objects), or that no call site of the trace lies in, unless `--reads-unchecked` is
+  given (maps made before the hashes need it).
 
 The image `experiments/container/Dockerfile.firstread` is the experiment image plus clang 18
 from the same archive snapshot (`versions-firstread.txt`); the experiment image itself is

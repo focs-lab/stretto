@@ -1,8 +1,10 @@
 """python3 -m stretto.firstread [-o OUT] [--clang CLANG] [--mpi openmpi|mpich|none] [--cflags FLAGS] [--ir] FILE...
 
 Compiles each C file to LLVM IR (clang -O0 -g -S -emit-llvm, with the MPI implementation's
-include flags), analyses the units together and writes the first-read map as JSON. --ir takes
-.ll files instead. Exit status 0, or 2 if a file does not compile."""
+include flags), analyses the units together and writes the first-read map as JSON, with the
+SHA-256 of every source its sites come from ("sources"), against which a trace's program is
+checked when the map is used. --ir takes .ll files instead. Exit status 0, or 2 if a file does
+not compile."""
 from __future__ import annotations
 import argparse
 import json
@@ -14,6 +16,7 @@ import sys
 import tempfile
 
 from .analyze import analyse_ir
+from ..reads import sha256_of
 
 
 def mpi_flags(mpi: str) -> list:
@@ -76,6 +79,10 @@ def main(argv=None) -> int:
                     return 2
     res = analyse_ir(texts)
     res["compiler"] = args.clang if not args.ir else None
+    # the SHA-256 of every source the sites come from: a map is used only with a trace of a
+    # program built from these very sources (stretto.reads.check_sources)
+    files = dict.fromkeys([*res.get("units", []), *(s.get("file") for s in res.get("sites", []))])
+    res["sources"] = {f: sha256_of(f) for f in files if f and os.path.isfile(f)}
     text = dumps(res)
     if args.out == "-":
         print(text)

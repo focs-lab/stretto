@@ -26,6 +26,7 @@ ap = argparse.ArgumentParser()
 ap.add_argument("csv"); ap.add_argument("--sp-max-events", type=int, default=600); ap.add_argument("--max-states", type=int, default=30000)
 ap.add_argument("--work", default=None, help="the programs' directories, when the run kept them elsewhere (run_mbi.py --work)")
 ap.add_argument("--reads", default=None, help="directory of first-read maps, one per program (reads_maps.py)")
+ap.add_argument("--reads-unchecked", action="store_true", help="accept maps without checking them against the traced programs (stretto.reads.check_sources)")
 ap.add_argument("--out", default=None, help="with --reads: the table to write (default: reads.csv in the maps' directory)")
 args = ap.parse_args()
 path = args.csv
@@ -56,7 +57,7 @@ for r in rows:
     bounds = None
     if args.reads:
         mp = os.path.join(args.reads, r["name"] + ".json")
-        bounds = SiteMap.load(mp, addr2line_resolver(out)) if os.path.exists(mp) else None
+        bounds = SiteMap.load(mp, addr2line_resolver(out), t=t, objdir=out, unchecked=args.reads_unchecked) if os.path.exists(mp) else None
         r["reads"] = "map" if bounds is not None else "none"
     rep = report.analyze(t, with_sp=True, sp_max_events=args.sp_max_events, max_states=args.max_states, reads=bounds)
     classes = " ".join(rep.classes())

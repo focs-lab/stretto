@@ -100,6 +100,38 @@ class Truncation(unittest.TestCase):
             self.assertEqual(c.verdict, "confirmed", c)
 
 
+class ReadMap(unittest.TestCase):
+    """A first-read map is used only with a trace of a program built from the sources it was made
+    from (stretto.reads.check_sources): the idiom's own source checks, an edited one does not."""
+
+    def test_the_map_must_be_of_the_traced_sources(self):
+        import hashlib
+        from stretto import reads, trace
+        if shutil.which("addr2line") is None:
+            self.skipTest("no addr2line")
+        exe, tdir = idiom(self, 4)
+        t = trace.load(tdir)
+        src = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(exe))), "main.c")
+        with open(src, "rb") as fh:
+            digest = hashlib.sha256(fh.read()).hexdigest()
+        rmap = {"format": "stretto-firstread 1", "sites": [], "results": [], "sources": {src: digest}}
+        self.assertEqual(reads.check_sources(rmap, t), 1)
+        with self.assertRaisesRegex(reads.MapMismatch, "differs"):
+            reads.check_sources(dict(rmap, sources={src: "0" * 64}), t)
+        with self.assertRaisesRegex(reads.MapMismatch, "no hashes"):
+            reads.check_sources(dict(rmap, sources={}), t)
+        with self.assertRaisesRegex(reads.MapMismatch, "another program"):
+            reads.check_sources(dict(rmap, sources={"/elsewhere/other.c": digest}), t)
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "map.json")
+            import json
+            with open(path, "w") as fh:
+                json.dump(dict(rmap, sources={src: "0" * 64}), fh)
+            with self.assertRaises(reads.MapMismatch):
+                reads.SiteMap.load(path, t=t)
+            self.assertIsNotNone(reads.SiteMap.load(path, t=t, unchecked=True))
+
+
 class PinIdentity(unittest.TestCase):
     """The pins carry the traced operation's communicator, tag and call site; the replay
     library checks them where it applies a pin, reports them with every match, and ends a run

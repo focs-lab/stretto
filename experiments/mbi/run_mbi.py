@@ -165,7 +165,8 @@ def analyse(row: dict, out: str, exe: str, tracedir: str, args) -> None:
         bounds = None
         if args.reads:
             mp = os.path.join(args.reads, row["name"] + ".json")
-            bounds = reads.SiteMap.load(mp, reads.addr2line_resolver(out)) if os.path.exists(mp) else None
+            bounds = (reads.SiteMap.load(mp, reads.addr2line_resolver(out), t=t, objdir=out, unchecked=args.reads_unchecked)
+                      if os.path.exists(mp) else None)
         rep = report.analyze(t, with_sp=not args.no_sp, sp_max_events=args.sp_max_events, max_states=args.max_states,
                              reads=bounds)
     except Exception as e:  # noqa: BLE001  (recorded as CRASH, never as a verdict)
@@ -293,6 +294,8 @@ def parser() -> argparse.ArgumentParser:
     ap.add_argument("--replays-out", default=None,
                     help="with --replay-only: write the new replays of the selected programs to this CSV and leave the table "
                          "and its replays.csv as they are")
+    ap.add_argument("--reads-unchecked", action="store_true",
+                    help="with --reads: accept maps without checking them against the traced programs' sources")
     ap.add_argument("--reads", default=None,
                     help="directory of first-read maps, DIR/<name>.json (reads_maps.py): analyse with read bounds (docs/firstread.md)")
     return ap
