@@ -858,14 +858,24 @@ class C_Kernel(unittest.TestCase):
             self._same(ready_steal_trace(through_rank0))
 
 
-def fast_equals_generic(tc, t):
+def fast_equals_generic(tc, t, tally=None):
     """Every alternative of t judged by the fast checks and by the generic checker alike, at
-    every threshold: the same verdict, the same cut when feasible, the same reason when not."""
+    every threshold: the same verdict, the same cut when feasible, the same reason when not.
+    With tally (a Counter), the verdicts are counted there, and the fast check's one
+    conservative step is allowed: a steal rejected by a cycle that reachability in the
+    observed graph over the whole trace finds, which the generic check, whose graph holds the
+    horizon only, may accept (proof appendix, conservative step 2; the report confirms such
+    rejections with the generic check). Without tally the two must agree everywhere."""
     ix = t.fast_indexes()
     hb = fast.Observed(t, None, ix).reaches
     alts, _ = candidates_full(t, hb)
     probes = probe_candidates(t, hb)
     waits = _completion_alternatives(t, hb)
+
+    def count(kind, f):
+        if tally is not None:
+            tally[f"{kind} {'accepted' if f.feasible else 'rejected'}"] += 1
+
     for B in breakpoints(t) + [None]:
         ob = fast.Observed(t, B, ix)
         g, f = check(t, t.observed, set(), B, "SP", strong_only=True), ob.observed_verdict()
@@ -875,6 +885,10 @@ def fast_equals_generic(tc, t):
             if f is None:
                 continue
             g = check(t, a.M, a.changed, B, "L1")
+            if tally is not None and g.feasible and not f.feasible and f.reason == "constraint cycle":
+                tally["steal rejected by the observed graph's cycle, accepted by the generic check"] += 1
+                continue
+            count("steal", f)
             tc.assertEqual(g.feasible, f.feasible, f"{a.describe(t)} at B={B}: {g} vs {f}")
             tc.assertEqual(g.cut if g.feasible else g.reason, f.cut if f.feasible else f.reason, f"{a.describe(t)} at B={B}")
         for p, s in probes:
@@ -882,6 +896,7 @@ def fast_equals_generic(tc, t):
             f = ob.check_probe(p, s)
             if f is None:
                 continue
+            count("probe", f)
             tc.assertEqual((g.feasible, g.cut if g.feasible else None), (f.feasible, f.cut if f.feasible else None), f"{p} sees {s} at B={B}")
         for rec, j, r_j, s_j in waits:
             g = check(t, t.observed, set(), B, "L1", extra_edges=[(s_j.issue_node(), rec.complete)],
@@ -889,6 +904,7 @@ def fast_equals_generic(tc, t):
             f = ob.check_event(rec.rank, rec.idx, s_j)
             if f is None:
                 continue
+            count("completion order", f)
             tc.assertEqual((g.feasible, g.cut if g.feasible else None), (f.feasible, f.cut if f.feasible else None), f"wait {rec.idx} at B={B}")
 
 
@@ -1849,12 +1865,12 @@ def e6_traces(n: int, max_states: int, raw: bool = False):
         yield records if raw else t
 
 
-def random_probe_trace(rng, nranks: int, rounds: int = 4):
+def random_probe_trace(rng, nranks: int, rounds: int = 4, shapes: bool = False):
     """The trace of random_probe_records."""
-    return mk(random_probe_records(rng, nranks, rounds))
+    return mk(random_probe_records(rng, nranks, rounds, shapes))
 
 
-def random_probe_records(rng, nranks: int, rounds: int = 4):
+def random_probe_records(rng, nranks: int, rounds: int = 4, shapes: bool = False):
     """A random run with many probes per rank, written in the tracer's format as it goes: in
     each round the ranks send to one another (standard sends of one to three ints, tags 1 and
     2), probe with ANY_SOURCE, and ANY_TAG or a tag, for a message in flight and then mostly
@@ -1863,10 +1879,23 @@ def random_probe_records(rng, nranks: int, rounds: int = 4):
     a probe reports, the earliest message of its source that it accepts, and an Irecv is
     matched when it is posted, so the records are those of an execution with every message
     buffered: the observed graph at B = inf is acyclic, and at small B rendezvous edges may
-    close cycles."""
+    close cycles.
+
+    With shapes, the run also has the shapes on which the fast check disagreed with the generic
+    one before 22 Oct 2026 (C_FastEqualsGenericRandom). An Irecv may be posted before any
+    message it accepts is in flight; it then stays pending until one is sent, which it takes,
+    as MPI matches an arriving message to the earliest posted receive that accepts it, so its
+    message can depend on what its rank does after posting it. Receives, blocking or not, may
+    take ANY_TAG. A round may end with one or two nonblocking collectives instead (Ibarrier,
+    Iallreduce, Ibcast), which each rank waits for later, in an order of its own, among the
+    next round's operations. A Waitany over two matched Irecvs completes either of them. An
+    Irecv that nothing reaches is never waited for. Without shapes
+    the records are those drawn before (experiments/report_diff.py --synthetic writes them)."""
     recs = {r: [] for r in range(nranks)}
     inflight = {}                       # (src, dst) -> tags of the messages not yet taken, in order
     pending = {r: [] for r in range(nranks)}
+    posted = {r: [] for r in range(nranks)}    # shapes: Irecvs no message has reached, (req, tag or ANY)
+    icolls = {r: [] for r in range(nranks)}    # shapes: requests of nonblocking collectives not yet waited for
     req = [100]
 
     def avail(dst, tag=None):
@@ -1874,6 +1903,15 @@ def random_probe_records(rng, nranks: int, rounds: int = 4):
 
     def take(s, d, tg):
         inflight[(s, d)].remove(tg)     # the first message of that tag
+
+    def deliver(src, dst, tg) -> bool:
+        """The earliest pending Irecv of dst that accepts the message takes it (shapes)."""
+        for k, (q, tag) in enumerate(posted[dst]):
+            if tag in (T.ANY, tg):
+                del posted[dst][k]
+                pending[dst].append((q, src, tg))
+                return True
+        return False
 
     for rnd in range(rounds):
         for _ in range(rng.randint(10 * nranks, 16 * nranks)):
@@ -1883,7 +1921,41 @@ def random_probe_records(rng, nranks: int, rounds: int = 4):
                 dst = rng.choice([q for q in range(nranks) if q != r])
                 tg = rng.choice([1, 2])
                 recs[r].append(send(dst, tg, count=rng.randint(1, 3)))
-                inflight.setdefault((r, dst), []).append(tg)
+                if not (shapes and deliver(r, dst, tg)):
+                    inflight.setdefault((r, dst), []).append(tg)
+            elif shapes and act < 0.9 and act >= 0.65:
+                # a receive from ANY_SOURCE, with a tag or ANY_TAG, blocking or not; an Irecv
+                # with nothing in flight for it stays pending
+                tg = rng.choice([1, 2, None])
+                blocking = act < 0.8
+                cands = avail(r, tg)
+                if cands:
+                    s = rng.choice(cands)
+                    mtag = inflight[(s, r)][0] if tg is None else tg
+                    take(s, r, mtag)
+                elif blocking:
+                    continue
+                if blocking:
+                    recs[r].append(recv(T.ANY, T.ANY if tg is None else tg, s, mtag))
+                    if rng.random() < 0.5:         # a reply, which depends on what the receive took
+                        tg = rng.choice([1, 2])
+                        recs[r].append(send(s, tg, count=rng.randint(1, 3)))
+                        if not deliver(r, s, tg):
+                            inflight.setdefault((r, s), []).append(tg)
+                    continue
+                req[0] += 1
+                recs[r].append(irecv(T.ANY, T.ANY if tg is None else tg, req[0]))
+                if cands:
+                    pending[r].append((req[0], s, mtag))
+                else:
+                    posted[r].append((req[0], T.ANY if tg is None else tg))
+            elif shapes and act >= 0.9 and icolls[r] and (not pending[r] or rng.random() < 0.5):
+                recs[r].append(wait((icolls[r].pop(rng.randrange(len(icolls[r]))), None, None)))
+            elif shapes and act >= 0.9 and len(pending[r]) >= 2 and rng.random() < 0.3:
+                two = pending[r][:2]               # a Waitany over two matched Irecvs completes either
+                x = two[rng.randrange(2)]
+                pending[r].remove(x)
+                recs[r].append(wait(x, kind="waitany", reqs=[q for q, _, _ in two]))
             elif act < 0.65:
                 tag = rng.choice([1, 2, None])
                 cands = avail(r, tag)
@@ -1916,12 +1988,82 @@ def random_probe_records(rng, nranks: int, rounds: int = 4):
                     pending[r].append((req[0], s, tg))
             elif pending[r]:
                 recs[r].append(wait(pending[r].pop(0)))
+        if shapes:
+            for r in range(nranks):       # the last round's nonblocking collectives, in an order of the rank's own
+                while icolls[r]:
+                    recs[r].append(wait((icolls[r].pop(rng.randrange(len(icolls[r]))), None, None)))
+            if rng.random() < 0.5:
+                for _ in range(rng.choice([1, 2])):
+                    name = rng.choice(["ibarrier", "iallreduce", "ibcast"])
+                    root = rng.randrange(nranks) if name == "ibcast" else -1
+                    req[0] += 1
+                    for r in range(nranks):
+                        recs[r].append(coll(name, root=root, req=req[0]))
+                        icolls[r].append(req[0])
+                continue
         c = coll("barrier") if rng.random() < 0.5 else coll("bcast", root=rng.randrange(nranks))
         for r in range(nranks):
             recs[r].append(dict(c))
     for r in range(nranks):
         recs[r].extend(wait(x) for x in pending[r])
+        while icolls[r]:
+            recs[r].append(wait((icolls[r].pop(rng.randrange(len(icolls[r]))), None, None)))
     return recs
+
+
+def shapes_seen(t) -> dict:
+    """The shapes of random_probe_records(shapes=True) that a trace has: Irecvs whose wait
+    follows a later blocking wildcard receive of the rank, swap alternatives, ranks that wait
+    for their nonblocking collectives out of issue order, and probe alternatives."""
+    late = sum(1 for r in t.recvs.values() if not r.blocking and r.completed and r.wildcard
+               and any(x.blocking and x.wildcard and r.idx < x.idx < r.complete_idx for x in t.recvs_of(r.rank)))
+    order = 0
+    for rank in t.ranks:
+        nb = sorted((c for c in t.colls if c.rank == rank and c.req is not None and c.completed), key=lambda c: c.idx)
+        order += any(a.complete_idx > b.complete_idx for a, b in zip(nb, nb[1:]))
+    return {"irecv waited after a later blocking wildcard": late,
+            "swap": sum(1 for a in candidates_full(t)[0] if a.kind == "swap"),
+            "rank waiting out of issue order": order,
+            "probe alternative": len(probe_candidates(t))}
+
+
+class C_FastEqualsGenericRandom(unittest.TestCase):
+    """The fast checks against the generic check on random runs with the shapes on which the
+    audit of 22 Oct 2026 found them wrong (random_probe_records with shapes): Irecvs pending
+    until a message sent later reaches them, blocking receives from ANY_SOURCE with a tag or
+    ANY_TAG after them, two Irecvs of a rank posted before either completes (swaps),
+    nonblocking collectives waited for out of issue order, and probes. On every alternative,
+    probe alternative and completion-order alternative the fast check judges, at every
+    breakpoint: the same verdict and, if feasible, the same horizon (fast_equals_generic, which
+    allows the fast check's one conservative rejection); the Lamport and last-in-first-out
+    orders of the fast closure and the chained probe closures agree (closure_orders_agree); and
+    the generic worklist reaches the rescanning fixpoint (closure_equals_fixpoint). With any one
+    of the fixes of that day taken out, these traces fail: without C_RematchedCompetitor's, two
+    steals that the fast check accepts and the generic one rejects (trace 47); without
+    C_CollectiveRule's, about 1 200 alternatives that both accept with different horizons and 36
+    completion-order alternatives; without the probe's exemption in the suffix query, one probe
+    alternative that the fast check rejects (trace 118); without
+    test_hang_at_a_probe_that_rule_6_deprives's, 21 observed runs whose fast closure fails."""
+    TRACES, FIXPOINT = 120, 15
+
+    def test_random_runs(self):
+        from collections import Counter
+        rng = __import__("random").Random(20261023)
+        tally, shapes = Counter(), Counter()
+        for i in range(self.TRACES):
+            t = random_probe_trace(rng, rng.choice([3, 4, 5]), rounds=3, shapes=True)
+            self.assertIsNotNone(t.fast_indexes().lamport())
+            with self.subTest(trace=i):
+                fast_equals_generic(self, t, tally)
+                closure_orders_agree(self, t)
+                if i < self.FIXPOINT:
+                    closure_equals_fixpoint(self, t)
+            shapes.update(shapes_seen(t))
+        for what, n in shapes.items():
+            self.assertGreater(n, 50, (what, dict(shapes)))
+        for kind, least in (("steal", 100), ("probe", 100), ("completion order", 3)):
+            for v in ("accepted", "rejected"):
+                self.assertGreater(tally[f"{kind} {v}"], least, (kind, v, dict(tally)))
 
 
 class C_ClosureOrderRandom(unittest.TestCase):
