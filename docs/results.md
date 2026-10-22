@@ -849,7 +849,7 @@ it took (another level's), *same* if another rank's request of its level, *other
 alternative is replayed with the pins of its horizon and with its control, both under the tracer, which judges
 each a run of the program without its pins or not (`experiments/hypre3/predict.py`, `experiments/scout.py`).
 The fixed variant sends the requests of even levels under a tag of their own (227). Runs at 4 and 8
-processes, Open MPI, its default eager limits. Rows by code commit: 0ca587d (4689), 3a87e3a (1739), e3d3933 (1200), 518a9df (114).
+processes, Open MPI, its default eager limits. Rows by code commit: 0ca587d (4689), 3a87e3a (1739), e3d3933 (1200), f372280 (144).
 
 | driver | levels | ranks | traced runs | with a cross alternative | cross alternatives (per trace) | replays hang | pins matched | replays runs of the program | controls finish | controls runs of the program | realisable from |
 |---|---|---|---|---|---|---|---|---|---|---|---|
@@ -957,9 +957,9 @@ learning run finished (Open MPI's error handler exits with the error class; not 
 
 The reach of the race (`experiments/petsc/run.sh scan`, analysis only, no replay): two traced runs per
 ParaSails threshold (0.01, 0.05 and 0.1, PETSc's default), level count and symmetry setting, on `ex2` and on
-`ex45`'s 3D seven-point Laplacian (`-da_grid_x 16 -da_grid_y 16 -da_grid_z 16`). The scan was stopped with `ex45`
-complete at 4 processes and, at 8, only some settings done. *Realisable from*: the thresholds of the cross
-alternatives of every trace (any B: realisable at every threshold). Rows by code commit: 518a9df (114).
+`ex45`'s 3D seven-point Laplacian (`-da_grid_x 16 -da_grid_y 16 -da_grid_z 16`), at 4 and 8 processes,
+every setting. *Realisable from*: the thresholds of the cross
+alternatives of every trace (any B: realisable at every threshold). Rows by code commit: f372280 (144).
 
 | driver | ranks | levels | thresholds | symmetry | traced runs | with a cross alternative | cross alternatives per trace | realisable from |
 |---|---|---|---|---|---|---|---|---|
@@ -972,8 +972,9 @@ alternatives of every trace (any B: realisable at every threshold). Rows by code
 | `ex45` | 4 | 1 | 0.01, 0.05, 0.1 | SPD, nonsymmetric | 12 | 0 | - | - |
 | `ex45` | 4 | 2 | 0.01, 0.05, 0.1 | SPD, nonsymmetric | 12 | 12 | 12 | any B, B >= 3532 |
 | `ex45` | 4 | 3 | 0.01, 0.05, 0.1 | SPD, nonsymmetric | 12 | 12 | 24 | any B, B >= 508, B >= 3532, B >= 3868 |
-| `ex45` | 8 | 1 | 0.01 | SPD, nonsymmetric | 4 | 0 | - | - |
-| `ex45` | 8 | 2 | 0.01 | nonsymmetric | 2 | 2 | 96 | any B, B >= 1768 |
+| `ex45` | 8 | 1 | 0.01, 0.05, 0.1 | SPD, nonsymmetric | 12 | 0 | - | - |
+| `ex45` | 8 | 2 | 0.01, 0.05, 0.1 | SPD, nonsymmetric | 12 | 12 | 96 | any B, B >= 1768 |
+| `ex45` | 8 | 3 | 0.01, 0.05, 0.1 | SPD, nonsymmetric | 12 | 12 | 264 | any B, B >= 256, B >= 1768, B >= 1936 |
 
 On `ex45` some cross alternatives of every multi-level trace are realisable at
 every threshold; the scan does not replay, and its rows do not record which probes those alternatives belong to.

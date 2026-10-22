@@ -1098,8 +1098,8 @@ def hypre_new():
     if scan:
         out += ["", "The reach of the race (`experiments/petsc/run.sh scan`, analysis only, no replay): two traced runs per",
                 "ParaSails threshold (0.01, 0.05 and 0.1, PETSc's default), level count and symmetry setting, on `ex2` and on",
-                "`ex45`'s 3D seven-point Laplacian (`-da_grid_x 16 -da_grid_y 16 -da_grid_z 16`). The scan was stopped with `ex45`",
-                "complete at 4 processes and, at 8, only some settings done. *Realisable from*: the thresholds of the cross",
+                "`ex45`'s 3D seven-point Laplacian (`-da_grid_x 16 -da_grid_y 16 -da_grid_z 16`), at 4 and 8 processes,",
+                "every setting. *Realisable from*: the thresholds of the cross",
                 f"alternatives of every trace (any B: realisable at every threshold). Rows by code commit: {commits(scan)}.", "",
                 "| driver | ranks | levels | thresholds | symmetry | traced runs | with a cross alternative | cross alternatives per trace | realisable from |",
                 "|---|---|---|---|---|---|---|---|---|"]
