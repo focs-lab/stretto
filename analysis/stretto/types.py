@@ -3,7 +3,10 @@ name (``MPI_INT``), a derived type flattened into its basic constituents as
 ``name*count`` items separated by commas (``MPI_INT*4,MPI_DOUBLE*2``), or an opaque
 ``derived:...`` description when it cannot flatten. Two transfers are compatible when the
 send's signature, repeated count times, is an initial segment of the receive's (MPI 4.1
-§3.3.1); an opaque signature decides nothing."""
+§3.3.1); an opaque signature decides nothing. Two types are not compared by name:
+MPI_PACKED, which a message of any type may be received as, and whose sent contents
+carry types the trace does not show (§3.3.1, §5.2), and MPI_BYTE, untyped storage, which
+is compared with MPI_BYTE only, by length (§3.3.1)."""
 from __future__ import annotations
 from typing import List, Optional, Tuple
 
@@ -37,10 +40,24 @@ def flatten(sig: Optional[str], count: int) -> Optional[List[Tuple[str, int]]]:
     return out
 
 
+PACKED, BYTE = "MPI_PACKED", "MPI_BYTE"
+
+
 def compatible(send_sig: Optional[str], send_count: int, recv_sig: Optional[str], recv_count: int) -> Optional[bool]:
-    """True/False when both signatures are known, None when either is opaque."""
+    """True/False when both signatures are known, None when either is opaque. A receive of
+    MPI_PACKED takes any message (its length is the count check's business); a send of
+    MPI_PACKED carries packed data of types the trace does not record; MPI_BYTE against a
+    typed signature is left undecided rather than reported, as programs commonly move typed
+    data as bytes on one side."""
     a, b = flatten(send_sig, send_count), flatten(recv_sig, recv_count)
     if a is None or b is None:
+        return None
+    sa, sb = {name for name, _ in a}, {name for name, _ in b}
+    if sb == {PACKED}:
+        return True
+    if PACKED in sa or PACKED in sb:
+        return None
+    if (BYTE in sa) != (BYTE in sb) or (BYTE in sa and (sa != {BYTE} or sb != {BYTE})):
         return None
     i = 0
     for name, k in a:

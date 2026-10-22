@@ -14,7 +14,7 @@ from stretto.matching import Overlay, build_graph, observed_hb, probe_candidates
 from stretto.report import _completion_alternatives
 from stretto.feasible import check, feasible_profile, observed_feasible_at, profile_summary
 from stretto.matching import candidates_full
-from stretto.report import analyze
+from stretto.report import analyze, classify
 import reference
 
 
@@ -685,6 +685,25 @@ class C_TypeSignatures(unittest.TestCase):
         self.assertFalse(types.compatible("MPI_INT,MPI_DOUBLE", 1, "MPI_INT", 2))
         self.assertIsNone(types.compatible("derived:c3/s16/e16/lb0", 1, "MPI_INT", 4))
         self.assertIsNone(types.compatible(None, 1, "MPI_INT", 1))
+
+    def test_packed_and_byte(self):
+        # a message of any type may be received as MPI_PACKED; a packed message's types are
+        # not in the trace; MPI_BYTE is compared with MPI_BYTE only, by length
+        self.assertTrue(types.compatible("MPI_INT", 4, "MPI_PACKED", 64))
+        self.assertTrue(types.compatible("MPI_INT*2,MPI_DOUBLE", 1, "MPI_PACKED", 16))
+        self.assertIsNone(types.compatible("MPI_PACKED", 16, "MPI_INT", 4))
+        self.assertIsNone(types.compatible("MPI_PACKED", 16, "MPI_INT,MPI_PACKED", 1))
+        self.assertTrue(types.compatible("MPI_BYTE", 8, "MPI_BYTE", 16))
+        self.assertFalse(types.compatible("MPI_BYTE", 16, "MPI_BYTE", 8))
+        self.assertIsNone(types.compatible("MPI_INT", 4, "MPI_BYTE", 16))
+        self.assertIsNone(types.compatible("MPI_BYTE", 16, "MPI_DOUBLE", 2))
+        self.assertIsNone(types.compatible("MPI_INT,MPI_BYTE", 1, "MPI_INT,MPI_BYTE", 1))
+
+    def test_an_int_message_into_a_packed_receive_is_not_1a(self):
+        r = T.Recv((0, 0), 0, 1, T.ANY, 1, 0, 16, 1, True, tsig="MPI_PACKED")
+        s = T.Send((1, 0), 1, 1, 0, 1, 0, 4, 4, True, "std", tsig="MPI_INT")
+        o = T.Send((2, 0), 2, 1, 0, 1, 0, 16, 1, True, "std", tsig="MPI_PACKED")
+        self.assertNotEqual(classify(r, s, o)[0], "1a")
 
     def test_classify_uses_signature_compatibility(self):
         # a contiguous(4, INT) sent as one element into four INTs is the same signature
