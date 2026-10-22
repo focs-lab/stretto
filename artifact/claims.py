@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Check the paper's claims against the numbers experiments/tables.py wrote.
 
-The paper takes every number of its evaluation from paper/generated/numbers.tex. This script
+The paper takes every number of its evaluation from experiments/generated/numbers.tex. This script
 reads that file, checks each claim the text makes about those numbers (that no accepted
 alternative is unsound, that every replay matched its pins, that no stress run hit the HYPRE
 hang, ...), and with --against compares every number of the chosen research questions with an
@@ -30,7 +30,7 @@ import re
 import sys
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-NUMBERS = os.path.join(ROOT, "paper", "generated", "numbers.tex")
+NUMBERS = os.path.join(ROOT, "experiments", "generated", "numbers.tex")
 
 # which research question a macro belongs to, by name; the first match wins
 RQ_OF = [

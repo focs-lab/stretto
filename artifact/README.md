@@ -1,12 +1,12 @@
 # Stretto: artifact
 
-This directory is the entry point for reproducing the evaluation of the paper (`paper/`,
-section "Evaluation"). The repository holds the tool (the tracer `tracer/`, the analysis
+This directory is the entry point for reproducing the evaluation of the paper (section
+"Evaluation"). The repository holds the tool (the tracer `tracer/`, the analysis
 `analysis/stretto/`, the replay library `replay/`), the experiment scripts
-(`experiments/`), the result tables the paper was built from (`experiments/results/`), and
-the paper's sources. Every number in the evaluation is a macro that `experiments/tables.py`
-writes into `paper/generated/numbers.tex` from those tables, and each table row names the
-code commit that produced it.
+(`experiments/`) and the result tables the paper was built from (`experiments/results/`);
+the paper's sources are kept apart. Every number in the evaluation is a macro that
+`experiments/tables.py` writes into `experiments/generated/numbers.tex` from those tables, and
+each table row names the code commit that produced it.
 
 `artifact/reproduce.sh <target>` runs one part of the evaluation inside the experiment image
 and then checks the paper's claims against the numbers it produced (`artifact/claims.py`).
@@ -104,7 +104,7 @@ Before `rq1` to `rq6`, fetch and build the inputs:
 ```bash
 artifact/reproduce.sh inputs    # clones, corpus programs, AMG and NPB builds (5 minutes on 2 cores), then MUST's image
 artifact/reproduce.sh rq1 rq3   # for example
-artifact/reproduce.sh paper     # paper/build/main.pdf with the numbers just regenerated
+PAPER_DIR=../paper artifact/reproduce.sh paper   # a copy of the paper's sources, built with the numbers just regenerated
 ```
 
 The times are those of the paper's runs: 12 cores of one NUMA node, `JOBS=6`.
@@ -119,7 +119,7 @@ day, every claim held and such counts differed by up to a fifth from the numbers
 had (78 MBI replays instead of 74, 14 inconclusive instead of 10, none contradicting its
 finding). The paper's corpus numbers now come from a run of 22 Oct, after a fix of the tracer:
 70 judged MBI replays, 39 confirmed and 31 inconclusive (`\nMBIReplayFindings`,
-`\nMBIReplayConfirmed`, `\nMBIReplayInconclusive` in `paper/generated/numbers.tex`), every
+`\nMBIReplayConfirmed`, `\nMBIReplayInconclusive` in `experiments/generated/numbers.tex`), every
 inconclusive one in a racing loop labelled erroneous whose control hangs too. The ten repeated
 MBI runs of RQ2 (`experiments/results/reps/`) show how far such counts move between runs of
 one code version.

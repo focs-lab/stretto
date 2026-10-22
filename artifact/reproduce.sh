@@ -12,7 +12,8 @@
 #            experiments/results/ and check the paper's claims against them (seconds)
 #   rq1..rq6 rerun the experiments behind one research question of the evaluation, then tables
 #   all      rq1, rq2, rq3, rq4, rq6 and rq5, each shared step once
-#   paper    build paper/build/main.pdf in a TeX image pinned by digest
+#   paper    build the paper from a copy of its sources named by PAPER_DIR, with the numbers
+#            of experiments/generated/, in a TeX image pinned by digest
 #
 # Every target but image, inputs, paper and the MUST runs runs inside the experiment image
 # (experiments/container/run.sh, in the foreground). The first call keeps the numbers the paper
@@ -23,6 +24,7 @@
 #
 # usage: artifact/reproduce.sh <target> ...         (from any directory)
 #   CPUS     processors the containers may use (default: all of them)
+#   PAPER_DIR  a copy of the paper's sources, for the paper target
 #   MEMORY   memory limit of a container (default 24g; Nekbone and the scale step get 48g)
 #   PREFIX   the containers are named PREFIX-<step> (default stretto), so that two copies can run apart
 #   JOBS     programs run at a time in the corpus steps (default 6), replays in HYPRE's (4) and in
@@ -57,7 +59,7 @@ stamp() {
         python3 experiments/provenance.py --write > /dev/null || { log "cannot write COMMIT from git"; return 1; }
     fi
 }
-[ -f "$OUT/numbers.paper.tex" ] || cp paper/generated/numbers.tex "$OUT/numbers.paper.tex"
+[ -f "$OUT/numbers.paper.tex" ] || cp experiments/generated/numbers.tex "$OUT/numbers.paper.tex"
 
 box() {   # box <name> <command ...>: run in the experiment image, in the foreground, logged;
           # the status is the command's, not tee's
@@ -235,13 +237,16 @@ t_rq6() {
 }
 # every question; the claims of all once more at the end, since rq6's E8c reruns replays of RQ1
 t_all() { t_rq1; t_rq2; t_rq3; t_rq4; t_rq6; t_rq5; claims 1 2 3 4 5 6; }
-t_paper() {
-    docker run --rm --cpuset-cpus "$CPUS" -u "$(id -u):$(id -g)" -e HOME=/tmp -v "$R/paper:/p" -w /p \
+t_paper() {   # the paper's sources are kept apart from this repository; PAPER_DIR names a copy
+    [ -n "${PAPER_DIR:-}" ] && [ -f "$PAPER_DIR/main.tex" ] \
+        || { log "paper: set PAPER_DIR to a copy of the paper's sources (main.tex)"; return 2; }
+    mkdir -p "$PAPER_DIR/generated" && cp experiments/generated/numbers.tex experiments/generated/rq2.tex "$PAPER_DIR/generated/"
+    docker run --rm --cpuset-cpus "$CPUS" -u "$(id -u):$(id -g)" -e HOME=/tmp -v "$(cd "$PAPER_DIR" && pwd):/p" -w /p \
         --entrypoint bash "$TEX_IMAGE" -c 'mkdir -p build && P="pdflatex -interaction=nonstopmode -halt-on-error -output-directory=build main.tex" \
         && $P > /dev/null && BIBINPUTS=. bibtex build/main > /dev/null && $P > /dev/null && $P > build/pdflatex.log && ls -l build/main.pdf'
 }
 
-[ $# -gt 0 ] || { sed -n '2,43p' "$0"; exit 2; }
+[ $# -gt 0 ] || { sed -n '2,45p' "$0"; exit 2; }
 # errexit stops the script at the first failing step; say where before it does
 trap 'rc=$?; log "stopped: a step of ${t:-the setup} failed with status $rc"' ERR
 for t in "$@"; do

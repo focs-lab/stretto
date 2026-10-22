@@ -20,7 +20,7 @@ def module(path: str, name: str):
 
 
 claims = module("artifact/claims.py", "claims_under_test")
-NUMBERS = os.path.join(ROOT, "paper", "generated", "numbers.tex")
+NUMBERS = os.path.join(ROOT, "experiments", "generated", "numbers.tex")
 
 
 class Claims(unittest.TestCase):

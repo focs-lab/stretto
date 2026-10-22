@@ -12,7 +12,7 @@ prototype of it (`rerun/`, `analysis/stretto/rerun.py`, `experiments/e7_rerun.py
 
 The model's program is a function per rank from the results its calls have returned (statuses,
 payloads, Waitany indices, test flags, collective results) to its next call (`docs/model.md` §2b;
-`paper/appendix/proofs.tex`, Conventions). A trace gives that function on the recorded results only.
+the paper's appendix, Conventions). A trace gives that function on the recorded results only.
 L1 asks nothing more: its claims hold for every program consistent with the trace on the horizon.
 L1+SP fixes the function to the recorded calls whatever the results are, which is unsound when control
 flow depends on received data (Lemma T5: idiom 01; idiom 06 changes its collectives).
@@ -70,7 +70,7 @@ the changed receive carries its label, then under the determinism premise below 
 same path with any other message of the same size: the rank's continuation is the recorded one,
 and the L1+SP findings for it hold for the program. DFSan tracks data flow only, so the condition
 must be "no labelled branch at all", which also rules out implicit flows. That is the static check
-the paper leaves to future work (`paper/sections/levels.tex`, Skeletons), done dynamically. Where
+the paper leaves to future work (its section on skeletons), done dynamically. Where
 a label does reach a branch or an argument, taint says *that* the continuation depends on the
 message, not *how*. It cannot run the other side of the branch, and it does not give the function
 (`dest = status.MPI_SOURCE` and `dest = f(status.MPI_SOURCE)` carry the same label). It therefore
@@ -326,7 +326,7 @@ because some executions were undetermined. "Other" means a claim the reference d
 
 ## 6. Before it goes into the paper
 
-- The claim of §3 as a theorem in `paper/appendix/proofs.tex`, with R1-R4 among the premises, and
+- The claim of §3 as a theorem in the paper's appendix, with R1-R4 among the premises, and
   the trace-path argument written against theorem T1.
 - Probes, tests and `Waitsome` as explorer choices (flags, index sets) in the DSL and the shim.
   Today they end a continuation, and on the trace path they stop the rank, which makes L2 say

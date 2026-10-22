@@ -53,8 +53,7 @@ says about the runs it did not see.
    the pins, up to where it ended.
 
 The theory (soundness, monotonicity in the buffering limit, completeness relative to the
-horizon, cost) is in [`docs/model.md`](docs/model.md) and in the paper under
-[`paper/`](paper/).
+horizon, cost) is in [`docs/model.md`](docs/model.md).
 
 ## Results
 
@@ -328,7 +327,6 @@ lost message whose single-path witness stays within them is an L1 finding
 | [`experiments/`](experiments/) | the corpus harness (MBI, MPI-BugBench), the applications, the image, the results |
 | [`artifact/`](artifact/) | one reproduction target per research question, and the claims check |
 | [`docs/`](docs/) | the model, the first-read bounds, the results, the feasibility gate, the proposal |
-| [`paper/`](paper/) | the paper's sources; every number comes from `paper/generated/numbers.tex` |
 | [`scripts/`](scripts/), [`study/`](study/) | idiom scripts; the survey of wildcard sites in proxy applications |
 
 Third-party inputs (MBI, MPI-BugBench, NPB, AMG, Nekbone, HYPRE, MUST's image) are fetched at
