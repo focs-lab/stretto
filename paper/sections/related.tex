@@ -29,7 +29,7 @@ it that are the earliest unconsumed message of their source, as our steals are. 
 changes receives to members of their race sets and removes what a changed receive may
 control, which for blocking traffic corresponds to our horizon. Removing that part is what makes
 a variant feasible ``regardless of the program's control and data
-flow''~\citep[p.\,390]{lei06reachability}, and each variant is executed by prefix-based replay.
+flow''~\citep[p.\,390]{lei06reachability}.
 The first paper of the line proves feasibility for the read--write sequences of shared
 memory~\citep{hwang94apsec}; for message passing we found it asserted, not proved. The model has no
 nonblocking receives, probes, collectives or buffering threshold, and happens-before
