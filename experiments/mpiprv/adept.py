@@ -7,7 +7,8 @@
   order      for each iteration, receiving rank r and neighbour s that sends to r: whether s
              posted that MPI_Isend after r's last MPI_Irecv of the iteration, which r's marker
              follows at once (after_marker: the order of MPI-PRV's report), and whether after r
-             entered its first MPI_Wait, that is after r's whole interior loop (after_loop)
+             entered its first MPI_Wait, that is after r's whole interior loop (after_loop); in a
+             run with ADEPT_DELAY, the same for the sends of the delayed rank alone
   guard      the buffer guard's records (STRETTO_GUARD=1), by kind and by the operation that
              owns the buffer, read from the guard runs' traces
 
@@ -66,10 +67,11 @@ def iterations(evs):
     return its
 
 
-def late_sends(ev):
-    """(sends after the receiver's marker, sends after the receiver's interior loop, pairs)."""
+def late_sends(ev, slow=None):
+    """(sends after the receiver's marker, sends after the receiver's interior loop, pairs; and of
+    the pairs whose sender is the delayed rank slow, the sends after the receiver's loop, pairs)."""
     its = {r: iterations(e) for r, e in ev.items()}
-    after_marker = after_loop = total = 0
+    after_marker = after_loop = total = slow_late = slow_total = 0
     for r, rit in its.items():
         for k, it in enumerate(rit):
             posts = [t for kind, _, t in it if kind == "irecv"]
@@ -84,7 +86,10 @@ def late_sends(ev):
                     total += 1
                     after_marker += sends[0] > posts[-1]
                     after_loop += sends[0] > waits[0]
-    return after_marker, after_loop, total
+                    if s == slow:
+                        slow_total += 1
+                        slow_late += sends[0] > waits[0]
+    return after_marker, after_loop, total, slow_late, slow_total
 
 
 def records(tdir):
@@ -134,7 +139,8 @@ def main():
     logs, work = sys.argv[1], sys.argv[2]
     ref = None
     print("run,command,rc,duration_s,ranks_hashed,result_id,same_result_as_normal,"
-          "sends_after_marker,sends_after_loop,send_pairs,guard_records,guard_kinds,commit")
+          "sends_after_marker,sends_after_loop,send_pairs,delayed_sends_after_loop,delayed_sends,"
+          "guard_records,guard_kinds,commit")
     for name in RUNS:
         p = os.path.join(logs, name + ".log")
         if not os.path.exists(p):
@@ -144,11 +150,14 @@ def main():
         if name == "normal":
             ref = dict(hashes)
         same = "-" if not hashes or ref is None else str(dict(hashes) == ref)
-        am, al, total = late_sends(ev) if ev else ("-", "-", "-")
+        slow = re.search(r"ADEPT_DELAY=(\d+):", head)          # the rank that sleeps before its sends
+        am, al, total, sl, st = late_sends(ev, int(slow.group(1)) if slow else None) if ev else ("-",) * 5
+        if not slow:
+            sl = st = "-"
         g, gk = guard_summary(os.path.join(work, name + ".trace")) if name.startswith("guard") else ("-", "")
         cmd = head.split(";")[0].split(": ", 1)[-1].replace(",", " ")
         m = re.search(r"; commit (\S+);", head)       # the commit the run was made with
-        print(f"{name},\"{cmd}\",{rc},{dur},{len(hashes)},{rid},{same},{am},{al},{total},{g},\"{gk}\","
+        print(f"{name},\"{cmd}\",{rc},{dur},{len(hashes)},{rid},{same},{am},{al},{total},{sl},{st},{g},\"{gk}\","
               f"{m.group(1) if m else provenance.code_commit()}")
 
 
