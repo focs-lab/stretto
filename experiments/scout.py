@@ -59,7 +59,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from stretto import trace  # noqa: E402
 from stretto.confirm import all_matched, horizon_pins, required_matches, run_checked, tracer_lib  # noqa: E402
 from stretto.report import ERROR_CLASSES, analyze  # noqa: E402
-from stretto.sites import _is_dyn, sites  # noqa: E402
+from stretto.sites import _is_dyn  # noqa: E402
 from provenance import code_commit  # noqa: E402
 
 KEYS = ["code", "version", "driver", "np", "run", "records", "traced", "findings", "by_site", "cross_B", "pin", "cls", "level",
@@ -112,8 +112,10 @@ def outer_names(t) -> dict:
     """Site label -> 'function at file:line' of the outermost function the MPI call is inlined
     into, with the innermost location in brackets when it is inlined. stretto.sites names the
     innermost one, which in libraries that wrap MPI in inline functions (PETSc's MPIU_Recv and
-    the like in petscsys.h) is the same few wrapper lines for every caller. One addr2line per
-    object for all its new addresses, cached across runs."""
+    the like in petscsys.h) is the same few wrapper lines for every caller, and runs addr2line
+    once per site and run (its cache is keyed by the address, which differs between runs), which
+    on PETSc's library took minutes per run. Here one addr2line per object resolves all of a
+    run's new sites, cached by label (object and offset) across runs."""
     want = {}
     for rec in t.sites.values():
         obj, addr, base = rec.get("obj", "?"), rec.get("addr", 0), rec.get("base", 0)
@@ -211,8 +213,7 @@ def main() -> int:
                 rows.append({**row, "replay": f"trace unreadable: {e}"[:200]})
                 shutil.rmtree(d, ignore_errors=True)
                 continue
-            outer = outer_names(t)
-            names = {label: outer.get(label) or name for label, name, _ in sites(t)}
+            names = outer_names(t)
             shutil.rmtree(d, ignore_errors=True)
             rep = analyze(t, with_sp=False)
             counts = Counter(f"{f.level}:{f.cls}" for f in rep.findings)
