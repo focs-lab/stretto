@@ -889,10 +889,10 @@ def hypre_new():
     and PETSc 3.26.0's unmodified KSP tutorial ex2 reaches it (experiments/petsc/run.sh:
     parasails.csv, parasails-default-m32.csv, stress.csv, ninja.csv, scan.csv)."""
     d, p = os.path.join(RES, "hypre3"), os.path.join(RES, "petsc")
-    pr, fx, st, sf, nj, nf = (rows(os.path.join(d, f)) for f in ("predict.csv", "predict-fix.csv", "stress.csv",
-                                                                 "stress-fix.csv", "ninja.csv", "ninja-fix.csv"))
-    ps, pm, pst, pnj, scan = (rows(os.path.join(p, f)) for f in ("parasails.csv", "parasails-default-m32.csv",
-                                                                 "stress.csv", "ninja.csv", "scan.csv"))
+    pr, fx, st, sf = (rows(os.path.join(d, f)) for f in ("predict.csv", "predict-fix.csv", "stress.csv", "stress-fix.csv"))
+    nj, nf = (ninja_runs_rows(os.path.join(d, f)) for f in ("ninja.csv", "ninja-fix.csv"))
+    ps, pm, pst, scan = (rows(os.path.join(p, f)) for f in ("parasails.csv", "parasails-default-m32.csv", "stress.csv", "scan.csv"))
+    pnj = ninja_runs_rows(os.path.join(p, "ninja.csv"))
     if not (pr or ps):
         return "_no results_\n"
     # (title, macro prefix, rows): hypre's ex5 with -sai_levels, its fixed variant, PETSc's ex2
@@ -2052,6 +2052,33 @@ def must_tsan_local():
     return "\n".join(out) + "\n"
 
 
+def ninja_runs_rows(path: str) -> list:
+    """The rows of a table of NINJA runs (experiments/ninja/run.py runs), the last campaign of
+    each program, process count, mode and setting only. run.py appends to its table, so a
+    rerun of a campaign (artifact/reproduce.sh rq2, rq6) adds a second run 1, 2, ... after the
+    first: a campaign starts again where a group's run number falls back (or repeats, but for
+    run 0, the learning run, which is retried)."""
+    def key(r):
+        return (r["label"], r["np"], r["mode"], r.get("setting", "") if r["mode"] == "random" else "")
+    rs = rows(path)
+    last: dict = {}
+    for i, r in enumerate(rs):
+        g = last.setdefault(key(r), {"start": i, "prev": None})
+        run = int(r["run"])
+        if g["prev"] is not None and (run < g["prev"] or (run == g["prev"] and run > 0)):
+            g["start"] = i                   # a later campaign of the group
+        g["prev"] = run
+    return [r for i, r in enumerate(rs) if i >= last[key(r)]["start"]]
+
+
+def ninja_corpus_rows(path: str) -> list:
+    """The rows of a table of NINJA corpus runs (run.py corpus): the last row of each program,
+    mode and setting, run.py appending to its table as above."""
+    rs = rows(path)
+    last = {(r["program"], r["mode"], r.get("setting", "")): i for i, r in enumerate(rs)}
+    return [r for i, r in enumerate(rs) if last[(r["program"], r["mode"], r.get("setting", ""))] == i]
+
+
 def _ninja_mode(r) -> str:
     """A NINJA row's mode as text, the random noise with its ratio and delay."""
     if r["mode"] == "random":
@@ -2110,7 +2137,8 @@ def ninja():
     """E10: NINJA's noise injection on the programs Stretto predicts bugs in
     (experiments/ninja/campaign.sh): its ParaSails replica, HYPRE, the MBI corpus, NPB MG."""
     d = os.path.join(RES, "ninja")
-    cal, hy, mb, mg = (rows(os.path.join(d, f)) for f in ("calibrate.csv", "hypre.csv", "mbi.csv", "mg.csv"))
+    cal, hy, mg = (ninja_runs_rows(os.path.join(d, f)) for f in ("calibrate.csv", "hypre.csv", "mg.csv"))
+    mb = ninja_corpus_rows(os.path.join(d, "mbi.csv"))
     if not (cal or hy or mb or mg):
         return "_no results_\n"
     out = ["NINJA v1.0.2 (`experiments/ninja/build.sh`), the noise injector of the paper that reported the HYPRE ParaSails race",

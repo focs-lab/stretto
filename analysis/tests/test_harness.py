@@ -131,6 +131,36 @@ class CrashIsNoVerdict(unittest.TestCase):
             self.assertEqual(score.verdict(row), "ERROR")
 
 
+class NinjaRerun(unittest.TestCase):
+    """experiments/ninja/run.py appends to its tables; a campaign run again must not count twice."""
+
+    def write(self, d, name, header, lines):
+        path = os.path.join(d, name)
+        with open(path, "w") as fh:
+            fh.write(header + "\n" + "".join(x + "\n" for x in lines))
+        return path
+
+    def test_the_last_campaign_counts(self):
+        import tempfile
+        tables = module("experiments/tables.py", "tables_under_test")
+        h = "label,np,mode,setting,run,result,seconds,reached,value,commit"
+        first = ["hypre,4,random,ratio=10% delay=50000us,1,FINISHED,1,,,a", "hypre,4,random,ratio=10% delay=50000us,2,TIMEOUT,60,,,a",
+                 "hypre,4,app,learning run (system-centric),0,TIMEOUT,60,,,a", "hypre,4,app,learning run (system-centric),0,FINISHED,5,,,a",
+                 "hypre,4,app,,1,FINISHED,5,,,a", "hypre,4,app,,2,FINISHED,5,,,a"]
+        again = ["hypre,4,random,ratio=10% delay=50000us,1,TIMEOUT,60,,,b", "hypre,4,random,ratio=10% delay=50000us,2,TIMEOUT,60,,,b",
+                 "hypre,4,app,learning run (system-centric),0,FINISHED,5,,,b", "hypre,4,app,,1,TIMEOUT,60,,,b",
+                 "hypre,4,app,,2,FINISHED,5,,,b"]
+        with tempfile.TemporaryDirectory() as d:
+            once = tables.ninja_runs_rows(self.write(d, "once.csv", h, first))
+            self.assertEqual(len(once), len(first))             # the learning run retried belongs to its campaign
+            twice = tables.ninja_runs_rows(self.write(d, "twice.csv", h, first + again))
+            self.assertEqual([r["commit"] for r in twice], ["b"] * len(again))
+            hc = "program,expect,mode,setting,runs,first_failure,outcome,learn,seconds,commit"
+            rs = tables.ninja_corpus_rows(self.write(d, "mbi.csv", hc, ["p,ERROR,random,r,3,,,,1,a", "q,OK,random,r,30,,,,1,a",
+                                                                         "p,ERROR,random,r,1,1,TIMEOUT,,1,b"]))
+            self.assertEqual(sorted((r["program"], r["commit"]) for r in rs), [("p", "b"), ("q", "a")])
+
+
 def bash(script: str) -> int:
     """Status of a bash script run with experiments/harness.sh sourced."""
     import subprocess
