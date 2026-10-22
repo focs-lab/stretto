@@ -39,6 +39,8 @@ Buffer guard run: 115 programs (rows by code commit: 7117573 (115)); 3-local in 
 | MUST 1.9.2, a timeout or a run without a report counted as an error | 52 | 0 | 13 | 50 | 1.00 | 0.80 | 0.89 |
 | MUST 1.11.2 (same source, its own run under MPICH) | 40 | 0 | 25 | 50 | 1.00 | 0.62 | 0.76 |
 | MUST 1.11.2, a timeout or a run without a report counted as an error | 45 | 0 | 20 | 50 | 1.00 | 0.69 | 0.82 |
+| MUST 1.11.2 with ThreadSanitizer (same source, its own run under MPICH) | 42 | 0 | 23 | 50 | 1.00 | 0.65 | 0.79 |
+| MUST 1.11.2 with ThreadSanitizer, a timeout or a run without a report counted as an error | 48 | 5 | 17 | 45 | 0.91 | 0.74 | 0.81 |
 
 MUST verdicts: ERROR 46, OK 63, RE 2, TIMEOUT 4. In the first MUST row a run
 that timed out, crashed or did not compile counts as no error reported. A Stretto run that the harness
@@ -48,6 +50,15 @@ report (RE) the same way; the two rows bracket the comparison. Both tools ran ea
 the same timeout; MUST under MPICH, Stretto under Open MPI, so they did not see the same run.
 
 MUST 1.11.2 verdicts (rows by code commit: 3b8e846 (115)): ERROR 40, OK 70, RE 1, TIMEOUT 4. Labelled errors it reports and MUST 1.9.2 does not: 3 (MessageRace 3); the reverse: 9 (MessageRace 9). Correct programs it reports: 0.
+
+MUST 1.11.2 with ThreadSanitizer verdicts (rows by code commit: 3b8e846 (115)): ERROR 42, OK 62, RE 2, TIMEOUT 9. Labelled errors it reports and MUST 1.9.2 does not: 4 (MessageRace 4); the reverse: 8 (MessageRace 8). Correct programs it reports: 0. Programs with a data race reported: 0.
+
+MUST 1.11.2 runs from `experiments/must/Dockerfile` (MPI-BugBench's MUST image with 1.11.2: Debian 12,
+MPICH 4.0.2, clang 14), the same harness and timeout as 1.9.2 (`scripts/must_run.sh`). With ThreadSanitizer the
+program is compiled with `must-tsan-cc --wrap-target mpicc.mpich` and run with `--must:tsan`; a data race counts
+as an error (MPI-BugBench's harness maps MUST_WARNING_DATARACE to no error class). As MUST's own tests do for
+clang 14 and later, the run sets MUST_DISABLE_TSAN_ONREPORT=1, so the races are in ThreadSanitizer's report
+rather than MUST's: with the hook on, the runs hung after the first race.
 
 Labelled errors Stretto reports and MUST does not on the same program: **15**, of which
 predicted on a run that showed nothing itself: **4**. With at least one finding replay-confirmed
@@ -153,6 +164,10 @@ Buffer guard run: 388 programs (rows by code commit: 7117573 (388)); 3-local in 
 
 | MUST 1.9.2 (same source, its own run under MPICH) | 213 | 4 | 23 | 148 | 0.98 | 0.90 | 0.94 |
 | MUST 1.9.2, a timeout or a run without a report counted as an error | 219 | 9 | 17 | 143 | 0.96 | 0.93 | 0.94 |
+| MUST 1.11.2 (same source, its own run under MPICH) | 213 | 4 | 23 | 148 | 0.98 | 0.90 | 0.94 |
+| MUST 1.11.2, a timeout or a run without a report counted as an error | 219 | 9 | 17 | 143 | 0.96 | 0.93 | 0.94 |
+| MUST 1.11.2 with ThreadSanitizer (same source, its own run under MPICH) | 222 | 4 | 14 | 148 | 0.98 | 0.94 | 0.96 |
+| MUST 1.11.2 with ThreadSanitizer, a timeout or a run without a report counted as an error | 236 | 25 | 0 | 127 | 0.90 | 1.00 | 0.95 |
 
 MUST verdicts: ERROR 217, OK 160, RE 5, TIMEOUT 6. In the first MUST row a run
 that timed out, crashed or did not compile counts as no error reported. A Stretto run that the harness
@@ -160,6 +175,17 @@ killed at the timeout is reported as a blocked rank (2-blocked) and one whose ra
 as an abort, both errors, so the second MUST row credits MUST's timeouts and its runs that ended without a
 report (RE) the same way; the two rows bracket the comparison. Both tools ran each program once, with
 the same timeout; MUST under MPICH, Stretto under Open MPI, so they did not see the same run.
+
+MUST 1.11.2 verdicts (rows by code commit: 3b8e846 (396)): ERROR 217, OK 160, RE 4, TIMEOUT 7. Labelled errors it reports and MUST 1.9.2 does not: 0; the reverse: 0. Correct programs it reports: 4 (P2P__Correct-mpi_improbe-001, P2P__Correct-mpi_imrecv-001, P2P__Correct-mpi_mprobe-001, P2P__Correct-mpi_mrecv-001).
+
+MUST 1.11.2 with ThreadSanitizer verdicts (rows by code commit: 3b8e846 (396)): ERROR 226, OK 127, RE 25, TIMEOUT 10. Labelled errors it reports and MUST 1.9.2 does not: 17 (LocalConcurrency 17); the reverse: 8 (CallOrdering 8). Correct programs it reports: 4 (P2P__Correct-mpi_improbe-001, P2P__Correct-mpi_imrecv-001, P2P__Correct-mpi_mprobe-001, P2P__Correct-mpi_mrecv-001). Programs with a data race reported: 17 (LocalConcurrency 17).
+
+MUST 1.11.2 runs from `experiments/must/Dockerfile` (MPI-BugBench's MUST image with 1.11.2: Debian 12,
+MPICH 4.0.2, clang 14), the same harness and timeout as 1.9.2 (`scripts/must_run.sh`). With ThreadSanitizer the
+program is compiled with `must-tsan-cc --wrap-target mpicc.mpich` and run with `--must:tsan`; a data race counts
+as an error (MPI-BugBench's harness maps MUST_WARNING_DATARACE to no error class). As MUST's own tests do for
+clang 14 and later, the run sets MUST_DISABLE_TSAN_ONREPORT=1, so the races are in ThreadSanitizer's report
+rather than MUST's: with the hook on, the runs hung after the first race.
 
 Labelled errors Stretto reports and MUST does not on the same program: **6**, of which
 predicted on a run that showed nothing itself: **0**. With at least one finding replay-confirmed
@@ -740,28 +766,28 @@ operation's buffer accesses as a concurrent thread, and plain MUST runs. A race 
 
 | program | buffer guard | MUST 1.11.2 with ThreadSanitizer | MUST 1.11.2 | MUST 1.9.2 |
 |---|---|---|---|---|
-| COLL__LocalConcurrency-mpi_iallreduce-001 | 3-local | ERROR | - | OK |
-| COLL__LocalConcurrency-mpi_ialltoall-001 | 3-local | ERROR | - | OK |
-| COLL__LocalConcurrency-mpi_ibcast-001 | 3-local | ERROR | - | OK |
-| COLL__LocalConcurrency-mpi_igather-001 | 3-local | ERROR | - | OK |
-| COLL__LocalConcurrency-mpi_ireduce-001 | 3-local | ERROR | - | OK |
-| COLL__LocalConcurrency-mpi_iscan-001 | 3-local | ERROR | - | OK |
-| COLL__LocalConcurrency-mpi_iscatter-001 | 3-local | ERROR | - | OK |
-| P2P__LocalConcurrency-mpi_irecv-001 | 3-local | ERROR | - | ERROR |
-| P2P__LocalConcurrency-mpi_irecv-002 | 3-local | ERROR | - | ERROR |
-| P2P__LocalConcurrency-receive-mpi_imrecv-001 | 3-local | ERROR | - | ERROR |
-| P2P__LocalConcurrency-receive-mpi_irecv-001 | 3-local | ERROR | - | OK |
-| P2P__LocalConcurrency-receive-mpi_precv_init-001 | 3-local | OK | - | RE |
-| P2P__LocalConcurrency-receive-mpi_recv_init-001 | 3-local | ERROR | - | OK |
-| P2P__LocalConcurrency-send-mpi_bsend_init-001 | 3-local | ERROR | - | OK |
-| P2P__LocalConcurrency-send-mpi_ibsend-001 | 3-local | ERROR | - | OK |
-| P2P__LocalConcurrency-send-mpi_irsend-001 | 3-local | ERROR | - | OK |
-| P2P__LocalConcurrency-send-mpi_isend-001 | 3-local | ERROR | - | OK |
-| P2P__LocalConcurrency-send-mpi_issend-001 | 3-local | ERROR | - | OK |
-| P2P__LocalConcurrency-send-mpi_psend_init-001 | 3-local | OK | - | RE |
-| P2P__LocalConcurrency-send-mpi_rsend_init-001 | 3-local | ERROR | - | OK |
-| P2P__LocalConcurrency-send-mpi_send_init-001 | 3-local | ERROR | - | OK |
-| P2P__LocalConcurrency-send-mpi_ssend_init-001 | 3-local | ERROR | - | OK |
+| COLL__LocalConcurrency-mpi_iallreduce-001 | 3-local | ERROR | OK | OK |
+| COLL__LocalConcurrency-mpi_ialltoall-001 | 3-local | ERROR | OK | OK |
+| COLL__LocalConcurrency-mpi_ibcast-001 | 3-local | ERROR | OK | OK |
+| COLL__LocalConcurrency-mpi_igather-001 | 3-local | ERROR | OK | OK |
+| COLL__LocalConcurrency-mpi_ireduce-001 | 3-local | ERROR | OK | OK |
+| COLL__LocalConcurrency-mpi_iscan-001 | 3-local | ERROR | OK | OK |
+| COLL__LocalConcurrency-mpi_iscatter-001 | 3-local | ERROR | OK | OK |
+| P2P__LocalConcurrency-mpi_irecv-001 | 3-local | ERROR | ERROR | ERROR |
+| P2P__LocalConcurrency-mpi_irecv-002 | 3-local | ERROR | ERROR | ERROR |
+| P2P__LocalConcurrency-receive-mpi_imrecv-001 | 3-local | ERROR | ERROR | ERROR |
+| P2P__LocalConcurrency-receive-mpi_irecv-001 | 3-local | ERROR | OK | OK |
+| P2P__LocalConcurrency-receive-mpi_precv_init-001 | 3-local | OK | OK | RE |
+| P2P__LocalConcurrency-receive-mpi_recv_init-001 | 3-local | ERROR | OK | OK |
+| P2P__LocalConcurrency-send-mpi_bsend_init-001 | 3-local | ERROR | OK | OK |
+| P2P__LocalConcurrency-send-mpi_ibsend-001 | 3-local | ERROR | OK | OK |
+| P2P__LocalConcurrency-send-mpi_irsend-001 | 3-local | ERROR | OK | OK |
+| P2P__LocalConcurrency-send-mpi_isend-001 | 3-local | ERROR | OK | OK |
+| P2P__LocalConcurrency-send-mpi_issend-001 | 3-local | ERROR | OK | OK |
+| P2P__LocalConcurrency-send-mpi_psend_init-001 | 3-local | TIMEOUT | OK | RE |
+| P2P__LocalConcurrency-send-mpi_rsend_init-001 | 3-local | ERROR | OK | OK |
+| P2P__LocalConcurrency-send-mpi_send_init-001 | 3-local | ERROR | OK | OK |
+| P2P__LocalConcurrency-send-mpi_ssend_init-001 | 3-local | ERROR | OK | OK |
 
 Programs: 22. The guard reports 22, MUST with ThreadSanitizer 20; both 20, only the guard 2, only MUST 0. The guard run's code commit: 7117573; MUST's rows: 3b8e846 (22).
 
