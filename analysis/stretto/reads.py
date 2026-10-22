@@ -129,10 +129,67 @@ def addr2line_resolver(objdir: Optional[str] = None) -> Resolver:
     return resolve
 
 
+class MapMismatch(ValueError):
+    """The first-read map was not made from the sources the traced program was built from."""
+
+
+def sha256_of(path: str) -> str:
+    import hashlib
+    with open(path, "rb") as fh:
+        return hashlib.sha256(fh.read()).hexdigest()
+
+
+def check_sources(rmap: dict, t: Trace, objdir: Optional[str] = None) -> int:
+    """Refuse (MapMismatch) a first-read map that does not belong to the traced program. The map
+    names its sites by function, file name and line, so a map made from edited sources, or from
+    another tree, would put a site's bounds on another call and widen the horizon unsoundly.
+    The map records the SHA-256 of every source its sites come from (sources); every source the
+    trace's call sites lie in (addr2line on the traced objects, as the bounds are found) that
+    the map has must hash the same, at the path the program names or, failing that, at the
+    path the map recorded. A map without hashes is refused, and so is one that no call site of
+    the trace lies in. Returns how many sources were checked."""
+    from .sites import symbolize
+    srcs = rmap.get("sources")
+    if not srcs:
+        raise MapMismatch("the map records no hashes of its sources (it predates them): remake it with python3 -m "
+                          "stretto.firstread, or accept it unchecked")
+    by_name: Dict[str, List[Tuple[str, str]]] = {}
+    for path, digest in srcs.items():
+        by_name.setdefault(os.path.basename(path), []).append((path, digest))
+    checked: Dict[str, bool] = {}
+    # one call of addr2line per site, not per rank: the same call has another address in each
+    # process, but the same offset in its object
+    distinct = {}
+    for s in t.sites.values():
+        distinct.setdefault((s.get("obj", ""), s.get("addr", 0) - s.get("base", 0)), (s.get("addr", 0), s.get("base", 0)))
+    for (obj, _), (addr, base) in sorted(distinct.items()):
+        if not os.path.exists(obj) and objdir is not None and os.path.exists(os.path.join(objdir, os.path.basename(obj))):
+            obj = os.path.join(objdir, os.path.basename(obj))
+        where = symbolize(obj, addr, base)
+        if " at " not in where:
+            continue
+        path = where.rsplit(" at ", 1)[1].rpartition(":")[0]
+        cands = by_name.get(os.path.basename(path))
+        if not cands or path in checked:
+            continue
+        f = path if os.path.isfile(path) else next((p for p, _ in cands if os.path.isfile(p)), None)
+        if f is None:
+            raise MapMismatch(f"cannot read {path}, the source of traced call sites, to check the map against it")
+        if sha256_of(f) not in {d for _, d in cands}:
+            raise MapMismatch(f"{path}: the source the traced program was built from differs from the one the map was made from")
+        checked[path] = True
+    if not checked:
+        raise MapMismatch("no call site of the trace lies in a source the map was made from: a map of another program "
+                          "(or objects without debug information)")
+    return len(checked)
+
+
 class SiteMap(ReadBounds):
     """Bounds from a first-read map: a record after k is certified if its call site matches
     static sites (same function, file name and line, a call of its kind) and every one of them
-    is free for every pair of static sites the posting and the delivering records can be."""
+    is free for every pair of static sites the posting and the delivering records can be.
+    SiteMap.load checks, given the trace, that the map belongs to the traced program
+    (check_sources)."""
 
     def __init__(self, rmap: dict, resolve: Optional[Resolver] = None):
         if not str(rmap.get("format", "")).startswith("stretto-firstread"):
@@ -149,9 +206,18 @@ class SiteMap(ReadBounds):
         self._limits: Dict[Tuple[int, int, Optional[int]], int] = {}
 
     @classmethod
-    def load(cls, path: str, resolve: Optional[Resolver] = None) -> "SiteMap":
+    def load(cls, path: str, resolve: Optional[Resolver] = None, t: Optional[Trace] = None,
+             objdir: Optional[str] = None, unchecked: bool = False) -> "SiteMap":
+        """The map in file path, for the trace t: refused (MapMismatch) unless its sources are
+        those of the traced program (check_sources), or unchecked is given (a map made before
+        maps recorded their sources, accepted knowingly)."""
         with open(path) as fh:
-            return cls(json.load(fh), resolve)
+            rmap = json.load(fh)
+        if not unchecked:
+            if t is None:
+                raise MapMismatch("a first-read map is checked against the trace it is used with: give the trace")
+            check_sources(rmap, t, objdir)
+        return cls(rmap, resolve)
 
     def candidates(self, t: Trace, rank: int, idx: int, fam: Optional[FrozenSet[str]] = None) -> Tuple[int, ...]:
         """The static sites record idx of rank may come from (of the calls fam, or of the

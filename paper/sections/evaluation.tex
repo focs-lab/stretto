@@ -12,8 +12,8 @@ of each row. We ask six questions.
   and do the predicted thresholds hold on a real implementation?
 \item[RQ4, levels.] Where do \Lone, \LoneSP and \Ltwo disagree, and why?
 \item[RQ5, cost.] What do tracing and analysis cost?
-\item[RQ6, real applications.] What does \tool report on wildcard-heavy correct code, and
-  what do its alternatives change?
+\item[RQ6, real applications.] Does \tool predict documented bugs from clean runs, does it
+  find new ones, and what does it report on correct code?
 \end{description}
 
 \paragraph{Setup.} Programs are built with Open MPI~4.1.6 and MPICH~4.2 on Ubuntu~24.04
@@ -22,9 +22,9 @@ message-race, tag-matching, buffering and probe programs of the MPI Bugs
 Initiative~\citep{laurent21mbi} (\nMBIprogs programs, \nMBIcorrect of them correct), and the
 point-to-point and collective programs of \MBB level~2~\citep{jammer24mbb} that build with
 Open MPI (\nMBBprogs; \nMBBnotBuilt partitioned-communication programs do not). \tool traces
-one run of each corpus program under Open MPI and analyses it. It traces the applications under
-MPICH, except AMG: Open MPI's Fortran bindings bypass the C profiling interface, and
-HYPRE~2.10.1 calls MPI-1 functions that Open MPI~4 removed. The first baseline is
+one run of each corpus program under Open MPI and analyses it. It traces AMG, HYPRE~3.2.0 and
+PETSc under Open MPI, the other applications under MPICH: Open MPI's Fortran bindings bypass
+the C profiling interface, and HYPRE~2.10.1 calls MPI-1 functions that Open MPI~4 removed. The first baseline is
 \MUST~1.9.2, run in \MBB's container with the same timeout, and the current release~1.11.2
 in a copy of it; \MUST rebuilds each program with MPICH, so it sees a run of its own. The
 second is stress testing: up to \nMBIStressRuns runs of each program with random delays of 0
@@ -40,8 +40,8 @@ exhaustive explorer of $\SP(\trace)$ at $\Bt=0$ and $\Bt=\infty$, on \nEsixTrace
 corpus and idiom traces small enough to explore, and random programs with synchronous and
 ready sends, probes, \mpicall{Waitany} and sends after receives, of up to \nEsixMaxEvents
 events. Every alternative the check judges counts, accepted or rejected. Of \nEsixPairs
-(alternative, threshold) pairs, \nEsixUnsound are unsound: no accepted alternative lacks an
-execution that realises its pairs on the receives of its horizon. The one incomplete pair is
+(alternative, threshold) pairs, \nEsixUnsound are unsound: every accepted alternative has an
+execution that realises it over its horizon. The one incomplete pair is
 a steal that does not survive, outside \cref{thm:complete}. The explorer confirms
 all \nEsixLdead contained deadlocks of \cref{thm:l1dead}. With read bounds that never or
 randomly allow a read, \nReadsEsixUnsound of \nReadsEsixPairs pairs are unsound and all
@@ -65,15 +65,12 @@ inconclusive and \nReadsReplayNotConfirmed not confirmed. Rerun under the tracer
 \nValidRuns of \nValidReplays replays of the confirming campaigns and \nValidControlRuns of
 \nValidControls controls are runs of the unpinned program, and \nValidConfNew of the \nValidConfOld
 confirmations among them stand; the application replays are samples from new traced runs, and on
-MBI \nValidVerdictChanged verdicts of racing loops differ from the committed ones. On AMG, a
-random sample of \nAMGsample of its alternatives, which claim no failure, was replayed: all
-\nAMGsampleMatched matched their pins, \nAMGsampleFinish finished, and so did
-\nAMGsampleControls controls. On Nekbone, whose late alternatives pin tens of thousands of
-receives each, \nNeksampleMatched of \nNeksample matched, \nNeksampleFinish finished, and
-\nNeksampleControls controls finished. The log of pinned matches never had to
+MBI \nValidVerdictChanged verdicts of racing loops differ from the committed ones. Random
+samples of AMG's and Nekbone's alternatives all matched their pins and finished, as did their
+controls (\cref{app:apps}). The log of pinned matches never had to
 overrule an outcome: of the \nPinRuns pinned runs of the applications, replays and controls,
 \nPinUnmatched left a pin unmatched, and \nPinUnmatchedEnded of these hung or finished; the
-others exited with an error. The buffering replays are in RQ3 and HYPRE's in RQ6.
+others exited with an error.
 
 \subsection{RQ2: effectiveness}
 
@@ -110,8 +107,8 @@ One run samples one schedule, so we ran MBI \nRepsRuns more times. The run itsel
 \nRepsObsAlways labelled errors in every run, \nRepsObsSometimes in some and \nRepsObsNever in
 none; \tool reports \nRepsUnionAlways in every run and none less often than the run shows it,
 with no false error report (F1 \RepsUnionFoneMin to \RepsUnionFoneMax). It predicts the error
-from \nRepsCleanPredicted of the \nRepsCleanRuns runs that showed nothing; the rest are of the
-value-checking programs.
+from \nRepsCleanPredicted of the \nRepsCleanRuns runs that showed nothing; the rest are value
+checks.
 
 Stress testing makes \nMBIStressFound of the \nMBIStressErr fail, mostly in its first run;
 \nMBIStressLater need more than one. The \nMBIStressPredMissed it never makes fail are the
@@ -152,10 +149,9 @@ that one threshold per send path said would finish, so the replays moved to TCP.
 Each of the \nEtwoReplayPrograms programs whose run finished and needs a threshold is rerun
 three times. With the default limits it must finish again (\nEtwoReplayDefaultOK did). On TCP,
 one byte below the predicted bound, it must hang: \nEtwoReplayBelowOK of
-\nEtwoReplayBelowTestable did. The other four send to themselves,
-which goes inline up to 256 bytes at any setting. With the threshold at the bound, it
-must finish: \nEtwoReplayAtOK of \nEtwoReplayAt did. \nEtwoReplayBad replays went against
-the prediction.
+\nEtwoReplayBelowTestable did. The other four send to themselves, inline up to 256 bytes at
+any setting. With the threshold at the bound, it must finish: \nEtwoReplayAtOK of
+\nEtwoReplayAt did. \nEtwoReplayBad replays went against the prediction.
 
 \subsection{RQ4: levels}
 
@@ -171,8 +167,8 @@ knowing the labels, certify it (\cls{1e}) in every case. Without read bounds no 
 consequences of \nReadsMoved erroneous programs, \nReadsMovedClean with a clean run, move from
 \LoneSP to \Lone, through deadlocks contained in the longer horizon or witnesses within
 the bounds (\cref{thm:firstread}); \Lone alone then scores F1 \nReadsFoneLOne instead of
-\nReadsFoneLOneBase, with \nReadsNewFP new false positives. The value-checking programs read
-the payload first and stay at \Ltwo.
+\nReadsFoneLOneBase, with \nReadsNewFP new false positives. Value checks read the payload
+first and stay at \Ltwo.
 
 \subsection{RQ5: cost}
 
@@ -205,54 +201,35 @@ exchanges matrix rows twice, first the pruned rows and then the stored rows. Bot
 send their requests with tag~222 and take them with \mpicall{Probe(ANY\_SOURCE, 222)}
 followed by a receive from the probed source. A rank that has finished the first exchange can
 send its stored-rows request while a neighbour is still probing for pruned-rows requests. The
-probe then takes it, and the run hangs. A message race in HYPRE~2.10.1 hung a production code
-intermittently for 18 months, and diagnosing it took 291 jobs and 10\,392 compute-node
-hours~\citep{sato17ninja}. Version~2.11.0 fixed ``an MPI bug that was causing Parasails to hang
-occasionally''~\citep{hypre-changelog}, by giving the two exchanges different tags.
+probe then takes it, and the run hangs. This is the production race of the
+introduction~\citep{sato17ninja}: version~2.11.0 fixed ``an MPI bug that was causing Parasails to
+hang occasionally''~\citep{hypre-changelog}, by giving the two exchanges different tags.
 
 We traced \nHypreFourRuns runs of HYPRE's \texttt{ij} driver with ParaSails-PCG on four
 processes and \nHypreEightRuns on eight. Every run finished normally. In each trace we replayed
 every alternative of a request probe, whose tag the documented fix changed, with the pins of its
 horizon and with its control. An
 alternative is \emph{cross} when the probe would take a request of the other exchange, which is
-the race, and \emph{same} when it would take another neighbour's request of its own exchange.
-The trace tells the two apart. An exchange sends its requests, counts the replies to expect
-with an \mpicall{Allreduce}, and only then probes. A request and a probe therefore belong to
-one exchange exactly when the probing rank has made one more collective call before the probe
-than the sending rank before the request.
+the race, and \emph{same} when it would take another neighbour's request of its own exchange
+(\cref{app:apps}).
 
 \Cref{tab:hypre} gives the outcome. On four processes, \nHypreFourExposed of the
 \nHypreFourRuns traces have a cross alternative, \nHypreFourAlts in all. On eight, every trace
 has one, and there are \nHypreEightAlts. Every cross alternative hangs when replayed, with its pins
-matched as in RQ1, and every control finishes. The same alternatives finish with the
-residual of their control: all \nHypreFourLocalAlts on four processes, and
-\nHypreEightLocalSameResidual of the \nHypreEightLocalAlts on eight. On version~2.11.0, the
-fix, no trace has a cross alternative, and its same alternatives finish too:
-\nHypreFixedFourLocalFinish of \nHypreFixedFourLocalAlts on four processes and
-\nHypreFixedEightLocalFinish of \nHypreFixedEightLocalAlts on eight. Its other
-\nHypreFixedEightLocalOther replays and \nHypreFixedEightLocalControlsFailed controls, and the
-remaining replay of 2.10.1, exited with status~15 without finishing; plain runs launched
-the same way never did, their output was not kept, and we count them as neither hanging nor
-finishing.
-Stress testing never hit the hang: \nHypreStressRuns untraced runs of
-version~2.10.1, half with random delays, all finished. NINJA, built for this race,
-hangs it in \nNinjaHypreEightAppHangSetup of \nNinjaHypreEightAppRuns runs on eight processes
-in its application-centric mode and in \nNinjaHypreEightRandomShortHangSetup of
-\nNinjaHypreEightRandomShortRuns with 10\% of sends delayed by 50\,ms; on four processes only
-random noise does (\nNinjaHypreFourRandomShortHangSetup of \nNinjaHypreFourRandomShortRuns),
-and never on 2.11.0.
-
-A trace has a cross alternative only if its order lets a neighbour reach
-the next exchange while this rank probes. The run finishes either way: the order is
-common, the hang it allows is not.
+matched, and every control finishes. The same alternatives finish, but for a few exits with
+status~15 (\cref{app:apps}). Version~2.11.0, the fix, has no cross alternative.
+Stress testing never hit the hang: all \nHypreStressRuns untraced runs of
+2.10.1, half with random delays, finished. NINJA, built for this race, hangs it in
+at most \nNinjaHypreEightAppHangSetup of \nNinjaHypreEightAppRuns runs per setting, and never on
+2.11.0 (\cref{app:apps}).
 
 \begin{table}[t]
-\caption{HYPRE, ParaSails: the alternatives of the request probes in every traced run. A
-\emph{cross} alternative takes the other exchange's request, a \emph{same} one another
-neighbour's request of its own exchange. \emph{Traces}: traces with such an alternative, of
-those traced. Each alternative is replayed with the pins of its horizon (\emph{hang},
-\emph{finish}; \emph{matched}: every pin of the horizon matched) and with its control
-(\emph{control}: controls that finish).}
+\caption{HYPRE, ParaSails: the alternatives of the request probes in every traced run.
+\emph{Cross}: the probe takes the other exchange's request (in 3.2.0, the next level's);
+\emph{same}: another neighbour's request of its own exchange. \emph{Traces}: traces with such
+an alternative, of those traced. Each is replayed with its horizon pins (\emph{hang},
+\emph{finish}; \emph{matched}: all pins matched) and with its control (\emph{control}: controls
+that finish).}
 \label{tab:hypre}
 \small
 \begin{tabular}{@{}llrrrrrr@{}}
@@ -270,6 +247,13 @@ procs & kind & traces & replays & hang & finish & matched & control \\
 4 & same & \nHypreFixedFourLocalRuns/\nHypreFixedFourRuns{} & \nHypreFixedFourLocalAlts{} & \nHypreFixedFourLocalHang{} & \nHypreFixedFourLocalFinish{} & \nHypreFixedFourLocalMatched{} & \nHypreFixedFourLocalControls{} \\
 8 & cross & \nHypreFixedEightExposed/\nHypreFixedEightRuns{} & \nHypreFixedEightAlts{} & \nHypreFixedEightHang{} & \nHypreFixedEightFinish{} & \nHypreFixedEightMatched{} & \nHypreFixedEightControls{} \\
 8 & same & \nHypreFixedEightLocalRuns/\nHypreFixedEightRuns{} & \nHypreFixedEightLocalAlts{} & \nHypreFixedEightLocalHang{} & \nHypreFixedEightLocalFinish{} & \nHypreFixedEightLocalMatched{} & \nHypreFixedEightLocalControls{} \\
+\midrule
+\multicolumn{8}{@{}l}{\emph{3.2.0 at two levels, the new bug: PETSc's \textup{\texttt{ex2}}}} \\
+4 & cross & \nPetscFourExposed/\nPetscFourRuns{} & \nPetscFourAlts{} & \nPetscFourHang{} & \nPetscFourFinish{} & \nPetscFourMatched{} & \nPetscFourControls{} \\
+8 & cross & \nPetscEightExposed/\nPetscEightRuns{} & \nPetscEightAlts{} & \nPetscEightHang{} & \nPetscEightFinish{} & \nPetscEightMatched{} & \nPetscEightControls{} \\
+\multicolumn{8}{@{}l}{\emph{3.2.0 at two levels, the new bug: hypre's \textup{\texttt{ex5}}}} \\
+4 & cross & \nHypreNewFourExposed/\nHypreNewFourRuns{} & \nHypreNewFourAlts{} & \nHypreNewFourHang{} & \nHypreNewFourFinish{} & \nHypreNewFourMatched{} & \nHypreNewFourControls{} \\
+8 & cross & \nHypreNewEightExposed/\nHypreNewEightRuns{} & \nHypreNewEightAlts{} & \nHypreNewEightHang{} & \nHypreNewEightFinish{} & \nHypreNewEightMatched{} & \nHypreNewEightControls{} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -282,13 +266,31 @@ replies to it (\texttt{status.MPI\_SOURCE}), the pattern of \cref{lem:sp}, so th
 lies beyond the horizon. The pinned replays and their controls show the hang. The race needs
 buffering: in a trace analysed before the campaign, the check certifies the cross alternative
 only for $\Bt\ge\BHypreCross$ bytes, the size of the neighbour's reply in the first exchange,
-which must go eagerly for the neighbour to leave that exchange while this rank still probes.
-We did not measure the threshold of MPICH, under which every forced cross match happened. In a
-trace on four processes the
-probe alternatives fall at four call sites: HYPRE's own \mpicall{Iprobe} wrapper in its data
-exchange, the diagonal-scaling exchange, ParaSails's \texttt{ReceiveReplyPrunedRows}, and its
-\texttt{ReceiveRequest}. Every alternative replayed in the campaign lies at the last, the probe
-for requests (\texttt{ParaSails.c:166}).
+which must go eagerly for the neighbour to leave that exchange.
+
+\paragraph{A new bug in the current release.} HYPRE~3.2.0's ParaSails, like its master branch,
+builds its sparsity pattern one level at a time: each level sends its row requests with
+tag~221, counts them with an \mpicall{Allreduce} and takes them with
+\mpicall{Probe(ANY\_SOURCE, 221)}. Nothing collective separates a rank's last probe of one level
+from a neighbour's requests of the next, so with two or more levels (the default is one) a probe
+can take the next level's request, and the setup hangs. It is the race above, which 2.11.0 left
+in place across levels: it gave the two exchanges tags of their own, but every level the same.
+\tool finds it from clean runs of PETSc~3.26.0's unmodified KSP tutorial \texttt{ex2}, with
+ParaSails at two levels set on the command line (\cref{app:apps}), and of hypre's \texttt{ex5}
+with one option added that sets the level count. Every two-level trace has cross alternatives
+(\cref{tab:hypre}). Forced, all \nHypreNewAllCrossAlts hang with their pins matched, each replay
+is a run of the program by its own trace, and every control finishes. No trace at one level has
+one; in a scan of thresholds, level counts and symmetry settings, all \nPetscScanMultiTraced
+traces with two or three levels do, none of \nPetscScanOneTraced with one. The alternative needs
+the neighbour's pruned-rows reply buffered (\BPetscCross bytes on \texttt{ex2}, the bound the
+check reports; \BHypreNewReply on \texttt{ex5}), below Open MPI's default eager limit of
+\BimplOMPI. None of \nHypreNewAllStressRuns untraced two-level runs, half with random delays,
+hung: the race needs a request to stay in transit across the level's \mpicall{Allreduce}, which
+a delay before a call cannot cause. NINJA, which delays sends in transit, hangs \texttt{ex5} in
+\nNinjaHypreNewHang of \nNinjaHypreNewRuns runs and \texttt{ex2} in \nNinjaPetscRandomHang of
+\nNinjaPetscRandomRuns with random noise. With even levels' requests under a tag of their own,
+no trace of \texttt{ex5} (of \nHypreNewFixTraced) has a cross alternative, and NINJA hangs it in
+\nNinjaHypreNewFixHang of \nNinjaHypreNewFixRuns runs.
 
 \paragraph{A second documented bug.} The halo exchange of NPB MG~2.4.1 posts every receive
 with \anysrc and a tag that depends on the axis and the direction but not on the grid level.
@@ -296,53 +298,35 @@ NPB's change log records that this ``could cause MPI\_Wait return a message mean
 wrong k'', and version~3.2.1 fixed it by receiving from the named
 neighbour~\citep{npb-changelog}. We traced \nMGTraced clean runs of class~S on \nMGRanks
 processes. Within one exchange each receive has its own tag and one sender, so an accepted
-alternative takes a shorter message of another exchange, which MPI allows; \nMGExposed traces
-have such alternatives, \nMGAlts in all. Taking that message is an \Lone finding; what follows
-lies beyond the horizon, so we replayed every alternative with its horizon pins and its
+alternative takes a shorter message of another exchange, which MPI allows: \nMGExposed traces
+have such \Lone findings, \nMGAlts in all, each replayed with its horizon pins and its
 control. Of the \nMGReplayed replays, \nMGMatched matched their pins,
 \nMGFinished finished, and \nMGChanged computed another residual than their control.
 \nMGFailRel of these fail the relative check of later NPB versions, but only \nMGFailAbs fail
 the check of version~2.4.1, which accepts an absolute error of $10^{-8}$: most wrong results
-pass it. \nMGControls controls finished, \nMGControlsSame of them with the residual of the
-traced run. Version~3.3.1 has no alternative in its \nMGFixedTraced traces. Random delays
-change the residual as well, in \nMGStressChanged of \nMGStressRuns untraced runs of
-version~2.4.1 on \nMGStressRanks processes, half of them delayed, and NINJA in
-\nNinjaMGSixteenRandomChanged (random noise) and \nNinjaMGSixteenAppChanged
-(application-centric) of \nNinjaMGSixteenRandomRuns runs on 16.
+pass it. Version~3.3.1 has no alternative in its \nMGFixedTraced traces. Random delays and
+NINJA change the residual as well (\cref{app:apps}).
 
 \paragraph{A third documented bug.} deal.II~9.3.0-rc1's \texttt{RemotePointEvaluation} takes
 each call's messages with \mpicall{Probe} on \anysrc under one tag, and nothing separates two
 calls on one cached object; release~9.3.0 added a mutex~\citep{dealii-pr12363}. Each of
-\nDealTraced clean runs of its test \texttt{mapping\_01} on \nDealRanks processes predicts
-probes that take the next call's message, \nDealAlts in all. Forced, all \nDealReplayed finish
-with status~0 and print wrong values in the two consecutive calls the code predicts
-(\nDealMatched report every pin matched); \nDealControlsSame of \nDealControls controls print
-the expected output, and 9.3.0 has no such alternative. Unlike HYPRE's, this race is easy to
-hit: \nDealStressDelayChanged of \nDealStressDelayRuns runs with random delays print wrong values.
+\nDealTraced clean runs of its test \texttt{mapping\_01} predicts probes that take the next
+call's message; forced, all \nDealReplayed print wrong values, and 9.3.0 has no such
+alternative. Unlike HYPRE's, this race is easy to hit with random delays (\cref{app:apps}).
 
-\paragraph{Wildcard-heavy correct code.} AMG's solver exchanges its matrix data with probes on
-any source. One traced run on eight processes, with \nAMGsends messages, \nAMGwild wildcard
-receives and \nAMGprobes probes, gives \nAMGalts probe alternatives and \nAMGrecvAlts
-same-shape receive alternatives. All are warnings or information, none a
-contained deadlock. RQ1's sample finished under every pin. In Nekbone, every finding is a \cls{1f} at the binary-tree reduction \texttt{gp2}, whose inner
-nodes take their children's contributions with one tag from any source. Only the
-communication suite's timing test calls it; the solver sums with \mpicall{Allreduce}. The
-check accepts \nNekAlts alternatives there, the same four at each of the test's calls, and
-rejects \nNekRejected for one reason: the
-other sender's next message with that tag is sent only after the receive completes, so no
-execution delivers it there. Its RQ1 sample finished under every pin too.
+\paragraph{Correct code.} On AMG and Nekbone, which take messages from any source, every
+finding is a warning or information, and RQ1's samples finished under every pin (\cref{app:apps}).
 
 \subsection{Threats to validity}
 
-All runs used one node and at most \nScaleNpMax processes, and the corpora's programs are
-small; the exhaustive comparison of RQ1 reaches \nEsixMaxEvents events. Of
+All runs used one node and at most \nScaleNpMax processes, and corpus programs are small; the exhaustive comparison of RQ1 reaches \nEsixMaxEvents events. Of
 \cref{tab:rq2}'s runs only MBI's were repeated, without \MUST. The \Ltwo twins are
-written knowing the labels, and the HYPRE campaign replays only the probe whose tag the fix
-changed. \MUST sees its own run under MPICH, not the traced one,
+written knowing the labels, and HYPRE~2.10.1's campaign replays only the probe whose tag the
+fix changed. \MUST sees its own run under MPICH, not the traced one,
 and for both the harness's timeout decides what is a hang.
-NINJA ran at the default eager limits, one setting per mode, stress testing at those and
-the lowest; other settings may find more. The model assumes a
+NINJA ran at the default eager limits, one setting per mode, stress testing also at the
+lowest; others may find more. The model assumes a
 complete trace of the modelled fragment (a call outside it limits the report to observed
 findings), one threshold for all standard sends of a run, and an angelic choice in
-\mpicall{Waitany}. HYPRE's campaign uses one input and two process counts, MG's
-one class and one count, deal.II's one test.
+\mpicall{Waitany}. HYPRE's campaigns use one input per driver and two process counts, MG's
+one class and count, deal.II's one test.

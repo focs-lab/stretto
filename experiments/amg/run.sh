@@ -9,6 +9,7 @@
 set -uo pipefail
 R="$(cd "$(dirname "$0")/../.." && pwd)"; cd "$R"
 source scripts/env.sh
+source experiments/harness.sh
 D=experiments/results/amg; mkdir -p "$D"
 EXE=study/apps/AMG/test/amg
 ARGS=(-P 2 2 2 -n 16 16 16 -problem 1)
@@ -18,17 +19,25 @@ step_trace() {
     need_lib "$TRACER" tracer
     rm -rf "$D/trace8"; mkdir -p "$D/trace8"
     TIMEOUT=600 mpi_run 8 "STRETTO_TRACE_DIR=$R/$D/trace8" "LD_PRELOAD=$TRACER" "OMP_NUM_THREADS=1" -- "$EXE" "${ARGS[@]}" > "$D/run8.log" 2>&1
-    echo "traced run: $(classify_rc $? "$D/run8.log"), $(cat "$D"/trace8/rank-*.jsonl | wc -l) records"
+    local res; res=$(TIMEOUT=600 classify_rc $? "$D/run8.log")      # MPI_RUN_SECONDS: set by mpi_run
+    echo "traced run: $res, $(cat "$D"/trace8/rank-*.jsonl 2>/dev/null | wc -l) records"
+    # a traced run that did not finish is no trace of AMG's run: the steps after it would analyse a fragment
+    [ "$res" = FINISHED ] || { echo "HARNESS-ERROR: the traced run ended $res (log: $D/run8.log)" >&2; return 1; }
 }
 step_analyse() {
     /usr/bin/time -f 'analysis %e s, %M KB' python3 -m stretto analyze --no-sp "$D/trace8" > "$D/report8.txt" 2> "$D/analyze8.err"
+    # 0 or 1 (an error class found) is an analysis; 2 and 3 are failures, and summary8.txt, which is
+    # committed, is not written from them
+    local rc=$?
+    [ $rc -le 1 ] || { echo "HARNESS-ERROR: the analysis exited with status $rc (log: $D/analyze8.err)" >&2; return 1; }
     step_summary
 }
 step_summary() {
     # summary8.txt is what docs/results.md reads and what is committed (the report is 1 MB)
-    { head -1 "$D/report8.txt"
+    { grep -m1 '^trace:' "$D/report8.txt"
       echo "findings by class: $(grep -o '^\[ *[0-9a-z-]* *\]' "$D/report8.txt" | tr -d '[] ' | sort | uniq -c | awk '{printf "%s %s, ", $2, $1}' | sed 's/, $//')"
       echo "host: $(hostname), one process; $(tail -1 "$D/analyze8.err")"
+      echo "analysis commit: ${STRETTO_COMMIT:-$(python3 experiments/provenance.py)}"
     } > "$D/summary8.txt"
     cat "$D/summary8.txt"
 }
@@ -39,7 +48,8 @@ step_confirm() {
     [ -n "$pin" ] || { echo "no probe alternative to replay" | tee "$D/confirm8.txt"; return 0; }
     TIMEOUT=600 mpi_run 8 "$pin" "LD_PRELOAD=$PINLIB" "OMP_NUM_THREADS=1" -- "$EXE" "${ARGS[@]}" > "$D/run8pin.log" 2> "$D/run8pin.err"
     rc=$?
-    { echo "pin: $pin"; grep '^\[stretto-pin\]' "$D/run8pin.err"; echo "result: $(classify_rc $rc "$D/run8pin.err")"; } | tee "$D/confirm8.txt"
+    preload_ok "$D/run8pin.err" || { harness_error "$PINLIB did not load"; return 1; }
+    { echo "pin: $pin"; grep '^\[stretto-pin\]' "$D/run8pin.err"; echo "result: $(TIMEOUT=600 classify_rc $rc "$D/run8pin.err")"; } | tee "$D/confirm8.txt"
 }
 step_sample() {
     need_lib "$PINLIB" replay
@@ -50,5 +60,5 @@ for s in "${@:-all}"; do
         trace) step_trace;; analyse) step_analyse;; summary) step_summary;; confirm) step_confirm;; sample) step_sample;;
         all) step_trace && step_analyse && step_confirm && step_sample;;
         *) echo "usage: $0 [trace|analyse|summary|confirm|sample|all]" >&2; exit 2;;
-    esac
+    esac || exit 1
 done

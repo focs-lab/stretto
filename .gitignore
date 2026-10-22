@@ -65,5 +65,6 @@ experiments/results/scale/samples/*
 !experiments/results/scale/samples/lu-*.run
 # the commit the sync writes on the experiment machine
 /COMMIT
+/COMMIT.files
 # what artifact/reproduce.sh writes: logs and the numbers the paper was built with
 /artifact/out/

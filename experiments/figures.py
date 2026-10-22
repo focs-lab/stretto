@@ -165,6 +165,38 @@ plain runs.
 
 <p align="center"><img src="docs/figures/dealii.svg" width="760" alt="deal.II results"></p>
 """
+    newbug = ""
+    if v("nHypreNewAllCrossAlts"):
+        fractions(os.path.join(figs, "hypre32.svg"), "HYPRE 3.2.0, ParaSails: a new hang across pattern levels, from clean runs", [
+            ("Traces at two levels that predict it", "hypre's ex5 and PETSc's ex2, 4 and 8 processes",
+             v("nHypreNewAllExposed"), v("nHypreNewAllTraced"), BLUE),
+            ("Predicted alternatives that hang", "replayed with their pins; every control finished", v("nHypreNewAllCrossHang"),
+             v("nHypreNewAllCrossAlts"), BLUE),
+            ("Testing runs that hang", "plain runs and runs with random delays, two levels", v("nHypreNewAllStressHang"),
+             v("nHypreNewAllStressRuns"), ORANGE),
+            ("NINJA runs that hang", "ex5, its three modes, 4 and 8 processes", v("nNinjaHypreNewHang"), v("nNinjaHypreNewRuns"), ORANGE),
+            ("Traces of a two-tag fix that predict it", "even levels' requests under a tag of their own", v("nHypreNewFixExposed"),
+             v("nHypreNewFixTraced"), GREY),
+        ])
+        newbug = f"""
+**A new bug in a current release.** HYPRE 3.2.0's ParaSails, like its master branch, sends the
+row requests of every level of its sparsity pattern with one tag and takes them with a wildcard
+probe. Nothing collective separates one level's probes from the next level's requests, so with
+two or more levels a probe can take the next level's request and the setup hangs: the race above,
+which the 2.11.0 fix left in place across levels. Every one of {t('nHypreNewAllTraced')} clean two-level runs of
+hypre's `ex5` and of PETSc 3.26.0's unmodified KSP tutorial `ex2` (`-pc_type hypre -pc_hypre_type
+parasails -pc_hypre_parasails_nlevels 2 -pc_hypre_parasails_thresh 0.01`) predicts it, and none at
+one level. Forced, all {t('nHypreNewAllCrossAlts')} such alternatives hang with every pin matched, each a run of
+the program, and every control finishes. The race needs only the neighbour's {t('BPetscCross')}-byte reply
+buffered ({t('BHypreNewReply')} bytes in `ex5`), below Open MPI's default eager limit of {t('BimplOMPI')} bytes. None of
+{t('nHypreNewAllStressRuns')} plain and delayed two-level runs hang: a delay before a call cannot hold back a
+request already sent. NINJA, which delays sends in transit, hangs `ex5` in {t('nNinjaHypreNewHang')} of
+{t('nNinjaHypreNewRuns')} runs. Giving even levels' requests a tag of their own removes every cross
+alternative. Along the way: PETSc passes `-pc_hypre_parasails_nlevels` to HYPRE only when
+`-pc_hypre_parasails_thresh` is given too.
+
+<p align="center"><img src="docs/figures/hypre32.svg" width="760" alt="HYPRE 3.2.0 ParaSails results"></p>
+"""
     reads = ""
     if v("nReadsProgs"):
         reads = f"""
@@ -257,7 +289,7 @@ diagnosing it took 291 jobs and 10,392 compute-node hours (the NINJA noise-injec
 PPoPP 2017); HYPRE's changelog for 2.11.0 places the fix in ParaSails.{ninja}
 
 <p align="center"><img src="docs/figures/hypre.svg" width="760" alt="HYPRE ParaSails results"></p>
-{mg}{dealii}
+{newbug}{mg}{dealii}
 **Soundness in practice.** Against an exhaustive explorer, {t('nEsixUnsound')} of
 {t('nEsixPairs')} judged alternatives are unsound. Replays on MBI: {t('nMBIReplayConfirmed')}
 confirmed, {t('nMBIReplayInconclusive')} inconclusive (the control itself hung),

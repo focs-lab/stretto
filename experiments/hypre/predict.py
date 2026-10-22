@@ -37,7 +37,7 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 sys.path.insert(0, os.path.join(ROOT, "analysis"))
 sys.path.insert(0, os.path.join(ROOT, "experiments"))
 from stretto import trace  # noqa: E402
-from stretto.confirm import all_matched, horizon_pins, required_matches, run_checked  # noqa: E402
+from stretto.confirm import all_matched, horizon_pins, need_preload, required_matches, run_checked  # noqa: E402
 from stretto.report import analyze  # noqa: E402
 from provenance import code_commit  # noqa: E402
 
@@ -102,6 +102,7 @@ def main() -> int:
     ap.add_argument("--kinds", nargs="+", default=["cross", "same"], help="the kinds of alternative to replay")
     ap.add_argument("--out", default=os.path.join(ROOT, "experiments", "results", "hypre", "predict.csv"))
     args = ap.parse_args()
+    need_preload(TRACER)                     # ld.so would ignore a missing tracer, and the runs leave no trace
     failed = os.path.join(os.path.dirname(os.path.abspath(args.out)), "failed")
     exe = os.path.join(args.testdir, "ij")
     rows, traced = [], []

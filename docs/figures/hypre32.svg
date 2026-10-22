@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="860" height="366" viewBox="0 0 860 366" role="img" aria-label="HYPRE 3.2.0, ParaSails: a new hang across pattern levels, from clean runs">
+<rect x="1" y="1" width="858" height="364" rx="14" fill="#FFFDF8" stroke="#E2DDD2" stroke-width="2"/>
+<text x="28" y="40" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="19" font-weight="600" fill="#14213D">HYPRE 3.2.0, ParaSails: a new hang across pattern levels, from clean runs</text>
+<text x="28" y="80" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#14213D">Traces at two levels that predict it</text>
+<text x="28" y="100" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" fill="#3F4A5C">hypre&#x27;s ex5 and PETSc&#x27;s ex2, 4 and 8 processes</text>
+<rect x="330" y="72" width="400" height="22" rx="5" fill="#E9ECF2"/>
+<rect x="330" y="72" width="400.0" height="22" rx="5" fill="#1F5FA8"/>
+<text x="832" y="89" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#14213D" text-anchor="end">40 / 40</text>
+<text x="28" y="138" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#14213D">Predicted alternatives that hang</text>
+<text x="28" y="158" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" fill="#3F4A5C">replayed with their pins; every control finished</text>
+<rect x="330" y="130" width="400" height="22" rx="5" fill="#E9ECF2"/>
+<rect x="330" y="130" width="400.0" height="22" rx="5" fill="#1F5FA8"/>
+<text x="832" y="147" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#14213D" text-anchor="end">160 / 160</text>
+<text x="28" y="196" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#14213D">Testing runs that hang</text>
+<text x="28" y="216" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" fill="#3F4A5C">plain runs and runs with random delays, two levels</text>
+<rect x="330" y="188" width="400" height="22" rx="5" fill="#E9ECF2"/>
+<rect x="330" y="188" width="0.0" height="22" rx="5" fill="#E8873A"/>
+<text x="832" y="205" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#14213D" text-anchor="end">0 / 320</text>
+<text x="28" y="254" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#14213D">NINJA runs that hang</text>
+<text x="28" y="274" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" fill="#3F4A5C">ex5, its three modes, 4 and 8 processes</text>
+<rect x="330" y="246" width="400" height="22" rx="5" fill="#E9ECF2"/>
+<rect x="330" y="246" width="51.7" height="22" rx="5" fill="#E8873A"/>
+<text x="832" y="263" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#14213D" text-anchor="end">31 / 240</text>
+<text x="28" y="312" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#14213D">Traces of a two-tag fix that predict it</text>
+<text x="28" y="332" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" fill="#3F4A5C">even levels&#x27; requests under a tag of their own</text>
+<rect x="330" y="304" width="400" height="22" rx="5" fill="#E9ECF2"/>
+<rect x="330" y="304" width="0.0" height="22" rx="5" fill="#9AA3B2"/>
+<text x="832" y="321" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#14213D" text-anchor="end">0 / 40</text>
+</svg>

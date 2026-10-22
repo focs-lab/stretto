@@ -7,8 +7,8 @@ accesses; the optional guard reports buffer reuse during a nonblocking operation
 \texttt{MPI\_THREAD\_MULTIPLE} or after a premature ready send we report observed findings only;
 read bounds need C sources.
 
-\paragraph{Conclusion.} One recorded run of an MPI program determines more than the run
-itself: over the horizon, an alternative matching is feasible iff a constraint graph with match
-nodes is acyclic, and up to the first read of a changed result the recorded calls still hold.
-From single clean runs, forced alternatives expose a production race in HYPRE and documented
-bugs in NPB MG and deal.II.
+\paragraph{Conclusion.} One recorded run determines more than the run itself: over the
+horizon, an alternative matching is feasible iff a constraint graph with match nodes is
+acyclic, and up to the first read of a changed result the recorded calls still hold. From
+single clean runs, forced alternatives expose documented bugs in HYPRE, NPB MG and deal.II,
+and a new hang in HYPRE's current release.

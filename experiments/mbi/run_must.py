@@ -20,11 +20,13 @@ rows = list(csv.DictReader(open(args.csv)))
 def one(r):
     src = os.path.join(CORPORA[corpus], r["name"].replace("__", "/") + ".c")
     p = subprocess.run([os.path.join(ROOT, "scripts", "must_run.sh"), str(r["np"]), src, str(args.timeout)], stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)  # Python 3.6 compatible
-    return r["name"], (p.stdout.strip().splitlines() or ["MUST:RE"])[-1]
+    return r["name"], (p.stdout.strip().splitlines() or ["MUST:HARNESS-ERROR:must_run.sh printed nothing"])[-1]
 out = os.path.join(os.path.dirname(args.csv), col + ".csv")
 if not args.merge_only:
-    # the code commit of scripts/must_run.sh, as experiments/provenance.py finds it (Python 3.6 here)
-    commit = os.environ.get("STRETTO_COMMIT") or (open(os.path.join(ROOT, "COMMIT")).read().strip() if os.path.exists(os.path.join(ROOT, "COMMIT")) else "unknown")
+    # the code commit of scripts/must_run.sh (experiments/provenance.py, which Python 3.6 runs too)
+    sys.path.insert(0, os.path.join(ROOT, "experiments"))
+    from provenance import code_commit
+    commit = code_commit()
     with ThreadPoolExecutor(max_workers=args.jobs) as ex, open(out, "w", newline="") as fh:
         w = csv.writer(fh, lineterminator="\n"); w.writerow(["name", col, "commit"])
         for i, f in enumerate(as_completed([ex.submit(one, r) for r in rows]), 1):
@@ -32,10 +34,19 @@ if not args.merge_only:
             print(f"[{i}/{len(rows)}] {name:<50} {v[:70]}", flush=True)
     print("wrote", out)
 # merge the verdicts into the harness table's column
-verdicts = {r["name"]: r[col] for r in csv.DictReader(open(out))}
+side = list(csv.DictReader(open(out)))
+verdicts = {r["name"]: r[col] for r in side}
+commits = {r["name"]: r.get("commit", "") for r in side}
 for r in rows:
     r[col] = verdicts.get(r["name"], r.get(col, ""))
-keys = list(rows[0].keys()) + ([] if col in rows[0] else [col])
+    # the commit of the harness that ran MUST, next to its verdict (the table's own commit column
+    # names the code that traced the program)
+    r[col + "_commit"] = commits.get(r["name"], r.get(col + "_commit", ""))
+keys = list(rows[0].keys()) + [k for k in (col, col + "_commit") if k not in rows[0]]
 with open(args.csv, "w", newline="") as fh:
     w = csv.DictWriter(fh, fieldnames=keys, lineterminator="\n"); w.writeheader(); w.writerows(rows)
 print("merged into", args.csv)
+# a run the harness could not complete is no verdict of MUST's (score.py counts it apart): say so
+bad = sorted(n for n, v in verdicts.items() if v.startswith("MUST:HARNESS-ERROR"))
+if bad:
+    sys.exit(f"{len(bad)} MUST run(s) failed in the harness (HARNESS-ERROR; rerun_must.py reruns them): {', '.join(bad[:10])}")

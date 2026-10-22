@@ -27,7 +27,6 @@ import argparse
 import csv
 import os
 import random
-import re
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -38,6 +37,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from stretto.confirm import classify_rc, run_pinned  # noqa: E402
 from provenance import code_commit  # noqa: E402
 from b_impl import tcp, tcp_header  # noqa: E402
+from selection import selects  # noqa: E402
 
 DELAYS_MS = [0, 0, 0, 1, 5, 20, 50]
 FIELDS = ["program", "expect", "runs", "first_failure", "outcome", "seconds", "commit"]
@@ -86,12 +86,20 @@ def main() -> int:
             sys.exit("stress_baseline.py: --eager needs experiments/results/b_impl.csv (experiments/b_impl.py)")
         args.mpirun_args = tcp(args.eager + header)
     base = os.path.dirname(os.path.abspath(args.csv))
-    rows = [r for r in csv.DictReader(open(args.csv)) if r.get("build") == "ok" and re.search(args.select, r["name"])]
-    todo = []
+    if not os.path.exists(args.csv):
+        sys.exit(f"stress_baseline.py: no corpus table {args.csv}")
+    with open(args.csv) as fh:
+        rows = [r for r in csv.DictReader(fh) if r.get("build") == "ok" and selects(args.select, r["name"])]
+    if not rows:
+        sys.exit(f"stress_baseline.py: --select {args.select!r} selects no compiled program of {args.csv}; nothing written")
+    todo, missing = [], []
     for r in rows:
         exe = os.path.join(base, r["name"].replace("/", "__"), "main")
-        if os.path.exists(exe):
-            todo.append((r, exe))
+        (todo if os.path.exists(exe) else missing).append((r, exe))
+    if missing:
+        # a program the corpus run built whose binary is gone would silently leave the table
+        sys.exit(f"stress_baseline.py: {len(missing)} selected program(s) have no binary, e.g. {missing[0][1]}; "
+                 "nothing written (run the corpus step first)")
     results = []
     with ThreadPoolExecutor(max_workers=args.jobs) as ex:
         for i, res in enumerate(ex.map(lambda x: stress(x[0], x[1], args), todo), 1):

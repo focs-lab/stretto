@@ -24,8 +24,9 @@ set -uo pipefail
 R="$(cd "$(dirname "$0")/../.." && pwd)"; cd "$R"
 OUT=experiments/results/guard; mkdir -p "$OUT"
 W=/tmp/stretto-guard-run; mkdir -p "$W"
+source "$R/experiments/harness.sh"
 export OMPI_MCA_rmaps_base_oversubscribe=1 OMPI_MCA_hwloc_base_binding_policy=none OMP_NUM_THREADS=1 PYTHONPATH="$R/analysis"
-COMMIT="${STRETTO_COMMIT:-$(cat "$R/COMMIT" 2>/dev/null || git -C "$R" rev-parse --short HEAD 2>/dev/null || echo unknown)}"
+COMMIT="${STRETTO_COMMIT:-$(python3 "$R/experiments/provenance.py")}"
 gcc -O1 -shared -fPIC -o "$W/cmacount.so" experiments/guard/cmacount.c -ldl || exit 1
 single_copy() {   # does process_vm_readv work here?
     python3 -c '
@@ -42,6 +43,8 @@ header() { echo "# $1; commit $COMMIT; host ${MACHINE:-$(hostname)}; $(date -u +
 # run <dir> <mpi> <guard> <np> <exe> [args]: one traced run; sets rc
 run() {
     local d=$1 mpi=$2 g=$3 np=$4; shift 4
+    # ld.so would ignore a missing library, and the run would show no guard record
+    need_file "$R/tracer/bin/$mpi/libstretto-trace.so" "$W/cmacount.so" || exit 1
     rm -rf "$d"; mkdir -p "$d/trace"
     (cd "$d" && /usr/bin/timeout -k 5 900 /usr/bin/mpirun.openmpi -np "$np" -x STRETTO_TRACE_DIR="$d/trace" \
         -x LD_PRELOAD="$R/tracer/bin/$mpi/libstretto-trace.so:$W/cmacount.so" -x STRETTO_GUARD="$g" -x STRETTO_PAYLOAD="$PAYLOAD" \

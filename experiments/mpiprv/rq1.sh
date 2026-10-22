@@ -16,7 +16,7 @@ set -uo pipefail
 R="$(cd "$(dirname "$0")/../.." && pwd)"; cd "$R"
 OUT=experiments/results/mpiprv; mkdir -p "$OUT"
 REPS="${REPS:-5}"
-COMMIT="${STRETTO_COMMIT:-$(cat "$R/COMMIT" 2>/dev/null || echo unknown)}"
+COMMIT="${STRETTO_COMMIT:-$(python3 "$R/experiments/provenance.py")}"
 W=/tmp/prv-rq1
 
 step_rq1() {

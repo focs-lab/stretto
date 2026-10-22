@@ -5,7 +5,8 @@ names the code commits its rows were produced with (the `commit` column). The co
 E2, E6 and the E3 and E7 inputs come from `experiments/run_remaining.sh` on the second, shared machine
 (the container of `experiments/container/`, 12 cores of one NUMA node); the HYPRE campaign from
 `experiments/hypre/campaign.sh`, the NPB MG and deal.II campaigns from `experiments/npbmg/run.sh` and
-`experiments/dealii/run.sh`, Nekbone from `experiments/nekbone/run.sh` and the scale campaign (E11)
+`experiments/dealii/run.sh`, the HYPRE 3.2.0 and PETSc campaigns (E5f) from `experiments/hypre3/run.sh` and
+`experiments/petsc/run.sh`, Nekbone from `experiments/nekbone/run.sh` and the scale campaign (E11)
 from `experiments/scale/run.sh` there. The MUST verdicts
 are carried over from MUST 1.9.2 runs under MPICH in MPI-BugBench's own container, with the same timeout
 per program, and those of MUST 1.11.2 from the image of `experiments/must/`; NINJA's runs come from
@@ -834,6 +835,148 @@ sender twice: k+1, or the object's last call if the sender that ran ahead stays 
 | controls | 3 | 0 | 3 | 3 | 3 |
 | untraced, plain | 1 | - | - | 1 | 1 |
 | untraced, with delays | 42 | - | - | 38 | 4 |
+
+## E5f: a new bug in a current release (HYPRE 3.2.0 ParaSails, a probe takes the next level's request)
+
+ParaSails builds the sparsity pattern of its approximate inverse one level at a time. Each level Isends its row
+requests with tag 221, counts the requests each rank will get with an Allreduce, and takes them with
+`MPI_Probe(MPI_ANY_SOURCE, 221)` and a receive from the probed source. Every level uses the one tag, and nothing
+collective lies between a rank's last probe of level L and a neighbour's requests of level L+1, so with two or
+more levels a probe can take the next level's request and the setup hangs. HYPRE 2.11.0's fix of the race of E5c
+gave the pruned-rows and the stored-rows exchanges tags of their own but kept one tag for every level. An
+alternative is *cross* if the probe would take a request sent after another number of collectives than the one
+it took (another level's), *same* if another rank's request of its level, *other* on any other tag. Every
+alternative is replayed with the pins of its horizon and with its control, both under the tracer, which judges
+each a run of the program without its pins or not (`experiments/hypre3/predict.py`, `experiments/scout.py`).
+The fixed variant sends the requests of even levels under a tag of their own (227). Runs at 4 and 8
+processes, Open MPI, its default eager limits. Rows by code commit: 0ca587d (4689), 3a87e3a (1739), e3d3933 (1200), 518a9df (114).
+
+| driver | levels | ranks | traced runs | with a cross alternative | cross alternatives (per trace) | replays hang | pins matched | replays runs of the program | controls finish | controls runs of the program | realisable from |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| hypre's `ex5` with `-sai_levels`, HYPRE 3.2.0 | 1 | 4 | 10 | 0 | 0 | - | - | - | - | - | - |
+| hypre's `ex5` with `-sai_levels`, HYPRE 3.2.0 | 2 | 4 | 10 | 10 | 20 (2 each) | 20 | 20 | 20 | 20 | 20 | not recorded |
+| hypre's `ex5` with `-sai_levels`, HYPRE 3.2.0 | 1 | 8 | 10 | 0 | 0 | - | - | - | - | - | - |
+| hypre's `ex5` with `-sai_levels`, HYPRE 3.2.0 | 2 | 8 | 10 | 10 | 60 (6 each) | 60 | 60 | 60 | 60 | 60 | not recorded |
+| the same, even levels' requests under tag 227 (the fix) | 1 | 4 | 10 | 0 | 0 | - | - | - | - | - | - |
+| the same, even levels' requests under tag 227 (the fix) | 2 | 4 | 10 | 0 | 0 | - | - | - | - | - | - |
+| the same, even levels' requests under tag 227 (the fix) | 1 | 8 | 10 | 0 | 0 | - | - | - | - | - | - |
+| the same, even levels' requests under tag 227 (the fix) | 2 | 8 | 10 | 0 | 0 | - | - | - | - | - | - |
+| PETSc 3.26.0's `ex2 -m 48 -n 48`, `-pc_hypre_parasails_thresh 0.01` | 1 | 4 | 10 | 0 | 0 | - | - | - | - | - | - |
+| PETSc 3.26.0's `ex2 -m 48 -n 48`, `-pc_hypre_parasails_thresh 0.01` | 2 | 4 | 10 | 10 | 20 (2 each) | 20 | 20 | 20 | 20 | 20 | B >= 1340 |
+| PETSc 3.26.0's `ex2 -m 48 -n 48`, `-pc_hypre_parasails_thresh 0.01` | 1 | 8 | 10 | 0 | 0 | - | - | - | - | - | - |
+| PETSc 3.26.0's `ex2 -m 48 -n 48`, `-pc_hypre_parasails_thresh 0.01` | 2 | 8 | 10 | 10 | 60 (6 each) | 60 | 60 | 60 | 60 | 60 | B >= 1340 |
+| PETSc's `ex2`, `-pc_hypre_parasails_nlevels` without a threshold | 1 (not passed to HYPRE) | 4 | 10 | 0 | 0 | - | - | - | - | - | - |
+| PETSc's `ex2`, `-pc_hypre_parasails_nlevels` without a threshold | 2 (not passed to HYPRE) | 4 | 9 (+1 failed) | 0 | 0 | - | - | - | - | - | - |
+| PETSc's `ex2`, `-pc_hypre_parasails_nlevels` without a threshold | 1 (not passed to HYPRE) | 8 | 10 | 0 | 0 | - | - | - | - | - | - |
+| PETSc's `ex2`, `-pc_hypre_parasails_nlevels` without a threshold | 2 (not passed to HYPRE) | 8 | 10 | 0 | 0 | - | - | - | - | - | - |
+
+A cross alternative needs the neighbour that sends the next level's request to have left the level, after
+the Waitall of its replies, one of which goes to the probing rank, which has not yet posted its receive: that
+reply must be buffered. `ex2`'s cross alternatives are realisable from B >= 1340 bytes; its pruned-rows replies (tag 223, `ReceiveReplyPrunedRows`) have 1340 bytes; `ex5`'s have 920 bytes in every two-level trace of the fixed variant, whose messages are the release's but for the tag of even levels (`predict.csv` predates the `B` and `bytes` columns).
+
+PETSc 3.26.0 passes ParaSails' level count to HYPRE only together with the threshold (`HYPRE_ParaSailsSetParams`
+inside the `if` of `-pc_hypre_parasails_thresh` in `PCSetFromOptions_HYPRE_ParaSails`), so the level count alone
+runs one level: 19 of the 19 analysed traces of a first pass (`parasails-default-m32.csv`, `ex2 -m 32
+-n 32`) with `-pc_hypre_parasails_nlevels 2` and no threshold have the findings of a one-level trace at their
+process count. 1 traced run of that pass ended with TIMEOUT (87 records, observed:2-blocked=4) and is not analysed.
+
+The other alternatives, replayed the same way (*no horizon*: an alternative whose horizon the replay cannot pin, not
+replayed):
+
+| driver | kind | alternatives | no horizon | replays finish | hang | other | pins matched | replays runs of the program | controls finish | controls runs of the program |
+|---|---|---|---|---|---|---|---|---|---|---|
+| hypre's `ex5` with `-sai_levels`, HYPRE 3.2.0 | same | 240 | 0 | 240 | 0 | 0 | 240 | 240 | 240 | 240 |
+| hypre's `ex5` with `-sai_levels`, HYPRE 3.2.0 | other | 880 | 0 | 877 | 3 | 0 | 877 | 880 | 880 | 880 |
+| the same, even levels' requests under tag 227 (the fix) | same | 240 | 0 | 240 | 0 | 0 | 240 | 240 | 240 | 240 |
+| the same, even levels' requests under tag 227 (the fix) | other | 880 | 0 | 879 | 1 | 0 | 879 | 880 | 879 | 880 |
+| PETSc 3.26.0's `ex2 -m 48 -n 48`, `-pc_hypre_parasails_thresh 0.01` | same | 1920 | 160 | 1759 | 1 | 0 | 1759 | 1760 | 1758 | 1760 |
+| PETSc's `ex2`, `-pc_hypre_parasails_nlevels` without a threshold | same | 1738 | 158 | 1575 | 5 | 0 | 1575 | 1580 | 1578 | 1580 |
+
+Untraced runs, plain and with random send and receive delays of 0 to 50 ms per rank from the replay library
+(no pin), 30 s each, the budget and delays of E5c. The delays are sleeps before a call, so they cannot make a
+request issued before the level's Allreduce arrive after one issued after it, which the race needs. The PETSc
+runs were stopped after the two-level ones and part of the one-level ones. Rows by code commit: 0ca587d (843).
+
+| driver | levels | ranks | setting | runs | finished | timed out | other |
+|---|---|---|---|---|---|---|---|
+| `ex2`, PETSc 3.26.0 | 2 | 4 | plain | 40 | 40 | 0 | 0 |
+| `ex2`, PETSc 3.26.0 | 2 | 4 | delays | 40 | 40 | 0 | 0 |
+| `ex2`, PETSc 3.26.0 | 2 | 8 | plain | 40 | 40 | 0 | 0 |
+| `ex2`, PETSc 3.26.0 | 2 | 8 | delays | 40 | 40 | 0 | 0 |
+| `ex2`, PETSc 3.26.0 | 1 | 4 | plain | 22 | 22 | 0 | 0 |
+| `ex2`, PETSc 3.26.0 | 1 | 4 | delays | 21 | 21 | 0 | 0 |
+| `ex5`, HYPRE 3.2.0 | 2 | 4 | plain | 40 | 40 | 0 | 0 |
+| `ex5`, HYPRE 3.2.0 | 2 | 4 | delays | 40 | 40 | 0 | 0 |
+| `ex5`, HYPRE 3.2.0 | 2 | 8 | plain | 40 | 40 | 0 | 0 |
+| `ex5`, HYPRE 3.2.0 | 2 | 8 | delays | 40 | 40 | 0 | 0 |
+| `ex5`, HYPRE 3.2.0 | 1 | 4 | plain | 40 | 40 | 0 | 0 |
+| `ex5`, HYPRE 3.2.0 | 1 | 4 | delays | 40 | 40 | 0 | 0 |
+| `ex5`, HYPRE 3.2.0 | 1 | 8 | plain | 40 | 40 | 0 | 0 |
+| `ex5`, HYPRE 3.2.0 | 1 | 8 | delays | 40 | 40 | 0 | 0 |
+| `ex5`, HYPRE 3.2.0-fix | 2 | 4 | plain | 40 | 40 | 0 | 0 |
+| `ex5`, HYPRE 3.2.0-fix | 2 | 4 | delays | 40 | 40 | 0 | 0 |
+| `ex5`, HYPRE 3.2.0-fix | 2 | 8 | plain | 40 | 40 | 0 | 0 |
+| `ex5`, HYPRE 3.2.0-fix | 2 | 8 | delays | 40 | 40 | 0 | 0 |
+| `ex5`, HYPRE 3.2.0-fix | 1 | 4 | plain | 40 | 40 | 0 | 0 |
+| `ex5`, HYPRE 3.2.0-fix | 1 | 4 | delays | 40 | 40 | 0 | 0 |
+| `ex5`, HYPRE 3.2.0-fix | 1 | 8 | plain | 40 | 40 | 0 | 0 |
+| `ex5`, HYPRE 3.2.0-fix | 1 | 8 | delays | 40 | 39 | 1 | 0 |
+
+NINJA (E10) on `ex5` at two levels, the release and the fixed variant, 30 s per run; a run that hangs in
+the ParaSails setup is killed before ParaSails reports its levels (*of which in the setup*). Rows by code
+commit: 0ca587d (484).
+
+| program | ranks | noise | runs | finished | hung | of which in the setup | other | first hang in the setup (run) | its rate | learning run |
+|---|---|---|---|---|---|---|---|---|---|---|
+| ex5_levels-3.2.0-2 | 4 | random, 10% of sends by 0.05 s | 40 | 33 | 7 | 7 | 0 | 6 | 0.17 | - |
+| ex5_levels-3.2.0-2 | 4 | system-centric | 40 | 39 | 1 | 1 | 0 | 20 | 0.03 | - |
+| ex5_levels-3.2.0-2 | 4 | application-centric | 40 | 31 | 9 | 9 | 0 | 5 | 0.23 | FINISHED |
+| ex5_levels-3.2.0-2 | 8 | random, 10% of sends by 0.05 s | 40 | 31 | 9 | 9 | 0 | 3 | 0.23 | - |
+| ex5_levels-3.2.0-2 | 8 | system-centric | 40 | 40 | 0 | 0 | 0 | - | 0.00 | - |
+| ex5_levels-3.2.0-2 | 8 | application-centric | 40 | 35 | 5 | 5 | 0 | 24 | 0.12 | FINISHED |
+| ex5_levels-3.2.0-fix-2 | 4 | random, 10% of sends by 0.05 s | 40 | 40 | 0 | 0 | 0 | - | 0.00 | - |
+| ex5_levels-3.2.0-fix-2 | 4 | system-centric | 40 | 40 | 0 | 0 | 0 | - | 0.00 | - |
+| ex5_levels-3.2.0-fix-2 | 4 | application-centric | 40 | 40 | 0 | 0 | 0 | - | 0.00 | FINISHED |
+| ex5_levels-3.2.0-fix-2 | 8 | random, 10% of sends by 0.05 s | 40 | 40 | 0 | 0 | 0 | - | 0.00 | - |
+| ex5_levels-3.2.0-fix-2 | 8 | system-centric | 40 | 40 | 0 | 0 | 0 | - | 0.00 | - |
+| ex5_levels-3.2.0-fix-2 | 8 | application-centric | 40 | 39 | 1 | 1 | 0 | 25 | 0.03 | FINISHED |
+
+NINJA on PETSc's `ex2` at two levels with the threshold 0.01, 30 s per run. Rows by code commit: 0ca587d (242).
+
+| program | ranks | noise | runs | finished | hung | other | first hang (run) | hang rate | learning run |
+|---|---|---|---|---|---|---|---|---|---|
+| ex2-parasails2-dense | 4 | random, 10% of sends by 0.05 s | 40 | 31 | 9 | 0 | 3 | 0.23 | - |
+| ex2-parasails2-dense | 4 | system-centric | 40 | 40 | 0 | 0 | - | 0.00 | - |
+| ex2-parasails2-dense | 4 | application-centric | 40 | 0 | 0 | 40 APP-ERROR:59 | - | 0.00 | FINISHED |
+| ex2-parasails2-dense | 8 | random, 10% of sends by 0.05 s | 40 | 32 | 8 | 0 | 5 | 0.20 | - |
+| ex2-parasails2-dense | 8 | system-centric | 40 | 40 | 0 | 0 | - | 0.00 | - |
+| ex2-parasails2-dense | 8 | application-centric | 40 | 0 | 0 | 40 APP-ERROR:59 | - | 0.00 | FINISHED |
+
+Application-centric mode ended 80 of 80 runs with APP-ERROR:59 after its
+learning run finished (Open MPI's error handler exits with the error class; not investigated).
+
+The reach of the race (`experiments/petsc/run.sh scan`, analysis only, no replay): two traced runs per
+ParaSails threshold (0.01, 0.05 and 0.1, PETSc's default), level count and symmetry setting, on `ex2` and on
+`ex45`'s 3D seven-point Laplacian (`-da_grid_x 16 -da_grid_y 16 -da_grid_z 16`). The scan was stopped with `ex45`
+complete at 4 processes and, at 8, only some settings done. *Realisable from*: the thresholds of the cross
+alternatives of every trace (any B: realisable at every threshold). Rows by code commit: 518a9df (114).
+
+| driver | ranks | levels | thresholds | symmetry | traced runs | with a cross alternative | cross alternatives per trace | realisable from |
+|---|---|---|---|---|---|---|---|---|
+| `ex2` | 4 | 1 | 0.01, 0.05, 0.1 | SPD, nonsymmetric | 12 | 0 | - | - |
+| `ex2` | 4 | 2 | 0.01, 0.05, 0.1 | SPD, nonsymmetric | 12 | 12 | 2 | B >= 1340 |
+| `ex2` | 4 | 3 | 0.01, 0.05, 0.1 | SPD, nonsymmetric | 12 | 12 | 4 | B >= 1340 |
+| `ex2` | 8 | 1 | 0.01, 0.05, 0.1 | SPD, nonsymmetric | 12 | 0 | - | - |
+| `ex2` | 8 | 2 | 0.01, 0.05, 0.1 | SPD, nonsymmetric | 12 | 12 | 6 | B >= 1340 |
+| `ex2` | 8 | 3 | 0.01, 0.05, 0.1 | SPD, nonsymmetric | 12 | 12 | 12 | B >= 1340 |
+| `ex45` | 4 | 1 | 0.01, 0.05, 0.1 | SPD, nonsymmetric | 12 | 0 | - | - |
+| `ex45` | 4 | 2 | 0.01, 0.05, 0.1 | SPD, nonsymmetric | 12 | 12 | 12 | any B, B >= 3532 |
+| `ex45` | 4 | 3 | 0.01, 0.05, 0.1 | SPD, nonsymmetric | 12 | 12 | 24 | any B, B >= 508, B >= 3532, B >= 3868 |
+| `ex45` | 8 | 1 | 0.01 | SPD, nonsymmetric | 4 | 0 | - | - |
+| `ex45` | 8 | 2 | 0.01 | nonsymmetric | 2 | 2 | 96 | any B, B >= 1768 |
+
+On `ex45` some cross alternatives of every multi-level trace are realisable at
+every threshold; the scan does not replay, and its rows do not record which probes those alternatives belong to.
 
 ## E6: polynomial checker vs exhaustive explorer
 

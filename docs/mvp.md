@@ -29,8 +29,8 @@ python3 -m stretto oracle tr                  # exhaustive exploration of the tr
 python3 -m stretto confirm tr ./app args --np 4 --timeout 20
 
 # corpus runs
-python3 experiments/mbi/run_mbi.py --corpus mbi --select 'MessageRace_' --confirm    # MBI
-python3 experiments/mbi/run_mbi.py --corpus mbb --select '^P2P/' --confirm            # MPI-BugBench level 2
+python3 experiments/mbi/run_mbi.py --corpus mbi --confirm                            # MBI, the campaign's selection
+python3 experiments/mbi/run_mbi.py --corpus mbb --select '^P2P/' --confirm --out /tmp/p2p.csv   # part of MPI-BugBench level 2
 python3 experiments/mbi/run_must.py experiments/results/mbi/mbi.csv                   # MUST via container
 python3 experiments/mbi/reanalyze.py experiments/results/mbi/mbi.csv                  # re-analyse kept traces
 python3 experiments/mbi/score.py experiments/results/mbi/mbi.csv                      # MBB-style scoring
@@ -72,9 +72,13 @@ alternatives that re-match two wildcard receives on different ranks.
 A replay confirms a finding only if every pinned receive *matched* in the rerun (the replay
 library prints `matched widx=W` when a pinned receive completes; `applied` only says the source
 argument was rewritten, and forcing an impossible match hangs as well), the run reaches the
-predicted outcome (a hang for 1c/1d, the specific MPI error for 1a), and a control rerun that
-pins the same receives to their observed senders finishes. A finding whose control does not
-finish is inconclusive. `stretto confirm` prints all three.
+predicted outcome (a hang for 1c/1d, `MPI_ERR_TRUNCATE` for a 1a truncation), and a control
+rerun that pins the same receives to their observed senders finishes. A finding whose control
+does not finish is inconclusive, and so is one whose pin fell on another operation than the
+traced one (the pins carry its communicator, tag and call site, `replay/pin.h`). A truncating
+receive fails inside the call, so its pin counts as taken when it is shown applied, or pending
+where the run stopped; a 1a type mismatch or ready send without a receive is reported by
+neither MPI library and cannot be confirmed (`n/a`). `stretto confirm` prints all three.
 
 ## Coverage
 

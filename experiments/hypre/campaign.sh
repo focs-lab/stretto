@@ -18,22 +18,24 @@ H="${HYPRE_DIR:-$R/third_party/apps/hypre}"
 OUT=experiments/results/hypre; mkdir -p "$OUT"
 RUNS="${RUNS:-20}"; TIMEOUT=60; ARGS=(-solver 8 -pout 0)
 TRACER="$R/tracer/bin/mpich/libstretto-trace.so"; PINLIB="$R/replay/bin/mpich/libstretto-pin.so"
-export STRETTO_COMMIT="${STRETTO_COMMIT:-$(cat "$R/COMMIT" 2>/dev/null || git -C "$R" rev-parse --short HEAD 2>/dev/null || echo unknown)}"
+source "$R/experiments/harness.sh"
+export STRETTO_COMMIT="${STRETTO_COMMIT:-$(python3 "$R/experiments/provenance.py")}"
 V="${HYPRE_VERSION:-2.10.1}"
 SRC="$H/hypre-$V"; [ -f "$SRC/configure" ] || SRC="$SRC/src"
 case "$V" in 2.10.1) SUF=; TAGS=222;; *) SUF="-$V"; TAGS="221 222";; esac
 TMP="${TMPDIR:-/tmp}/hypre-campaign"; mkdir -p "$TMP"
 
 run() {   # run <np> <logfile> [-x VAR=value ...]: one run of ij, prints FINISHED | TIMEOUT | rc=N
-    local np=$1 log=$2; shift 2
+    local np=$1 log=$2 t0=$SECONDS; shift 2
     (cd "$SRC/test" && /usr/bin/timeout -k 5 $TIMEOUT mpirun.openmpi --oversubscribe -np "$np" "$@" ./ij "${ARGS[@]}" < /dev/null > "$log" 2>&1)
-    local rc=$?; [ $rc = 0 ] && echo FINISHED || { [ $rc = 124 ] && echo TIMEOUT || echo "rc=$rc"; }
+    run_result $? $((SECONDS - t0)) $TIMEOUT
 }
 step_predict() {
     python3 experiments/hypre/predict.py "$SRC/test" --runs "$RUNS" --np 4 8 --timeout $TIMEOUT --jobs "${JOBS:-1}" \
         --tags $TAGS --out "$OUT/predict$SUF.csv"
 }
 step_stress() {
+    need_file "$PINLIB" || return 1
     echo "np,run,setting,result,commit" > "$OUT/stress$SUF.csv"
     for np in 4 8; do
         for i in $(seq 1 "$RUNS"); do
@@ -42,6 +44,7 @@ step_stress() {
             ds=$(python3 -c "import random; r=random.Random($i*100+$np); print(','.join(f'{k}:{r.choice([0,0,0,1,5,20,50])}' for k in range($np)))")
             dr=$(python3 -c "import random; r=random.Random($i*100+$np+7); print(','.join(f'{k}:{r.choice([0,0,0,1,5,20,50])}' for k in range($np)))")
             r=$(run "$np" "$TMP/delay-$np-$i.log" -x LD_PRELOAD="$PINLIB" -x STRETTO_SEND_DELAY_MS=$ds -x STRETTO_RECV_DELAY_MS=$dr)
+            preload_ok "$TMP/delay-$np-$i.log" || { harness_error "$PINLIB did not load (np $np, run $i)"; return 1; }
             echo "$np,$i,delays,$r,$STRETTO_COMMIT" | tee -a "$OUT/stress$SUF.csv"
         done
     done
@@ -50,5 +53,5 @@ for step in "${@:-all}"; do
     case "$step" in
         predict) step_predict;; stress) step_stress;; all) step_predict && step_stress;;
         *) echo "usage: $0 [predict|stress|all]" >&2; exit 2;;
-    esac
+    esac || exit 1
 done

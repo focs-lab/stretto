@@ -113,6 +113,24 @@ PPoPP 2017); HYPRE's changelog for 2.11.0 places the fix in ParaSails. NINJA, th
 
 <p align="center"><img src="docs/figures/hypre.svg" width="760" alt="HYPRE ParaSails results"></p>
 
+**A new bug in a current release.** HYPRE 3.2.0's ParaSails, like its master branch, sends the
+row requests of every level of its sparsity pattern with one tag and takes them with a wildcard
+probe. Nothing collective separates one level's probes from the next level's requests, so with
+two or more levels a probe can take the next level's request and the setup hangs: the race above,
+which the 2.11.0 fix left in place across levels. Every one of 40 clean two-level runs of
+hypre's `ex5` and of PETSc 3.26.0's unmodified KSP tutorial `ex2` (`-pc_type hypre -pc_hypre_type
+parasails -pc_hypre_parasails_nlevels 2 -pc_hypre_parasails_thresh 0.01`) predicts it, and none at
+one level. Forced, all 160 such alternatives hang with every pin matched, each a run of
+the program, and every control finishes. The race needs only the neighbour's 1 340-byte reply
+buffered (920 bytes in `ex5`), below Open MPI's default eager limit of 4 040 bytes. None of
+320 plain and delayed two-level runs hang: a delay before a call cannot hold back a
+request already sent. NINJA, which delays sends in transit, hangs `ex5` in 31 of
+240 runs. Giving even levels' requests a tag of their own removes every cross
+alternative. Along the way: PETSc passes `-pc_hypre_parasails_nlevels` to HYPRE only when
+`-pc_hypre_parasails_thresh` is given too.
+
+<p align="center"><img src="docs/figures/hypre32.svg" width="760" alt="HYPRE 3.2.0 ParaSails results"></p>
+
 **A second documented bug.** NPB MG 2.4.1 receives every halo exchange from `MPI_ANY_SOURCE`
 with a tag that does not depend on the grid level; its changelog says this "could cause MPI_Wait
 return a message meant for the wrong k", fixed in 3.2.1. From one clean run Stretto predicts
@@ -191,6 +209,34 @@ PYTHONPATH=analysis python3 -m stretto sites traces/mine          # findings gro
 Fortran codes are traced through the MPICH wrappers (`MPI=mpich`): Open MPI's Fortran bindings
 call `PMPI_*` directly and bypass the tracer.
 
+### Exit status and output
+
+`stretto analyze` exits with 0 when it reports no finding of an error class, 1 when it reports
+one, 2 when the trace (or a `--reads` map) cannot be loaded or a usage error stops it, and 3 on
+an internal error, with its traceback. A 0 says that no error was found, not that none can
+occur: the report is *degraded* when the analysis could not do all of its work, and the first
+line of the text report, `status: complete` or `status: degraded: ...`, says so, as does the
+JSON. The reasons:
+
+| reason | what was not done |
+|---|---|
+| `missing-ranks` | a rank left no trace file: its messages and collectives are missing |
+| `tracer-overflow` | a table of the tracer filled up: later records of its kind may be incomplete |
+| `unmatched-completions` | a receive completed from a send the trace does not have (an untraced caller, such as Fortran under Open MPI) |
+| `guard-off` | the buffer guard was asked for and off (MPI_THREAD_MULTIPLE) |
+| `threads` | several threads called MPI under MPI_THREAD_MULTIPLE: no alternative is predicted |
+| `unmodelled` | a call outside the modelled fragment (one-sided, neighbourhood collectives, ...): no alternative is predicted |
+| `ready-send` | the run issued a ready send before its receive: no alternative is predicted |
+| `explorer-skipped` | the trace has more events than `--sp-max-events`: no L1+SP consequence was looked for |
+| `explorer-incomplete` | an exploration of the single-path explorer hit its state cap or failed |
+| `unconfirmed-rejections` | above 200 000 records the fast check's rejections are not confirmed by the generic check |
+
+`--json` writes `{"schema": 2, "analysis_commit", "status", "degraded": [{"reason", "detail"}],
+"summary", "notes", "findings", "infeasible"}`. Each finding carries an `id`, its class and a hash
+of what it is about (the changed receive, send or probe, its level, certainty and error), which
+stays when the wording of its title changes. `stretto confirm` exits 0, or 2 when the replay
+library is missing or does not load.
+
 `-x STRETTO_GUARD=1` adds the buffer guard (class 3-local): between MPI calls the tracer
 write-protects the pages of buffers that pending nonblocking operations own and records the
 first access the program makes to them, checks each send buffer's checksum at its completion,
@@ -203,7 +249,17 @@ checksum only, and reads only on pages that lie wholly inside a point-to-point r
 `STRETTO_PIN="rank:idx:src[:tag],..."` pins the idx-th wildcard receive of a rank to a source;
 `STRETTO_PIN_PROBE` does the same for wildcard probes, and `STRETTO_PIN=@file` reads a list too
 long for one environment string. `STRETTO_SEND_DELAY_MS="rank:ms,..."` and
-`STRETTO_RECV_DELAY_MS` add delays, which the stress-testing baseline uses.
+`STRETTO_RECV_DELAY_MS` add delays, which the stress-testing baseline uses. The pins `stretto
+confirm` writes also carry the traced operation's identity, `rank:idx:src[:tag]@comm:tag:site`
+(its communicator's creation ordinal on the rank, its tag argument, its call site): a replay that
+diverged before a pin would otherwise pin another operation and report it matched. The replay
+library ends such a run with exit code 86, and the replay is inconclusive (`replay/pin.h`).
+
+Of class 1a only a truncation is confirmable: the receive fails with `MPI_ERR_TRUNCATE`, inside
+the call, so its pin shows as applied (and, under the tracer, the receive as pending where the
+run stopped) rather than matched. A type signature mismatch and a ready send with no posted
+receive are erroneous, but neither Open MPI nor MPICH reports them, so a replay cannot confirm
+them and their verdict is `n/a`.
 
 ```bash
 scripts/replay_idiom.sh 04 0:0:2      # pin rank 0's first wildcard receive to rank 2: the predicted run

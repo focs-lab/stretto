@@ -31,8 +31,12 @@ def num(name: str, value) -> None:
 
 
 def commits(rs) -> str:
-    """The code commits a table's rows were produced with, most rows first."""
-    c = collections.Counter(r.get("commit") or "unrecorded" for r in rs)
+    """The code commits a table's rows were produced with, most rows first; a row analysed again
+    by other code than the run's names that code too (its analysis_commit)."""
+    def key(r):
+        c, a = r.get("commit") or "unrecorded", r.get("analysis_commit")
+        return f"{c}, analysed at {a}" if a and a != c else c
+    c = collections.Counter(key(r) for r in rs)
     return ", ".join(f"{k} ({v})" for k, v in c.most_common())
 
 
@@ -111,9 +115,9 @@ def e1(name, path, key=None):
                 "report (RE) the same way; the two rows bracket the comparison. Both tools ran each program once, with",
                 "the same timeout; MUST under MPICH, Stretto under Open MPI, so they did not see the same run."]
         out += must_versions_notes(rs, key, path)
-        failed = [r["name"] for r in rs if score.analysis_failed(r)]
+        failed = [r["name"] for r in rs if score.crashed(r)]
         if failed:
-            out += ["", f"Analysis failed on {len(failed)} program(s), counted as no error: {', '.join(failed)}."]
+            out += ["", f"Analysis failed on {len(failed)} program(s) (CRASH), left out of every row above: {', '.join(failed)}."]
         inv = [r for r in rs if r["expect"] == "ERROR" and score.verdict(r) == "ERROR" and score.must_verdict(r) != "ERROR"]
         inv_pred = [r for r in inv if score.predicted_verdict(r) == "ERROR" and score.observed_verdict(r) != "ERROR"]
         conf = [r for r in inv if r.get("confirmed") and int(r["confirmed"]) > 0]
@@ -861,6 +865,280 @@ def dealii():
     return "\n".join(out) + "\n"
 
 
+def _new_rows(rs, driver, build):
+    """The rows of a HYPRE 3.2.0 campaign table in one form: experiments/hypre3/predict.py's
+    (kind cross/same/other, the run's cross count in a column) and experiments/scout.py's (kind
+    cross-phase/cross-tag/same, the run's counts in its findings, the level count in the driver
+    name: ex2-parasails2-dense is two levels with a threshold, ex2-parasails2 the level count
+    without one)."""
+    out = []
+    for r in rs:
+        if "findings" in r:
+            m = re.search(r"parasails(\d)", r["driver"])
+            levels, ok = (int(m.group(1)) if m else 0), r.get("traced") == "FINISHED"
+            cross = sum(int(n) for n in re.findall(r"kind:cross-[a-z]+=(\d+)", r.get("findings") or ""))
+            kind = "cross" if (r.get("kind") or "").startswith("cross") else r.get("kind") or ""
+        else:
+            levels, ok = int(r["levels"]), not (r.get("replay") or "").startswith("traced run")
+            cross, kind = int(r.get("cross") or 0), r.get("kind") or ""
+        out.append({**r, "drv": r.get("driver", ""), "driver": driver, "build": build, "np": int(r["np"]), "levels": levels,
+                    "ok": ok, "cross": cross, "kind": kind if r.get("pin") else ""})
+    return out
+
+
+def hypre_new():
+    """E5f: a new bug in a current release. HYPRE 3.2.0's ParaSails sends the row requests of
+    every sparsity-pattern level with one tag and takes them with a wildcard probe
+    (experiments/hypre3/run.sh: predict.csv, predict-fix.csv, stress[-fix].csv, ninja[-fix].csv),
+    and PETSc 3.26.0's unmodified KSP tutorial ex2 reaches it (experiments/petsc/run.sh:
+    parasails.csv, parasails-default-m32.csv, stress.csv, ninja.csv, scan.csv)."""
+    d, p = os.path.join(RES, "hypre3"), os.path.join(RES, "petsc")
+    pr, fx, st, sf = (rows(os.path.join(d, f)) for f in ("predict.csv", "predict-fix.csv", "stress.csv", "stress-fix.csv"))
+    nj, nf = (ninja_runs_rows(os.path.join(d, f)) for f in ("ninja.csv", "ninja-fix.csv"))
+    ps, pm, pst, scan = (rows(os.path.join(p, f)) for f in ("parasails.csv", "parasails-default-m32.csv", "stress.csv", "scan.csv"))
+    pnj = ninja_runs_rows(os.path.join(p, "ninja.csv"))
+    if not (pr or ps):
+        return "_no results_\n"
+    # (title, macro prefix, rows): hypre's ex5 with -sai_levels, its fixed variant, PETSc's ex2
+    # with the threshold given, and the level count without a threshold: a first pass at -m 32
+    # (parasails-default-m32.csv) and, once run.sh parasails runs it, ex2-parasails2-nothresh
+    nothresh = [r for r in ps if "nothresh" in r["driver"]]
+    groups = [("hypre's `ex5` with `-sai_levels`, HYPRE 3.2.0", "HypreNew", _new_rows(pr, "ex5", "3.2.0")),
+              ("the same, even levels' requests under tag 227 (the fix)", "HypreNewFix", _new_rows(fx, "ex5", "3.2.0-fix")),
+              ("PETSc 3.26.0's `ex2 -m 48 -n 48`, `-pc_hypre_parasails_thresh 0.01`", "Petsc",
+               _new_rows([r for r in ps if id(r) not in {id(x) for x in nothresh}], "ex2", "3.26.0")),
+              ("PETSc's `ex2`, `-pc_hypre_parasails_nlevels` without a threshold", "PetscNoThresh", _new_rows(pm + nothresh, "ex2", "3.26.0"))]
+    groups = [g for g in groups if g[2]]
+    every = pr + fx + st + sf + nj + nf + ps + pm + pst + pnj + scan
+    out = ["ParaSails builds the sparsity pattern of its approximate inverse one level at a time. Each level Isends its row",
+           "requests with tag 221, counts the requests each rank will get with an Allreduce, and takes them with",
+           "`MPI_Probe(MPI_ANY_SOURCE, 221)` and a receive from the probed source. Every level uses the one tag, and nothing",
+           "collective lies between a rank's last probe of level L and a neighbour's requests of level L+1, so with two or",
+           "more levels a probe can take the next level's request and the setup hangs. HYPRE 2.11.0's fix of the race of E5c",
+           "gave the pruned-rows and the stored-rows exchanges tags of their own but kept one tag for every level. An",
+           "alternative is *cross* if the probe would take a request sent after another number of collectives than the one",
+           "it took (another level's), *same* if another rank's request of its level, *other* on any other tag. Every",
+           "alternative is replayed with the pins of its horizon and with its control, both under the tracer, which judges",
+           "each a run of the program without its pins or not (`experiments/hypre3/predict.py`, `experiments/scout.py`).",
+           "The fixed variant sends the requests of even levels under a tag of their own (227). Runs at 4 and 8",
+           f"processes, Open MPI, its default eager limits. Rows by code commit: {commits(every)}.", "",
+           "| driver | levels | ranks | traced runs | with a cross alternative | cross alternatives (per trace) | replays hang | "
+           "pins matched | replays runs of the program | controls finish | controls runs of the program | realisable from |",
+           "|---|---|---|---|---|---|---|---|---|---|---|---|"]
+    word = {4: "Four", 8: "Eight"}
+    for title, prefix, rs in groups:
+        runs = {(r["drv"], r["np"], r["levels"], r["run"]): r for r in rs}
+        for np_, lv in sorted({(r["np"], r["levels"]) for r in rs}):
+            tr = [r for k, r in runs.items() if k[1:3] == (np_, lv)]
+            ok = [r for r in tr if r["ok"]]
+            exposed = [r for r in ok if r["cross"] > 0]
+            per = sorted({r["cross"] for r in exposed})
+            alts = [r for r in rs if (r["np"], r["levels"]) == (np_, lv) and r["kind"] == "cross"]
+            hang = [r for r in alts if r.get("replay") == "TIMEOUT"]
+            matched = [r for r in alts if r.get("matched") == "True"]
+            valid = [r for r in alts if r.get("run_valid") == "True"]
+            ctl = [r for r in alts if r.get("control") == "FINISHED"]
+            ctl_valid = [r for r in alts if r.get("control_valid") == "True"]
+            bs = sorted({r["B"] for r in alts if r.get("B")}, key=lambda b: int(re.sub(r"\D", "", b) or 0))
+            b_col = ", ".join(bs) if bs else ("not recorded" if alts and "B" not in alts[0] else "-")
+            per_col = "" if not per else f" ({per[0]} each)" if len(per) == 1 else f" ({per[0]}–{per[-1]})"
+            dash = (lambda x: x) if alts else (lambda x: "-")
+            lv_col = f"{lv} (not passed to HYPRE)" if prefix == "PetscNoThresh" else lv
+            out.append(f"| {title} | {lv_col} | {np_} | {len(ok)}" + (f" (+{len(tr) - len(ok)} failed)" if len(tr) > len(ok) else "") +
+                       f" | {len(exposed)} | {len(alts)}{per_col} | {dash(len(hang))} | {dash(len(matched))} | {dash(len(valid))} "
+                       f"| {dash(len(ctl))} | {dash(len(ctl_valid))} | {b_col} |")
+            if lv >= 2 and np_ in word and prefix in ("HypreNew", "Petsc"):    # the release's two drivers
+                k = f"n{prefix}{word[np_]}"
+                num(k + "Runs", len(ok))
+                num(k + "Exposed", len(exposed))
+                num(k + "Alts", len(alts))
+                if len(per) == 1:
+                    num(k + "PerTrace", per[0])
+                num(k + "Hang", len(hang))
+                num(k + "Finish", sum(1 for r in alts if r.get("replay") == "FINISHED"))
+                num(k + "Matched", len(matched))
+                num(k + "Valid", len(valid))
+                num(k + "Controls", len(ctl))
+                num(k + "ControlsValid", len(ctl_valid))
+        ok = [r for r in runs.values() if r["ok"]]
+        cross = [r for r in rs if r["kind"] == "cross"]
+        num(f"n{prefix}Traced", len(ok))
+        num(f"n{prefix}TracedFailed", len(runs) - len(ok))
+        num(f"n{prefix}Exposed", sum(1 for r in ok if r["cross"] > 0))
+        num(f"n{prefix}TwoTraced", sum(1 for r in ok if r["levels"] >= 2))
+        num(f"n{prefix}TwoExposed", sum(1 for r in ok if r["levels"] >= 2 and r["cross"] > 0))
+        num(f"n{prefix}OneTraced", sum(1 for r in ok if r["levels"] == 1))
+        num(f"n{prefix}OneExposed", sum(1 for r in ok if r["levels"] == 1 and r["cross"] > 0))
+        num(f"n{prefix}CrossAlts", len(cross))
+        num(f"n{prefix}CrossHang", sum(1 for r in cross if r.get("replay") == "TIMEOUT"))
+        num(f"n{prefix}CrossMatched", sum(1 for r in cross if r.get("matched") == "True"))
+        num(f"n{prefix}CrossValid", sum(1 for r in cross if r.get("run_valid") == "True"))
+        num(f"n{prefix}CrossControls", sum(1 for r in cross if r.get("control") == "FINISHED"))
+        num(f"n{prefix}CrossControlsValid", sum(1 for r in cross if r.get("control_valid") == "True"))
+    # both drivers of the release together, for the abstract and the introduction
+    rel = [g[2] for g in groups if g[1] in ("HypreNew", "Petsc")]
+    two = [r for rs in rel for r in {(r["drv"], r["np"], r["levels"], r["run"]): r for r in rs}.values() if r["ok"] and r["levels"] >= 2]
+    cross = [r for rs in rel for r in rs if r["kind"] == "cross"]
+    num("nHypreNewAllTraced", len(two))
+    num("nHypreNewAllExposed", sum(1 for r in two if r["cross"] > 0))
+    num("nHypreNewAllCrossAlts", len(cross))
+    num("nHypreNewAllCrossHang", sum(1 for r in cross if r.get("replay") == "TIMEOUT"))
+    # the realisable threshold: ex2's cross alternatives are realisable from the size of the
+    # pruned-rows reply (tag 223) the neighbour sends before it leaves the level, which must be
+    # buffered; predict.csv of ex5 predates the B column, so its reply size comes from the
+    # fixed variant's traces, whose messages are the release's but for the tag of even levels
+    def reply_bytes(rs):
+        return sorted({int(r["bytes"]) for r in rs if r.get("tag") == "223" and "ReceiveReplyPrunedRows" in (r.get("site") or "")
+                       and r.get("bytes") and r["levels"] >= 2})
+    by = {g[1]: g[2] for g in groups}
+    pb = sorted({int(m) for r in by.get("Petsc", []) if r["kind"] == "cross" for m in re.findall(r"B >= (\d+)", r.get("B") or "")})
+    notes = []
+    if pb:
+        num("BPetscCross", pb[0])
+        notes.append(f"`ex2`'s cross alternatives are realisable from B >= {', '.join(map(str, pb))} bytes")
+    if reply_bytes(by.get("Petsc", [])):
+        rb = reply_bytes(by["Petsc"])
+        num("BPetscReply", rb[0])
+        notes.append(f"its pruned-rows replies (tag 223, `ReceiveReplyPrunedRows`) have {', '.join(map(str, rb))} bytes")
+    if reply_bytes(by.get("HypreNewFix", [])):
+        rb = reply_bytes(by["HypreNewFix"])
+        num("BHypreNewReply", rb[0])
+        notes.append(f"`ex5`'s have {', '.join(map(str, rb))} bytes in every two-level trace of the fixed variant, whose "
+                     "messages are the release's but for the tag of even levels (`predict.csv` predates the `B` and `bytes` columns)")
+    if notes:
+        out += ["", "A cross alternative needs the neighbour that sends the next level's request to have left the level, after",
+                "the Waitall of its replies, one of which goes to the probing rank, which has not yet posted its receive: that",
+                "reply must be buffered. " + "; ".join(notes) + "."]
+    # the first pass with the level count and no threshold, against its own one-level traces
+    nt = list({(r["drv"], r["np"], r["levels"], r["run"]): r for r in _new_rows(pm, "ex2", "3.26.0")}.values())
+    if nt:
+        one = {(r["np"], r["findings"]) for r in nt if r["ok"] and r["levels"] == 1}
+        two_ok = [r for r in nt if r["ok"] and r["levels"] >= 2]
+        same = sum(1 for r in two_ok if (r["np"], r["findings"]) in one)
+        nfail = [r for r in nt if not r["ok"]]
+        out += ["", "PETSc 3.26.0 passes ParaSails' level count to HYPRE only together with the threshold (`HYPRE_ParaSailsSetParams`",
+                "inside the `if` of `-pc_hypre_parasails_thresh` in `PCSetFromOptions_HYPRE_ParaSails`), so the level count alone",
+                f"runs one level: {same} of the {len(two_ok)} analysed traces of a first pass (`parasails-default-m32.csv`, `ex2 -m 32",
+                "-n 32`) with `-pc_hypre_parasails_nlevels 2` and no threshold have the findings of a one-level trace at their",
+                "process count."
+                + (f" {len(nfail)} traced run{'s' if len(nfail) > 1 else ''} of that pass ended with "
+                   + ", ".join(sorted({"%s (%s records, %s)" % (r["traced"], r["records"], r["findings"]) for r in nfail}))
+                   + (" and are" if len(nfail) > 1 else " and is") + " not analysed." if nfail else "")]
+        num("nPetscNoThreshSameAsOne", same)
+    # every other alternative replayed: same-level requests and other probes
+    out += ["", "The other alternatives, replayed the same way (*no horizon*: an alternative whose horizon the replay cannot pin, not",
+            "replayed):", "", "| driver | kind | alternatives | no horizon | replays finish | hang | other | pins matched | "
+            "replays runs of the program | controls finish | controls runs of the program |", "|---|---|---|---|---|---|---|---|---|---|---|"]
+    for title, prefix, rs in groups:
+        for kind in ("same", "other"):
+            alts = [r for r in rs if r["kind"] == kind]
+            if not alts:
+                continue
+            nh = [r for r in alts if r.get("replay") == "no horizon"]
+            done = [r for r in alts if r.get("replay") not in (None, "", "no horizon")]
+            res = collections.Counter(r["replay"] for r in done if r["replay"] not in ("FINISHED", "TIMEOUT"))
+            out.append(f"| {title} | {kind} | {len(alts)} | {len(nh)} | {sum(r['replay'] == 'FINISHED' for r in done)} "
+                       f"| {sum(r['replay'] == 'TIMEOUT' for r in done)} | {', '.join(f'{n} {k}' for k, n in sorted(res.items())) or 0} "
+                       f"| {sum(r.get('matched') == 'True' for r in done)} | {sum(r.get('run_valid') == 'True' for r in done)} "
+                       f"| {sum(r.get('control') == 'FINISHED' for r in done)} | {sum(r.get('control_valid') == 'True' for r in done)} |")
+    # untraced runs, plain and with the replay library's random delays before calls
+    # (macro prefix, driver, levels, row) per untraced run
+    srs = [("HypreNew", "`ex5`, HYPRE " + r["version"], int(r["levels"]), r) for r in st] + \
+          [("HypreNewFix", "`ex5`, HYPRE " + r["version"], int(r["levels"]), r) for r in sf] + \
+          [("Petsc", "`ex2`, PETSc " + r["version"], int(re.search(r"parasails(\d)", r["driver"]).group(1)), r) for r in pst]
+    if srs:
+        out += ["", "Untraced runs, plain and with random send and receive delays of 0 to 50 ms per rank from the replay library",
+                "(no pin), 30 s each, the budget and delays of E5c. The delays are sleeps before a call, so they cannot make a",
+                "request issued before the level's Allreduce arrive after one issued after it, which the race needs. The PETSc",
+                f"runs were stopped after the two-level ones and part of the one-level ones. Rows by code commit: {commits(st + sf + pst)}.", "",
+                "| driver | levels | ranks | setting | runs | finished | timed out | other |", "|---|---|---|---|---|---|---|---|"]
+        keys = sorted({(t, lv, int(r["np"]), r["setting"]) for _, t, lv, r in srs}, key=lambda k: (k[0], -k[1], k[2], k[3] != "plain"))
+        for t, lv, np_, setting in keys:
+            sel = [r for _, t_, l_, r in srs if (t_, l_, int(r["np"]), r["setting"]) == (t, lv, np_, setting)]
+            f_ = sum(r["result"] == "FINISHED" for r in sel)
+            to = sum(r["result"] == "TIMEOUT" for r in sel)
+            out.append(f"| {t} | {lv} | {np_} | {setting} | {len(sel)} | {f_} | {to} | {len(sel) - f_ - to} |")
+        for prefix in ("HypreNew", "HypreNewFix", "Petsc"):
+            sel = [(r, lv) for p_, _, lv, r in srs if p_ == prefix]
+            two = [r for r, lv in sel if lv >= 2]
+            num(f"n{prefix}StressRuns", len(sel))
+            num(f"n{prefix}StressHang", sum(r["result"] == "TIMEOUT" for r, _ in sel))
+            num(f"n{prefix}StressTwoRuns", len(two))
+            num(f"n{prefix}StressTwoHang", sum(r["result"] == "TIMEOUT" for r in two))
+            num(f"n{prefix}StressTwoDelayRuns", sum(r["setting"] == "delays" for r in two))
+            num(f"n{prefix}StressNotFinished", sum(r["result"] != "FINISHED" for r, _ in sel))
+        two = [r for p_, _, lv, r in srs if lv >= 2 and p_ in ("HypreNew", "Petsc")]
+        num("nHypreNewAllStressRuns", len(two))
+        num("nHypreNewAllStressHang", sum(r["result"] == "TIMEOUT" for r in two))
+    if nj or nf:
+        out += ["", "NINJA (E10) on `ex5` at two levels, the release and the fixed variant, 30 s per run; a run that hangs in",
+                "the ParaSails setup is killed before ParaSails reports its levels (*of which in the setup*). Rows by code",
+                f"commit: {commits(nj + nf)}.", ""]
+        out += _ninja_runs(nj + nf, lambda label: "HypreNewFix" if "-fix" in label else "HypreNew", phases=True)
+        for prefix, rs in (("HypreNew", nj), ("HypreNewFix", nf)):
+            runs = [r for r in rs if r["run"] != "0"]
+            num(f"nNinja{prefix}Runs", len(runs))
+            num(f"nNinja{prefix}Hang", sum(r["result"] == "TIMEOUT" for r in runs))
+            num(f"nNinja{prefix}HangSetup", sum(r["result"] == "TIMEOUT" and not r.get("reached") for r in runs))
+    if pnj:
+        out += ["", f"NINJA on PETSc's `ex2` at two levels with the threshold 0.01, 30 s per run. Rows by code commit: {commits(pnj)}.", ""]
+        out += _ninja_runs(pnj, lambda label: "Petsc")
+        runs = [r for r in pnj if r["run"] != "0"]
+        for mode, key in (("random", "Random"), ("system", "System"), ("app", "App")):
+            sel = [r for r in runs if r["mode"] == mode]
+            num(f"nNinjaPetsc{key}Runs", len(sel))
+            num(f"nNinjaPetsc{key}Hang", sum(r["result"] == "TIMEOUT" for r in sel))
+        app = collections.Counter(r["result"] for r in runs if r["mode"] == "app" and r["result"] not in ("FINISHED", "TIMEOUT"))
+        if app:
+            res, n = app.most_common(1)[0]
+            num("nNinjaPetscAppAborted", n)
+            num("NinjaPetscAppStatus", res.split(":")[-1])
+            out += ["", f"Application-centric mode ended {n} of {sum(r['mode'] == 'app' for r in runs)} runs with {res} after its",
+                    "learning run finished (Open MPI's error handler exits with the error class; not investigated)."]
+    if scan:
+        out += ["", "The reach of the race (`experiments/petsc/run.sh scan`, analysis only, no replay): two traced runs per",
+                "ParaSails threshold (0.01, 0.05 and 0.1, PETSc's default), level count and symmetry setting, on `ex2` and on",
+                "`ex45`'s 3D seven-point Laplacian (`-da_grid_x 16 -da_grid_y 16 -da_grid_z 16`). The scan was stopped with `ex45`",
+                "complete at 4 processes and, at 8, only some settings done. *Realisable from*: the thresholds of the cross",
+                f"alternatives of every trace (any B: realisable at every threshold). Rows by code commit: {commits(scan)}.", "",
+                "| driver | ranks | levels | thresholds | symmetry | traced runs | with a cross alternative | cross alternatives per trace | realisable from |",
+                "|---|---|---|---|---|---|---|---|---|"]
+        sc = []
+        for r in scan:
+            m = re.match(r"(\S+) thresh=(\S+) nlevels=(\d+) sym=(\S+)", r["driver"])
+            if m:
+                cross = sum(int(n) for n in re.findall(r"kind:cross-[a-z]+=(\d+)", r.get("findings") or ""))
+                sc.append({**r, "exe": m.group(1), "thresh": m.group(2), "levels": int(m.group(3)), "sym": m.group(4),
+                           "np": int(r["np"]), "ok": r.get("traced") == "FINISHED", "cross": cross})
+        for exe, np_, lv in sorted({(r["exe"], r["np"], r["levels"]) for r in sc}):
+            sel = [r for r in sc if (r["exe"], r["np"], r["levels"]) == (exe, np_, lv)]
+            ok = [r for r in sel if r["ok"]]
+            per = sorted({r["cross"] for r in ok if r["cross"]})
+            bs = sorted({b for r in ok for b in (r.get("cross_B") or "").split(";") if b},
+                        key=lambda b: int(re.sub(r"\D", "", b) or 0))
+            out.append(f"| `{exe}` | {np_} | {lv} | {', '.join(sorted({r['thresh'] for r in sel}))} | {', '.join(sorted({r['sym'] for r in sel}))} "
+                       f"| {len(ok)}" + (f" (+{len(sel) - len(ok)} failed)" if len(sel) > len(ok) else "") +
+                       f" | {sum(1 for r in ok if r['cross'])} | {'-' if not per else per[0] if len(per) == 1 else f'{per[0]}–{per[-1]}'} "
+                       f"| {', '.join(bs) or '-'} |")
+        ok = [r for r in sc if r["ok"]]
+        multi = [r for r in ok if r["levels"] >= 2]
+        bounds = sorted({int(b) for r in multi for b in re.findall(r"B >= (\d+)", r.get("cross_B") or "")})
+        num("nPetscScanTraced", len(ok))
+        num("nPetscScanMultiTraced", len(multi))
+        num("nPetscScanMultiExposed", sum(1 for r in multi if r["cross"]))
+        num("nPetscScanOneTraced", sum(1 for r in ok if r["levels"] == 1))
+        num("nPetscScanOneExposed", sum(1 for r in ok if r["levels"] == 1 and r["cross"]))
+        num("nPetscScanAnyB", sum(1 for r in multi if "any B" in (r.get("cross_B") or "").split(";")))
+        if bounds:
+            num("BPetscScanMin", bounds[0])
+            num("BPetscScanMax", bounds[-1])
+        anyb = sorted({r["exe"] for r in multi if "any B" in (r.get("cross_B") or "").split(";")})
+        if anyb:
+            out += ["", f"On {', '.join(f'`{e}`' for e in anyb)} some cross alternatives of every multi-level trace are realisable at",
+                    "every threshold; the scan does not replay, and its rows do not record which probes those alternatives belong to."]
+    return "\n".join(out) + "\n"
+
+
 def app_sample(app="amg", prefix="AMG"):
     """A sample of an application's alternatives replayed with horizon pins and controls
     (replay_sample.py, experiments/<app>/run.sh sample)."""
@@ -997,6 +1275,13 @@ def e4():
     rs = rows(os.path.join(RES, "e4", "e4.csv"))
     if not rs:
         return "_no results_\n"
+    # rows whose plain or traced run did not finish, or whose analysis failed, time nothing
+    # (tables written before e4_overhead.sh recorded how its runs ended have no such columns)
+    failed = [r for r in rs if r.get("plain_result", "FINISHED") != "FINISHED" or r.get("traced_result", "FINISHED") != "FINISHED"
+              or r.get("analysis", "ok") != "ok"]
+    rs = [r for r in rs if r not in failed]
+    if not rs:
+        return f"_no row whose runs and analysis succeeded ({len(failed)} failed)_\n"
     groups = collections.OrderedDict()
     for r in rs:
         groups.setdefault((r["benchmark"], r["class"], r["np"]), []).append(r)
@@ -1014,7 +1299,9 @@ def e4():
            "`experiments/results/timing-leg.log`) on the second machine, announced to the other lanes, the",
            f"analysis one process; {reps} repetition(s) of the whole set, each row the median over them. The",
            "wall times include the launcher's start-up; NPB's own timer covers the benchmark's timed section.",
-           f"Rows by code commit: {commits(rs)}.", "",
+           f"Rows by code commit: {commits(rs)}." + (f" Left out, a run or its analysis failed: {len(failed)} ("
+                                                      + ", ".join(f"{r['benchmark']}.{r['class']}.{r['np']}" for r in failed) + ")."
+                                                      if failed else ""), "",
            "| benchmark | class | np | plain (s) | traced (s) | slowdown | NPB plain (s) | NPB traced (s) | NPB slowdown (range) | trace (MB) | events | wildcards | analysis (s) | findings |",
            "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
     npb_sd, wall_sd = [], []
@@ -1778,6 +2065,33 @@ def must_tsan_local():
     return "\n".join(out) + "\n"
 
 
+def ninja_runs_rows(path: str) -> list:
+    """The rows of a table of NINJA runs (experiments/ninja/run.py runs), the last campaign of
+    each program, process count, mode and setting only. run.py appends to its table, so a
+    rerun of a campaign (artifact/reproduce.sh rq2, rq6) adds a second run 1, 2, ... after the
+    first: a campaign starts again where a group's run number falls back (or repeats, but for
+    run 0, the learning run, which is retried)."""
+    def key(r):
+        return (r["label"], r["np"], r["mode"], r.get("setting", "") if r["mode"] == "random" else "")
+    rs = rows(path)
+    last: dict = {}
+    for i, r in enumerate(rs):
+        g = last.setdefault(key(r), {"start": i, "prev": None})
+        run = int(r["run"])
+        if g["prev"] is not None and (run < g["prev"] or (run == g["prev"] and run > 0)):
+            g["start"] = i                   # a later campaign of the group
+        g["prev"] = run
+    return [r for i, r in enumerate(rs) if i >= last[key(r)]["start"]]
+
+
+def ninja_corpus_rows(path: str) -> list:
+    """The rows of a table of NINJA corpus runs (run.py corpus): the last row of each program,
+    mode and setting, run.py appending to its table as above."""
+    rs = rows(path)
+    last = {(r["program"], r["mode"], r.get("setting", "")): i for i, r in enumerate(rs)}
+    return [r for i, r in enumerate(rs) if last[(r["program"], r["mode"], r.get("setting", ""))] == i]
+
+
 def _ninja_mode(r) -> str:
     """A NINJA row's mode as text, the random noise with its ratio and delay."""
     if r["mode"] == "random":
@@ -1836,7 +2150,8 @@ def ninja():
     """E10: NINJA's noise injection on the programs Stretto predicts bugs in
     (experiments/ninja/campaign.sh): its ParaSails replica, HYPRE, the MBI corpus, NPB MG."""
     d = os.path.join(RES, "ninja")
-    cal, hy, mb, mg = (rows(os.path.join(d, f)) for f in ("calibrate.csv", "hypre.csv", "mbi.csv", "mg.csv"))
+    cal, hy, mg = (ninja_runs_rows(os.path.join(d, f)) for f in ("calibrate.csv", "hypre.csv", "mg.csv"))
+    mb = ninja_corpus_rows(os.path.join(d, "mbi.csv"))
     if not (cal or hy or mb or mg):
         return "_no results_\n"
     out = ["NINJA v1.0.2 (`experiments/ninja/build.sh`), the noise injector of the paper that reported the HYPRE ParaSails race",
@@ -2274,7 +2589,8 @@ def e9():
                 "access moved after the completing call), labelled correct. `a+b` is the tool run with every shipped "
                 "property and the blind markers: an error if either arm reports one.", ""]
         V = {arm: {r["program"]: r["verdict"] for r in built if r["arm"] == arm} for arm in "abc"}
-        V["a+b"] = {p: "ERROR" if "ERROR" in (V["a"].get(p), V["b"].get(p)) else "OK" for p in progs}
+        V["a+b"] = {p: "ERROR" if "ERROR" in (V["a"].get(p), V["b"].get(p))
+                    else score.HARNESS if score.HARNESS in (V["a"].get(p), V["b"].get(p)) else "OK" for p in progs}
         V["S"] = {p: r["verdict"] for p, r in st.items() if r.get("build") == "ok"}
         lc_dom = [p for p in insc if progs[p]["expect"] == "OK" or progs[p]["detail"] == "LocalConcurrency"]
         for title, ps, tag in (("All programs in scope", insc, ""),
@@ -2285,11 +2601,14 @@ def e9():
             for arm, label in (("a", "MPI-PRV, arm a (no markers)"), ("b", "MPI-PRV, arm b (blind markers)"),
                                ("c", "MPI-PRV, arm c (markers at the labels)"), ("a+b", "MPI-PRV, arms a and b"),
                                ("S", "Stretto with the buffer guard (`stretto_corpus.py`)")):
-                rs = [{"expect": progs[p]["expect"], "verdict": V[arm][p]} for p in ps if p in V[arm]]
+                rs = [{"expect": progs[p]["expect"], "verdict": V[arm][p], "program": p} for p in ps if p in V[arm]]
                 if not rs:
                     continue
                 c = score.confusion(rs, lambda r: r["verdict"])
                 out.append(conf_row(label, c))
+                if c["harness"] or c["crash"]:
+                    out.append(f"| ({label}: {c['harness']} program(s) without a verdict, a run without a trace or a "
+                               f"failed analyser, and {c['crash']} analysis crash(es), left out of the row) | | | | | | | |")
                 A = {"a+b": "AB", "S": "Stretto"}.get(arm, arm.upper()) + tag
                 num(f"PRVfone{A}", c["f1"])
                 for k in ("tp", "fp", "fn", "tn"):
@@ -2396,7 +2715,8 @@ def main():
            "E2, E6 and the E3 and E7 inputs come from `experiments/run_remaining.sh` on the second, shared machine",
            "(the container of `experiments/container/`, 12 cores of one NUMA node); the HYPRE campaign from",
            "`experiments/hypre/campaign.sh`, the NPB MG and deal.II campaigns from `experiments/npbmg/run.sh` and",
-           "`experiments/dealii/run.sh`, Nekbone from `experiments/nekbone/run.sh` and the scale campaign (E11)",
+           "`experiments/dealii/run.sh`, the HYPRE 3.2.0 and PETSc campaigns (E5f) from `experiments/hypre3/run.sh` and",
+           "`experiments/petsc/run.sh`, Nekbone from `experiments/nekbone/run.sh` and the scale campaign (E11)",
            "from `experiments/scale/run.sh` there. The MUST verdicts",
            "are carried over from MUST 1.9.2 runs under MPICH in MPI-BugBench's own container, with the same timeout",
            "per program, and those of MUST 1.11.2 from the image of `experiments/must/`; NINJA's runs come from",
@@ -2422,6 +2742,7 @@ def main():
            "### How often one trace exposes it, and how often testing hits it", "", hypre_campaign(),
            "## E5d: a second documented bug (NPB MG 2.4.1, a message of another exchange)", "", npbmg() + pin_log(),
            "## E5e: a third documented bug (deal.II 9.3.0-rc1, a probe takes a message of the next call)", "", dealii(),
+           "## E5f: a new bug in a current release (HYPRE 3.2.0 ParaSails, a probe takes the next level's request)", "", hypre_new(),
            "## E6: polynomial checker vs exhaustive explorer", "", e6(),
            "## E7: the value skeleton on MBI (level L2)", "", e7(),
            "## E8: the buffer guard (local concurrency, class 3-local)", "", guard() + must_tsan_local(),
@@ -2435,7 +2756,14 @@ def main():
     print("wrote", path)
     write_paper_numbers()
     figures.readme(ROOT, NUM)
+    # a crashed analysis has no verdict: the tables leave it out, and the scoring fails
+    crashed = score.crashes_seen()
+    if crashed:
+        print(f"tables.py: the analysis crashed on {len(crashed)} scored row(s), left out of the confusion matrices: "
+              + ", ".join(crashed), file=sys.stderr)
+        return 1
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

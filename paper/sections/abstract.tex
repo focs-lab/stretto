@@ -27,7 +27,10 @@ preconditioner that took 10\,392 compute-node hours to diagnose, as a probe alte
 changed, all \nHypreCrossAlts such alternatives hang while their controls finish. Untraced runs,
 half with random delays, hung it in none of \nHypreStressRuns, and NINJA, a noise injector built for this race,
 in \nNinjaHypreEightAppHangSetup of \nNinjaHypreEightAppRuns in its best setting; the fixed version
-has no cross-exchange alternative. \tool also predicts the documented wildcard bugs of NPB MG~2.4.1 and deal.II~9.3.0-rc1. On \nMBIprogs
+has no cross-exchange alternative. That fix left the race between the levels of ParaSails' sparsity
+pattern: \tool finds this new bug in the current release, 3.2.0, from clean runs of a hypre example
+and of an unmodified PETSc tutorial, and all \nHypreNewAllCrossAlts forced cross-level alternatives
+hang, while no plain or delayed run does. \tool also predicts the documented wildcard bugs of NPB MG~2.4.1 and deal.II~9.3.0-rc1. On \nMBIprogs
 programs of the MPI Bugs Initiative about matching, it finds \nMBItpunion of \nMBIerrors
 labelled errors with no false error report: \nMBItpobserved shown by the traced run,
 \nMBItpPredBuf buffering thresholds and \nMBItpPredSP single-path consequences (F1

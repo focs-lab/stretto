@@ -13,7 +13,9 @@
 # hook into ThreadSanitizer's reports misreads them and the run hangs after the first race.
 # MUST_CACHE is a host directory for MUST's user cache, where MUST builds the tool layouts it
 # has no prebuilt one for (the TSan ones), so that each is built once.
-# prints one line: MUST:<verdict> where verdict is OK | ERROR:<summary> | TIMEOUT | CE:<msg> | RE:<msg>
+# prints one line: MUST:<verdict> where verdict is OK | ERROR:<summary> | TIMEOUT | CE:<msg> | RE:<msg> (a MUST run
+# that ended without its report) | HARNESS-ERROR:<msg> (no MUST run to judge: docker failed, or the
+# container was killed before the timeout); exit status 1 on a harness error
 set -uo pipefail
 np="$1"; src="$(readlink -f "$2")"; to="${3:-120}"
 img="${MUST_IMAGE:-mbb-must:latest}"
@@ -34,7 +36,7 @@ else:
     print('OK')
 EOF
 tsan_env=(); [ "${MUST_TSAN:-0}" = 1 ] && tsan_env=(-e MUST_DISABLE_TSAN_ONREPORT=1)
-docker run --rm --memory 4g ${MUST_CPUS:+--cpuset-cpus "$MUST_CPUS"} --user "$(id -u):$(id -g)" -e HOME=/tmp -v "$work:/w" -w /w/src \
+out=$(docker run --rm --memory 4g ${MUST_CPUS:+--cpuset-cpus "$MUST_CPUS"} --user "$(id -u):$(id -g)" -e HOME=/tmp -v "$work:/w" -w /w/src \
   -e STRETTO_MUST_DIR="${MUST_PREFIX:-/MBB-builds/MUST192}" -e STRETTO_MUST_TSAN="${MUST_TSAN:-0}" \
   ${tsan_env[@]+"${tsan_env[@]}"} \
   ${MUST_CACHE:+-v "$MUST_CACHE:/cache" -e XDG_CACHE_HOME=/cache} "$img" bash -c '
@@ -42,14 +44,30 @@ docker run --rm --memory 4g ${MUST_CPUS:+--cpuset-cpus "$MUST_CPUS"} --user "$(i
   cc=(mpicc.mpich); tsan=()
   [ "$STRETTO_MUST_TSAN" = 1 ] && { cc=(must-tsan-cc --wrap-target mpicc.mpich); tsan=(--must:tsan); }
   "${cc[@]}" -O0 -g -I.. -o prog prog.c -lm 2> build.err || { echo "CE:$(head -c 160 build.err | tr "\n" " ")"; exit 0; }
+  t0=$SECONDS
   /usr/bin/timeout -k 5 '"$to"' mustrun -np '"$np"' --must:mpiexec mpirun.mpich --must:distributed "${tsan[@]}" --must:output json ./prog > run.out 2> run.err
-  rc=$?
+  rc=$?; took=$((SECONDS - t0))
   json=""; [ -s MUST_Output.json ] && json="$(python3 ../parse.py)"
+  # an error MUST reported stands; otherwise a run the timeout killed is a TIMEOUT, whatever JSON
+  # it left (MUST writes its JSON as it goes, so a killed run can leave one without the error it
+  # had not reached); a kill before the timeout is a memory cap, no verdict
   if grep -qi "detected a deadlock" run.out run.err 2>/dev/null; then echo "ERROR:deadlock (MUST detected a deadlock)"
   elif [ "${json%%:*}" = ERROR ]; then echo "$json"
   elif grep -qa "ThreadSanitizer: data race" run.out run.err 2>/dev/null; then echo "ERROR:data race (ThreadSanitizer report)"
+  elif [ $rc -eq 124 ] || { [ $rc -eq 137 ] && [ $took -ge '"$to"' ]; }; then echo TIMEOUT
+  elif [ $rc -eq 137 ]; then echo "HARNESS-ERROR:killed after ${took} s, before the timeout (memory cap?)"
   elif [ -n "$json" ]; then echo "$json"
-  elif [ $rc -eq 124 ] || [ $rc -eq 137 ]; then echo TIMEOUT
   else echo "RE:$(tail -c 200 run.err | tr "\n" " ")"; fi
-' 2>/dev/null | tail -1 | sed 's/^/MUST:/'
-[ -n "${MUST_KEEP:-}" ] && echo "kept $work" || rm -rf "$work"
+' 2> "$work/docker.err" | tail -1)
+rc=$?
+# a container that did not start or was killed (docker's own failure, the 4 GB cap) gave MUST no
+# run to judge: a harness error, never MUST's verdict
+status=0
+if [ $rc -ne 0 ] || [ -z "$out" ]; then
+    echo "MUST:HARNESS-ERROR:docker exited with status $rc: $(tail -c 160 "$work/docker.err" | tr '\n' ' ')"
+    status=1
+else
+    echo "MUST:$out"
+fi
+[ -n "${MUST_KEEP:-}" ] && echo "kept $work" >&2 || rm -rf "$work"
+exit $status

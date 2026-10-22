@@ -34,7 +34,9 @@ on), once in the default container and once with `DOCKER_ARGS="--cap-add SYS_PTR
 lets the MPI libraries use single-copy transfers. Its tables are in `experiments/results/guard/`;
 `experiments/tables.py` adds the corpus rows with the guard to E1 and the checks to E8.
 
-Read bounds (rule H1', `docs/firstread.md`, E3b) are outside that sequence too. The image of
+Read bounds (rule H1', `docs/firstread.md`, E3b) are outside that sequence too
+(`experiments/reads/run.sh` runs the steps below but E6, `artifact/reproduce.sh rq1` and `rq4`
+all of them). The image of
 `experiments/container/Dockerfile.firstread` (the experiment image plus clang 18 from the same
 archive snapshot) runs `experiments/mbi/reads_maps.py experiments/results/mbi/mbi.csv`, which
 writes the first-read map of every MBI program to `experiments/results/reads/mbi/`. The
@@ -43,7 +45,11 @@ experiments/results/mbi/mbi.csv --reads experiments/results/reads/mbi --out
 experiments/results/reads/mbi.csv`), replays the programs whose levels change with the witness
 pins (`run_mbi.py --replay-only --reads ... --out <a copy of that table>`, whose `replays.csv`
 becomes `experiments/results/reads/replays.csv`), and compares rule H1' with the explorer
-(`run_remaining.sh e6reads`, `experiments/results/e6_reads_{never,random}.csv`).
+(`run_remaining.sh e6reads`, `experiments/results/e6_reads_{never,random}.csv`). A map records the
+SHA-256 of the sources it was made from, and the analysis refuses it for a trace of a program
+built from other sources (`stretto.reads.check_sources`). The committed maps predate the hashes:
+`reanalyze.py --reads ... --reads-unchecked` accepts them as they are, and `reads_maps.py` makes
+new ones that are checked.
 
 E6 and its runs with read bounds were redone on 22 Oct 2026 (`run_remaining.sh e6 e6reads`, two
 containers on 8 processors, about 10 and 20 minutes, with the idiom traces and the traces of the
@@ -85,6 +91,7 @@ Variables the scripts read (all optional):
 |---|---|---|
 | `JOBS` | `run_remaining.sh` | parallel programs (6) |
 | `TIMEOUT` | `run_remaining.sh`; `scripts/env.sh` | seconds per run, replay and MUST run (60 in the corpus harness; 15 for a bare `mpi_run`) |
+| `STRETTO_MPIRUN_MPICH`, `STRETTO_MPIRUN_OPENMPI`, `STRETTO_MPIRUN` | `stretto confirm` and every replay (`stretto.confirm.run_pinned`) | the launcher of a program built with that MPI (default Open MPI's `mpirun` for both: Ubuntu's MPICH is built with PMIx and its hydra starts every rank as a singleton); a hydra `mpiexec` gets the environment by `-genv` |
 | `MPI` | `scripts/*.sh`, Makefiles | `openmpi` or `mpich`: which wrapper, library and idiom binaries |
 | `STRETTO_TRACE_DIR` | tracer | where the ranks write `rank-N.jsonl` (`./traces`) |
 | `STRETTO_PAYLOAD` | tracer; `scripts/run_idiom.sh`, `experiments/guard/run.sh` | record message contents up to this many packed bytes per buffer (off); level L2 by re-execution needs them |
@@ -130,7 +137,9 @@ over ssh on a freshly booted machine is gone before the next ssh command.
 # (a relative DIR, for example stretto, is taken from the remote home directory)
 git ls-files > /tmp/files.txt
 rsync -a --files-from=/tmp/files.txt . $REMOTE:$DIR/
-git rev-parse --short HEAD | ssh $REMOTE "cat > $DIR/COMMIT"   # the commit every CSV row records
+# the commit every CSV row records, and the code's files at that commit, against which
+# experiments/provenance.py checks the copy: a row from changed code says "<commit>-dirty"
+python3 experiments/provenance.py --write && rsync -a COMMIT COMMIT.files $REMOTE:$DIR/
 rsync -a --relative --exclude bin/ study/apps/MBI/gencodes third_party/mpi-bugbench/scripts/gencodes $REMOTE:$DIR/
 rsync -a --relative study/apps/AMG/test/amg third_party/apps/NPB-mpich/bin tracer/bin replay/bin $REMOTE:$DIR/
 rsync -a --relative study/apps/Nekbone $REMOTE:$DIR/      # sources: nekbone/run.sh build runs inside the container
@@ -346,7 +355,8 @@ that also needs `run_valid`.
 The rerun of every confirmation claim is in `experiments/results/valid/`, made in a copy of
 the tree at the commit its rows name (`git archive HEAD`, `COMMIT` written) in containers on
 12 processors of the second machine, with the inputs of the earlier campaigns mounted
-read-only:
+read-only, by the commands below; `experiments/valid/run.sh` runs the same on the paths of an
+artifact checkout (`artifact/reproduce.sh rq6`):
 
 ```bash
 J="export PYTHONPATH=/w/analysis OMPI_MCA_rmaps_base_oversubscribe=1 OMPI_MCA_hwloc_base_binding_policy=none"
@@ -516,6 +526,14 @@ realisable from 256 bytes, and 48 of the multi-level runs (all of them `ex45`) h
 realisable at every threshold. There is no PETSc build with the fixed HYPRE, so the NINJA control
 of the fix was made on the HYPRE driver only.
 
+Rerunning both campaigns in full, as `artifact/reproduce.sh rq6` does (`NEWBUG=0` skips them),
+takes about eight hours at `JOBS=2`, an estimate from the run times the tables record and their
+run counts: about 2 hours for the traced runs and replays of `ex5`, 1 for its fixed variant, 1
+for the untraced runs and NINJA on both, 2.5 for PETSc's ParaSails step with its three drivers,
+0.5 for its untraced runs and NINJA, and 1 for the full scan (its rerun of 22 Oct, next to other
+campaigns; each `ex45` analysis at 8 processes takes about three minutes). The builds take 1.3 GB
+of disk (each HYPRE tree 0.2 GB, PETSc with its HYPRE 0.8 GB); traces are removed once analysed.
+
 ### PETSc 3.26.0's own wildcard sites: every alternative within one exchange
 
 `experiments/petsc/run.sh predict` drives PETSc's own `MPI_ANY_SOURCE` sites with nine drivers
@@ -674,3 +692,11 @@ operating-system sets. Nothing runs during an announced timed benchmark leg.
   line. A replay under the tracer (`run_checked`, since 22 Oct) also counts a pin as taken
   when its own trace shows the pinned receive completed from the pinned source
   (`trace_matches`).
+- ld.so ignores an `LD_PRELOAD` library it cannot open ("cannot be preloaded ... ignored") and
+  the program runs unperturbed, which a stress or replay row would record as a plain run. The
+  replay library therefore prints `[stretto-pin] rank 0: loaded (replay library)` at
+  `MPI_Init` (the tracer does too when it applies pins or delays), and every driver that
+  preloads it checks that the file exists before the run and that the line is in the run's
+  output after it (`stretto.confirm.run_pinned`, `experiments/harness.sh`); without the line
+  the step stops with a harness error. NINJA's library prints no such line:
+  `experiments/ninja/run.py` has to check it by other means.

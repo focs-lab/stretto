@@ -48,7 +48,8 @@ D="${HYPRE3_DIR:-$R/third_party/apps/hypre3}"
 OUT="$R/experiments/results/hypre3"; mkdir -p "$OUT"
 RUNS="${RUNS:-10}"; STRESS_RUNS="${STRESS_RUNS:-40}"; TIMEOUT="${TIMEOUT:-30}"
 PINLIB="$R/replay/bin/openmpi/libstretto-pin.so"
-export STRETTO_COMMIT="${STRETTO_COMMIT:-$(cat "$R/COMMIT" 2>/dev/null || git -C "$R" rev-parse --short HEAD 2>/dev/null || echo unknown)}"
+source "$R/experiments/harness.sh"
+export STRETTO_COMMIT="${STRETTO_COMMIT:-$(python3 "$R/experiments/provenance.py")}"
 V=3.2.0
 SHA=5273205a310fb6aa3ae506ce216760fb67b30e02024874f3cdb8b811e4801de7
 case "${VARIANT:-release}" in
@@ -95,6 +96,7 @@ step_predict() {
         --jobs "${JOBS:-1}" --out "$OUT/predict$SUF.csv"
 }
 step_stress() {
+    need_file "$PINLIB" || return 1
     echo "version,np,levels,run,setting,result,seconds,residual,commit" > "$OUT/stress$SUF.csv"
     local w; w=$(mktemp -d)
     for levels in 2 1; do
@@ -110,7 +112,8 @@ step_stress() {
                     t0=$SECONDS
                     (cd "$w" && /usr/bin/timeout -k 5 "$TIMEOUT" mpirun.openmpi --oversubscribe -np $np "${env[@]}" "$DRIVER" \
                          -solver 8 -sai_levels $levels -n 33 < /dev/null > "$w/out" 2>&1)
-                    rc=$?; r=FINISHED; [ $rc = 0 ] || { [ $rc = 124 ] && r=TIMEOUT || r="rc=$rc"; }
+                    r=$(run_result $? $((SECONDS - t0)) "$TIMEOUT")
+                    [ $setting = plain ] || preload_ok "$w/out" || { harness_error "$PINLIB did not load (np $np, run $i)"; return 1; }
                     res=$(sed -n 's/.*Final Relative Residual Norm = *\([^ ]*\).*/\1/p' "$w/out" | head -1)
                     echo "$V$SUF,$np,$levels,$i,$setting,$r,$((SECONDS - t0)),$res,$STRETTO_COMMIT" | tee -a "$OUT/stress$SUF.csv"
                 done

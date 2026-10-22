@@ -26,6 +26,14 @@ def main() -> int:
         for fd in doc["findings"] if isinstance(doc, dict) else doc:   # older files hold the list only
             counts[(corpus, fd["level"], fd["cls"])] += 1
             programs[(corpus, fd["level"], fd["cls"])].add(f)
+    # the reports counted carry the commit of the analysis that wrote them (JSON schema 2); older
+    # ones have none
+    made = collections.Counter()
+    for f in glob.glob(os.path.join(ROOT, "experiments", "results", "*", "*", "report.json")):
+        with open(f) as fh:
+            doc = json.load(fh)
+        made[doc.get("analysis_commit", "unrecorded") if isinstance(doc, dict) else "unrecorded"] += 1
+    print("Reports by analysis commit: " + ", ".join(f"{k} ({v})" for k, v in made.most_common()) + ".\n")
     print("| corpus | level | class | findings | programs |\n|---|---|---|---|---|")
     for k in sorted(counts):
         print(f"| {k[0]} | {k[1]} | {k[2]} | {counts[k]} | {len(programs[k])} |")

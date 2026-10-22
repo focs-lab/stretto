@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Re-run the analysis on the traces a harness run left behind and refresh the Stretto
 columns of its table (classes, findings, notes, report files). Run results, replay
-confirmations and MUST verdicts are kept; the commit column then names the run's commit
-and the analysis's. Use after a change to the analysis that does not
+confirmations and MUST verdicts are kept; the commit column keeps naming the run's commit,
+and analysis_commit names the analysis's. Use after a change to the analysis that does not
 need new runs.   usage: reanalyze.py [--sp-max-events N] [--max-states N] [--work DIR] [--reads DIR [--out CSV]] <corpus>.csv
 The caps default to run_mbi.py's, so a re-analysis sees what a run would have seen.
 --reads DIR analyses each program with its first-read map DIR/<name>.json (reads_maps.py,
@@ -26,6 +26,7 @@ ap = argparse.ArgumentParser()
 ap.add_argument("csv"); ap.add_argument("--sp-max-events", type=int, default=600); ap.add_argument("--max-states", type=int, default=30000)
 ap.add_argument("--work", default=None, help="the programs' directories, when the run kept them elsewhere (run_mbi.py --work)")
 ap.add_argument("--reads", default=None, help="directory of first-read maps, one per program (reads_maps.py)")
+ap.add_argument("--reads-unchecked", action="store_true", help="accept maps without checking them against the traced programs (stretto.reads.check_sources)")
 ap.add_argument("--out", default=None, help="with --reads: the table to write (default: reads.csv in the maps' directory)")
 args = ap.parse_args()
 path = args.csv
@@ -41,6 +42,8 @@ if "l1_alternatives" not in keys:
     keys.insert(keys.index("classes"), "l1_alternatives")
 if args.reads and "reads" not in keys:
     keys.append("reads")
+if "analysis_commit" not in keys:
+    keys.append("analysis_commit")
 changed = 0
 for r in rows:
     out = os.path.join(base, r["name"])
@@ -54,7 +57,7 @@ for r in rows:
     bounds = None
     if args.reads:
         mp = os.path.join(args.reads, r["name"] + ".json")
-        bounds = SiteMap.load(mp, addr2line_resolver(out)) if os.path.exists(mp) else None
+        bounds = SiteMap.load(mp, addr2line_resolver(out), t=t, objdir=out, unchecked=args.reads_unchecked) if os.path.exists(mp) else None
         r["reads"] = "map" if bounds is not None else "none"
     rep = report.analyze(t, with_sp=True, sp_max_events=args.sp_max_events, max_states=args.max_states, reads=bounds)
     classes = " ".join(rep.classes())
@@ -69,8 +72,9 @@ for r in rows:
     r["levels"] = levels
     r["l1_alternatives"] = sum(1 for f in rep.findings if f.level == "L1" and f.family == "1")
     r["notes"] = "; ".join(rep.notes)[:300]
-    if "commit" in r and r["commit"] and "analysis" not in r["commit"]:
-        r["commit"] = f"{r['commit']} (analysis {code_commit()})"   # the run's commit, then the analysis's
+    # the run's commit stays (rows of older re-analyses wrote "<run> (analysis <commit>)" there);
+    # the analysis's goes to analysis_commit, the latest re-analysis's
+    r["analysis_commit"] = code_commit() if code_commit() != r.get("commit") else ""
     with open(os.path.join(out, f"report{suffix}.txt"), "w") as fh:
         fh.write(report.format_report(t, rep, show_infeasible=True))
     with open(os.path.join(out, f"report{suffix}.json"), "w") as fh:

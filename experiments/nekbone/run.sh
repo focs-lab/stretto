@@ -28,21 +28,31 @@ step_trace() {
     [ -x "$EXE" ] || { echo "$EXE missing: $0 build" >&2; return 1; }
     need_lib "$TRACER" tracer
     rm -rf "$D/trace8"; mkdir -p "$D/trace8"
+    local s0=$SECONDS rc res
     (cd "$CASE" && TIMEOUT=600 mpi_run 8 "STRETTO_TRACE_DIR=$R/$D/trace8" "LD_PRELOAD=$TRACER" "OMP_NUM_THREADS=1" -- ./nekbone data > "$R/$D/run8.log" 2>&1)
-    echo "traced run: $(classify_rc $? "$D/run8.log"), $(cat "$D"/trace8/rank-*.jsonl | wc -l) records"
+    rc=$?
+    res=$(TIMEOUT=600 MPI_RUN_SECONDS=$((SECONDS - s0)) classify_rc $rc "$D/run8.log")
+    echo "traced run: $res, $(cat "$D"/trace8/rank-*.jsonl 2>/dev/null | wc -l) records"
+    # a traced run that did not finish is no trace of Nekbone's run: the steps after it would analyse a fragment
+    [ "$res" = FINISHED ] || { echo "HARNESS-ERROR: the traced run ended $res (log: $D/run8.log)" >&2; return 1; }
 }
 step_analyse() {
     /usr/bin/time -f 'analysis %e s, %M KB' python3 -m stretto analyze --no-sp --verbose "$D/trace8" > "$D/report8.txt" 2> "$D/analyze8.err"
+    # 0 or 1 (an error class found) is an analysis; 2 and 3 are failures, and summary8.txt, which is
+    # committed, is not written from them
+    local rc=$?
+    [ $rc -le 1 ] || { echo "HARNESS-ERROR: the analysis exited with status $rc (log: $D/analyze8.err)" >&2; return 1; }
     step_summary
 }
 step_summary() {
     # summary8.txt is what docs/results.md reads and what is committed
-    { head -1 "$D/report8.txt"
+    { grep -m1 '^trace:' "$D/report8.txt"
       echo "findings by class: $(grep -o '^\[ *[0-9a-z-]* *\]' "$D/report8.txt" | tr -d '[] ' | sort | uniq -c | awk '{printf "%s %s, ", $2, $1}' | sed 's/, $//')"
       echo "rejected alternatives: $(grep -c "^  x " "$D/report8.txt")"
       echo "rejected by reason: $(grep "^  x " "$D/report8.txt" | sed 's/.*: //' | sort | uniq -c | awk '{n=$1; $1=""; printf "%s%s %s", s, substr($0, 2), n; s="; "}')"
       echo "records: $(cat "$D"/trace8/rank-*.jsonl | wc -l)"
       echo "host: $(hostname), one process; $(tail -1 "$D/analyze8.err")"
+      echo "analysis commit: ${STRETTO_COMMIT:-$(python3 experiments/provenance.py)}"
     } > "$D/summary8.txt"
     cat "$D/summary8.txt"
 }
@@ -58,5 +68,5 @@ for step in "${@:-all}"; do
         sample) step_sample;;
         all) step_build && step_trace && step_analyse && step_sample;;
         *) echo "usage: $0 [build|trace|analyse|summary|sample|all]" >&2; exit 2;;
-    esac
+    esac || exit 1
 done

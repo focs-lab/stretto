@@ -14,6 +14,8 @@ out="$(mktemp)"; err="$(mktemp)"
 echo "== replay $(basename "$dir") with STRETTO_PIN=$pin (timeout ${TIMEOUT}s)"
 mpi_run "$np" "STRETTO_PIN=$pin" "LD_PRELOAD=$PINLIB" -- "${margs[@]}" "$dir/bin/$MPI/main" "$@" > "$out" 2> "$err"
 rc=$?
+# the replay library announces itself: without that line ld.so ignored it and the run was a plain one
+grep -q '^\[stretto-pin\] rank 0: loaded' "$err" || { echo "   HARNESS-ERROR: $PINLIB did not load"; cat "$err"; rm -f "$out" "$err"; exit 1; }
 head -5 "$out"
 grep '^\[stretto-pin\]' "$err"        # which pins were applied, matched, or left unused
 res="$(classify_rc $rc "$err")"

@@ -268,7 +268,7 @@ typedef struct { const void *buf; long count; MPI_Datatype dt; int write, p2p; }
 typedef struct { uintptr_t lo, hi, base; uint64_t sum; int req; unsigned char write, p2p, prot, flags; } gspan;   /* flags: 1 access recorded, 2 overlap */
 typedef struct { uintptr_t lo, hi; int prot; } grun;
 typedef struct { int what, req, kind, with; long off; uintptr_t pc; const char *call; int ready; } gnote;
-typedef struct { void *ra; } gctx;
+typedef struct { void *ra; int outer; } gctx;    /* outer: the program's own call, not one MPI makes inside it */
 enum { G_ACCESS, G_MODIFIED, G_OVERLAP };
 
 static int g_guard = 0, g_guard_asked = 0;
@@ -283,6 +283,7 @@ GTLS(int, t_gdepth);                            /* MPI calls of this thread in p
 GTLS(int, t_gcaller);                           /* this thread calls MPI: its faults are recorded */
 GTLS(int, t_gwriting);                          /* this thread is updating the tables */
 GTLS(uintptr_t, t_stack_lo); GTLS(uintptr_t, t_stack_hi);
+GTLS(void *, t_call_ra);                        /* the return address of the program's MPI call in progress */
 #ifndef STRETTO_PIN_ONLY
 static struct { uintptr_t lo, hi; } g_libtext[GUARD_LIBS]; static int g_nlibtext;
 static struct sigaction g_prev_segv;            /* the handler faults that are not the guard's go to */
@@ -595,7 +596,8 @@ static void guard_close(void) {
 
 /* ---- the wrappers' bracket: GUARD is the first statement of every wrapper */
 static inline gctx guard_enter(void *ra) {
-    gctx g = {ra};
+    gctx g = {ra, t_call_ra == NULL};
+    if (g.outer) t_call_ra = ra;                 /* the call site a pin checks (replay/pin.c) */
     if (g_guard && t_gdepth++ == 0) {
         if (!t_gcaller) guard_thread();
         guard_open();
@@ -604,7 +606,7 @@ static inline gctx guard_enter(void *ra) {
     return g;
 }
 static inline void guard_leave(gctx *g) {
-    (void)g;
+    if (g->outer) t_call_ra = NULL;
     if (g_guard && t_gdepth > 0 && --t_gdepth == 0) { guard_flush(); guard_close(); }
 }
 #define GUARD __attribute__((cleanup(guard_leave))) gctx _g = guard_enter(__builtin_return_address(0)); (void)_g
@@ -1037,6 +1039,11 @@ static int comm_id(MPI_Comm c) {
     if (id >= 0) return id;
     return comm_register("unknown", MPI_COMM_WORLD, c);   /* created through an unwrapped call */
 }
+/* For replay/pin.c, which checks that a pinned operation is the one the trace recorded: the
+   communicator's local id (its creation ordinal on this rank, the "comm" field of the records)
+   and the return address of the program's MPI call in progress (what a "site" record names). */
+__attribute__((visibility("hidden"))) int stretto_comm_ordinal(MPI_Comm c) { return comm_id(c); }
+__attribute__((visibility("hidden"))) void *stretto_call_site(void) { return t_call_ra; }
 
 /* ---------------------------------------------------------- request table
    Pending requests can share a handle: for a send that completed at once the library may

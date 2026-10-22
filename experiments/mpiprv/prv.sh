@@ -18,6 +18,9 @@ CPUS="${CPUS:-0-$(($(nproc) - 1))}"
 MEMORY="${MEMORY:-16g}"
 NAME="${NAME:-stretto-prv}"
 read -r -a extra <<< "${DOCKER_ARGS---cap-add SYS_PTRACE}"
+# the commit the rows record, found on the host (experiments/provenance.py), where git and the
+# repository's owner are: inside the image the command runs as root
+export STRETTO_COMMIT="${STRETTO_COMMIT:-$(python3 experiments/provenance.py)}"
 exec docker run ${extra[@]+"${extra[@]}"} --rm --name "$NAME" --hostname "${MACHINE:-$(hostname)}" --ipc host \
   --cpuset-cpus "$CPUS" --memory "$MEMORY" --memory-swap "$MEMORY" \
   -e STRETTO_COMMIT -e REPS -e TWIN_REPS -e JOBS -e TIMEOUT -e MAXNP -e DELAY -v "$PWD:/w" -w /w "$PRV_IMAGE" \

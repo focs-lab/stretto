@@ -77,7 +77,7 @@ RENDEZVOUS = ["--mca", "btl", "self,tcp", "--mca", "btl_tcp_if_include", "lo", "
 sys.path.insert(0, os.path.join(ROOT, "analysis"))
 from stretto import trace as strace  # noqa: E402
 from stretto.trace import ANY  # noqa: E402
-from stretto.confirm import all_matched, classify_rc, horizon_pins, required_matches, run_pinned  # noqa: E402
+from stretto.confirm import all_matched, classify_rc, horizon_pins, need_preload, required_matches, run_pinned  # noqa: E402
 from stretto.report import analyze as s_analyze  # noqa: E402
 
 
@@ -137,9 +137,12 @@ def rendezvous_replays(d, exe, args, np_, tdir, timeout):
     threshold (2-buffering) with every wildcard receive pinned to the sender it took."""
     try:
         t = strace.load(tdir)
-    except Exception:  # noqa: BLE001
-        return ""
-    rep = s_analyze(t, with_sp=True, sp_max_events=600, max_states=30000)
+    except (OSError, ValueError, KeyError) as e:
+        return f"HARNESS-ERROR: trace not loaded ({type(e).__name__}: {e})"[:200]
+    try:
+        rep = s_analyze(t, with_sp=True, sp_max_events=600, max_states=30000)
+    except Exception as e:  # noqa: BLE001  (recorded as CRASH, never as "nothing to replay")
+        return f"CRASH: {type(e).__name__}: {e}"[:200]
     res = set()
     for f in rep.findings:
         if f.cls not in ERROR_CLASSES or not (f.B == "B=0" or f.B.startswith("B <")):
@@ -182,6 +185,7 @@ def main():
     ap.add_argument("--timeout", type=int, default=int(os.environ.get("TIMEOUT") or 1800))
     ap.add_argument("--replay-timeout", type=int, default=120)
     args = ap.parse_args()
+    need_preload(TRACER)                     # ld.so would ignore a missing tracer, and the runs leave no trace
     os.makedirs(WORK, exist_ok=True)
     rows, reps = [], []
     for app, sub, exe, cfgs in APPS:
