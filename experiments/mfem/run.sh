@@ -74,8 +74,11 @@ step_predict() {
     rm -f "$OUT/predict.csv"
     while IFS='|' read -r name nps cmd; do
         read -r -a a <<< "$cmd"
+        # Open MPI's shared-memory BTL prints a "Read -1 ... errno" line per refused single-copy
+        # transfer in the container; it is not program output and differs run to run
         python3 experiments/scout.py --code mfem --version "$V" --driver "$name" --np $nps --runs "$RUNS" \
-            --jobs "${JOBS:-1}" --timeout 120 --out "$OUT/predict.csv" -- "$M/examples/${a[0]}" "${a[@]:1}" || return 1
+            --jobs "${JOBS:-1}" --timeout 120 --ignore "errno|Read -1, expected" \
+            --out "$OUT/predict.csv" -- "$M/examples/${a[0]}" "${a[@]:1}" || return 1
     done <<< "$DRIVERS"
 }
 for step in "${@:-all}"; do
