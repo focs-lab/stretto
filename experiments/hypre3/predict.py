@@ -53,7 +53,7 @@ from provenance import code_commit  # noqa: E402
 
 TRACER = os.path.join(ROOT, "tracer", "bin", "openmpi", "libstretto-trace.so")
 RESIDUAL = re.compile(r"Final Relative Residual Norm = (\S+)")
-REQUEST_TAG = 221   # ROW_PRUNED_REQ_TAG
+REQUEST_TAGS = (221, 227)   # ROW_PRUNED_REQ_TAG; the fixed variant's tag of even levels (run.sh)
 
 
 def residual(out: str) -> str:
@@ -82,7 +82,7 @@ def classify(t, rep):
         if f.probe is None or f.send is None:
             continue
         p, s = t.probes[f.probe], t.sends[f.send]
-        if s.tag != REQUEST_TAG:
+        if s.tag not in REQUEST_TAGS:
             yield f, "other", s.tag
             continue
         seen = t.sends[p.seen]
