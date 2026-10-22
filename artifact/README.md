@@ -66,6 +66,13 @@ used the image `ceb926607397` built on 7 Sep 2026.
 | RQ5, cost | tracing overhead on NPB, analysis times of lu.A, AMG and Nekbone; from 16 to 64 processes every traced run of HYPRE, AMG and NPB LU and every analysis finishes, and every sampled replay and its control match their pins and finish | `rq5` | 8.5 h: 1.5 h for the timed leg (on an idle machine) and Nekbone, 7 h for the runs from 16 to 64 processes |
 | RQ6, real applications (table "HYPRE, ParaSails") | every cross alternative of HYPRE 2.10.1 hangs when replayed and every control finishes; the fix has none; stress testing never hangs; every cross alternative of deal.II 9.3.0-rc1 prints wrong values when replayed and 9.3.0 has none; NINJA hangs HYPRE 2.10.1 in some runs and the fix in none (NPB MG and NINJA's replica are rerun too) | `rq6` | 15 h |
 
+Since 22 Oct 2026 the replays and controls of `rq1` and `rq6` run under the tracer, and each
+row says whether the run's own trace is one of the program without the pins. The claims that the
+replays behind the results are such runs (E8c in `docs/results.md`, under RQ1 and RQ6 in
+`claims.py`) come from the committed reruns in `experiments/results/valid/`, which `tables`
+checks; the commands that made them are in `experiments/RUNBOOK.md` ("Replays as runs of the
+program", about eight hours on 12 cores).
+
 Each target reruns what its question needs, regenerates the tables and prints the claims of
 that question. RQ1 to RQ4 share one traced and analysed run of the corpora, AMG and Nekbone
 run once for RQ1, RQ5 and RQ6: a marker in `artifact/out/` (`corpora.done`, `amg.done`,

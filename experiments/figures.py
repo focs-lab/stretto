@@ -187,6 +187,14 @@ number of alternatives times the length of the trace. HYPRE's analysis grows fro
 {t('ScaleHypreSixteenTime')} to {t('ScaleHypreSixtyFourTime')} s; LU's, with no wildcards, {t('ScaleLuTimeRatio')}-fold with its {t('ScaleLuRecordsRatio')}-fold trace. All
 {t('nScaleSample')} sampled replays matched their pins and finished, and so did every control.
 """
+    valid = ""
+    if v("nValidReplays"):
+        valid = f"""
+A pin makes a wildcard receive a receive from one rank, which is another program, so the
+replays behind these results (every MBI replay, samples of the application campaigns) were run
+again under the tracer and each one's own trace judged as a run of the program without the
+pins: {t('nValidRuns')} of {t('nValidReplays')} are, and {t('nValidConfNew')} of the {t('nValidConfOld')} confirmations among them
+stand when a confirmation needs that too."""
     block = f"""<!-- results:begin -->
 <!-- Written by experiments/tables.py from experiments/results/; do not edit by hand. -->
 
@@ -236,7 +244,7 @@ PPoPP 2017); HYPRE's changelog for 2.11.0 places the fix in ParaSails.{ninja}
 {t('nEsixPairs')} judged alternatives are unsound. Replays on MBI: {t('nMBIReplayConfirmed')}
 confirmed, {t('nMBIReplayInconclusive')} inconclusive (the control itself hung),
 {t('nMBIReplayNotConfirmed')} contradicted. Random samples of {t('nAMGsample')} alternatives on AMG
-and on Nekbone: every replay matched its pins and finished, and so did every control.
+and on Nekbone: every replay matched its pins and finished, and so did every control.{valid}
 
 **Cost.** Tracing slows NPB by {t('TraceOverhead')}× (its own timers). Analysis: lu.A on 16
 processes ({t('LuEvents')} M events) in {t('LuAnalysis')} s, AMG in {t('AMGtime')} s, Nekbone

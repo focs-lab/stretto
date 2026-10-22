@@ -48,6 +48,9 @@ says about the runs it did not see.
 5. **Consequence and replay.** Each accepted alternative is classified, and confirmed by a
    rerun that pins every wildcard receive of its horizon (`replay/`), with a control rerun that
    pins the observed matches; a confirmation needs every pin matched and the control to finish.
+   A pin turns a wildcard receive into a receive from one rank, which is another program, so
+   the rerun runs under the tracer, and its own trace must also be a run of the program without
+   the pins, up to where it ended.
 
 The theory (soundness, monotonicity in the buffering limit, completeness relative to the
 horizon, cost) is in [`docs/model.md`](docs/model.md) and in the paper under
@@ -138,6 +141,11 @@ plain runs.
 confirmed, 31 inconclusive (the control itself hung),
 0 contradicted. Random samples of 30 alternatives on AMG
 and on Nekbone: every replay matched its pins and finished, and so did every control.
+A pin makes a wildcard receive a receive from one rank, which is another program, so the
+replays behind these results (every MBI replay, samples of the application campaigns) were run
+again under the tracer and each one's own trace judged as a run of the program without the
+pins: 373 of 373 are, and 289 of the 289 confirmations among them
+stand when a confirmation needs that too.
 
 **Cost.** Tracing slows NPB by 1.01–1.17× (its own timers). Analysis: lu.A on 16
 processes (3.05 M events) in 55 s, AMG in 15.5 s, Nekbone

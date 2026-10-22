@@ -28,7 +28,7 @@ NUMBERS = os.path.join(ROOT, "paper", "generated", "numbers.tex")
 
 # which research question a macro belongs to, by name; the first match wins
 RQ_OF = [
-    (1, r"^nEsix|^nMBIReplay|^nAMGsample|^nNeksample|^nPin|^nReadsEsix|^nReadsReplay"),
+    (1, r"^nEsix|^nMBIReplay|^nAMGsample|^nNeksample|^nPin|^nReadsEsix|^nReadsReplay|^nValid"),
     (4, r"^nReads"),
     (6, r"^n?Ninja(Hypre|Replica|MG)"),
     (2, r"^n?NinjaMBI|^nMBIMUST|^nTsanLC|^(MBI|MBB)fone|^n(MBI|MBB)(tp|fn|fp|progs|notBuilt|correct|errors|race|Stress|Clean|OnlyStretto|LC)|^n?Guard|^n?Reps"
@@ -47,7 +47,8 @@ FIXED = re.compile(r"^n(MBI|MBB)(progs|notBuilt|correct|errors|race)$|^B[a-z]+OM
                    r"|^nNinja(Hypre|Replica|MG)[A-Za-z]*Runs$|^nNinjaMBIerrors$|^nTsanLC$"
                    r"|^nScale(Traces|Sample|NpMin|NpMax)$"
                    r"|^nPRV(rqOne(Rounds|Props)|rqTwo(Configs|Absent|Matched)|adeptTraces|adept(Orig|Fixed)Runs"
-                   r"|adept[A-Za-z]*(Pairs|Delayed)|probe[A-Za-z]*Runs|corpus|inScope|outScope|twins|apps|appConfigs)$")
+                   r"|adept[A-Za-z]*(Pairs|Delayed)|probe[A-Za-z]*Runs|corpus|inScope|outScope|twins|apps|appConfigs)$"
+                   r"|^nValid(MBI|Reads|MG|Deal|Hypre|AMG|Nek)Replays$|^nValid(MBI|Reads)Committed$|^nValid(MG|Deal|Hypre)Traced$")
 
 
 def load(path: str) -> dict:
@@ -94,6 +95,18 @@ def claims(n: dict) -> list:
               lambda s, m, f, c: s > 0 and s == m == f == c)
     claim(1, "every application replay or control that hung or finished matched its pins",
           ["nPinRuns", "nPinUnmatchedEnded"], lambda r, e: r > 0 and e == 0)
+    claim(1, "every replay behind a confirmation claim, run again under the tracer, is a run of the program without its pins",
+          ["nValidReplays", "nValidRuns"], lambda r, v: r > 0 and r == v)
+    claim(1, "every control of those replays is a run of the program without its pins",
+          ["nValidControls", "nValidControlRuns"], lambda c, v: c > 0 and c == v)
+    claim(1, "no confirmation of those replays rests on the pins alone: the old and the strict rule confirm the same",
+          ["nValidConfOld", "nValidConfNew"], lambda o, n: o > 0 and o == n)
+    claim(1, "every MBI replay run again for E1 and E3b has the finding and pins of a committed replay",
+          ["nValidMBIReplays", "nValidMBISamePins", "nValidReadsReplays", "nValidReadsSamePins"],
+          lambda a, b, c, d: a > 0 and a == b and c > 0 and c == d)
+    for app in ("AMG", "Nek"):
+        claim(1, f"{app} sample, run again: every replay matched its pins and finished in a run of the program, so did every control",
+              [f"nValid{app}Replays", f"nValid{app}ConfNew"], lambda r, c: r > 0 and r == c)
     claim(1, "with read bounds, no accepted alternative is unsound against the exhaustive explorer",
           ["nReadsEsixPairs", "nReadsEsixUnsound"], lambda p, u: p > 0 and u == 0)
     claim(1, "with read bounds, the explorer confirms every contained deadlock the check reports",
@@ -215,6 +228,12 @@ def claims(n: dict) -> list:
           ["nNinjaHypreHang", "nNinjaHypreFixedRuns", "nNinjaHypreFixedHang"], lambda h, r, f: h > 0 and r > 0 and f == 0)
     claim(6, "deal.II 9.3.0, the fix: no trace has a cross alternative", ["nDealFixedTraced", "nDealFixedAlts"],
           lambda t, a: t > 0 and a == 0)
+    claim(6, "HYPRE 2.10.1, a sample run again: every cross alternative hangs in a run of the program, every control finishes",
+          ["nValidHypreReplays", "nValidHypreConfNew", "nValidHypreHungRuns"], lambda r, c, h: r > 0 and r == c == h)
+    claim(6, "NPB MG 2.4.1, a sample run again: every replay finishes in a run of the program",
+          ["nValidMGReplays", "nValidMGRuns"], lambda r, v: r > 0 and r == v)
+    claim(6, "deal.II 9.3.0-rc1, a sample run again: every cross alternative prints wrong values in a run of the program",
+          ["nValidDealReplays", "nValidDealConfNew"], lambda r, c: r > 0 and r == c)
     return out
 
 

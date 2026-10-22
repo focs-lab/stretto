@@ -438,6 +438,8 @@ def evidence(row: dict) -> str:
     if row["changed_matched"] == "True":
         if row["unpinned"].startswith("trace unreadable"):
             return "realised, replay trace unreadable"
+        if row["unpinned"].startswith("undetermined"):
+            return "realised, replay trace undetermined"
         if row["unpinned"] != "none":
             return "pins only"
         if row["replay"] != "FINISHED":
@@ -473,7 +475,7 @@ def run_one(src: Source, np: int, row: dict, prepared, timeout: int) -> dict:
                            extra_env={**src.env, **LAUNCH_ENV, "STRETTO_TRACE_DIR": d})
             res = classify_rc(r.returncode, r.stderr, r.elapsed, timeout)
             try:
-                unp = unpinned_violation(trace.load(d), finished=res == "FINISHED") or "none"
+                unp = unpinned_violation(trace.load(d), finished=res == "FINISHED", hung=res == "TIMEOUT", pins=pins) or "none"
             except Exception as e:  # noqa: BLE001
                 unp = f"trace unreadable: {e}"[:120]
             return r, res, unp
