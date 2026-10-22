@@ -108,12 +108,8 @@ call's function, or an MPI call to which a pointer to the object is passed: the 
 local whose address never leaves its function (rule 1), so no other code holds a pointer to
 it, and every pointer to it in its function is derived from the `alloca` by the operations the
 analysis follows. Recursive calls create new objects; their accesses are flagged too, which
-only adds reads. So if π contained a read, s would be tainted, and it is free.
-
-Premises: the map comes from the sources the traced binary was built from; the program does not
-access an object through a pointer to another one (undefined behaviour in C), including
-receiving more data into a local than it holds; signal handlers and other threads do not read
-the result objects (they cannot reach them by rule 1); nothing but the C runtime calls `main`.
+only adds reads. So if π contained a read, s would be tainted, and it is free. The argument
+rests on the premises listed below.
 
 ## Bounds on a trace
 
@@ -138,10 +134,49 @@ trace keeps that bound, since a later test of its request could deliver its resu
 
 If every record from k + 1 to j is certified, the program issued them before reading any result
 of r: the site each of them really came from is among its candidates, hence free, and the claim
-above applies to it. One more premise: the traced binary's line table and clang's agree on the
-line of each MPI call (both compile with `-O0 -g`). A call whose line differs finds no
-candidate and ends the window, unless another MPI call of the same kind sits on the line it
-was given.
+above applies to it.
+
+## Premises
+
+The bounds are sound for a program and a trace under these premises; the first is checked,
+the others are not, and a map made where one fails can certify a record issued after a read.
+
+1. **The same sources.** The map is made from the sources the traced binary was built from.
+   `stretto analyze --reads` checks it: the map records the SHA-256 of each source, and a
+   source the trace's call sites name must hash the same (above).
+2. **The same preprocessor flags.** The map is made with the macros and include paths of the
+   traced build (`--cflags`, and `--mpi` for the MPI implementation's headers): `#ifdef`,
+   macros and headers decide which code the same source compiles to, and the hash of the
+   source does not see them. The MBI programs are built with `mpicc -O0 -g` and nothing more,
+   which is what `experiments/mbi/reads_maps.py` gives clang.
+3. **No undefined behaviour.** The program accesses no object through a pointer to another
+   one (an out-of-bounds index, receiving more data into a local than it holds, pointer
+   arithmetic across objects), and no signal handler or other thread reaches the result
+   objects (rule 1 makes them unreachable to any code that has no undefined behaviour). The
+   analysis reads the IR of the C semantics; an execution with undefined behaviour need not
+   follow it.
+4. **The same line table.** The traced binary's line table and clang's agree on the line of
+   each MPI call (both compile with `-O0 -g`). A call whose line differs finds no candidate and
+   ends the window, unless another MPI call of the same kind sits on the line it was given: then
+   it takes that call's bounds.
+5. **Every unit, or the callback rule.** Code outside the analysed units enters them only
+   through functions whose address the units take or that have external linkage (rule 3): a
+   `static` function can be reached from another unit only through its address, which its own
+   unit then takes. This holds whether or not every unit of the program was given, so the map
+   needs no list of the program's units. What remains is a premise: nothing calls `main` but
+   the C runtime, once (C allows a program to call `main`; one that does breaks the premise).
+6. **C only.** The map covers the C units. A Fortran call site is not a site of the map: its
+   record has no candidate and ends the window. A C helper called from Fortran is covered by
+   rule 3 like any outside caller.
+7. **No merged calls.** An optimised binary may merge two MPI calls into one instruction, or
+   give a call another call's line (tail merging, identical-code folding, inlining). A record of
+   the merged call is then matched by one line while it may stand for the other call. The
+   binaries must be built without optimisation (`-O0`, as the MBI and idiom builds are), or with
+   flags that keep each call on its own line.
+8. **The MPI calls the table knows.** MPI reads an object of the program only in a call that
+   is given a pointer to it, until that call's request completes, or later through a call
+   that `firstread/mpi.py` lists as keeping the pointer (rule 1). An extension, or a call of a
+   later standard, that keeps a pointer and is missing from that list breaks this.
 
 ## Rule H1' in the horizon
 
