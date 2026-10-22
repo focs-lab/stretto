@@ -580,6 +580,53 @@ class C_CancelAndMprobe(unittest.TestCase):
         self.assertEqual(candidates_full(t)[0], [])
 
 
+class C_Cancellation(unittest.TestCase):
+    """The model has no cancel: a run in which a cancel succeeded, or whose outcome the trace
+    does not have, is reported with observed findings only (audit of 22 Oct 2026)."""
+
+    @staticmethod
+    def witness(outcome):
+        # rank 1 posts s_c and s with one envelope, receives y, and only then cancels s_c. The
+        # steal r <- s is infeasible: r accepts s_c, which precedes s and is still pending when
+        # r matches (the cancel needs y, and y needs r). The fast and generic checks skip the
+        # cancelled send as if it had never been posted, so they accept the steal.
+        done = {"req": 0} if outcome is None else {"req": 0, "cancelled": outcome}
+        r1 = [send(0, 0, mode="isend", req=0), send(0, 0, mode="isend", req=1), recv(0, 9, 0, 9),
+              {"op": "cancel", "req": 0}]
+        r1 += [{"op": "wait", "kind": "wait", "reqs": [0], "done": [done]}, wait((1, None, None))] if outcome is not None else [wait((1, None, None))]
+        r0 = [recv(T.ANY, T.ANY, 2, 7, widx=0), send(1, 9)] + ([recv(1, 0, 1, 0)] if outcome == 0 else []) + [recv(1, 0, 1, 0)]
+        return mk({0: r0, 1: r1, 2: [send(0, 7)]})
+
+    def test_successful_cancel_gives_observed_findings_only(self):
+        t = self.witness(1)
+        self.assertEqual(t.unmodelled, [(1, "Cancel (succeeded)")])
+        alt = next(a for a in candidates_full(t)[0] if a.recv == (0, 0) and a.send == (1, 1))
+        self.assertTrue(check(t, alt.M, alt.changed, None, "L1").feasible, "the model accepts what MPI cannot do")
+        rep = analyze(t, with_sp=False)
+        self.assertEqual([f for f in rep.findings if f.level != "observed"], [])
+        self.assertTrue(any("Cancel (succeeded)" in n and "observed findings only" in n for n in rep.notes), rep.notes)
+
+    def test_cancel_without_a_recorded_outcome(self):
+        t = self.witness(None)
+        self.assertEqual(t.unmodelled, [(1, "Cancel (outcome not recorded)")])
+
+    def test_failed_cancel_changes_nothing(self):
+        t = self.witness(0)
+        self.assertEqual(t.unmodelled, [])
+        self.assertFalse(t.sends[(1, 0)].cancelled)
+        self.assertTrue([f for f in analyze(t, with_sp=False).findings if f.level == "L1"])
+
+    def test_successful_cancel_of_a_receive(self):
+        # rank 0 cancels a pending Irecv(ANY, 5) that rank 2's message would have reached
+        t = mk({0: [irecv(T.ANY, 5, 0), recv(T.ANY, T.ANY, 1, 7, widx=0), {"op": "cancel", "req": 0},
+                    {"op": "wait", "kind": "wait", "reqs": [0], "done": [{"req": 0, "msrc": None, "mtag": None, "mcount": None, "cancelled": 1}]},
+                    recv(2, 5, 2, 5)],
+                1: [send(0, 7)], 2: [send(0, 5)]})
+        self.assertTrue(t.recvs[(0, 0)].cancelled)
+        self.assertEqual(t.unmodelled, [(0, "Cancel (succeeded)")])
+        self.assertEqual([f for f in analyze(t, with_sp=False).findings if f.level != "observed"], [])
+
+
 class C_TypeSignatures(unittest.TestCase):
     def test_contiguous_equals_repeated_basic(self):
         self.assertTrue(types.compatible("MPI_INT*4", 1, "MPI_INT", 4))

@@ -557,6 +557,7 @@ def _build(t: Trace, raw_ranks: Dict[int, List[dict]]) -> None:
         nsend = nrecv = nprobe = 0
         coll_ord: Dict[int, int] = {}
         pending_req: Dict[int, object] = {}
+        cancelled_ops: List[object] = []       # the operations a cancel record names
         for rec in recs:
             raw = rec.raw
             op = rec.op
@@ -627,6 +628,8 @@ def _build(t: Trace, raw_ranks: Dict[int, List[dict]]) -> None:
                             obj.completed = False
             elif call == "cancel":
                 obj = pending_req.get(raw.get("req"))
+                if isinstance(obj, (Send, Recv)):
+                    cancelled_ops.append(obj)
                 if isinstance(obj, Send):
                     obj.cancelled = True     # provisional; the completion status (if any) decides
             elif call == "reqfree":
@@ -655,6 +658,15 @@ def _build(t: Trace, raw_ranks: Dict[int, List[dict]]) -> None:
                     c.completed = False
                     pending_req[c.req] = c
                 t.colls.append(c)
+        # the model has no cancellation: a cancel that succeeded withdrew an operation at a
+        # point no matching rule describes, and one whose outcome the trace does not have may
+        # have; a cancel that failed changed nothing (an implementation may always let it fail)
+        for obj in cancelled_ops:
+            returned = obj.complete_idx is not None      # a completion call returned the request
+            if returned and obj.cancelled:
+                t.unmodelled.append((rank, "Cancel (succeeded)"))
+            elif not returned:
+                t.unmodelled.append((rank, "Cancel (outcome not recorded)"))
     t.index()
     _reconstruct_observed(t)
     # call sites, 4 bytes per record, before the dictionaries that name them go

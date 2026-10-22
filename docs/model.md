@@ -220,9 +220,18 @@ Premises of every theorem below, stated because the proofs use them: message del
 arbitrary (any interleaving the matching rules allow is an execution); a Waitany or Waitsome
 may return any completed request; a send that does not block at B completes at once
 (unbounded buffering below the threshold); collectives synchronise by their shape and do not
-depend on B; a cancel succeeds exactly when it did in σ; and σ records every communication call
-of the run. The last premise is not yet enforced: calls outside the modelled fragment pass the
-tracer silently (audit finding C-1).
+depend on B; no cancel succeeded in σ; and σ records every communication call of the run. The
+last premise is not yet enforced: calls outside the modelled fragment pass the tracer silently
+(audit finding C-1).
+
+Cancellation is outside the model: a cancel that succeeds withdraws an operation at a point that
+no matching rule describes (a cancelled send is pending until its cancel, and a receive posted
+before then may take it). A run with a successful cancel, or with a cancel whose outcome the
+trace does not have (its request never returned), is reported with observed findings only. A
+cancel that failed changed nothing, and it fails in every alternative execution too, since an
+implementation may always let a cancel fail (MPI 4.1 §3.8.4). Before 22 Oct 2026 cancelled
+operations were simply left out of the competitors and of the channel order, which accepts
+steals that MPI cannot realise (`C_Cancellation`).
 
 **Theorem T1 (soundness of the L1 check).** Let M' be a matching, R* the receives whose match
 differs from M₀, and H the kept prefix of §3 for (M', R*, B). If `feasible.check(σ, M', R*, B,
