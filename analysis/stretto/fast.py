@@ -454,6 +454,14 @@ class Observed:
             if best_r is not None:
                 lower(rank, best, lambda r=r, rk2=best_r, best=best: f"{ix.probe_at[(rank, best)] if rk2[0] == 'probe' else t.recvs[rk2]} is deprived: {r}, posted before it and still pending, takes the message")
 
+        def deprived(Q: int, v: int) -> str:
+            """What rule 6 takes from the record at v of rank Q, a receive or a probe."""
+            p = ix.probe_at.get((Q, v))
+            if p is not None:
+                return f"{p} never reports {t.sends[p.seen]}"
+            x = ix.recv_at[(Q, v)]
+            return f"{x} never gets {t.sends[t.observed[x.key]]}"
+
         def pending_before(R: int, Q: int, i: int, y: Recv, m: Send) -> bool:
             """Rule 6 for a re-matched receive y of Q with its new message m: is a receive of Q
             posted before y that accepts m left pending by the removal of R's sends to Q from
@@ -633,7 +641,7 @@ class Observed:
                                 if j != ex and ix.sq[key][j].key in ix.recv_of0:
                                     rule6(t.recvs[ix.recv_of0[ix.sq[key][j].key]])
                         else:
-                            lower(Q, v, lambda key=key, pos=pos, Q=Q, v=v: f"{ix.recv_at[(Q, v)]} never gets {t.sends[t.observed[ix.recv_at[(Q, v)].key]]}: {t.recvs[ix.recv_of0[ix.sq[key][pos].key]]}, posted before it and still pending, takes the message")
+                            lower(Q, v, lambda key=key, pos=pos, Q=Q, v=v: f"{deprived(Q, v)}: {t.recvs[ix.recv_of0[ix.sq[key][pos].key]]}, posted before it and still pending, takes the message")
                     for y, m in new_on.get(Q, ()):
                         if y.idx < cut[Q] and pending_before(R, Q, i, y, m):
                             lower(Q, y.idx, lambda y=y, m=m: f"{y} never gets {m}: a receive posted before it that accepts the message is still pending and takes it")

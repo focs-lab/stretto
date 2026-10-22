@@ -1023,6 +1023,22 @@ class C_FastEqualsGeneric(unittest.TestCase):
         self.assertEqual(ob.probe_closure(p)[0][0], p.idx + 1)
         closure_orders_agree(self, t)
 
+    def test_hang_at_a_probe_that_rule_6_deprives(self):
+        """The observed run under the single-path assumption at B = 0: rank 1's first message
+        has no receive, so rank 1 hangs there and never sends y, rank 2's Irecv x stays pending
+        and takes what rank 2's probe saw. The fast closure records why each rank hangs, and
+        for a probe deprived by rule 6 it looked the probe up among the receives and failed
+        with a KeyError (found by C_FastEqualsGenericRandom)."""
+        pr = {"op": "probe", "kind": "probe", "src": 0, "anysrc": 1, "tag": 1, "comm": 0, "flag": 1, "msrc": 3, "mtag": 1}
+        t = mk({0: [], 1: [send(0, 9), send(2, 1)], 3: [send(2, 1)],
+                2: [irecv(T.ANY, 1, 10), pr, recv(3, 1, 3, 1), wait((10, 1, 1))]})
+        p = t.probes[(2, 0)]
+        v = fast.Observed(t, 0).observed_verdict()
+        self.assertEqual(v.cut[2], p.idx)
+        self.assertIn(f"{p} never reports {t.sends[(3, 0)]}", v.hangs[2])
+        fast_equals_generic(self, t)
+        analyze(t, with_sp=False)
+
     def test_probe_closure_exempts_the_probe_in_the_suffix_query(self):
         """The probe's own closure exempted it from rule 6 only where a pending receive is
         judged alone, not in the suffix query over the receivers of a cut rank's sends, which
