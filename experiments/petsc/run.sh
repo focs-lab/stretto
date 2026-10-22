@@ -9,9 +9,11 @@
 # sites do not follow that pattern and get drivers of their own: PCTFS (src/ksp/pc/impls/tfs/
 # comm.c, gs.c) receives from MPI_ANY_SOURCE on MPI_COMM_WORLD itself with fixed tags (MSGTAG0-6
 # in tfs.h, plus the sender's or the receiver's rank); MatGetRowMaxAbs_MPISBAIJ (src/mat/impls/
-# sbaij/mpi/mpisbaij.c) receives from MPI_ANY_SOURCE with MPI_ANY_TAG on the matrix's own
-# communicator, which is the user's, not a PETSc duplicate (PCJACOBI with -pc_jacobi_type rowmax
-# calls it); and MatIncreaseOverlap_MPISBAIJ (sbaijov.c) probes from MPI_ANY_SOURCE. PETSc also
+# sbaij/mpi/mpisbaij.c) receives from MPI_ANY_SOURCE with MPI_ANY_TAG on the matrix's
+# communicator (PETSc's inner duplicate of the user's, as every object's), the senders' ranks as
+# tags (PCJACOBI with -pc_jacobi_type rowmax calls it); and MatIncreaseOverlap_MPISBAIJ_Once (sbaijov.c) probes from MPI_ANY_SOURCE, which
+# 3.26.0 runs only under its option -IncreaseOverlap_old (by default SBAIJ overlap builds the full
+# pattern and takes the BAIJ algorithm). PETSc also
 # drives HYPRE: PETSc 3.26.0 downloads HYPRE 3.2.0, and PCHYPRE exposes ParaSails' number of
 # pattern levels and its threshold as -pc_hypre_parasails_nlevels and -pc_hypre_parasails_thresh,
 # so PETSc's own KSP tutorial ex2 reaches the ParaSails race of experiments/hypre3/ with
@@ -79,7 +81,8 @@ ex3|4|ex3 -m 16
 ex3-legacy|4|ex3 -m 16 -matstash_legacy -vec_assembly_legacy -build_twosided allreduce
 ex2-tfs|4 8|ex2 -m 32 -n 32 -pc_type tfs
 ex2-sbaij-rowmax|4 8|ex2 -m 32 -n 32 -mat_type sbaij -mat_ignore_lower_triangular -pc_type jacobi -pc_jacobi_type rowmax
-ex2-sbaij-asm2|4|ex2 -m 32 -n 32 -mat_type sbaij -mat_ignore_lower_triangular -pc_type asm -pc_asm_overlap 2 -sub_pc_type icc"
+ex2-sbaij-asm2|4|ex2 -m 32 -n 32 -mat_type sbaij -mat_ignore_lower_triangular -pc_type asm -pc_asm_overlap 2 -sub_pc_type icc
+ex2-sbaij-asm2-old|4|ex2 -m 32 -n 32 -mat_type sbaij -mat_ignore_lower_triangular -pc_type asm -pc_asm_overlap 2 -sub_pc_type icc -IncreaseOverlap_old"
 
 step_fetch() {
     mkdir -p "$D" && cd "$D" || return 1
