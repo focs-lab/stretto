@@ -10,6 +10,11 @@
 # next call's message, as in deal.II 9.3.0-rc1 (experiments/dealii/). The drivers are MFEM's
 # own adaptive examples: ex6p (static adaptive refinement, with and without rebalancing, and
 # with p-refinement) and ex15p (dynamic refinement, derefinement and rebalancing).
+# MFEM's one other wildcard site is the conforming local refinement of triangles,
+# ParMesh::LocalRefinement (mesh/pmesh.cpp), which sends each neighbour the splitting of the
+# shared edges with tag 0 and receives it from that neighbour with MPI_ANY_TAG, once per round
+# of green refinement, the rounds separated by an MPI_Allreduce. ex6p keeps a triangle mesh
+# conforming (Mesh::EnsureNCMesh leaves simplices alone), so ex6p on square-disc.mesh reaches it.
 #
 # Steps, inside the experiment container, from the repository root, Open MPI build:
 #   fetch    download MFEM 4.10 (GitHub), METIS 4.0.3 (the copy in MFEM's tpls repository on
@@ -17,11 +22,14 @@
 #   build    METIS, HYPRE (unless HYPRE_BUILD names a built src/hypre), MFEM's parallel library
 #            (-O2 -g) and the examples ex6p and ex15p, -j$MAKE_JOBS
 #   predict  RUNS traced runs of each driver below, analysed, every alternative replayed with
-#            its horizon pins and its control (experiments/scout.py), JOBS at a time
+#            its horizon pins and its control (experiments/scout.py), JOBS at a time, except
+#            that of the alternatives within one exchange (kind "same", of no error class) a
+#            sample of SAME_SAMPLE per driver is replayed ("all" replays every one)
 #   all
 # Writes experiments/results/mfem/predict.csv.
 # usage: experiments/mfem/run.sh [fetch|build|predict|all]
-#        RUNS (5), JOBS (1), MAKE_JOBS (12), MFEM_SRC_DIR (third_party/apps/mfem), HYPRE_BUILD
+#        RUNS (5), JOBS (1), SAME_SAMPLE (20), MAKE_JOBS (12), MFEM_SRC_DIR (third_party/apps/mfem),
+#        HYPRE_BUILD
 set -uo pipefail
 R="$(cd "$(dirname "$0")/../.." && pwd)"; cd "$R"
 D="${MFEM_SRC_DIR:-$R/third_party/apps/mfem}"
@@ -43,6 +51,7 @@ DRIVERS="ex6p|4 8|ex6p -m $M/data/star.mesh -no-vis -md 4000
 ex6p-rebalance|4 8|ex6p -m $M/data/star.mesh -no-vis -md 4000 -reb
 ex6p-quad|4|ex6p -m $M/data/inline-quad.mesh -no-vis -md 4000 -reb
 ex6p-pref|4|ex6p -m $M/data/star.mesh -no-vis -md 4000 -pref
+ex6p-tri|4 8|ex6p -m $M/data/square-disc.mesh -no-vis -md 4000
 ex15p|4 8|ex15p -m $M/data/star-hilbert.mesh -no-vis -tf 0.2
 ex15p-hex|4|ex15p -m $M/data/inline-hex.mesh -no-vis -tf 0.1"
 
@@ -70,6 +79,7 @@ step_build() {
     (cd "$M" && make parallel -j"$j" "${mk[@]}" > "$D/mfem-make.log" 2>&1 && make -C examples -j"$j" ex6p ex15p "${mk[@]}" \
          > "$D/mfem-examples.log" 2>&1) || { echo "build of MFEM failed" >&2; return 1; }
 }
+same_sample() { [ "${SAME_SAMPLE:-20}" = all ] || echo "--same-sample ${SAME_SAMPLE:-20}"; }
 step_predict() {
     rm -f "$OUT/predict.csv"
     while IFS='|' read -r name nps cmd; do
@@ -77,7 +87,7 @@ step_predict() {
         # Open MPI's shared-memory BTL prints a "Read -1 ... errno" line per refused single-copy
         # transfer in the container; it is not program output and differs run to run
         python3 experiments/scout.py --code mfem --version "$V" --driver "$name" --np $nps --runs "$RUNS" \
-            --jobs "${JOBS:-1}" --timeout 120 --ignore "errno|Read -1, expected" \
+            --jobs "${JOBS:-1}" --timeout 120 $(same_sample) --ignore "errno|Read -1, expected" \
             --out "$OUT/predict.csv" -- "$M/examples/${a[0]}" "${a[@]:1}" || return 1
     done <<< "$DRIVERS"
 }
