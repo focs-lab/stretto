@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 # Build, trace and analyse one idiom.   usage: scripts/run_idiom.sh <NN> [np] [-- program args]
 # STRETTO_GUARD=1 in the environment traces with the buffer guard on, STRETTO_PAYLOAD=<bytes>
-# with message payloads recorded.
+# with message payloads recorded. With KEEP_TRACES set, the trace is kept as
+# idioms/<MPI>/<idiom>[-guard<g>][-payload<bytes>] (stretto.keep, experiments/harness.sh).
 set -uo pipefail
 source "$(dirname "$0")/env.sh"
+source "$ROOT/experiments/harness.sh"
 n="$1"; shift
 np="$(idiom_np "$n")"
 if [ $# -gt 0 ] && [ "$1" != "--" ]; then np="$1"; shift; fi
@@ -19,6 +21,7 @@ echo "== $(basename "$dir") (np=$np, $MPI)"
 mpi_run "$np" "STRETTO_TRACE_DIR=$out" "LD_PRELOAD=$TRACER" ${STRETTO_GUARD:+"STRETTO_GUARD=$STRETTO_GUARD"} ${STRETTO_PAYLOAD:+"STRETTO_PAYLOAD=$STRETTO_PAYLOAD"} -- "$dir/bin/$MPI/main" "$@" > "$out/stdout.log" 2> "$out/stderr.log"
 rc=$?
 res="$(classify_rc $rc "$out/stderr.log")"
+keep_trace "$out" "idioms/$MPI" "$(basename "$dir")${STRETTO_GUARD:+-guard$STRETTO_GUARD}${STRETTO_PAYLOAD:+-payload$STRETTO_PAYLOAD}" || exit 1
 [ "$res" != FINISHED ] && echo "   observed run: $res"
 ls "$out"/rank-*.jsonl > /dev/null 2>&1 || { echo "   no trace written"; exit 1; }
 # the idioms are erroneous programs, so 1 (an error class found) is a success here; 2 (the trace

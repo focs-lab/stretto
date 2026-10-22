@@ -11,7 +11,10 @@
 # FINISHED, TIMEOUT or rc=N) and whether the analysis did (analysis: ok or CRASH);
 # experiments/tables.py takes times only from rows where all three succeeded. The table is
 # written next to CSV while the leg runs and moved in place at its end; a missing binary, a
-# run that did not finish or a failed analysis makes the script exit with status 1.
+# run that did not finish or a failed analysis makes the script exit with status 1. With
+# KEEP_TRACES set, each traced run's trace is kept as e4/<table>/<benchmark>.<class>.<np>.rep<k>
+# (stretto.keep) after its analysis, outside the timed sections; a trace not kept makes the
+# script exit with status 1 too.
 set -uo pipefail
 R="$(cd "$(dirname "$0")/.." && pwd)"
 source "$R/experiments/harness.sh"
@@ -21,6 +24,7 @@ OUT="$R/experiments/results/e4"; mkdir -p "$OUT"
 export OMPI_MCA_rmaps_base_oversubscribe=1 PYTHONPATH="$R/analysis"
 nps="${*:-4 16}"
 CSV="${CSV:-$OUT/e4.csv}"
+KEPT="e4/$(basename "$CSV" .csv)"
 COMMIT="${STRETTO_COMMIT:-$(python3 "$R/experiments/provenance.py")}"
 need_file "$TR" || exit 1
 # wall times include the launcher's start-up; NPB's own timer ("Time in seconds") covers the
@@ -45,6 +49,8 @@ for np in $nps; do for b in ${BENCHMARKS:-is ep cg mg lu}; do for cls in ${CLASS
   t0=$(date +%s.%N); python3 -m stretto analyze --no-sp "$td" > "$OUT/$b.$cls.$np.report.txt" 2> "$OUT/$b.$cls.$np.analyze.err"
   arc=$?; t1=$(date +%s.%N)
   an=$(echo "$t1 - $t0" | bc)
+  # kept after the timed analysis and before the next timed run, which then finds the archive on disk
+  keep_trace "$td" "$KEPT" "$b.$cls.$np.rep$rep" || bad+=("$b.$cls.$np: trace not kept")
   # 0: no error class, 1: one found; 2 (no trace) and 3 (a crash) are failures of the run or the analysis
   if [ $arc -le 1 ]; then ana=ok; else ana=CRASH; an=; fi
   wc=$(grep -m1 '^trace:' "$OUT/$b.$cls.$np.report.txt" | grep -oE '[0-9]+ wildcard' | cut -d' ' -f1)

@@ -19,7 +19,9 @@ For each process count and level count, RUNS traced runs of the driver are analy
 probe alternative is replayed with the pins of its whole horizon (stretto.confirm.horizon_pins)
 and with its control, under the tracer, which judges each as a run of the program without its
 pins (run_valid, control_valid). --kinds limits the replays to some kinds, --sample N to a
-random sample of N of them drawn with --seed over all traced runs.
+random sample of N of them drawn with --seed over all traced runs. With KEEP_TRACES set, every
+trace is kept (stretto.keep) under the table's campaign (hypre3/predict): np<N>-levels<L>-run<K>
+for a traced run, the same with -<pin>-replay and -control for a replay and its control.
 
 usage: predict.py <driver> [--np 4 8] [--levels 1 2] [--runs N] [--timeout S] [--jobs J]
                   [--kinds cross same other] [--sample N] [--seed K] --out CSV
@@ -45,8 +47,8 @@ import tempfile
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 sys.path.insert(0, os.path.join(ROOT, "analysis"))
 sys.path.insert(0, os.path.join(ROOT, "experiments"))
-from stretto import trace  # noqa: E402
-from stretto.confirm import all_matched, horizon_pins, need_preload, required_matches, run_checked  # noqa: E402
+from stretto import keep, trace  # noqa: E402
+from stretto.confirm import all_matched, horizon_pins, need_preload, pin_name, required_matches, run_checked  # noqa: E402
 from stretto.report import analyze  # noqa: E402
 from stretto.sites import sites  # noqa: E402
 from provenance import code_commit  # noqa: E402
@@ -102,8 +104,11 @@ def main() -> int:
     ap.add_argument("--sample", type=int, default=0, help="replay a random sample of this many alternatives (0: all)")
     ap.add_argument("--seed", type=int, default=20261022)
     ap.add_argument("--out", required=True)
+    ap.add_argument("--keep-campaign", default=None,
+                    help="with KEEP_TRACES set, keep the traces under this campaign (stretto.keep; default: the table's)")
     args = ap.parse_args()
     need_preload(TRACER)                     # ld.so would ignore a missing tracer, and the runs leave no trace
+    campaign = args.keep_campaign or keep.campaign_of(args.out)
     exe = os.path.abspath(args.driver)
     rows, traced = [], []
     for levels in args.levels:
@@ -117,6 +122,7 @@ def main() -> int:
                 shutil.rmtree(cwd, ignore_errors=True)
                 row = {"version": args.version, "driver": os.path.basename(exe), "np": np, "levels": levels, "run": i,
                        "seed": args.seed if args.sample else "", "commit": code_commit()}
+                keep.keep(d, campaign, f"np{np}-levels{levels}-run{i:02d}", commit=row["commit"])
                 if r.returncode != 0:
                     rows.append({**row, "replay": f"traced run rc={r.returncode}"})
                     shutil.rmtree(d, ignore_errors=True)
@@ -139,10 +145,10 @@ def main() -> int:
     todo = [pool[c] for c in chosen]
     print(f"replaying {len(todo)} of {len(pool)} alternatives", flush=True)
 
-    def run(np, levels, pins):
+    def run(np, levels, pins, name):
         w = tempfile.mkdtemp(prefix="hypre3-replay-")
         try:
-            return run_checked(np, exe, driver_args(levels), pins, args.timeout, mpi="openmpi", cwd=w)
+            return run_checked(np, exe, driver_args(levels), pins, args.timeout, mpi="openmpi", cwd=w, keep_as=(campaign, name))
         finally:
             shutil.rmtree(w, ignore_errors=True)
 
@@ -160,7 +166,8 @@ def main() -> int:
         if hp is None:
             return {**res, "replay": "no horizon"}
         alt, ctl = hp
-        ra, rc = run(np, levels, alt), run(np, levels, ctl)
+        name = f"np{np}-levels{levels}-run{row['run']:02d}-{pin_name(f.pin)}"
+        ra, rc = run(np, levels, alt, name + "-replay"), run(np, levels, ctl, name + "-control")
         res.update(replay=ra.result, matched=all_matched(alt, ra.proc.stderr, required_matches(t, f), ra.seen),
                    residual=residual(ra.proc.stdout), run_valid=ra.valid, violation=ra.why[:300],
                    control=rc.result, control_matched=all_matched(ctl, rc.proc.stderr, None, rc.seen),

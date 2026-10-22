@@ -16,7 +16,8 @@
 # root, MPICH build (HYPRE 2.10.1 calls MPI-1 functions Open MPI 4 removed):
 #   fetch    download both versions, check the archives' sha256
 #   build    configure and make each version with the MPICH wrappers, -j8
-#   trace    one run of test/ij -solver 8 -pout 0 at 4 ranks per version, traced
+#   trace    one run of test/ij -solver 8 -pout 0 at 4 ranks per version, traced (with
+#            KEEP_TRACES set, kept as hypre/trace4 and hypre/trace4-211, stretto.keep)
 #   analyse  stretto analyze on both traces
 #   replay   the alternatives at the pruned exchange's second probe (rank 1 and rank 2), each
 #            with its control (the probe pinned to the sender it saw in the run) and the benign
@@ -57,7 +58,9 @@ step_trace() {
         d="$R/$OUT/trace$NP$(tag $v)"; rm -rf "$d"; mkdir -p "$d"
         (cd "$(src $v)/test" && /usr/bin/timeout 300 mpirun.openmpi --oversubscribe -np $NP -x LD_PRELOAD="$TRACER" \
              -x STRETTO_TRACE_DIR="$d" ./ij "${ARGS[@]}" > "$R/$OUT/run$NP$(tag $v).log" 2>&1)
-        echo "$v traced: rc=$?, $(cat "$d"/rank-*.jsonl | wc -l) records"
+        local rc=$?
+        keep_trace "$d" hypre "trace$NP$(tag $v)" || return 1
+        echo "$v traced: rc=$rc, $(cat "$d"/rank-*.jsonl | wc -l) records"
     done
 }
 step_analyse() {

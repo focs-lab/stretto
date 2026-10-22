@@ -44,7 +44,9 @@ Traces: the MBI and MPI-BugBench programs of the latest corpus run
 binaries under idioms/*/bin/openmpi) and the applications of apps(), traced by `trace` into
 experiments/results/e8/<program>/trace. Nekbone is not among them: its wildcard receives are
 all blocking, where the two rules coincide, and its analysis needs about 33 GB, above the cap of
-the container these runs use (24 GB).
+the container these runs use (24 GB). With KEEP_TRACES set, the traced runs (every attempt,
+<program>-attempt<k>) and the replays and controls are kept (stretto.keep) under the campaign of
+--out (e8_hb).
 --synthetic N adds N random programs from E6's generator, all of the mixed kind (sends,
 receives and waits interleaved, so that wildcards stay pending while their rank sends); with
 no program to rerun, the explorer over each trace as a straight-line program decides their
@@ -71,7 +73,7 @@ from typing import Dict, List, Optional
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, os.path.join(ROOT, "analysis"))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from stretto import dsl, explore, hb, trace  # noqa: E402
+from stretto import dsl, explore, hb, keep, trace  # noqa: E402
 from stretto.confirm import (all_matched, changed_pin, classify_rc, horizon_pins, required_matches,  # noqa: E402
                              need_preload, run_pinned, unpinned_violation)
 from stretto.feasible import breakpoints, check  # noqa: E402
@@ -171,6 +173,7 @@ def step_trace(args) -> int:
             r = subprocess.run(cmd, cwd=s.cwd, capture_output=True, text=True, stdin=subprocess.DEVNULL,
                                env={**os.environ, **LAUNCH_ENV})
             res = classify_rc(r.returncode, r.stderr, time.monotonic() - t0, args.app_timeout)
+            keep.keep(s.tracedir, keep.campaign_of(args.out), f"{s.program}-attempt{attempt}")
             with open(os.path.join(os.path.dirname(s.tracedir), "run.log"), "w") as fh:
                 fh.write(f"{' '.join(cmd)}\nattempt {attempt}: {res}\n--- stdout\n{r.stdout}\n--- stderr\n{r.stderr}")
             print(f"{s.program}: traced run {attempt}: {res}", flush=True)
@@ -460,7 +463,9 @@ def prepare(t, row: dict):
     return hp[0], hp[1], required_matches(t, f, B, infeasible_ok=True, M=M, changed=changed), changed_pin(t, f)
 
 
-def run_one(src: Source, np: int, row: dict, prepared, timeout: int) -> dict:
+def run_one(src: Source, np: int, row: dict, prepared, timeout: int, campaign: str = "e8_hb") -> dict:
+    """The replay and the control of a row; with KEEP_TRACES set their traces are kept (stretto.keep)
+    as <campaign>/<corpus>__<program>__<class>__<op>-<at>-<send>-replay and -control."""
     out = dict(row, sampled=True, arbiter="replay")
     if prepared is None:
         out["evidence"] = "no pins"
@@ -468,8 +473,9 @@ def run_one(src: Source, np: int, row: dict, prepared, timeout: int) -> dict:
     alt, ctl, required, cp = prepared
     tracer = os.path.join(ROOT, "tracer", "bin", src.mpi, "libstretto-trace.so")
     out["pins"] = sum(x.count(",") + 1 for x in alt)
+    name = "__".join([row["corpus"], row["program"], row["class"], f"{row['op']}-{row['at']}-{row['send']}".replace(":", ".")])
 
-    def go(pins, prefix):
+    def go(pins, prefix, role):
         d = tempfile.mkdtemp(prefix=f"e8-{prefix}-")
         try:
             r = run_pinned(np, src.exe, src.args, pins, timeout, mpi=src.mpi, cwd=src.cwd, preload=tracer,
@@ -479,12 +485,16 @@ def run_one(src: Source, np: int, row: dict, prepared, timeout: int) -> dict:
                 unp = unpinned_violation(trace.load(d), finished=res == "FINISHED", hung=res == "TIMEOUT", pins=pins) or "none"
             except Exception as e:  # noqa: BLE001
                 unp = f"trace unreadable: {e}"[:120]
+            if keep.enabled():
+                keep.keep(d, campaign, f"{name}-{role}", notes={"replay.txt": (
+                    f"exe: {src.exe} {' '.join(src.args)}\nnp: {np}\nresult: {res}\nunpinned: {unp}\npins:\n" + "\n".join(pins)
+                    + f"\n--- stderr\n{r.stderr}\n--- stdout\n{r.stdout}")})
             return r, res, unp
         finally:
             shutil.rmtree(d, ignore_errors=True)
 
-    ra, res, unp = go(alt, "alt")
-    rc, cres, cunp = go(ctl, "ctl")
+    ra, res, unp = go(alt, "alt", "replay")
+    rc, cres, cunp = go(ctl, "ctl", "control")
     out.update(replay=res, changed_matched=all_matched(alt, ra.stderr, {cp}) if cp else "",
                matched=all_matched(alt, ra.stderr, required), unpinned=unp,
                control=cres, control_matched=all_matched(ctl, rc.stderr), control_unpinned=cunp)
@@ -519,7 +529,8 @@ def step_replay(args) -> int:
             t = loaded[(corpus, program)]
             timeout = args.app_timeout if src.app else args.timeout
             # pins are computed here, in one thread; the jobs run the replays
-            jobs.append((i, pool.submit(run_one, src, src.np or t.np, rows[i], prepare(t, rows[i]), timeout)))
+            jobs.append((i, pool.submit(run_one, src, src.np or t.np, rows[i], prepare(t, rows[i]), timeout,
+                                        keep.campaign_of(args.out))))
         for k, (i, fut) in enumerate(jobs, 1):
             rows[i] = fut.result()
             r = rows[i]

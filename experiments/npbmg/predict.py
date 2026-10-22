@@ -15,7 +15,10 @@ most 1e-8) and the one of later versions (relative difference at most 1e-8).
 Replays and controls run under the tracer when it is built (stretto.confirm.run_checked), and
 each row says whether the run is one of the program without its pins (run_valid,
 control_valid) and, if not, why. --sample N replays a random sample of N alternatives, drawn
-with --seed from those of every traced run, instead of all of them.
+with --seed from those of every traced run, instead of all of them. With KEEP_TRACES set, every
+trace is kept (stretto.keep) under the table's campaign (npbmg/predict-2.4.1, valid/npbmg):
+<class>-np<N>-run<K> for a traced run, the same with -<pin>-replay and -control for a replay
+and its control.
 
 usage: predict.py <bin dir> --version V [--class S] [--runs N] [--np 16 32] [--timeout S]
                   [--jobs J] [--sample N] [--seed K] [--out CSV]
@@ -40,8 +43,8 @@ import tempfile
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 sys.path.insert(0, os.path.join(ROOT, "analysis"))
 sys.path.insert(0, os.path.join(ROOT, "experiments"))
-from stretto import trace  # noqa: E402
-from stretto.confirm import all_matched, horizon_pins, need_preload, required_matches, run_checked  # noqa: E402
+from stretto import keep, trace  # noqa: E402
+from stretto.confirm import all_matched, horizon_pins, need_preload, pin_name, required_matches, run_checked  # noqa: E402
 from stretto.report import analyze  # noqa: E402
 from provenance import code_commit  # noqa: E402
 
@@ -66,8 +69,11 @@ def main() -> int:
     ap.add_argument("--sample", type=int, default=0, help="replay a random sample of this many alternatives of every traced run (0: all)")
     ap.add_argument("--seed", type=int, default=20261022)
     ap.add_argument("--out", required=True)
+    ap.add_argument("--keep-campaign", default=None,
+                    help="with KEEP_TRACES set, keep the traces under this campaign (stretto.keep; default: the table's)")
     args = ap.parse_args()
     need_preload(TRACER)                     # ld.so would ignore a missing tracer, and the runs leave no trace
+    campaign = args.keep_campaign or keep.campaign_of(args.out)
     rows, traced = [], []
     for np in args.np:
         exe = os.path.join(args.bindir, f"mg.{args.cls}.{np}")
@@ -78,6 +84,7 @@ def main() -> int:
             r = subprocess.run(cmd, cwd=args.bindir, capture_output=True, text=True, stdin=subprocess.DEVNULL)
             row = {"version": args.version, "class": args.cls, "np": np, "run": i, "seed": args.seed if args.sample else "",
                    "commit": code_commit()}
+            keep.keep(d, campaign, f"{args.cls}-np{np}-run{i:02d}", commit=row["commit"])
             if r.returncode != 0:
                 rows.append({**row, "replay": f"traced run rc={r.returncode}"})
                 shutil.rmtree(d, ignore_errors=True)
@@ -104,8 +111,9 @@ def main() -> int:
         if hp is None:
             return {**res, "replay": "no horizon"}
         alt, ctl = hp
-        ra = run_checked(np, exe, [], alt, args.timeout, mpi="mpich", cwd=args.bindir)
-        rc = run_checked(np, exe, [], ctl, args.timeout, mpi="mpich", cwd=args.bindir)
+        name = f"{args.cls}-np{np}-run{row['run']:02d}-{pin_name(f.pin)}"
+        ra = run_checked(np, exe, [], alt, args.timeout, mpi="mpich", cwd=args.bindir, keep_as=(campaign, name + "-replay"))
+        rc = run_checked(np, exe, [], ctl, args.timeout, mpi="mpich", cwd=args.bindir, keep_as=(campaign, name + "-control"))
         return {**res, "replay": ra.result, "matched": all_matched(alt, ra.proc.stderr, required_matches(t, f), ra.seen),
                 "norm": norm(ra.proc.stdout), "run_valid": ra.valid, "violation": ra.why[:300],
                 "control": rc.result, "control_matched": all_matched(ctl, rc.proc.stderr, None, rc.seen),

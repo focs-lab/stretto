@@ -21,7 +21,11 @@ next to the table). With --guard the traced run has the tracer's buffer guard on
 (STRETTO_GUARD=1), which adds the local-concurrency findings (class 3-local); its table goes to
 results/guard/<corpus>.csv and its programs' directories under results/guard/<corpus>/. With
 --reads DIR each program is analysed with its first-read map DIR/<name>.json (reads_maps.py,
-docs/firstread.md), if there is one.
+docs/firstread.md), if there is one. With KEEP_TRACES set (stretto.keep), each traced run's
+trace is kept as <campaign>/<program>, and each replay's and control's as
+<campaign>/<program>__<class>-<level>-<pin>__replay (or __control); the campaign is the table's
+path under experiments/results (mbi/mbi, guard/mbb, reps/mbi-3), that of --replays-out, or
+--keep-campaign.
 
 usage: run_mbi.py [--corpus mbi|mbb] [--select REGEX] [--limit N] [--confirm] [--must] [--guard] [--timeout S] [--jobs J] [--reads DIR]
        run_mbi.py --replay-only [--select REGEX] [--timeout S] [--replays-out CSV] ...   (implies --confirm)
@@ -50,7 +54,7 @@ MPICC = "/usr/bin/mpicc.openmpi"
 MPIRUN = "/usr/bin/mpirun.openmpi"
 TRACER = os.path.join(ROOT, "tracer", "bin", "openmpi", "libstretto-trace.so")
 sys.path.insert(0, os.path.join(ROOT, "analysis"))
-from stretto import confirm as confirm_mod, reads, report, trace  # noqa: E402
+from stretto import confirm as confirm_mod, keep, reads, report, trace  # noqa: E402
 from stretto.confirm import classify_rc  # noqa: E402
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from provenance import code_commit  # noqa: E402
@@ -135,12 +139,19 @@ def run_one(name: str, args) -> dict:
     open(os.path.join(out, "run.stdout"), "w").write(r.stdout)
     open(os.path.join(out, "run.stderr"), "w").write(r.stderr)
     row["run"] = classify_rc(r.returncode, r.stderr, time.monotonic() - t0, args.timeout)
+    keep.keep(tracedir, kept_as(args), row["name"], commit=row["commit"])
     analyse(row, out, exe, tracedir, args)
     if args.must:
         m = subprocess.run([os.path.join(ROOT, "scripts", "must_run.sh"), str(row["np"]), exe, str(args.timeout)],
                            capture_output=True, text=True, cwd=out, stdin=subprocess.DEVNULL)
         row["must"] = m.stdout.strip().splitlines()[-1] if m.stdout.strip() else f"rc={m.returncode}"
     return row
+
+
+def kept_as(args) -> str:
+    """The campaign under which a run keeps its traces (KEEP_TRACES, stretto.keep): --keep-campaign,
+    else main's, from the table (keep.campaign_of)."""
+    return getattr(args, "keep_campaign", None) or "run_mbi"
 
 
 def replay_one(row: dict, args) -> dict:
@@ -188,7 +199,7 @@ def analyse(row: dict, out: str, exe: str, tracedir: str, args) -> None:
     with open(os.path.join(out, "report.json"), "w") as fh:
         json.dump(report.to_json(t, rep), fh, default=str, indent=1)
     if args.confirm:
-        res = confirm_mod.confirm(rep, row["np"], exe, timeout=args.timeout, t=t)
+        res = confirm_mod.confirm(rep, row["np"], exe, timeout=args.timeout, t=t, keep_as=(kept_as(args), row["name"]))
         row["confirmed"] = sum(1 for c in res if c.verdict == "confirmed")
         row["confirmed_strict"] = sum(1 for c in res if c.strict == "confirmed")
         row["not_confirmed"] = sum(1 for c in res if c.verdict in ("not-confirmed", "inconclusive"))
@@ -298,6 +309,9 @@ def parser() -> argparse.ArgumentParser:
                     help="with --reads: accept maps without checking them against the traced programs' sources")
     ap.add_argument("--reads", default=None,
                     help="directory of first-read maps, DIR/<name>.json (reads_maps.py): analyse with read bounds (docs/firstread.md)")
+    ap.add_argument("--keep-campaign", default=None,
+                    help="with KEEP_TRACES set, keep the traced runs' and replays' traces under this campaign (stretto.keep; "
+                         "default: the table's path under experiments/results, or that of --replays-out)")
     return ap
 
 
@@ -315,6 +329,7 @@ def main() -> int:
     if args.replay_only:
         args.out = args.out or canonical
         args.confirm = True
+        args.keep_campaign = args.keep_campaign or keep.campaign_of(args.replays_out or args.out)
         return replay_only(args)
     # the canonical table is written only by a run of the campaign's selection: a part of the
     # corpus (another --select, --limit) goes to --out, never over the whole table
@@ -323,6 +338,7 @@ def main() -> int:
               f"{os.path.relpath(canonical, ROOT)} with part of it; give --out", file=sys.stderr)
         return 2
     args.out = args.out or canonical
+    args.keep_campaign = args.keep_campaign or keep.campaign_of(args.out)
     if not os.path.isdir(args.gencodes):
         print(f"run_mbi.py: no corpus at {args.gencodes} (third_party/fetch.sh corpora)", file=sys.stderr)
         return 1

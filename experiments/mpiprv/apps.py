@@ -19,7 +19,10 @@ Each configuration runs from a copy of its directory:
             a finished run that needs buffering) again with every message above 8 bytes sent by
             rendezvous (columns rendezvous and guard_rendezvous)
 Replays and confirmations need a control that finishes, so they are skipped when the traced run
-itself did not end with status 0 (kf-ray's rank 0 ends with a segmentation fault).
+itself did not end with status 0 (kf-ray's rank 0 ends with a segmentation fault). With
+KEEP_TRACES set, the traces are kept (stretto.keep): mpiprv/apps/<app>-<np>-trace and -trace-guard,
+and the replays', controls' and confirmations' under mpiprv/apps/<app>-<np>/. The rendezvous
+replays run the replay library, which records no trace.
 Writes experiments/results/mpiprv/apps.csv and apps-replays.csv; the runs stay under
 experiments/mpiprv/work/apps/ (git-ignored).
 
@@ -42,6 +45,7 @@ from provenance import code_commit  # noqa: E402
 
 BENCH = "/home/ubuntu/RQ2-3/MPIBenchmark"
 WORK = os.path.join(HERE, "work", "apps")
+KEEP = "mpiprv/apps"      # the campaign of the traces kept with KEEP_TRACES set (stretto.keep)
 OUT = os.path.join(ROOT, "experiments", "results", "mpiprv")
 TRACER = os.path.join(ROOT, "tracer", "bin", "openmpi", "libstretto-trace.so")
 MPIRUN = "/usr/bin/mpirun.openmpi"
@@ -75,6 +79,7 @@ APP_ENV = {"ParMETIS": {"LD_LIBRARY_PATH": "{top}/METIS/build/libmetis"}}
 RENDEZVOUS = ["--mca", "btl", "self,tcp", "--mca", "btl_tcp_if_include", "lo", "--mca", "btl_tcp_eager_limit", "64",
               "--mca", "btl_self_eager_limit", "64"]
 sys.path.insert(0, os.path.join(ROOT, "analysis"))
+from stretto import keep  # noqa: E402
 from stretto import trace as strace  # noqa: E402
 from stretto.trace import ANY  # noqa: E402
 from stretto.confirm import all_matched, classify_rc, horizon_pins, need_preload, required_matches, run_pinned  # noqa: E402
@@ -90,12 +95,13 @@ def run(cmd, cwd, timeout, env=None):
         return "TIMEOUT", (e.stdout or b"").decode(errors="replace") if isinstance(e.stdout, bytes) else (e.stdout or ""), ""
 
 
-def traced(d, exe, args, np_, tdir, guard, timeout):
+def traced(d, exe, args, np_, tdir, guard, timeout, name):
     shutil.rmtree(tdir, ignore_errors=True)
     os.makedirs(tdir)
     cmd = ["/usr/bin/timeout", "-k", "5", str(timeout), MPIRUN, "-np", str(np_), "-x", f"LD_PRELOAD={TRACER}",
            "-x", f"STRETTO_TRACE_DIR={tdir}", "-x", f"STRETTO_GUARD={1 if guard else 0}", exe, *args.split()]
     rc, out, err = run(cmd, d, timeout + 60)
+    keep.keep(tdir, KEEP, f"{name}-{os.path.basename(tdir)}", commit=code_commit())
     open(tdir + ".log", "w").write(f"$ {' '.join(cmd)}\nrc {rc}\n{out}\n{err}")
     return "TIMEOUT" if rc in (124, 137, "TIMEOUT") else f"rc={rc}"
 
@@ -208,7 +214,7 @@ def main():
             saved = dict(os.environ)          # every run, replay and control of this configuration
             for k, v in APP_ENV.get(app, {}).items():
                 os.environ[k] = v.format(top=os.path.join(WORK, name)) + ":" + os.environ.get(k, "")
-            row["run"] = traced(d, exe, a, np_, os.path.join(d, "trace"), False, args.timeout)
+            row["run"] = traced(d, exe, a, np_, os.path.join(d, "trace"), False, args.timeout, name)
             row["records"] = records(os.path.join(d, "trace"))
             res, fs = analyse(os.path.join(d, "trace"), args.timeout)
             row.update(res)
@@ -224,7 +230,7 @@ def main():
             if alts and replayable:
                 rcsv = os.path.join(d, "replays.csv")
                 rc, out, err = run([sys.executable, os.path.join(ROOT, "experiments", "replay_sample.py"), "--out", rcsv,
-                                    "--sample", "30", "--timeout", str(args.replay_timeout),
+                                    "--sample", "30", "--timeout", str(args.replay_timeout), "--keep-campaign", f"{KEEP}/{name}",
                                     os.path.join(d, "trace"), str(np_), exe, *a.split()], d,
                                    36 * (2 * args.replay_timeout + 30), env={"PYTHONPATH": os.path.join(ROOT, "analysis")})
                 open(os.path.join(d, "replays.log"), "w").write(out + err)
@@ -235,7 +241,7 @@ def main():
                 row["replay_results"] = " ".join(f"{k}*{v}" for k, v in sorted(collections.Counter(
                     f"{r.get('replay')}/{'matched' if r.get('matched') == 'True' else 'unmatched'}/control-{r.get('control')}"
                     for r in rr).items()))
-            row["guard_run"] = traced(d, exe, a, np_, os.path.join(d, "trace-guard"), True, args.timeout)
+            row["guard_run"] = traced(d, exe, a, np_, os.path.join(d, "trace-guard"), True, args.timeout, name)
             gres, gfs = analyse(os.path.join(d, "trace-guard"), args.timeout)
             row["guard_classes"] = classes(gfs)
             row["guard_local"] = sum(1 for f in gfs if f["cls"] == "3-local")
@@ -243,7 +249,8 @@ def main():
             for tag, t, found in (("", "trace", fs), ("guard_", "trace-guard", gfs)):
                 if replayable and any(f["cls"] in ERROR_CLASSES and f.get("pin") for f in found):
                     rc, out, err = run([sys.executable, "-m", "stretto", "confirm", "--json", *ANALYSE, "--np", str(np_),
-                                        "--timeout", str(args.replay_timeout), os.path.join(d, t), exe, "--", *a.split()], d,
+                                        "--timeout", str(args.replay_timeout), "--keep", f"{KEEP}/{name}", f"confirm-{t}",
+                                        os.path.join(d, t), exe, "--", *a.split()], d,
                                        40 * (2 * args.replay_timeout + 30), env={"PYTHONPATH": os.path.join(ROOT, "analysis")})
                     open(os.path.join(d, t + ".confirm.json"), "w").write(out + err)
                     try:

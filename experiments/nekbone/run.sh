@@ -8,11 +8,13 @@
 # 8 ranks and analysed. Writes experiments/results/nekbone/{trace8,report8.txt,analyze8.err,
 # summary8.txt,run8.log}; summary8.txt is committed. sample: 30 alternatives replayed with the
 # pins of their whole horizon and with controls (experiments/replay_sample.py, which analyses
-# the trace again), written to replay_sample.csv (committed).
+# the trace again), written to replay_sample.csv (committed). With KEEP_TRACES set, the trace is
+# kept as nekbone/trace8 and the replays and controls under nekbone/replay_sample (stretto.keep).
 # usage: experiments/nekbone/run.sh [build|trace|analyse|summary|sample|all]
 set -uo pipefail
 R="$(cd "$(dirname "$0")/../.." && pwd)"; cd "$R"
 MPI=mpich; source scripts/env.sh
+source experiments/harness.sh
 D=experiments/results/nekbone; mkdir -p "$D"
 SRC=study/apps/Nekbone; CASE=$SRC/test/nek_comm; EXE=$CASE/nekbone
 export OMP_NUM_THREADS=1 OMPI_MCA_hwloc_base_binding_policy=none
@@ -32,6 +34,7 @@ step_trace() {
     (cd "$CASE" && TIMEOUT=600 mpi_run 8 "STRETTO_TRACE_DIR=$R/$D/trace8" "LD_PRELOAD=$TRACER" "OMP_NUM_THREADS=1" -- ./nekbone data > "$R/$D/run8.log" 2>&1)
     rc=$?
     res=$(TIMEOUT=600 MPI_RUN_SECONDS=$((SECONDS - s0)) classify_rc $rc "$D/run8.log")
+    keep_trace "$D/trace8" nekbone trace8 || return 1
     echo "traced run: $res, $(cat "$D"/trace8/rank-*.jsonl 2>/dev/null | wc -l) records"
     # a traced run that did not finish is no trace of Nekbone's run: the steps after it would analyse a fragment
     [ "$res" = FINISHED ] || { echo "HARNESS-ERROR: the traced run ended $res (log: $D/run8.log)" >&2; return 1; }

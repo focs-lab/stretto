@@ -8,7 +8,8 @@
 #             --reads): experiments/results/reads/mbi.csv (minutes)
 #   replays   the programs whose levels the bounds change, replayed with the pins of their
 #             witnesses (run_mbi.py --replay-only --reads on a copy of that table):
-#             experiments/results/reads/replays.csv
+#             experiments/results/reads/replays.csv; with KEEP_TRACES set, the replays' traces
+#             are kept as reads/replays/<program>__... (stretto.keep)
 # E6 with read bounds is experiments/run_remaining.sh e6reads (about 20 minutes on 8
 # processors). experiments/RUNBOOK.md has the commands one by one.
 # usage: experiments/reads/run.sh [maps|analyse|replays ...]     JOBS (3), TIMEOUT (60)
@@ -39,7 +40,7 @@ PY
     cp experiments/results/reads/mbi.csv "$w/mbi.csv"
     python3 experiments/mbi/run_mbi.py --replay-only --select "$p" --work experiments/results/mbi --out "$w/mbi.csv" \
         --reads "$MAPS" --jobs "${JOBS:-3}" --timeout "${TIMEOUT:-60}" --max-states 30000 --sp-max-events 600 \
-        && cp "$w/replays.csv" experiments/results/reads/replays.csv
+        --keep-campaign reads/replays && cp "$w/replays.csv" experiments/results/reads/replays.csv
     local rc=$?
     rm -rf "$w"
     return $rc

@@ -9,7 +9,9 @@
 # the trace's size, its alternatives by class, the analysis time and peak memory, and the
 # replay sample's outcome; the sample's rows go to samples/<app>-<np>.csv. Process counts
 # above the container's processors oversubscribe: these runs measure size and cost of the
-# analysis, which runs in one process, not the speed of the traced program.
+# analysis, which runs in one process, not the speed of the traced program. With KEEP_TRACES
+# set, each trace is kept as scale/<app>-<np> once its analysis is timed, and the sample's
+# replays and controls under scale/samples/<app>-<np> (stretto.keep).
 set -uo pipefail
 R="$(cd "$(dirname "$0")/../.." && pwd)"; cd "$R"
 OUT="$R/experiments/results/scale"; mkdir -p "$OUT/samples"
@@ -29,6 +31,7 @@ one() {   # one <app> <np> <mpi> <dir> <exe> [args ...]: trace, analyse, replay 
         -x STRETTO_TRACE_DIR="$td" -x LD_PRELOAD="$R/tracer/bin/$mpi/libstretto-trace.so" "$@" < /dev/null > "$log.run" 2>&1)
     local rc=$? run=FINISHED; [ $rc = 0 ] || run="rc=$rc"
     /usr/bin/time -f '%e %M' -o "$log.time" python3 -m stretto analyze --no-sp "$td" > "$log.report" 2> "$log.err"
+    keep_trace "$td" scale "$app-$np" || return 1
     local t; t=$(tail -1 "$log.time")
     local head; head=$(grep -m1 "^trace:" "$log.report")   # "trace: N ranks, S sends, R receives, W wildcard receives, P probes, ..."
     local recs; recs=$(cat "$td"/rank-*.jsonl | wc -l)

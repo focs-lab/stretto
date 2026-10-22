@@ -12,6 +12,9 @@ Replays and controls run under the tracer when it is built (stretto.confirm.run_
 each row says whether the run is one of the program without its pins (run_valid,
 control_valid) and, if not, why. --sample N replays a random sample of N alternatives of the
 kinds --kinds, drawn with --seed from those of every traced run, instead of all of them.
+With KEEP_TRACES set, every trace is kept (stretto.keep) under the table's campaign
+(hypre/predict, valid/hypre): np<N>-run<K> for a traced run, the same with -<pin>-replay and
+-control for a replay and its control.
 
 usage: predict.py <hypre test dir> [--runs N] [--np 4 8] [--timeout S] [--jobs J] [--tags T..]
                   [--sample N] [--seed K] [--kinds cross same] [--out CSV]
@@ -36,8 +39,8 @@ import tempfile
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 sys.path.insert(0, os.path.join(ROOT, "analysis"))
 sys.path.insert(0, os.path.join(ROOT, "experiments"))
-from stretto import trace  # noqa: E402
-from stretto.confirm import all_matched, horizon_pins, need_preload, required_matches, run_checked  # noqa: E402
+from stretto import keep, trace  # noqa: E402
+from stretto.confirm import all_matched, horizon_pins, need_preload, pin_name, required_matches, run_checked  # noqa: E402
 from stretto.report import analyze  # noqa: E402
 from provenance import code_commit  # noqa: E402
 
@@ -101,9 +104,12 @@ def main() -> int:
     ap.add_argument("--seed", type=int, default=20261022)
     ap.add_argument("--kinds", nargs="+", default=["cross", "same"], help="the kinds of alternative to replay")
     ap.add_argument("--out", default=os.path.join(ROOT, "experiments", "results", "hypre", "predict.csv"))
+    ap.add_argument("--keep-campaign", default=None,
+                    help="with KEEP_TRACES set, keep the traces under this campaign (stretto.keep; default: the table's)")
     args = ap.parse_args()
     need_preload(TRACER)                     # ld.so would ignore a missing tracer, and the runs leave no trace
     failed = os.path.join(os.path.dirname(os.path.abspath(args.out)), "failed")
+    campaign = args.keep_campaign or keep.campaign_of(args.out)
     exe = os.path.join(args.testdir, "ij")
     rows, traced = [], []
     for np in args.np:
@@ -113,6 +119,7 @@ def main() -> int:
                    "-x", f"LD_PRELOAD={TRACER}", "-x", f"STRETTO_TRACE_DIR={d}", exe, *ARGS]
             r = subprocess.run(cmd, cwd=args.testdir, capture_output=True, text=True, stdin=subprocess.DEVNULL)
             row = {"np": np, "run": i, "seed": args.seed if args.sample else "", "commit": code_commit()}
+            keep.keep(d, campaign, f"np{np}-run{i:02d}", commit=row["commit"])
             if r.returncode != 0:
                 rows.append({**row, "replay": f"traced run rc={r.returncode}"})
                 shutil.rmtree(d, ignore_errors=True)
@@ -139,8 +146,9 @@ def main() -> int:
         if hp is None:
             return {**row, "pin": f.pin, "kind": kind, "site": f.site, "replay": "no horizon"}
         alt, ctl = hp
-        ra = run_checked(np, exe, ARGS, alt, args.timeout, mpi="mpich", cwd=args.testdir)
-        rc = run_checked(np, exe, ARGS, ctl, args.timeout, mpi="mpich", cwd=args.testdir)
+        name = f"np{np}-run{i:02d}-{pin_name(f.pin)}"
+        ra = run_checked(np, exe, ARGS, alt, args.timeout, mpi="mpich", cwd=args.testdir, keep_as=(campaign, name + "-replay"))
+        rc = run_checked(np, exe, ARGS, ctl, args.timeout, mpi="mpich", cwd=args.testdir, keep_as=(campaign, name + "-control"))
         res = {**row, "pin": f.pin, "kind": kind, "site": f.site, "replay": ra.result,
                "matched": all_matched(alt, ra.proc.stderr, required_matches(t, f), ra.seen), "residual": residual(ra.proc.stdout),
                "run_valid": ra.valid, "violation": ra.why[:300],

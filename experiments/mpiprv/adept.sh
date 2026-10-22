@@ -23,6 +23,8 @@
 #                             the reordering MPI-PRV reports
 #             mutant, mutant-delay1   the mutant, plain and with rank 1 delayed
 #             guard, guard-fixed      shipped and fixed, under Stretto's tracer with STRETTO_GUARD=1
+#                             (with KEEP_TRACES set, their traces are kept as mpiprv/adept/guard
+#                             and mpiprv/adept/guard-fixed, stretto.keep)
 #   summary the guard records by source line (addr2line), the guard runs' reports, and
 #           experiments/mpiprv/adept.py over the logs
 # The logs stay in experiments/mpiprv/work/adept/ (git-ignored); the summary goes to
@@ -30,6 +32,7 @@
 # usage (repository root, on the host): experiments/mpiprv/prv.sh experiments/mpiprv/adept.sh [build runs summary] ...
 set -uo pipefail
 R="$(cd "$(dirname "$0")/../.." && pwd)"; cd "$R"
+source "$R/experiments/harness.sh"
 RES=experiments/results/mpiprv; mkdir -p "$RES"
 COMMIT="${STRETTO_COMMIT:-$(python3 "$R/experiments/provenance.py")}"
 W="$R/experiments/mpiprv/work/adept"; LOG="$W/logs"; mkdir -p "$LOG"
@@ -79,6 +82,7 @@ step_runs() {
     for g in guard:src guard-fixed:fixed; do
         rm -rf "$W/${g%%:*}.trace"; mkdir -p "$W/${g%%:*}.trace"
         one "${g%%:*}" "${g#*:}" overlapped "$R/tracer/bin/openmpi/libstretto-trace.so" STRETTO_TRACE_DIR="$W/${g%%:*}.trace" STRETTO_GUARD=1
+        keep_trace "$W/${g%%:*}.trace" mpiprv/adept "${g%%:*}" || return 1
     done
 }
 

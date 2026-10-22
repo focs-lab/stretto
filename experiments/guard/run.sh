@@ -18,7 +18,10 @@
 # single-copy calls the library made and how many failed. STRETTO_PAYLOAD=<bytes> in the
 # environment records message payloads too (level L2's re-execution), to check that the two
 # coexist; the results then go to <step>[-cma]-payload.txt and count the records with a payload.
-# Writes experiments/results/guard/{scenarios,lc,apps}[-cma][-payload].txt.
+# Writes experiments/results/guard/{scenarios,lc,apps}[-cma][-payload].txt. The runs' directories
+# are in the container's /tmp; with KEEP_TRACES set, each run's trace is kept as
+# guard/<step>[-cma][-payload]/<run> (stretto.keep: sc.<mpi>.<case>, lc.<mpi>.<program>,
+# app.<app>.<guard>.<rep>), an application's after its wall time is taken.
 # usage: experiments/guard/run.sh [scenarios|lc|apps|all] ...
 set -uo pipefail
 R="$(cd "$(dirname "$0")/../.." && pwd)"; cd "$R"
@@ -51,6 +54,8 @@ run() {
         -x OMP_NUM_THREADS=1 "$@" > "$d/out" 2> "$d/err" < /dev/null)
     rc=$?
 }
+# kept <dir>: with KEEP_TRACES set, keep the trace of the run in <dir> (after its wall time is taken)
+kept() { [ -z "${KEEP_TRACES:-}" ] || keep_trace "$1/trace" "guard/$STEP$TAG" "${1##*/}" || exit 1; }
 # records carrying a payload (data, din or dout)
 payloads() { cat "$1"/trace/rank-*.jsonl 2>/dev/null | grep -cE '"(data|din|dout)(big)?":'; }
 # the guard records of a run as what[:kind]*count, e.g. "access:write*2 overlap*1"
@@ -69,6 +74,7 @@ step_scenarios() {
         local pass=0 n=0
         for s in $(seq 1 19); do
             run "$W/sc.$mpi.$s" $mpi 1 2 "$W/scenarios.$mpi" $s
+            kept "$W/sc.$mpi.$s"
             local d="$W/sc.$mpi.$s" exp got ok=1
             exp=$(sed -n 's/^expect //p' "$d/out" | head -1); got=$(guards "$d")
             [ $rc -eq 0 ] || ok=0
@@ -88,6 +94,7 @@ step_lc() {
             if ! /usr/bin/mpicc.$mpi -O0 -g -o "$W/$n.$mpi" "$f" -lm 2> /dev/null; then printf '%-8s %-50s not built\n' $mpi "$n"; continue; fi
             built=$((built + 1))
             run "$W/lc.$mpi.$n" $mpi 1 2 "$W/$n.$mpi"
+            kept "$W/lc.$mpi.$n"
             local c; c=$(classes "$W/lc.$mpi.$n")
             echo " $c" | grep -q " 3-local" && found=$((found + 1))
             printf '%-8s %-50s rc=%-3s guard=[%s] classes=[%s] payloads=%s\n' $mpi "$n" $rc "$(guards "$W/lc.$mpi.$n")" "$c" "$(payloads "$W/lc.$mpi.$n")"
@@ -108,6 +115,7 @@ step_apps() {
             amg) mpi=openmpi; run "$d" openmpi $g 4 "$R/study/apps/AMG/test/amg" -P 2 2 1 -n 16 16 16 -problem 1 ;;
         esac
         t1=$(date +%s.%N)
+        kept "$d"
         local check npbt
         check=$(grep -m1 -E "Verification +=|Final Relative Residual Norm|Iterations =" "$d/out" | tr -s ' ' | sed 's/^ //')
         npbt=$(sed -n 's/^ *Time in seconds *= *//p' "$d/out" | head -1)
@@ -117,4 +125,4 @@ step_apps() {
     done; done; done
 }
 steps=("$@"); [ ${#steps[@]} -eq 0 ] || [ "${steps[0]}" = all ] && steps=(scenarios lc apps)
-for s in "${steps[@]}"; do "step_$s" | tee "$OUT/$s$TAG.txt"; done
+for s in "${steps[@]}"; do STEP=$s; "step_$s" | tee "$OUT/$s$TAG.txt"; done

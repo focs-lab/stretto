@@ -17,6 +17,10 @@ records (Nekbone) saves the 33 GB it takes. The pins are computed for the whole 
 the first replay and the trace is then let go, so that judging a replay's own trace, as large,
 does not come on top of it.
 
+With KEEP_TRACES set, each replay's and control's trace is kept (stretto.keep) under the
+table's campaign (amg/replay_sample, valid/nekbone, scale/samples/amg-64) or --keep-campaign,
+as <k>-<class>-<pin>-replay and -control, k the row of the sample.
+
 usage: replay_sample.py --out CSV [--sample N] [--seed K] [--timeout S] [--mpi openmpi|mpich]
                         [--from-csv CSV] <trace dir> <np> <exe> [args ...]
 The options come first: everything after <exe> is the program's own command line, which may
@@ -35,8 +39,8 @@ from typing import Optional
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, os.path.join(ROOT, "analysis"))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from stretto import trace  # noqa: E402
-from stretto.confirm import all_matched, horizon_pins, required_matches, run_checked  # noqa: E402
+from stretto import keep, trace  # noqa: E402
+from stretto.confirm import all_matched, horizon_pins, pin_name, required_matches, run_checked  # noqa: E402
 from stretto.report import Finding, analyze  # noqa: E402
 from provenance import code_commit  # noqa: E402
 
@@ -74,7 +78,10 @@ def main() -> int:
     ap.add_argument("--mpi", default="openmpi")
     ap.add_argument("--from-csv", help="replay the alternatives of this earlier sample (its finding column) instead")
     ap.add_argument("--out", required=True)
+    ap.add_argument("--keep-campaign", default=None,
+                    help="with KEEP_TRACES set, keep the replays' traces under this campaign (stretto.keep; default: the table's)")
     args = ap.parse_args()
+    campaign = args.keep_campaign or keep.campaign_of(args.out)
     t = trace.load(args.tracedir)
     if args.from_csv:
         with open(args.from_csv) as fh:
@@ -103,8 +110,11 @@ def main() -> int:
             rows.append({**row, "replay": "no horizon"})
             continue
         alt, ctl = hp
-        ra = run_checked(args.np, args.exe, args.args, alt, args.timeout, mpi=args.mpi, extra_env=env)
-        rc = run_checked(args.np, args.exe, args.args, ctl, args.timeout, mpi=args.mpi, extra_env=env)
+        name = f"{k:02d}-{f.cls}-{pin_name(f.pin)}"
+        ra = run_checked(args.np, args.exe, args.args, alt, args.timeout, mpi=args.mpi, extra_env=env,
+                         keep_as=(campaign, name + "-replay"))
+        rc = run_checked(args.np, args.exe, args.args, ctl, args.timeout, mpi=args.mpi, extra_env=env,
+                         keep_as=(campaign, name + "-control"))
         rows.append({**row, "pins": sum(x.count(",") + 1 for x in alt),
                      "replay": ra.result, "matched": all_matched(alt, ra.proc.stderr, required, ra.seen),
                      "run_valid": ra.valid, "violation": ra.why[:300],

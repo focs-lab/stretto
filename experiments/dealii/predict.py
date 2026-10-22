@@ -23,6 +23,9 @@ Replays and controls run under the tracer when it is built (stretto.confirm.run_
 each row says whether the run is one of the program without its pins (run_valid,
 control_valid) and, if not, why. --sample N replays a random sample of N alternatives of the
 kinds --kinds, drawn with --seed from those of every traced run, instead of all of them.
+With KEEP_TRACES set, every trace is kept (stretto.keep) under the table's campaign
+(dealii/predict-9.3.0-rc1, valid/dealii): <test>-np<N>-run<K> for a traced run, the same with
+-<pin>-replay and -control for a replay and its control.
 
 usage: predict.py <driver dir> --version V --expected PATTERN --normalize SCRIPT
                   [--test mapping_01] [--runs N] [--np 4] [--timeout S] [--jobs J] [--tag 750]
@@ -50,8 +53,8 @@ import tempfile
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 sys.path.insert(0, os.path.join(ROOT, "analysis"))
 sys.path.insert(0, os.path.join(ROOT, "experiments"))
-from stretto import trace  # noqa: E402
-from stretto.confirm import all_matched, horizon_pins, need_preload, required_matches, run_checked  # noqa: E402
+from stretto import keep, trace  # noqa: E402
+from stretto.confirm import all_matched, horizon_pins, need_preload, pin_name, required_matches, run_checked  # noqa: E402
 from stretto.report import analyze  # noqa: E402
 from provenance import code_commit  # noqa: E402
 
@@ -112,8 +115,11 @@ def main() -> int:
     ap.add_argument("--seed", type=int, default=20261022)
     ap.add_argument("--kinds", nargs="+", default=["cross", "same"], help="the kinds of alternative to replay")
     ap.add_argument("--out", required=True)
+    ap.add_argument("--keep-campaign", default=None,
+                    help="with KEEP_TRACES set, keep the traces under this campaign (stretto.keep; default: the table's)")
     args = ap.parse_args()
     need_preload(TRACER)                     # ld.so would ignore a missing tracer, and the runs leave no trace
+    campaign = args.keep_campaign or keep.campaign_of(args.out)
     exe = os.path.join(os.path.abspath(args.bindir), args.test)
     keep = os.path.join(os.path.dirname(os.path.abspath(args.out)), "outputs")
     rows, traced = [], []
@@ -131,6 +137,7 @@ def main() -> int:
             shutil.rmtree(cwd, ignore_errors=True)
             row = {"version": args.version, "test": args.test, "np": np, "run": i, "seed": args.seed if args.sample else "",
                    "commit": code_commit()}
+            keep.keep(d, campaign, f"{args.test}-np{np}-run{i:02d}", commit=row["commit"])
             if r.returncode != 0:
                 rows.append({**row, "replay": f"traced run rc={r.returncode}"})
                 shutil.rmtree(d, ignore_errors=True)
@@ -152,11 +159,11 @@ def main() -> int:
     todo = [pool[c] for c in chosen]
     print(f"replaying {len(todo)} of {len(pool)} alternatives", flush=True)
 
-    def run(np, pins):
+    def run(np, pins, name):
         """One pinned run in a directory of its own: (its Replay, its output)."""
         w = tempfile.mkdtemp(prefix="dealii-replay-")
         try:
-            p = run_checked(np, exe, [], pins, args.timeout, mpi="mpich", cwd=w)
+            p = run_checked(np, exe, [], pins, args.timeout, mpi="mpich", cwd=w, keep_as=(campaign, name))
             return p, output_of(w, args.normalize)
         finally:
             shutil.rmtree(w, ignore_errors=True)
@@ -169,7 +176,8 @@ def main() -> int:
         if hp is None:
             return {**res, "replay": "no horizon"}
         alt, ctl = hp
-        (ra, oa), (rc, oc) = run(np, alt), run(np, ctl)
+        name = f"{args.test}-np{np}-run{i:02d}-{pin_name(f.pin)}"
+        (ra, oa), (rc, oc) = run(np, alt, name + "-replay"), run(np, ctl, name + "-control")
         res.update(replay=ra.result, matched=all_matched(alt, ra.proc.stderr, required_matches(t, f), ra.seen),
                    differs=oa != exp, differs_control=oa != oc, lines=lines_differing(oa, exp),
                    run_valid=ra.valid, violation=ra.why[:300],

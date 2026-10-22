@@ -102,7 +102,7 @@ step_predict() {
         # transfer in the container; it is not program output and differs run to run
         (python3 experiments/scout.py --code mfem --version "$V" --driver "$name" --np $nps --runs "$RUNS" \
              --jobs "${JOBS:-1}" --timeout 120 $(same_sample) --ignore "errno|Read -1, expected" \
-             --out "$p.csv" -- "$M/examples/${a[0]}" "${a[@]:1}" > "$p.log" 2>&1; echo $? > "$p.rc") < /dev/null &
+             --keep-campaign mfem/predict --out "$p.csv" -- "$M/examples/${a[0]}" "${a[@]:1}" > "$p.log" 2>&1; echo $? > "$p.rc") < /dev/null &
         while [ "$(jobs -rp | wc -l)" -ge "${PAR:-1}" ]; do wait -n; done
     done <<< "$DRIVERS"
     wait

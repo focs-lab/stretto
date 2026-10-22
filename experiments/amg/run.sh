@@ -5,6 +5,8 @@
 # summary8.txt and confirm8.txt are committed, the rest is not.
 # sample: 30 alternatives replayed with the pins of their whole horizon and with controls
 #         (experiments/replay_sample.py), written to replay_sample.csv (committed)
+# With KEEP_TRACES set, the trace is kept as amg/trace8 and the sample's replays and controls
+# under amg/replay_sample (stretto.keep); confirm runs the replay library, which records none.
 # usage: experiments/amg/run.sh [trace|analyse|summary|confirm|sample|all]      (OMP_NUM_THREADS=1: one thread per rank)
 set -uo pipefail
 R="$(cd "$(dirname "$0")/../.." && pwd)"; cd "$R"
@@ -20,6 +22,7 @@ step_trace() {
     rm -rf "$D/trace8"; mkdir -p "$D/trace8"
     TIMEOUT=600 mpi_run 8 "STRETTO_TRACE_DIR=$R/$D/trace8" "LD_PRELOAD=$TRACER" "OMP_NUM_THREADS=1" -- "$EXE" "${ARGS[@]}" > "$D/run8.log" 2>&1
     local res; res=$(TIMEOUT=600 classify_rc $? "$D/run8.log")      # MPI_RUN_SECONDS: set by mpi_run
+    keep_trace "$D/trace8" amg trace8 || return 1
     echo "traced run: $res, $(cat "$D"/trace8/rank-*.jsonl 2>/dev/null | wc -l) records"
     # a traced run that did not finish is no trace of AMG's run: the steps after it would analyse a fragment
     [ "$res" = FINISHED ] || { echo "HARNESS-ERROR: the traced run ended $res (log: $D/run8.log)" >&2; return 1; }

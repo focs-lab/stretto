@@ -11,7 +11,8 @@
 #   amg      AMG: the alternatives of its committed sample, on the trace of experiments/amg/run.sh
 #   nekbone  Nekbone: the same (experiments/nekbone/run.sh; one replay's check takes about 17 GB)
 # Writes experiments/results/valid/<step>.csv. The reruns of 22 Oct took about eight hours on 12
-# processors, up to four containers at a time.
+# processors, up to four containers at a time. With KEEP_TRACES set, the drivers keep every
+# trace they record, new traced runs, replays and controls, under valid/<step> (stretto.keep).
 # usage: experiments/valid/run.sh [mbi|reads|npbmg|dealii|hypre|amg|nekbone ...]   JOBS (3)
 set -uo pipefail
 R="$(cd "$(dirname "$0")/../.." && pwd)"; cd "$R"

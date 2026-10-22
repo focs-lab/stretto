@@ -4,7 +4,8 @@ LocalConcurrency and Correct programs, MBI's point-to-point LocalConcurrency, Re
 ResLeak families, and the corrected twins), so that MPI-PRV's arms are scored against Stretto on
 the same programs. Each program is built and traced once with STRETTO_GUARD=1 and analysed, as
 experiments/mbi/run_mbi.py --guard does (it is called for each program); the twins are written,
-without markers, to experiments/mpiprv/work/stretto-corpus/twins/.
+without markers, to experiments/mpiprv/work/stretto-corpus/twins/. With KEEP_TRACES set, each
+trace is kept as mpiprv/stretto-corpus/<corpus>/<program> (stretto.keep).
 Runs in the experiment image (experiments/container/run.sh).
 
 usage: stretto_corpus.py [--jobs J] [--select REGEX --out CSV]   (writes experiments/results/mpiprv/stretto-corpus.csv)"""
@@ -62,7 +63,7 @@ def main():
         # run_mbi's own defaults (an option it gains reaches this script too), with the guard on
         a = run_mbi.options(gencodes=gencodes, results=os.path.join(WORK, p["corpus"]), guard=True,
                             timeout=args.timeout, must=False, confirm=False, no_sp=False, sp_max_events=600,
-                            max_states=30000)
+                            max_states=30000, keep_campaign=f"mpiprv/stretto-corpus/{p['corpus']}")
         r = run_mbi.run_one(name, a)
         return {"corpus": p["corpus"], "program": p["program"], "expect": p["expect"], "detail": p["detail"],
                 "np": p["np"], "build": r.get("build"), "run": r.get("run"), "classes": r.get("classes", ""),

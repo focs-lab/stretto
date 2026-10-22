@@ -41,7 +41,10 @@ the size of its message, replay result, every required pin matched, whether the 
 a run of the program and why not, whether its output differs from the control's and from the
 traced run's, control result, control matched, whether the control is a run of the program,
 whether its output differs from the traced run's, seed of the sample, commit. Appends to CSV
-if it exists and has the same columns, so that several drivers share one table.
+if it exists and has the same columns, so that several drivers share one table. With
+KEEP_TRACES set, every trace is kept (stretto.keep) under the table's campaign (petsc/parasails)
+or --keep-campaign: <driver>-np<N>-run<K> for a traced run, the same with -<class>-<pin>-replay
+and -control for a replay and its control.
 """
 from __future__ import annotations
 import argparse
@@ -61,8 +64,8 @@ from collections import Counter
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, os.path.join(ROOT, "analysis"))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from stretto import trace  # noqa: E402
-from stretto.confirm import _horizon, all_matched, run_checked, tracer_lib  # noqa: E402
+from stretto import keep, trace  # noqa: E402
+from stretto.confirm import _horizon, all_matched, pin_name, run_checked, tracer_lib  # noqa: E402
 from stretto.matching import candidates_full  # noqa: E402
 from stretto.report import ERROR_CLASSES, analyze  # noqa: E402
 from stretto.sites import _is_dyn  # noqa: E402
@@ -182,11 +185,14 @@ def main() -> int:
     ap.add_argument("--normalize-script", default=None, help="a perl -p script the output file goes through first")
     ap.add_argument("--no-replay", action="store_true", help="trace and analyse only: one row per traced run")
     ap.add_argument("--out", required=True)
+    ap.add_argument("--keep-campaign", default=None,
+                    help="with KEEP_TRACES set, keep the traces under this campaign (stretto.keep; default: the table's)")
     ap.add_argument("cmd", nargs=argparse.REMAINDER)
     args = ap.parse_args()
     cmd = args.cmd[1:] if args.cmd and args.cmd[0] == "--" else args.cmd
     exe, prog_args = os.path.abspath(cmd[0]), cmd[1:]
     ignore = re.compile(args.ignore) if args.ignore else None
+    campaign = args.keep_campaign or keep.campaign_of(args.out)
     rows, traced = [], []
 
     def workdir():
@@ -223,6 +229,7 @@ def main() -> int:
             row = {"code": args.code, "version": args.version, "driver": args.driver, "np": np, "run": i,
                    "traced": result_of(r.returncode, elapsed),
                    "seed": args.seed if args.sample or args.same_sample is not None else "", "commit": code_commit()}
+            keep.keep(d, campaign, f"{args.driver}-np{np}-run{i:02d}", commit=row["commit"])
             try:
                 t = trace.load(d)
             except Exception as e:  # noqa: BLE001
@@ -294,11 +301,11 @@ def main() -> int:
     for _, d, *_ in traced:
         shutil.rmtree(d, ignore_errors=True)
 
-    def run(np, pins):
+    def run(np, pins, name):
         """One pinned run: its Replay and its output."""
         w = workdir()
         try:
-            p = run_checked(np, exe, prog_args, pins, args.timeout, mpi=args.mpi, cwd=w)
+            p = run_checked(np, exe, prog_args, pins, args.timeout, mpi=args.mpi, cwd=w, keep_as=(campaign, name))
             return p, output_of(p.proc.stdout, w)
         finally:
             if not args.cwd:
@@ -312,7 +319,8 @@ def main() -> int:
         if hp is None:
             return {**res, "replay": "no horizon"}
         alt, ctl = hp
-        (ra, oa), (rc, oc) = run(row["np"], alt), run(row["np"], ctl)
+        name = f"{args.driver}-np{row['np']}-run{row['run']:02d}-{f.cls}-{pin_name(f.pin)}"
+        (ra, oa), (rc, oc) = run(row["np"], alt, name + "-replay"), run(row["np"], ctl, name + "-control")
         res.update(replay=ra.result, matched=all_matched(alt, ra.proc.stderr, required, ra.seen),
                    run_valid=ra.valid, violation=ra.why[:300], differs_control=oa != oc, differs_traced=oa != out,
                    control=rc.result, control_matched=all_matched(ctl, rc.proc.stderr, None, rc.seen),

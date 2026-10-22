@@ -18,7 +18,9 @@ verdict is "same" as the reference, "weaker" (a subset of its claims) or "other"
 report-level classes per program (as E7's table) are given too.
 
 Writes experiments/results/e7_rerun.csv (one row per alternative and threshold) and
-experiments/results/e7_rerun.md. Needs tracer/ and rerun/ built for Open MPI.
+experiments/results/e7_rerun.md. Needs tracer/ and rerun/ built for Open MPI. With KEEP_TRACES
+set, each traced run's trace is kept as e7_rerun/<program> (stretto.keep); the re-executions'
+logs (stretto.rerun) are no traces of the tracer and are not kept.
 usage: e7_rerun.py [--select REGEX] [--idioms] [--only-idioms] [--repeat N] [--timeout S] [--jobs J]"""
 from __future__ import annotations
 import argparse
@@ -35,7 +37,7 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, os.path.join(ROOT, "analysis"))
 sys.path.insert(0, os.path.join(ROOT, "analysis", "tests"))
 sys.path.insert(0, os.path.join(ROOT, "experiments", "mbi"))
-from stretto import dsl, explore, report, rerun, trace  # noqa: E402
+from stretto import dsl, explore, keep, report, rerun, trace  # noqa: E402
 from stretto.confirm import classify_rc, need_preload  # noqa: E402
 import idioms_dsl  # noqa: E402
 import twins  # noqa: E402
@@ -124,6 +126,7 @@ def one_program(item, args):
     else:
         exe = src
     run = traced_run(exe, np, out, args.timeout)
+    keep.keep(os.path.join(out, "trace"), keep.campaign_of(args.out + ".csv"), name)
     t = trace.load(os.path.join(out, "trace"))
     if hand is None:
         hand_prog = dsl.program_from_trace(t)
