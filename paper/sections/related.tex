@@ -8,7 +8,9 @@ thread is deterministic given what it reads, every program that can produce the 
 considered, and a thread stops at its first read whose value differs; the resulting set of
 runs is sound and maximal. RVPredict~\citep{huang14rvpredict} and
 SeqCheck~\citep{cai21seqcheck} let such a thread run on to its next branch, and symbolic
-predictive analysis keeps the recorded branch conditions~\citep{wang09ctp}. Correct
+predictive analysis keeps the recorded branch conditions~\citep{wang09ctp}. SDP~\citep{genc19sdp}
+lets a read take another writer when nothing after it depends on the value, as read bounds do
+for MPI (\cref{thm:firstread}). Correct
 reorderings~\citep{smaragdakis12cp} keep every read's writer. WCP~\citep{kini17wcp} weakened
 happens-before soundly in linear time, and SHB~\citep{mathur18shb} made it sound beyond the
 first race, with relaxed correct reorderings that let a thread's last read change. M2~\citep{pavlogiannis20m2} and
@@ -20,7 +22,8 @@ order and test acyclicity over a closure, the shape of our check; reversing one 
 message-passing analogue. \Cref{thm:sound} follows the unified soundness
 template~\citep{liu25soundness}, with MPI's rules at $\Bt$ for the memory model and a matching
 over the horizon for the bug; the template covers locks under multicopy-atomic models, not
-message passing. Our witness is uniform over the programs consistent on $\Hpre$.
+message passing. Our witness is uniform over the programs consistent on $\Hpre$; the horizon is a
+strong trace prefix~\citep{ang24strong}.
 
 \paragraph{Message races and reachability testing.} Race analysis of
 traces~\citep{tai97race} and reachability testing~\citep{lei06reachability} compute from one
@@ -85,8 +88,7 @@ model~\citep{bohm16aislinn}.
 \paragraph{Message passing beyond MPI\@.} Go trace analyses report alternative communications
 under a straight-line model~\citep{sulzmann17hvc} or by vector clocks~\citep{sulzmann18go}, and
 AdvocateGo replays partners found by happens-before~\citep{advocatego}. Erlang's race
-variants~\citep{vidal22racevariants} are our steal and horizon without blocking, with a theorem on
-non-redundancy;
+variants~\citep{vidal22racevariants} are our steal and horizon without blocking;
 Bita~\citep{tasharofi13bita}, DCatch~\citep{liu17dcatch} and dl$^2$~\citep{gao25dl2} expose
 such bugs. None proves an alternative feasible.
 
@@ -97,9 +99,9 @@ or re-execution~\citep{farzan12exceptionull,huang15mcr}. In message passing, rea
 testing and MAD replay a prefix with the other wildcards pinned, MOPPER can rerun a predicted
 matching
 under ISP~\citep{forejt17mopper}, and MPIWiz~\citep{xue09mpiwiz} and record and
-replay~\citep{netzer92replay,sato15rempi} reproduce recorded sources. Specific to \tool are pins
-over a horizon that follows rendezvous and ordering dependences, a log of each
-pinned match, a control replay that must finish, and confirmation per threshold.
+replay~\citep{netzer92replay,sato15rempi} reproduce recorded sources. Specific to \tool are
+horizon pins that follow rendezvous and ordering dependences, a log of each
+pinned match, a finishing control and confirmation per threshold.
 
 \paragraph{Runtime checkers.} \MUST~\citep{hilbrich12must} checks the observed run online for
 argument, resource and type errors and for deadlocks, treating standard sends as unbuffered and,
