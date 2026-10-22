@@ -85,5 +85,51 @@ class Claims(unittest.TestCase):
             os.unlink(fh.name)
 
 
+score = module("experiments/mbi/score.py", "score_under_test")
+GOLDEN = os.path.join(ROOT, "analysis", "tests", "golden", "openmpi")
+
+
+class CrashIsNoVerdict(unittest.TestCase):
+    """An analysis that raises has no verdict: never a true negative on a correct program."""
+
+    def test_a_crash_is_neither_a_positive_nor_a_negative(self):
+        rs = [{"name": "a", "expect": "OK", "classes": "", "analysis": "CRASH"},
+              {"name": "b", "expect": "ERROR", "classes": "1d", "analysis": "ok"},
+              {"name": "c", "expect": "OK", "classes": ""},
+              {"name": "d", "expect": "ERROR", "classes": "", "notes": "analysis failed: KeyError"}]
+        for judge in (score.verdict, score.observed_verdict, score.predicted_verdict, score.l1_verdict):
+            c = score.confusion(rs, judge)
+            self.assertEqual((c["tn"] + c["tp"] + c["fp"] + c["fn"], c["crash"]), (2, 2), judge.__name__)
+        c = score.confusion(rs, score.verdict)
+        self.assertEqual((c["tp"], c["tn"], c["fp"], c["fn"]), (1, 1, 0, 0))
+        self.assertIn("a", score.crashes_seen())
+        self.assertIn("d", score.crashes_seen())
+
+    def test_run_mbi_records_a_crash_as_crash(self):
+        import shutil
+        import tempfile
+        run_mbi = module("experiments/mbi/run_mbi.py", "run_mbi_under_test")
+        with tempfile.TemporaryDirectory() as d:
+            td = os.path.join(d, "trace")
+            os.makedirs(td)
+            with open(os.path.join(td, "rank-0.jsonl"), "w") as fh:
+                fh.write('{"r":0,"seq":0,"op":"init","np":1}\n{not json\n{"r":0,"seq":2,"op":"finalize"}\n')
+            row = {"name": "broken", "np": 1}
+            run_mbi.analyse(row, d, os.path.join(d, "main"), td, run_mbi.options())
+            self.assertEqual(row["analysis"], "CRASH")
+            self.assertEqual(row["classes"], "")
+            self.assertTrue(row["notes"].startswith("analysis failed: ValueError"))
+            self.assertEqual(score.verdict(row), "CRASH")
+            self.assertTrue(os.path.exists(os.path.join(d, "analysis.err")))
+            # a good trace, analysed with the options another script builds from run_mbi's defaults
+            # (experiments/mpiprv/stretto_corpus.py once built them by hand, without --reads)
+            shutil.copytree(os.path.join(GOLDEN, "04_orphan_send"), os.path.join(d, "good"))
+            row = {"name": "good", "np": 3}
+            run_mbi.analyse(row, d, os.path.join(d, "main"), os.path.join(d, "good"),
+                            run_mbi.options(guard=True, confirm=False, sp_max_events=600, max_states=30000))
+            self.assertEqual(row["analysis"], "ok")
+            self.assertEqual(score.verdict(row), "ERROR")
+
+
 if __name__ == "__main__":
     unittest.main()

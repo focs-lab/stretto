@@ -111,9 +111,9 @@ def e1(name, path, key=None):
                 "report (RE) the same way; the two rows bracket the comparison. Both tools ran each program once, with",
                 "the same timeout; MUST under MPICH, Stretto under Open MPI, so they did not see the same run."]
         out += must_versions_notes(rs, key, path)
-        failed = [r["name"] for r in rs if score.analysis_failed(r)]
+        failed = [r["name"] for r in rs if score.crashed(r)]
         if failed:
-            out += ["", f"Analysis failed on {len(failed)} program(s), counted as no error: {', '.join(failed)}."]
+            out += ["", f"Analysis failed on {len(failed)} program(s) (CRASH), left out of every row above: {', '.join(failed)}."]
         inv = [r for r in rs if r["expect"] == "ERROR" and score.verdict(r) == "ERROR" and score.must_verdict(r) != "ERROR"]
         inv_pred = [r for r in inv if score.predicted_verdict(r) == "ERROR" and score.observed_verdict(r) != "ERROR"]
         conf = [r for r in inv if r.get("confirmed") and int(r["confirmed"]) > 0]
@@ -2711,7 +2711,14 @@ def main():
     print("wrote", path)
     write_paper_numbers()
     figures.readme(ROOT, NUM)
+    # a crashed analysis has no verdict: the tables leave it out, and the scoring fails
+    crashed = score.crashes_seen()
+    if crashed:
+        print(f"tables.py: the analysis crashed on {len(crashed)} scored row(s), left out of the confusion matrices: "
+              + ", ".join(crashed), file=sys.stderr)
+        return 1
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

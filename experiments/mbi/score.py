@@ -18,6 +18,11 @@ what Stretto predicts about other runs:
               docs/firstread.md), observed:2-buffering (the finished run would deadlock below a
               threshold)
   L1 only   : L1:1a/1c/1d, the error consequences that hold without the single-path assumption
+A program whose analysis crashed has no verdict (CRASH), and neither has a run that the harness
+itself could not complete or judge (HARNESS-ERROR: no trace, a tool that did not start, a
+container that failed): a confusion matrix counts such rows apart, as neither a positive nor a
+negative, so that a crash on a correct program never reads as a true negative. Scoring a table
+with a crash fails (score.main exits with status 1; experiments/tables.py too, after writing).
 usage: score.py results.csv [--md]
 """
 from __future__ import annotations
@@ -35,10 +40,18 @@ PREDICTED = {"L1:1a", "L1:1c", "L1:1d", "L1+SP:1a", "L1+SP:1c", "L1+SP:1d", "obs
 FLAGGED = {"L1:1a", "L1:1b", "L1:1f"}            # a wildcard alternative found from the trace alone
 CERTIFIED = {"L1:1a", "L1:1c", "L1:1d", "L1+SP:1a", "L1+SP:1c", "L1+SP:1d"}   # an error consequence of a predicted alternative
 L1_ONLY = {"L1:1a", "L1:1c", "L1:1d"}            # an error consequence without the single-path assumption
+CRASH = "CRASH"                  # the analysis did not run to its end
+HARNESS = "HARNESS-ERROR"        # the run, or the harness around a tool, failed: the tool gave no verdict
+NO_VERDICT = (CRASH, HARNESS)
+# every row a confusion matrix met without a verdict, (verdict, name): the caller fails on a crash
+SEEN_WITHOUT_VERDICT: set = set()
 
 
 def rows(path: str) -> List[dict]:
-    return list(csv.DictReader(open(path))) if os.path.exists(path) else []
+    if not os.path.exists(path):
+        return []
+    with open(path) as fh:
+        return list(csv.DictReader(fh))
 
 
 def compiled(rs: Iterable[dict]) -> List[dict]:
@@ -49,8 +62,16 @@ def levels(r: dict) -> set:
     return set(r.get("levels", "").split())
 
 
+def crashed(r: dict) -> bool:
+    """The analysis of the row crashed: the harness wrote CRASH into its analysis column (or, in
+    tables written before the column, "analysis failed" into its notes)."""
+    return r.get("analysis") == CRASH or analysis_failed(r)
+
+
 def verdict(r: dict) -> str:
-    """ERROR iff any error-class finding (observed or predicted)."""
+    """ERROR iff any error-class finding (observed or predicted); CRASH if the analysis crashed."""
+    if crashed(r):
+        return CRASH
     return "ERROR" if set(r.get("classes", "").split()) & ERROR else "OK"
 
 
@@ -61,6 +82,8 @@ def finished(r: dict) -> bool:
 def observed_verdict(r: dict) -> str:
     """What the run itself showed. A 2-buffering finding on a run that did not finish is the
     hang itself, so it is observed, not predicted."""
+    if crashed(r):
+        return CRASH
     lv = levels(r)
     if "observed:2-buffering" in lv and not finished(r):
         return "ERROR"
@@ -69,6 +92,8 @@ def observed_verdict(r: dict) -> str:
 
 def predicted_verdict(r: dict) -> str:
     """Claims about other runs: 1a, L1+SP 1c/1d, and 2-buffering on a run that finished."""
+    if crashed(r):
+        return CRASH
     lv = levels(r)
     if not finished(r):
         lv = lv - {"observed:2-buffering"}
@@ -78,6 +103,8 @@ def predicted_verdict(r: dict) -> str:
 def l1_verdict(r: dict) -> str:
     """Claims about other runs that hold for every program consistent with the trace (and,
     with read bounds, with them): 1a, and 1c/1d at level L1."""
+    if crashed(r):
+        return CRASH
     return "ERROR" if levels(r) & L1_ONLY else "OK"
 
 
@@ -125,16 +152,28 @@ def must_column_judge(col: str, hangs: bool = False):
 
 
 def confusion(rs: Iterable[dict], judge) -> Dict[str, float]:
-    """TP/FP/FN/TN of judge(row) in {ERROR, OK} against the label, with precision, recall, F1."""
+    """TP/FP/FN/TN of judge(row) in {ERROR, OK} against the label, with precision, recall, F1.
+    A row judged CRASH or HARNESS-ERROR is in none of the four: it is counted under crash or
+    harness, and remembered in SEEN_WITHOUT_VERDICT."""
     c = collections.Counter()
     for r in rs:
         e, v = r.get("expect"), judge(r)
+        if v in NO_VERDICT:
+            c["crash" if v == CRASH else "harness"] += 1
+            SEEN_WITHOUT_VERDICT.add((v, r.get("name") or r.get("program") or "?"))
+            continue
         c["tp" if e == "ERROR" and v == "ERROR" else "fn" if e == "ERROR" else "fp" if v == "ERROR" else "tn"] += 1
     tp, fp, fn, tn = c["tp"], c["fp"], c["fn"], c["tn"]
     prec = tp / (tp + fp) if tp + fp else 0.0
     rec = tp / (tp + fn) if tp + fn else 0.0
     f1 = 2 * prec * rec / (prec + rec) if prec + rec else 0.0
-    return {"tp": tp, "fp": fp, "fn": fn, "tn": tn, "precision": prec, "recall": rec, "f1": f1}
+    return {"tp": tp, "fp": fp, "fn": fn, "tn": tn, "precision": prec, "recall": rec, "f1": f1,
+            "crash": c["crash"], "harness": c["harness"]}
+
+
+def crashes_seen() -> List[str]:
+    """The rows scored so far whose analysis crashed, sorted."""
+    return sorted(name for v, name in SEEN_WITHOUT_VERDICT if v == CRASH)
 
 
 def noise(rs: Iterable[dict]) -> Dict[str, float]:
@@ -162,9 +201,9 @@ def main(path: str, md: bool = False) -> int:
         print(f"MUST      TP={c['tp']} FP={c['fp']} FN={c['fn']} TN={c['tn']} F1={c['f1']:.2f}  verdict kinds {dict(kinds)}")
         c = confusion(rs, must_verdict_hangs)
         print(f"MUST+hang TP={c['tp']} FP={c['fp']} FN={c['fn']} TN={c['tn']} F1={c['f1']:.2f}  (a timeout counts as an error, as for Stretto)")
-    failed = [r["name"] for r in rs if analysis_failed(r)]
+    failed = [r["name"] for r in rs if crashed(r)]
     if failed:
-        print(f"analysis failed (counted as no error): {len(failed)}: {', '.join(failed)}")
+        print(f"CRASH: the analysis failed on {len(failed)} program(s), left out of every row above: {', '.join(failed)}")
     race = [r for r in rs if r.get("detail") == "MessageRace"]
     if race:
         clean = [r for r in race if r.get("run") == "FINISHED"]
@@ -183,7 +222,7 @@ def main(path: str, md: bool = False) -> int:
         c = collections.Counter((r["expect"], r["detail"], r["run"].split(":")[0], r["classes"]) for r in rs)
         for k, v in sorted(c.items()):
             print(f"| {k[0]} | {k[1]} | {k[2]} | {k[3]} | {v} |")
-    return 0
+    return 1 if failed else 0
 
 
 if __name__ == "__main__":

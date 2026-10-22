@@ -56,10 +56,13 @@ def main() -> int:
     dirs = args.dirs or sorted(glob.glob(os.path.join(ROOT, "traces", "openmpi", "*")) +
                                glob.glob(os.path.join(ROOT, "experiments", "results", "*", "*", "trace")))
     rows = []
+    unloadable = []
     for d in dirs:
         try:
             t = trace.load(d)
-        except Exception:
+        except (OSError, ValueError, KeyError) as e:
+            # counted and named below; any other exception is a bug of the loader and stops the run
+            unloadable.append(f"{d.replace(ROOT + '/', '')}: {type(e).__name__}: {e}"[:200])
             continue
         name = d.replace(ROOT + "/", "")
         if sum(len(v) for v in t.ranks.values()) > args.max_events:
@@ -117,6 +120,10 @@ def main() -> int:
     print(f"traces={len(obs)} observed-infeasible-at-B0={sum(1 for r in obs if not r['B0'])} "
           f"alternatives={len(alt)} feasible@0={sum(1 for r in alt if r['B0'])} feasible@4096={sum(1 for r in alt if r['B4096'])} "
           f"feasible@inf={sum(1 for r in alt if r['Binf'])} B-dependent={sum(1 for r in alt if r['B0'] != r['Binf'])}")
+    if unloadable:
+        print(f"{len(unloadable)} trace directories could not be loaded and are not in the table:")
+        for u in unloadable:
+            print("  " + u)
     print(f"wrote {args.out}")
     return 0
 

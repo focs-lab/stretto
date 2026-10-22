@@ -49,9 +49,10 @@ def main():
 
     def one(job):
         p, gencodes, name = job
-        a = argparse.Namespace(gencodes=gencodes, results=os.path.join(WORK, p["corpus"]), guard=True,
-                               timeout=args.timeout, must=False, confirm=False, no_sp=False, sp_max_events=600,
-                               max_states=30000)
+        # run_mbi's own defaults (an option it gains reaches this script too), with the guard on
+        a = run_mbi.options(gencodes=gencodes, results=os.path.join(WORK, p["corpus"]), guard=True,
+                            timeout=args.timeout, must=False, confirm=False, no_sp=False, sp_max_events=600,
+                            max_states=30000)
         r = run_mbi.run_one(name, a)
         return {"corpus": p["corpus"], "program": p["program"], "expect": p["expect"], "detail": p["detail"],
                 "np": p["np"], "build": r.get("build"), "run": r.get("run"), "classes": r.get("classes", ""),
@@ -69,7 +70,12 @@ def main():
         w.writeheader()
         w.writerows(rows)
     print("wrote", OUT)
+    crashed = [r["program"] for r in rows if r["verdict"] == score.CRASH]
+    if crashed:
+        print(f"the analysis crashed on {len(crashed)} program(s), whose rows say CRASH: {', '.join(crashed)}", file=sys.stderr)
+        return 1
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

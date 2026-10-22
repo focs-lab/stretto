@@ -36,6 +36,7 @@ import shutil
 import subprocess
 import sys
 import time
+import traceback
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -53,6 +54,8 @@ from stretto import confirm as confirm_mod, reads, report, trace  # noqa: E402
 from stretto.confirm import classify_rc  # noqa: E402
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from provenance import code_commit  # noqa: E402
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from score import CRASH  # noqa: E402
 
 
 def parse_header(path: str) -> dict:
@@ -148,7 +151,11 @@ def replay_one(row: dict, args) -> dict:
 
 def analyse(row: dict, out: str, exe: str, tracedir: str, args) -> None:
     """Analyse the trace under out/, fill the Stretto columns of row and, with --confirm,
-    replay every error finding with its pin."""
+    replay every error finding with its pin. An analysis that raises has no verdict: the row
+    says CRASH in its analysis column (score.verdict), its classes stay empty, and the
+    traceback goes to out/analysis.err. An error in the replays is the harness's and stops the
+    run."""
+    row["commit"] = code_commit()
     try:
         t = trace.load(tracedir)
         bounds = None
@@ -157,34 +164,48 @@ def analyse(row: dict, out: str, exe: str, tracedir: str, args) -> None:
             bounds = reads.SiteMap.load(mp, reads.addr2line_resolver(out)) if os.path.exists(mp) else None
         rep = report.analyze(t, with_sp=not args.no_sp, sp_max_events=args.sp_max_events, max_states=args.max_states,
                              reads=bounds)
-        row["classes"] = " ".join(rep.classes())
-        row["levels"] = " ".join(rep.levels())
-        row["findings"] = len(rep.findings)
-        row["l1_alternatives"] = sum(1 for f in rep.findings if f.level == "L1" and f.family == "1")
-        row["wildcard_recvs"] = sum(1 for x in t.recvs.values() if x.wildcard)
-        row["events"] = sum(len(v) for v in t.ranks.values())
-        row["notes"] = "; ".join(rep.notes)[:300]
-        row["commit"] = code_commit()
-        with open(os.path.join(out, "report.txt"), "w") as fh:
-            fh.write(report.format_report(t, rep, show_infeasible=True))
-        with open(os.path.join(out, "report.json"), "w") as fh:
-            json.dump(report.to_json(t, rep), fh, default=str, indent=1)
-        if args.confirm:
-            res = confirm_mod.confirm(rep, row["np"], exe, timeout=args.timeout, t=t)
-            row["confirmed"] = sum(1 for c in res if c.verdict == "confirmed")
-            row["confirmed_strict"] = sum(1 for c in res if c.strict == "confirmed")
-            row["not_confirmed"] = sum(1 for c in res if c.verdict in ("not-confirmed", "inconclusive"))
-            # pins written with "/" separators: "1d 1/0/0/0 -> TIMEOUT" (colon runs read as IPv6 literals)
-            row["replays"] = "; ".join(f"{c.finding.cls} {pin_label(c.pin)} -> {c.result}" for c in res)[:300]
-            row["_replays"] = [{"program": row["name"], "cls": c.finding.cls, "level": c.finding.level,
-                                "certainty": c.finding.certainty, "pin": pin_label(c.pin), "result": c.result,
-                                "pin_applied": c.pin_applied, "pin_matched": c.pin_matched, "control": c.control,
-                                "verdict": c.verdict, "run_valid": c.run_valid, "violation": c.violation[:300],
-                                "control_valid": c.control_valid, "control_violation": c.control_violation[:300],
-                                "strict_verdict": c.strict, "commit": code_commit(),
-                                "stderr_tail": " ".join(c.stderr_tail.split())[-200:]} for c in res]
-    except Exception as e:  # noqa: BLE001
-        row.update(classes="", findings=0, notes=f"analysis failed: {e}"[:300])
+    except Exception as e:  # noqa: BLE001  (recorded as CRASH, never as a verdict)
+        with open(os.path.join(out, "analysis.err"), "w") as fh:
+            fh.write(traceback.format_exc())
+        row.update(analysis=CRASH, classes="", levels="", findings="", l1_alternatives="",
+                   notes=f"analysis failed: {type(e).__name__}: {e}"[:300])
+        return
+    row["analysis"] = "ok"
+    row["classes"] = " ".join(rep.classes())
+    row["levels"] = " ".join(rep.levels())
+    row["findings"] = len(rep.findings)
+    row["l1_alternatives"] = sum(1 for f in rep.findings if f.level == "L1" and f.family == "1")
+    row["wildcard_recvs"] = sum(1 for x in t.recvs.values() if x.wildcard)
+    row["events"] = sum(len(v) for v in t.ranks.values())
+    row["notes"] = "; ".join(rep.notes)[:300]
+    with open(os.path.join(out, "report.txt"), "w") as fh:
+        fh.write(report.format_report(t, rep, show_infeasible=True))
+    with open(os.path.join(out, "report.json"), "w") as fh:
+        json.dump(report.to_json(t, rep), fh, default=str, indent=1)
+    if args.confirm:
+        res = confirm_mod.confirm(rep, row["np"], exe, timeout=args.timeout, t=t)
+        row["confirmed"] = sum(1 for c in res if c.verdict == "confirmed")
+        row["confirmed_strict"] = sum(1 for c in res if c.strict == "confirmed")
+        row["not_confirmed"] = sum(1 for c in res if c.verdict in ("not-confirmed", "inconclusive"))
+        # pins written with "/" separators: "1d 1/0/0/0 -> TIMEOUT" (colon runs read as IPv6 literals)
+        row["replays"] = "; ".join(f"{c.finding.cls} {pin_label(c.pin)} -> {c.result}" for c in res)[:300]
+        row["_replays"] = [{"program": row["name"], "cls": c.finding.cls, "level": c.finding.level,
+                            "certainty": c.finding.certainty, "pin": pin_label(c.pin), "result": c.result,
+                            "pin_applied": c.pin_applied, "pin_matched": c.pin_matched, "control": c.control,
+                            "verdict": c.verdict, "run_valid": c.run_valid, "violation": c.violation[:300],
+                            "control_valid": c.control_valid, "control_violation": c.control_violation[:300],
+                            "strict_verdict": c.strict, "commit": code_commit(),
+                            "stderr_tail": " ".join(c.stderr_tail.split())[-200:]} for c in res]
+
+
+def crashed_status(rows) -> int:
+    """1 (and the names on stderr) if the analysis crashed on a row: the table is written, with
+    CRASH in those rows, but the run did not succeed."""
+    crashed = [r["name"] for r in rows if r.get("analysis") == CRASH]
+    if crashed:
+        print(f"the analysis crashed on {len(crashed)} program(s) (CRASH; tracebacks in their analysis.err): "
+              + ", ".join(crashed), file=sys.stderr)
+    return 1 if crashed else 0
 
 
 REPLAY_KEYS = ["program", "cls", "level", "certainty", "pin", "result", "pin_applied", "pin_matched", "control", "verdict",
@@ -194,7 +215,7 @@ REPLAY_KEYS = ["program", "cls", "level", "certainty", "pin", "result", "pin_app
 def replay_only(args) -> int:
     rp = os.path.join(os.path.dirname(args.out), "replays.csv")
     rows = list(csv.DictReader(open(args.out)))
-    keys = list(rows[0].keys()) + ([] if "commit" in rows[0] else ["commit"])
+    keys = list(rows[0].keys()) + [k for k in ("analysis", "commit") if k not in rows[0]]
     replays = list(csv.DictReader(open(rp))) if os.path.exists(rp) else []
     todo = [r for r in rows if r["build"] == "ok" and re.search(args.select, r["name"])]
     with ThreadPoolExecutor(max_workers=args.jobs) as ex:
@@ -210,7 +231,7 @@ def replay_only(args) -> int:
             for r in rows:
                 w.writerows(r.get("_replays", []))
         print(f"wrote {args.replays_out} ({len(todo)} programs replayed again)")
-        return 0
+        return crashed_status(todo)
     done = {r["name"] for r in todo}
     with open(args.out, "w", newline="") as fh:
         w = csv.DictWriter(fh, fieldnames=keys, extrasaction="ignore", lineterminator="\n")
@@ -223,10 +244,20 @@ def replay_only(args) -> int:
         for r in rows:
             w.writerows(r.get("_replays", []) if r["name"] in done else [x for x in replays if x["program"] == r["name"]])
     print(f"wrote {args.out} and {rp} ({len(todo)} programs replayed again)")
-    return 0
+    return crashed_status(todo)
 
 
-def main() -> int:
+def options(**given) -> argparse.Namespace:
+    """The options of a run with every default of the command line, and the given ones in
+    their place: for scripts that call run_one directly (experiments/mpiprv/stretto_corpus.py),
+    so that an option added here reaches them with its default."""
+    args = parser().parse_args([])
+    for k, v in given.items():
+        setattr(args, k, v)
+    return args
+
+
+def parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser()
     ap.add_argument("--select", default=r"MessageRace|ANY|Probe|Correct", help="regex on file names")
     ap.add_argument("--limit", type=int, default=0)
@@ -247,7 +278,11 @@ def main() -> int:
                          "and its replays.csv as they are")
     ap.add_argument("--reads", default=None,
                     help="directory of first-read maps, DIR/<name>.json (reads_maps.py): analyse with read bounds (docs/firstread.md)")
-    args = ap.parse_args()
+    return ap
+
+
+def main() -> int:
+    args = parser().parse_args()
     args.gencodes = CORPORA[args.corpus]
     # a run with the guard keeps its programs' directories apart, so it never replaces the traces
     # of the plain run that E3 and the replays read
@@ -288,7 +323,7 @@ def main() -> int:
                 if not r.get(k) and prev.get(r["name"], {}).get(k):
                     r[k] = prev[r["name"]][k]
     keys = ["name", "category", "expect", "detail", "can_deadlock", "np", "anysrc", "anytag", "probe", "persistent", "waitany",
-            "build", "run", "wildcard_recvs", "events", "findings", "l1_alternatives", "classes", "levels", "confirmed", "confirmed_strict",
+            "build", "run", "wildcard_recvs", "events", "findings", "l1_alternatives", "classes", "levels", "analysis", "confirmed", "confirmed_strict",
             "not_confirmed", "replays", "must", "notes", "commit"]
     keys += other_must
     with open(args.out, "w", newline="") as fh:
@@ -305,7 +340,7 @@ def main() -> int:
             for r in rows:
                 w.writerows(r.get("_replays", []))
         print(f"wrote {rp}")
-    return 0
+    return crashed_status(rows)
 
 
 if __name__ == "__main__":

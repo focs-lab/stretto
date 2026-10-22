@@ -137,9 +137,12 @@ def rendezvous_replays(d, exe, args, np_, tdir, timeout):
     threshold (2-buffering) with every wildcard receive pinned to the sender it took."""
     try:
         t = strace.load(tdir)
-    except Exception:  # noqa: BLE001
-        return ""
-    rep = s_analyze(t, with_sp=True, sp_max_events=600, max_states=30000)
+    except (OSError, ValueError, KeyError) as e:
+        return f"HARNESS-ERROR: trace not loaded ({type(e).__name__}: {e})"[:200]
+    try:
+        rep = s_analyze(t, with_sp=True, sp_max_events=600, max_states=30000)
+    except Exception as e:  # noqa: BLE001  (recorded as CRASH, never as "nothing to replay")
+        return f"CRASH: {type(e).__name__}: {e}"[:200]
     res = set()
     for f in rep.findings:
         if f.cls not in ERROR_CLASSES or not (f.B == "B=0" or f.B.startswith("B <")):

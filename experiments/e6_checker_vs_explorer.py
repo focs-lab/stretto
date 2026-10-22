@@ -226,10 +226,14 @@ def main() -> int:
     counts = {"agree": 0, "UNSOUND": 0, "incomplete": 0, "skip": 0, "t7_ok": 0, "t7_UNSOUND": 0}
     times = [0.0, 0.0]
     skipped = 0
+    unloadable = []
     for d in dirs:
         try:
             t = trace.load(d)
-        except Exception:
+        except (OSError, ValueError, KeyError) as e:
+            # a run that left no or a damaged trace (its program crashed, the harness killed it) is
+            # counted and named; any other exception is a bug of the loader and stops the run
+            unloadable.append(f"{d.replace(ROOT + '/', '')}: {type(e).__name__}: {e}"[:200])
             continue
         if sum(len(v) for v in t.ranks.values()) > args.max_events:
             skipped += 1
@@ -250,6 +254,10 @@ def main() -> int:
           f"l1-deadlocks ok={counts['t7_ok']} unsound={counts['t7_UNSOUND']} "
           f"skipped-traces={skipped} synthetic-programs={made} events max={max(ev) if ev else 0} "
           f"checker-time={times[0]:.2f}s explorer-time={times[1]:.2f}s ratio={times[1] / times[0] if times[0] else 0:.1f}x")
+    if unloadable:
+        print(f"{len(unloadable)} trace directories could not be loaded and are not in the table:")
+        for u in unloadable:
+            print("  " + u)
     print(f"wrote {args.out}")
     return 0
 
