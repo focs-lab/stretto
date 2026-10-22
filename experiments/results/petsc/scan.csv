@@ -1,0 +1,115 @@
+code,version,driver,np,run,records,traced,findings,cross_B,pin,cls,level,kind,tag,site,B,bytes,replay,matched,run_valid,violation,differs_control,differs_traced,control,control_matched,control_valid,control_violation,control_differs_traced,seed,commit
+petsc,3.26.0,ex2 thresh=0.01 nlevels=1 sym=nonsymmetric,4,1,3052,FINISHED,L1:1f=6;L1:probe-alt=16;kind:same=22,,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.01 nlevels=1 sym=nonsymmetric,4,2,3180,FINISHED,L1:1f=6;L1:probe-alt=16;kind:same=22,,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.01 nlevels=1 sym=SPD,4,1,4439,FINISHED,L1:1f=6;L1:probe-alt=12;kind:same=18,,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.01 nlevels=1 sym=SPD,4,2,3883,FINISHED,L1:1f=6;L1:probe-alt=12;kind:same=18,,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.01 nlevels=2 sym=nonsymmetric,4,1,3468,FINISHED,L1:1f=6;L1:probe-alt=22;kind:cross-phase=2;kind:same=26,B >= 1340,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.01 nlevels=2 sym=nonsymmetric,4,2,3460,FINISHED,L1:1f=6;L1:probe-alt=22;kind:cross-phase=2;kind:same=26,B >= 1340,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.01 nlevels=2 sym=SPD,4,1,3779,FINISHED,L1:1f=6;L1:probe-alt=18;kind:cross-phase=2;kind:same=22,B >= 1340,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.01 nlevels=2 sym=SPD,4,2,3745,FINISHED,L1:1f=6;L1:probe-alt=18;kind:cross-phase=2;kind:same=22,B >= 1340,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.01 nlevels=3 sym=nonsymmetric,4,1,3140,FINISHED,L1:1f=6;L1:probe-alt=28;kind:cross-phase=4;kind:same=30,B >= 1340,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.01 nlevels=3 sym=nonsymmetric,4,2,2670,FINISHED,L1:1f=6;L1:probe-alt=28;kind:cross-phase=4;kind:same=30,B >= 1340,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.01 nlevels=3 sym=SPD,4,1,4013,FINISHED,L1:1f=6;L1:probe-alt=24;kind:cross-phase=4;kind:same=26,B >= 1340,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.01 nlevels=3 sym=SPD,4,2,3451,FINISHED,L1:1f=6;L1:probe-alt=24;kind:cross-phase=4;kind:same=26,B >= 1340,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.05 nlevels=1 sym=nonsymmetric,4,1,2980,FINISHED,L1:1f=6;L1:probe-alt=16;kind:same=22,,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.05 nlevels=1 sym=nonsymmetric,4,2,3404,FINISHED,L1:1f=6;L1:probe-alt=16;kind:same=22,,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.05 nlevels=1 sym=SPD,4,1,3633,FINISHED,L1:1f=6;L1:probe-alt=12;kind:same=18,,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.05 nlevels=1 sym=SPD,4,2,4455,FINISHED,L1:1f=6;L1:probe-alt=12;kind:same=18,,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.05 nlevels=2 sym=nonsymmetric,4,1,3444,FINISHED,L1:1f=6;L1:probe-alt=22;kind:cross-phase=2;kind:same=26,B >= 1340,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.05 nlevels=2 sym=nonsymmetric,4,2,3152,FINISHED,L1:1f=6;L1:probe-alt=22;kind:cross-phase=2;kind:same=26,B >= 1340,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.05 nlevels=2 sym=SPD,4,1,3645,FINISHED,L1:1f=6;L1:probe-alt=18;kind:cross-phase=2;kind:same=22,B >= 1340,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.05 nlevels=2 sym=SPD,4,2,3697,FINISHED,L1:1f=6;L1:probe-alt=18;kind:cross-phase=2;kind:same=22,B >= 1340,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.05 nlevels=3 sym=nonsymmetric,4,1,2686,FINISHED,L1:1f=6;L1:probe-alt=28;kind:cross-phase=4;kind:same=30,B >= 1340,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.05 nlevels=3 sym=nonsymmetric,4,2,4476,FINISHED,L1:1f=6;L1:probe-alt=28;kind:cross-phase=4;kind:same=30,B >= 1340,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.05 nlevels=3 sym=SPD,4,1,3641,FINISHED,L1:1f=6;L1:probe-alt=24;kind:cross-phase=4;kind:same=26,B >= 1340,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.05 nlevels=3 sym=SPD,4,2,3347,FINISHED,L1:1f=6;L1:probe-alt=24;kind:cross-phase=4;kind:same=26,B >= 1340,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.1 nlevels=1 sym=nonsymmetric,4,1,3546,FINISHED,L1:1f=6;L1:probe-alt=16;kind:same=22,,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.1 nlevels=1 sym=nonsymmetric,4,2,3216,FINISHED,L1:1f=6;L1:probe-alt=16;kind:same=22,,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.1 nlevels=1 sym=SPD,4,1,3661,FINISHED,L1:1f=6;L1:probe-alt=12;kind:same=18,,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.1 nlevels=1 sym=SPD,4,2,4165,FINISHED,L1:1f=6;L1:probe-alt=12;kind:same=18,,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.1 nlevels=2 sym=nonsymmetric,4,1,3076,FINISHED,L1:1f=6;L1:probe-alt=22;kind:cross-phase=2;kind:same=26,B >= 1340,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.1 nlevels=2 sym=nonsymmetric,4,2,3210,FINISHED,L1:1f=6;L1:probe-alt=22;kind:cross-phase=2;kind:same=26,B >= 1340,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.1 nlevels=2 sym=SPD,4,1,3833,FINISHED,L1:1f=6;L1:probe-alt=18;kind:cross-phase=2;kind:same=22,B >= 1340,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.1 nlevels=2 sym=SPD,4,2,4111,FINISHED,L1:1f=6;L1:probe-alt=18;kind:cross-phase=2;kind:same=22,B >= 1340,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.1 nlevels=3 sym=nonsymmetric,4,1,2486,FINISHED,L1:1f=6;L1:probe-alt=28;kind:cross-phase=4;kind:same=30,B >= 1340,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.1 nlevels=3 sym=nonsymmetric,4,2,2760,FINISHED,L1:1f=6;L1:probe-alt=28;kind:cross-phase=4;kind:same=30,B >= 1340,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.1 nlevels=3 sym=SPD,4,1,3549,FINISHED,L1:1f=6;L1:probe-alt=24;kind:cross-phase=4;kind:same=26,B >= 1340,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.1 nlevels=3 sym=SPD,4,2,3127,FINISHED,L1:1f=6;L1:probe-alt=24;kind:cross-phase=4;kind:same=26,B >= 1340,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.01 nlevels=1 sym=nonsymmetric,8,1,7010,FINISHED,L1:1f=18;L1:probe-alt=48;kind:same=66,,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.01 nlevels=1 sym=nonsymmetric,8,2,7554,FINISHED,L1:1f=18;L1:probe-alt=48;kind:same=66,,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.01 nlevels=1 sym=SPD,8,1,16783,FINISHED,L1:1f=18;L1:probe-alt=36;kind:same=54,,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.01 nlevels=1 sym=SPD,8,2,8431,FINISHED,L1:1f=18;L1:probe-alt=36;kind:same=54,,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.01 nlevels=2 sym=nonsymmetric,8,1,8178,FINISHED,L1:1f=18;L1:probe-alt=66;kind:cross-phase=6;kind:same=78,B >= 1340,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.01 nlevels=2 sym=nonsymmetric,8,2,10114,FINISHED,L1:1f=18;L1:probe-alt=66;kind:cross-phase=6;kind:same=78,B >= 1340,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.01 nlevels=2 sym=SPD,8,1,10195,FINISHED,L1:1f=18;L1:probe-alt=54;kind:cross-phase=6;kind:same=66,B >= 1340,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.01 nlevels=2 sym=SPD,8,2,10301,FINISHED,L1:1f=18;L1:probe-alt=54;kind:cross-phase=6;kind:same=66,B >= 1340,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.01 nlevels=3 sym=nonsymmetric,8,1,5432,FINISHED,L1:1f=18;L1:probe-alt=84;kind:cross-phase=12;kind:same=90,B >= 1340,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.01 nlevels=3 sym=nonsymmetric,8,2,6408,FINISHED,L1:1f=18;L1:probe-alt=84;kind:cross-phase=12;kind:same=90,B >= 1340,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.01 nlevels=3 sym=SPD,8,1,7301,FINISHED,L1:1f=18;L1:probe-alt=72;kind:cross-phase=12;kind:same=78,B >= 1340,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.01 nlevels=3 sym=SPD,8,2,7179,FINISHED,L1:1f=18;L1:probe-alt=72;kind:cross-phase=12;kind:same=78,B >= 1340,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.05 nlevels=1 sym=nonsymmetric,8,1,9370,FINISHED,L1:1f=18;L1:probe-alt=48;kind:same=66,,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.05 nlevels=1 sym=nonsymmetric,8,2,8014,FINISHED,L1:1f=18;L1:probe-alt=48;kind:same=66,,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.05 nlevels=1 sym=SPD,8,1,10537,FINISHED,L1:1f=18;L1:probe-alt=36;kind:same=54,,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.05 nlevels=1 sym=SPD,8,2,10491,FINISHED,L1:1f=18;L1:probe-alt=36;kind:same=54,,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.05 nlevels=2 sym=nonsymmetric,8,1,8084,FINISHED,L1:1f=18;L1:probe-alt=66;kind:cross-phase=6;kind:same=78,B >= 1340,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.05 nlevels=2 sym=nonsymmetric,8,2,7624,FINISHED,L1:1f=18;L1:probe-alt=66;kind:cross-phase=6;kind:same=78,B >= 1340,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.05 nlevels=2 sym=SPD,8,1,11021,FINISHED,L1:1f=18;L1:probe-alt=54;kind:cross-phase=6;kind:same=66,B >= 1340,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.05 nlevels=2 sym=SPD,8,2,8643,FINISHED,L1:1f=18;L1:probe-alt=54;kind:cross-phase=6;kind:same=66,B >= 1340,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.05 nlevels=3 sym=nonsymmetric,8,1,7514,FINISHED,L1:1f=18;L1:probe-alt=84;kind:cross-phase=12;kind:same=90,B >= 1340,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.05 nlevels=3 sym=nonsymmetric,8,2,6912,FINISHED,L1:1f=18;L1:probe-alt=84;kind:cross-phase=12;kind:same=90,B >= 1340,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.05 nlevels=3 sym=SPD,8,1,7901,FINISHED,L1:1f=18;L1:probe-alt=72;kind:cross-phase=12;kind:same=78,B >= 1340,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.05 nlevels=3 sym=SPD,8,2,6677,FINISHED,L1:1f=18;L1:probe-alt=72;kind:cross-phase=12;kind:same=78,B >= 1340,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.1 nlevels=1 sym=nonsymmetric,8,1,6814,FINISHED,L1:1f=18;L1:probe-alt=48;kind:same=66,,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.1 nlevels=1 sym=nonsymmetric,8,2,8898,FINISHED,L1:1f=18;L1:probe-alt=48;kind:same=66,,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.1 nlevels=1 sym=SPD,8,1,9669,FINISHED,L1:1f=18;L1:probe-alt=36;kind:same=54,,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.1 nlevels=1 sym=SPD,8,2,8607,FINISHED,L1:1f=18;L1:probe-alt=36;kind:same=54,,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.1 nlevels=2 sym=nonsymmetric,8,1,7398,FINISHED,L1:1f=18;L1:probe-alt=66;kind:cross-phase=6;kind:same=78,B >= 1340,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.1 nlevels=2 sym=nonsymmetric,8,2,8352,FINISHED,L1:1f=18;L1:probe-alt=66;kind:cross-phase=6;kind:same=78,B >= 1340,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.1 nlevels=2 sym=SPD,8,1,9553,FINISHED,L1:1f=18;L1:probe-alt=54;kind:cross-phase=6;kind:same=66,B >= 1340,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.1 nlevels=2 sym=SPD,8,2,10631,FINISHED,L1:1f=18;L1:probe-alt=54;kind:cross-phase=6;kind:same=66,B >= 1340,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.1 nlevels=3 sym=nonsymmetric,8,1,8432,FINISHED,L1:1f=18;L1:probe-alt=84;kind:cross-phase=12;kind:same=90,B >= 1340,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.1 nlevels=3 sym=nonsymmetric,8,2,7396,FINISHED,L1:1f=18;L1:probe-alt=84;kind:cross-phase=12;kind:same=90,B >= 1340,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.1 nlevels=3 sym=SPD,8,1,8791,FINISHED,L1:1f=18;L1:probe-alt=72;kind:cross-phase=12;kind:same=78,B >= 1340,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex2 thresh=0.1 nlevels=3 sym=SPD,8,2,8715,FINISHED,L1:1f=18;L1:probe-alt=72;kind:cross-phase=12;kind:same=78,B >= 1340,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex45 thresh=0.01 nlevels=1 sym=nonsymmetric,4,1,2788,FINISHED,L1:1f=24;L1:probe-alt=56;kind:same=80,,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex45 thresh=0.01 nlevels=1 sym=nonsymmetric,4,2,3304,FINISHED,L1:1f=24;L1:probe-alt=56;kind:same=80,,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex45 thresh=0.01 nlevels=1 sym=SPD,4,1,2758,FINISHED,L1:1f=24;L1:probe-alt=40;kind:same=64,,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex45 thresh=0.01 nlevels=1 sym=SPD,4,2,2916,FINISHED,L1:1f=24;L1:probe-alt=40;kind:same=64,,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex45 thresh=0.01 nlevels=2 sym=nonsymmetric,4,1,2844,FINISHED,L1:1f=24;L1:probe-alt=92;kind:cross-phase=12;kind:same=104,B >= 3532;any B,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex45 thresh=0.01 nlevels=2 sym=nonsymmetric,4,2,2956,FINISHED,L1:1f=24;L1:probe-alt=92;kind:cross-phase=12;kind:same=104,B >= 3532;any B,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex45 thresh=0.01 nlevels=2 sym=SPD,4,1,2913,FINISHED,L1:1f=24;L1:probe-alt=76;kind:cross-phase=12;kind:same=88,B >= 3532;any B,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex45 thresh=0.01 nlevels=2 sym=SPD,4,2,3079,FINISHED,L1:1f=24;L1:probe-alt=76;kind:cross-phase=12;kind:same=88,B >= 3532;any B,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex45 thresh=0.01 nlevels=3 sym=nonsymmetric,4,1,3160,FINISHED,L1:1f=24;L1:probe-alt=128;kind:cross-phase=24;kind:same=128,B >= 3532;B >= 3868;B >= 508;any B,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex45 thresh=0.01 nlevels=3 sym=nonsymmetric,4,2,2946,FINISHED,L1:1f=24;L1:probe-alt=128;kind:cross-phase=24;kind:same=128,B >= 3532;B >= 3868;B >= 508;any B,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex45 thresh=0.01 nlevels=3 sym=SPD,4,1,3059,FINISHED,L1:1f=24;L1:probe-alt=112;kind:cross-phase=24;kind:same=112,B >= 3532;B >= 3868;B >= 508;any B,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex45 thresh=0.01 nlevels=3 sym=SPD,4,2,3759,FINISHED,L1:1f=24;L1:probe-alt=112;kind:cross-phase=24;kind:same=112,B >= 3532;B >= 3868;B >= 508;any B,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex45 thresh=0.05 nlevels=1 sym=nonsymmetric,4,1,2466,FINISHED,L1:1f=24;L1:probe-alt=56;kind:same=80,,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex45 thresh=0.05 nlevels=1 sym=nonsymmetric,4,2,2562,FINISHED,L1:1f=24;L1:probe-alt=56;kind:same=80,,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex45 thresh=0.05 nlevels=1 sym=SPD,4,1,2998,FINISHED,L1:1f=24;L1:probe-alt=40;kind:same=64,,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex45 thresh=0.05 nlevels=1 sym=SPD,4,2,3132,FINISHED,L1:1f=24;L1:probe-alt=40;kind:same=64,,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex45 thresh=0.05 nlevels=2 sym=nonsymmetric,4,1,2984,FINISHED,L1:1f=24;L1:probe-alt=92;kind:cross-phase=12;kind:same=104,B >= 3532;any B,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex45 thresh=0.05 nlevels=2 sym=nonsymmetric,4,2,2982,FINISHED,L1:1f=24;L1:probe-alt=92;kind:cross-phase=12;kind:same=104,B >= 3532;any B,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex45 thresh=0.05 nlevels=2 sym=SPD,4,1,2951,FINISHED,L1:1f=24;L1:probe-alt=76;kind:cross-phase=12;kind:same=88,B >= 3532;any B,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex45 thresh=0.05 nlevels=2 sym=SPD,4,2,3177,FINISHED,L1:1f=24;L1:probe-alt=76;kind:cross-phase=12;kind:same=88,B >= 3532;any B,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex45 thresh=0.05 nlevels=3 sym=nonsymmetric,4,1,2948,FINISHED,L1:1f=24;L1:probe-alt=128;kind:cross-phase=24;kind:same=128,B >= 3532;B >= 3868;B >= 508;any B,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex45 thresh=0.05 nlevels=3 sym=nonsymmetric,4,2,2720,FINISHED,L1:1f=24;L1:probe-alt=128;kind:cross-phase=24;kind:same=128,B >= 3532;B >= 3868;B >= 508;any B,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex45 thresh=0.05 nlevels=3 sym=SPD,4,1,2963,FINISHED,L1:1f=24;L1:probe-alt=112;kind:cross-phase=24;kind:same=112,B >= 3532;B >= 3868;B >= 508;any B,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex45 thresh=0.05 nlevels=3 sym=SPD,4,2,2901,FINISHED,L1:1f=24;L1:probe-alt=112;kind:cross-phase=24;kind:same=112,B >= 3532;B >= 3868;B >= 508;any B,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex45 thresh=0.1 nlevels=1 sym=nonsymmetric,4,1,2434,FINISHED,L1:1f=24;L1:probe-alt=56;kind:same=80,,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex45 thresh=0.1 nlevels=1 sym=nonsymmetric,4,2,2746,FINISHED,L1:1f=24;L1:probe-alt=56;kind:same=80,,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex45 thresh=0.1 nlevels=1 sym=SPD,4,1,2936,FINISHED,L1:1f=24;L1:probe-alt=40;kind:same=64,,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex45 thresh=0.1 nlevels=1 sym=SPD,4,2,3222,FINISHED,L1:1f=24;L1:probe-alt=40;kind:same=64,,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex45 thresh=0.1 nlevels=2 sym=nonsymmetric,4,1,3218,FINISHED,L1:1f=24;L1:probe-alt=92;kind:cross-phase=12;kind:same=104,B >= 3532;any B,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex45 thresh=0.1 nlevels=2 sym=nonsymmetric,4,2,3298,FINISHED,L1:1f=24;L1:probe-alt=92;kind:cross-phase=12;kind:same=104,B >= 3532;any B,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex45 thresh=0.1 nlevels=2 sym=SPD,4,1,3025,FINISHED,L1:1f=24;L1:probe-alt=76;kind:cross-phase=12;kind:same=88,B >= 3532;any B,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex45 thresh=0.1 nlevels=2 sym=SPD,4,2,2867,FINISHED,L1:1f=24;L1:probe-alt=76;kind:cross-phase=12;kind:same=88,B >= 3532;any B,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex45 thresh=0.1 nlevels=3 sym=nonsymmetric,4,1,2736,FINISHED,L1:1f=24;L1:probe-alt=128;kind:cross-phase=24;kind:same=128,B >= 3532;B >= 3868;B >= 508;any B,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex45 thresh=0.1 nlevels=3 sym=nonsymmetric,4,2,2668,FINISHED,L1:1f=24;L1:probe-alt=128;kind:cross-phase=24;kind:same=128,B >= 3532;B >= 3868;B >= 508;any B,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex45 thresh=0.1 nlevels=3 sym=SPD,4,1,3165,FINISHED,L1:1f=24;L1:probe-alt=112;kind:cross-phase=24;kind:same=112,B >= 3532;B >= 3868;B >= 508;any B,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex45 thresh=0.1 nlevels=3 sym=SPD,4,2,3003,FINISHED,L1:1f=24;L1:probe-alt=112;kind:cross-phase=24;kind:same=112,B >= 3532;B >= 3868;B >= 508;any B,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex45 thresh=0.01 nlevels=1 sym=nonsymmetric,8,1,7652,FINISHED,L1:1f=128;L1:probe-alt=528;kind:same=656,,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex45 thresh=0.01 nlevels=1 sym=nonsymmetric,8,2,7476,FINISHED,L1:1f=128;L1:probe-alt=528;kind:same=656,,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex45 thresh=0.01 nlevels=1 sym=SPD,8,1,8080,FINISHED,L1:1f=128;L1:probe-alt=352;kind:same=480,,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex45 thresh=0.01 nlevels=1 sym=SPD,8,2,7838,FINISHED,L1:1f=130;L1:probe-alt=352;kind:same=482,,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex45 thresh=0.01 nlevels=2 sym=nonsymmetric,8,1,7750,FINISHED,L1:1f=129;L1:probe-alt=960;kind:cross-phase=96;kind:same=993,B >= 1768;any B,,,,,,,,,,,,,,,,,,,,,518a9df
+petsc,3.26.0,ex45 thresh=0.01 nlevels=2 sym=nonsymmetric,8,2,34172,FINISHED,L1:1f=132;L1:probe-alt=960;kind:cross-phase=96;kind:same=996,B >= 1768;any B,,,,,,,,,,,,,,,,,,,,,518a9df

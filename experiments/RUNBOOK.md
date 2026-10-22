@@ -400,6 +400,97 @@ themselves; both reruns judged every replay and control a run of the program. A 
 that receive while rank 0's message, which the receive takes without its pin, is still
 there, and `judge_replay` says so.
 
+## Scouting current releases for a new matching bug (RQ6b)
+
+`experiments/scout.py` traces clean runs of one driver, analyses each, and replays every probe
+or receive alternative with the pins of its whole horizon and with its control, comparing the
+outputs (or, with `--output-file`, a file the program writes, after an optional `perl -p`
+normaliser, as deal.II's tests need). It classifies an alternative by the message it would take
+against the one it took: `cross-tag` (another tag), `cross-phase` (a message its sender issued
+after a different number of collectives on the communicator, i.e. another exchange when the
+exchanges are separated by a collective on the sending side), or `same`. Each row carries the
+realisable-threshold range `B` and the message size, and the `run_valid`/`control_valid` columns
+that say the replay and its control are runs of the program without the pins. The campaign
+scripts below drive it; each writes `experiments/results/<code>/`.
+
+### HYPRE 3.2.0 ParaSails: a level race in the current release
+
+`experiments/hypre3/run.sh [fetch|build|predict|stress|ninja|all]` downloads HYPRE 3.2.0
+(`sha256 5273205a310fb6aa3ae506ce216760fb67b30e02024874f3cdb8b811e4801de7`; its
+`src/distributed_ls/ParaSails/ParaSails.c` is byte-identical to master at 9f52d27,
+`sha256 7f682a9d...`) and builds it with the Open MPI wrappers. `ExchangePrunedRows` sends every
+pattern level's row requests with tag 221 and probes `MPI_ANY_SOURCE`, with no collective between
+one level's probes and the next level's requests, so with two or more levels a probe can take the
+next level's request and the setup hangs (the 2.10.1 race of `experiments/hypre/`, left across
+levels rather than across the pruned and stored exchange that 2.11.0 split by tag). The default
+level count is 1 and hypre's own drivers fix it there (`ex5.c` hard-codes 1, `test/ij.c` sets
+`max_levels = 1` for its ParaSails solvers), so the driver is `ex5.c` with one added option,
+`-sai_levels`, which sets ParaSails' `nlevels` and nothing else. `predict` traces `RUNS` runs per
+process count (4, 8) and level count (1, 2); `stress` and `ninja` are the untraced baselines (the
+budget and delays of the 2.10.1 campaign). `VARIANT=fix` builds, in a copy of the tree, a minimal
+fix (the requests of even levels under a tag of their own, 227) and runs `predict`/`stress` on it
+(`-fix` tables). The campaign of 22 Oct ran `RUNS=10` at `JOBS=2`, `STRESS_RUNS=40`, `TIMEOUT=30`,
+in the newbug container (`--cpuset-cpus 6-9,12-19,46-49,52-59 -m 48g`). `HYPRE3_DIR` holds the
+tree. The cross-level alternative is realisable at `B >= 920` bytes, the pruned-rows reply size;
+Open MPI's default shared-memory eager limit is 4040 bytes (`experiments/results/b_impl.csv`), so
+the race occurs at the default settings, which is why the replays hang with no eager limit forced.
+`predict.csv` is the first campaign (made at e3d3933, before the table had the `B` and `bytes`
+columns); `predict-fix.csv`, `stress*.csv` and `ninja*.csv` come from a copy at 0ca587d. The
+stress, NINJA and fixed-variant runs shared the container with the PETSc replay campaign, so
+they were not run on an idle machine. A first NINJA pass ran without `third_party/ninja` built:
+`run.py` preloads a library that is not there without complaint, so those runs were plain; it was
+discarded and NINJA built (`experiments/ninja/build.sh fetch build`) before the committed tables.
+The replay library's delays are sleeps before a call, so they cannot make a request issued before
+the level's Allreduce arrive after a request issued after it, which the race needs; NINJA delays
+sends in transit from a helper thread and can.
+
+### PETSc 3.26.0: the same race through an unmodified driver
+
+`experiments/petsc/run.sh [fetch|build|parasails|predict|stress|ninja|scan|all]` builds PETSc 3.26.0
+(`sha256 3f1d722d...`) with f2cblaslapack 3.8.0.q2 (`sha256 12fa8d50...`) and the HYPRE 3.2.0 it
+downloads, Open MPI wrappers, optimised. PCHYPRE exposes ParaSails' level count and threshold, so
+PETSc's own KSP tutorial `ex2` reaches the race with command-line options only, nothing patched:
+`-pc_type hypre -pc_hypre_type parasails -pc_hypre_parasails_nlevels 2 -pc_hypre_parasails_thresh
+0.01`. PETSc 3.26.0 passes the level count to HYPRE only together with the threshold
+(`PCSetFromOptions_HYPRE_ParaSails`, `src/ksp/pc/impls/hypre/impl/ihypre.c`: `HYPRE_ParaSailsSetParams`
+inside the `if` of `-pc_hypre_parasails_thresh`), so `-pc_hypre_parasails_nlevels 2` alone runs one
+level (ParaSails' logging prints `num_levels 1` while `-ksp_view` prints `nlevels 2`) and shows no
+cross alternative; with the threshold given, at 0.01, 0.05 or PETSc's default 0.1 alike, every
+level count of two or more does (`scan.csv`). `parasails` runs the two-level case with the
+threshold 0.01 ("dense"), its one-level control and the level count without a threshold
+(`parasails-default-m32.csv` is a first pass of the latter at `-m 32`, made at 3a87e3a); `predict` scouts
+PETSc's own wildcard sites (`PetscCommBuildTwoSided` NBX, `PetscGatherMessageLengths`, the legacy
+Mat/Vec stashes, `MatIncreaseOverlap`), which each take a fresh tag per call and begin or end with
+a collective; it was not run (below). `stress` and `ninja` are the baselines on the dense
+two-level case, and `scan` (run from a copy at 518a9df) the reach of the race over threshold,
+level count and symmetry setting on `ex2` and on `ex45`'s 3D Laplacian, analysis only. The cross
+alternatives of `ex2` at `-m 48 -n 48` are realisable at `B >= 1340` bytes, again below Open MPI's
+default eager limit. The campaign of 22 Oct ran `RUNS=10 JOBS=2 STRESS_RUNS=40 TIMEOUT=30` from a
+copy at 0ca587d; the third ParaSails driver (the level count without a threshold) was stopped
+before its replays, as the scan covers it, and `stress` was stopped after its two-level block
+(160 runs) and 43 runs of the one-level control. NINJA's application-centric mode ended every
+`ex2` run after its learning run with exit status 59 (`APP-ERROR:59` in `ninja.csv`; not
+investigated), so only its random and system-centric modes give results on PETSc. The scan was
+stopped with `ex45` complete at 4 processes and, at 8, only the threshold 0.01 at one and two levels
+done (each 8-process `ex45` analysis takes about three minutes); to finish it, rerun
+`experiments/petsc/run.sh scan` (it starts the table afresh). There is no PETSc build with the
+fixed HYPRE, so the NINJA control of the fix was made on the HYPRE driver only.
+
+### MFEM 4.10 and deal.II 9.8.0: prepared, not run
+
+`experiments/mfem/run.sh` builds MFEM 4.10 (`sha256 d5aabe99...`) with METIS 4.0.3 and HYPRE
+3.2.0 and scouts its adaptive examples `ex6p` (static refinement, with rebalancing and with
+p-refinement) and `ex15p` (dynamic refinement and derefinement), whose `ParNCMesh` exchanges probe
+`MPI_ANY_SOURCE` per message type. `experiments/dealii98/run.sh` builds deal.II 9.8.0
+(`sha256 d8d66aac...`, the tag's tests fetched one by one from commit 02c5025 and checksummed)
+with p4est 2.2 and scouts its own tests of `RemotePointEvaluation`, the consensus algorithms,
+`some_to_some`, `point_to_point`, the partitioners and cell weights. On 22 Oct MFEM was built
+(`fetch build`) but its `predict` step was not run, and deal.II's build was stopped part way;
+neither has results. By reading the code, deal.II 9.8.0 still takes a `CollectiveMutex` around
+both `RemotePointEvaluation` exchanges (`mpi_remote_point_evaluation.h`, lines 776-777 and
+987-988), the fix of the 9.3.0-rc1 race. The PETSc `predict` step (PETSc's own wildcard sites)
+was not run either.
+
 ## Shared-host protocol on the development host
 
 Jobs that may exceed 20 GiB or use 8 sustained cores run one at a time through

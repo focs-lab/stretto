@@ -1,0 +1,243 @@
+label,np,mode,setting,run,result,seconds,reached,value,commit
+ex5_levels-3.2.0-fix-2,4,random,ratio=10% delay=50000us,1,FINISHED,1.3,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,random,ratio=10% delay=50000us,2,FINISHED,1.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,random,ratio=10% delay=50000us,3,FINISHED,1.6,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,random,ratio=10% delay=50000us,4,FINISHED,1.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,random,ratio=10% delay=50000us,5,FINISHED,1.6,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,random,ratio=10% delay=50000us,6,FINISHED,1.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,random,ratio=10% delay=50000us,7,FINISHED,1.5,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,random,ratio=10% delay=50000us,8,FINISHED,1.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,random,ratio=10% delay=50000us,9,FINISHED,1.8,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,random,ratio=10% delay=50000us,10,FINISHED,1.2,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,random,ratio=10% delay=50000us,11,FINISHED,1.5,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,random,ratio=10% delay=50000us,12,FINISHED,1.6,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,random,ratio=10% delay=50000us,13,FINISHED,1.6,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,random,ratio=10% delay=50000us,14,FINISHED,1.3,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,random,ratio=10% delay=50000us,15,FINISHED,1.6,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,random,ratio=10% delay=50000us,16,FINISHED,1.5,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,random,ratio=10% delay=50000us,17,FINISHED,1.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,random,ratio=10% delay=50000us,18,FINISHED,1.2,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,random,ratio=10% delay=50000us,19,FINISHED,1.8,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,random,ratio=10% delay=50000us,20,FINISHED,1.6,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,random,ratio=10% delay=50000us,21,FINISHED,1.6,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,random,ratio=10% delay=50000us,22,FINISHED,1.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,random,ratio=10% delay=50000us,23,FINISHED,1.5,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,random,ratio=10% delay=50000us,24,FINISHED,1.5,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,random,ratio=10% delay=50000us,25,FINISHED,1.4,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,random,ratio=10% delay=50000us,26,FINISHED,1.3,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,random,ratio=10% delay=50000us,27,FINISHED,1.3,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,random,ratio=10% delay=50000us,28,FINISHED,1.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,random,ratio=10% delay=50000us,29,FINISHED,1.4,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,random,ratio=10% delay=50000us,30,FINISHED,1.5,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,random,ratio=10% delay=50000us,31,FINISHED,1.8,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,random,ratio=10% delay=50000us,32,FINISHED,0.9,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,random,ratio=10% delay=50000us,33,FINISHED,1.5,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,random,ratio=10% delay=50000us,34,FINISHED,1.4,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,random,ratio=10% delay=50000us,35,FINISHED,1.3,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,random,ratio=10% delay=50000us,36,FINISHED,1.6,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,random,ratio=10% delay=50000us,37,FINISHED,1.8,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,random,ratio=10% delay=50000us,38,FINISHED,1.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,random,ratio=10% delay=50000us,39,FINISHED,1.6,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,random,ratio=10% delay=50000us,40,FINISHED,1.8,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,system,,1,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,system,,2,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,system,,3,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,system,,4,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,system,,5,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,system,,6,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,system,,7,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,system,,8,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,system,,9,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,system,,10,FINISHED,0.6,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,system,,11,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,system,,12,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,system,,13,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,system,,14,FINISHED,0.6,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,system,,15,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,system,,16,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,system,,17,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,system,,18,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,system,,19,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,system,,20,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,system,,21,FINISHED,0.6,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,system,,22,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,system,,23,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,system,,24,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,system,,25,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,system,,26,FINISHED,0.6,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,system,,27,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,system,,28,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,system,,29,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,system,,30,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,system,,31,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,system,,32,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,system,,33,FINISHED,0.6,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,system,,34,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,system,,35,FINISHED,0.6,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,system,,36,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,system,,37,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,system,,38,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,system,,39,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,system,,40,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,app,learning run (system-centric),0,FINISHED,0.6,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,app,,1,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,app,,2,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,app,,3,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,app,,4,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,app,,5,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,app,,6,FINISHED,0.6,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,app,,7,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,app,,8,FINISHED,0.6,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,app,,9,FINISHED,0.6,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,app,,10,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,app,,11,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,app,,12,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,app,,13,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,app,,14,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,app,,15,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,app,,16,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,app,,17,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,app,,18,FINISHED,0.6,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,app,,19,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,app,,20,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,app,,21,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,app,,22,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,app,,23,FINISHED,0.6,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,app,,24,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,app,,25,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,app,,26,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,app,,27,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,app,,28,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,app,,29,FINISHED,0.6,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,app,,30,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,app,,31,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,app,,32,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,app,,33,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,app,,34,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,app,,35,FINISHED,0.6,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,app,,36,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,app,,37,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,app,,38,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,app,,39,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,4,app,,40,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,random,ratio=10% delay=50000us,1,FINISHED,1.9,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,random,ratio=10% delay=50000us,2,FINISHED,2.4,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,random,ratio=10% delay=50000us,3,FINISHED,2.3,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,random,ratio=10% delay=50000us,4,FINISHED,2.2,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,random,ratio=10% delay=50000us,5,FINISHED,2.4,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,random,ratio=10% delay=50000us,6,FINISHED,1.9,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,random,ratio=10% delay=50000us,7,FINISHED,2.5,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,random,ratio=10% delay=50000us,8,FINISHED,2.3,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,random,ratio=10% delay=50000us,9,FINISHED,2.2,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,random,ratio=10% delay=50000us,10,FINISHED,1.9,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,random,ratio=10% delay=50000us,11,FINISHED,2.1,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,random,ratio=10% delay=50000us,12,FINISHED,1.9,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,random,ratio=10% delay=50000us,13,FINISHED,2.3,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,random,ratio=10% delay=50000us,14,FINISHED,2.1,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,random,ratio=10% delay=50000us,15,FINISHED,2.0,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,random,ratio=10% delay=50000us,16,FINISHED,2.1,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,random,ratio=10% delay=50000us,17,FINISHED,1.8,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,random,ratio=10% delay=50000us,18,FINISHED,1.8,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,random,ratio=10% delay=50000us,19,FINISHED,2.4,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,random,ratio=10% delay=50000us,20,FINISHED,2.2,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,random,ratio=10% delay=50000us,21,FINISHED,2.0,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,random,ratio=10% delay=50000us,22,FINISHED,2.4,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,random,ratio=10% delay=50000us,23,FINISHED,1.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,random,ratio=10% delay=50000us,24,FINISHED,2.1,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,random,ratio=10% delay=50000us,25,FINISHED,2.1,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,random,ratio=10% delay=50000us,26,FINISHED,2.0,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,random,ratio=10% delay=50000us,27,FINISHED,2.1,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,random,ratio=10% delay=50000us,28,FINISHED,2.3,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,random,ratio=10% delay=50000us,29,FINISHED,1.8,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,random,ratio=10% delay=50000us,30,FINISHED,1.9,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,random,ratio=10% delay=50000us,31,FINISHED,1.9,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,random,ratio=10% delay=50000us,32,FINISHED,2.1,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,random,ratio=10% delay=50000us,33,FINISHED,2.0,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,random,ratio=10% delay=50000us,34,FINISHED,2.4,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,random,ratio=10% delay=50000us,35,FINISHED,2.5,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,random,ratio=10% delay=50000us,36,FINISHED,2.0,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,random,ratio=10% delay=50000us,37,FINISHED,2.2,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,random,ratio=10% delay=50000us,38,FINISHED,2.1,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,random,ratio=10% delay=50000us,39,FINISHED,2.1,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,random,ratio=10% delay=50000us,40,FINISHED,2.0,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,system,,1,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,system,,2,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,system,,3,FINISHED,0.8,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,system,,4,FINISHED,0.8,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,system,,5,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,system,,6,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,system,,7,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,system,,8,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,system,,9,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,system,,10,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,system,,11,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,system,,12,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,system,,13,FINISHED,0.8,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,system,,14,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,system,,15,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,system,,16,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,system,,17,FINISHED,0.8,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,system,,18,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,system,,19,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,system,,20,FINISHED,0.8,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,system,,21,FINISHED,0.8,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,system,,22,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,system,,23,FINISHED,0.8,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,system,,24,FINISHED,0.8,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,system,,25,FINISHED,0.8,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,system,,26,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,system,,27,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,system,,28,FINISHED,0.8,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,system,,29,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,system,,30,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,system,,31,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,system,,32,FINISHED,0.8,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,system,,33,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,system,,34,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,system,,35,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,system,,36,FINISHED,0.8,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,system,,37,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,system,,38,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,system,,39,FINISHED,0.8,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,system,,40,FINISHED,0.8,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,app,learning run (system-centric),0,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,app,,1,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,app,,2,FINISHED,0.8,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,app,,3,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,app,,4,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,app,,5,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,app,,6,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,app,,7,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,app,,8,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,app,,9,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,app,,10,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,app,,11,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,app,,12,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,app,,13,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,app,,14,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,app,,15,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,app,,16,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,app,,17,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,app,,18,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,app,,19,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,app,,20,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,app,,21,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,app,,22,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,app,,23,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,app,,24,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,app,,25,TIMEOUT,31.0,,,0ca587d
+ex5_levels-3.2.0-fix-2,8,app,,26,FINISHED,0.8,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,app,,27,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,app,,28,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,app,,29,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,app,,30,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,app,,31,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,app,,32,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,app,,33,FINISHED,0.8,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,app,,34,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,app,,35,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,app,,36,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,app,,37,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,app,,38,FINISHED,0.7,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,app,,39,FINISHED,0.8,solved,4.681964e-08,0ca587d
+ex5_levels-3.2.0-fix-2,8,app,,40,FINISHED,0.8,solved,4.681964e-08,0ca587d
