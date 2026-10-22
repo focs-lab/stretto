@@ -721,10 +721,12 @@ def _reconstruct_observed(t: Trace) -> None:
     """Pair every completed receive with its send, using non-overtaking: receives are
     processed in posting order per rank; each takes the earliest unconsumed send from the
     (msrc -> rank, comm, mtag) queue. Probes see the earliest send not consumed by
-    receives posted before them. Linear: one pointer per queue."""
+    receives posted before them. A send whose cancellation succeeded never reached its
+    destination, so it is in no queue. Linear: one pointer per queue."""
     queues: Dict[Tuple[int, int, int, int], List[Send]] = {}
     for s in sorted(t.sends.values(), key=lambda s: (s.rank, s.idx)):
-        queues.setdefault((s.rank, s.dst, s.comm, s.tag), []).append(s)
+        if not s.cancelled:
+            queues.setdefault((s.rank, s.dst, s.comm, s.tag), []).append(s)
     ptr: Dict[Tuple[int, int, int, int], int] = {}
     for rank in sorted(t.ranks):
         events = sorted(list(t.recvs_of(rank)) + [p for p in t.probes.values() if p.rank == rank],

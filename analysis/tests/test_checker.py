@@ -560,6 +560,15 @@ class C_CancelAndMprobe(unittest.TestCase):
         alt = next(a for a in candidates_full(t)[0] if a.send == (1, 1))
         self.assertTrue(check(t, alt.M, alt.changed, None, "L1").feasible)
 
+    def test_cancelled_send_is_not_in_the_observed_matching(self):
+        # rank 1 cancels its first message (the cancel succeeds), then sends another with the
+        # same envelope: the receive took the second, which is therefore not an orphan
+        t = mk({0: [recv(1, 0, 1, 0)],
+                1: [send(0, 0, mode="isend", req=0), {"op": "cancel", "req": 0},
+                    {"op": "wait", "kind": "wait", "reqs": [0], "done": [{"req": 0, "cancelled": 1}]}, send(0, 0)]})
+        self.assertEqual(t.observed, {(0, 0): (1, 1)})
+        self.assertFalse([f for f in analyze(t, with_sp=False).findings if f.cls == "1c"])
+
     def test_mprobe_removes_the_message_from_the_queue(self):
         # rank 0 mprobes rank 1's message, then posts a wildcard that rank 2 serves, then
         # mrecvs the probed message: the wildcard could not have taken rank 1's message

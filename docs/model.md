@@ -21,7 +21,9 @@ Objects:
 
 The observed matching `M₀` is reconstructed offline: receives per rank in posting order, each
 takes the earliest unconsumed send from (msrc → rank, comm, mtag). Non-overtaking makes this
-exact (`trace._reconstruct_observed`).
+exact (`trace._reconstruct_observed`). A send whose cancellation succeeded never reached its
+destination and takes no part in it (before 22 Oct 2026 it did: a receive was paired with the
+withdrawn message, and the message it really took became an orphan).
 
 ## 2. Alternative matching and its feasibility
 
