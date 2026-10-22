@@ -2,7 +2,8 @@
 # Reproduce the paper's evaluation, one research question at a time (artifact/README.md).
 #
 #   image    build the experiment image from experiments/container/Dockerfile (pinned base and
-#            packages) and compare its packages with experiments/container/versions.txt
+#            packages) and compare its packages with experiments/container/versions.txt, and,
+#            unless READS=0, the image of Dockerfile.firstread (the same plus clang 18)
 #   inputs   fetch MBI, MPI-BugBench, AMG, MACSio, Nekbone and NPB at the pinned commits and
 #            build them inside the image; build the MUST image on the host
 #   kick     build the tracer, the replay library and the idioms, trace the idioms and run the
@@ -32,6 +33,14 @@
 #            and 3.5 hours on four processors)
 #   NEWBUG   0: leave the HYPRE 3.2.0 and PETSc campaigns, the new bug, out of rq6 (their builds
 #            take 1.3 GB of disk, the runs about 10 hours)
+#   READS    0: leave E3b, the read bounds, out of rq1 and rq4: the maps (in the image of
+#            Dockerfile.firstread), the re-analysis and its replays (experiments/reads/run.sh),
+#            and E6 with read bounds (about 20 minutes on 8 processors)
+#   HB       0: leave E8b, happens-before selection against the check (experiments/e8_hb.py), out
+#            of rq6: the comparison takes about 45 minutes (NPB MG at 32 processes about 20, the
+#            synthetic programs about 25), then up to 30 replays per program and class
+#   VALID    0: leave E8c out of rq6: every replay behind a confirmation claim run again under the
+#            tracer (experiments/valid/run.sh), about 8 hours on 12 processors, Nekbone's in 48 GB
 set -eEuo pipefail
 R="$(cd "$(dirname "$0")/.." && pwd)"; cd "$R"
 export IMAGE="${IMAGE:-stretto-exp:24.04}" CPUS="${CPUS:-0-$(($(nproc) - 1))}" DETACH=0
@@ -121,9 +130,46 @@ newbug() {
         && experiments/petsc/run.sh fetch build && $s experiments/petsc/run.sh parasails stress ninja scan"
 }
 
+# E3b, the read bounds of RQ1 and RQ4 (experiments/reads/run.sh): the first-read maps of the
+# corpus run's MBI programs, in the image of Dockerfile.firstread (clang 18), then the corpus run
+# analysed again with them and the programs whose levels change replayed with their witnesses
+FIRSTREAD_IMAGE="${FIRSTREAD_IMAGE:-stretto-firstread:24.04}"
+reads() {
+    [ "${READS:-1}" = 0 ] && return 0
+    corpora
+    docker image inspect "$FIRSTREAD_IMAGE" > /dev/null 2>&1 \
+        || host reads docker build -t "$FIRSTREAD_IMAGE" -f experiments/container/Dockerfile.firstread experiments/container
+    IMAGE="$FIRSTREAD_IMAGE" once reads-maps box reads experiments/reads/run.sh maps
+    once reads box reads experiments/reads/run.sh analyse replays
+}
+# E8b (appendix): happens-before selection against the check on the corpus traces, the idioms and
+# AMG, HYPRE 2.10.1 and NPB MG traced again, and 100 synthetic programs, with the settings of the
+# committed tables (experiments/RUNBOOK.md); after the corpus run and rq6's builds
+hb() {
+    [ "${HB:-1}" = 0 ] && return 0
+    corpora
+    amg
+    once hb box hb python3 experiments/e8_hb.py all --synthetic 100 --max-states 100000 --jobs 2
+}
+# E8c (RQ1, RQ6): every replay behind a confirmation claim run again under the tracer, judged as a
+# run of the program without its pins; after the runs it replays (corpora, E3b, rq6's campaigns,
+# AMG, Nekbone). Nekbone's replays need 48 GB.
+valid() {
+    [ "${VALID:-1}" = 0 ] && return 0
+    corpora
+    reads
+    amg
+    nekbone
+    local steps="mbi npbmg dealii hypre amg"
+    [ "${READS:-1}" = 0 ] || steps="$steps reads"
+    once valid box valid experiments/valid/run.sh "$steps"
+    [ "${NEKBONE:-1}" = 0 ] || MEMORY=48g once valid-nekbone box valid experiments/valid/run.sh nekbone
+}
+
 t_image() {
     docker build -t "$IMAGE" experiments/container
     experiments/container/check.sh "$IMAGE"
+    [ "${READS:-1}" = 0 ] || docker build -t "$FIRSTREAD_IMAGE" -f experiments/container/Dockerfile.firstread experiments/container
 }
 t_inputs() {
     box inputs bash -c "third_party/fetch.sh corpora && third_party/fetch.sh apps && third_party/fetch.sh npb"
@@ -131,7 +177,14 @@ t_inputs() {
 }
 t_kick() { box kick experiments/run_remaining.sh build tests; }
 t_tables() { claims 1 2 3 4 5 6; }
-t_rq1() { corpora; box rq1 experiments/run_remaining.sh e6; amg; nekbone; claims 1; }
+t_rq1() {
+    corpora
+    box rq1 experiments/run_remaining.sh e6 $([ "${READS:-1}" = 0 ] || echo e6reads)
+    reads
+    amg
+    nekbone
+    claims 1
+}
 t_rq2() {
     corpora
     # stress testing on both corpora at the default eager limits, then with the limit forced down
@@ -156,7 +209,7 @@ t_rq2() {
     claims 2
 }
 t_rq3() { corpora; box rq3 experiments/run_remaining.sh e2; claims 3; }
-t_rq4() { corpora; box rq4 experiments/run_remaining.sh e3; claims 4; }
+t_rq4() { corpora; box rq4 experiments/run_remaining.sh e3; reads; claims 4; }
 t_rq5() {
     # times are claims only on an otherwise idle machine (experiments/RUNBOOK.md, timed leg)
     box rq5 experiments/timing_leg.sh
@@ -175,16 +228,20 @@ t_rq6() {
     newbug
     amg
     nekbone
-    claims 6
+    hb
+    valid
+    # E8c's claims are RQ1's and RQ6's
+    claims 1 6
 }
-t_all() { t_rq1; t_rq2; t_rq3; t_rq4; t_rq6; t_rq5; }
+# every question; the claims of all once more at the end, since rq6's E8c reruns replays of RQ1
+t_all() { t_rq1; t_rq2; t_rq3; t_rq4; t_rq6; t_rq5; claims 1 2 3 4 5 6; }
 t_paper() {
     docker run --rm --cpuset-cpus "$CPUS" -u "$(id -u):$(id -g)" -e HOME=/tmp -v "$R/paper:/p" -w /p \
         --entrypoint bash "$TEX_IMAGE" -c 'mkdir -p build && P="pdflatex -interaction=nonstopmode -halt-on-error -output-directory=build main.tex" \
         && $P > /dev/null && BIBINPUTS=. bibtex build/main > /dev/null && $P > /dev/null && $P > build/pdflatex.log && ls -l build/main.pdf'
 }
 
-[ $# -gt 0 ] || { sed -n '2,34p' "$0"; exit 2; }
+[ $# -gt 0 ] || { sed -n '2,43p' "$0"; exit 2; }
 # errexit stops the script at the first failing step; say where before it does
 trap 'rc=$?; log "stopped: a step of ${t:-the setup} failed with status $rc"' ERR
 for t in "$@"; do

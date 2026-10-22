@@ -34,7 +34,9 @@ on), once in the default container and once with `DOCKER_ARGS="--cap-add SYS_PTR
 lets the MPI libraries use single-copy transfers. Its tables are in `experiments/results/guard/`;
 `experiments/tables.py` adds the corpus rows with the guard to E1 and the checks to E8.
 
-Read bounds (rule H1', `docs/firstread.md`, E3b) are outside that sequence too. The image of
+Read bounds (rule H1', `docs/firstread.md`, E3b) are outside that sequence too
+(`experiments/reads/run.sh` runs the steps below but E6, `artifact/reproduce.sh rq1` and `rq4`
+all of them). The image of
 `experiments/container/Dockerfile.firstread` (the experiment image plus clang 18 from the same
 archive snapshot) runs `experiments/mbi/reads_maps.py experiments/results/mbi/mbi.csv`, which
 writes the first-read map of every MBI program to `experiments/results/reads/mbi/`. The
@@ -353,7 +355,8 @@ that also needs `run_valid`.
 The rerun of every confirmation claim is in `experiments/results/valid/`, made in a copy of
 the tree at the commit its rows name (`git archive HEAD`, `COMMIT` written) in containers on
 12 processors of the second machine, with the inputs of the earlier campaigns mounted
-read-only:
+read-only, by the commands below; `experiments/valid/run.sh` runs the same on the paths of an
+artifact checkout (`artifact/reproduce.sh rq6`):
 
 ```bash
 J="export PYTHONPATH=/w/analysis OMPI_MCA_rmaps_base_oversubscribe=1 OMPI_MCA_hwloc_base_binding_policy=none"
