@@ -12,7 +12,9 @@ reported in each of \nPRVrqOneRounds rounds. On the traces shipped for its \nPRV
 application configurations, the analyser reports its pattern in \nPRVrqTwoMatched; in
 \nPRVrqTwoAbsent of them an event that the pattern names never occurs in the trace.
 
-\paragraph{Correct programs.} The trace records a receive's source argument, not the sender it
+\paragraph{Correct programs.} Message races are outside the scope MPI-PRV declares; the programs
+below have none, only a wildcard receive with one possible sender, or a barrier. The trace
+records a receive's source argument, not the sender it
 matched. On a correct program whose receive names \texttt{MPI\_ANY\_SOURCE} and then reads its
 buffer, MPI-PRV reported the read before the only sender's send, an order no execution has, in
 \nPRVprobeWildRecvAny of \nPRVprobeWildRecvAnyRuns runs (\nPRVprobeWildIrecvAny of
@@ -52,4 +54,5 @@ its horizon hang, and their controls finish. In DTG it predicts a deadlock witho
 which a replay with rendezvous forced confirms. In its copies of diffusion2d and poisson, which
 differ from the published codes, the run itself needs buffering or leaves messages unreceived.
 The other sampled replays finished with every pin matched, \nPRVappsReplayFinished of the
-\nPRVappsReplays in all.
+\nPRVappsReplays in all. In kf-ray one rank crashes with or without our tracer, and in its
+artifact's own trace too; we report that run's abort and did not replay it.

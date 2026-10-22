@@ -64,7 +64,8 @@ with their witnesses' pins, give \nReadsReplayConfirmed confirmed, \nReadsReplay
 inconclusive and \nReadsReplayNotConfirmed not confirmed. Rerun under the tracer,
 \nValidRuns of \nValidReplays replays of the confirming campaigns and \nValidControlRuns of
 \nValidControls controls are runs of the unpinned program, and \nValidConfNew of the \nValidConfOld
-confirmations among them stand. On AMG, a
+confirmations among them stand; the application replays are samples from new traced runs, and on
+MBI \nValidVerdictChanged verdicts of racing loops differ from the committed ones. On AMG, a
 random sample of \nAMGsample of its alternatives, which claim no failure, was replayed: all
 \nAMGsampleMatched matched their pins, \nAMGsampleFinish finished, and so did
 \nAMGsampleControls controls. On Nekbone, whose late alternatives pin tens of thousands of
@@ -120,7 +121,8 @@ eager limit forced to \nMBIStressEagerBytes~bytes on TCP (RQ3), stress testing h
 \nMBIStressEagerBufFound that send to another rank, not the \nMBIStressEagerPredMissedSelf that
 send to themselves, and fails no correct program (F1 \MBIfonestresseager, as \tool's, with
 \nMBIStressEagerOnlyStress errors only it finds and \nMBIStressEagerOnlyStretto only \tool). Testing needs the
-suspicion that buffering matters; \tool gives the threshold from one run at the
+suspicion that buffering matters, and a low limit hides races that need buffering, as HYPRE's does
+(RQ6); \tool gives the threshold from one run at the
 default setting. \MUST reports them as well, treating standard sends as
 unbuffered~\citep{hilbrich12must}. Each of NINJA's three modes makes exactly the errors fail
 that stress testing at the default limits does (F1 \NinjaMBIRandomfone, \NinjaMBISystemfone and

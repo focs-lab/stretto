@@ -22,7 +22,7 @@ class & level & meaning & counts as \\
 \cls{1c} & \LoneSP, \Ltwo & a send is never received after the change & error \\
 \cls{1d} & \Lone, \LoneSP, \Ltwo & deadlock after the change & error \\
 \cls{1e} & \Ltwo & the continuation diverges from the trace, or the program aborts on its own check & error \\
-\cls{2-buffering} & observed & the recorded run is not realisable at $\Bt=0$ & error \\
+\cls{2-buffering} & observed & the recorded run is not realisable at $\Bt=0$ (a prediction if it finished) & error \\
 \cls{2-collective} & observed & ranks disagree on a collective & error \\
 \cls{2-blocked} & observed & the run ended with a rank blocked or spinning & error \\
 \cls{2-ready} & observed & a ready send was started before its receive was posted & error \\
