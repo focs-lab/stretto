@@ -237,6 +237,23 @@ class PollingIdiom(unittest.TestCase):
         self.assertEqual(alts[0].pin, "STRETTO_PIN_PROBE=0:0:2")
 
 
+class SplitIdiom(unittest.TestCase):
+    """Idiom 12: a master-worker race on a communicator split off the world, rank 0 passing
+    MPI_UNDEFINED. The split is a collective of the world at every rank, rank 0 included (a
+    trace of format version 2 records its MPI_COMM_NULL result), and the alternative is benign."""
+
+    def test_12_split_is_a_collective_of_the_world(self):
+        t = trace.load(need_trace(self, 12))
+        if t.version < 2:
+            self.skipTest("idiom 12 traced before 22 Oct 2026: rank 0's split is not recorded")
+        splits = [cs for cs in t.coll_sets() if cs[0].name == "comm_split"]
+        self.assertEqual([[c.rank for c in cs] for cs in splits], [[0, 1, 2, 3]])
+        self.assertEqual(splits[0][0].comm, 0)
+        rep = analyze(t, with_sp=False)
+        f = [f for f in rep.findings if f.level == "L1"]
+        self.assertEqual([(x.cls, x.pin) for x in f], [("1f", "STRETTO_PIN=1:0:3")])
+
+
 class Cli(unittest.TestCase):
     """The command line as the harness uses it: exit status 1 on an error-class finding, 0
     otherwise, 2 when the directory cannot be loaded; --json carries the whole text report."""

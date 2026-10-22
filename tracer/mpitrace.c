@@ -5,7 +5,8 @@
    wildcard counting and pinning, no file output.
 
    Record kinds (all carry "r" and "seq"):
-     init      np, thread (provided level). Under MPI_THREAD_MULTIPLE every record also
+     init      np, thread (provided level), version (of this format, TRACE_VERSION).
+               Under MPI_THREAD_MULTIPLE every record also
                carries tid (the calling thread), since per-rank order is then not total.
      begin     call=<recv|wait|probe|coll|send> + the call's arguments; emitted BEFORE a
                potentially blocking call. The loader drops a begin followed by its
@@ -31,7 +32,12 @@
      comm      name, parent(local id), id(local id), ranks:[world ranks in comm-rank order],
                gord (creation ordinal of that group); an intercommunicator carries
                inter:1, ranks = the remote group (what src/dst mean there), local = the
-               local group, members = both sorted (its identity across ranks)
+               local group, members = both sorted (its identity across ranks). Written after
+               a constructor returns, at every member: id -1 when this member obtained
+               MPI_COMM_NULL. An MPI_Comm_idup writes one with id -1 and its req at the call,
+               and one with the new id and the same req when the request completes; name free
+               (parent -1) is MPI_Comm_free or MPI_Comm_disconnect. The analysis makes each
+               creation and release a collective of the communicator it is collective over.
      bufattach size | bufdetach
      overflow  what: a fixed table filled up and later records may be incomplete
      unmodelled call: a call whose communication the analysis does not model (one-sided
@@ -89,6 +95,10 @@
 #include "../replay/pin.h"
 
 /* ------------------------------------------------------------------ state */
+/* The trace format, in the init record. 2 (22 Oct 2026): every member of a communicator
+   creation records it, a MPI_COMM_NULL result included, and an MPI_Comm_idup is recorded at its
+   call; the analysis takes traces without the field as version 1. */
+#define TRACE_VERSION 2
 static FILE *g_out = NULL;
 static int g_rank = -1;
 static long g_seq __attribute__((unused)) = 0;
@@ -991,14 +1001,22 @@ static int group_ordinal(const char *key) {
     g_groups[g_ngroups].key = strdup(key); g_groups[g_ngroups].count = 1; g_ngroups++;
     return 0;
 }
-/* Register a communicator and emit its comm record (ranks + group ordinal). */
-static int comm_register(const char *how, MPI_Comm parent, MPI_Comm c) {
-    if (c == MPI_COMM_NULL) return -1;   /* also the result of a failed or non-member creation */
+static int comm_id(MPI_Comm c);
+/* Register a communicator and emit its comm record (ranks + group ordinal); req: the request of
+   the MPI_Comm_idup it completes, -1 if none. A creation that gave this member MPI_COMM_NULL is
+   recorded too, with id -1: the call is collective over the parent, and the analysis needs
+   every member's part in it. */
+static int comm_register(const char *how, MPI_Comm parent, MPI_Comm c, int req) {
+    if (c == MPI_COMM_NULL) {
+        int pid = comm_id(parent);
+        REC(b, "comm"); rb_printf(&b, ",\"name\":\"%s\",\"parent\":%d,\"id\":-1", how, pid); rb_emit(&b);
+        return -1;
+    }
     pthread_mutex_lock(&g_mu);
     int id = comm_lookup(c);
     if (id < 0) id = comm_add(c);
-    int pid = comm_lookup(parent);
     pthread_mutex_unlock(&g_mu);
+    int pid = parent == c ? id : comm_id(parent);   /* a parent created by an unwrapped call is registered first */
     int inter = 0; PMPI_Comm_test_inter(c, &inter);
     int *wr; int n = world_ranks(c, &wr);
     rec_t kb; rb_init(&kb);
@@ -1019,6 +1037,7 @@ static int comm_register(const char *how, MPI_Comm parent, MPI_Comm c) {
     pthread_mutex_unlock(&g_mu);
     REC(b, "comm");
     rb_printf(&b, ",\"name\":\"%s\",\"parent\":%d,\"id\":%d", how, pid, id);
+    if (req >= 0) rb_printf(&b, ",\"req\":%d", req);
     if (!inter) rb_printf(&b, ",\"ranks\":[%s]", kb.p);
     else {
         int *rr; int m = remote_world_ranks(c, &rr);
@@ -1039,7 +1058,7 @@ static int comm_id(MPI_Comm c) {
     int id = comm_lookup(c);
     pthread_mutex_unlock(&g_mu);
     if (id >= 0) return id;
-    return comm_register("unknown", MPI_COMM_WORLD, c);   /* created through an unwrapped call */
+    return comm_register("unknown", MPI_COMM_WORLD, c, -1);   /* created through an unwrapped call */
 }
 /* For replay/pin.c, which checks that a pinned operation is the one the trace recorded: the
    communicator's local id (its creation ordinal on this rank, the "comm" field of the records)
@@ -1131,11 +1150,11 @@ static void open_trace(int provided) {
     g_multi = provided == MPI_THREAD_MULTIPLE;
     guard_init(provided);
     int np; PMPI_Comm_size(MPI_COMM_WORLD, &np);
-    REC(b, "init"); rb_printf(&b, ",\"np\":%d,\"thread\":%d", np, provided);
+    REC(b, "init"); rb_printf(&b, ",\"np\":%d,\"thread\":%d,\"version\":%d", np, provided, TRACE_VERSION);
     if (g_guard_asked) rb_printf(&b, ",\"guard\":%d", g_guard);
     rb_emit(&b);
-    comm_register("world", MPI_COMM_WORLD, MPI_COMM_WORLD);   /* local id 0 */
-    comm_register("self", MPI_COMM_WORLD, MPI_COMM_SELF);     /* local id 1 */
+    comm_register("world", MPI_COMM_WORLD, MPI_COMM_WORLD, -1);   /* local id 0 */
+    comm_register("self", MPI_COMM_WORLD, MPI_COMM_SELF, -1);     /* local id 1 */
 }
 int MPI_Init(int *argc, char ***argv) {
     int rc = PMPI_Init(argc, argv), provided = MPI_THREAD_SINGLE;
@@ -1421,7 +1440,7 @@ int MPI_Sendrecv_replace(void *buf, int count, MPI_Datatype dt, int dst, int sta
 }
 
 /* -------------------------------------------------------------- completion */
-static void idup_complete(MPI_Request before);
+static void idup_complete(MPI_Request before, int req);
 static void reqs_list(rec_t *b, int n, MPI_Request before[], MPI_Request *slots) {   /* slots: the program's requests, NULL if not passed */
     rb_printf(b, ",\"reqs\":[");
     for (int i = 0; i < n; i++) { int id = req_id(before[i], slots ? &slots[i] : NULL); if (id >= 0) rb_printf(b, "%s%d", i ? "," : "", id); else rb_printf(b, "%snull", i ? "," : ""); }
@@ -1438,7 +1457,7 @@ static void done_entry(rec_t *b, int first, MPI_Request before, MPI_Request *slo
     else if (e) { e->active = 0; e->cancel_req = 0; }
     pthread_mutex_unlock(&g_mu);
     guard_done(id, 1);
-    if (kind == 3) idup_complete(before);
+    if (kind == 3) idup_complete(before, id);
     if (id < 0) { rb_printf(b, "%s{\"req\":null}", first ? "" : ","); return; }
     rb_printf(b, "%s{\"req\":%d", first ? "" : ",", id);
     if (kind == 1) status_fields(b, st, dt, ok);
@@ -1757,7 +1776,7 @@ int MPI_Iscan(const void *s, void *r, int n, MPI_Datatype dt, MPI_Op op, MPI_Com
 int MPI_Iexscan(const void *s, void *r, int n, MPI_Datatype dt, MPI_Op op, MPI_Comm comm, MPI_Request *req) { NBL(MPI_Iexscan, "iexscan", -1, n, dt, PMPI_Iexscan(s, r, n, dt, op, comm, req), gc_reduce(s, r, n, dt, -1, 1, comm, &gb_)) }
 
 /* ---------------------------------------------------------- communicators */
-#define REG(how, parent, n) do { if (rc == MPI_SUCCESS) comm_register(how, parent, *(n)); } while (0)
+#define REG(how, parent, n) do { if (rc == MPI_SUCCESS) comm_register(how, parent, *(n), -1); } while (0)
 int MPI_Comm_dup(MPI_Comm c, MPI_Comm *n) { GUARD; int rc = PMPI_Comm_dup(c, n); REG("dup", c, n); return rc; }
 int MPI_Comm_split(MPI_Comm c, int color, int key, MPI_Comm *n) { GUARD; int rc = PMPI_Comm_split(c, color, key, n); REG("split", c, n); return rc; }
 int MPI_Comm_split_type(MPI_Comm c, int type, int key, MPI_Info info, MPI_Comm *n) { GUARD; int rc = PMPI_Comm_split_type(c, type, key, info, n); REG("split_type", c, n); return rc; }
@@ -1881,27 +1900,43 @@ int MPI_Recv_c(void *b, MPI_Count n, MPI_Datatype dt, int src, int tag, MPI_Comm
 int MPI_Irecv_c(void *b, MPI_Count n, MPI_Datatype dt, int src, int tag, MPI_Comm comm, MPI_Request *req) { UNMODELLED("Irecv_c", PMPI_Irecv_c(b, n, dt, src, tag, comm, req)); }
 int MPI_Sendrecv_c(const void *sb, MPI_Count sn, MPI_Datatype sdt, int dst, int stag, void *rb, MPI_Count rn, MPI_Datatype rdt, int src, int rtag, MPI_Comm comm, MPI_Status *st) { UNMODELLED("Sendrecv_c", PMPI_Sendrecv_c(sb, sn, sdt, dst, stag, rb, rn, rdt, src, rtag, comm, st)); }
 #endif
-/* MPI_Comm_idup: the new communicator is valid once the request completes; it is
-   registered then (done_entry), under the name "idup". */
+/* MPI_Comm_idup: a nonblocking collective over the parent, recorded at the call as a comm
+   record with id -1 and its request; the new communicator is valid once the request completes
+   and is registered then (done_entry), under the name "idup", with the same request. */
 typedef struct { MPI_Request req; MPI_Comm parent; MPI_Comm *out; } idupent;
 static idupent *g_idups = NULL; static int g_nidups = 0, g_capidups = 0;
-int MPI_Comm_idup(MPI_Comm c, MPI_Comm *n, MPI_Request *req) {
-    GUARD;
-    int rc = PMPI_Comm_idup(c, n, req);
-    if (rc != MPI_SUCCESS) return rc;
-    req_add(req, 3, MPI_DATATYPE_NULL, 0);
+static int idup_start(MPI_Comm c, MPI_Comm *n, MPI_Request *req) {
+    int id = req_add(req, 3, MPI_DATATYPE_NULL, 0);
     pthread_mutex_lock(&g_mu);
     if (g_nidups == g_capidups) { g_capidups = g_capidups ? g_capidups * 2 : 4; g_idups = xrealloc(g_idups, sizeof *g_idups * g_capidups); }
     g_idups[g_nidups++] = (idupent){*req, c, n};
     pthread_mutex_unlock(&g_mu);
+    return id;
+}
+int MPI_Comm_idup(MPI_Comm c, MPI_Comm *n, MPI_Request *req) {
+    GUARD;
+    int rc = PMPI_Comm_idup(c, n, req);
+    if (rc != MPI_SUCCESS) return rc;
+    int id = idup_start(c, n, req);
+    REC(b, "comm"); rb_printf(&b, ",\"name\":\"idup\",\"parent\":%d,\"id\":-1,\"req\":%d", comm_id(c), id); rb_emit(&b);
     return rc;
 }
-static void idup_complete(MPI_Request before) {
+#if MPI_VERSION >= 4
+int MPI_Comm_idup_with_info(MPI_Comm c, MPI_Info info, MPI_Comm *n, MPI_Request *req) {
+    GUARD;
+    int rc = PMPI_Comm_idup_with_info(c, info, n, req);
+    if (rc != MPI_SUCCESS) return rc;
+    int id = idup_start(c, n, req);
+    REC(b, "comm"); rb_printf(&b, ",\"name\":\"idup\",\"parent\":%d,\"id\":-1,\"req\":%d", comm_id(c), id); rb_emit(&b);
+    return rc;
+}
+#endif
+static void idup_complete(MPI_Request before, int req) {
     MPI_Comm parent, *out = NULL;
     pthread_mutex_lock(&g_mu);
     for (int i = 0; i < g_nidups; i++) if (g_idups[i].req == before) { parent = g_idups[i].parent; out = g_idups[i].out; g_idups[i] = g_idups[--g_nidups]; break; }
     pthread_mutex_unlock(&g_mu);
-    if (out) comm_register("idup", parent, *out);
+    if (out) comm_register("idup", parent, *out, req);
 }
 static int comm_release(const char *how, MPI_Comm *c) {
     int id = comm_id(*c);
