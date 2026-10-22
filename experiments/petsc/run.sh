@@ -1,0 +1,132 @@
+#!/usr/bin/env bash
+# PETSc 3.26.0, the current release, scouted for wildcard matching bugs.
+#
+# PETSc's own wildcard sites (src/sys/utils/mpits.c, PetscCommBuildTwoSided with MPI_Iprobe
+# from MPI_ANY_SOURCE in its NBX variant; mpimesg.c, PetscGatherMessageLengths; the legacy
+# MatStash and VecStash; MatIncreaseOverlap) take a fresh tag from PetscCommDuplicate or
+# PetscCommGetNewTag per call or per object, and their exchanges begin with a collective count
+# or end with a barrier, so a probe of one call cannot see a message of the next. PETSc also
+# drives HYPRE: PETSc 3.26.0 downloads HYPRE 3.2.0, and PCHYPRE exposes ParaSails' number of
+# pattern levels as -pc_hypre_parasails_nlevels, so PETSc's own KSP tutorial reaches the race
+# of experiments/hypre3/ unmodified.
+#
+# Steps, inside the experiment container, from the repository root, Open MPI build:
+#   fetch    download PETSc 3.26.0 (GitHub), f2cblaslapack 3.8.0.q2 (PETSc's site) and HYPRE
+#            3.2.0 (GitHub), check their sha256
+#   build    configure (Open MPI wrappers, no Fortran, optimised with -g, BLAS/LAPACK and HYPRE
+#            from those archives), make -j$MAKE_JOBS, then the KSP tutorials ex2 and ex3
+#   parasails  RUNS traced runs of ex2 with ParaSails at two pattern levels and at one (the
+#            default), at 4 and 8 processes, analysed, every alternative replayed with its
+#            horizon pins and its control (experiments/scout.py), JOBS at a time
+#   predict  the same for the drivers of PETSc's own wildcard sites (DRIVERS below)
+#   stress   STRESS_RUNS untraced runs of ex2 with ParaSails at two levels per process count,
+#            plain and with random send and receive delays (the budget and delays of
+#            experiments/hypre/campaign.sh), TIMEOUT seconds each; and at one level, the default
+#   ninja    NINJA (experiments/ninja/build.sh, Open MPI library) on ex2 with ParaSails at two
+#            levels: STRESS_RUNS runs per process count in its random (50 ms), system- and
+#            application-centric modes (experiments/ninja/run.py)
+#   all      fetch build parasails predict stress
+# Writes experiments/results/petsc/{parasails,predict,stress,ninja}.csv.
+# usage: experiments/petsc/run.sh [fetch|build|parasails|predict|stress|ninja|all]
+#        RUNS (5), STRESS_RUNS (40), TIMEOUT (30), JOBS (1), MAKE_JOBS (12),
+#        PETSC_SRC_DIR (third_party/apps/petsc), NINJA_DIR (third_party/ninja)
+set -uo pipefail
+R="$(cd "$(dirname "$0")/../.." && pwd)"; cd "$R"
+D="${PETSC_SRC_DIR:-$R/third_party/apps/petsc}"
+OUT="$R/experiments/results/petsc"; mkdir -p "$OUT"
+RUNS="${RUNS:-5}"; STRESS_RUNS="${STRESS_RUNS:-40}"; TIMEOUT="${TIMEOUT:-30}"
+PINLIB="$R/replay/bin/openmpi/libstretto-pin.so"
+export STRETTO_COMMIT="${STRETTO_COMMIT:-$(cat "$R/COMMIT" 2>/dev/null || git -C "$R" rev-parse --short HEAD 2>/dev/null || echo unknown)}"
+V=3.26.0
+export PETSC_DIR="$D/petsc-$V" PETSC_ARCH=arch-ompi-opt
+TUT="$PETSC_DIR/src/ksp/ksp/tutorials"
+declare -A SHA=([petsc-3.26.0.tar.gz]=3f1d722dd3b189a6c5ed0a114abcaae624feb9f525023d8db45d514872da64bd
+                [f2cblaslapack-3.8.0.q2.tar.gz]=12fa8d5001e313aeeea22eb2054883f59e3e3c656f11129f31abb02ddbf8ad60
+                [hypre-3.2.0.tar.gz]=5273205a310fb6aa3ae506ce216760fb67b30e02024874f3cdb8b811e4801de7)
+declare -A URL=([petsc-3.26.0.tar.gz]=https://github.com/petsc/petsc/archive/refs/tags/v3.26.0.tar.gz
+                [f2cblaslapack-3.8.0.q2.tar.gz]=https://web.cels.anl.gov/projects/petsc/download/externalpackages/f2cblaslapack-3.8.0.q2.tar.gz
+                [hypre-3.2.0.tar.gz]=https://github.com/hypre-space/hypre/archive/refs/tags/v3.2.0.tar.gz)
+# driver name, process counts, arguments of ex2 or ex3
+PARASAILS="ex2-parasails2|4 8|ex2 -m 32 -n 32 -pc_type hypre -pc_hypre_type parasails -pc_hypre_parasails_nlevels 2
+ex2-parasails1|4 8|ex2 -m 32 -n 32 -pc_type hypre -pc_hypre_type parasails"
+DRIVERS="ex2-gamg|4 8|ex2 -m 32 -n 32 -pc_type gamg
+ex2-asm2|4|ex2 -m 32 -n 32 -pc_type asm -pc_asm_overlap 2
+ex2-boomeramg|4|ex2 -m 32 -n 32 -pc_type hypre -pc_hypre_type boomeramg
+ex3|4|ex3 -m 16
+ex3-legacy|4|ex3 -m 16 -matstash_legacy -vec_assembly_legacy -build_twosided allreduce"
+
+step_fetch() {
+    mkdir -p "$D" && cd "$D" || return 1
+    for f in "${!URL[@]}"; do
+        [ -f "$f" ] || curl -sSfL -o "$f" "${URL[$f]}" || return 1
+        echo "${SHA[$f]}  $f" | sha256sum -c - || return 1
+    done
+    [ -d "petsc-$V" ] || tar xzf "petsc-$V.tar.gz"
+    cd "$R"
+}
+step_build() {
+    if [ ! -f "$PETSC_DIR/$PETSC_ARCH/lib/libpetsc.so" ]; then
+        (cd "$PETSC_DIR" && ./configure --with-cc=/usr/bin/mpicc.openmpi --with-cxx=/usr/bin/mpicxx.openmpi --with-fc=0 \
+             --with-debugging=0 COPTFLAGS="-O2 -g" CXXOPTFLAGS="-O2 -g" --with-x=0 \
+             --download-f2cblaslapack="$D/f2cblaslapack-3.8.0.q2.tar.gz" --download-hypre="$D/hypre-3.2.0.tar.gz" \
+             --with-make-np="${MAKE_JOBS:-12}" > "$D/configure.log" 2>&1 \
+         && make MAKE_NP="${MAKE_JOBS:-12}" all > "$D/make.log" 2>&1) || { echo "build of PETSc $V failed" >&2; return 1; }
+    fi
+    make -C "$TUT" ex2 ex3 > "$D/tutorials.log" 2>&1 || { echo "build of the tutorials failed" >&2; return 1; }
+}
+scout() {   # scout <table> <drivers>
+    rm -f "$OUT/$1.csv"
+    while IFS='|' read -r name nps cmd; do
+        read -r -a a <<< "$cmd"
+        python3 experiments/scout.py --code petsc --version "$V" --driver "$name" --np $nps --runs "$RUNS" \
+            --jobs "${JOBS:-1}" --timeout "$TIMEOUT" --out "$OUT/$1.csv" -- "$TUT/${a[0]}" "${a[@]:1}" || return 1
+    done <<< "$2"
+}
+step_parasails() { scout parasails "$PARASAILS"; }
+step_predict() { scout predict "$DRIVERS"; }
+step_ninja() {
+    local np m
+    rm -f "$OUT/ninja.csv"
+    for np in 4 8; do
+        for m in random system app; do
+            local extra=(); [ $m = random ] && extra=(--rand-ratio 10 --rand-delay 50000)
+            python3 experiments/ninja/run.py runs --np $np --mode $m "${extra[@]}" --runs "$STRESS_RUNS" --timeout "$TIMEOUT" \
+                --mpi openmpi --label ex2-parasails2 --out "$OUT/ninja.csv" --marks "solved=iterations" \
+                --value "iterations *([0-9]+)" -- "$TUT/ex2" -m 32 -n 32 -pc_type hypre -pc_hypre_type parasails \
+                -pc_hypre_parasails_nlevels 2 || return 1
+        done
+    done
+}
+step_stress() {
+    echo "version,driver,np,run,setting,result,seconds,iterations,commit" > "$OUT/stress.csv"
+    local w; w=$(mktemp -d)
+    for nl in 2 1; do
+        for np in 4 8; do
+            for i in $(seq 1 "$STRESS_RUNS"); do
+                for setting in plain delays; do
+                    local env=()
+                    if [ $setting = delays ]; then
+                        ds=$(python3 -c "import random; r=random.Random($i*100+$np); print(','.join(f'{k}:{r.choice([0,0,0,1,5,20,50])}' for k in range($np)))")
+                        dr=$(python3 -c "import random; r=random.Random($i*100+$np+7); print(','.join(f'{k}:{r.choice([0,0,0,1,5,20,50])}' for k in range($np)))")
+                        env=(-x LD_PRELOAD="$PINLIB" -x STRETTO_SEND_DELAY_MS=$ds -x STRETTO_RECV_DELAY_MS=$dr)
+                    fi
+                    t0=$SECONDS
+                    (cd "$w" && /usr/bin/timeout -k 5 $TIMEOUT mpirun.openmpi --oversubscribe -np $np "${env[@]}" "$TUT/ex2" \
+                         -m 32 -n 32 -pc_type hypre -pc_hypre_type parasails -pc_hypre_parasails_nlevels $nl < /dev/null > "$w/out" 2>&1)
+                    rc=$?; r=FINISHED; [ $rc = 0 ] || { [ $rc = 124 ] && r=TIMEOUT || r="rc=$rc"; }
+                    it=$(sed -n 's/.*iterations *\([0-9]*\).*/\1/p' "$w/out" | head -1)
+                    echo "$V,ex2-parasails$nl,$np,$i,$setting,$r,$((SECONDS - t0)),$it,$STRETTO_COMMIT" | tee -a "$OUT/stress.csv"
+                done
+            done
+        done
+    done
+    rm -rf "$w"
+}
+for step in "${@:-all}"; do
+    case "$step" in
+        fetch) step_fetch;; build) step_build;; parasails) step_parasails;; predict) step_predict;;
+        stress) step_stress;; ninja) step_ninja;;
+        all) step_fetch && step_build && step_parasails && step_predict && step_stress;;
+        *) echo "usage: $0 [fetch|build|parasails|predict|stress|ninja|all]" >&2; exit 2;;
+    esac || exit 1
+done
