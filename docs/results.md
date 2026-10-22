@@ -1044,25 +1044,25 @@ Each program is correct; `expected` is *none* when no execution has the pattern'
 
 The example's sources built without instrumentation; `fixed` completes the two halo sends the original never waits for, `mutant` is the fixed kernel with its waits moved after the edge updates (the error the report describes, put in on purpose); `delay` runs make one rank sleep before each MPI_Isend. The result is the hash of a0 and a1 on every rank at their free(); `after marker` and `after loop` count the halo sends posted after the receiving rank's marker, and after its whole interior loop, out of all halo sends.
 
-| run | command | result | same result as normal | sends after marker | after loop | of | guard records |
-|---|---|---|---|---|---|---|---|
-| normal | `src/kernel -b stencil -o 27 -s 512 -d double -a normal LD_PRELOAD=sum.so ` | a09e3039 | True | - | - | - |   |
-| overlapped-1 | `src/kernel -b stencil -o 27 -s 512 -d double -a overlapped LD_PRELOAD=order.so ` | 66f6b516 | False | 68 | 0 | 600 |   |
-| overlapped-2 | `src/kernel -b stencil -o 27 -s 512 -d double -a overlapped LD_PRELOAD=order.so ` | efa73d3e | False | 49 | 0 | 600 |   |
-| fixed | `fixed/kernel -b stencil -o 27 -s 512 -d double -a overlapped LD_PRELOAD=order.so ` | a09e3039 | True | 80 | 0 | 600 |   |
-| fixed-delay1 | `fixed/kernel -b stencil -o 27 -s 512 -d double -a overlapped LD_PRELOAD=order.so ADEPT_DELAY=1:2500` | a09e3039 | True | 209 | 200 | 600 |   |
-| fixed-delay2 | `fixed/kernel -b stencil -o 27 -s 512 -d double -a overlapped LD_PRELOAD=order.so ADEPT_DELAY=2:2500` | a09e3039 | True | 294 | 200 | 600 |   |
-| mutant | `mutant/kernel -b stencil -o 27 -s 512 -d double -a overlapped LD_PRELOAD=order.so ` | a6679322 | False | 35 | 0 | 600 |   |
-| mutant-delay1 | `mutant/kernel -b stencil -o 27 -s 512 -d double -a overlapped LD_PRELOAD=order.so ADEPT_DELAY=1:2500` | a6679322 | False | 213 | 200 | 600 |   |
-| guard | `src/kernel -b stencil -o 27 -s 512 -d double -a overlapped LD_PRELOAD=libstretto-trace.so STRETTO_TRACE_DIR=/w/experiments/mpiprv/work/adept/guard.trace STRETTO_GUARD=1` | - | - | - | - | - | 600 access:write:isend*600 |
-| guard-fixed | `fixed/kernel -b stencil -o 27 -s 512 -d double -a overlapped LD_PRELOAD=libstretto-trace.so STRETTO_TRACE_DIR=/w/experiments/mpiprv/work/adept/guard-fixed.trace STRETTO_GUARD=1` | - | - | - | - | - | 0  |
+| run | command | result | same result as normal | sends after marker | after loop | of | delayed rank's sends after loop | of | guard records |
+|---|---|---|---|---|---|---|---|---|---|
+| normal | `src/kernel -b stencil -o 27 -s 512 -d double -a normal LD_PRELOAD=sum.so ` | a09e3039 | True | - | - | - | - | - |   |
+| overlapped-1 | `src/kernel -b stencil -o 27 -s 512 -d double -a overlapped LD_PRELOAD=order.so ` | 66f6b516 | False | 68 | 0 | 600 | - | - |   |
+| overlapped-2 | `src/kernel -b stencil -o 27 -s 512 -d double -a overlapped LD_PRELOAD=order.so ` | efa73d3e | False | 49 | 0 | 600 | - | - |   |
+| fixed | `fixed/kernel -b stencil -o 27 -s 512 -d double -a overlapped LD_PRELOAD=order.so ` | a09e3039 | True | 80 | 0 | 600 | - | - |   |
+| fixed-delay1 | `fixed/kernel -b stencil -o 27 -s 512 -d double -a overlapped LD_PRELOAD=order.so ADEPT_DELAY=1:2500` | a09e3039 | True | 209 | 200 | 600 | 200 | 200 |   |
+| fixed-delay2 | `fixed/kernel -b stencil -o 27 -s 512 -d double -a overlapped LD_PRELOAD=order.so ADEPT_DELAY=2:2500` | a09e3039 | True | 294 | 200 | 600 | 200 | 200 |   |
+| mutant | `mutant/kernel -b stencil -o 27 -s 512 -d double -a overlapped LD_PRELOAD=order.so ` | a6679322 | False | 35 | 0 | 600 | - | - |   |
+| mutant-delay1 | `mutant/kernel -b stencil -o 27 -s 512 -d double -a overlapped LD_PRELOAD=order.so ADEPT_DELAY=1:2500` | a6679322 | False | 213 | 200 | 600 | 200 | 200 |   |
+| guard | `src/kernel -b stencil -o 27 -s 512 -d double -a overlapped LD_PRELOAD=libstretto-trace.so STRETTO_TRACE_DIR=/w/experiments/mpiprv/work/adept/guard.trace STRETTO_GUARD=1` | - | - | - | - | - | - | - | 600 access:write:isend*600 |
+| guard-fixed | `fixed/kernel -b stencil -o 27 -s 512 -d double -a overlapped LD_PRELOAD=libstretto-trace.so STRETTO_TRACE_DIR=/w/experiments/mpiprv/work/adept/guard-fixed.trace STRETTO_GUARD=1` | - | - | - | - | - | - | - | 0  |
 
 Guard records by site (`adept-guard.txt`; count, site, function and source line):
 
 ```
-# guard: Adept Kernel MPI (src), -a overlapped -b stencil -o 27 -s 512 -d double, 4 ranks, Stretto's tracer with STRETTO_GUARD=1; run at commit 1110e11, summarised at commit 8ab453c
+# guard: Adept Kernel MPI (src), -a overlapped -b stencil -o 27 -s 512 -d double, 4 ranks, Stretto's tracer with STRETTO_GUARD=1; run at commit 1110e11, summarised at commit 10210ff
 600 kernel+0x106a5 double_stencil27_overlapped stencil.c:1875
-# guard-fixed: Adept Kernel MPI (fixed), -a overlapped -b stencil -o 27 -s 512 -d double, 4 ranks, Stretto's tracer with STRETTO_GUARD=1; run at commit 1110e11, summarised at commit 8ab453c
+# guard-fixed: Adept Kernel MPI (fixed), -a overlapped -b stencil -o 27 -s 512 -d double, 4 ranks, Stretto's tracer with STRETTO_GUARD=1; run at commit 1110e11, summarised at commit 10210ff
 ```
 
 ### MPI-PRV on Stretto's corpora (`experiments/mpiprv/run.py`)

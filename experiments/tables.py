@@ -1854,17 +1854,22 @@ def e9():
                 "report describes, put in on purpose); `delay` runs make one rank sleep before each MPI_Isend. The result is "
                 "the hash of a0 and a1 on every rank at their free(); `after marker` and `after loop` count the halo sends "
                 "posted after the receiving rank's marker, and after its whole interior loop, out of all halo sends.", "",
-                "| run | command | result | same result as normal | sends after marker | after loop | of | guard records |",
-                "|---|---|---|---|---|---|---|---|"]
+                "| run | command | result | same result as normal | sends after marker | after loop | of | "
+                "delayed rank's sends after loop | of | guard records |",
+                "|---|---|---|---|---|---|---|---|---|---|"]
         for r in ad:
             out.append(f"| {r['run']} | `{r['command']}` | {r['result_id']} | {r['same_result_as_normal']} | "
                        f"{r['sends_after_marker']} | {r['sends_after_loop']} | {r['send_pairs']} | "
+                       f"{r.get('delayed_sends_after_loop', '-')} | {r.get('delayed_sends', '-')} | "
                        f"{r['guard_records'] if r['guard_records'] != '-' else ''} {r['guard_kinds']} |")
         by = {r["run"]: r for r in ad}
         for k, key in (("fixed-delay1", "DelayOne"), ("fixed-delay2", "DelayTwo"), ("mutant-delay1", "MutantDelay")):
             if k in by:
                 num(f"nPRVadept{key}Late", by[k]["sends_after_loop"])
                 num(f"nPRVadept{key}Pairs", by[k]["send_pairs"])
+                if by[k].get("delayed_sends", "-") != "-":
+                    num(f"nPRVadept{key}DelayedLate", by[k]["delayed_sends_after_loop"])
+                    num(f"nPRVadept{key}Delayed", by[k]["delayed_sends"])
         num("nPRVadeptFixedSame", sum(1 for r in ad if r["run"].startswith("fixed") and r["same_result_as_normal"] == "True"))
         num("nPRVadeptFixedRuns", sum(1 for r in ad if r["run"].startswith("fixed")))
         num("nPRVadeptOrigSame", sum(1 for r in ad if r["run"].startswith("overlapped") and r["same_result_as_normal"] == "True"))
@@ -1969,6 +1974,27 @@ def e9():
         num("nPRVappsReplays", len(reps))
         num("nPRVappsReplayFinished", sum(1 for r in reps if r.get("replay") == "FINISHED" and r.get("matched") == "True"
                                           and r.get("control") == "FINISHED"))
+        num("nPRVappsReplayHang", sum(1 for r in reps if r.get("replay") == "TIMEOUT" and r.get("matched") == "True"
+                                      and r.get("control") == "FINISHED"))
+
+        def counts(text):          # "1d:confirmed*2 1c*3" -> {"1d:confirmed": 2, "1c": 3}
+            return {k: int(v) for k, v in re.findall(r"(\S+)\*(\d+)", text or "")}
+
+        def hangs(item):           # a replay under rendezvous that hangs as predicted
+            res = item.split(": ", 1)[-1]
+            return res.startswith("TIMEOUT") and "unmatched" not in res and ("control-" not in res or res.endswith("control-FINISHED"))
+        heat = next((r for r in apps if r["app"] == "Heat" and r.get("run", "").startswith("rc=")), None)
+        if heat:
+            num("nPRVheatDeadlock", counts(heat.get("classes")).get("1d", 0))
+            num("nPRVheatDeadlockConfirmed", counts(heat.get("confirmed")).get("1d:confirmed", 0))
+            num("nPRVheatAlts", int(heat.get("alternatives") or 0))
+            num("nPRVheatReplayHang", counts(heat.get("replay_results")).get("TIMEOUT/matched/control-FINISHED", 0))
+        rdv = [(r["app"], x.strip()) for r in apps for col in ("rendezvous", "guard_rendezvous")
+               for x in (r.get(col) or "").split(";") if x.strip()]
+        num("nPRVappsRendezvous", len(rdv))
+        num("nPRVappsRendezvousHang", sum(1 for _, x in rdv if hangs(x)))
+        num("nPRVdtgRendezvous", sum(1 for a, _ in rdv if a == "DTG"))
+        num("nPRVdtgRendezvousHang", sum(1 for a, x in rdv if a == "DTG" and hangs(x)))
         out += ["", "### Stretto on MPI-PRV's applications (`experiments/mpiprv/apps.py`)", "",
                 "The artifact's binaries (built with its instrumentation, which only appends its events to a file), its "
                 "command lines and process counts up to 24 ranks, traced by Stretto inside its image; replays are every "

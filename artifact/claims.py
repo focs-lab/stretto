@@ -31,7 +31,8 @@ RQ_OF = [
     (1, r"^nEsix|^nMBIReplay|^nAMGsample|^nNeksample|^nPin|^nReadsEsix|^nReadsReplay"),
     (4, r"^nReads"),
     (6, r"^n?Ninja(Hypre|Replica|MG)"),
-    (2, r"^n?NinjaMBI|^nMBIMUST|^nTsanLC|^(MBI|MBB)fone|^n(MBI|MBB)(tp|fn|fp|progs|notBuilt|correct|errors|race|Stress|Clean|OnlyStretto|LC)|^n?Guard|^n?Reps"),
+    (2, r"^n?NinjaMBI|^nMBIMUST|^nTsanLC|^(MBI|MBB)fone|^n(MBI|MBB)(tp|fn|fp|progs|notBuilt|correct|errors|race|Stress|Clean|OnlyStretto|LC)|^n?Guard|^n?Reps"
+        r"|^n?PRV"),
     (3, r"^nEtwo|^B[a-z]+OMPI$"),
     (4, r"^n(MBI|MBB)(one|sp|obs)[A-Z]"),
     (5, r"^TraceOverhead|^LuAnalysis|^LuEvents|^AMGtime|^Nek(GB|Minutes|PerAlt|Records)|^nEfour|^n?Scale"),
@@ -44,7 +45,9 @@ FIXED = re.compile(r"^n(MBI|MBB)(progs|notBuilt|correct|errors|race)$|^B[a-z]+OM
                    r"|^nMBBLC$|^nGuardLC(OMPI|MPICH)built$|^nGuardCases$|^nGuardAppRuns$"
                    r"|^nReps(Runs|Progs|Errors)$|^nDeal(Fixed)?Traced$|^nDealRanks$|^nDealStress(Plain|Delay)?Runs$"
                    r"|^nNinja(Hypre|Replica|MG)[A-Za-z]*Runs$|^nNinjaMBIerrors$|^nTsanLC$"
-                   r"|^nScale(Traces|Sample|NpMin|NpMax)$")
+                   r"|^nScale(Traces|Sample|NpMin|NpMax)$"
+                   r"|^nPRV(rqOne(Rounds|Props)|rqTwo(Configs|Absent|Matched)|adeptTraces|adept(Orig|Fixed)Runs"
+                   r"|adept[A-Za-z]*(Pairs|Delayed)|probe[A-Za-z]*Runs|corpus|inScope|outScope|twins|apps|appConfigs)$")
 
 
 def load(path: str) -> dict:
@@ -133,6 +136,47 @@ def claims(n: dict) -> list:
           ["nRepsUnionBelowObs"], lambda b: b == 0)
     claim(2, "repeated MBI runs: every clean run Stretto predicts nothing from is of a value-check program (L2)",
           ["nRepsCleanMissedNotLtwo"], lambda x: x == 0)
+    # MPI-PRV (experiments/mpiprv/, section E9, the appendix comparing with it)
+    claim(2, "MPI-PRV's RQ1 reproduces: every one of its properties is reported in every round",
+          ["nPRVrqOneRounds", "nPRVrqOneFull", "nPRVrqOneProps"], lambda r, f, p: r > 0 and p > 0 and f == r)
+    claim(2, "MPI-PRV reports its pattern in none of the application configurations its artifact ships traces for",
+          ["nPRVrqTwoConfigs", "nPRVrqTwoMatched"], lambda c, m: c > 0 and m == 0)
+    claim(2, "MPI-PRV probes: a wildcard receive gets the impossible order in every run, a named sender in none",
+          ["nPRVprobeWildRecvAny", "nPRVprobeWildRecvAnyRuns", "nPRVprobeWildIrecvAny", "nPRVprobeWildIrecvAnyRuns",
+           "nPRVprobeWildRecvSrc", "nPRVprobeWildIrecvSrc"], lambda a, ar, b, br, s, t: ar > 0 and br > 0 and a == ar and b == br and s == t == 0)
+    claim(2, "MPI-PRV probes: the order across a barrier is reported in every run, across a send and receive in none, "
+             "and the observed order in every run of both",
+          ["nPRVprobeOrderBarrierBa", "nPRVprobeOrderBarrierBaRuns", "nPRVprobeOrderSendrecvBa",
+           "nPRVprobeOrderBarrierAb", "nPRVprobeOrderBarrierAbRuns", "nPRVprobeOrderSendrecvAb", "nPRVprobeOrderSendrecvAbRuns"],
+          lambda b, br, s, ob, obr, os_, osr: br > 0 and b == br and s == 0 and ob == obr and os_ == osr)
+    claim(2, "MPI-PRV probes: the correct program with four ranks is reported from unrelated events in every run",
+          ["nPRVprobeUnrelated", "nPRVprobeUnrelatedRuns"], lambda u, r: r > 0 and u == r)
+    claim(2, "MPI-PRV with script-placed markers reports fewer local-concurrency errors than the buffer guard, whose "
+             "false reports there are no more than its MPI-BugBench false positives",
+          ["nPRVtpBLC", "nPRVtpStrettoLC", "nPRVfpStrettoLC", "nMBBfpguard"], lambda b, s, fs, fg: b < s and fs <= fg)
+    claim(2, "MPI-PRV's properties on MPI calls alone report correct programs", ["nPRVfpA"], lambda f: f > 0)
+    claim(2, "Adept kernel with the missing waits: every run, delayed or not, gives the blocking variant's result, and "
+             "every send of the delayed rank comes after its neighbour's interior loop",
+          ["nPRVadeptFixedRuns", "nPRVadeptFixedSame", "nPRVadeptDelayOneDelayed", "nPRVadeptDelayOneDelayedLate",
+           "nPRVadeptDelayTwoDelayed", "nPRVadeptDelayTwoDelayedLate"],
+          lambda r, s, d1, l1, d2, l2: r > 0 and s == r and d1 > 0 and l1 == d1 and d2 > 0 and l2 == d2)
+    claim(2, "Adept kernel: the mutant that updates the halo planes before the waits changes the result, under the delay too",
+          ["nPRVadeptMutantSame", "nPRVadeptMutantDelayDelayed", "nPRVadeptMutantDelayDelayedLate"],
+          lambda s, d, l: s == 0 and d > 0 and l == d)
+    claim(2, "Adept kernel as shipped: no run gives the blocking variant's result, the guard reports writes to its "
+             "send buffers, and none once the waits are added",
+          ["nPRVadeptOrigRuns", "nPRVadeptOrigSame", "nPRVadeptGuard", "nPRVadeptGuardFixed"],
+          lambda r, s, g, gf: r > 0 and s == 0 and g > 0 and gf == 0)
+    claim(2, "Heat: Stretto predicts a deadlock; every prediction is confirmed, and every replay of its alternatives "
+             "hangs with its pins matched while its control finishes",
+          ["nPRVheatDeadlock", "nPRVheatDeadlockConfirmed", "nPRVheatAlts", "nPRVheatReplayHang"],
+          lambda d, c, a, h: d > 0 and c == d and a > 0 and h == a)
+    claim(2, "MPI-PRV's applications: every replay under rendezvous hangs as predicted, among them DTG's",
+          ["nPRVappsRendezvous", "nPRVappsRendezvousHang", "nPRVdtgRendezvousHang"], lambda r, h, d: r > 0 and h == r and d > 0)
+    claim(2, "MPI-PRV's applications: every sampled replay finished with its pins matched and its control finished, "
+             "but Heat's, which hang",
+          ["nPRVappsReplays", "nPRVappsReplayFinished", "nPRVappsReplayHang", "nPRVheatReplayHang"],
+          lambda n, f, h, hh: n > 0 and f + h == n and h == hh)
     claim(3, "every recorded run infeasible at B=0 needs no threshold, finished, or did not finish",
           ["nEtwoObsBuf", "nEtwoObsBufNever", "nEtwoObsBufFinished", "nEtwoObsBufStopped"], lambda a, n, f, s: a == n + f + s)
     claim(3, "the runs that finished and need a threshold are the ones replayed",
