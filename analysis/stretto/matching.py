@@ -139,21 +139,26 @@ def build_graph(t: Trace, M: Dict[Key, Key], cut: Optional[Dict[int, int]], B: O
 
     nodes: List[Node] = []
     g = Graph(nodes, {})
+    succ = g.succ
     for rank, recs in t.ranks.items():
         prev = None
-        for rec in recs:
-            if not kept(rank, rec.idx):
-                if issued and issued.get(rank) == rec.idx:
-                    nodes.append(rec.issue)
-                    if prev is not None:
-                        g.add(prev, rec.issue)
-                break
-            nodes.append(rec.issue)
-            nodes.append(rec.complete)
-            g.add(rec.issue, rec.complete)
+        end = len(recs) if cut is None else min(len(recs), max(0, cut.get(rank, 10**9)))
+        # program order, the bulk of the graph, written out (Graph.add per edge was a fifth of
+        # the analysis of AMG's trace at 32 processes): each node is new here, so its list is
+        # created with its first edge
+        for idx in range(end):
+            i, c = (rank, idx, "i"), (rank, idx, "c")
+            nodes.append(i)
+            nodes.append(c)
+            succ[i] = [c]
             if prev is not None:
-                g.add(prev, rec.issue)
-            prev = rec.complete
+                succ[prev] = [i]
+            prev = c
+        if end < len(recs) and issued and issued.get(rank) == end:
+            i = (rank, end, "i")
+            nodes.append(i)
+            if prev is not None:
+                succ[prev] = [i]
     node_set = set(nodes)
 
     def both(a: Optional[Node], b: Optional[Node]) -> bool:
@@ -175,29 +180,31 @@ def build_graph(t: Trace, M: Dict[Key, Key], cut: Optional[Dict[int, int]], B: O
     recv_of = {sk: rk for rk, sk in M.items()} if mnode else {}
     for rk, m in mnode.items():
         r, s = t.recvs[rk], t.sends[M[rk]]
-        g.add(s.issue_node(), m)                              # the message is issued first
+        succ.setdefault(s.issue_node(), []).append(m)        # the message is issued first
         if m[2] == "m":
-            g.add(r.issue_node(), m)                          # the receive is posted first
+            succ.setdefault(r.issue_node(), []).append(m)    # the receive is posted first
             rc = r.complete_node()
             if rc is not None and rc in node_set:
-                g.add(m, rc)                                  # it completes after the match
+                succ.setdefault(m, []).append(rc)            # it completes after the match
         if send_blocks(s, B):
             sc = s.complete_node()
             if sc is not None and sc in node_set:
                 g.add(m, sc)                                  # rendezvous: the send completes after it
         if s.ready_mode and (ready is None or s.key in ready):
             g.add(r.issue_node(), s.issue_node())             # ready send: receive posted first
-        # receiver side: an earlier receive that accepts s is matched before r takes s
+        # receiver side: an earlier receive that accepts s is matched before r takes s (another
+        # receive, so another node)
         for r2 in t.earlier_competitors(r, s):
             m2 = mnode.get(r2.key)
             if m2 is not None:
-                g.add(m2, m)
-        # sender side: an earlier message of s's channel that r accepts is matched first
+                succ.setdefault(m2, []).append(m)
+        # sender side: an earlier message of s's channel that r accepts is matched first, by
+        # another receive than r, which takes s
         for s2 in t.earlier_sends(r, s):
             r2k = recv_of.get(s2.key)
             m2 = mnode.get(r2k) if r2k is not None else None
             if m2 is not None:
-                g.add(m2, m)
+                succ.setdefault(m2, []).append(m)
     probe_alt = probe_alt or {}
     for p in t.probes.values():
         sk = probe_alt.get(p.key, p.seen if not strong_only else None)

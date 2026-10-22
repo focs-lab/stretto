@@ -199,17 +199,23 @@ of its alternatives with the pins of their horizon and a control (`experiments/r
 which analyses the trace again). One row per trace goes to `experiments/results/scale/scale.csv`;
 `samples/<app>-<np>.{csv,sample,time,run}` hold the sample's rows and log, the analysis time and
 peak memory, and the traced run's output. The reports (`samples/<app>-<np>.report`; AMG's at 64
-processes is 200 MB) are not committed, nor are AMG's run logs. Those are mostly warnings, one
-per single-copy transfer that Open MPI tried and the container refused (`process_vm_readv`),
-each naming host and process; every AMG run still converged in 20 iterations.
+processes is 200 MB) are not committed, nor are AMG's run logs. In the campaign at b7c886f those
+were mostly warnings, one per single-copy transfer that Open MPI tried and the container refused
+(`process_vm_readv`), each naming host and process; in both campaigns every AMG run converged
+in 20 iterations.
 
-The campaign of 21 Oct 2026 ran at commit b7c886f on the second machine, in one container
-(`NAME=stretto-scale CPUS=0-11,40-51 MEMORY=48g`: 12 cores, 24 hardware threads) with
-`NPS="16 32 64" SAMPLE=10`, from 15:08 to 22:17 UTC. AMG at 64 processes took most of those
-7 hours: its analysis 3 hours and 37.5 GB, its sample, which analyses the trace again, nearly 3
-more. It was not a timed leg (other containers ran on the machine's other processors), so its
-times show the cost and are not timing claims; and process counts above 24 oversubscribe the
-container, so the runs measure the analysis, not the traced program's speed.
+The committed campaign ran on 22 Oct 2026 at commit 8771752, after the analysis changes of that
+day (Lamport-ordered and chained closures, compact clocks and profiles), on the second machine
+in one container alone on its processors (`--cpuset-cpus 0-5,40-45 -m 48g`: 6 cores, 12
+hardware threads) with `NPS="16 32 64" SAMPLE=10`, from 03:30 to 04:46 UTC: 76 minutes, AMG at
+64 processes 416 s and 8.7 GB of it. The campaign before those changes, at b7c886f on 21 Oct
+in a container of 12 cores (`CPUS=0-11,40-51`), took 7 hours, most of them AMG at 64 processes:
+its analysis 3 hours and 37.5 GB, its sample, which analyses the trace again, nearly 3 more; its
+rows are kept in `scale-b7c886f.csv`, which `experiments/tables.py` compares with the current
+ones. Neither was a timed leg (other containers ran on the machine's other processors), so the
+times show the cost and are not timing claims; and process counts above the container's
+hardware threads oversubscribe it, so the runs measure the analysis, not the traced program's
+speed.
 
 ## Real bug: HYPRE
 
@@ -490,6 +496,31 @@ neither has results. By reading the code, deal.II 9.8.0 still takes a `Collectiv
 both `RemotePointEvaluation` exchanges (`mpi_remote_point_evaluation.h`, lines 776-777 and
 987-988), the fix of the 9.3.0-rc1 race. The PETSc `predict` step (PETSc's own wildcard sites)
 was not run either.
+
+## Checking that a faster analysis reports the same
+
+A change that only makes the analysis faster or leaner must leave every report as it was.
+`experiments/report_diff.py --base <old>/analysis --out <dir> --jobs N @list` analyses each
+trace directory of the list with the old code and with this repository's, as a text report,
+with `--json` and with `--full-profile --json`, and compares the outputs and exit statuses byte
+for byte; `--no-sp` and `--modes` narrow it for large traces, whose text and JSON are enough.
+The old code is `git archive <commit> analysis` unpacked next to the copy. The inputs used for
+the analysis changes of 22 Oct 2026 (closures in Lamport order and chained over a rank's probes,
+vector clocks at joins only, one graph per threshold, profiles as intervals):
+
+- the corpus traces of the last corpus run (`experiments/results/{mbi,mbb}/*/trace`, 503) and
+  the idiom traces (`traces/openmpi`, 14) of the copy E8b ran in, mounted read-only, and the
+  golden traces (`analysis/tests/golden/openmpi`, 14);
+- E8b's application traces (`experiments/results/e8/*/trace`: AMG at 8 ranks, HYPRE 2.10.1 at 4
+  and 8, NPB MG at 16 and 32);
+- AMG at 16 and 32 processes and HYPRE's ij at 16, traced as `experiments/scale/run.sh` traces
+  them, with `--no-sp --modes text,json`;
+- 100 of E6's random programs and 100 random runs with many probes per rank, written as trace
+  directories by `--synthetic <dir>:100` (`e6_traces` and `random_probe_records` of
+  `analysis/tests/test_checker.py`); the probe runs with `--no-sp`, as the single-path
+  explorer, which those changes do not touch, takes hours on each of them.
+
+The unit tests cover the same properties on the closures themselves (`closure_orders_agree`).
 
 ## Shared-host protocol on the development host
 

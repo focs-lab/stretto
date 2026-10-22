@@ -1952,7 +1952,8 @@ NP_WORD = {4: "Four", 8: "Eight", 16: "Sixteen", 32: "ThirtyTwo", 64: "SixtyFour
 def scale():
     """E11: HYPRE, AMG and NPB LU traced beyond eight processes, each trace analysed under
     /usr/bin/time and a sample of its alternatives replayed with controls (experiments/scale/run.sh:
-    scale.csv, one row per trace; samples/<app>-<np>.csv, the sample's rows; samples/<app>-<np>.time)."""
+    scale.csv, one row per trace; samples/<app>-<np>.csv, the sample's rows; samples/<app>-<np>.time),
+    and compared with scale-b7c886f.csv, the campaign before the analysis changes of 22 Oct 2026."""
     d = os.path.join(RES, "scale")
     rs = rows(os.path.join(d, "scale.csv"))
     if not rs:
@@ -1978,7 +1979,7 @@ def scale():
            "Open MPI) and NPB LU class A (MPICH build), each traced once per process count; each trace analysed in one",
            "process under `/usr/bin/time` (`--no-sp`), and a random sample of its alternatives replayed with the pins of",
            "their horizon and a control (`experiments/scale/run.sh`, `experiments/replay_sample.py`). Process counts above",
-           "the container's processors (24 hardware threads, 12 cores, in the committed campaign) oversubscribe it, so these",
+           "the container's processors (12 hardware threads, 6 cores, in the committed campaign) oversubscribe it, so these",
            "runs measure the analysis, which runs in one process, not the traced program's speed. They ran outside a timed",
            "leg, with other containers on the machine: the times show the cost and are not timing claims. Peak memory is",
            "the analysis's maximum resident set. *Per record* is the analysis time over the trace's records, *per",
@@ -1993,6 +1994,7 @@ def scale():
     by_app = collections.defaultdict(dict)
     per_rec = collections.defaultdict(list)       # µs per record, per application
     per_alt_rec = collections.defaultdict(list)   # ns per alternative and record
+    pts = collections.defaultdict(list)           # (records, alternatives, seconds, peak KiB) per application
     for app, key, label in SCALE_APPS:
         for r in sorted((r for r in rs if r["app"] == app), key=lambda r: int(r["np"])):
             np_ = int(r["np"])
@@ -2004,6 +2006,8 @@ def scale():
             if per:
                 per_alt_rec[key].append(per / recs * 1e6)
             s = sample(r)
+            for x in s:
+                x["app"], x["np"] = app, np_
             replayed += s
             out.append(f"| {label} | {np_} | {r['traced_run']} | {recs} | {r['wildcard_receives']} | {r['probes']} | "
                        + (", ".join(f"{k} {v}" for k, v in sorted(c.items(), key=lambda kv: -kv[1])) or "none")
@@ -2021,6 +2025,7 @@ def scale():
             if per:
                 num(k + "PerAlt", f"{per:.1f}")
             by_app[key][np_] = (secs, recs)
+            pts[key].append((recs, alts, secs, int(r["peak_kb"])))
     for key, b in by_app.items():
         lo, hi = b[min(b)], b[max(b)]
         num(f"Scale{key}TimeRatio", f"{hi[0] / lo[0]:.1f}")       # from the fewest processes to the most
@@ -2043,13 +2048,72 @@ def scale():
             f"controls finished: {sum(x.get('control') == 'FINISHED' for x in replayed)}, with every pin matched: "
             f"{sum(x.get('control_matched') == 'True' for x in replayed)}. A trace without wildcard receives or probes (LU) has no "
             "alternative to sample."]
+
+    def what(x) -> str:
+        """What a sampled alternative is: a probe alternative of HYPRE's request exchanges (tag 222)
+        is the ParaSails race of E5c, whose replays hang."""
+        m = re.match(r"\S*probe\(\d+, \d+\) src=ANY tag=(\d+) ", x.get("finding") or "")
+        if x["app"] == "hypre" and x.get("cls") == "probe-alt" and m and m.group(1) == "222":
+            return "a request probe of ParaSails (tag 222), the race of E5c"
+        return f"a {x.get('cls')} alternative"
+    unfinished = [x for x in replayed if x.get("replay") != "FINISHED"]
+    failed = [x for x in replayed if x.get("control") != "FINISHED"]
+    num("nScaleSampleUnfinished", len(unfinished))
+    num("nScaleSampleUnfinishedRequest", sum(what(x).startswith("a request probe") for x in unfinished))
+    num("nScaleSampleControlsFailed", len(failed))
+    num("nScaleSampleControlsStatusFifteen", sum(x.get("control") == "APP-ERROR:15" for x in failed))
+    out += ["", "Replays that did not finish: "
+            + ("; ".join(f"{x['replay']}, {x['app']} at {x['np']} processes, {what(x)}" for x in unfinished) or "none")
+            + ". Controls that did not finish: "
+            + ("; ".join(f"{x['control']}, {x['app']} at {x['np']} processes, the control of {what(x)}" for x in failed) or "none")
+            + "." + (" Status 15 is the unexplained exit of some of HYPRE's replays and controls in E5c, which plain runs "
+                     "launched the same way never took."
+                     if any(x["app"] == "hypre" and x.get("control") == "APP-ERROR:15" for x in failed) else "")]
     rng = lambda xs, fmt: f"{min(xs):{fmt}} to {max(xs):{fmt}}"   # noqa: E731
-    if per_rec.get("Lu") and per_alt_rec.get("AMG"):
-        out += ["", f"Where the time goes. LU has no alternative: its analysis costs {rng(per_rec['Lu'], '.0f')} µs per record at every",
-                "process count. AMG's alternatives grow with the processes, and so does the time each one takes, about in",
-                "proportion to the trace (theorem T4 bounds the time per alternative by a quasi-linear function of the trace):",
-                f"per alternative and record, {rng(per_alt_rec['AMG'], '.0f')} ns. AMG's analysis time is therefore about the number of",
-                "its alternatives times the length of its trace."]
+    kb_rec = {k: [kb * 1024 / 1e3 / recs for recs, _, _, kb in v] for k, v in pts.items()}    # kB per record
+    amg = pts.get("AMG", [])
+    if per_rec.get("Lu") and len(amg) >= 2:
+        # least squares, seconds ~ a * records + b * alternatives, over AMG's traces
+        sxx, sxy, syy = (sum(p * q for p, q in pairs) for pairs in
+                         ([(r, r) for r, _, _, _ in amg], [(r, a) for r, a, _, _ in amg], [(a, a) for _, a, _, _ in amg]))
+        sxs, sys_ = sum(r * s for r, _, s, _ in amg), sum(a * s for _, a, s, _ in amg)
+        det = sxx * syy - sxy * sxy
+        a_rec, b_alt = (sxs * syy - sys_ * sxy) / det, (sys_ * sxx - sxs * sxy) / det
+        dev = max(abs(a_rec * r + b_alt * a - s) / s for r, a, s, _ in amg)
+        num("ScaleAMGFitRecord", f"{a_rec * 1e6:.0f}")        # µs per record
+        num("ScaleAMGFitAlt", f"{b_alt * 1e3:.2f}")           # ms per alternative
+        num("ScaleAMGFitDev", f"{dev * 100:.0f}")             # % of the largest deviation from the fit
+        lo, hi = min(amg), max(amg)
+        per_lo, per_hi = lo[2] / lo[1] * 1e3, hi[2] / hi[1] * 1e3
+        out += ["", f"Where the time goes. LU has no alternative: its analysis costs {rng(per_rec['Lu'], '.0f')} µs and "
+                f"{rng(kb_rec['Lu'], '.2f')} kB per record at every process count. AMG's alternatives grow faster than its trace",
+                f"({lo[1]} to {hi[1]} as its records grow {hi[0] / lo[0]:.1f}-fold), and the time per alternative "
+                f"{'falls' if per_hi < per_lo else 'grows'} ({per_lo:.2f} to {per_hi:.2f} ms)"
+                + (": the analysis is about linear in the records plus the alternatives," if dev < 0.1 else
+                   "; a time linear in the records plus the alternatives fits it only roughly,"),
+                f"{a_rec * 1e6:.0f} µs per record and {b_alt * 1e3:.2f} ms per alternative by a least-squares fit of AMG's "
+                f"{len(amg)} traces (each within {dev * 100:.0f}%),",
+                f"and its peak memory is {rng(kb_rec['AMG'], '.1f')} kB per record. Theorem T4 bounds a check by a quasi-linear function",
+                "of the trace; the fast checks of probe alternatives cost far less (docs/model.md, §2: closures in the Lamport",
+                "order of the run, chained over a rank's probes)."]
+    # the campaign before the analysis changes of 22 Oct 2026, if its rows are kept
+    old = {(r["app"], int(r["np"])): r for r in rows(os.path.join(d, "scale-b7c886f.csv"))}
+    if old:
+        out += ["", f"Before the analysis changes of 22 Oct 2026 (the campaign at {commits(list(old.values()))}; each campaign traced its",
+                "own runs, so the traces differ a little): analysis time, peak memory and time per alternative, before and now.", "",
+                "| application | processes | records before / now | alternatives before / now | analysis (s) before / now "
+                "| peak memory (GB) before / now | per alternative (ms) before / now |", "|---|---|---|---|---|---|---|"]
+        for app, key, label in SCALE_APPS:
+            for r in sorted((r for r in rs if r["app"] == app), key=lambda r: int(r["np"])):
+                o = old.get((app, int(r["np"])))
+                if o is None:
+                    continue
+                ao, an = sum(classes(o).values()), sum(classes(r).values())
+                po = f"{float(o['analysis_s']) / ao * 1e3:.2f}" if ao else "-"
+                pn = f"{float(r['analysis_s']) / an * 1e3:.2f}" if an else "-"
+                out.append(f"| {label} | {r['np']} | {o['records']} / {r['records']} | {ao} / {an} | {float(o['analysis_s']):.1f} / "
+                           f"{float(r['analysis_s']):.1f} | {int(o['peak_kb']) * 1024 / 1e9:.1f} / {int(r['peak_kb']) * 1024 / 1e9:.1f} "
+                           f"| {po} / {pn} |")
     return "\n".join(out) + "\n"
 
 

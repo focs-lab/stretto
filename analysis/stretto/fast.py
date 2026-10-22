@@ -22,12 +22,14 @@ horizon.compute_cut. The generic check stays as the reference; the tests compare
 every alternative.
 """
 from __future__ import annotations
+from array import array
 from bisect import bisect_left, bisect_right
+from heapq import heappop, heappush
 from typing import Dict, Iterable, List, Optional, Set, Tuple
 
 from .feasible import Verdict
 from .horizon import coll_can_complete
-from .matching import Alternative, build_graph, is_hub, is_match, match_node, send_blocks
+from .matching import Alternative, Graph, build_graph, is_hub, is_match, match_node, send_blocks
 from .trace import ANY, Coll, Key, Probe, Recv, Send, Trace
 
 INF = 10 ** 9
@@ -35,6 +37,40 @@ INF = 10 ** 9
 
 def _cidx(x) -> int:
     return x.complete_idx if x.complete_idx is not None else x.idx
+
+
+def lamport_times(t: Trace, g: Graph) -> Optional[Dict[int, array]]:
+    """The Lamport time of every record of the observed run in graph g: for each rank an array
+    with the length of the longest path to record k's issue node at 2k and to its completion
+    node at 2k + 1. None if g is cyclic."""
+    lam = {rank: array("l", [0]) * (2 * len(recs)) for rank, recs in t.ranks.items()}
+    other: Dict = {}                      # match nodes and collective hubs
+
+    def get(n) -> int:
+        if n[0] >= 0 and n[2] != "m":
+            return lam[n[0]][2 * n[1] + (n[2] == "c")]
+        return other.get(n, 0)
+
+    indeg: Dict = {}
+    for succ in g.succ.values():
+        for b in succ:
+            indeg[b] = indeg.get(b, 0) + 1
+    ready = [n for n in g.nodes if n not in indeg]
+    while ready:
+        n = ready.pop()
+        v = get(n) + 1
+        for b in g.succ.get(n, ()):
+            if v > get(b):
+                if b[0] >= 0 and b[2] != "m":
+                    lam[b[0]][2 * b[1] + (b[2] == "c")] = v
+                else:
+                    other[b] = v
+            indeg[b] -= 1
+            if indeg[b] == 0:
+                ready.append(b)
+    if any(indeg.values()):
+        return None
+    return lam
 
 
 class Suffix2:
@@ -71,6 +107,9 @@ class Indexes:
         self.length = {rank: len(recs) for rank, recs in t.ranks.items()}
         self.recv_of0: Dict[Key, Key] = {sk: rk for rk, sk in t.observed.items()}
         self._sends = self._recvs = self._colls = self._unmatched = None
+        self._lam = None                  # Lamport times (lamport()); False if unavailable
+        self._acyc: Dict[Optional[int], bool] = {}   # threshold -> observed graph acyclic (acyclic_known)
+        self._acyc_strong: Dict[Optional[int], bool] = {}   # the same over guaranteed edges
         # receives without an observed send, per rank in posting order; orphan sends
         self.unmatched: Dict[int, List[Recv]] = {}
         for r in sorted(t.recvs.values(), key=lambda r: (r.rank, r.idx)):
@@ -105,6 +144,9 @@ class Indexes:
         self.r2 = {k: Suffix2([_cidx(t.recvs[r0[s.key]]) if s.key in r0 and t.recvs[r0[s.key]].completed else INF for s in v])
                    for k, v in self.sq.items()}
         self.r5 = {k: Suffix2([probe_min.get(s.key, INF) for s in v]) for k, v in self.sq.items()}
+        # the same, record by record, for the closure's short spans (Observed.closure)
+        self.probe_min = probe_min
+        self.send_at: Dict[Tuple[int, int], Send] = {(s.rank, s.idx): s for s in t.sends.values()}
         self._sends = True
 
     def _build_recvs(self) -> None:
@@ -201,8 +243,29 @@ class Indexes:
         edges only disappear as B grows and the other edges do not depend on B, so a yes
         holds at every threshold and the alternatives need no graph per threshold."""
         if getattr(self, "_full0", None) is None:
-            self._full0 = build_graph(self.t, self.t.observed, None, 0).find_cycle() is None
+            ok = self._acyc.get(0)
+            self._full0 = build_graph(self.t, self.t.observed, None, 0).find_cycle() is None if ok is None else ok
+            self._acyc[0] = self._full0
         return self._full0
+
+    def acyclic_seen(self, B: Optional[int], ok: bool, strong: bool = False) -> None:
+        """Record whether the observed graph at threshold B (over guaranteed edges only, if
+        strong) is acyclic: Observed.graph, Observed.observed_verdict."""
+        (self._acyc_strong if strong else self._acyc)[B] = ok
+
+    def acyclic_known(self, B: Optional[int], strong: bool = False) -> Optional[bool]:
+        """Whether the observed graph at B (over guaranteed edges only, if strong) is acyclic,
+        if a graph already built decides it: the graphs share their nodes and lose rendezvous
+        edges as B grows (matching.send_blocks is antitone in B), so acyclic at B' <= B means
+        acyclic at B, cyclic at B' >= B cyclic."""
+        def le(x, y):                     # x <= y, None standing for infinity
+            return y is None or (x is not None and x <= y)
+        for B2, ok in (self._acyc_strong if strong else self._acyc).items():
+            if ok and le(B2, B):
+                return True
+            if not ok and le(B, B2):
+                return False
+        return None
 
     def strong_acyclic_at_zero(self) -> bool:
         """Is the observed matching's graph of guaranteed edges acyclic at B = 0 over the
@@ -211,7 +274,17 @@ class Indexes:
         is then None for all B) and the per-threshold graphs need not be built."""
         if getattr(self, "_strong0", None) is None:
             self._strong0 = build_graph(self.t, self.t.observed, None, 0, strong_only=True).find_cycle() is None
+            self._acyc_strong[0] = self._strong0
         return self._strong0
+
+    def lamport(self, g: Optional[Graph] = None) -> Optional[Dict[int, array]]:
+        """Lamport times of the observed graph at B = inf (lamport_times), the order in which
+        Observed.closure processes its worklist; None if that graph is cyclic. g, if given, is
+        that graph already built (Observed(t, None).graph())."""
+        if self._lam is None:
+            g = g if g is not None else build_graph(self.t, self.t.observed, None, None)
+            self._lam = lamport_times(self.t, g) or False
+        return self._lam or None
 
     def ready(self) -> None:
         if self._sends is None:
@@ -234,12 +307,15 @@ class Observed:
         self.orphans_blocking = [s for s in ix.orphans if send_blocks(s, B)]
         self._graph = None
         self._cycle: Optional[list] = None
-        self._vc = None
+        self._acyclic: Optional[bool] = None      # is the graph at B acyclic, once known
+        self._rows = self._rows_other = None      # vector clocks (_build_vc)
         self._reach: Dict = {}         # reachability by source node, when the graph is cyclic
         self._rank_pos: Dict[int, int] = {}
         self._obs_closure = None
         self._observed: Dict[bool, Verdict] = {}
         self._probe_closure: Optional[Tuple[Key, Tuple[Dict[int, int], Dict[int, int]]]] = None
+        self._base = None                 # closure() of the observed matching (probe_closure)
+        self._chain = None                # (rank, idx, (cut, issued)) of the last probe_closure
 
     def r3(self, key: Tuple[int, int]) -> Suffix2:
         """Rule-3 index for the receives on key[0] matched to sends from key[1]: value =
@@ -262,18 +338,35 @@ class Observed:
                 exclude2: Optional[Tuple[int, int, int]] = None, exclude3: Optional[Tuple[int, int, int]] = None,
                 changed_probes: Iterable[Probe] = (), changed_events: Iterable[Tuple[int, int]] = (),
                 mode: str = "L1", hangs: Optional[Dict[int, str]] = None,
-                bounds=None) -> Tuple[Dict[int, int], Dict[int, int]]:
+                bounds=None, cuts: Iterable[Tuple[int, int]] = (),
+                start: Optional[Tuple[Dict[int, int], Dict[int, int]]] = None) -> Tuple[Dict[int, int], Dict[int, int]]:
         """The horizon closure (horizon.compute_cut) for the observed matching with the
         receives in new_pairs re-matched, dropped_recvs left without a send and
         dropped_sends without a receive. exclude2 = (R, Q, position) names a stale entry of
         the rule-2 index (the changed receive's observed send), exclude3 one of the rule-3
         index (the receive that lost the send now taken by the changed receive). bounds: read
-        bounds for rule 1, as in horizon.compute_cut. Returns (cut, issued)."""
+        bounds for rule 1, as in horizon.compute_cut. cuts: (rank, index) pairs that rule 1
+        cuts at, as for a changed probe or event but without exempting the record before the
+        cut from rules 5 and 6. start: the (cut, issued) of a closure computed with the same
+        arguments but fewer cuts, a fixpoint of the same rules, to continue from instead of
+        the whole trace (its rule-1 cuts and the seeds of rules 2, 3, 6 and 7 hold there
+        already). Returns (cut, issued).
+
+        The worklist holds ranks whose cut moved. It is taken in the order of the Lamport
+        times of the observed run (Indexes.lamport), the earliest removed record first: a
+        removal makes the operations that depend on the removed one lose their completion,
+        and those come later, so a rank is usually processed once, at the cut where it ends.
+        Taken last in first out, as before 22 Oct 2026, the closure of a probe of AMG's trace
+        processed each rank 4.0 times on average at 16 processes, 5.5 at 32 and 7.7 at 64; in
+        this order, once at each. The closure is the greatest fixpoint of the rules whatever
+        the order; the order of the lowerings only decides which reason is recorded first for a
+        rank, so a closure that records hangs keeps the old order and its texts."""
         t, ix, B = self.t, self.ix, self.B
         new_pairs = new_pairs or {}
-        cut = dict(ix.length)
-        issued: Dict[int, int] = {}
-        work: List[Tuple[int, int]] = []
+        dropped_sends = list(dropped_sends)
+        cut = dict(start[0]) if start is not None else dict(ix.length)
+        issued: Dict[int, int] = dict(start[1]) if start is not None else {}
+        work: List = []
         probe_ranks = {p.rank: p.idx for p in changed_probes}
         changed_probe_at = {(p.rank, p.idx) for p in changed_probes}
         dropped_keys = {r.key for r in dropped_recvs}
@@ -282,18 +375,26 @@ class Observed:
         stale = {(rk[0], t.recvs[rk].idx) for rk in list(new_pairs) + list(dropped_keys)}
 
         record = hangs is not None and mode == "SP"
+        lam = None if record else ix.lamport()
+        done: Dict[int, Tuple[int, bool]] = {}     # the state at which each rank was last processed
+
+        def push(rank: int, idx: int, kept: bool) -> None:
+            if lam is None:
+                work.append((rank, idx))
+            else:
+                heappush(work, (lam[rank][2 * idx + kept], rank))
 
         def lower(rank: int, idx: int, why=None, issue_kept: bool = False) -> None:
             """why: a callable producing the reason text, formatted only when hangs are recorded.
             A rule that removes the issue kept at the current cut still applies (horizon.compute_cut)."""
             if idx == cut[rank] and issued.get(rank) == idx and not issue_kept:
                 issued.pop(rank, None)
-                work.append((rank, idx))
+                push(rank, idx, False)
                 if record and rank not in hangs:
                     hangs[rank] = why() if why else ""
                 return
             if idx < cut[rank]:
-                work.append((rank, idx))
+                push(rank, idx, issue_kept)
                 cut[rank] = idx
                 if issue_kept:
                     issued[rank] = idx
@@ -331,6 +432,70 @@ class Observed:
             if best_r is not None:
                 lower(rank, best, lambda r=r, rk2=best_r, best=best: f"{ix.probe_at[(rank, best)] if rk2[0] == 'probe' else t.recvs[rk2]} is deprived: {r}, posted before it and still pending, takes the message")
 
+        # A rank whose cut moved only a little since it was last processed, as in a chain of
+        # probe closures, has its newly removed records taken one by one: what the suffix-minimum
+        # queries below would add over them, at a few lookups per record instead of O(P log n)
+        # per lowering. Only for the observed matching without exemptions (no re-matched,
+        # dropped or changed receive or probe), where the queries read nothing else.
+        plain = lam is not None and not new_pairs and not dropped_keys and not dropped_sends \
+            and exclude2 is None and exclude3 is None and not changed_probes
+        span = 2 * len(ix.length)
+        r0 = ix.recv_of0
+
+        def records(R: int, a: int, b: int) -> None:
+            """Rules 2, 3, 5, 6, 7 and 4 for the records a..b-1 of rank R, removed since R was
+            last processed (the record at the cut keeps its issue if issued names it)."""
+            kept_at = issued.get(R)
+            for idx in range(a, b):
+                s = ix.send_at.get((R, idx))
+                if s is not None:
+                    gone = kept_at != idx                  # the send is not issued any more
+                    rk = r0.get(s.key)
+                    if rk is not None:
+                        if gone:
+                            v = ix.comp0.get(rk, INF)      # rule 6
+                            if v < cut[s.dst]:
+                                lower(s.dst, v)
+                        x = t.recvs[rk]
+                        if x.completed:                    # rule 2
+                            lower(x.rank, _cidx(x))
+                    if gone:
+                        v = ix.probe_min.get(s.key)        # rule 5
+                        if v is not None:
+                            lower(s.dst, v)
+                    continue
+                x = ix.recv_at.get((R, idx))
+                if x is not None:
+                    sk = t.observed.get(x.key)
+                    if sk is not None:
+                        s = t.sends[sk]
+                        if s.completed and send_blocks(s, B):     # rule 3
+                            lower(s.rank, _cidx(s), None, s.blocking)
+                        if s.ready_mode:                          # rule 7
+                            lower(s.rank, s.idx)
+            for comm in ix.comms_of.get(R, ()):                   # rule 4, as in the loop below
+                key = (R, comm)
+                cidx = ix.coll_idx[key]
+                i, j = bisect_left(cidx, a), bisect_left(cidx, b)
+                if i == j:
+                    continue
+                need = set(t.comm_members.get(comm, []))
+                pos = {r: k for k, r in enumerate(t.comm_ranks.get(comm, []))}
+                pending = set(t.comm_ranks.get(comm, []) or [c.rank for c in ix.coll_set[(comm, ix.colls_of[key][0].ordinal)]]) - {R}
+                for k in range(i, j):
+                    if not pending:
+                        break
+                    group = ix.coll_set[(comm, ix.colls_of[key][k].ordinal)]
+                    have = {c.rank for c in group if c.idx < cut[c.rank]}
+                    for c in group:
+                        if c.rank not in pending:
+                            continue
+                        if not c.completed or _cidx(c) >= cut[c.rank]:
+                            pending.discard(c.rank)
+                        elif not coll_can_complete(c, have, need, pos):
+                            lower(c.rank, _cidx(c))
+                            pending.discard(c.rank)
+
         if mode == "L1":
             for rk in changed:
                 r = t.recvs[rk]
@@ -339,33 +504,54 @@ class Observed:
                 lower(p.rank, p.idx + 1)
             for rank, idx in changed_events:
                 lower(rank, idx + 1)
+            for rank, idx in cuts:
+                lower(rank, idx)
         new_by_send = {sk: rk for rk, sk in new_pairs.items()}
-        if changed or changed_probes or changed_events or ix.unmatched_completed or dropped_recvs or self.orphans_blocking or dropped_sends or ix.orphan_ready:
+        if changed or changed_probes or changed_events or work or ix.unmatched_completed or dropped_recvs or self.orphans_blocking or dropped_sends or ix.orphan_ready:
             ix.ready()
-        for r in ix.unmatched_completed:
-            if r.key not in new_pairs:
-                lower(r.rank, _cidx(r), lambda r=r: f"{r} never completes: no send for it")
-        for r in dropped_recvs:
-            if r.completed:
-                lower(r.rank, _cidx(r), lambda r=r: f"{r} never completes: no send for it")
-        for s in self.orphans_blocking:
-            if s.key not in new_by_send:
-                lower(s.rank, _cidx(s), lambda s=s: f"{s} never completes: rendezvous with no posted receive", _cidx(s) == s.idx)
-        for s in dropped_sends:
-            if s.completed and send_blocks(s, B):
-                lower(s.rank, _cidx(s), lambda s=s: f"{s} never completes: rendezvous with no posted receive", _cidx(s) == s.idx)
-        # rule 7: ready sends without a receive
-        for s in ix.orphan_ready + [s for s in dropped_sends if s.ready_mode]:
-            if s.key not in new_by_send:
-                lower(s.rank, s.idx, lambda s=s: f"{s} is a ready send whose receive is never posted")
-        for r in ix.unmatched_completed:
-            if r.key not in new_pairs and r.idx < cut[r.rank]:
-                rule6(r)
-        for r in dropped_recvs:
-            if r.completed and r.idx < cut[r.rank]:
-                rule6(r)
+        if start is None:
+            for r in ix.unmatched_completed:
+                if r.key not in new_pairs:
+                    lower(r.rank, _cidx(r), lambda r=r: f"{r} never completes: no send for it")
+            for r in dropped_recvs:
+                if r.completed:
+                    lower(r.rank, _cidx(r), lambda r=r: f"{r} never completes: no send for it")
+            for s in self.orphans_blocking:
+                if s.key not in new_by_send:
+                    lower(s.rank, _cidx(s), lambda s=s: f"{s} never completes: rendezvous with no posted receive", _cidx(s) == s.idx)
+            for s in dropped_sends:
+                if s.completed and send_blocks(s, B):
+                    lower(s.rank, _cidx(s), lambda s=s: f"{s} never completes: rendezvous with no posted receive", _cidx(s) == s.idx)
+            # rule 7: ready sends without a receive
+            for s in ix.orphan_ready + [s for s in dropped_sends if s.ready_mode]:
+                if s.key not in new_by_send:
+                    lower(s.rank, s.idx, lambda s=s: f"{s} is a ready send whose receive is never posted")
+            for r in ix.unmatched_completed:
+                if r.key not in new_pairs and r.idx < cut[r.rank]:
+                    rule6(r)
+            for r in dropped_recvs:
+                if r.completed and r.idx < cut[r.rank]:
+                    rule6(r)
         while work:
-            R, new = work.pop()
+            if lam is None:
+                R, new = work.pop()
+            else:
+                # the rank's records from its current cut on are removed: one pass covers every
+                # lowering of it since it was last processed
+                R = heappop(work)[1]
+                new = cut[R]
+                st = (new, issued.get(R) == new)
+                prev = done.get(R)
+                if prev == st:
+                    continue
+                done[R] = st
+                if plain:
+                    if prev is None:     # last processed in the closure continued from, or never
+                        prev = (start[0][R], start[1].get(R) == start[0][R]) if start is not None else (ix.length[R], False)
+                    end = prev[0] + prev[1]        # a send at the old cut that kept its issue loses it
+                    if end - new <= span:
+                        records(R, new, end)
+                        continue
             # rule 6: the receives of R's removed sends stay pending; Q is cut at the smallest
             # competitor among them (a send cut at its own record with its issue kept is
             # still delivered, so it starts the suffix after itself)
@@ -469,14 +655,29 @@ class Observed:
     def graph(self):
         if self._graph is None:
             self._graph = build_graph(self.t, self.t.observed, None, self.B)
-            self._cycle = self._graph.find_cycle()
+            if self._acyclic is None:
+                self._cycle = self._graph.find_cycle()
+                self._acyclic = not self._cycle
+                self.ix.acyclic_seen(self.B, self._acyclic)
+            if self.B is None and not self._acyclic and self.ix._lam is None:
+                self.ix._lam = False          # the graph of Indexes.lamport, cyclic: no Lamport times
         return self._graph
 
-    def acyclic(self) -> bool:
-        if self.ix.acyclic_at_zero():
-            return True
-        self.graph()
-        return not self._cycle
+    def acyclic(self, keep: bool = False) -> bool:
+        """Is the observed graph at B acyclic? Known at once when it is at B = 0 or, since
+        the graph only loses rendezvous edges as B grows, at a smaller threshold (or cyclic
+        at a larger one: Indexes.acyclic_known); otherwise the graph is built, and kept if
+        cyclic, where reaches() searches it, or if keep (the vector clocks are built next)."""
+        if self._acyclic is None:
+            if self.ix.acyclic_at_zero():
+                self._acyclic = True
+            else:
+                self._acyclic = self.ix.acyclic_known(self.B)
+                if self._acyclic is None:
+                    self.graph()
+                    if self._acyclic and not keep:
+                        self._graph = None
+        return self._acyclic
 
     def reaches(self, a, b) -> bool:
         """a happens-before b in every execution with the observed matching at this B. a is an
@@ -484,56 +685,134 @@ class Observed:
         cannot realise at this B: a ready send issued before its receive, a collective of
         unknown shape that did not synchronise) has no vector clocks; the answer is then the
         graph's own reachability, as matching.observed_hb gives it."""
-        if self._vc is None:
-            self.graph()
-            if self._cycle:
+        if self._rows is None:
+            if not self.acyclic(keep=True):
+                self.graph()
                 reach = self._reach.get(a)
                 if reach is None:
                     reach = self._reach[a] = self._graph.reach_set(a)
                 return b in reach
             self._build_vc()
-        vb = self._vc.get(b)
-        if vb is None or a not in self._vc:
+        rb = self._row(b)
+        if rb is None or self._row(a) is None:
             return False
-        return vb[self._rank_pos[a[0]]] >= 2 * a[1] + (1 if a[2] == "c" else 0)
+        pa = 2 * a[1] + (1 if a[2] == "c" else 0)
+        if a[0] == b[0] and b[2] != "m":
+            return 2 * b[1] + (1 if b[2] == "c" else 0) >= pa     # program order on a's rank
+        return rb[self._rank_pos[a[0]]] >= pa
+
+    def _row(self, n):
+        """The clock row of node n (Observed._build_vc), None if n is not a node of the graph."""
+        if n[0] >= 0 and n[2] != "m":
+            rows = self._rows.get(n[0])
+            k = 2 * n[1] + (1 if n[2] == "c" else 0)
+            return rows[k] if rows is not None and 0 <= k < len(rows) else None
+        return self._rows_other.get(n)
 
     def _build_vc(self) -> None:
-        g = self.graph()
-        if self._cycle:
+        """Vector clocks of the observed graph at B, in one topological pass that pushes each
+        node's clock to its successors. A node of a rank keeps its row without its own
+        component, which reaches() reads off the node itself; so a node whose only
+        predecessor is the previous node of its rank, or a match node or hub, has its
+        predecessor's row and shares it, and rows are made only where a predecessor on another
+        rank joins: receive, collective and probe completions, match nodes, hubs. Rows are
+        held per rank by position, not in a dictionary keyed by node. Before 22 Oct 2026 every
+        node had a row of its own and a list of its predecessors, which at AMG's 64 processes
+        came to gigabytes per threshold. The graph is dropped once the clocks are built."""
+        if not self.acyclic():
             raise ValueError("observed graph is cyclic: no vector clocks")
-        ranks = sorted(self.t.ranks)
-        self._rank_pos = {r: i for i, r in enumerate(ranks)}
+        g = self.graph()
+        t = self.t
+        ranks = sorted(t.ranks)
+        rp = self._rank_pos = {r: i for i, r in enumerate(ranks)}
         P = len(ranks)
-        indeg: Dict = {n: 0 for n in g.nodes}
-        for a, succ in g.succ.items():
+        rows: Dict[int, list] = {rank: [None] * (2 * len(recs)) for rank, recs in t.ranks.items()}
+        other: Dict = {}
+        indeg = {rank: array("l", [0]) * (2 * len(recs)) for rank, recs in t.ranks.items()}
+        indeg_other: Dict = {}
+        for succ in g.succ.values():
             for b in succ:
-                indeg[b] = indeg.get(b, 0) + 1
-        ready = [n for n in g.nodes if indeg[n] == 0]
-        vc: Dict = {}
+                if b[0] >= 0 and b[2] != "m":
+                    indeg[b[0]][2 * b[1] + (b[2] == "c")] += 1
+                else:
+                    indeg_other[b] = indeg_other.get(b, 0) + 1
+        # at B = inf this is the graph of Indexes.lamport: its Lamport times come with the clocks
+        lam = {rank: array("l", [0]) * (2 * len(recs)) for rank, recs in t.ranks.items()} \
+            if self.B is None and self.ix._lam is None else None
+        lam_other: Dict = {}
+        base = [-1] * P
+        ready = []
+        for n in g.nodes:
+            if n[0] >= 0 and n[2] != "m":
+                if indeg[n[0]][2 * n[1] + (n[2] == "c")] == 0:
+                    rows[n[0]][2 * n[1] + (n[2] == "c")] = base
+                    ready.append(n)
+            elif indeg_other.get(n, 0) == 0:
+                other[n] = base
+                ready.append(n)
+        acc: Dict = {}          # rows being joined at nodes with a predecessor still to come
+        succ_of = g.succ
         while ready:
             n = ready.pop()
-            v = [-1] * P
-            for a in self._preds(n):
-                va = vc[a]
-                for i in range(P):
-                    if va[i] > v[i]:
-                        v[i] = va[i]
-            if not is_hub(n) and not is_match(n):   # hubs and match nodes are no rank's events
-                v[self._rank_pos[n[0]]] = 2 * n[1] + (1 if n[2] == "c" else 0)
-            vc[n] = v
-            for b in g.succ.get(n, ()):
-                indeg[b] -= 1
-                if indeg[b] == 0:
+            n0, n1, n2 = n
+            own = n0 >= 0 and n2 != "m"
+            if own:
+                pn = 2 * n1 + (n2 == "c")
+                r = rows[n0][pn]
+                k = rp[n0]
+                ln = lam[n0][pn] + 1 if lam is not None else 0
+            else:
+                r = other[n]
+                ln = lam_other.get(n, 0) + 1 if lam is not None else 0
+            for b in succ_of.get(n, ()):
+                b0, b1, b2 = b
+                b_own = b0 >= 0 and b2 != "m"
+                if b_own:
+                    pb = 2 * b1 + (b2 == "c")
+                    arr = indeg[b0]
+                    d = arr[pb] - 1
+                    arr[pb] = d
+                    if lam is not None and ln > lam[b0][pb]:
+                        lam[b0][pb] = ln
+                else:
+                    d = indeg_other[b] - 1
+                    indeg_other[b] = d
+                    if lam is not None and ln > lam_other.get(b, 0):
+                        lam_other[b] = ln
+                if d == 0 and b not in acc:
+                    # the only predecessor: its row, shared when it is the previous node of
+                    # b's rank or has no own component
+                    if not own or (b_own and b0 == n0):
+                        cur = r
+                    else:
+                        cur = list(r)
+                        if cur[k] < pn:
+                            cur[k] = pn
+                    if b_own:
+                        rows[b0][pb] = cur
+                    else:
+                        other[b] = cur
                     ready.append(b)
-        self._vc = vc
-
-    def _preds(self, n):
-        if not hasattr(self, "_pred"):
-            self._pred: Dict = {}
-            for a, succ in self.graph().succ.items():
-                for b in succ:
-                    self._pred.setdefault(b, []).append(a)
-        return self._pred.get(n, ())
+                    continue
+                cur = acc.pop(b, None)
+                if cur is None:
+                    cur = list(r)
+                elif cur != r:
+                    cur = [x if x > y else y for x, y in zip(cur, r)]
+                if own and cur[k] < pn:
+                    cur[k] = pn
+                if d == 0:
+                    if b_own:
+                        rows[b0][pb] = cur
+                    else:
+                        other[b] = cur
+                    ready.append(b)
+                else:
+                    acc[b] = cur
+        self._rows, self._rows_other = rows, other
+        if lam is not None:
+            self.ix._lam = lam
+        self._graph = None                    # the clocks answer reaches(); acyclic() is known
 
     # ------------------------------------------------------------------- checks
     def check_alternative(self, alt: Alternative, bounds=None) -> Optional[Verdict]:
@@ -556,7 +835,7 @@ class Observed:
             return None
         s_obs = t.observed_send(r)
         r2 = t.recvs[alt.stolen_from] if alt.stolen_from is not None else None
-        if not self.acyclic():
+        if not self.acyclic(keep=send_blocks(s, B) or s.ready_mode):     # kept for the clocks below
             return None          # the cycle may lie outside the horizon: the generic check decides
         self.ix.ready()
         exclude2 = (s_obs.rank, r.rank, self.ix.sq_pos[s_obs.key]) if s_obs is not None else None
@@ -617,6 +896,31 @@ class Observed:
                     return f"receiver order: earlier {r2} accepts {t.sends[sk]} and has no message in this matching"
         return None
 
+    def probe_closure(self, p: Probe) -> Tuple[Dict[int, int], Dict[int, int]]:
+        """closure(changed_probes=[p]), continued from the closure of the last probe asked for
+        when that one is a later probe of the same rank. The two differ in where rule 1 cuts
+        the rank, and the closure is monotone in the cut, so the earlier probe's horizon is the
+        later one's lowered at the earlier probe and closed again: the probes of a rank, taken
+        last to first (report._profiles_fast), cost about one closure together instead of one
+        each. The chain applies rules 5 and 6 to every probe, the changed one included, which
+        the closure of a changed probe exempts; the two closures are equal unless the chain
+        cuts the probe itself, and then the probe's own closure is computed instead. On AMG's
+        trace at 64 processes a probe's own closure processes each of the 64 ranks once, about
+        34 ms, as the cascade from a probe removes the rest of the run; chained, it processes
+        5.7 ranks on average."""
+        ch = self._chain
+        if ch is None or ch[0] != p.rank or ch[1] <= p.idx:
+            if self._base is None:
+                self._base = self.closure()               # the observed matching: rules 2-7 only
+            start = self._base
+        else:
+            start = ch[2]
+        cut, issued = self.closure(cuts=[(p.rank, p.idx + 1)], start=start)
+        self._chain = (p.rank, p.idx, (cut, issued))
+        if cut[p.rank] <= p.idx:
+            return self.closure(changed_probes=[p])
+        return cut, issued
+
     def check_probe(self, p: Probe, s: Send) -> Optional[Verdict]:
         """The probe reports s instead of what it saw. Its completion has no kept successor
         (the closure cuts right after it), so no cycle can pass through the new edges; what
@@ -629,7 +933,7 @@ class Observed:
         # alternatives come one after another (matching.probe_candidates): the last probe's
         # closure serves them all
         if self._probe_closure is None or self._probe_closure[0] != p.key:
-            self._probe_closure = (p.key, self.closure(changed_probes=[p]))
+            self._probe_closure = (p.key, self.probe_closure(p))
         cut, issued = self._probe_closure[1]
         if p.idx >= cut[p.rank]:
             return Verdict(False, "witness cut by the horizon closure", cut)
@@ -671,11 +975,18 @@ class Observed:
                 cut, issued = self.closure(mode="SP", hangs=hangs)
                 self._obs_closure = cut, issued, hangs
             cut, issued, hangs = self._obs_closure
+            # a closure that removes nothing leaves the graph of the whole trace at B, whose
+            # acyclicity the graphs built at other thresholds may decide (Indexes.acyclic_known)
+            whole = not issued and all(cut[r] == n for r, n in self.ix.length.items())
             if self.ix.strong_acyclic_at_zero() if strong else self.ix.acyclic_at_zero():
+                cyc = None
+            elif whole and self.ix.acyclic_known(self.B, strong):
                 cyc = None
             else:
                 g = build_graph(self.t, self.t.observed, cut, self.B, strong_only=strong, issued=issued)
                 cyc = g.find_cycle()
+                if whole:
+                    self.ix.acyclic_seen(self.B, not cyc, strong)
             text = "hang under the single-path assumption: " + "; ".join(hangs[r] for r in sorted(hangs)) if hangs else ""
             if cyc:
                 v = Verdict(False, "constraint cycle", cut, cyc, hangs)

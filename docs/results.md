@@ -1453,29 +1453,47 @@ HYPRE 2.10.1's `ij -solver 8 -pout 0` (ParaSails, MPICH build), AMG with 16^3 po
 Open MPI) and NPB LU class A (MPICH build), each traced once per process count; each trace analysed in one
 process under `/usr/bin/time` (`--no-sp`), and a random sample of its alternatives replayed with the pins of
 their horizon and a control (`experiments/scale/run.sh`, `experiments/replay_sample.py`). Process counts above
-the container's processors (24 hardware threads, 12 cores, in the committed campaign) oversubscribe it, so these
+the container's processors (12 hardware threads, 6 cores, in the committed campaign) oversubscribe it, so these
 runs measure the analysis, which runs in one process, not the traced program's speed. They ran outside a timed
 leg, with other containers on the machine: the times show the cost and are not timing claims. Peak memory is
 the analysis's maximum resident set. *Per record* is the analysis time over the trace's records, *per
 alternative* the time over the alternatives reported, *per alternative and record* that over the records too.
-Rows by code commit: b7c886f (9).
+Rows by code commit: 8771752 (9).
 
 | application | processes | traced run | records | wildcard receives | probes | findings by class | analysis (s) | peak memory (GB) | per record (µs) | per alternative (ms) | per alternative and record (ns) | replays | pins matched | finished | controls finished | control pins matched |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| HYPRE 2.10.1, ParaSails | 16 | FINISHED | 167802 | 23 | 78760 | probe-alt 187, 1f 8 | 12.4 | 0.7 | 74.0 | 63.7 | 379.6 | 10 | 10 | 10 | 10 | 10 |
-| HYPRE 2.10.1, ParaSails | 32 | FINISHED | 425093 | 40 | 203910 | probe-alt 202, 1f 9 | 34.2 | 2.1 | 80.4 | 162.0 | 381.2 | 10 | 10 | 10 | 10 | 10 |
-| HYPRE 2.10.1, ParaSails | 64 | FINISHED | 962967 | 70 | 465867 | probe-alt 215, 1f 7 | 90.9 | 5.7 | 94.4 | 409.5 | 425.3 | 10 | 10 | 10 | 10 | 10 |
-| AMG | 16 | FINISHED | 329453 | 103 | 26019 | probe-alt 16934, 1f 10 | 65.2 | 2.1 | 197.8 | 3.8 | 11.7 | 10 | 10 | 10 | 10 | 10 |
-| AMG | 32 | FINISHED | 976135 | 209 | 86879 | probe-alt 91578, 1f 16 | 704.1 | 7.4 | 721.3 | 7.7 | 7.9 | 10 | 10 | 10 | 10 | 10 |
-| AMG | 64 | FINISHED | 2573046 | 497 | 130465 | probe-alt 501881, 1f 66 | 10837.6 | 37.5 | 4212.0 | 21.6 | 8.4 | 10 | 10 | 10 | 10 | 10 |
-| NPB LU, class A | 16 | FINISHED | 3049940 | 0 | 0 | none | 87.3 | 5.2 | 28.6 | - | - | 0 | 0 | 0 | 0 | 0 |
-| NPB LU, class A | 32 | FINISHED | 6608024 | 0 | 0 | none | 185.2 | 11.0 | 28.0 | - | - | 0 | 0 | 0 | 0 | 0 |
-| NPB LU, class A | 64 | FINISHED | 14232316 | 0 | 0 | none | 419.1 | 23.4 | 29.4 | - | - | 0 | 0 | 0 | 0 | 0 |
+| HYPRE 2.10.1, ParaSails | 16 | FINISHED | 87656 | 23 | 38687 | probe-alt 187, 1f 8 | 4.4 | 0.2 | 50.1 | 22.5 | 256.8 | 10 | 10 | 10 | 9 | 9 |
+| HYPRE 2.10.1, ParaSails | 32 | FINISHED | 413005 | 40 | 197866 | probe-alt 199, 1f 9 | 22.8 | 0.8 | 55.2 | 109.7 | 265.5 | 10 | 10 | 10 | 10 | 10 |
+| HYPRE 2.10.1, ParaSails | 64 | FINISHED | 861233 | 70 | 415000 | probe-alt 219, 1f 7 | 43.3 | 1.7 | 50.2 | 191.5 | 222.3 | 10 | 10 | 9 | 10 | 10 |
+| AMG | 16 | FINISHED | 326271 | 103 | 24428 | probe-alt 16934, 1f 10 | 31.3 | 1.0 | 96.1 | 1.8 | 5.7 | 10 | 10 | 10 | 10 | 10 |
+| AMG | 32 | FINISHED | 941207 | 209 | 69415 | probe-alt 91578, 1f 16 | 112.1 | 3.0 | 119.1 | 1.2 | 1.3 | 10 | 10 | 10 | 10 | 10 |
+| AMG | 64 | FINISHED | 2511250 | 497 | 99567 | probe-alt 501881, 1f 66 | 415.6 | 8.7 | 165.5 | 0.8 | 0.3 | 10 | 10 | 10 | 10 | 10 |
+| NPB LU, class A | 16 | FINISHED | 3049940 | 0 | 0 | none | 89.6 | 5.3 | 29.4 | - | - | 0 | 0 | 0 | 0 | 0 |
+| NPB LU, class A | 32 | FINISHED | 6608024 | 0 | 0 | none | 199.1 | 11.2 | 30.1 | - | - | 0 | 0 | 0 | 0 | 0 |
+| NPB LU, class A | 64 | FINISHED | 14232316 | 0 | 0 | none | 434.6 | 23.7 | 30.5 | - | - | 0 | 0 | 0 | 0 | 0 |
 
-Traced runs that finished: 9 of 9; analyses that finished: 9 of 9. Sampled replays: 60 (1f 4, probe-alt 56); with every pin matched: 60; finished: 60; controls finished: 60, with every pin matched: 60. A trace without wildcard receives or probes (LU) has no alternative to sample.
+Traced runs that finished: 9 of 9; analyses that finished: 9 of 9. Sampled replays: 60 (1f 4, probe-alt 56); with every pin matched: 60; finished: 59; controls finished: 59, with every pin matched: 59. A trace without wildcard receives or probes (LU) has no alternative to sample.
 
-Where the time goes. LU has no alternative: its analysis costs 28 to 29 µs per record at every
-process count. AMG's alternatives grow with the processes, and so does the time each one takes, about in
-proportion to the trace (theorem T4 bounds the time per alternative by a quasi-linear function of the trace):
-per alternative and record, 8 to 12 ns. AMG's analysis time is therefore about the number of
-its alternatives times the length of its trace.
+Replays that did not finish: TIMEOUT, hypre at 64 processes, a request probe of ParaSails (tag 222), the race of E5c. Controls that did not finish: APP-ERROR:15, hypre at 16 processes, the control of a probe-alt alternative. Status 15 is the unexplained exit of some of HYPRE's replays and controls in E5c, which plain runs launched the same way never took.
+
+Where the time goes. LU has no alternative: its analysis costs 29 to 31 µs and 1.67 to 1.72 kB per record at every process count. AMG's alternatives grow faster than its trace
+(16944 to 501947 as its records grow 7.7-fold), and the time per alternative falls (1.85 to 0.83 ms): the analysis is about linear in the records plus the alternatives,
+74 µs per record and 0.46 ms per alternative by a least-squares fit of AMG's 3 traces (each within 2%),
+and its peak memory is 3.1 to 3.5 kB per record. Theorem T4 bounds a check by a quasi-linear function
+of the trace; the fast checks of probe alternatives cost far less (docs/model.md, §2: closures in the Lamport
+order of the run, chained over a rank's probes).
+
+Before the analysis changes of 22 Oct 2026 (the campaign at b7c886f (9); each campaign traced its
+own runs, so the traces differ a little): analysis time, peak memory and time per alternative, before and now.
+
+| application | processes | records before / now | alternatives before / now | analysis (s) before / now | peak memory (GB) before / now | per alternative (ms) before / now |
+|---|---|---|---|---|---|---|
+| HYPRE 2.10.1, ParaSails | 16 | 167802 / 87656 | 195 / 195 | 12.4 / 4.4 | 0.7 / 0.2 | 63.69 / 22.51 |
+| HYPRE 2.10.1, ParaSails | 32 | 425093 / 413005 | 211 / 208 | 34.2 / 22.8 | 2.1 / 0.8 | 162.04 / 109.66 |
+| HYPRE 2.10.1, ParaSails | 64 | 962967 / 861233 | 222 / 226 | 90.9 / 43.3 | 5.7 / 1.7 | 409.50 / 191.46 |
+| AMG | 16 | 329453 / 326271 | 16944 / 16944 | 65.2 / 31.3 | 2.1 / 1.0 | 3.85 / 1.85 |
+| AMG | 32 | 976135 / 941207 | 91594 / 91594 | 704.1 / 112.1 | 7.4 / 3.0 | 7.69 / 1.22 |
+| AMG | 64 | 2573046 / 2511250 | 501947 / 501947 | 10837.6 / 415.6 | 37.5 / 8.7 | 21.59 / 0.83 |
+| NPB LU, class A | 16 | 3049940 / 3049940 | 0 / 0 | 87.3 / 89.6 | 5.2 / 5.3 | - / - |
+| NPB LU, class A | 32 | 6608024 / 6608024 | 0 / 0 | 185.2 / 199.1 | 11.0 / 11.2 | - / - |
+| NPB LU, class A | 64 | 14232316 / 14232316 | 0 / 0 | 419.1 / 434.6 | 23.4 / 23.7 | - / - |

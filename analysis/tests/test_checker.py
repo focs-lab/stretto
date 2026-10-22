@@ -688,6 +688,60 @@ def closure_equals_fixpoint(tc, t):
             tc.assertEqual(res[0], res[1], f"B={B} mode={mode} changed={changed} probe={pk}")
 
 
+def closure_orders_agree(tc, t):
+    """fast.Observed.closure taken in Lamport order (the default) and last in first out (its
+    order before 22 Oct 2026): the same cut and issued sends for the observed matching in both
+    modes and the same verdicts and cuts for every alternative, probe alternative and
+    completion-order alternative, at every breakpoint. And the chained closures of the probes
+    (Observed.probe_closure), taken last to first as the report takes them, equal each probe's
+    own closure."""
+    ordered, lifo = fast.Indexes(t), fast.Indexes(t)
+    lifo._lam = False
+    hb = fast.Observed(t, None, fast.Indexes(t)).reaches
+    alts, _ = candidates_full(t, hb)
+    probes = probe_candidates(t, hb)
+    waits = _completion_alternatives(t, hb)
+
+    def v(x):
+        return None if x is None else (x.feasible, x.reason, x.cut)
+
+    for B in breakpoints(t) + [None]:
+        res = []
+        for ix in (ordered, lifo):
+            ob = fast.Observed(t, B, ix)
+            out = [ob.closure(), ob.closure(mode="SP")]
+            out += [v(ob.check_alternative(a)) for a in alts]
+            out += [ob.closure(changed_probes=[p]) for p, _ in probes]
+            out += [v(ob.check_probe(p, s)) for p, s in probes]
+            out += [v(ob.check_event(rec.rank, rec.idx, s_j)) for rec, _, _, s_j in waits]
+            res.append(out)
+            chained = fast.Observed(t, B, ix)
+            for p in sorted({p.key: p for p, _ in probes}.values(), key=lambda p: p.key, reverse=True):
+                tc.assertEqual(chained.probe_closure(p), fast.Observed(t, B, ix).closure(changed_probes=[p]), f"{p} at B={B}")
+        tc.assertEqual(res[0], res[1], f"B={B}")
+
+
+def clocks_agree(tc, t):
+    """fast.Observed's vector clocks, whose rows are shared between the nodes of a rank up to the
+    next join, against the graph's own reachability for every pair of a rank's node and any
+    node, and Observed.acyclic, which the graphs of other thresholds decide where they can,
+    against a cycle search in the graph of each threshold, taken in an order that uses both."""
+    ix = fast.Indexes(t)
+    bps = breakpoints(t) + [None]
+    for B in [None] + bps[:-1] + [None]:
+        g = build_graph(t, t.observed, None, B)
+        acyclic = g.find_cycle() is None
+        ob = fast.Observed(t, B, ix)
+        tc.assertEqual(ob.acyclic(), acyclic, f"B={B}")
+        if not acyclic:
+            continue
+        nodes = [n for n in g.nodes if n[0] >= 0]
+        for a in (n for n in nodes if n[2] != "m"):
+            reach = g.reach_set(a)
+            for b in nodes:
+                tc.assertEqual(ob.reaches(a, b), a == b or b in reach, f"{a} -> {b} at B={B}")
+
+
 class C_FastEqualsGeneric(unittest.TestCase):
     def test_traces_of_this_module(self):
         # every in-memory trace the other tests build, re-created here
@@ -712,6 +766,37 @@ class C_FastEqualsGeneric(unittest.TestCase):
             with self.subTest(trace=i):
                 fast_equals_generic(self, t)
                 closure_equals_fixpoint(self, t)
+                closure_orders_agree(self, t)
+                clocks_agree(self, t)
+
+    def test_closure_order_on_a_cascade(self):
+        """A cascade over four ranks that the LIFO order processes rank 3 twice in: rank 0's
+        cut after its probe removes its sends to 1 and 3, and rank 1's removal reaches 3
+        again, earlier. Records are numbered from the init record at 0."""
+        pr = {"op": "probe", "kind": "probe", "src": 0, "anysrc": 1, "tag": 1, "comm": 0, "flag": 1, "msrc": 2, "mtag": 1}
+        t = mk({0: [pr, recv(2, 1, 2, 1), send(3, 5), send(1, 4)],
+                1: [recv(0, 4, 0, 4), send(3, 6)],
+                2: [send(0, 1), send(0, 1)],
+                3: [recv(1, 6, 1, 6), recv(0, 5, 0, 5)]})
+        self.assertIsNotNone(t.fast_indexes().lamport())
+        closure_orders_agree(self, t)
+        ob = fast.Observed(t, None)
+        cut, _ = ob.closure(changed_probes=[t.probes[(0, 0)]])
+        self.assertEqual((cut[0], cut[1], cut[3]), (2, 1, 1))
+
+    def test_probe_chain_that_cuts_the_probe(self):
+        """The chain of probe closures applies rule 6 to the changed probe, which the probe's own
+        closure exempts: a pending Irecv whose message is not in the trace deprives the probe
+        posted after it in the chain, and only the next receive in the probe's own closure.
+        The chain then defers to the probe's closure."""
+        pr = {"op": "probe", "kind": "probe", "src": 0, "anysrc": 1, "tag": 1, "comm": 0, "flag": 1, "msrc": 2, "mtag": 1}
+        t = mk({0: [irecv(T.ANY, 1, 0), pr, recv(2, 1, 2, 1), wait((0, 1, 1))], 1: [], 2: [send(0, 1)], 3: [send(0, 1)]})
+        p = t.probes[(0, 0)]
+        ob = fast.Observed(t, None)
+        self.assertEqual(ob.closure()[0][0], p.idx)                  # without the exemption: the probe is cut
+        self.assertEqual(ob.probe_closure(p), ob.closure(changed_probes=[p]))
+        self.assertEqual(ob.probe_closure(p)[0][0], p.idx + 1)
+        closure_orders_agree(self, t)
 
 
 class C_MatchNodes(unittest.TestCase):
@@ -1270,30 +1355,223 @@ class C_EnumerationComplete(unittest.TestCase):
     PROGRAMS, MAX_STATES = 40, 5000
 
     def test_e6_programs(self):
-        rng = __import__("random").Random(20261016)
-        made = attempts = pruned = 0
-        while made < self.PROGRAMS and attempts < self.PROGRAMS * 20:
-            attempts += 1
-            nranks = rng.choice([3, 4, 4, 5])
-            prog, comms = dsl.random_matched_program(rng, nranks, mixed=rng.random() < 0.5)
-            try:
-                res = explore.explore(prog, None, comms=comms, max_states=self.MAX_STATES)
-            except (explore.StateCapReached, explore.ExploreError):
-                continue
-            done = [o for o in res.outcomes if o.kind == "done" and not o.leaked and not o.errors]
-            if not done:
-                continue
-            o = rng.choice(done)
-            t = T.Trace()
-            T._build(t, dsl.trace_from_execution(prog, dict(o.matching), comms))
-            if not any(r.wildcard for r in t.recvs.values()):
-                continue
+        made = pruned = 0
+        for t in e6_traces(self.PROGRAMS, self.MAX_STATES):
             made += 1
             pruned += len(candidates_full(t)[1])
             with self.subTest(program=made):
                 self.assertEqual(realised_but_pruned(t, self.MAX_STATES), [])
         self.assertEqual(made, self.PROGRAMS)
         self.assertGreater(pruned, 0)
+
+
+def e6_traces(n: int, max_states: int, raw: bool = False):
+    """The traces of the first n random programs of E6 (experiments/e6_checker_vs_explorer.py
+    --synthetic, seed 20261016) that have a wildcard receive, as C_EnumerationComplete draws them;
+    with raw, their records in the tracer's format instead (experiments/report_diff.py)."""
+    rng = __import__("random").Random(20261016)
+    made = attempts = 0
+    while made < n and attempts < n * 20:
+        attempts += 1
+        nranks = rng.choice([3, 4, 4, 5])
+        prog, comms = dsl.random_matched_program(rng, nranks, mixed=rng.random() < 0.5)
+        try:
+            res = explore.explore(prog, None, comms=comms, max_states=max_states)
+        except (explore.StateCapReached, explore.ExploreError):
+            continue
+        done = [o for o in res.outcomes if o.kind == "done" and not o.leaked and not o.errors]
+        if not done:
+            continue
+        o = rng.choice(done)
+        t = T.Trace()
+        records = dsl.trace_from_execution(prog, dict(o.matching), comms)
+        T._build(t, records)
+        if not any(r.wildcard for r in t.recvs.values()):
+            continue
+        made += 1
+        yield records if raw else t
+
+
+def random_probe_trace(rng, nranks: int, rounds: int = 4):
+    """The trace of random_probe_records."""
+    return mk(random_probe_records(rng, nranks, rounds))
+
+
+def random_probe_records(rng, nranks: int, rounds: int = 4):
+    """A random run with many probes per rank, written in the tracer's format as it goes: in
+    each round the ranks send to one another (standard sends of one to three ints, tags 1 and
+    2), probe with ANY_SOURCE, and ANY_TAG or a tag, for a message in flight and then mostly
+    receive it from the probed source, receive with ANY_SOURCE, and post Irecv(ANY_SOURCE)s that
+    a later wait completes; the round ends with a barrier or a broadcast. A receive takes, and
+    a probe reports, the earliest message of its source that it accepts, and an Irecv is
+    matched when it is posted, so the records are those of an execution with every message
+    buffered: the observed graph at B = inf is acyclic, and at small B rendezvous edges may
+    close cycles."""
+    recs = {r: [] for r in range(nranks)}
+    inflight = {}                       # (src, dst) -> tags of the messages not yet taken, in order
+    pending = {r: [] for r in range(nranks)}
+    req = [100]
+
+    def avail(dst, tag=None):
+        return [s for (s, d), tags in sorted(inflight.items()) if d == dst and tags and (tag is None or tag in tags)]
+
+    def take(s, d, tg):
+        inflight[(s, d)].remove(tg)     # the first message of that tag
+
+    for rnd in range(rounds):
+        for _ in range(rng.randint(10 * nranks, 16 * nranks)):
+            r = rng.randrange(nranks)
+            act = rng.random()
+            if act < 0.35:
+                dst = rng.choice([q for q in range(nranks) if q != r])
+                tg = rng.choice([1, 2])
+                recs[r].append(send(dst, tg, count=rng.randint(1, 3)))
+                inflight.setdefault((r, dst), []).append(tg)
+            elif act < 0.65:
+                tag = rng.choice([1, 2, None])
+                cands = avail(r, tag)
+                if not cands:
+                    continue
+                s = rng.choice(cands)
+                tg = inflight[(s, r)][0] if tag is None else tag
+                pr = {"op": "probe", "kind": rng.choice(["probe", "iprobe"]), "src": 0, "anysrc": 1, "comm": 0, "flag": 1,
+                      "msrc": s, "mtag": tg}
+                pr.update({"tag": 0, "anytag": 1} if tag is None else {"tag": tag})
+                recs[r].append(pr)
+                if rng.random() < 0.8:
+                    recs[r].append(recv(s, tg, s, tg))
+                    take(s, r, tg)
+            elif act < 0.8:
+                tg = rng.choice([1, 2])
+                cands = avail(r, tg)
+                if cands:
+                    s = rng.choice(cands)
+                    recs[r].append(recv(T.ANY, tg, s, tg))
+                    take(s, r, tg)
+            elif act < 0.9:
+                tg = rng.choice([1, 2])
+                cands = avail(r, tg)
+                if cands:
+                    s = rng.choice(cands)
+                    req[0] += 1
+                    recs[r].append(irecv(T.ANY, tg, req[0]))
+                    take(s, r, tg)
+                    pending[r].append((req[0], s, tg))
+            elif pending[r]:
+                recs[r].append(wait(pending[r].pop(0)))
+        c = coll("barrier") if rng.random() < 0.5 else coll("bcast", root=rng.randrange(nranks))
+        for r in range(nranks):
+            recs[r].append(dict(c))
+    for r in range(nranks):
+        recs[r].extend(wait(x) for x in pending[r])
+    return recs
+
+
+class C_ClosureOrderRandom(unittest.TestCase):
+    """closure_orders_agree on random traces: E6's programs (wildcard receives, every send mode,
+    no probes) and traces with many probes per rank, so that the chained probe closures meet
+    long chains, cuts that reach the probe and rendezvous cascades."""
+
+    def test_e6_programs(self):
+        n = 0
+        for i, t in enumerate(e6_traces(30, 5000)):
+            with self.subTest(program=i + 1):
+                closure_orders_agree(self, t)
+                if i < 10:
+                    clocks_agree(self, t)
+            n += 1
+        self.assertEqual(n, 30)
+
+    def test_traces_with_many_probes(self):
+        rng = __import__("random").Random(20261022)
+        probes = kept = exempt = 0
+        for i in range(60):
+            t = random_probe_trace(rng, rng.choice([3, 4, 5]))
+            self.assertIsNotNone(t.fast_indexes().lamport())
+            with self.subTest(trace=i):
+                closure_orders_agree(self, t)
+                if i < 10:
+                    clocks_agree(self, t)
+            probes += len(probe_candidates(t))
+            for B in (0, None):
+                ob = fast.Observed(t, B)
+                for p in sorted(t.probes.values(), key=lambda p: p.key, reverse=True):
+                    chained = ob.closure(cuts=[(p.rank, p.idx + 1)], start=ob.closure())[0][p.rank] > p.idx
+                    own = ob.closure(changed_probes=[p])[0][p.rank] > p.idx
+                    kept += chained
+                    exempt += own and not chained
+        self.assertGreater(probes, 300)
+        self.assertGreater(kept, 2000)       # the chain serves most probes as it is
+        self.assertGreater(exempt, 0)        # and defers to the probe's own closure when it cuts the probe
+
+
+def legacy_profile(bps, verdict, floor: int, full: bool):
+    """The dictionary report._profiles_fast filled before 22 Oct 2026 (C_ProfileReadsAsDict)."""
+    prof = {}
+
+    def judge(B):
+        prof[B] = verdict(B)
+        return prof[B]
+
+    for B in bps[:floor]:
+        prof[B] = False
+    if full:
+        for B in bps[floor:]:
+            judge(B)
+        return prof
+    lo, hi = judge(bps[floor]), judge(None)
+    sizes = bps[floor + 1:-1]
+    if lo == hi:
+        for B in sizes:
+            prof[B] = lo
+        return prof
+    if lo and not hi:
+        for B in sizes:
+            judge(B)
+        return prof
+    a, b, first = 0, len(sizes) - 1, len(sizes)
+    while a <= b:
+        m = (a + b) // 2
+        if judge(sizes[m]):
+            first, b = m, m - 1
+        else:
+            a = m + 1
+    for i, B in enumerate(sizes):
+        prof.setdefault(B, i >= first)
+    return prof
+
+
+class C_ProfileReadsAsDict(unittest.TestCase):
+    """report.Profile, the compact profile of an alternative, reads as the dictionary it
+    replaced: the same items in the same order, which the report's "B in ..." ranges follow,
+    and the same summary over any set of realisable thresholds."""
+
+    def test_random_profiles(self):
+        from stretto.report import bisect_profile
+        rng = __import__("random").Random(5)
+        for _ in range(3000):
+            # 0 is a breakpoint twice when the trace has empty messages
+            bps = [0] * rng.choice([1, 1, 2]) + sorted(rng.sample(range(1, 100), rng.randint(0, 9))) + [None]
+            pos = {B: i for i, B in enumerate(bps)}
+            floor = rng.randrange(len(bps))
+            full = rng.random() < 0.2
+            if rng.random() < 0.6:
+                first = rng.randrange(len(bps) + 1)
+                val = {B: i >= first for i, B in enumerate(bps)}
+            else:
+                val = {B: rng.random() < 0.5 for B in bps}
+            old = legacy_profile(bps, val.__getitem__, floor, full)
+            notes = []
+            new, seen = bisect_profile(bps, pos, val.__getitem__, lambda v: v, floor, full, lambda: notes.append(1))
+            self.assertEqual(list(new.items()), list(old.items()), (bps, floor, full, val))
+            self.assertEqual((len(new), new, dict(new)), (len(old), old, old))
+            self.assertTrue(set(seen) <= set(bps) and all(seen[B] == val[B] for B in seen))
+            self.assertEqual(bool(notes), not full and val[bps[floor]] and not val[None])
+            for real in (set(bps[floor:]), set(rng.sample(bps, rng.randint(1, len(bps))))):
+                self.assertEqual(profile_summary({B: ok for B, ok in new.items() if B in real}),
+                                 profile_summary({B: ok for B, ok in old.items() if B in real}))
+            self.assertEqual(new.summary(), profile_summary({B: ok for B, ok in old.items() if B in set(bps[floor:])}),
+                             (bps, floor, full, val))
 
 
 def ready_before_receive_trace():
