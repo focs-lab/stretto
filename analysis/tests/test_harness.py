@@ -131,5 +131,32 @@ class CrashIsNoVerdict(unittest.TestCase):
             self.assertEqual(score.verdict(row), "ERROR")
 
 
+def bash(script: str) -> int:
+    """Status of a bash script run with experiments/harness.sh sourced."""
+    import subprocess
+    return subprocess.run(["bash", "-c", f'R="{ROOT}"; source "$R/experiments/harness.sh"; {script}'],
+                          capture_output=True, text=True).returncode
+
+
+class ShellHarness(unittest.TestCase):
+    """The checks the shell drivers make before and after a run with a preloaded library."""
+
+    def test_a_missing_library_fails(self):
+        self.assertEqual(bash(f'need_file "{ROOT}/README.md"'), 0)
+        self.assertNotEqual(bash(f'need_file "{ROOT}/README.md" /nonexistent/libstretto-pin.so'), 0)
+
+    def test_a_run_without_the_banner_fails(self):
+        import tempfile
+        with tempfile.NamedTemporaryFile("w", suffix=".log", delete=False) as fh:
+            fh.write("[stretto-pin] rank 0: loaded (replay library)\nresult 1\n")
+        try:
+            self.assertEqual(bash(f'preload_ok "{fh.name}"'), 0)
+            self.assertNotEqual(bash('preload_ok /nonexistent.log'), 0)
+            self.assertNotEqual(bash('preload_ok_in "ERROR: ld.so: object libstretto-pin.so cannot be preloaded: ignored."'), 0)
+            self.assertEqual(bash(f'preload_ok_in "$(cat {fh.name})"'), 0)
+        finally:
+            os.unlink(fh.name)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -82,6 +82,19 @@ static int parse_pins(const char *name, int rank, struct pin **out) {
 }
 
 HIDDEN void stretto_pin_init(int rank) {
+    /* ld.so ignores a preloaded library it cannot open, and the run then goes on unpinned and
+       undelayed, as a plain run. Rank 0 therefore announces the library, which the harness
+       requires (stretto.confirm.run_pinned, experiments/harness.sh): always from the replay
+       library, and from the tracer when it applies pins or delays. */
+#ifdef STRETTO_PIN_ONLY
+    int announce = 1;
+    const char *what = "replay library";
+#else
+    int announce = getenv("STRETTO_PIN") || getenv("STRETTO_PIN_PROBE") || getenv("STRETTO_SEND_DELAY_MS")
+                   || getenv("STRETTO_RECV_DELAY_MS") || getenv("STRETTO_DELAY_AT");
+    const char *what = "tracer";
+#endif
+    if (announce && rank == 0) fprintf(stderr, "[stretto-pin] rank 0: loaded (%s)\n", what);
     g_rank = rank;
     g_nwild = g_nsend = g_nrecv = 0;
     g_npins = parse_pins("STRETTO_PIN", rank, &g_pins);

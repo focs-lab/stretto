@@ -16,6 +16,9 @@
 #ifndef STRETTO_PIN_H
 #define STRETTO_PIN_H
 #include <mpi.h>
+/* At MPI_Init. Rank 0 prints "[stretto-pin] rank 0: loaded (replay library|tracer)" (the
+   tracer only when a pin or delay variable is set): the harness requires the line, since ld.so
+   ignores a preloaded library it cannot open and the run would read as a plain one. */
 void stretto_pin_init(int rank);
 /* Counts the wildcard receive (writes its ordinal to *widx, -1 if not a wildcard) and
    returns 1 if src/tag were substituted. The pin names the sender's world rank; it is

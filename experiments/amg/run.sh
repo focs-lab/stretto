@@ -9,6 +9,7 @@
 set -uo pipefail
 R="$(cd "$(dirname "$0")/../.." && pwd)"; cd "$R"
 source scripts/env.sh
+source experiments/harness.sh
 D=experiments/results/amg; mkdir -p "$D"
 EXE=study/apps/AMG/test/amg
 ARGS=(-P 2 2 2 -n 16 16 16 -problem 1)
@@ -39,6 +40,7 @@ step_confirm() {
     [ -n "$pin" ] || { echo "no probe alternative to replay" | tee "$D/confirm8.txt"; return 0; }
     TIMEOUT=600 mpi_run 8 "$pin" "LD_PRELOAD=$PINLIB" "OMP_NUM_THREADS=1" -- "$EXE" "${ARGS[@]}" > "$D/run8pin.log" 2> "$D/run8pin.err"
     rc=$?
+    preload_ok "$D/run8pin.err" || { harness_error "$PINLIB did not load"; return 1; }
     { echo "pin: $pin"; grep '^\[stretto-pin\]' "$D/run8pin.err"; echo "result: $(classify_rc $rc "$D/run8pin.err")"; } | tee "$D/confirm8.txt"
 }
 step_sample() {

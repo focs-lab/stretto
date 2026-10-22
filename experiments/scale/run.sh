@@ -17,11 +17,13 @@ NPS="${NPS:-16 32 64}"; SAMPLE="${SAMPLE:-10}"; TIMEOUT="${TIMEOUT:-120}"
 TMP="${TMPDIR:-/tmp}/stretto-scale"; mkdir -p "$TMP"
 COMMIT="$(cat "$R/COMMIT" 2>/dev/null || git -C "$R" rev-parse --short HEAD 2>/dev/null || echo unknown)"
 export PYTHONPATH="$R/analysis" STRETTO_COMMIT="$COMMIT"
+source "$R/experiments/harness.sh"
 [ -f "$OUT/scale.csv" ] || echo "app,np,mpi,traced_run,records,wildcard_receives,probes,findings,analysis_s,peak_kb,sample,matched,finished,controls_finished,commit" > "$OUT/scale.csv"
 
 one() {   # one <app> <np> <mpi> <dir> <exe> [args ...]: trace, analyse, replay a sample, append a row
     local app=$1 np=$2 mpi=$3 dir=$4; shift 4
     local td="$TMP/$app-$np" log="$OUT/samples/$app-$np"
+    need_file "$R/tracer/bin/$mpi/libstretto-trace.so" "$R/replay/bin/$mpi/libstretto-pin.so" || return 1
     rm -rf "$td"; mkdir -p "$td"
     (cd "$dir" && /usr/bin/timeout -k 5 1800 /usr/bin/mpirun.openmpi --oversubscribe -np "$np" -x OMP_NUM_THREADS=1 \
         -x STRETTO_TRACE_DIR="$td" -x LD_PRELOAD="$R/tracer/bin/$mpi/libstretto-trace.so" "$@" < /dev/null > "$log.run" 2>&1)

@@ -34,6 +34,30 @@ from .trace import ANY
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
 
+class HarnessError(RuntimeError):
+    """A replay could not be run as asked: the library it preloads is missing, or it did not
+    load. ld.so ignores a preloaded library it cannot open and the program then runs unpinned
+    and undelayed, which would read as a replay or a baseline run that shows nothing."""
+
+
+# what the replay library, and the tracer applying pins or delays, print at MPI_Init (replay/pin.c)
+LOADED = re.compile(r"^\[stretto-pin\] rank 0: loaded\b", re.M)
+DELAY_VARS = ("STRETTO_SEND_DELAY_MS", "STRETTO_RECV_DELAY_MS", "STRETTO_DELAY_AT")
+
+
+def need_preload(lib: str) -> None:
+    """Raise HarnessError unless lib, a library to preload, exists."""
+    if not os.path.isfile(lib):
+        raise HarnessError(f"{lib} is missing (make -C replay or make -C tracer, with MPI=openmpi or mpich)")
+
+
+def check_loaded(lib: str, stderr: str) -> None:
+    """Raise HarnessError unless the run's stderr has the line rank 0 prints when lib loaded."""
+    if not LOADED.search(stderr):
+        why = next((ln for ln in stderr.splitlines() if "LD_PRELOAD" in ln or "cannot be preloaded" in ln), "")
+        raise HarnessError(f"{lib} did not announce itself in the run's output" + (f": {why.strip()}" if why else ""))
+
+
 @dataclass
 class Confirmation:
     finding: Finding
@@ -541,8 +565,13 @@ def run_pinned(np: int, exe: str, args: List[str], pin, timeout: int = 20, mpi: 
     """pin: one "STRETTO_PIN=..." assignment, a list of them, or None. args and cwd must be
     those of the traced run: the pins number the wildcard operations of that execution.
     preload: the library that applies the pins, the replay library by default; the tracer
-    applies them too and records the replay (with STRETTO_TRACE_DIR in extra_env)."""
+    applies them too and records the replay (with STRETTO_TRACE_DIR in extra_env). A library
+    that is missing, or that does not announce itself in the run's output (the replay library
+    always does, the tracer when it applies pins or delays), raises HarnessError: the run would
+    otherwise be a plain one."""
     pinlib = preload or os.path.join(ROOT, "replay", "bin", mpi, "libstretto-pin.so")
+    need_preload(pinlib)
+    announces = preload is None or bool(pin) or any(k in (extra_env or {}) for k in DELAY_VARS)
     env_args = ["-x", f"LD_PRELOAD={pinlib}"]
     with tempfile.TemporaryDirectory(prefix="stretto-pin-") as d:
         for assignment in ([pin] if isinstance(pin, str) else (pin or [])):
@@ -556,6 +585,8 @@ def run_pinned(np: int, exe: str, args: List[str], pin, timeout: int = 20, mpi: 
         r = subprocess.run(cmd, capture_output=True, text=True, stdin=subprocess.DEVNULL, cwd=cwd,
                            env={**os.environ, "OMPI_MCA_rmaps_base_oversubscribe": "1"})
         r.elapsed = time.monotonic() - t0   # for classify_rc: a SIGKILL past the timeout is the timeout's
+    if announces:
+        check_loaded(pinlib, r.stderr)
     return r
 
 

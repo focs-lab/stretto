@@ -203,6 +203,9 @@ def main(argv=None) -> int:
     except LoadError as e:
         print(f"stretto: {e}", file=sys.stderr)
         return 2
+    except confirm_mod.HarnessError as e:   # confirm: the replay library is missing or did not load
+        print(f"stretto: {e}", file=sys.stderr)
+        return 2
     except Exception:   # noqa: BLE001 - an internal error must not read as "an error class was found" (1)
         import traceback
         traceback.print_exc()

@@ -43,6 +43,7 @@ D="${DEALII_DIR:-$R/third_party/apps/dealii}"
 OUT="$R/experiments/results/dealii"; mkdir -p "$OUT"
 NPS="${NPS:-4}"; RUNS="${RUNS:-20}"; TEST="${TEST:-mapping_01}"; TIMEOUT=120
 PINLIB="$R/replay/bin/mpich/libstretto-pin.so"
+source "$R/experiments/harness.sh"
 export STRETTO_COMMIT="${STRETTO_COMMIT:-$(cat "$R/COMMIT" 2>/dev/null || git -C "$R" rev-parse --short HEAD 2>/dev/null || echo unknown)}"
 VERSIONS="9.3.0-rc1 9.3.0"
 declare -A SHA=([dealii-9.3.0-rc1.tar.gz]=8cc3ae374e82ae02b9312cc85e0a86beee699d9269aad0e6a9a7017b39cd976d
@@ -166,6 +167,7 @@ differing() {   # differing <output> <expected>: how many lines differ, position
 }
 step_stress() {
     local b; b="$(bindir 9.3.0-rc1)"
+    need_file "$PINLIB" || return 1
     echo "version,test,np,run,setting,result,differs,lines,commit" > "$OUT/stress.csv"
     for np in $NPS; do
         local exp="$D/dealii-9.3.0-rc1/tests/remote_point_evaluation/$TEST.mpirun=$np.output"
@@ -180,6 +182,7 @@ step_stress() {
                 (cd "$w" && /usr/bin/timeout -k 5 $TIMEOUT mpirun.openmpi --oversubscribe -np $np "${env[@]}" "$b/$TEST" \
                      < /dev/null > "$w/stdout" 2>&1)
                 rc=$?; r=FINISHED; [ $rc = 0 ] || { [ $rc = 124 ] && r=TIMEOUT || r="rc=$rc"; }
+                [ $setting = plain ] || preload_ok "$w/stdout" || { harness_error "$PINLIB did not load (np $np, run $i)"; return 1; }
                 # normalised as deal.II's test harness does (the JobId line names host and date)
                 [ -f "$w/output" ] || : > "$w/output"
                 perl -p "$D/dealii-9.3.0-rc1/cmake/scripts/normalize.pl" "$w/output" > "$w/normalized"

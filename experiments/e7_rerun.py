@@ -36,7 +36,7 @@ sys.path.insert(0, os.path.join(ROOT, "analysis"))
 sys.path.insert(0, os.path.join(ROOT, "analysis", "tests"))
 sys.path.insert(0, os.path.join(ROOT, "experiments", "mbi"))
 from stretto import dsl, explore, report, rerun, trace  # noqa: E402
-from stretto.confirm import classify_rc  # noqa: E402
+from stretto.confirm import classify_rc, need_preload  # noqa: E402
 import idioms_dsl  # noqa: E402
 import twins  # noqa: E402
 from run_mbi import parse_header  # noqa: E402
@@ -204,6 +204,7 @@ def main() -> int:
     ap.add_argument("--jobs", type=int, default=2)
     ap.add_argument("--out", default=os.path.join(ROOT, "experiments", "results", "e7_rerun"))
     args = ap.parse_args()
+    need_preload(TRACER)                     # ld.so would ignore a missing tracer, and the runs leave no trace
     todo = items(args)
     summaries, rows = [], []
     with ThreadPoolExecutor(max_workers=args.jobs) as ex:

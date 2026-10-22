@@ -22,6 +22,7 @@ D="${NPB_MG_DIR:-$R/third_party/apps/npb-mg}"
 OUT="$R/experiments/results/npbmg"; mkdir -p "$OUT"
 NPS="${NPS:-16 32}"; CLASS="${CLASS:-S}"; RUNS="${RUNS:-5}"; TIMEOUT=120
 PINLIB="$R/replay/bin/mpich/libstretto-pin.so"
+source "$R/experiments/harness.sh"
 export STRETTO_COMMIT="${STRETTO_COMMIT:-$(cat "$R/COMMIT" 2>/dev/null || git -C "$R" rev-parse --short HEAD 2>/dev/null || echo unknown)}"
 URL=https://www.nas.nasa.gov/assets/nas/npb
 declare -A SHA=([2.4.1]=59448aeee0641c1e08b8bb211c6d38e8e2cee29b17a2678e2f81b05997d2c137
@@ -74,6 +75,7 @@ step_predict() {
 }
 step_stress() {
     local b; b="$(bindir 2.4.1)"
+    need_file "$PINLIB" || return 1
     echo "version,class,np,run,setting,result,norm,commit" > "$OUT/stress.csv"
     for np in $NPS; do
         for i in $(seq 1 "$RUNS"); do
@@ -86,6 +88,7 @@ step_stress() {
                 fi
                 out=$(cd "$b" && /usr/bin/timeout -k 5 $TIMEOUT mpirun.openmpi --oversubscribe -np $np "${env[@]}" ./mg.$CLASS.$np < /dev/null 2>&1)
                 rc=$?; r=FINISHED; [ $rc = 0 ] || { [ $rc = 124 ] && r=TIMEOUT || r="rc=$rc"; }
+                [ $setting = plain ] || preload_ok_in "$out" || { harness_error "$PINLIB did not load (np $np, run $i)"; return 1; }
                 n=$(echo "$out" | sed -n 's/.*L2 Norm is *\([^ ]*\).*/\1/p' | head -1)
                 echo "2.4.1,$CLASS,$np,$i,$setting,$r,$n,$STRETTO_COMMIT" | tee -a "$OUT/stress.csv"
             done

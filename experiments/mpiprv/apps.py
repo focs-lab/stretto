@@ -77,7 +77,7 @@ RENDEZVOUS = ["--mca", "btl", "self,tcp", "--mca", "btl_tcp_if_include", "lo", "
 sys.path.insert(0, os.path.join(ROOT, "analysis"))
 from stretto import trace as strace  # noqa: E402
 from stretto.trace import ANY  # noqa: E402
-from stretto.confirm import all_matched, classify_rc, horizon_pins, required_matches, run_pinned  # noqa: E402
+from stretto.confirm import all_matched, classify_rc, horizon_pins, need_preload, required_matches, run_pinned  # noqa: E402
 from stretto.report import analyze as s_analyze  # noqa: E402
 
 
@@ -185,6 +185,7 @@ def main():
     ap.add_argument("--timeout", type=int, default=int(os.environ.get("TIMEOUT") or 1800))
     ap.add_argument("--replay-timeout", type=int, default=120)
     args = ap.parse_args()
+    need_preload(TRACER)                     # ld.so would ignore a missing tracer, and the runs leave no trace
     os.makedirs(WORK, exist_ok=True)
     rows, reps = [], []
     for app, sub, exe, cfgs in APPS:

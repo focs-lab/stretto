@@ -552,3 +552,11 @@ operating-system sets. Nothing runs during an announced timed benchmark leg.
   line. A replay under the tracer (`run_checked`, since 22 Oct) also counts a pin as taken
   when its own trace shows the pinned receive completed from the pinned source
   (`trace_matches`).
+- ld.so ignores an `LD_PRELOAD` library it cannot open ("cannot be preloaded ... ignored") and
+  the program runs unperturbed, which a stress or replay row would record as a plain run. The
+  replay library therefore prints `[stretto-pin] rank 0: loaded (replay library)` at
+  `MPI_Init` (the tracer does too when it applies pins or delays), and every driver that
+  preloads it checks that the file exists before the run and that the line is in the run's
+  output after it (`stretto.confirm.run_pinned`, `experiments/harness.sh`); without the line
+  the step stops with a harness error. NINJA's library prints no such line:
+  `experiments/ninja/run.py` has to check it by other means.

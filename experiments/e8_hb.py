@@ -73,7 +73,7 @@ sys.path.insert(0, os.path.join(ROOT, "analysis"))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from stretto import dsl, explore, hb, trace  # noqa: E402
 from stretto.confirm import (all_matched, changed_pin, classify_rc, horizon_pins, required_matches,  # noqa: E402
-                             run_pinned, unpinned_violation)
+                             need_preload, run_pinned, unpinned_violation)
 from stretto.feasible import breakpoints, check  # noqa: E402
 from stretto.matching import candidates_full  # noqa: E402
 from stretto.report import Finding  # noqa: E402
@@ -159,6 +159,7 @@ def step_trace(args) -> int:
             print(f"{s.program}: {s.exe} missing (see experiments/{s.corpus}/run.sh)", flush=True)
             continue
         tracer = os.path.join(ROOT, "tracer", "bin", s.mpi, "libstretto-trace.so")
+        need_preload(tracer)                 # ld.so would ignore a missing tracer, and the run would leave no trace
         for attempt in range(1, args.attempts + 1):
             shutil.rmtree(s.tracedir, ignore_errors=True)
             os.makedirs(s.tracedir)

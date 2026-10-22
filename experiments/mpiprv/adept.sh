@@ -58,6 +58,7 @@ step_build() {
 one() {
     local name=$1 dir=$2 algo=$3 pre=$4; shift 4
     local env=(); for e in "$@"; do env+=(-x "$e"); done
+    [ -f "$pre" ] || { echo "HARNESS-ERROR: missing $pre (ld.so would ignore it)" >&2; return 1; }
     echo "# $name: $dir/kernel $ARGS -a $algo LD_PRELOAD=$(basename "$pre") ${*}; commit $COMMIT; $(date -u +%Y-%m-%dT%H:%MZ)" > "$LOG/$name.log"
     /usr/bin/timeout 3600 mpirun -np 4 -x LD_PRELOAD="$pre" "${env[@]}" "$W/$dir/kernel" $ARGS -a "$algo" > "$W/$name.out" 2> "$W/$name.err"
     echo "rc $?" >> "$LOG/$name.log"
