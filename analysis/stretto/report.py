@@ -1,6 +1,7 @@
 """Classify feasible alternatives. See docs/analysis.md section B for the taxonomy."""
 from __future__ import annotations
 import json
+import sys
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Set, Tuple
@@ -128,11 +129,13 @@ def classify(r: Recv, s: Send, s_obs: Optional[Send]) -> Tuple[str, str]:
 
 def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_events: int = 2000,
             generic: bool = False, full_profile: bool = False, twin=None, changes: int = 1,
-            twin_label: str = "twin", reads=None) -> Report:
+            twin_label: str = "twin", reads=None, cross_check: bool = False) -> Report:
     """Alternatives are judged by the indexed checker (stretto.fast), each profiled at the
     two ends of the B range and bisected between them (exact by theorem T2); full_profile=True
     judges every breakpoint, generic=True uses the generic checker (feasible.check) instead
-    of the indexed one. Both exist for differential testing and are slower. twin: a DSL
+    of the indexed one. Both exist for differential testing and are slower. cross_check=True
+    confirms every acceptance of the indexed checker with the generic one, which it does by
+    itself on traces of up to CROSS_CHECK_LIMIT records (_profiles_fast). twin: a DSL
     program (level L2) that encodes the program's metadata dependencies, written by hand or
     built by re-executing the ranks (stretto.rerun, twin_label "re-execution"); its
     exploration under each L1 alternative yields the L2 findings (1e, abort, deadlock), and an
@@ -296,7 +299,8 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
     rep.infeasible.extend((d, why) for d, why in pruned)
     probes = probe_candidates(t, hb)
     waits = _completion_alternatives(t, hb)
-    pr = _profiles_generic(t, alts, probes, waits, reads) if generic else _profiles_fast(t, alts, probes, waits, full_profile, reads, ob_inf)
+    pr = _profiles_generic(t, alts, probes, waits, reads) if generic else \
+        _profiles_fast(t, alts, probes, waits, full_profile, reads, ob_inf, cross_check)
     rep.notes.extend(pr.notes)
     if any("not confirmed by the generic check" in n for n in pr.notes):
         rep.degrade("unconfirmed-rejections", f"above {CONFIRM_LIMIT} records the generic check does not confirm the fast "
@@ -883,10 +887,11 @@ def bisect_profile(bps: List[Optional[int]], pos: Dict[Optional[int], int], verd
 
 
 CONFIRM_LIMIT = 200_000     # records up to which the generic check confirms the fast check's cycle rejections
+CROSS_CHECK_LIMIT = 1_000   # records up to which the generic check confirms the fast check's acceptances
 
 
 def _profiles_fast(t: Trace, alts, probes, waits, full: bool = False, reads=None,
-                   ob_inf: Optional[fast.Observed] = None) -> _Profiles:
+                   ob_inf: Optional[fast.Observed] = None, cross_check: bool = False) -> _Profiles:
     """The indexed checker (stretto.fast). Each item is judged at the two ends of the B range
     and, when the verdicts differ, bisected over the breakpoints between them: theorem T2
     (docs/model.md) makes the feasibility of a single-change alternative monotone in B, so
@@ -901,16 +906,39 @@ def _profiles_fast(t: Trace, alts, probes, waits, full: bool = False, reads=None
     the changed receive takes) without closing a cycle (docs/firstread.md). So an
     alternative whose bounds keep a window is judged at every breakpoint. ob_inf: the
     Observed(t, None) the caller built for the enumeration, whose graph and clocks then serve
-    B = inf too."""
+    B = inf too.
+
+    The theorems are proved for the generic check, and the indexed one is a separate algorithm
+    that the tests compare with it; before 22 Oct 2026 it accepted alternatives the generic check
+    rejects (docs/model.md, section 2, cost). On traces of up to CROSS_CHECK_LIMIT records, and
+    on any trace with cross_check, the generic check confirms every acceptance: a disagreement
+    is reported in a note and on standard error, and the generic verdict is used."""
     bps = breakpoints(t) + [None]
     ix = t.fast_indexes()
     obs: Dict[Optional[int], fast.Observed] = {} if ob_inf is None or ob_inf.ix is not ix else {None: ob_inf}
+    nrec = sum(len(v) for v in t.ranks.values())
     # the fast check decides reachability in the observed graph, which also holds events beyond
     # an alternative's horizon, so a rejection by a cycle can be one the rules do not make
     # (proof appendix, conservative step 2); on traces up to CONFIRM_LIMIT records the generic
     # check, which meets theorem T6, confirms each such rejection
-    confirm_rejections = sum(len(v) for v in t.ranks.values()) <= CONFIRM_LIMIT
+    confirm_rejections = nrec <= CONFIRM_LIMIT
+    confirm_acceptances = cross_check or nrec <= CROSS_CHECK_LIMIT
     unconfirmed = [0]
+
+    def confirmed(fv: Optional[Verdict], generic, what: str, B: Optional[int], notes: Optional[List[str]] = None):
+        """fv, the fast check's verdict, or, if it accepts and the generic check generic()
+        rejects or keeps another horizon, the generic verdict, with the disagreement reported."""
+        if fv is None or not fv.feasible or not confirm_acceptances:
+            return fv
+        g = generic()
+        if g.feasible and g.cut == fv.cut:
+            return fv
+        msg = (f"cross-check: the fast check accepts {what} at B={_fmt_B(B)}, the generic check "
+               + (f"rejects it ({g.reason})" if not g.feasible else "accepts it with another horizon")
+               + "; the generic verdict is used (a defect of stretto.fast)")
+        (pr.notes if notes is None else notes).append(msg)
+        print(f"stretto: {msg}", file=sys.stderr)
+        return g
 
     def at(B: Optional[int]) -> fast.Observed:
         ob = obs.get(B)
@@ -947,7 +975,7 @@ def _profiles_fast(t: Trace, alts, probes, waits, full: bool = False, reads=None
                         pr.notes.append(f"{a.describe(t)} at B={'inf' if B is None else B}: the fast check's cycle lies outside the horizon; the generic check accepts")
                     return g
                 unconfirmed[0] += 1
-            return fv
+            return confirmed(fv, lambda: check(t, a.M, a.changed, B, "L1"), a.describe(t), B)
 
         ext = reads is not None and reads.extends(t, a.changed, a.M)
 
@@ -964,21 +992,25 @@ def _profiles_fast(t: Trace, alts, probes, waits, full: bool = False, reads=None
         exact = a.kind == "steal" and t.recvs[a.recv].blocking and not ext
         pr.alt[i], seen = profile(alt_at, lambda v: v.feasible, a.describe(t), floor, not exact)
         pr.alt_reason[i] = seen[None].reason
-    def probe_at(B, p, s):
+    def probe_at(B, p, s, notes):
+        def generic():
+            return check(t, t.observed, set(), B, "L1", changed_probes={p.key}, probe_alt={p.key: s.key})
         fv = at(B).check_probe(p, s)
-        return fv if fv is not None else check(t, t.observed, set(), B, "L1", changed_probes={p.key}, probe_alt={p.key: s.key})
+        return confirmed(fv, generic, f"{p} sees {s}", B, notes) if fv is not None else generic()
 
     def wait_at(B, rec, s_j):
+        def generic():
+            return check(t, t.observed, set(), B, "L1", extra_edges=[(s_j.issue_node(), rec.complete)],
+                         changed_events={(rec.rank, rec.idx)}, must_issue=[s_j.key])
         fv = at(B).check_event(rec.rank, rec.idx, s_j)
-        return fv if fv is not None else check(t, t.observed, set(), B, "L1", extra_edges=[(s_j.issue_node(), rec.complete)],
-                                               changed_events={(rec.rank, rec.idx)}, must_issue=[s_j.key])
+        return confirmed(fv, generic, f"the completion order of rank {rec.rank} #{rec.idx}", B) if fv is not None else generic()
 
     # last to first, so that at each threshold the probes of a rank come latest first and each
     # closure continues the previous one (fast.Observed.probe_closure); notes in list order
     probe_notes: List[List[str]] = [[] for _ in probes]
     for j in reversed(range(len(probes))):
         p, s = probes[j]
-        pr.probe[j], seen = profile(lambda B, p=p, s=s: probe_at(B, p, s), lambda v: v.feasible,
+        pr.probe[j], seen = profile(lambda B, p=p, s=s, n=probe_notes[j]: probe_at(B, p, s, n), lambda v: v.feasible,
                                     f"{p} sees {s}", floor, notes=probe_notes[j])
         pr.probe_reason[j] = seen[None].reason
     for n in probe_notes:

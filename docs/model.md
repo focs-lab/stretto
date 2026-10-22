@@ -152,8 +152,18 @@ is sound (it may reject an alternative the generic check accepts). Steals at non
 receives, whose match has later receives of the rank as successors, and swaps go to the
 generic check. Collectives enter the graph
 through hub nodes, 2P edges each. Preparation is O(n log n) per trace and O((n + m) P) per
-threshold; the tests compare the fast and the generic verdicts on every alternative of every
-traced idiom. (Relation to POPL'26 Thm 1.9: with rf fixed and every channel synchronous,
+threshold. The fast check is a separate algorithm, and nothing proves it equal to the generic
+check, for which the theorems are proved; what supports it is a comparison of the two. The
+tests compare their verdicts, and horizons where they accept, on every alternative of every
+traced idiom and of the module's traces, and on random runs drawn with the shapes on which
+the fast check was found wrong on 22 Oct 2026 (`C_FastEqualsGenericRandom`: Irecvs that a
+message sent later reaches, ANY_TAG receives after them, swaps, nonblocking collectives waited
+out of issue order, probes). The report also confirms each acceptance of the fast check with
+the generic check, on traces of up to 1 000 records and on any trace with `stretto analyze
+--cross-check`; a disagreement is reported and the generic verdict used
+(`report._profiles_fast`). The corpus programs, the idioms and E6's programs are below that
+size; on HYPRE 2.10.1's trace at 8 processes (about 6 900 records) the cross-check makes the
+text report about nine times slower and the full profile forty times. (Relation to POPL'26 Thm 1.9: with rf fixed and every channel synchronous,
 consistency is acyclicity of the send-receive graph; MPI's per-pair single-producer queues
 keep it linear for mixed regimes.)
 

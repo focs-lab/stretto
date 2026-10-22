@@ -1187,6 +1187,64 @@ class C_RematchedCompetitor(unittest.TestCase):
         closure_orders_agree(self, t)
 
 
+class C_CrossCheck(unittest.TestCase):
+    """The report confirms the fast check's acceptances with the generic check, on traces of up
+    to CROSS_CHECK_LIMIT records and on any trace with cross_check (stretto analyze
+    --cross-check): a disagreement is reported in a note and on standard error, and the
+    generic verdict is used. Here the fast check is replaced by one that accepts every steal
+    it judges, as it accepted the steal of C_RematchedCompetitor before 22 Oct 2026."""
+
+    def analyze_with_a_wrong_fast_check(self, t, **kw):
+        import contextlib
+        import io
+        real = fast.Observed.check_alternative
+
+        def accept(ob, alt, bounds=None):
+            v = real(ob, alt, bounds)
+            return v if v is None or v.feasible else fast.Verdict(True, "ok", v.cut)
+
+        err = io.StringIO()
+        fast.Observed.check_alternative = accept
+        try:
+            with contextlib.redirect_stderr(err):
+                rep = analyze(t, with_sp=False, **kw)
+        finally:
+            fast.Observed.check_alternative = real
+        return rep, err.getvalue()
+
+    def test_wrong_acceptance_is_reported_and_overruled(self):
+        from stretto import report
+        t = C_RematchedCompetitor.trace(self)
+        pair = ((0, 1), (2, 0))
+        notes = lambda rep: [n for n in rep.notes if n.startswith("cross-check: the fast check accepts")]
+        rep, err = self.analyze_with_a_wrong_fast_check(t)
+        self.assertNotIn(pair, [(f.recv, f.send) for f in rep.findings])
+        self.assertTrue(notes(rep) and all("witness cut by the horizon closure" in n for n in notes(rep)), rep.notes)
+        self.assertIn("cross-check", err)
+        limit = report.CROSS_CHECK_LIMIT
+        report.CROSS_CHECK_LIMIT = 0                   # the trace counts as large
+        try:
+            off, err = self.analyze_with_a_wrong_fast_check(t)
+            on, _ = self.analyze_with_a_wrong_fast_check(t, cross_check=True)
+        finally:
+            report.CROSS_CHECK_LIMIT = limit
+        self.assertIn(pair, [(f.recv, f.send) for f in off.findings])
+        self.assertEqual((notes(off), err), ([], ""))
+        self.assertNotIn(pair, [(f.recv, f.send) for f in on.findings])
+        self.assertEqual(notes(on), notes(rep))
+
+    def test_agreement_leaves_the_report_alone(self):
+        from stretto import report
+        t = random_probe_trace(__import__("random").Random(5), 4, rounds=2, shapes=True)
+        limit = report.CROSS_CHECK_LIMIT
+        report.CROSS_CHECK_LIMIT = 0
+        try:
+            reps = [analyze(t, with_sp=False, cross_check=c) for c in (False, True)]
+        finally:
+            report.CROSS_CHECK_LIMIT = limit
+        self.assertEqual(*[report.to_json(t, r) for r in reps])
+
+
 class C_CollectiveRule(unittest.TestCase):
     """Rule 4 in the fast closure (audit of 22 Oct 2026, item 4): when a rank stops issuing its
     collectives, the scan over their groups dropped a member as soon as the member lost the

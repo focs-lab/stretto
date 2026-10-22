@@ -66,7 +66,8 @@ def _analyze(args):
         twin, label = rerun.Oracle(t, runner).program(), "re-execution"
     return t, report.analyze(t, with_sp=not args.no_sp, sp_max_events=args.sp_max_events,
                              max_states=args.max_states, generic=args.generic, full_profile=args.full_profile,
-                             changes=args.changes, twin=twin, twin_label=label, reads=read_bounds(args, t))
+                             changes=args.changes, twin=twin, twin_label=label, reads=read_bounds(args, t),
+                             cross_check=args.cross_check)
 
 
 def read_bounds(args, t=None):
@@ -168,6 +169,9 @@ def _analysis_options(a):
                    help="judge every message-size breakpoint instead of the two ends and a bisection (equal by theorem T2; for differential testing)")
     a.add_argument("--generic", action="store_true",
                    help="judge alternatives with the generic checker instead of the indexed one (slow; for differential testing)")
+    a.add_argument("--cross-check", action="store_true",
+                   help="confirm every alternative the indexed checker accepts with the generic one, and report any "
+                        f"disagreement (done anyway on traces of up to {report.CROSS_CHECK_LIMIT} records)")
     a.add_argument("--changes", type=int, default=1, choices=[1, 2], help="also report alternatives that re-match two receives on different ranks")
     a.add_argument("--rerun", metavar="EXE", default=None,
                    help="level L2 by re-execution: the traced executable, whose ranks are rerun alone under the shim "
