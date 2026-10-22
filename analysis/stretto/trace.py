@@ -422,7 +422,10 @@ def load(tracedir: str) -> Trace:
     t = Trace()
     files = sorted(f for f in os.listdir(tracedir) if f.startswith("rank-") and f.endswith(".jsonl"))
     if not files:
-        raise FileNotFoundError(f"no rank-*.jsonl in {tracedir}")
+        # the tracer opens a rank's file in MPI_Init or MPI_Init_thread, through the C interface
+        raise FileNotFoundError(f"no rank-*.jsonl in {tracedir} (was the run traced? A Fortran program under "
+                                "Open MPI, whose bindings call PMPI directly, or one that uses MPI sessions "
+                                "without MPI_Init, leaves no trace)")
     raw_ranks: Dict[int, List[dict]] = {}
     for f in files:
         rank = int(f[len("rank-"):-len(".jsonl")])

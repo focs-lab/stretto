@@ -44,8 +44,8 @@
      overflow  what: a fixed table filled up and later records may be incomplete
      unmodelled call: a call whose communication the analysis does not model (one-sided
                windows, neighbourhood collectives, dynamic processes, generalised requests,
-               MPI-4 Isendrecv, partitioned and large-count calls, the Start of a persistent
-               collective); the analysis then reports observed findings only. The Start of
+               MPI-IO, MPI-4 Isendrecv, partitioned, large-count and session calls, the Start of
+               a persistent collective); the analysis then reports observed findings only. The Start of
                a partitioned request the guard follows carries its req.
      site      id, obj, addr, base: a call site met for the first time, written just before
                the first record from it; records from user code carry site:id. obj is the
@@ -95,6 +95,21 @@
 #include <ucontext.h>
 #include <unistd.h>
 #include "../replay/pin.h"
+
+/* MPI-4 calls that the library declares. tracer/Makefile probes for them (STRETTO_PROBED), since
+   MPI_VERSION is not enough: Open MPI 5 says 3.1 and provides much of MPI 4.0, but not the
+   large-count calls. Built without the probes (the replay library), MPI_VERSION decides. */
+#ifdef STRETTO_PROBED
+#  ifdef STRETTO_HAVE_MPI4
+#    define STRETTO_MPI4 1
+#  endif
+#  ifdef STRETTO_HAVE_LARGE_COUNT
+#    define STRETTO_LARGE_COUNT 1
+#  endif
+#elif MPI_VERSION >= 4
+#  define STRETTO_MPI4 1
+#  define STRETTO_LARGE_COUNT 1
+#endif
 
 /* ------------------------------------------------------------------ state */
 /* The trace format, in the init record. 2 (22 Oct 2026): every member of a communicator
@@ -1243,7 +1258,7 @@ static pinfo *pers_find(MPI_Request r) {
 static void pers_remove(MPI_Request r) {
     for (int i = 0; i < g_npers; i++) if (g_preq[i] == r) { g_preq[i] = g_preq[--g_npers]; g_pinfo[i] = g_pinfo[g_npers]; break; }
 }
-#if MPI_VERSION >= 4
+#ifdef STRETTO_MPI4
 /* Partitioned requests (MPI-4) are not modelled, but with the guard on their buffers are
    followed (request kind 4): a receive buffer is MPI's from the Start, a received partition
    the program's again once MPI_Parrived reports it; a send partition is MPI's from its
@@ -1315,7 +1330,7 @@ static inline __attribute__((always_inline)) void start_one(MPI_Request *rp, voi
     int kind; MPI_Datatype dt;
     int id = req_start(r, &kind, &dt);
     pthread_mutex_lock(&g_mu); pinfo *pi = pers_find(r); pinfo copy; if (pi) copy = *pi; pthread_mutex_unlock(&g_mu);
-#if MPI_VERSION >= 4
+#ifdef STRETTO_MPI4
     partent part;
     if (!pi && kind == 4 && part_find(r, &part)) {
         REC(b, "unmodelled"); rb_printf(&b, ",\"call\":\"Start of a partitioned %s\",\"req\":%d", part.recv ? "receive" : "send", id); rb_emit(&b);
@@ -1598,7 +1613,7 @@ int MPI_Request_free(MPI_Request *req) {
     }
     req_remove(*req, req);
     pthread_mutex_lock(&g_mu); pers_remove(*req);
-#if MPI_VERSION >= 4
+#ifdef STRETTO_MPI4
     part_remove(*req);
 #endif
     pthread_mutex_unlock(&g_mu);
@@ -1807,7 +1822,7 @@ int MPI_Comm_dup_with_info(MPI_Comm c, MPI_Info info, MPI_Comm *n) { GUARD; int 
 
 /* ------------------------------------------------------- outside the model
    Communication the analysis does not model: one-sided windows, neighbourhood collectives,
-   dynamic processes, generalised requests and the MPI-4 calls below. Each call writes an
+   dynamic processes, generalised requests, MPI-IO and the MPI-4 calls below. Each call writes an
    "unmodelled" record, so that the loader knows the trace is not a complete record of the
    run's communication and the analysis reports observed findings only (the premise of
    theorem T1 in docs/model.md). */
@@ -1833,6 +1848,36 @@ int MPI_Comm_connect(const char *port, MPI_Info info, int root, MPI_Comm comm, M
 int MPI_Comm_accept(const char *port, MPI_Info info, int root, MPI_Comm comm, MPI_Comm *n) { UNMODELLED("Comm_accept", PMPI_Comm_accept(port, info, root, comm, n)); }
 int MPI_Comm_join(int fd, MPI_Comm *inter) { UNMODELLED("Comm_join", PMPI_Comm_join(fd, inter)); }
 int MPI_Grequest_start(MPI_Grequest_query_function *q, MPI_Grequest_free_function *f, MPI_Grequest_cancel_function *c, void *extra, MPI_Request *req) { UNMODELLED("Grequest_start", PMPI_Grequest_start(q, f, c, extra, req)); }
+/* MPI-IO: the collective calls (opening, closing, views, sizes, the _all, ordered and shared
+   pointer accesses) synchronise in the implementations and through the file's shared state, and
+   the library communicates underneath. Every use of a file starts with MPI_File_open, so a
+   program that does any I/O through MPI is marked; the independent reads and writes are not. */
+int MPI_File_open(MPI_Comm comm, const char *name, int amode, MPI_Info info, MPI_File *fh) { UNMODELLED("File_open", PMPI_File_open(comm, name, amode, info, fh)); }
+int MPI_File_close(MPI_File *fh) { UNMODELLED("File_close", PMPI_File_close(fh)); }
+int MPI_File_set_view(MPI_File fh, MPI_Offset disp, MPI_Datatype etype, MPI_Datatype ftype, const char *rep, MPI_Info info) { UNMODELLED("File_set_view", PMPI_File_set_view(fh, disp, etype, ftype, rep, info)); }
+int MPI_File_set_size(MPI_File fh, MPI_Offset size) { UNMODELLED("File_set_size", PMPI_File_set_size(fh, size)); }
+int MPI_File_preallocate(MPI_File fh, MPI_Offset size) { UNMODELLED("File_preallocate", PMPI_File_preallocate(fh, size)); }
+int MPI_File_set_atomicity(MPI_File fh, int flag) { UNMODELLED("File_set_atomicity", PMPI_File_set_atomicity(fh, flag)); }
+int MPI_File_sync(MPI_File fh) { UNMODELLED("File_sync", PMPI_File_sync(fh)); }
+int MPI_File_seek_shared(MPI_File fh, MPI_Offset off, int whence) { UNMODELLED("File_seek_shared", PMPI_File_seek_shared(fh, off, whence)); }
+int MPI_File_read_all(MPI_File fh, void *buf, int n, MPI_Datatype dt, MPI_Status *st) { UNMODELLED("File_read_all", PMPI_File_read_all(fh, buf, n, dt, st)); }
+int MPI_File_write_all(MPI_File fh, const void *buf, int n, MPI_Datatype dt, MPI_Status *st) { UNMODELLED("File_write_all", PMPI_File_write_all(fh, buf, n, dt, st)); }
+int MPI_File_read_at_all(MPI_File fh, MPI_Offset off, void *buf, int n, MPI_Datatype dt, MPI_Status *st) { UNMODELLED("File_read_at_all", PMPI_File_read_at_all(fh, off, buf, n, dt, st)); }
+int MPI_File_write_at_all(MPI_File fh, MPI_Offset off, const void *buf, int n, MPI_Datatype dt, MPI_Status *st) { UNMODELLED("File_write_at_all", PMPI_File_write_at_all(fh, off, buf, n, dt, st)); }
+int MPI_File_iread_all(MPI_File fh, void *buf, int n, MPI_Datatype dt, MPI_Request *req) { UNMODELLED("File_iread_all", PMPI_File_iread_all(fh, buf, n, dt, req)); }
+int MPI_File_iwrite_all(MPI_File fh, const void *buf, int n, MPI_Datatype dt, MPI_Request *req) { UNMODELLED("File_iwrite_all", PMPI_File_iwrite_all(fh, buf, n, dt, req)); }
+int MPI_File_iread_at_all(MPI_File fh, MPI_Offset off, void *buf, int n, MPI_Datatype dt, MPI_Request *req) { UNMODELLED("File_iread_at_all", PMPI_File_iread_at_all(fh, off, buf, n, dt, req)); }
+int MPI_File_iwrite_at_all(MPI_File fh, MPI_Offset off, const void *buf, int n, MPI_Datatype dt, MPI_Request *req) { UNMODELLED("File_iwrite_at_all", PMPI_File_iwrite_at_all(fh, off, buf, n, dt, req)); }
+int MPI_File_read_all_begin(MPI_File fh, void *buf, int n, MPI_Datatype dt) { UNMODELLED("File_read_all_begin", PMPI_File_read_all_begin(fh, buf, n, dt)); }
+int MPI_File_write_all_begin(MPI_File fh, const void *buf, int n, MPI_Datatype dt) { UNMODELLED("File_write_all_begin", PMPI_File_write_all_begin(fh, buf, n, dt)); }
+int MPI_File_read_at_all_begin(MPI_File fh, MPI_Offset off, void *buf, int n, MPI_Datatype dt) { UNMODELLED("File_read_at_all_begin", PMPI_File_read_at_all_begin(fh, off, buf, n, dt)); }
+int MPI_File_write_at_all_begin(MPI_File fh, MPI_Offset off, const void *buf, int n, MPI_Datatype dt) { UNMODELLED("File_write_at_all_begin", PMPI_File_write_at_all_begin(fh, off, buf, n, dt)); }
+int MPI_File_read_ordered(MPI_File fh, void *buf, int n, MPI_Datatype dt, MPI_Status *st) { UNMODELLED("File_read_ordered", PMPI_File_read_ordered(fh, buf, n, dt, st)); }
+int MPI_File_write_ordered(MPI_File fh, const void *buf, int n, MPI_Datatype dt, MPI_Status *st) { UNMODELLED("File_write_ordered", PMPI_File_write_ordered(fh, buf, n, dt, st)); }
+int MPI_File_read_ordered_begin(MPI_File fh, void *buf, int n, MPI_Datatype dt) { UNMODELLED("File_read_ordered_begin", PMPI_File_read_ordered_begin(fh, buf, n, dt)); }
+int MPI_File_write_ordered_begin(MPI_File fh, const void *buf, int n, MPI_Datatype dt) { UNMODELLED("File_write_ordered_begin", PMPI_File_write_ordered_begin(fh, buf, n, dt)); }
+int MPI_File_read_shared(MPI_File fh, void *buf, int n, MPI_Datatype dt, MPI_Status *st) { UNMODELLED("File_read_shared", PMPI_File_read_shared(fh, buf, n, dt, st)); }
+int MPI_File_write_shared(MPI_File fh, const void *buf, int n, MPI_Datatype dt, MPI_Status *st) { UNMODELLED("File_write_shared", PMPI_File_write_shared(fh, buf, n, dt, st)); }
 /* One-sided communication and synchronisation drive the library's progress, which may
    complete a pending receive into a guarded buffer: no record, only the guard's bracket. */
 #define BRACKET(call) do { GUARD; return call; } while (0)
@@ -1862,7 +1907,7 @@ int MPI_Win_complete(MPI_Win w) { BRACKET(PMPI_Win_complete(w)); }
 int MPI_Win_wait(MPI_Win w) { BRACKET(PMPI_Win_wait(w)); }
 int MPI_Win_test(MPI_Win w, int *flag) { BRACKET(PMPI_Win_test(w, flag)); }
 int MPI_Win_free(MPI_Win *w) { BRACKET(PMPI_Win_free(w)); }
-#if MPI_VERSION >= 4
+#ifdef STRETTO_MPI4
 int MPI_Isendrecv(const void *sb, int sn, MPI_Datatype sdt, int dst, int stag, void *rb, int rn, MPI_Datatype rdt, int src, int rtag, MPI_Comm comm, MPI_Request *req) { UNMODELLED("Isendrecv", PMPI_Isendrecv(sb, sn, sdt, dst, stag, rb, rn, rdt, src, rtag, comm, req)); }
 int MPI_Isendrecv_replace(void *buf, int n, MPI_Datatype dt, int dst, int stag, int src, int rtag, MPI_Comm comm, MPI_Request *req) { UNMODELLED("Isendrecv_replace", PMPI_Isendrecv_replace(buf, n, dt, dst, stag, src, rtag, comm, req)); }
 int MPI_Psend_init(const void *buf, int parts, MPI_Count n, MPI_Datatype dt, int dst, int tag, MPI_Comm comm, MPI_Info info, MPI_Request *req) {
@@ -1899,6 +1944,18 @@ int MPI_Parrived(MPI_Request req, int i, int *flag) {
     return rc;
 }
 int MPI_Comm_create_from_group(MPI_Group g, const char *stag, MPI_Info info, MPI_Errhandler eh, MPI_Comm *n) { UNMODELLED("Comm_create_from_group", PMPI_Comm_create_from_group(g, stag, info, eh, n)); }
+int MPI_Intercomm_create_from_groups(MPI_Group lg, int ll, MPI_Group rg, int rl, const char *stag, MPI_Info info, MPI_Errhandler eh, MPI_Comm *n) {
+    UNMODELLED("Intercomm_create_from_groups", PMPI_Intercomm_create_from_groups(lg, ll, rg, rl, stag, info, eh, n)); }
+/* The sessions model: a program that never calls MPI_Init opens no trace (open_trace runs from
+   MPI_Init), which the analysis reports as no rank file; one that calls both gets a record. */
+int MPI_Session_init(MPI_Info info, MPI_Errhandler eh, MPI_Session *s) {
+#ifndef STRETTO_PIN_ONLY
+    if (!g_out) fprintf(stderr, "stretto tracer: MPI_Session_init: a process that uses MPI sessions without MPI_Init is not traced\n");
+#endif
+    UNMODELLED("Session_init", PMPI_Session_init(info, eh, s));
+}
+#endif
+#ifdef STRETTO_LARGE_COUNT
 int MPI_Send_c(const void *b, MPI_Count n, MPI_Datatype dt, int dst, int tag, MPI_Comm comm) { UNMODELLED("Send_c", PMPI_Send_c(b, n, dt, dst, tag, comm)); }
 int MPI_Ssend_c(const void *b, MPI_Count n, MPI_Datatype dt, int dst, int tag, MPI_Comm comm) { UNMODELLED("Ssend_c", PMPI_Ssend_c(b, n, dt, dst, tag, comm)); }
 int MPI_Bsend_c(const void *b, MPI_Count n, MPI_Datatype dt, int dst, int tag, MPI_Comm comm) { UNMODELLED("Bsend_c", PMPI_Bsend_c(b, n, dt, dst, tag, comm)); }
@@ -1910,6 +1967,85 @@ int MPI_Irsend_c(const void *b, MPI_Count n, MPI_Datatype dt, int dst, int tag, 
 int MPI_Recv_c(void *b, MPI_Count n, MPI_Datatype dt, int src, int tag, MPI_Comm comm, MPI_Status *st) { UNMODELLED("Recv_c", PMPI_Recv_c(b, n, dt, src, tag, comm, st)); }
 int MPI_Irecv_c(void *b, MPI_Count n, MPI_Datatype dt, int src, int tag, MPI_Comm comm, MPI_Request *req) { UNMODELLED("Irecv_c", PMPI_Irecv_c(b, n, dt, src, tag, comm, req)); }
 int MPI_Sendrecv_c(const void *sb, MPI_Count sn, MPI_Datatype sdt, int dst, int stag, void *rb, MPI_Count rn, MPI_Datatype rdt, int src, int rtag, MPI_Comm comm, MPI_Status *st) { UNMODELLED("Sendrecv_c", PMPI_Sendrecv_c(sb, sn, sdt, dst, stag, rb, rn, rdt, src, rtag, comm, st)); }
+/* The other large-count calls that communicate, generated from the prototypes of MPICH 4.2.0:
+   collectives (blocking, nonblocking, persistent), neighbourhood collectives, persistent
+   point-to-point, the receive of a probed message, Sendrecv_replace, Isendrecv, windows. */
+int MPI_Allgather_c(const void *sendbuf, MPI_Count sendcount, MPI_Datatype sendtype, void *recvbuf, MPI_Count recvcount, MPI_Datatype recvtype, MPI_Comm comm) { UNMODELLED("Allgather_c", PMPI_Allgather_c(sendbuf, sendcount, sendtype, recvbuf, recvcount, recvtype, comm)); }
+int MPI_Allgather_init_c(const void *sendbuf, MPI_Count sendcount, MPI_Datatype sendtype, void *recvbuf, MPI_Count recvcount, MPI_Datatype recvtype, MPI_Comm comm, MPI_Info info, MPI_Request *request) { UNMODELLED("Allgather_init_c", PMPI_Allgather_init_c(sendbuf, sendcount, sendtype, recvbuf, recvcount, recvtype, comm, info, request)); }
+int MPI_Allgatherv_c(const void *sendbuf, MPI_Count sendcount, MPI_Datatype sendtype, void *recvbuf, const MPI_Count recvcounts[], const MPI_Aint displs[], MPI_Datatype recvtype, MPI_Comm comm) { UNMODELLED("Allgatherv_c", PMPI_Allgatherv_c(sendbuf, sendcount, sendtype, recvbuf, recvcounts, displs, recvtype, comm)); }
+int MPI_Allgatherv_init_c(const void *sendbuf, MPI_Count sendcount, MPI_Datatype sendtype, void *recvbuf, const MPI_Count recvcounts[], const MPI_Aint displs[], MPI_Datatype recvtype, MPI_Comm comm, MPI_Info info, MPI_Request *request) { UNMODELLED("Allgatherv_init_c", PMPI_Allgatherv_init_c(sendbuf, sendcount, sendtype, recvbuf, recvcounts, displs, recvtype, comm, info, request)); }
+int MPI_Allreduce_c(const void *sendbuf, void *recvbuf, MPI_Count count, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm) { UNMODELLED("Allreduce_c", PMPI_Allreduce_c(sendbuf, recvbuf, count, datatype, op, comm)); }
+int MPI_Allreduce_init_c(const void *sendbuf, void *recvbuf, MPI_Count count, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm, MPI_Info info, MPI_Request *request) { UNMODELLED("Allreduce_init_c", PMPI_Allreduce_init_c(sendbuf, recvbuf, count, datatype, op, comm, info, request)); }
+int MPI_Alltoall_c(const void *sendbuf, MPI_Count sendcount, MPI_Datatype sendtype, void *recvbuf, MPI_Count recvcount, MPI_Datatype recvtype, MPI_Comm comm) { UNMODELLED("Alltoall_c", PMPI_Alltoall_c(sendbuf, sendcount, sendtype, recvbuf, recvcount, recvtype, comm)); }
+int MPI_Alltoall_init_c(const void *sendbuf, MPI_Count sendcount, MPI_Datatype sendtype, void *recvbuf, MPI_Count recvcount, MPI_Datatype recvtype, MPI_Comm comm, MPI_Info info, MPI_Request *request) { UNMODELLED("Alltoall_init_c", PMPI_Alltoall_init_c(sendbuf, sendcount, sendtype, recvbuf, recvcount, recvtype, comm, info, request)); }
+int MPI_Alltoallv_c(const void *sendbuf, const MPI_Count sendcounts[], const MPI_Aint sdispls[], MPI_Datatype sendtype, void *recvbuf, const MPI_Count recvcounts[], const MPI_Aint rdispls[], MPI_Datatype recvtype, MPI_Comm comm) { UNMODELLED("Alltoallv_c", PMPI_Alltoallv_c(sendbuf, sendcounts, sdispls, sendtype, recvbuf, recvcounts, rdispls, recvtype, comm)); }
+int MPI_Alltoallv_init_c(const void *sendbuf, const MPI_Count sendcounts[], const MPI_Aint sdispls[], MPI_Datatype sendtype, void *recvbuf, const MPI_Count recvcounts[], const MPI_Aint rdispls[], MPI_Datatype recvtype, MPI_Comm comm, MPI_Info info, MPI_Request *request) { UNMODELLED("Alltoallv_init_c", PMPI_Alltoallv_init_c(sendbuf, sendcounts, sdispls, sendtype, recvbuf, recvcounts, rdispls, recvtype, comm, info, request)); }
+int MPI_Alltoallw_c(const void *sendbuf, const MPI_Count sendcounts[], const MPI_Aint sdispls[], const MPI_Datatype sendtypes[], void *recvbuf, const MPI_Count recvcounts[], const MPI_Aint rdispls[], const MPI_Datatype recvtypes[], MPI_Comm comm) { UNMODELLED("Alltoallw_c", PMPI_Alltoallw_c(sendbuf, sendcounts, sdispls, sendtypes, recvbuf, recvcounts, rdispls, recvtypes, comm)); }
+int MPI_Alltoallw_init_c(const void *sendbuf, const MPI_Count sendcounts[], const MPI_Aint sdispls[], const MPI_Datatype sendtypes[], void *recvbuf, const MPI_Count recvcounts[], const MPI_Aint rdispls[], const MPI_Datatype recvtypes[], MPI_Comm comm, MPI_Info info, MPI_Request *request) { UNMODELLED("Alltoallw_init_c", PMPI_Alltoallw_init_c(sendbuf, sendcounts, sdispls, sendtypes, recvbuf, recvcounts, rdispls, recvtypes, comm, info, request)); }
+int MPI_Bcast_c(void *buffer, MPI_Count count, MPI_Datatype datatype, int root, MPI_Comm comm) { UNMODELLED("Bcast_c", PMPI_Bcast_c(buffer, count, datatype, root, comm)); }
+int MPI_Bcast_init_c(void *buffer, MPI_Count count, MPI_Datatype datatype, int root, MPI_Comm comm, MPI_Info info, MPI_Request *request) { UNMODELLED("Bcast_init_c", PMPI_Bcast_init_c(buffer, count, datatype, root, comm, info, request)); }
+int MPI_Exscan_c(const void *sendbuf, void *recvbuf, MPI_Count count, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm) { UNMODELLED("Exscan_c", PMPI_Exscan_c(sendbuf, recvbuf, count, datatype, op, comm)); }
+int MPI_Exscan_init_c(const void *sendbuf, void *recvbuf, MPI_Count count, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm, MPI_Info info, MPI_Request *request) { UNMODELLED("Exscan_init_c", PMPI_Exscan_init_c(sendbuf, recvbuf, count, datatype, op, comm, info, request)); }
+int MPI_Gather_c(const void *sendbuf, MPI_Count sendcount, MPI_Datatype sendtype, void *recvbuf, MPI_Count recvcount, MPI_Datatype recvtype, int root, MPI_Comm comm) { UNMODELLED("Gather_c", PMPI_Gather_c(sendbuf, sendcount, sendtype, recvbuf, recvcount, recvtype, root, comm)); }
+int MPI_Gather_init_c(const void *sendbuf, MPI_Count sendcount, MPI_Datatype sendtype, void *recvbuf, MPI_Count recvcount, MPI_Datatype recvtype, int root, MPI_Comm comm, MPI_Info info, MPI_Request *request) { UNMODELLED("Gather_init_c", PMPI_Gather_init_c(sendbuf, sendcount, sendtype, recvbuf, recvcount, recvtype, root, comm, info, request)); }
+int MPI_Gatherv_c(const void *sendbuf, MPI_Count sendcount, MPI_Datatype sendtype, void *recvbuf, const MPI_Count recvcounts[], const MPI_Aint displs[], MPI_Datatype recvtype, int root, MPI_Comm comm) { UNMODELLED("Gatherv_c", PMPI_Gatherv_c(sendbuf, sendcount, sendtype, recvbuf, recvcounts, displs, recvtype, root, comm)); }
+int MPI_Gatherv_init_c(const void *sendbuf, MPI_Count sendcount, MPI_Datatype sendtype, void *recvbuf, const MPI_Count recvcounts[], const MPI_Aint displs[], MPI_Datatype recvtype, int root, MPI_Comm comm, MPI_Info info, MPI_Request *request) { UNMODELLED("Gatherv_init_c", PMPI_Gatherv_init_c(sendbuf, sendcount, sendtype, recvbuf, recvcounts, displs, recvtype, root, comm, info, request)); }
+int MPI_Iallgather_c(const void *sendbuf, MPI_Count sendcount, MPI_Datatype sendtype, void *recvbuf, MPI_Count recvcount, MPI_Datatype recvtype, MPI_Comm comm, MPI_Request *request) { UNMODELLED("Iallgather_c", PMPI_Iallgather_c(sendbuf, sendcount, sendtype, recvbuf, recvcount, recvtype, comm, request)); }
+int MPI_Iallgatherv_c(const void *sendbuf, MPI_Count sendcount, MPI_Datatype sendtype, void *recvbuf, const MPI_Count recvcounts[], const MPI_Aint displs[], MPI_Datatype recvtype, MPI_Comm comm, MPI_Request *request) { UNMODELLED("Iallgatherv_c", PMPI_Iallgatherv_c(sendbuf, sendcount, sendtype, recvbuf, recvcounts, displs, recvtype, comm, request)); }
+int MPI_Iallreduce_c(const void *sendbuf, void *recvbuf, MPI_Count count, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm, MPI_Request *request) { UNMODELLED("Iallreduce_c", PMPI_Iallreduce_c(sendbuf, recvbuf, count, datatype, op, comm, request)); }
+int MPI_Ialltoall_c(const void *sendbuf, MPI_Count sendcount, MPI_Datatype sendtype, void *recvbuf, MPI_Count recvcount, MPI_Datatype recvtype, MPI_Comm comm, MPI_Request *request) { UNMODELLED("Ialltoall_c", PMPI_Ialltoall_c(sendbuf, sendcount, sendtype, recvbuf, recvcount, recvtype, comm, request)); }
+int MPI_Ialltoallv_c(const void *sendbuf, const MPI_Count sendcounts[], const MPI_Aint sdispls[], MPI_Datatype sendtype, void *recvbuf, const MPI_Count recvcounts[], const MPI_Aint rdispls[], MPI_Datatype recvtype, MPI_Comm comm, MPI_Request *request) { UNMODELLED("Ialltoallv_c", PMPI_Ialltoallv_c(sendbuf, sendcounts, sdispls, sendtype, recvbuf, recvcounts, rdispls, recvtype, comm, request)); }
+int MPI_Ialltoallw_c(const void *sendbuf, const MPI_Count sendcounts[], const MPI_Aint sdispls[], const MPI_Datatype sendtypes[], void *recvbuf, const MPI_Count recvcounts[], const MPI_Aint rdispls[], const MPI_Datatype recvtypes[], MPI_Comm comm, MPI_Request *request) { UNMODELLED("Ialltoallw_c", PMPI_Ialltoallw_c(sendbuf, sendcounts, sdispls, sendtypes, recvbuf, recvcounts, rdispls, recvtypes, comm, request)); }
+int MPI_Ibcast_c(void *buffer, MPI_Count count, MPI_Datatype datatype, int root, MPI_Comm comm, MPI_Request *request) { UNMODELLED("Ibcast_c", PMPI_Ibcast_c(buffer, count, datatype, root, comm, request)); }
+int MPI_Iexscan_c(const void *sendbuf, void *recvbuf, MPI_Count count, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm, MPI_Request *request) { UNMODELLED("Iexscan_c", PMPI_Iexscan_c(sendbuf, recvbuf, count, datatype, op, comm, request)); }
+int MPI_Igather_c(const void *sendbuf, MPI_Count sendcount, MPI_Datatype sendtype, void *recvbuf, MPI_Count recvcount, MPI_Datatype recvtype, int root, MPI_Comm comm, MPI_Request *request) { UNMODELLED("Igather_c", PMPI_Igather_c(sendbuf, sendcount, sendtype, recvbuf, recvcount, recvtype, root, comm, request)); }
+int MPI_Igatherv_c(const void *sendbuf, MPI_Count sendcount, MPI_Datatype sendtype, void *recvbuf, const MPI_Count recvcounts[], const MPI_Aint displs[], MPI_Datatype recvtype, int root, MPI_Comm comm, MPI_Request *request) { UNMODELLED("Igatherv_c", PMPI_Igatherv_c(sendbuf, sendcount, sendtype, recvbuf, recvcounts, displs, recvtype, root, comm, request)); }
+int MPI_Ireduce_c(const void *sendbuf, void *recvbuf, MPI_Count count, MPI_Datatype datatype, MPI_Op op, int root, MPI_Comm comm, MPI_Request *request) { UNMODELLED("Ireduce_c", PMPI_Ireduce_c(sendbuf, recvbuf, count, datatype, op, root, comm, request)); }
+int MPI_Ireduce_scatter_c(const void *sendbuf, void *recvbuf, const MPI_Count recvcounts[], MPI_Datatype datatype, MPI_Op op, MPI_Comm comm, MPI_Request *request) { UNMODELLED("Ireduce_scatter_c", PMPI_Ireduce_scatter_c(sendbuf, recvbuf, recvcounts, datatype, op, comm, request)); }
+int MPI_Ireduce_scatter_block_c(const void *sendbuf, void *recvbuf, MPI_Count recvcount, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm, MPI_Request *request) { UNMODELLED("Ireduce_scatter_block_c", PMPI_Ireduce_scatter_block_c(sendbuf, recvbuf, recvcount, datatype, op, comm, request)); }
+int MPI_Iscan_c(const void *sendbuf, void *recvbuf, MPI_Count count, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm, MPI_Request *request) { UNMODELLED("Iscan_c", PMPI_Iscan_c(sendbuf, recvbuf, count, datatype, op, comm, request)); }
+int MPI_Iscatter_c(const void *sendbuf, MPI_Count sendcount, MPI_Datatype sendtype, void *recvbuf, MPI_Count recvcount, MPI_Datatype recvtype, int root, MPI_Comm comm, MPI_Request *request) { UNMODELLED("Iscatter_c", PMPI_Iscatter_c(sendbuf, sendcount, sendtype, recvbuf, recvcount, recvtype, root, comm, request)); }
+int MPI_Iscatterv_c(const void *sendbuf, const MPI_Count sendcounts[], const MPI_Aint displs[], MPI_Datatype sendtype, void *recvbuf, MPI_Count recvcount, MPI_Datatype recvtype, int root, MPI_Comm comm, MPI_Request *request) { UNMODELLED("Iscatterv_c", PMPI_Iscatterv_c(sendbuf, sendcounts, displs, sendtype, recvbuf, recvcount, recvtype, root, comm, request)); }
+int MPI_Ineighbor_allgather_c(const void *sendbuf, MPI_Count sendcount, MPI_Datatype sendtype, void *recvbuf, MPI_Count recvcount, MPI_Datatype recvtype, MPI_Comm comm, MPI_Request *request) { UNMODELLED("Ineighbor_allgather_c", PMPI_Ineighbor_allgather_c(sendbuf, sendcount, sendtype, recvbuf, recvcount, recvtype, comm, request)); }
+int MPI_Ineighbor_allgatherv_c(const void *sendbuf, MPI_Count sendcount, MPI_Datatype sendtype, void *recvbuf, const MPI_Count recvcounts[], const MPI_Aint displs[], MPI_Datatype recvtype, MPI_Comm comm, MPI_Request *request) { UNMODELLED("Ineighbor_allgatherv_c", PMPI_Ineighbor_allgatherv_c(sendbuf, sendcount, sendtype, recvbuf, recvcounts, displs, recvtype, comm, request)); }
+int MPI_Ineighbor_alltoall_c(const void *sendbuf, MPI_Count sendcount, MPI_Datatype sendtype, void *recvbuf, MPI_Count recvcount, MPI_Datatype recvtype, MPI_Comm comm, MPI_Request *request) { UNMODELLED("Ineighbor_alltoall_c", PMPI_Ineighbor_alltoall_c(sendbuf, sendcount, sendtype, recvbuf, recvcount, recvtype, comm, request)); }
+int MPI_Ineighbor_alltoallv_c(const void *sendbuf, const MPI_Count sendcounts[], const MPI_Aint sdispls[], MPI_Datatype sendtype, void *recvbuf, const MPI_Count recvcounts[], const MPI_Aint rdispls[], MPI_Datatype recvtype, MPI_Comm comm, MPI_Request *request) { UNMODELLED("Ineighbor_alltoallv_c", PMPI_Ineighbor_alltoallv_c(sendbuf, sendcounts, sdispls, sendtype, recvbuf, recvcounts, rdispls, recvtype, comm, request)); }
+int MPI_Ineighbor_alltoallw_c(const void *sendbuf, const MPI_Count sendcounts[], const MPI_Aint sdispls[], const MPI_Datatype sendtypes[], void *recvbuf, const MPI_Count recvcounts[], const MPI_Aint rdispls[], const MPI_Datatype recvtypes[], MPI_Comm comm, MPI_Request *request) { UNMODELLED("Ineighbor_alltoallw_c", PMPI_Ineighbor_alltoallw_c(sendbuf, sendcounts, sdispls, sendtypes, recvbuf, recvcounts, rdispls, recvtypes, comm, request)); }
+int MPI_Neighbor_allgather_c(const void *sendbuf, MPI_Count sendcount, MPI_Datatype sendtype, void *recvbuf, MPI_Count recvcount, MPI_Datatype recvtype, MPI_Comm comm) { UNMODELLED("Neighbor_allgather_c", PMPI_Neighbor_allgather_c(sendbuf, sendcount, sendtype, recvbuf, recvcount, recvtype, comm)); }
+int MPI_Neighbor_allgather_init_c(const void *sendbuf, MPI_Count sendcount, MPI_Datatype sendtype, void *recvbuf, MPI_Count recvcount, MPI_Datatype recvtype, MPI_Comm comm, MPI_Info info, MPI_Request *request) { UNMODELLED("Neighbor_allgather_init_c", PMPI_Neighbor_allgather_init_c(sendbuf, sendcount, sendtype, recvbuf, recvcount, recvtype, comm, info, request)); }
+int MPI_Neighbor_allgatherv_c(const void *sendbuf, MPI_Count sendcount, MPI_Datatype sendtype, void *recvbuf, const MPI_Count recvcounts[], const MPI_Aint displs[], MPI_Datatype recvtype, MPI_Comm comm) { UNMODELLED("Neighbor_allgatherv_c", PMPI_Neighbor_allgatherv_c(sendbuf, sendcount, sendtype, recvbuf, recvcounts, displs, recvtype, comm)); }
+int MPI_Neighbor_allgatherv_init_c(const void *sendbuf, MPI_Count sendcount, MPI_Datatype sendtype, void *recvbuf, const MPI_Count recvcounts[], const MPI_Aint displs[], MPI_Datatype recvtype, MPI_Comm comm, MPI_Info info, MPI_Request *request) { UNMODELLED("Neighbor_allgatherv_init_c", PMPI_Neighbor_allgatherv_init_c(sendbuf, sendcount, sendtype, recvbuf, recvcounts, displs, recvtype, comm, info, request)); }
+int MPI_Neighbor_alltoall_c(const void *sendbuf, MPI_Count sendcount, MPI_Datatype sendtype, void *recvbuf, MPI_Count recvcount, MPI_Datatype recvtype, MPI_Comm comm) { UNMODELLED("Neighbor_alltoall_c", PMPI_Neighbor_alltoall_c(sendbuf, sendcount, sendtype, recvbuf, recvcount, recvtype, comm)); }
+int MPI_Neighbor_alltoall_init_c(const void *sendbuf, MPI_Count sendcount, MPI_Datatype sendtype, void *recvbuf, MPI_Count recvcount, MPI_Datatype recvtype, MPI_Comm comm, MPI_Info info, MPI_Request *request) { UNMODELLED("Neighbor_alltoall_init_c", PMPI_Neighbor_alltoall_init_c(sendbuf, sendcount, sendtype, recvbuf, recvcount, recvtype, comm, info, request)); }
+int MPI_Neighbor_alltoallv_c(const void *sendbuf, const MPI_Count sendcounts[], const MPI_Aint sdispls[], MPI_Datatype sendtype, void *recvbuf, const MPI_Count recvcounts[], const MPI_Aint rdispls[], MPI_Datatype recvtype, MPI_Comm comm) { UNMODELLED("Neighbor_alltoallv_c", PMPI_Neighbor_alltoallv_c(sendbuf, sendcounts, sdispls, sendtype, recvbuf, recvcounts, rdispls, recvtype, comm)); }
+int MPI_Neighbor_alltoallv_init_c(const void *sendbuf, const MPI_Count sendcounts[], const MPI_Aint sdispls[], MPI_Datatype sendtype, void *recvbuf, const MPI_Count recvcounts[], const MPI_Aint rdispls[], MPI_Datatype recvtype, MPI_Comm comm, MPI_Info info, MPI_Request *request) { UNMODELLED("Neighbor_alltoallv_init_c", PMPI_Neighbor_alltoallv_init_c(sendbuf, sendcounts, sdispls, sendtype, recvbuf, recvcounts, rdispls, recvtype, comm, info, request)); }
+int MPI_Neighbor_alltoallw_c(const void *sendbuf, const MPI_Count sendcounts[], const MPI_Aint sdispls[], const MPI_Datatype sendtypes[], void *recvbuf, const MPI_Count recvcounts[], const MPI_Aint rdispls[], const MPI_Datatype recvtypes[], MPI_Comm comm) { UNMODELLED("Neighbor_alltoallw_c", PMPI_Neighbor_alltoallw_c(sendbuf, sendcounts, sdispls, sendtypes, recvbuf, recvcounts, rdispls, recvtypes, comm)); }
+int MPI_Neighbor_alltoallw_init_c(const void *sendbuf, const MPI_Count sendcounts[], const MPI_Aint sdispls[], const MPI_Datatype sendtypes[], void *recvbuf, const MPI_Count recvcounts[], const MPI_Aint rdispls[], const MPI_Datatype recvtypes[], MPI_Comm comm, MPI_Info info, MPI_Request *request) { UNMODELLED("Neighbor_alltoallw_init_c", PMPI_Neighbor_alltoallw_init_c(sendbuf, sendcounts, sdispls, sendtypes, recvbuf, recvcounts, rdispls, recvtypes, comm, info, request)); }
+int MPI_Reduce_c(const void *sendbuf, void *recvbuf, MPI_Count count, MPI_Datatype datatype, MPI_Op op, int root, MPI_Comm comm) { UNMODELLED("Reduce_c", PMPI_Reduce_c(sendbuf, recvbuf, count, datatype, op, root, comm)); }
+int MPI_Reduce_init_c(const void *sendbuf, void *recvbuf, MPI_Count count, MPI_Datatype datatype, MPI_Op op, int root, MPI_Comm comm, MPI_Info info, MPI_Request *request) { UNMODELLED("Reduce_init_c", PMPI_Reduce_init_c(sendbuf, recvbuf, count, datatype, op, root, comm, info, request)); }
+int MPI_Reduce_scatter_c(const void *sendbuf, void *recvbuf, const MPI_Count recvcounts[], MPI_Datatype datatype, MPI_Op op, MPI_Comm comm) { UNMODELLED("Reduce_scatter_c", PMPI_Reduce_scatter_c(sendbuf, recvbuf, recvcounts, datatype, op, comm)); }
+int MPI_Reduce_scatter_block_c(const void *sendbuf, void *recvbuf, MPI_Count recvcount, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm) { UNMODELLED("Reduce_scatter_block_c", PMPI_Reduce_scatter_block_c(sendbuf, recvbuf, recvcount, datatype, op, comm)); }
+int MPI_Reduce_scatter_block_init_c(const void *sendbuf, void *recvbuf, MPI_Count recvcount, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm, MPI_Info info, MPI_Request *request) { UNMODELLED("Reduce_scatter_block_init_c", PMPI_Reduce_scatter_block_init_c(sendbuf, recvbuf, recvcount, datatype, op, comm, info, request)); }
+int MPI_Reduce_scatter_init_c(const void *sendbuf, void *recvbuf, const MPI_Count recvcounts[], MPI_Datatype datatype, MPI_Op op, MPI_Comm comm, MPI_Info info, MPI_Request *request) { UNMODELLED("Reduce_scatter_init_c", PMPI_Reduce_scatter_init_c(sendbuf, recvbuf, recvcounts, datatype, op, comm, info, request)); }
+int MPI_Scan_c(const void *sendbuf, void *recvbuf, MPI_Count count, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm) { UNMODELLED("Scan_c", PMPI_Scan_c(sendbuf, recvbuf, count, datatype, op, comm)); }
+int MPI_Scan_init_c(const void *sendbuf, void *recvbuf, MPI_Count count, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm, MPI_Info info, MPI_Request *request) { UNMODELLED("Scan_init_c", PMPI_Scan_init_c(sendbuf, recvbuf, count, datatype, op, comm, info, request)); }
+int MPI_Scatter_c(const void *sendbuf, MPI_Count sendcount, MPI_Datatype sendtype, void *recvbuf, MPI_Count recvcount, MPI_Datatype recvtype, int root, MPI_Comm comm) { UNMODELLED("Scatter_c", PMPI_Scatter_c(sendbuf, sendcount, sendtype, recvbuf, recvcount, recvtype, root, comm)); }
+int MPI_Scatter_init_c(const void *sendbuf, MPI_Count sendcount, MPI_Datatype sendtype, void *recvbuf, MPI_Count recvcount, MPI_Datatype recvtype, int root, MPI_Comm comm, MPI_Info info, MPI_Request *request) { UNMODELLED("Scatter_init_c", PMPI_Scatter_init_c(sendbuf, sendcount, sendtype, recvbuf, recvcount, recvtype, root, comm, info, request)); }
+int MPI_Scatterv_c(const void *sendbuf, const MPI_Count sendcounts[], const MPI_Aint displs[], MPI_Datatype sendtype, void *recvbuf, MPI_Count recvcount, MPI_Datatype recvtype, int root, MPI_Comm comm) { UNMODELLED("Scatterv_c", PMPI_Scatterv_c(sendbuf, sendcounts, displs, sendtype, recvbuf, recvcount, recvtype, root, comm)); }
+int MPI_Scatterv_init_c(const void *sendbuf, const MPI_Count sendcounts[], const MPI_Aint displs[], MPI_Datatype sendtype, void *recvbuf, MPI_Count recvcount, MPI_Datatype recvtype, int root, MPI_Comm comm, MPI_Info info, MPI_Request *request) { UNMODELLED("Scatterv_init_c", PMPI_Scatterv_init_c(sendbuf, sendcounts, displs, sendtype, recvbuf, recvcount, recvtype, root, comm, info, request)); }
+int MPI_Bsend_init_c(const void *buf, MPI_Count count, MPI_Datatype datatype, int dest, int tag, MPI_Comm comm, MPI_Request *request) { UNMODELLED("Bsend_init_c", PMPI_Bsend_init_c(buf, count, datatype, dest, tag, comm, request)); }
+int MPI_Imrecv_c(void *buf, MPI_Count count, MPI_Datatype datatype, MPI_Message *message, MPI_Request *request) { UNMODELLED("Imrecv_c", PMPI_Imrecv_c(buf, count, datatype, message, request)); }
+int MPI_Isendrecv_c(const void *sendbuf, MPI_Count sendcount, MPI_Datatype sendtype, int dest, int sendtag, void *recvbuf, MPI_Count recvcount, MPI_Datatype recvtype, int source, int recvtag, MPI_Comm comm, MPI_Request *request) { UNMODELLED("Isendrecv_c", PMPI_Isendrecv_c(sendbuf, sendcount, sendtype, dest, sendtag, recvbuf, recvcount, recvtype, source, recvtag, comm, request)); }
+int MPI_Isendrecv_replace_c(void *buf, MPI_Count count, MPI_Datatype datatype, int dest, int sendtag, int source, int recvtag, MPI_Comm comm, MPI_Request *request) { UNMODELLED("Isendrecv_replace_c", PMPI_Isendrecv_replace_c(buf, count, datatype, dest, sendtag, source, recvtag, comm, request)); }
+int MPI_Mrecv_c(void *buf, MPI_Count count, MPI_Datatype datatype, MPI_Message *message, MPI_Status *status) { UNMODELLED("Mrecv_c", PMPI_Mrecv_c(buf, count, datatype, message, status)); }
+int MPI_Recv_init_c(void *buf, MPI_Count count, MPI_Datatype datatype, int source, int tag, MPI_Comm comm, MPI_Request *request) { UNMODELLED("Recv_init_c", PMPI_Recv_init_c(buf, count, datatype, source, tag, comm, request)); }
+int MPI_Rsend_init_c(const void *buf, MPI_Count count, MPI_Datatype datatype, int dest, int tag, MPI_Comm comm, MPI_Request *request) { UNMODELLED("Rsend_init_c", PMPI_Rsend_init_c(buf, count, datatype, dest, tag, comm, request)); }
+int MPI_Send_init_c(const void *buf, MPI_Count count, MPI_Datatype datatype, int dest, int tag, MPI_Comm comm, MPI_Request *request) { UNMODELLED("Send_init_c", PMPI_Send_init_c(buf, count, datatype, dest, tag, comm, request)); }
+int MPI_Sendrecv_replace_c(void *buf, MPI_Count count, MPI_Datatype datatype, int dest, int sendtag, int source, int recvtag, MPI_Comm comm, MPI_Status *status) { UNMODELLED("Sendrecv_replace_c", PMPI_Sendrecv_replace_c(buf, count, datatype, dest, sendtag, source, recvtag, comm, status)); }
+int MPI_Ssend_init_c(const void *buf, MPI_Count count, MPI_Datatype datatype, int dest, int tag, MPI_Comm comm, MPI_Request *request) { UNMODELLED("Ssend_init_c", PMPI_Ssend_init_c(buf, count, datatype, dest, tag, comm, request)); }
+int MPI_Win_allocate_c(MPI_Aint size, MPI_Aint disp_unit, MPI_Info info, MPI_Comm comm, void *baseptr, MPI_Win *win) { UNMODELLED("Win_allocate_c", PMPI_Win_allocate_c(size, disp_unit, info, comm, baseptr, win)); }
+int MPI_Win_allocate_shared_c(MPI_Aint size, MPI_Aint disp_unit, MPI_Info info, MPI_Comm comm, void *baseptr, MPI_Win *win) { UNMODELLED("Win_allocate_shared_c", PMPI_Win_allocate_shared_c(size, disp_unit, info, comm, baseptr, win)); }
+int MPI_Win_create_c(void *base, MPI_Aint size, MPI_Aint disp_unit, MPI_Info info, MPI_Comm comm, MPI_Win *win) { UNMODELLED("Win_create_c", PMPI_Win_create_c(base, size, disp_unit, info, comm, win)); }
 #endif
 /* MPI_Comm_idup: a nonblocking collective over the parent, recorded at the call as a comm
    record with id -1 and its request; the new communicator is valid once the request completes
@@ -1932,7 +2068,7 @@ int MPI_Comm_idup(MPI_Comm c, MPI_Comm *n, MPI_Request *req) {
     REC(b, "comm"); rb_printf(&b, ",\"name\":\"idup\",\"parent\":%d,\"id\":-1,\"req\":%d", comm_id(c), id); rb_emit(&b);
     return rc;
 }
-#if MPI_VERSION >= 4
+#ifdef STRETTO_MPI4
 int MPI_Comm_idup_with_info(MPI_Comm c, MPI_Info info, MPI_Comm *n, MPI_Request *req) {
     GUARD;
     int rc = PMPI_Comm_idup_with_info(c, info, n, req);

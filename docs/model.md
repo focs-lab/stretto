@@ -255,8 +255,11 @@ depend on B; no cancel succeeded in σ; and σ records every communication call 
 
 The report enforces the last premise as far as the trace shows it, and states observed findings
 only (with a note that names the reason) when it fails: a call the tracer marks `unmodelled`
-(one-sided windows, neighbourhood collectives, dynamic processes, generalised requests and the
-MPI-4 calls it does not model); a rank without a trace file; a receive that took a
+(one-sided windows, neighbourhood collectives, dynamic processes, generalised requests, MPI-IO,
+whose collective calls synchronise and whose library communicates underneath, and the MPI-4
+calls it does not model: large-count, partitioned, sessions, Isendrecv,
+Intercomm_create_from_groups; the tracer probes the MPI library for them rather than trusting
+MPI_VERSION); a rank without a trace file; a receive that took a
 message no send in the trace matches (a sender the tracer did not see, such as a Fortran
 library under Open MPI, which calls `PMPI_*` directly); and the tracer's message table
 overflowing, which leaves the receives of probed messages without their envelope. A
