@@ -22,11 +22,14 @@
 # usage: artifact/reproduce.sh <target> ...         (from any directory)
 #   CPUS     processors the containers may use (default: all of them)
 #   MEMORY   memory limit of a container (default 24g; Nekbone and the scale step get 48g)
-#   JOBS     programs run at a time in the corpus steps (default 6), replays in HYPRE's (4)
+#   JOBS     programs run at a time in the corpus steps (default 6), replays in HYPRE's (4) and in
+#            the HYPRE 3.2.0 and PETSc campaigns (2)
 #   NEKBONE  0: leave Nekbone out of rq1 and rq5 (it needs 48 GB and about an hour)
 #   SCALE    0: leave the runs from 16 to 64 processes out of rq5 (24 GB and about 80 minutes on 6 cores)
 #   MPIPRV   0: leave MPI-PRV out of rq2 (its image takes 24 GB of disk; the runs about 6 GB
 #            and 3.5 hours on four processors)
+#   NEWBUG   0: leave the HYPRE 3.2.0 and PETSc campaigns, the new bug, out of rq6 (their builds
+#            take 1.3 GB of disk, the runs about 10 hours)
 set -euo pipefail
 R="$(cd "$(dirname "$0")/.." && pwd)"; cd "$R"
 export IMAGE="${IMAGE:-stretto-exp:24.04}" CPUS="${CPUS:-0-$(($(nproc) - 1))}" DETACH=0
@@ -80,6 +83,19 @@ mpiprv() {
     box mpiprv-stretto python3 experiments/mpiprv/stretto_corpus.py
 }
 
+# the new bug of RQ6, HYPRE 3.2.0's ParaSails across pattern levels: hypre's ex5 with its level
+# count set, the same with even levels' requests under a tag of their own, and PETSc 3.26.0's KSP
+# tutorial ex2; traced runs and replays, untraced runs, NINJA and the scan, with the settings of
+# the committed tables (experiments/RUNBOOK.md, "Scouting current releases")
+newbug() {
+    [ "${NEWBUG:-1}" = 0 ] && return
+    local s="RUNS=10 STRESS_RUNS=40 TIMEOUT=30 JOBS=${JOBS:-2}"
+    once newbug box hypre32 bash -c "experiments/ninja/build.sh \
+        && experiments/hypre3/run.sh fetch build && $s experiments/hypre3/run.sh predict stress ninja \
+        && VARIANT=fix experiments/hypre3/run.sh fetch build && VARIANT=fix $s experiments/hypre3/run.sh predict stress ninja \
+        && experiments/petsc/run.sh fetch build && $s experiments/petsc/run.sh parasails stress ninja scan"
+}
+
 t_image() {
     docker build -t "$IMAGE" experiments/container
     experiments/container/check.sh "$IMAGE"
@@ -131,6 +147,7 @@ t_rq6() {
     box dealii bash -c "JOBS=${JOBS:-4} experiments/dealii/run.sh all"
     box ninja bash -c "experiments/ninja/build.sh && RUNS=10 experiments/ninja/campaign.sh calibrate \
         && experiments/ninja/campaign.sh hypre && NPS=16 RAND_DELAYS=50000 experiments/ninja/campaign.sh mg"
+    newbug
     amg
     nekbone
     claims 6
@@ -142,7 +159,7 @@ t_paper() {
         && $P > /dev/null && BIBINPUTS=. bibtex build/main > /dev/null && $P > /dev/null && $P > build/pdflatex.log && ls -l build/main.pdf'
 }
 
-[ $# -gt 0 ] || { sed -n '2,29p' "$0"; exit 2; }
+[ $# -gt 0 ] || { sed -n '2,32p' "$0"; exit 2; }
 for t in "$@"; do
     declare -F "t_$t" > /dev/null || { echo "unknown target: $t" >&2; exit 2; }
     log "start $t"

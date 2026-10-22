@@ -482,6 +482,14 @@ done (each 8-process `ex45` analysis takes about three minutes); to finish it, r
 `experiments/petsc/run.sh scan` (it starts the table afresh). There is no PETSc build with the
 fixed HYPRE, so the NINJA control of the fix was made on the HYPRE driver only.
 
+Rerunning both campaigns in full, as `artifact/reproduce.sh rq6` does (`NEWBUG=0` skips them),
+takes about ten hours at `JOBS=2`, an estimate from the run times the tables record and their
+run counts: about 2 hours for the traced runs and replays of `ex5`, 1 for its fixed variant, 1
+for the untraced runs and NINJA on both, 2.5 for PETSc's ParaSails step with its three drivers,
+0.5 for its untraced runs and NINJA, and 3 for the full scan, whose `ex45` analyses at 8
+processes take about three minutes each. The builds take 1.3 GB of disk (each HYPRE tree 0.2 GB,
+PETSc with its HYPRE 0.8 GB); traces are removed once analysed.
+
 ### MFEM 4.10 and deal.II 9.8.0: prepared, not run
 
 `experiments/mfem/run.sh` builds MFEM 4.10 (`sha256 d5aabe99...`) with METIS 4.0.3 and HYPRE

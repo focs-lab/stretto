@@ -30,13 +30,13 @@ NUMBERS = os.path.join(ROOT, "paper", "generated", "numbers.tex")
 RQ_OF = [
     (1, r"^nEsix|^nMBIReplay|^nAMGsample|^nNeksample|^nPin|^nReadsEsix|^nReadsReplay|^nValid"),
     (4, r"^nReads"),
-    (6, r"^n?Ninja(Hypre|Replica|MG)"),
+    (6, r"^n?Ninja(Hypre|Replica|MG|Petsc)"),
     (2, r"^n?NinjaMBI|^nMBIMUST|^nTsanLC|^(MBI|MBB)fone|^n(MBI|MBB)(tp|fn|fp|progs|notBuilt|correct|errors|race|Stress|Clean|OnlyStretto|LC)|^n?Guard|^n?Reps"
         r"|^n?PRV"),
     (3, r"^nEtwo|^B[a-z]+OMPI$"),
     (4, r"^n(MBI|MBB)(one|sp|obs)[A-Z]"),
     (5, r"^TraceOverhead|^LuAnalysis|^LuEvents|^AMGtime|^Nek(GB|Minutes|PerAlt|Records)|^nEfour|^n?Scale"),
-    (6, r"^nHypre|^BHypre|^nAMG|^nNek|^nDeal"),
+    (6, r"^nHypre|^BHypre|^nAMG|^nNek|^nDeal|^nPetsc|^BPetsc"),
 ]
 # numbers the inputs fix: a difference there is unexpected; every other number is a time or a
 # count taken from recorded runs, which depends on their schedule
@@ -44,7 +44,10 @@ FIXED = re.compile(r"^n(MBI|MBB)(progs|notBuilt|correct|errors|race)$|^B[a-z]+OM
                    r"|^n(MBI|MBB)Stress(Runs|Progs)$|^n(MBI|MBB)StressEager(Runs|Bytes|Err)$|^nHypre(Fixed)?(Traced|(Four|Eight)(Local)?Runs)$|^nHypreStressRuns$"
                    r"|^nMBBLC$|^nGuardLC(OMPI|MPICH)built$|^nGuardCases$|^nGuardAppRuns$"
                    r"|^nReps(Runs|Progs|Errors)$|^nDeal(Fixed)?Traced$|^nDealRanks$|^nDealStress(Plain|Delay)?Runs$"
-                   r"|^nNinja(Hypre|Replica|MG)[A-Za-z]*Runs$|^nNinjaMBIerrors$|^nTsanLC$"
+                   r"|^nNinja(Hypre|Replica|MG|Petsc)[A-Za-z]*Runs$|^nNinjaMBIerrors$|^nTsanLC$"
+                   r"|^n(HypreNew(Fix|All)?|Petsc)(Two|One)?Traced$|^n(HypreNew|Petsc)(Four|Eight)Runs$"
+                   r"|^nHypreNew(Fix|All)?Stress(Two(Delay)?)?Runs$|^nPetscStressTwo(Delay)?Runs$"
+                   r"|^B(HypreNewReply|PetscReply|PetscCross)$"
                    r"|^nScale(Traces|Sample|NpMin|NpMax)$"
                    r"|^nPRV(rqOne(Rounds|Props)|rqTwo(Configs|Absent|Matched)|adeptTraces|adept(Orig|Fixed)Runs"
                    r"|adept[A-Za-z]*(Pairs|Delayed)|probe[A-Za-z]*Runs|corpus|inScope|outScope|twins|apps|appConfigs)$"
@@ -240,6 +243,32 @@ def claims(n: dict) -> list:
           ["nNinjaHypreHang", "nNinjaHypreFixedRuns", "nNinjaHypreFixedHang"], lambda h, r, f: h > 0 and r > 0 and f == 0)
     claim(6, "deal.II 9.3.0, the fix: no trace has a cross alternative", ["nDealFixedTraced", "nDealFixedAlts"],
           lambda t, a: t > 0 and a == 0)
+    # the new bug: HYPRE 3.2.0's ParaSails across pattern levels (experiments/hypre3/, experiments/petsc/)
+    for p, drv in (("HypreNew", "hypre's ex5"), ("Petsc", "PETSc's ex2")):
+        claim(6, f"HYPRE 3.2.0, {drv}: every traced run at two levels predicts a cross-level probe alternative, "
+                 "and none at one level",
+              [f"n{p}TwoTraced", f"n{p}TwoExposed", f"n{p}OneTraced", f"n{p}OneExposed"],
+              lambda t, e, o, oe: t > 0 and t == e and o > 0 and oe == 0)
+        claim(6, f"HYPRE 3.2.0, {drv}: every cross-level replay hangs with every pin matched and is a run of the program",
+              [f"n{p}CrossAlts", f"n{p}CrossHang", f"n{p}CrossMatched", f"n{p}CrossValid"],
+              lambda a, h, m, v: a > 0 and a == h == m == v)
+        claim(6, f"HYPRE 3.2.0, {drv}: every control of a cross-level replay finishes and is a run of the program",
+              [f"n{p}CrossAlts", f"n{p}CrossControls", f"n{p}CrossControlsValid"], lambda a, c, v: a > 0 and a == c == v)
+        claim(6, f"HYPRE 3.2.0, {drv}: no plain or delayed run hangs", [f"n{p}StressTwoRuns", f"n{p}StressHang"],
+              lambda r, h: r > 0 and h == 0)
+    claim(6, "HYPRE 3.2.0, the scan: every trace with two or three levels has a cross-level alternative, none with one",
+          ["nPetscScanMultiTraced", "nPetscScanMultiExposed", "nPetscScanOneTraced", "nPetscScanOneExposed"],
+          lambda t, e, o, oe: t > 0 and t == e and o > 0 and oe == 0)
+    claim(6, "HYPRE 3.2.0: the cross-level alternative needs a reply buffered below Open MPI's default eager limit, "
+             "and on ex2 the check's bound is that reply's size",
+          ["BPetscCross", "BPetscReply", "BHypreNewReply", "BimplOMPI"],
+          lambda c, r, h, lim: c == r and max(c, h) < lim)
+    claim(6, "HYPRE 3.2.0 with a tag for even levels (the fix): no trace of ex5 has a cross-level alternative",
+          ["nHypreNewFixTraced", "nHypreNewFixExposed", "nHypreNewFixCrossAlts"], lambda t, e, a: t > 0 and e == 0 and a == 0)
+    claim(6, "HYPRE 3.2.0: NINJA hangs ex5 and ex2 in some runs",
+          ["nNinjaHypreNewHang", "nNinjaPetscRandomHang"], lambda a, b: a > 0 and b > 0)
+    claim(6, "PETSc 3.26.0: with the level count and no threshold no trace has a cross-level alternative",
+          ["nPetscNoThreshTwoTraced", "nPetscNoThreshTwoExposed"], lambda t, e: t > 0 and e == 0)
     claim(6, "HYPRE 2.10.1, a sample run again: every cross alternative hangs in a run of the program, every control finishes",
           ["nValidHypreReplays", "nValidHypreConfNew", "nValidHypreHungRuns"], lambda r, c, h: r > 0 and r == c == h)
     claim(6, "NPB MG 2.4.1, a sample run again: every replay finishes in a run of the program",

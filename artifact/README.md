@@ -19,7 +19,8 @@ and then checks the paper's claims against the numbers it produced (`artifact/cl
   (38 GB).
 - About 10 GB of disk: the experiment image is 0.9 GB, MUST's image 2.8 GB, the TeX image
   for the paper 5.3 GB, Nekbone's trace 1.2 GB. MPI-PRV's image (`rq2`, unless `MPIPRV=0`)
-  takes 24 GB more, and its runs about 6 GB.
+  takes 24 GB more, and its runs about 6 GB; the HYPRE 3.2.0 and PETSc builds (`rq6`, unless
+  `NEWBUG=0`) 1.3 GB.
 - Network access for `image` and `inputs` (the Ubuntu archive snapshot, GitHub, GitLab, the
   RWTH Aachen GitLab and the NAS web site).
 
@@ -64,7 +65,7 @@ used the image `ceb926607397` built on 7 Sep 2026.
 | RQ3, buffering | thresholds measured per send path; every replay at, below and above the predicted bound behaves as predicted | `rq3` | 1.5 h |
 | RQ4, levels | findings per level and class on the corpora | `rq4` | 1 h |
 | RQ5, cost | tracing overhead on NPB, analysis times of lu.A, AMG and Nekbone; from 16 to 64 processes every traced run of HYPRE, AMG and NPB LU and every analysis finishes, and every sampled replay and its control match their pins and finish | `rq5` | 8.5 h: 1.5 h for the timed leg (on an idle machine) and Nekbone, 7 h for the runs from 16 to 64 processes |
-| RQ6, real applications (table "HYPRE, ParaSails") | every cross alternative of HYPRE 2.10.1 hangs when replayed and every control finishes; the fix has none; stress testing never hangs; every cross alternative of deal.II 9.3.0-rc1 prints wrong values when replayed and 9.3.0 has none; NINJA hangs HYPRE 2.10.1 in some runs and the fix in none (NPB MG and NINJA's replica are rerun too) | `rq6` | 15 h |
+| RQ6, real applications (table "HYPRE, ParaSails") | every cross alternative of HYPRE 2.10.1 hangs when replayed and every control finishes; the fix has none; stress testing never hangs; every cross alternative of deal.II 9.3.0-rc1 prints wrong values when replayed and 9.3.0 has none; NINJA hangs HYPRE 2.10.1 in some runs and the fix in none (NPB MG and NINJA's replica are rerun too); the new bug in HYPRE 3.2.0: every two-level trace of hypre's `ex5` and of PETSc 3.26.0's unmodified `ex2` predicts a probe that takes the next level's request and no one-level trace does, as in every trace of the scan with two or three levels; every such replay hangs with its pins matched and is a run of the program, and every control finishes; no plain or delayed run hangs, while NINJA hangs both drivers in some runs; the reply the race needs buffered is smaller than Open MPI's default eager limit; with a tag for even levels no trace has the alternative; and PETSc's level count without a threshold gives none | `rq6` | 25 h: 15 h, and about 10 h for HYPRE 3.2.0 and PETSc (`NEWBUG=0` skips them) |
 
 Since 22 Oct 2026 the replays and controls of `rq1` and `rq6` run under the tracer, and each
 row says whether the run's own trace is one of the program without the pins. The claims that the
@@ -76,11 +77,13 @@ program", about eight hours on 12 cores).
 Each target reruns what its question needs, regenerates the tables and prints the claims of
 that question. RQ1 to RQ4 share one traced and analysed run of the corpora, AMG and Nekbone
 run once for RQ1, RQ5 and RQ6: a marker in `artifact/out/` (`corpora.done`, `amg.done`,
-`nekbone.done`, `scale.done` for the runs from 16 to 64 processes of RQ5, and `mpiprv.done`
-for MPI-PRV's in RQ2) records each, and removing the marker reruns the step. `all` runs every
-question. `NEKBONE=0` leaves Nekbone out, `SCALE=0` the runs from 16 to 64 processes, and
+`nekbone.done`, `scale.done` for the runs from 16 to 64 processes of RQ5, `mpiprv.done`
+for MPI-PRV's in RQ2, and `newbug.done` for the HYPRE 3.2.0 and PETSc campaigns of RQ6) records
+each, and removing the marker reruns the step. `all` runs every
+question. `NEKBONE=0` leaves Nekbone out, `SCALE=0` the runs from 16 to 64 processes,
 `MPIPRV=0` MPI-PRV: its artifact image (24 GB, pulled by digest) and the runs of
-`experiments/mpiprv/` (`experiments/mpiprv/README.md`).
+`experiments/mpiprv/` (`experiments/mpiprv/README.md`), and `NEWBUG=0` the HYPRE 3.2.0 and PETSc
+campaigns (`experiments/hypre3/`, `experiments/petsc/`).
 
 Before `rq1` to `rq6`, fetch and build the inputs:
 
@@ -123,6 +126,10 @@ threshold on instead of 51.
 - A few HYPRE runs on eight processes exited with status 15 in the paper's campaign, replays
   and controls alike, which plain runs did not reproduce; they count as neither hanging nor
   finishing.
+- Three of the committed PETSc tables are partial: the untraced runs stopped after the two-level
+  ones and 43 one-level runs, the scan with `ex45` complete at four processes only, and the
+  ParaSails step before the driver that gives the level count without a threshold, which a
+  first pass at a smaller grid covers instead. `rq6` runs them in full, so their counts grow.
 
 `artifact/claims.py --against OLD NEW` compares any two copies of the numbers, marking with
 `~` a difference in a count taken from the runs or in a time, and with `!` one in a number
@@ -135,7 +142,7 @@ the inputs fix.
 | `artifact/reproduce.sh`, `artifact/claims.py` | the targets above; the claims check |
 | `experiments/container/` | the image (`Dockerfile`, `versions.txt`, `check.sh`) and `run.sh`, which runs a command in it |
 | `experiments/run_remaining.sh` | the corpus steps (build, tests, MBI, MPI-BugBench, stress, buffering, explorer comparison, AMG, levels) |
-| `experiments/timing_leg.sh`, `experiments/amg/`, `experiments/nekbone/`, `experiments/hypre/` | the timed leg and the applications |
+| `experiments/timing_leg.sh`, `experiments/amg/`, `experiments/nekbone/`, `experiments/hypre/`, `experiments/hypre3/`, `experiments/petsc/` | the timed leg and the applications |
 | `experiments/results/` | the result tables; `docs/results.md` is generated from them |
 | `experiments/RUNBOOK.md` | how the paper's runs were done on a shared machine, and every variable the scripts read |
 | `third_party/fetch.sh` | the inputs at the pinned versions |
