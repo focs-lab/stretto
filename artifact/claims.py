@@ -299,6 +299,13 @@ def claims(n: dict) -> list:
              "and on ex2 the check's bound is that reply's size",
           ["BPetscCross", "BPetscReply", "BHypreNewReply", "BimplOMPI"],
           lambda c, r, h, lim: c == r and max(c, h) < lim, over=["BPetscReply", "BHypreNewReply", "BimplOMPI"])
+    claim(6, "HYPRE 3.2.0: the cross-level alternative needs more buffering than stress testing's forced-down "
+             "eager limit allows, and less than MPICH's default",
+          ["BPetscCross", "BHypreNewReply", "nMBIStressEagerBytes", "BimplMPICH"],
+          lambda c, h, e, m: min(c, h) > e and max(c, h) < m, over=["BPetscCross", "BHypreNewReply", "BimplMPICH"])
+    claim(6, "NPB MG and deal.II: random delays expose the documented race in some untraced runs",
+          ["nMGStressRuns", "nMGStressChanged", "nDealStressDelayRuns", "nDealStressDelayChanged"],
+          lambda mr, mc, dr, dc: 0 < mc <= mr and 0 < dc <= dr, over=["nMGStressRuns", "nDealStressDelayRuns"])
     claim(6, "HYPRE 3.2.0 with a tag for even levels (the fix): no trace of ex5 has a cross-level alternative",
           ["nHypreNewFixTraced", "nHypreNewFixExposed", "nHypreNewFixCrossAlts"], lambda t, e, a: t > 0 and e == 0 and a == 0,
           over=["nHypreNewFixTraced"])
