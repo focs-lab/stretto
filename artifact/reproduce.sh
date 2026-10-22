@@ -66,7 +66,8 @@ t_tables() { claims 1 2 3 4 5 6; }
 t_rq1() { corpora; box rq1 experiments/run_remaining.sh e6; amg; nekbone; claims 1; }
 t_rq2() {
     corpora
-    box rq2 experiments/run_remaining.sh stress
+    # stress testing at the default eager limits, then with the limit forced down
+    box rq2 experiments/run_remaining.sh stress stresseager
     # MUST runs in its own image, started from the host, with the corpus run's timeout
     for c in mbi mbb; do
         MUST_CPUS="$CPUS" python3 experiments/mbi/run_must.py "experiments/results/$c/$c.csv" --jobs 3 --timeout 60 2>&1 | tee -a "$OUT/rq2.log"

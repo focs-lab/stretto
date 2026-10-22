@@ -40,7 +40,7 @@ RQ_OF = [
 # numbers the inputs fix: a difference there is unexpected; every other number is a time or a
 # count taken from recorded runs, which depends on their schedule
 FIXED = re.compile(r"^n(MBI|MBB)(progs|notBuilt|correct|errors|race)$|^B[a-z]+OMPI$|^n(AMG|Nek)sample$|^nEfourReps$"
-                   r"|^nMBIStressRuns$|^nHypre(Fixed)?(Traced|(Four|Eight)(Local)?Runs)$|^nHypreStressRuns$"
+                   r"|^nMBIStressRuns$|^n(MBI|MBB)StressEager(Runs|Bytes|Err)$|^nHypre(Fixed)?(Traced|(Four|Eight)(Local)?Runs)$|^nHypreStressRuns$"
                    r"|^nMBBLC$|^nGuardLC(OMPI|MPICH)built$|^nGuardCases$|^nGuardAppRuns$"
                    r"|^nReps(Runs|Progs|Errors)$|^nDeal(Fixed)?Traced$|^nDealRanks$|^nDealStress(Plain|Delay)?Runs$"
                    r"|^nNinja(Hypre|Replica|MG)[A-Za-z]*Runs$|^nNinjaMBIerrors$|^nTsanLC$")
@@ -118,6 +118,12 @@ def claims(n: dict) -> list:
           ["nTsanLC", "nTsanLCtsanOnly"], lambda n, t: n > 0 and t == 0)
     claim(2, "every MBI error stress testing never exposes is predicted by Stretto from one run",
           ["nMBIStressErr", "nMBIStressFound", "nMBIStressPredMissed"], lambda e, f, p: e - f == p)
+    claim(2, "with the eager limit forced down, stress testing exposes every MBI error the default limits leave unexposed "
+          "but those that send to their own rank",
+          ["nMBIStressPredMissed", "nMBIStressEagerBufFound", "nMBIStressEagerPredMissed", "nMBIStressEagerPredMissedSelf"],
+          lambda m, f, s, ss: f > 0 and m == f + s and s == ss)
+    claim(2, "with the eager limit forced down, stress testing fails no correct MBI program",
+          ["nMBIStressEagerErr", "nMBIStressEagerFP"], lambda e, fp: e > 0 and fp == 0)
     claim(2, "on MPI-BugBench, Stretto's F1 is at least MUST's",
           ["MBBfoneunion", "MBBfoneMUST"], lambda s, m: s >= m)
     claim(2, "with the buffer guard, every MPI-BugBench local-concurrency program gets 3-local and nothing else changes",
