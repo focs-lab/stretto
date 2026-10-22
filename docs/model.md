@@ -136,8 +136,13 @@ whose first removed record is earliest in the Lamport times of the observed run 
 completion, and those come later, so a rank is usually processed once, at the cut where it
 ends, and a closure costs O(P² log n). The order is a heuristic, not a bound: rule 6 cuts at
 a receive's posting and rule 2 at the call of the wait that completes a receive, which can
-precede the removed send in that order, so a rank can be processed again, and since each
-lowering lands on a record the worst case is O(n P log n) per closure. Taken last in first
+precede the removed send in that order, so a rank can be processed again, up to once per
+record. Nor is O(P log n) a bound on one processing: the scan of rule 4 can visit every later
+collective of the rank, with all its members, and when the competitor a suffix query names is
+re-matched, dropped or the changed probe, rule 6 judges each pending receive of the suffix
+alone. The worst case proved is therefore quadratic in n per closure, and O(P log n) per
+lowering, O(P² log n) per closure in Lamport order and O(n P log n) per closure are what the
+measurements below show, not bounds (theorem T4). Taken last in first
 out, as before 22 Oct 2026, the closure of a probe of AMG's trace processed each rank 4.0
 times on average at 16 processes, 5.5 at 32 and 7.7 at 64, so that its cost grew with the
 trace (5, 27 and 190 ms); in Lamport order each rank once (2, 7 and 34 ms). The greatest
@@ -199,8 +204,10 @@ When the chain cuts p, the probe's own closure is computed instead (on AMG's tra
 and 64 processes, at B0 and at B = ∞, the chain never cut a probe; on random runs it does below
 B0, where the observed run is not realisable). Along a chain the cut of each rank only
 decreases, so the closures of all the
-probes of a rank together lower each rank at most once per record: O(n P log n) per rank and
-threshold, against that much per probe for unchained closures in the worst case. Tests:
+probes of a rank together lower each rank at most once per record, n lowerings per rank and
+threshold, against that many per probe for unchained closures in the worst case (each at the
+cost of one processing, O(P log n) as measured, more in the worst case: see the cost
+paragraph above). Tests:
 `closure_orders_agree` on the idioms, the module's traces, E6's random programs and random runs
 with many probes per rank (`C_ClosureOrderRandom`), and `test_probe_chain_that_cuts_the_probe`.
 
@@ -347,6 +354,22 @@ root-shaped collectives without a recorded root get no edges in `build_graph`, w
 horizon and the explorer treat them as barriers. The E6 generator cannot produce (a) or (b):
 it has no ssend, rsend, probes or Waitany, and never sends after a receive within a round.
 
+*What T1 does not cover: the fast check.* T1 is a statement about `feasible.check`. The report
+judges steals at blocking receives, probe alternatives and completion-order alternatives with
+`stretto.fast`, whose horizon is meant to be the same closure; that is tested, not proved (§2,
+cost). The audit of 22 Oct 2026 found it different in four ways, all repaired: it accepted a
+steal that a pending receive, posted before the changed one and left without its message,
+would deprive (`C_RematchedCompetitor`; an L1 claim no execution realises); its rule 4 kept
+completions of nonblocking collectives waited out of issue order, and of the other group of an
+intercommunicator (`C_CollectiveRule`; a horizon too large, and an acceptance the generic check
+rejects); the closure of a probe alternative cut the probe where the generic check keeps it
+(completeness only); and the report of an observed run failed when rule 6 deprived a probe
+under the single-path assumption. Random runs with these shapes (`C_FastEqualsGenericRandom`)
+find each of them, and the report now confirms the fast check's acceptances with
+`feasible.check` on traces of up to 1 000 records and with `--cross-check`. Above that size,
+and without the flag, an alternative the report states rests on the fast check agreeing with
+the generic one, which is evidence, not a theorem.
+
 **Theorem T2 (monotonicity in B).** Let B0 be the least threshold at which the observed
 matching is feasible. If a single-change alternative M' (one wildcard receive re-matched, §2)
 is feasible at B ≥ B0, then it is feasible at every B' > B, and the kept prefix at B' contains
@@ -428,14 +451,22 @@ k + 2 (T2 does not cover it).
 The check is thus quasi-linear per alternative for any number of changed receives; what grows
 with the number of changed receives is the number of alternatives, and the choice of which
 receives to change is the problem that is NP-complete in general (MOPPER's), which this work
-does not solve. The fast check (`stretto.fast`), for steals at blocking receives and for probe
-and completion-order alternatives, needs O(n log n) preparation per trace and the vector
-clocks per threshold, O((n + m) P), and then costs O(P log n) per lowering of a rank in its
-closure. A lowering lands on a record, so a closure costs at most O(n P log n), within a
-factor P of (ii), and O(P² log n) when each rank is lowered once, which the Lamport order of
-its worklist makes the usual case (§2, cost); the chained closures of a rank's probes cost
-O(n P log n) per threshold together (§2, probe closures). The bound of (ii) is the generic
-check's, whose worklist takes records, not ranks, and holds whatever the order.
+does not solve. The theorem is about the generic check, whose worklist takes records, not
+ranks, and whose bound (ii) holds whatever the order. The fast check (`stretto.fast`), for
+steals at blocking receives and for probe and completion-order alternatives, has no proved
+bound of that form, and its equality with the generic check is not proved either: both are
+measured (§2, cost: the tests, and the report's cross-check of its acceptances). It needs
+O(n log n) preparation per trace and the vector clocks per threshold, O((n + m) P). A
+lowering of a rank in its closure costs O(P log n) for the suffix-minimum queries, plus the
+scan of rule 4 over the rank's later collectives, up to all of them with all their members,
+plus, when the competitor a query names is re-matched, dropped or the changed probe, one
+rule-6 lookup per pending receive of the suffix; the matching-order test of a steal reads the
+wildcard and unmatched receives of the rank before the changed one. A lowering lands on a
+record, so a closure is at worst quadratic in n. The bounds stated before 22 Oct 2026, O(P log
+n) per lowering, O(n P log n) per closure (within a factor P of (ii)), O(P² log n) when each
+rank is lowered once, which the Lamport order of the worklist makes the usual case (§2, cost),
+and O(n P log n) per threshold for the chained closures of a rank's probes (§2, probe
+closures), describe what was measured on AMG's traces (§2), not what holds in general.
 *Sketch.* (i) by construction of `matching.candidates_full`; (ii) each rule of the closure is
 evaluated at the start and then once per record whose issue it depends on, records lose their
 issue at most once because cuts only decrease, and the cut states are ordered (index, issue
