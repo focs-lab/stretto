@@ -59,8 +59,8 @@ class Report:
 
     def status(self) -> str:
         """"complete", or "degraded:" and the reasons, comma-separated: missing-ranks,
-        tracer-overflow, unmatched-completions, guard-off, threads, unmodelled, ready-send,
-        explorer-skipped, explorer-incomplete, unconfirmed-rejections."""
+        tracer-overflow, unmatched-completions, creation-unknown, guard-off, threads, unmodelled,
+        ready-send, explorer-skipped, explorer-incomplete, unconfirmed-rejections."""
         return "complete" if not self.degraded else "degraded:" + ",".join(r for r, _ in self.degraded)
 
     def by_class(self, cls: str) -> List[Finding]:
@@ -146,13 +146,14 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
     finding when one of its witness executions respects the bounds (reads.witness_respects)."""
     rep = Report()
     rep.notes.extend(t.warnings)
-    if t.missing:
-        rep.degrade("missing-ranks", f"no trace file for ranks {t.missing}")
+    # what makes the trace an incomplete record of the run's communication (trace.Trace.incomplete:
+    # missing-ranks, unmatched-completions, the message table's tracer-overflow, ...); no
+    # alternative is predicted from it, below
+    for reason, detail in t.incomplete:
+        rep.degrade(reason, detail)
     if any("overflowed" in w for w in t.warnings):
+        # the site or guard table: call sites stop being named, or the guard stops following buffers
         rep.degrade("tracer-overflow", "a table of the tracer filled up: later records of its kind may be incomplete")
-    lost = sum(1 for w in t.warnings if "but no such send" in w)
-    if lost:
-        rep.degrade("unmatched-completions", f"{lost} receive(s) completed from a send the trace does not have")
     if t.truncated:
         rep.notes.append(f"ranks without a finalize record (run killed or hung): {t.truncated}")
     for rec in t.blocked_calls():
@@ -227,6 +228,7 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
         rep.degrade("guard-off", f"the buffer guard was off on ranks {off}")
 
     # ---- family 2: observed collective ordering
+    untraced = 0
     for cs in t.coll_sets():
         names = sorted({c.name for c in cs})
         members = t.comm_members.get(cs[0].comm, [])
@@ -234,15 +236,26 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
             rep.findings.append(Finding("2", "2-collective", "observed",
                                         f"collective #{cs[0].ordinal} on comm {cs[0].comm}: ranks disagree {names}"))
         elif members and len(cs) != len(members) and all(c.completed for c in cs):
+            if set(members) - {c.rank for c in cs} <= set(t.missing):
+                untraced += 1            # the ranks without a trace file: the trace is incomplete, not the program
+                continue
             rep.findings.append(Finding("2", "2-collective", "observed",
                                         f"collective {cs[0].name} #{cs[0].ordinal} on comm {cs[0].comm}: only {len(cs)} of {len(members)} ranks issued it"))
+    if untraced:
+        rep.notes.append(f"{untraced} collective(s) lack only ranks without a trace file: the trace is incomplete, "
+                         "so they are not reported as 2-collective")
 
-    # ---- under MPI_THREAD_MULTIPLE a rank's records come from several threads, so its
-    # program order is not total and no alternative can be certified from it
+    # ---- a rank whose records come from several threads (MPI_THREAD_MULTIPLE, SERIALIZED, or a
+    # misused FUNNELED): its call order depends on the threads' scheduling, not only on its
+    # results, so its program order is not total and no alternative can be certified from it
     multi = [rank for rank, n in t.threads.items() if n > 1]
-    if t.thread_level >= 3 and multi:
-        rep.notes.append(f"MPI_THREAD_MULTIPLE with several calling threads on ranks {multi}: per-rank program order is not total, alternatives are not predicted (observed findings only)")
-        rep.degrade("threads", f"several calling threads on ranks {multi}: alternatives not predicted")
+    if multi:
+        if t.thread_level >= 3:
+            rep.notes.append(f"MPI_THREAD_MULTIPLE with several calling threads on ranks {multi}: per-rank program order is not total, alternatives are not predicted (observed findings only)")
+        else:
+            rep.notes.append(f"several threads called MPI on ranks {multi} (thread level {t.thread_level}): per-rank program "
+                             "order is not total, alternatives are not predicted (observed findings only)")
+        rep.degrade("threads", f"several calling threads on ranks {multi} (thread level {t.thread_level}): alternatives not predicted")
         return rep
     # ---- communication outside the modelled fragment (one-sided, neighbourhood collectives,
     # dynamic processes, MPI-4 calls the tracer does not model): the trace is not a complete
@@ -253,6 +266,13 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
         rep.notes.append(f"calls outside the modelled fragment on ranks {ranks}: {', '.join(calls)}; "
                          "alternatives are not predicted (observed findings only)")
         rep.degrade("unmodelled", f"calls outside the modelled fragment ({', '.join(calls)}): alternatives not predicted")
+        return rep
+    # ---- a trace that is not a complete record of the run's communication (a rank without a
+    # file, messages from senders that were not traced, a tracer table that overflowed): the
+    # happens-before lacks edges, which theorem T1 needs
+    if t.incomplete:
+        rep.notes.append("the trace is incomplete: " + "; ".join(d for _, d in t.incomplete)
+                         + "; alternatives are not predicted (observed findings only)")
         return rep
     # ---- family 2: ready sends the run issued before their receive was posted (erroneous). The
     # observed graph is then cyclic at every threshold: no B0 for theorem T2, no vector clocks,

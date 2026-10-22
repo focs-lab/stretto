@@ -14,17 +14,27 @@ from stretto.matching import Overlay, build_graph, observed_hb, probe_candidates
 from stretto.report import _completion_alternatives
 from stretto.feasible import check, feasible_profile, observed_feasible_at, profile_summary
 from stretto.matching import candidates_full
-from stretto.report import analyze
+from stretto.report import analyze, classify
 import reference
 
 
-def mk(raw_ranks, np=None):
+def mk(raw_ranks, np=None, version=None):
+    """version 2: the trace format in which every member of a communicator creation records it,
+    MPI_COMM_NULL results included (tracer since 22 Oct 2026)."""
     t = T.Trace()
     np = np or len(raw_ranks)
+    init = {"op": "init", "np": np, **({"version": version} if version else {})}
     for rank in raw_ranks:
-        raw_ranks[rank] = [{"op": "init", "np": np}] + raw_ranks[rank] + [{"op": "finalize"}]
+        raw_ranks[rank] = [dict(init)] + raw_ranks[rank] + [{"op": "finalize"}]
     T._build(t, raw_ranks)
     return t
+
+
+def comm(name, ranks, id=2, parent=0, gord=1, **kw):
+    """A communicator creation record; ranks None: this member obtained MPI_COMM_NULL."""
+    if ranks is None:
+        return {"op": "comm", "name": name, "parent": parent, "id": -1, **kw}
+    return {"op": "comm", "name": name, "parent": parent, "id": id, "ranks": list(ranks), "gord": gord, **kw}
 
 
 def send(dst, tag, count=1, mode="std", req=None, comm=0):
@@ -181,6 +191,16 @@ class C7_ProcNull(unittest.TestCase):
         self.assertEqual(analyze(t, with_sp=False).by_class("1f"), [])
 
 
+    def test_procnull_probe_is_not_a_wildcard(self):
+        # a probe of MPI_PROC_NULL returns at once: it was loaded as an ANY_SOURCE probe, which
+        # a contained deadlock would treat as waiting for any message
+        p = {"op": "probe", "kind": "probe", "src": -1, "procnull": 1, "tag": -1, "anytag": 1, "comm": 0, "flag": 1,
+             "msrc": -2, "mtag": -1, "mbytes": 0}
+        t = mk({0: [p, recv(1, 1, 1, 1)], 1: [send(0, 1)]})
+        self.assertEqual(t.probes, {})
+        self.assertEqual(t.observed, {(0, 0): (1, 0)})
+
+
 class C9_UnwaitedRequest(unittest.TestCase):
     def test_no_fabricated_rendezvous_edge(self):
         # rank 0: Isend(->1, 4000B) never waited; Recv(1). rank 1: Send(->0); Recv(0)
@@ -275,9 +295,101 @@ class C_CommFree(unittest.TestCase):
     def test_free_record_does_not_remap(self):
         c = {"op": "comm", "name": "create", "parent": 0, "id": 2, "ranks": [0, 1], "gord": 1}
         free = {"op": "comm", "name": "free", "parent": -1, "id": 2}
-        t = mk({0: [c, coll("allgather", comm=2), free], 1: [c, coll("allgather", comm=2), free]})
+        t = mk({0: [c, coll("allgather", comm=2), free], 1: [c, coll("allgather", comm=2), free]}, version=2)
         self.assertEqual(analyze(t, with_sp=False).by_class("2-collective"), [])
+        sub = t.colls[1].comm
+        # the creation is a collective of the parent, the release one of the communicator freed
+        self.assertEqual([[(c.name, c.comm, c.ordinal) for c in cs][0] for cs in t.coll_sets()],
+                         [("comm_create", 0, 0), ("allgather", sub, 0), ("comm_free", sub, 1)])
+
+
+class C_CommunicatorCreation(unittest.TestCase):
+    """Creating a communicator is collective over its parent (MPI 4.1 §7.4); the model treats
+    it as a barrier, which an accepted alternative may rely on (audit of 22 Oct 2026)."""
+
+    @staticmethod
+    def witness(records=True):
+        # rank 0: Recv r(ANY) <- s2, Comm_split, Recv(1) <- s. Rank 1: Comm_split, Send s.
+        # Rank 2: Send s2, Comm_split. r <- s needs rank 1 out of its split before rank 0 has
+        # entered its own, which no implementation does: the split's result depends on rank 0
+        sp = [comm("split", [0, 1, 2])] if records else []
+        return mk({0: [recv(T.ANY, 1, 2, 1, widx=0), *sp, recv(1, 1, 1, 1)],
+                   1: [*sp, send(0, 1)], 2: [send(0, 1), *sp]}, version=2)
+
+    def test_split_orders_the_steal(self):
+        t = self.witness()
+        self.assertEqual({c.name for c in t.colls}, {"comm_split"})
         self.assertEqual(len(t.coll_sets()), 1)
+        # the enumeration prunes the pair (s follows r's completion through the split), and the
+        # check rejects it: rank 0 never reaches its split, so rank 1 never leaves its own
+        alts, pruned = candidates_full(t)
+        self.assertFalse([a for a in alts if a.recv == (0, 0) and a.send == (1, 0)])
+        self.assertIn(f"{t.recvs[(0, 0)]} <- {t.sends[(1, 0)]}", [d for d, _ in pruned])
+        M = Overlay(t.observed, {(0, 0): (1, 0)}, [(0, 1)])
+        self.assertFalse(check(t, M, {(0, 0)}, None, "L1").feasible)
+        self.assertFalse([f for f in analyze(t, with_sp=False).findings if f.recv == (0, 0) and f.send == (1, 0)])
+        fast_equals_generic(self, t)
+
+    def test_the_same_run_without_the_split_accepts(self):
+        t = self.witness(records=False)
+        self.assertTrue([f for f in analyze(t, with_sp=False).findings if f.recv == (0, 0) and f.send == (1, 0)])
+
+    def test_null_result_takes_part(self):
+        # rank 0 passes MPI_UNDEFINED: it records the call (version 2) and is a member of the barrier
+        t = mk({0: [comm("split", None)], 1: [comm("split", [1, 2])], 2: [comm("split", [1, 2])]}, version=2)
+        cs = t.coll_sets()
+        self.assertEqual([[c.rank for c in s] for s in cs], [[0, 1, 2]])
+        self.assertEqual(analyze(t, with_sp=False).by_class("2-collective"), [])
+
+    def test_legacy_trace_without_null_results(self):
+        # a trace of the tracer before 22 Oct 2026: rank 0's MPI_COMM_NULL left no record, so
+        # who took part is unknown, and nothing is predicted (idiom 12, AMG)
+        t = mk({0: [recv(T.ANY, 1, 1, 1, widx=0), recv(T.ANY, 1, 2, 1, widx=1)],
+                1: [comm("split", [1, 2]), send(0, 1)], 2: [comm("split", [1, 2]), send(0, 1)]})
+        self.assertEqual(t.colls, [])
+        self.assertTrue(any(r == "creation-unknown" and "MPI_Comm_split" in d and "MPI_COMM_NULL" in d
+                            for r, d in t.incomplete), t.incomplete)
+        rep = analyze(t, with_sp=False)
+        self.assertEqual([f for f in rep.findings if f.level != "observed"], [])
+        self.assertEqual(rep.status(), "degraded:creation-unknown")
+        self.assertEqual(rep.by_class("2-collective"), [])
+
+    def test_legacy_dup_is_modelled(self):
+        # MPI_Comm_dup never returns MPI_COMM_NULL: every member recorded it in any trace
+        t = mk({r: [comm("dup", [0, 1])] for r in range(2)})
+        self.assertEqual(t.incomplete, [])
+        self.assertEqual([c.name for c in t.colls], ["comm_dup", "comm_dup"])
+
+    def test_idup_is_a_nonblocking_collective(self):
+        # since 22 Oct 2026 the tracer records MPI_Comm_idup at its call, with its request, and
+        # registers the communicator at the completion (inside the wait)
+        def start():
+            return {"op": "comm", "name": "idup", "parent": 0, "id": -1, "req": 4}
+
+        def done():
+            return [comm("idup", [0, 1], req=4), {"op": "wait", "kind": "wait", "reqs": [4], "done": [{"req": 4}]}]
+        t = mk({0: [start(), send(1, 1), *done()], 1: [start(), recv(0, 1, 0, 1), *done()]}, version=2)
+        c = next(c for c in t.colls if c.rank == 0)
+        self.assertEqual((c.name, c.idx, c.complete_idx, c.completed), ("comm_idup", 1, 4, True))
+        self.assertEqual(len(t.colls), 2)
+        prog = dsl.program_from_trace(t)
+        self.assertEqual(prog[0][0], dsl.Coll("comm_idup", 0, "q4"))
+        self.assertEqual(explore.explore(prog, None, comms=t.comm_members).kinds(), {"done"})
+
+    def test_legacy_idup_at_its_completion(self):
+        reg = comm("idup", [0, 1])
+        t = mk({0: [send(1, 1), reg, {"op": "wait", "kind": "wait", "reqs": [4], "done": [{"req": 4}]}],
+                1: [recv(0, 1, 0, 1), reg, {"op": "wait", "kind": "wait", "reqs": [4], "done": [{"req": 4}]}]})
+        self.assertEqual([(c.name, c.idx, c.completed) for c in t.colls], [("comm_idup", 2, True)] * 2)
+
+    def test_intercommunicator_creation_is_collective_over_both_groups(self):
+        # gord 1: the member set of MPI_COMM_WORLD was registered first (gord 0)
+        left = {"op": "comm", "name": "intercomm", "parent": 0, "id": 2, "inter": 1, "ranks": [2, 3], "local": [0, 1], "members": [0, 1, 2, 3], "gord": 1}
+        right = {"op": "comm", "name": "intercomm", "parent": 0, "id": 2, "inter": 1, "ranks": [0, 1], "local": [2, 3], "members": [0, 1, 2, 3], "gord": 1}
+        t = mk({0: [left], 1: [left], 2: [right], 3: [right]}, version=2)
+        (cs,) = t.coll_sets()
+        self.assertEqual([c.rank for c in cs], [0, 1, 2, 3])
+        self.assertEqual(t.comm_members[cs[0].comm], [0, 1, 2, 3])
 
 
 class C_ObservedOrphanAndSpin(unittest.TestCase):
@@ -336,15 +448,16 @@ class C_ProgramFromTrace(unittest.TestCase):
         c = {"op": "comm", "name": "split", "parent": 0, "id": 2, "ranks": [1, 2], "gord": 0}
         return mk({0: [dict(c, id=2, ranks=[0]), {**send(-2, 1), "procnull": 1}, send(1, 5)],
                    1: [c, {**recv(0, 1, 1, 1, comm=2), "anysrc": 1}, coll("barrier", comm=2), recv(0, 5, 0, 5)],
-                   2: [c, send(0, 1, comm=2), coll("barrier", comm=2)]})
+                   2: [c, send(0, 1, comm=2), coll("barrier", comm=2)]}, version=2)
 
     def test_world_ranks_and_global_comms(self):
         t = self._split()
         prog = dsl.program_from_trace(t)
-        self.assertEqual(len(prog[0]), 1)                       # the PROC_NULL send is not an operation
-        s = prog[2][0]
+        # the split, a collective of MPI_COMM_WORLD, and the send to 1; the PROC_NULL send is not an operation
+        self.assertEqual(prog[0], [dsl.Coll("comm_split", 0), dsl.Send(1, 5, 4, 0)])
+        s = prog[2][1]
         self.assertEqual((s.dst, s.comm), (1, t.sends[(2, 0)].comm))
-        r = prog[1][0]
+        r = prog[1][1]
         self.assertEqual((r.src, r.comm), (dsl.ANY, t.recvs[(1, 0)].comm))
         res = explore.explore(prog, None, comms=t.comm_members)
         self.assertEqual(res.kinds(), {"done"})
@@ -560,6 +673,15 @@ class C_CancelAndMprobe(unittest.TestCase):
         alt = next(a for a in candidates_full(t)[0] if a.send == (1, 1))
         self.assertTrue(check(t, alt.M, alt.changed, None, "L1").feasible)
 
+    def test_cancelled_send_is_not_in_the_observed_matching(self):
+        # rank 1 cancels its first message (the cancel succeeds), then sends another with the
+        # same envelope: the receive took the second, which is therefore not an orphan
+        t = mk({0: [recv(1, 0, 1, 0)],
+                1: [send(0, 0, mode="isend", req=0), {"op": "cancel", "req": 0},
+                    {"op": "wait", "kind": "wait", "reqs": [0], "done": [{"req": 0, "cancelled": 1}]}, send(0, 0)]})
+        self.assertEqual(t.observed, {(0, 0): (1, 1)})
+        self.assertFalse([f for f in analyze(t, with_sp=False).findings if f.cls == "1c"])
+
     def test_mprobe_removes_the_message_from_the_queue(self):
         # rank 0 mprobes rank 1's message, then posts a wildcard that rank 2 serves, then
         # mrecvs the probed message: the wildcard could not have taken rank 1's message
@@ -569,6 +691,90 @@ class C_CancelAndMprobe(unittest.TestCase):
         self.assertEqual(t.observed, {(0, 0): (2, 0), (0, 1): (1, 0)})
         self.assertEqual(t.sends[(1, 0)].reserved_idx, t.probes[(0, 0)].idx)
         self.assertEqual(candidates_full(t)[0], [])
+
+
+class C_Cancellation(unittest.TestCase):
+    """The model has no cancel: a run in which a cancel succeeded, or whose outcome the trace
+    does not have, is reported with observed findings only (audit of 22 Oct 2026)."""
+
+    @staticmethod
+    def witness(outcome):
+        # rank 1 posts s_c and s with one envelope, receives y, and only then cancels s_c. The
+        # steal r <- s is infeasible: r accepts s_c, which precedes s and is still pending when
+        # r matches (the cancel needs y, and y needs r). The fast and generic checks skip the
+        # cancelled send as if it had never been posted, so they accept the steal.
+        done = {"req": 0} if outcome is None else {"req": 0, "cancelled": outcome}
+        r1 = [send(0, 0, mode="isend", req=0), send(0, 0, mode="isend", req=1), recv(0, 9, 0, 9),
+              {"op": "cancel", "req": 0}]
+        r1 += [{"op": "wait", "kind": "wait", "reqs": [0], "done": [done]}, wait((1, None, None))] if outcome is not None else [wait((1, None, None))]
+        r0 = [recv(T.ANY, T.ANY, 2, 7, widx=0), send(1, 9)] + ([recv(1, 0, 1, 0)] if outcome == 0 else []) + [recv(1, 0, 1, 0)]
+        return mk({0: r0, 1: r1, 2: [send(0, 7)]})
+
+    def test_successful_cancel_gives_observed_findings_only(self):
+        t = self.witness(1)
+        self.assertEqual(t.unmodelled, [(1, "Cancel (succeeded)")])
+        alt = next(a for a in candidates_full(t)[0] if a.recv == (0, 0) and a.send == (1, 1))
+        self.assertTrue(check(t, alt.M, alt.changed, None, "L1").feasible, "the model accepts what MPI cannot do")
+        rep = analyze(t, with_sp=False)
+        self.assertEqual([f for f in rep.findings if f.level != "observed"], [])
+        self.assertTrue(any("Cancel (succeeded)" in n and "observed findings only" in n for n in rep.notes), rep.notes)
+
+    def test_cancel_without_a_recorded_outcome(self):
+        t = self.witness(None)
+        self.assertEqual(t.unmodelled, [(1, "Cancel (outcome not recorded)")])
+
+    def test_failed_cancel_changes_nothing(self):
+        t = self.witness(0)
+        self.assertEqual(t.unmodelled, [])
+        self.assertFalse(t.sends[(1, 0)].cancelled)
+        self.assertTrue([f for f in analyze(t, with_sp=False).findings if f.level == "L1"])
+
+    def test_successful_cancel_of_a_receive(self):
+        # rank 0 cancels a pending Irecv(ANY, 5) that rank 2's message would have reached
+        t = mk({0: [irecv(T.ANY, 5, 0), recv(T.ANY, T.ANY, 1, 7, widx=0), {"op": "cancel", "req": 0},
+                    {"op": "wait", "kind": "wait", "reqs": [0], "done": [{"req": 0, "msrc": None, "mtag": None, "mcount": None, "cancelled": 1}]},
+                    recv(2, 5, 2, 5)],
+                1: [send(0, 7)], 2: [send(0, 5)]})
+        self.assertTrue(t.recvs[(0, 0)].cancelled)
+        self.assertEqual(t.unmodelled, [(0, "Cancel (succeeded)")])
+        self.assertEqual([f for f in analyze(t, with_sp=False).findings if f.level != "observed"], [])
+
+
+class C_RequestGetStatus(unittest.TestCase):
+    """A true MPI_Request_get_status is a result: the operation completed there, as at a
+    successful test, so its match precedes the query (audit of 22 Oct 2026)."""
+
+    @staticmethod
+    def status(req, flag=1, **st):
+        return {"op": "wait", "kind": "getstatus", "flag": flag, "reqs": [req], "done": [], **st}
+
+    def test_true_flag_orders_the_match_before_the_query(self):
+        # rank 0 finds its Irecv(ANY) complete, then sends x; rank 1 sends s1 only after x. In
+        # MPI the receive cannot take s1, which comes after the query that found it matched;
+        # with the completion at the wait the steal r <- s1 was accepted.
+        t = mk({0: [irecv(T.ANY, 1, 0), self.status(0), send(1, 9), wait((0, 2, 1)), recv(1, 1, 1, 1)],
+                1: [recv(0, 9, 0, 9), send(0, 1)], 2: [send(0, 1)]})
+        r = t.recvs[(0, 0)]
+        self.assertEqual((r.complete_idx, t.observed[r.key]), (2, (2, 0)))
+        self.assertEqual([a for a in candidates_full(t)[0] if a.recv == r.key and a.send == (1, 0)], [])
+        rep = analyze(t, with_sp=False)
+        self.assertFalse([f for f in rep.findings if f.recv == r.key and f.send == (1, 0)])
+        prog = dsl.program_from_trace(t)
+        self.assertEqual(prog[0][1], dsl.Wait("q0"))
+
+    def test_false_flag_says_nothing(self):
+        t = mk({0: [irecv(1, 1, 0), self.status(0, flag=0), wait((0, 1, 1))], 1: [send(0, 1)]})
+        self.assertEqual(t.recvs[(0, 0)].complete_idx, 3)
+
+    def test_freed_after_a_true_flag(self):
+        # the request is freed after the query found it complete: the status in the record
+        # (written since 22 Oct 2026) names the message, so the receive is matched there
+        t = mk({0: [irecv(1, 1, 0), self.status(0, msrc=1, mtag=1, mcount=1), {"op": "reqfree", "req": 0}],
+                1: [send(0, 1)]})
+        r = t.recvs[(0, 0)]
+        self.assertEqual((r.completed, r.freed, r.complete_idx), (True, False, 2))
+        self.assertEqual(t.observed, {(0, 0): (1, 0)})
+        self.assertFalse(analyze(t, with_sp=False).by_class("1c"))
 
 
 class C_TypeSignatures(unittest.TestCase):
@@ -582,6 +788,25 @@ class C_TypeSignatures(unittest.TestCase):
         self.assertFalse(types.compatible("MPI_INT,MPI_DOUBLE", 1, "MPI_INT", 2))
         self.assertIsNone(types.compatible("derived:c3/s16/e16/lb0", 1, "MPI_INT", 4))
         self.assertIsNone(types.compatible(None, 1, "MPI_INT", 1))
+
+    def test_packed_and_byte(self):
+        # a message of any type may be received as MPI_PACKED; a packed message's types are
+        # not in the trace; MPI_BYTE is compared with MPI_BYTE only, by length
+        self.assertTrue(types.compatible("MPI_INT", 4, "MPI_PACKED", 64))
+        self.assertTrue(types.compatible("MPI_INT*2,MPI_DOUBLE", 1, "MPI_PACKED", 16))
+        self.assertIsNone(types.compatible("MPI_PACKED", 16, "MPI_INT", 4))
+        self.assertIsNone(types.compatible("MPI_PACKED", 16, "MPI_INT,MPI_PACKED", 1))
+        self.assertTrue(types.compatible("MPI_BYTE", 8, "MPI_BYTE", 16))
+        self.assertFalse(types.compatible("MPI_BYTE", 16, "MPI_BYTE", 8))
+        self.assertIsNone(types.compatible("MPI_INT", 4, "MPI_BYTE", 16))
+        self.assertIsNone(types.compatible("MPI_BYTE", 16, "MPI_DOUBLE", 2))
+        self.assertIsNone(types.compatible("MPI_INT,MPI_BYTE", 1, "MPI_INT,MPI_BYTE", 1))
+
+    def test_an_int_message_into_a_packed_receive_is_not_1a(self):
+        r = T.Recv((0, 0), 0, 1, T.ANY, 1, 0, 16, 1, True, tsig="MPI_PACKED")
+        s = T.Send((1, 0), 1, 1, 0, 1, 0, 4, 4, True, "std", tsig="MPI_INT")
+        o = T.Send((2, 0), 2, 1, 0, 1, 0, 16, 1, True, "std", tsig="MPI_PACKED")
+        self.assertNotEqual(classify(r, s, o)[0], "1a")
 
     def test_classify_uses_signature_compatibility(self):
         # a contiguous(4, INT) sent as one element into four INTs is the same signature
@@ -1130,11 +1355,16 @@ class C_TracerRecords(unittest.TestCase):
 
     def test_begin_pairs_with_the_same_thread(self):
         # thread 1 is inside a blocking receive while thread 2 sends: the begin is not blocked
-        t = mk({0: [{"op": "begin", "call": "recv", "src": 1, "tag": 1, "comm": 0, "count": 1, "tsize": 4, "tid": 1},
+        # (MPI_THREAD_MULTIPLE: every record names its thread, the ones mk adds aside)
+        t = mk({0: [{"op": "init", "np": 3, "thread": 3},
+                    {"op": "begin", "call": "recv", "src": 1, "tag": 1, "comm": 0, "count": 1, "tsize": 4, "tid": 1},
                     {**send(2, 9), "tid": 2}, {**recv(1, 1, 1, 1), "tid": 1}],
                 1: [send(0, 1)], 2: [recv(0, 9, 0, 9)]})
         self.assertEqual(t.blocked_calls(), [])
         self.assertEqual(t.threads[0], 2)
+        # below MULTIPLE (since 22 Oct 2026) a record without a thread is the initialising thread's
+        t = mk({0: [{**send(1, 1), "tid": 5}], 1: [recv(0, 1, 0, 1)]})
+        self.assertEqual(t.threads, {0: 2, 1: 1})
 
     def test_side_record_inside_a_wait_is_not_a_blocked_call(self):
         # an Idup completed by a Waitall registers its communicator between the begin and the
@@ -1152,6 +1382,21 @@ class C_TracerRecords(unittest.TestCase):
         rep = analyze(t)
         self.assertFalse(rep.by_class("1f"))
         self.assertTrue(any("THREAD_MULTIPLE" in n for n in rep.notes))
+
+    def test_several_threads_below_multiple_give_observed_findings_only(self):
+        # MPI_THREAD_SERIALIZED (2): the tracer names the thread of every record that the
+        # initialising thread did not make; the rank's call order then depends on scheduling
+        t = mk({0: [{"op": "init", "np": 3, "thread": 2}, recv(T.ANY, 1, 1, 1, widx=0), {**recv(T.ANY, 1, 2, 1, widx=1), "tid": 7}],
+                1: [send(0, 1)], 2: [send(0, 1)]})
+        self.assertEqual(t.threads[0], 2)
+        rep = analyze(t)
+        self.assertEqual([f for f in rep.findings if f.level != "observed"], [])
+        self.assertTrue(any("several threads called MPI on ranks [0]" in n for n in rep.notes), rep.notes)
+        # one thread only, named or not: predictions as usual
+        t = mk({0: [{"op": "init", "np": 3, "thread": 1}, recv(T.ANY, 1, 1, 1, widx=0), recv(T.ANY, 1, 2, 1, widx=1)],
+                1: [send(0, 1)], 2: [send(0, 1)]})
+        self.assertEqual(t.threads[0], 1)
+        self.assertTrue(analyze(t, with_sp=False).by_class("1f"))
 
     def test_freed_receive_takes_its_message_unobserved(self):
         t = mk({0: [irecv(1, 1, 0), {"op": "reqfree", "req": 0}], 1: [send(0, 1)]})
@@ -1183,8 +1428,48 @@ class C_TracerRecords(unittest.TestCase):
         t = mk({0: [{"op": "overflow", "what": "message table"}, irecv(1, 1, 0),
                     {"op": "wait", "kind": "getstatus", "flag": 1, "reqs": [0], "done": []}, wait((0, 1, 1))],
                 1: [send(0, 1)]})
-        self.assertTrue(any("overflowed" in w for w in t.warnings))
+        self.assertTrue(any(r == "tracer-overflow" and "message table overflowed" in d for r, d in t.incomplete), t.incomplete)
         self.assertEqual(t.observed, {(0, 0): (1, 0)})
+
+
+class C_IncompleteTrace(unittest.TestCase):
+    """A trace that is not a complete record of the run's communication gets observed findings
+    only, with the reason (audit of 22 Oct 2026)."""
+
+    def _race(self, extra0=(), np=None, **ranks):
+        raw = {0: [recv(T.ANY, 1, 1, 1, widx=0), recv(T.ANY, 1, 2, 1, widx=1), *extra0], 1: [send(0, 1)], 2: [send(0, 1)]}
+        raw.update({int(k[1:]): v for k, v in ranks.items()})
+        return mk({r: v for r, v in raw.items() if v is not None}, np=np)
+
+    def test_complete_trace_predicts(self):
+        self.assertTrue([f for f in analyze(self._race(), with_sp=False).findings if f.level == "L1"])
+
+    def test_missing_rank(self):
+        # rank 3 has no file: the barrier is not a 2-collective error, and nothing is predicted
+        t = self._race(extra0=[coll("barrier")], np=4, r1=[send(0, 1), coll("barrier")], r2=[send(0, 1), coll("barrier")])
+        self.assertEqual(t.missing, [3])
+        rep = analyze(t, with_sp=False)
+        self.assertEqual(rep.by_class("2-collective"), [])
+        self.assertEqual([f for f in rep.findings if f.level != "observed"], [])
+        self.assertTrue(any("no trace file" in n and "observed findings only" in n for n in rep.notes), rep.notes)
+        self.assertTrue(any("lack only ranks without a trace file" in n for n in rep.notes), rep.notes)
+        self.assertEqual(rep.status(), "degraded:missing-ranks")
+
+    def test_a_receive_from_an_untraced_sender(self):
+        # rank 2's send was made by code the tracer does not see (Fortran under Open MPI)
+        t = self._race(r2=[])
+        self.assertTrue(any(r == "unmatched-completions" and "no send in the trace matches" in d for r, d in t.incomplete), t.incomplete)
+        rep = analyze(t, with_sp=False)
+        self.assertEqual([f for f in rep.findings if f.level != "observed"], [])
+        self.assertEqual(rep.status(), "degraded:unmatched-completions")
+
+    def test_site_table_overflow_is_only_a_note(self):
+        # the records are whole, only call sites stop being named: degraded, still predicting
+        t = self._race(r1=[{"op": "overflow", "what": "site table"}, send(0, 1)])
+        self.assertEqual(t.incomplete, [])
+        rep = analyze(t, with_sp=False)
+        self.assertTrue([f for f in rep.findings if f.level == "L1"])
+        self.assertEqual(rep.status(), "degraded:tracer-overflow")
 
 
 class C_TraceFromExecution(unittest.TestCase):

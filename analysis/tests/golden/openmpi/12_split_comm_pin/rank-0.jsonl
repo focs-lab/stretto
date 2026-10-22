@@ -1,5 +1,6 @@
-{"r":0,"seq":0,"op":"init","np":4,"thread":0}
+{"r":0,"seq":0,"op":"init","np":4,"thread":0,"version":2}
 {"r":0,"seq":1,"op":"comm","name":"world","parent":0,"id":0,"ranks":[0,1,2,3],"gord":0}
 {"r":0,"seq":2,"op":"comm","name":"self","parent":0,"id":1,"ranks":[0],"gord":0}
-{"r":0,"seq":3,"op":"site","id":0,"obj":"/w/idioms/12_split_comm_pin/bin/openmpi/main","addr":94718251455435,"base":94718251450368}
-{"r":0,"seq":4,"op":"finalize","site":0}
+{"r":0,"seq":3,"op":"comm","name":"split","parent":0,"id":-1}
+{"r":0,"seq":4,"op":"site","id":0,"obj":"/w/idioms/12_split_comm_pin/bin/openmpi/main","addr":94891268649931,"base":94891268644864}
+{"r":0,"seq":5,"op":"finalize","site":0}

@@ -3,7 +3,8 @@
 A trace is one JSONL file per rank (see tracer/mpitrace.c). Every record becomes one
 `Rec` with two graph nodes, issue `(rank, idx, 'i')` and complete `(rank, idx, 'c')`.
 Blocking operations complete at their own record; nonblocking ones complete at the
-wait/test record that completed their request. An operation that never completed in
+wait/test record that completed their request, or at an earlier MPI_Request_get_status
+that found the request complete. An operation that never completed in
 the observed run (a blocked call in a deadlocked run, an unwaited request) has
 `completed == False` and no complete node takes part in delivery or rendezvous edges.
 
@@ -16,7 +17,9 @@ in comm-rank order and the creation ordinal of that group ("gord"). The loader m
 per-rank local id to a global id derived from (group, gord), which is consistent across
 ranks by construction (creation is collective over the group). Ranks in send/recv records
 are comm-local and are translated to world ranks at load time. Old traces (no `ranks`
-field) keep their local ids and are assumed to use MPI_COMM_WORLD only.
+field) keep their local ids and are assumed to use MPI_COMM_WORLD only. Creating a
+communicator and freeing one are collective calls, and each is also a collective record
+(`Coll` named `comm_<call>`) of the communicator it is collective over (see ON_PARENT).
 
 Encoding of wildcards: new traces carry `anysrc`/`anytag`/`procnull` flags; old traces
 encode ANY as -1.
@@ -234,6 +237,7 @@ class Trace:
     observed: Dict[Key, Key] = field(default_factory=dict)  # recv key -> send key
     waitany: List[Rec] = field(default_factory=list)   # Waitany/Testany/Waitsome/Testsome records
     np: int = 0
+    version: int = 1                                    # trace format; 2: every member records a communicator creation
     thread_level: int = 0                               # MPI_THREAD_* level the run was given (3 = MULTIPLE)
     threads: Dict[int, int] = field(default_factory=dict)   # rank -> number of threads that made MPI calls
     comm_ranks: Dict[int, List[int]] = field(default_factory=dict)   # global comm id -> world ranks, in comm-rank order (the remote group of an intercommunicator)
@@ -244,6 +248,7 @@ class Trace:
     bad_lines: int = 0
     warnings: List[str] = field(default_factory=list)
     unmodelled: List[Tuple[int, str]] = field(default_factory=list)   # (rank, call) outside the modelled fragment
+    incomplete: List[Tuple[str, str]] = field(default_factory=list)  # (reason, detail): why the trace is not a complete record of the run's communication (report.Report.degrade)
     guards: List[Rec] = field(default_factory=list)      # the buffer guard's records (misused buffers of pending operations)
     guard: Dict[int, int] = field(default_factory=dict)  # rank -> 1 guard on, 0 asked for but off (absent: not asked for)
     sites: Dict[Tuple[int, int], dict] = field(default_factory=dict)    # (rank, site id) -> the tracer's site record
@@ -417,7 +422,10 @@ def load(tracedir: str) -> Trace:
     t = Trace()
     files = sorted(f for f in os.listdir(tracedir) if f.startswith("rank-") and f.endswith(".jsonl"))
     if not files:
-        raise FileNotFoundError(f"no rank-*.jsonl in {tracedir}")
+        # the tracer opens a rank's file in MPI_Init or MPI_Init_thread, through the C interface
+        raise FileNotFoundError(f"no rank-*.jsonl in {tracedir} (was the run traced? A Fortran program under "
+                                "Open MPI, whose bindings call PMPI directly, or one that uses MPI sessions "
+                                "without MPI_Init, leaves no trace)")
     raw_ranks: Dict[int, List[dict]] = {}
     for f in files:
         rank = int(f[len("rank-"):-len(".jsonl")])
@@ -463,6 +471,31 @@ def check_records(fname: str, rank: int, recs: List[dict]) -> None:
 
 SIDE_RECORDS = ("comm", "overflow", "guard")
 
+# Communicator constructors and MPI_Comm_free are collective (MPI 4.1 §7.4), and a member may
+# have to wait in one until the others have entered it: MPI_Comm_split's result depends on
+# every member's colour and key, and the implementations agree on the new context by an
+# allreduce; the standard leaves the rest open. Each becomes a collective record "comm_<name>" in the sequence of collectives of
+# the communicator it is collective over: the parent's, the result's for the two calls that
+# only the members of the result make, and the freed communicator's. Its shape is unknown
+# (matching.coll_shape): a barrier for the checks, the horizon and the explorer, which is the
+# sound direction for an accepted alternative (a schedule in which they synchronise is an
+# execution of an implementation in which they do not, too), and no guaranteed edge for a
+# deadlock claim.
+ON_PARENT = frozenset({"split", "split_type", "dup", "idup", "create", "cart", "cart_sub", "graph",
+                       "dist_graph", "dist_graph_adjacent", "merge"})
+ON_RESULT = frozenset({"create_group", "intercomm"})
+# the constructors that give some members MPI_COMM_NULL: a tracer before 22 Oct 2026 (trace
+# version 1) wrote no record at those members, so who took part is not known
+MAY_BE_NULL = frozenset({"split", "split_type", "create", "cart", "graph"})
+# the MPI function behind a comm record's name
+CREATION_CALL = {"cart": "MPI_Cart_create", "cart_sub": "MPI_Cart_sub", "graph": "MPI_Graph_create",
+                 "dist_graph": "MPI_Dist_graph_create", "dist_graph_adjacent": "MPI_Dist_graph_create_adjacent",
+                 "intercomm": "MPI_Intercomm_create", "merge": "MPI_Intercomm_merge"}
+
+
+def creation_call(name: str) -> str:
+    return CREATION_CALL.get(name, f"MPI_Comm_{name}")
+
 
 def _fold_begins(raw: List[dict]) -> List[dict]:
     """Drop `begin` records that are followed by their completing record, the next record
@@ -503,15 +536,29 @@ def _build(t: Trace, raw_ranks: Dict[int, List[dict]]) -> None:
     folded = {rank: _fold_begins([r for r in recs if r.get("op") != "site"]) for rank, recs in raw_ranks.items()}
     for rank, recs in folded.items():
         t.ranks[rank] = [Rec(rank, i, r["op"], r) for i, r in enumerate(recs)]
-        t.threads[rank] = len({r.get("tid") for r in recs} - {None}) or 1
+        # under MPI_THREAD_MULTIPLE every record names its thread (a site table overflow aside);
+        # below it (since 22 Oct 2026) those of a thread other than the initialising one do, and
+        # a record without a thread is the initialising thread's
+        tids = {r.get("tid") for r in recs if r["op"] != "overflow"}
+        if max((r.get("thread", 0) for r in recs if r["op"] == "init"), default=0) >= 3:
+            tids.discard(None)
+        t.threads[rank] = len(tids) or 1
         for r in recs:
             if r["op"] == "init":
                 t.np = max(t.np, r.get("np", 0))
+                t.version = max(t.version, r.get("version", 1))
                 t.thread_level = max(t.thread_level, r.get("thread", 0))
                 if "guard" in r:
                     t.guard[rank] = r["guard"]
             elif r["op"] == "overflow":
-                t.warnings.append(f"rank {rank}: the tracer's {r.get('what')} overflowed; later records of that kind may be incomplete")
+                what = r.get("what")
+                if what in ("site table", "guard table"):
+                    # call sites stop being named, or the buffer guard stops following buffers:
+                    # the communication records are whole
+                    t.warnings.append(f"rank {rank}: the tracer's {what} overflowed; later records of that kind may be incomplete")
+                else:
+                    # the message table: the Mrecv/Imrecv of a probed message lost its envelope
+                    t.incomplete.append(("tracer-overflow", f"the tracer's {what} overflowed on rank {rank}, so later records lack fields"))
             elif r["op"] == "unmodelled":
                 t.unmodelled.append((rank, r.get("call", "?")))
         t.guards.extend(rec for rec in t.ranks[rank] if rec.op == "guard")
@@ -520,7 +567,7 @@ def _build(t: Trace, raw_ranks: Dict[int, List[dict]]) -> None:
     if t.np:
         t.missing = [r for r in range(t.np) if r not in t.ranks]
         if t.missing:
-            t.warnings.append(f"missing trace files for ranks {t.missing}")
+            t.incomplete.append(("missing-ranks", f"ranks {t.missing} have no trace file"))
     all_ranks = list(range(t.np)) if t.np else sorted(t.ranks)
     comm_map = _comm_ids(t, folded, all_ranks)   # (rank, local id) -> global id
 
@@ -553,10 +600,13 @@ def _build(t: Trace, raw_ranks: Dict[int, List[dict]]) -> None:
         return raw["tag"]
 
     # pass 1: operations
+    legacy_null: Dict[str, List[int]] = {}      # MAY_BE_NULL creations in a version-1 trace, by name: ranks
     for rank, recs in t.ranks.items():
         nsend = nrecv = nprobe = 0
         coll_ord: Dict[int, int] = {}
         pending_req: Dict[int, object] = {}
+        cancelled_ops: List[object] = []       # the operations a cancel record names
+        status_at: Dict[int, dict] = {}        # request -> the first MPI_Request_get_status that found it complete
         for rec in recs:
             raw = rec.raw
             op = rec.op
@@ -603,7 +653,15 @@ def _build(t: Trace, raw_ranks: Dict[int, List[dict]]) -> None:
                 t.recvs[r.key] = r
             elif call == "wait":
                 if raw.get("kind") == "getstatus":
-                    continue                       # MPI_Request_get_status completes nothing
+                    # MPI_Request_get_status leaves the request to a later wait or test, but a
+                    # true flag is a result, as a successful test's is: the operation completed
+                    # there, so it is its completion node (a false flag, like a failed test,
+                    # says nothing, since the model has no progress guarantee)
+                    if not blocked and raw.get("flag"):
+                        for q in raw.get("reqs", []):
+                            if q is not None and q >= 0 and q in pending_req:
+                                status_at.setdefault(q, {**raw, "idx": rec.idx})
+                    continue
                 if raw.get("kind") in ("waitany", "testany", "waitsome", "testsome"):
                     t.waitany.append(rec)
                 if blocked:
@@ -615,7 +673,8 @@ def _build(t: Trace, raw_ranks: Dict[int, List[dict]]) -> None:
                     obj = pending_req.pop(q, None)
                     if obj is None:
                         continue
-                    obj.complete_idx = rec.idx
+                    st = status_at.pop(q, None)
+                    obj.complete_idx = rec.idx if st is None else st["idx"]
                     obj.completed = True
                     if isinstance(obj, Send) and "cancelled" in d:
                         obj.cancelled = bool(d["cancelled"])       # the completion status is authoritative
@@ -627,13 +686,20 @@ def _build(t: Trace, raw_ranks: Dict[int, List[dict]]) -> None:
                             obj.completed = False
             elif call == "cancel":
                 obj = pending_req.get(raw.get("req"))
+                if isinstance(obj, (Send, Recv)):
+                    cancelled_ops.append(obj)
                 if isinstance(obj, Send):
                     obj.cancelled = True     # provisional; the completion status (if any) decides
             elif call == "reqfree":
                 obj = pending_req.pop(raw.get("req"), None)
-                if isinstance(obj, Recv):
+                st = status_at.pop(raw.get("req"), None)
+                if obj is not None and st is not None:
+                    _complete_at_status(obj, st, worldg, rank)
+                elif isinstance(obj, Recv):
                     obj.freed = True         # the receive completes unobserved: its message is not an orphan
             elif call == "probe":
+                if raw.get("procnull"):
+                    continue                   # a probe of MPI_PROC_NULL returns at once and observes nothing
                 comm = gid(rank, raw["comm"])
                 p = Probe((rank, nprobe), rank, rec.idx, world(rank, raw["comm"], src_of(raw)), tag_of(raw), comm,
                           raw.get("kind", "probe"), bool(raw.get("flag", 1)),
@@ -655,6 +721,58 @@ def _build(t: Trace, raw_ranks: Dict[int, List[dict]]) -> None:
                     c.completed = False
                     pending_req[c.req] = c
                 t.colls.append(c)
+            elif op == "comm":
+                name, req, cid = raw.get("name"), raw.get("req"), raw.get("id", -1)
+                if name == "free":
+                    over = gid(rank, cid)
+                elif name in ON_RESULT:
+                    if cid is None or cid < 0:
+                        continue
+                    over = gid(rank, cid)
+                elif name in ON_PARENT:
+                    if name == "idup" and req is not None and cid is not None and cid >= 0:
+                        continue           # the communicator of a started MPI_Comm_idup, registered at its completion
+                    if name in MAY_BE_NULL and t.version < 2:
+                        legacy_null.setdefault(name, []).append(rank)
+                        continue
+                    parent = raw.get("parent", -1)
+                    if parent is None or parent < 0:
+                        t.incomplete.append(("creation-unknown", f"rank {rank} created a communicator ({creation_call(name)}) "
+                                             "from one the trace does not know"))
+                        continue
+                    over = gid(rank, parent)
+                else:
+                    continue               # world, self, unknown: registrations, not calls
+                k = coll_ord.get(over, 0)
+                coll_ord[over] = k + 1
+                # an MPI_Comm_idup (since 22 Oct 2026 recorded at its call, with its request) is a
+                # nonblocking collective; in older traces only its completion is recorded, and the
+                # collective is placed there, after its real issue, which constrains more
+                c = Coll(rank, rec.idx, "comm_" + name, over, k, None, req if name == "idup" else None)
+                if c.req is not None:
+                    c.completed = False
+                    pending_req[c.req] = c
+                t.colls.append(c)
+        for q, st in status_at.items():        # found complete, and no later call returned it
+            obj = pending_req.get(q)
+            if obj is not None:
+                _complete_at_status(obj, st, worldg, rank)
+        # the model has no cancellation: a cancel that succeeded withdrew an operation at a
+        # point no matching rule describes, and one whose outcome the trace does not have may
+        # have; a cancel that failed changed nothing (an implementation may always let it fail)
+        for obj in cancelled_ops:
+            returned = obj.complete_idx is not None      # a completion call returned the request
+            if returned and obj.cancelled:
+                t.unmodelled.append((rank, "Cancel (succeeded)"))
+            elif not returned:
+                t.unmodelled.append((rank, "Cancel (outcome not recorded)"))
+    if legacy_null:
+        t.incomplete.append(("creation-unknown",
+                             "the tracer that made this trace (before 22 Oct 2026) wrote no record of "
+                             + ", ".join(creation_call(n) for n in sorted(legacy_null))
+                             + " at a rank that obtained MPI_COMM_NULL, so the ranks that took part in these "
+                             "collectives are not known (recorded on ranks "
+                             + str(sorted({r for v in legacy_null.values() for r in v})) + ")"))
     t.index()
     _reconstruct_observed(t)
     # call sites, 4 bytes per record, before the dictionaries that name them go
@@ -673,6 +791,22 @@ def _build(t: Trace, raw_ranks: Dict[int, List[dict]]) -> None:
         for rec in recs:
             if rec.op in ("send", "recv", "irecv", "coll"):
                 rec.raw = None
+
+
+def _complete_at_status(obj, st: dict, worldg, rank: int) -> None:
+    """A request that an MPI_Request_get_status record st found complete and that no later wait
+    or test returned (freed, or never completed): it completed at st. A receive's status is in
+    st when the tracer wrote it there (since 22 Oct 2026); without it the receive's message is
+    unknown and the receive counts as freed, which the analysis treats as unmatched."""
+    obj.complete_idx = st["idx"]
+    obj.completed = True
+    if isinstance(obj, Recv):
+        obj.msrc = worldg(obj.comm, st.get("msrc"), rank)
+        obj.mtag, obj.mcount = st.get("mtag"), st.get("mcount")
+        obj.cancelled = bool(st.get("cancelled"))
+        if obj.msrc is None or obj.cancelled:
+            obj.completed = False
+            obj.freed = not obj.cancelled
 
 
 def _comm_ids(t: Trace, folded: Dict[int, List[dict]], all_ranks: List[int]) -> Dict[Tuple[int, int], int]:
@@ -721,11 +855,14 @@ def _reconstruct_observed(t: Trace) -> None:
     """Pair every completed receive with its send, using non-overtaking: receives are
     processed in posting order per rank; each takes the earliest unconsumed send from the
     (msrc -> rank, comm, mtag) queue. Probes see the earliest send not consumed by
-    receives posted before them. Linear: one pointer per queue."""
+    receives posted before them. A send whose cancellation succeeded never reached its
+    destination, so it is in no queue. Linear: one pointer per queue."""
     queues: Dict[Tuple[int, int, int, int], List[Send]] = {}
     for s in sorted(t.sends.values(), key=lambda s: (s.rank, s.idx)):
-        queues.setdefault((s.rank, s.dst, s.comm, s.tag), []).append(s)
+        if not s.cancelled:
+            queues.setdefault((s.rank, s.dst, s.comm, s.tag), []).append(s)
     ptr: Dict[Tuple[int, int, int, int], int] = {}
+    sendless: List[str] = []
     for rank in sorted(t.ranks):
         events = sorted(list(t.recvs_of(rank)) + [p for p in t.probes.values() if p.rank == rank],
                         key=lambda x: x.idx)
@@ -754,6 +891,14 @@ def _reconstruct_observed(t: Trace) -> None:
             i = ptr.get(key, 0)
             if not q or i >= len(q):
                 t.warnings.append(f"{e}: completed from {e.msrc} tag {e.mtag} but no such send in the trace")
+                sendless.append(f"{e} from {e.msrc} tag {e.mtag}")
                 continue
             t.observed[e.key] = q[i].key
             ptr[key] = i + 1
+    if sendless:
+        # a sender the tracer did not see (a library calling PMPI directly, as Open MPI's Fortran
+        # bindings do, or a rank without a trace file): the happens-before lacks these messages
+        t.incomplete.append(("unmatched-completions",
+                             f"{len(sendless)} receive(s) took a message that no send in the trace matches "
+                             f"(first: {sendless[0]}): a sender that was not traced, such as a Fortran library "
+                             "under Open MPI, or a rank without a trace file"))

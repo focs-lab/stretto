@@ -271,10 +271,12 @@ class Decision:
 def declines(t: Trace) -> Optional[str]:
     """Why report.analyze predicts nothing for t (observed findings only), None if it does."""
     multi = [rank for rank, n in t.threads.items() if n > 1]
-    if t.thread_level >= 3 and multi:
-        return "MPI_THREAD_MULTIPLE with several calling threads"
+    if multi:
+        return "MPI_THREAD_MULTIPLE with several calling threads" if t.thread_level >= 3 else "several threads calling MPI"
     if t.unmodelled:
         return "calls outside the modelled fragment"
+    if t.incomplete:
+        return "an incomplete trace"
     if any(observed_ready_errors(t)):
         return "a ready send issued before its receive was posted"
     return None

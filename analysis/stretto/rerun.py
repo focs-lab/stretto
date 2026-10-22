@@ -350,6 +350,12 @@ class Oracle:
                 c = colls[rec.idx]
                 cur.ops.append(Coll(c.name, c.comm, f"q{c.req}" if c.req is not None else None, c.root))
                 cur.calls.append(("coll", c.name, c.comm, c.root))
+            elif call == "comm" and rec.idx in colls:
+                # a communicator's creation or release, a collective (trace.ON_PARENT); the shim
+                # does not serve these, so a re-execution never gets past one and its calls are
+                # not compared
+                c = colls[rec.idx]
+                cur.ops.append(Coll(c.name, c.comm, f"q{c.req}" if c.req is not None else None, c.root))
             elif call == "probe":
                 cur.end = "unknown:a probe: what it reports is not modelled at L2"
                 break

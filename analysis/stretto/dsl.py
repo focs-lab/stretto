@@ -141,7 +141,12 @@ def program_from_trace(t, positions: Optional[Dict[int, List[int]]] = None) -> P
                     ops.append(Recv(r.src, r.tag, r.capacity, r.comm, None if r.blocking else f"q{r.req}"))
             elif call == "wait":
                 kind = raw.get("kind")
-                if rec.op == "blocked":
+                if kind == "getstatus":
+                    # a true MPI_Request_get_status found its request complete: a wait there, as for
+                    # a successful test (the later wait or test that returns it then returns at once)
+                    if rec.op != "blocked" and raw.get("flag"):
+                        ops.extend(Wait(f"q{q}") for q in raw.get("reqs", []) if q is not None and q >= 0)
+                elif rec.op == "blocked":
                     reqs = tuple(f"q{q}" for q in raw.get("reqs", []) if q is not None and q >= 0)
                     if kind in ("waitany", "testany"):
                         ops.append(Waitany(reqs))
@@ -157,7 +162,9 @@ def program_from_trace(t, positions: Optional[Dict[int, List[int]]] = None) -> P
                     for d in raw.get("done", []):
                         if d.get("req") is not None and d["req"] >= 0:
                             ops.append(Wait(f"q{d['req']}"))
-            elif call == "coll":
+            elif call == "coll" or (call == "comm" and (rank, rec.idx) in colls):
+                # comm: a communicator's creation or release, a collective of the communicator it is
+                # collective over (trace.ON_PARENT)
                 c = colls[(rank, rec.idx)]
                 ops.append(Coll(c.name, c.comm, f"q{c.req}" if c.req is not None else None, c.root))
             where.extend([rec.idx] * (len(ops) - len(where)))
@@ -244,10 +251,14 @@ def trace_from_execution(prog: Program, matching: Dict[Tuple[int, int], Tuple[in
                 n += 1
     out: Dict[int, List[dict]] = {}
     for r, ops in prog.items():
-        recs: List[dict] = [{"op": "init", "np": len(prog)}]
+        # each sub-communicator comes from a split of the world that every rank calls, those
+        # outside it obtaining MPI_COMM_NULL (trace version 2 records that)
+        recs: List[dict] = [{"op": "init", "np": len(prog), "version": 2}]
         for cid, members in comms.items():
             if cid != 0 and r in members:
                 recs.append({"op": "comm", "name": "split", "parent": 0, "id": cid, "ranks": list(members), "gord": 0})
+            elif cid != 0:
+                recs.append({"op": "comm", "name": "split", "parent": 0, "id": -1})
         reqid: Dict[str, int] = {}
         reqkind: Dict[str, Tuple[str, Tuple[int, int]]] = {}
         nreq = nsend = nrecv = widx = 0

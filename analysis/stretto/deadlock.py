@@ -131,8 +131,8 @@ def contained_deadlock(t: Trace, M, changed: Set[Key], cut: Dict[int, int], issu
         if rec.op not in ("send", "recv", "coll", "probe", "wait"):
             continue
         kind = rec.raw.get("kind") if rec.op == "wait" else None
-        if kind is not None and kind.startswith("test"):
-            continue                             # a test returns at once: the rank does not stop there
+        if kind is not None and (kind.startswith("test") or kind == "getstatus"):
+            continue                             # a test or status query returns at once: the rank does not stop there
         if rec.op == "probe" and rec.raw.get("kind") in ("iprobe", "improbe"):
             continue
         if kind in ("waitany", "waitsome"):

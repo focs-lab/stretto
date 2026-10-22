@@ -7,7 +7,12 @@ get, a test in `analysis/tests` before it is written up as a theorem.
 
 A trace σ is one sequence of records per rank. Each record `e` has two nodes, `issue(e)` and
 `complete(e)`. Blocking operations complete at their own record; a nonblocking operation
-completes at the wait/test record that completed its request.
+completes at the wait/test record that completed its request, or at the first
+`MPI_Request_get_status` that found it complete, if that comes earlier: a true flag is a result,
+like a successful test's, so the match precedes it and rule 1 cuts after it (before 22 Oct 2026
+such queries were dropped, and an alternative could need the match after the query that had
+seen it done; `C_RequestGetStatus`). A false flag, like a failed test, says nothing, since the
+model guarantees no progress.
 
 Objects:
 
@@ -19,9 +24,37 @@ Objects:
 
 `r accepts s` iff dst(s) = rank(r), comm agree, src(r) ∈ {ANY, rank(s)}, tag(r) ∈ {ANY, tag(s)}.
 
+Operations on `MPI_PROC_NULL` return at once and are no objects of the model: sends, receives,
+probes (before 22 Oct 2026 a probe of `MPI_PROC_NULL` was loaded as an `ANY_SOURCE` probe) and
+the `MPI_Mrecv`/`MPI_Imrecv` of the message such a probe returns.
+
+Creating and freeing communicators. The constructors and `MPI_Comm_free` are collective (MPI
+4.1 §7.4), and a member may have to wait in one until the others have entered it:
+`MPI_Comm_split`'s result depends on every member's colour and key, and Open MPI and MPICH agree
+on the new context by an allreduce; the standard leaves the rest open. Each such call is a collective
+`comm_<call>` in the sequence of collectives of the communicator it is collective over: the
+parent's (split, split_type, dup, idup, create, cart_create, cart_sub, graph_create,
+dist_graph_create and its adjacent form, intercomm_merge), the result's for the two that only
+its members call (create_group, intercomm_create, over both groups), and the freed one's. Its
+shape is unknown: a barrier in the graph, the horizon (rule 4) and the explorer, and no edge
+of the graph of guaranteed edges. That is the sound direction for acceptance: the barrier only
+adds constraints, and a schedule in which the creation synchronises is an execution of an
+implementation that synchronises less too, since delays are arbitrary; a deadlock claim never
+rests on it (a rank cut at a creation is not one at which a contained deadlock stops). An
+`MPI_Comm_idup` is a nonblocking collective from its call to the completion of its request. A
+trace of the tracer before 22 Oct 2026 (format version 1) has no record of the idup's call,
+and the collective is placed at the completion, after its real issue, which constrains more;
+nor does it have a record at a member that obtained `MPI_COMM_NULL`, so a split, split_type,
+create, cart_create or graph_create cannot be placed at every member, and such a trace counts
+as incomplete (observed findings only). Before 22 Oct 2026 creations were side records with no
+synchronisation, and an alternative could need a rank out of a split before another had
+entered it (`C_CommunicatorCreation`).
+
 The observed matching `M₀` is reconstructed offline: receives per rank in posting order, each
 takes the earliest unconsumed send from (msrc → rank, comm, mtag). Non-overtaking makes this
-exact (`trace._reconstruct_observed`).
+exact (`trace._reconstruct_observed`). A send whose cancellation succeeded never reached its
+destination and takes no part in it (before 22 Oct 2026 it did: a receive was paired with the
+withdrawn message, and the message it really took became an orphan).
 
 ## 2. Alternative matching and its feasibility
 
@@ -218,9 +251,32 @@ Premises of every theorem below, stated because the proofs use them: message del
 arbitrary (any interleaving the matching rules allow is an execution); a Waitany or Waitsome
 may return any completed request; a send that does not block at B completes at once
 (unbounded buffering below the threshold); collectives synchronise by their shape and do not
-depend on B; a cancel succeeds exactly when it did in σ; and σ records every communication call
-of the run. The last premise is not yet enforced: calls outside the modelled fragment pass the
-tracer silently (audit finding C-1).
+depend on B; no cancel succeeded in σ; and σ records every communication call of the run.
+
+The report enforces the last premise as far as the trace shows it, and states observed findings
+only (with a note that names the reason) when it fails: a call the tracer marks `unmodelled`
+(one-sided windows, neighbourhood collectives, dynamic processes, generalised requests, MPI-IO,
+whose collective calls synchronise and whose library communicates underneath, and the MPI-4
+calls it does not model: large-count, partitioned, sessions, Isendrecv,
+Intercomm_create_from_groups; the tracer probes the MPI library for them rather than trusting
+MPI_VERSION); a rank without a trace file; a receive that took a
+message no send in the trace matches (a sender the tracer did not see, such as a Fortran
+library under Open MPI, which calls `PMPI_*` directly); and the tracer's message table
+overflowing, which leaves the receives of probed messages without their envelope. A
+collective that lacks only ranks without a trace file is then not an observed `2-collective`
+error either: the trace is incomplete, not the program. Before 22 Oct 2026 the last three only
+added notes, and predictions were made on a happens-before relation with message edges
+missing (`C_IncompleteTrace`). The report's status names the reason: `degraded:` with
+`unmodelled`, `missing-ranks`, `unmatched-completions`, `tracer-overflow` or `creation-unknown`.
+
+Cancellation is outside the model: a cancel that succeeds withdraws an operation at a point that
+no matching rule describes (a cancelled send is pending until its cancel, and a receive posted
+before then may take it). A run with a successful cancel, or with a cancel whose outcome the
+trace does not have (its request never returned), is reported with observed findings only. A
+cancel that failed changed nothing, and it fails in every alternative execution too, since an
+implementation may always let a cancel fail (MPI 4.1 §3.8.4). Before 22 Oct 2026 cancelled
+operations were simply left out of the competitors and of the channel order, which accepts
+steals that MPI cannot realise (`C_Cancellation`).
 
 **Theorem T1 (soundness of the L1 check).** Let M' be a matching, R* the receives whose match
 differs from M₀, and H the kept prefix of §3 for (M', R*, B). If `feasible.check(σ, M', R*, B,
@@ -528,5 +584,11 @@ shaped collectives and metadata branches.
   completion, two pending operations owning the same bytes. These are observed findings
   (class 3-local) and outside the model: no matching changes them, and predicting one for
   another run would need the program's accesses, not its calls.
-- MPI_THREAD_MULTIPLE: per-rank program order is not total; the trace records thread ids and
-  the analysis stops at observed findings.
+- Several threads calling MPI (MPI_THREAD_MULTIPLE, SERIALIZED, or a misused FUNNELED): a
+  rank's call order then depends on the threads' scheduling, not only on its results, so it
+  is not a function of them as the definition of a program needs, and per-rank program order
+  is not total. The tracer records the calling thread at every level (on every record under
+  MULTIPLE, on the records of threads other than the initialising one below it), and the
+  analysis stops at observed findings when a rank's records come from more than one thread.
+  Before 22 Oct 2026 the thread was recorded under MULTIPLE only, and a SERIALIZED rank with
+  several calling threads was analysed as one deterministic sequence.

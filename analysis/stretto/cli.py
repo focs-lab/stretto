@@ -50,6 +50,8 @@ def cmd_show(args):
         print(f"  {p} saw {t.sends[p.seen] if p.seen else 'nothing'}")
     for w in t.warnings:
         print("warning: " + w)
+    for _, w in t.incomplete:
+        print("incomplete: " + w)
     return 0
 
 
