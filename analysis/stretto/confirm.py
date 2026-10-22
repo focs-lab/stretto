@@ -703,12 +703,13 @@ def trace_misapplied(t, pins) -> List[str]:
 
 
 def judge_replay(tracedir: str, result: str, pins=None, seen: Optional[set] = None,
-                 misapplied: Optional[list] = None) -> Tuple[str, str]:
+                 misapplied: Optional[list] = None, ended: Optional[set] = None) -> Tuple[str, str]:
     """("True", "") if the trace a replay recorded in tracedir is a run of the program without
     its pins up to where the run ended (unpinned_violation; result is the replay's
     classify_rc), ("False", the violation), or ("unknown", why) when the trace cannot be read or
     its readings are too many. seen, if given, receives the pins the trace shows taken
-    (trace_matches), misapplied the pins that fell on another operation (trace_misapplied)."""
+    (trace_matches), misapplied the pins that fell on another operation (trace_misapplied),
+    ended the pinned receives still pending where their rank stopped (trace_ended)."""
     from . import trace as trace_mod
     try:
         t = trace_mod.load(tracedir)
@@ -718,6 +719,8 @@ def judge_replay(tracedir: str, result: str, pins=None, seen: Optional[set] = No
         seen |= trace_matches(t, pins)
     if misapplied is not None:
         misapplied += trace_misapplied(t, pins)
+    if ended is not None:
+        ended |= trace_ended(t, pins)
     why = unpinned_violation(t, finished=result == "FINISHED", hung=result == "TIMEOUT", pins=pins)
     if why is None:
         return "True", ""
@@ -735,13 +738,71 @@ def all_matched(pins: List[str], stderr: str, required: Optional[Set[Tuple[str, 
     return required <= reported
 
 
+def error_of(f: Finding) -> str:
+    """The error a 1a finding predicts (Finding.error), read from its title for a finding made
+    before the field existed."""
+    if f.error or f.cls != "1a":
+        return f.error
+    if f.title.startswith(("count mismatch", "truncation error")) or "MPI_ERR_TRUNCATE" in " ".join(f.detail):
+        return "truncate"
+    if f.title.startswith("ready-mode send"):
+        return "rsend-no-receive"
+    return "type" if "type signature" in " ".join([f.title, *f.detail]) else ""
+
+
 def expected_outcomes(f: Finding) -> set:
-    """Which replay results confirm a finding of this class, provided its pins were applied."""
-    if f.cls in ("1a",):
-        return {"MPI-ERROR:MPI_ERR_TRUNCATE", "MPI-ERROR:MPI_ERR_TYPE"}
+    """Which replay results confirm a finding of this class, provided its pins were applied.
+    Of class 1a only a truncation is confirmable: the receive that takes the longer message
+    fails with MPI_ERR_TRUNCATE (and, under MPI_ERRORS_ARE_FATAL, the run ends inside it, so its
+    match is shown applied, not matched: confirm). A type signature mismatch is erroneous but
+    neither Open MPI nor MPICH reports it (no MPI_ERR_TYPE), and a ready send with no posted
+    receive is erroneous with an undefined outcome, which neither library reports either: a
+    replay can show neither, and they stay unconfirmed whatever it does (n/a)."""
+    if f.cls == "1a":
+        return {"MPI-ERROR:MPI_ERR_TRUNCATE"} if error_of(f) == "truncate" else set()
     if f.cls in ("1c", "1d", "2-buffering"):
         return {"TIMEOUT"}
     return set()   # 1b, 1f, probe-alt, waitany-order: any outcome is consistent (info only)
+
+
+def _applied(stderr: str, pins) -> Set[Tuple[str, int, int]]:
+    """("recv", rank, widx) of every receive pin the replay library reported applied, on an
+    operation of the pin's identity."""
+    want = _expected(pins)
+    return {("recv", rank, idx) for what, rank, idx, ident in _lines(stderr)
+            if what == "applied" and _agrees(want.get(("recv", rank, idx)), ident)}
+
+
+def trace_ended(t, pins) -> Set[Tuple[str, int, int]]:
+    """("recv", rank, widx) of every pinned receive that, in the replay's own trace t, was still
+    pending when its rank stopped without MPI_Finalize: posted with its pin (on an operation of
+    the pin's identity), never completed. A run that MPI ends with an error inside a receive
+    (MPI_ERR_TRUNCATE under MPI_ERRORS_ARE_FATAL) leaves its pinned receive so."""
+    toks = {(k.rank, k.idx): k for k in pin_tokens(pins) if k.kind == "recv"}
+    stopped = set(t.truncated)
+    return {("recv", r.rank, r.widx) for r in t.recvs.values()
+            if r.widx is not None and (r.rank, r.widx) in toks and r.rank in stopped and not r.completed
+            and _agrees(toks[(r.rank, r.widx)].ident, identity(t, r))}
+
+
+def truncation_shown(changed: Optional[Tuple[str, int, int]], pins, stderr: str,
+                     required: Optional[Set[Tuple[str, int, int]]], matched: Set[Tuple[str, int, int]],
+                     ended: Optional[Set[Tuple[str, int, int]]]) -> bool:
+    """Did a replay that failed with MPI_ERR_TRUNCATE follow a 1a finding's alternative? The run
+    ends inside the receive that takes the longer message, so that receive reports no match: it
+    counts when the replay's own trace (ended, trace_ended; None without the tracer) shows it
+    still pending where its rank stopped, or, without a trace, when the library reported it
+    applied. Every other required pin (every pin, without required) must have matched or be
+    such a receive: the error ends every rank, some inside pinned receives that would have
+    matched later. changed, the changed receive of an L1 finding, is the one that truncates, and
+    must not have matched: a match there took a message that fits, not the alternative's."""
+    shown = ended if ended is not None else _applied(stderr, pins)
+    need = set(required) if required is not None else {(k.kind, k.rank, k.idx) for k in pin_tokens(pins)}
+    if changed is not None:
+        if changed not in shown or changed in matched:
+            return False
+        need.add(changed)
+    return bool(need) and all(k in matched or k in shown for k in need)
 
 
 def run_pinned(np: int, exe: str, args: List[str], pin, timeout: int = 20, mpi: str = "openmpi",
@@ -790,6 +851,8 @@ class Replay:
     why: str = ""
     seen: Set[Tuple[str, int, int]] = field(default_factory=set)
     misapplied: List[str] = field(default_factory=list)   # pins on another operation (misapplied_pins)
+    ended: Optional[Set[Tuple[str, int, int]]] = None      # pinned receives pending where their rank stopped
+                                                           # (trace_ended); None when no trace was recorded
 
 
 def misapplied_pins(r: subprocess.CompletedProcess, result: str, from_trace: List[str] = ()) -> List[str]:
@@ -823,7 +886,8 @@ def run_checked(np: int, exe: str, args: List[str], pin, timeout: int = 20, mpi:
         res = classify_rc(r.returncode, r.stderr, r.elapsed, timeout)
         seen: Set[Tuple[str, int, int]] = set()
         mis: List[str] = []
-        valid, why = judge_replay(d, res, pin, seen, mis)
+        ended: Set[Tuple[str, int, int]] = set()
+        valid, why = judge_replay(d, res, pin, seen, mis, ended)
         keep = os.environ.get("STRETTO_KEEP_REPLAYS")
         if keep and valid != "True":
             os.makedirs(keep, exist_ok=True)
@@ -833,7 +897,8 @@ def run_checked(np: int, exe: str, args: List[str], pin, timeout: int = 20, mpi:
             with open(os.path.join(dest, "replay.txt"), "w") as fh:
                 fh.write(f"exe: {exe} {' '.join(args)}\nnp: {np}\nresult: {res}\nvalid: {valid}\nwhy: {why}\npins:\n"
                          + "\n".join([pin] if isinstance(pin, str) else (pin or [])) + f"\n--- stderr\n{r.stderr}")
-        return Replay(r, res, valid, why, seen, misapplied_pins(r, res, mis))
+        return Replay(r, res, valid, why, seen, misapplied_pins(r, res, mis),
+                      None if why.startswith("trace unreadable") else ended)
     finally:
         shutil.rmtree(d, ignore_errors=True)
 
@@ -902,8 +967,15 @@ def confirm(rep: Report, np: int, exe: str, args: List[str] = (), timeout: int =
         rp = run_checked(np, exe, list(args), pins, timeout, mpi)
         r, res = rp.proc, rp.result
         applied = all(pins_applied(x, r.stderr) for x in pins)
-        matched = all_matched(pins, r.stderr, required, rp.seen)
         want = expected_outcomes(f)
+        if f.cls == "1a" and want:
+            # a truncation ends the run inside the receive that takes the longer message, which
+            # therefore reports no match: it is shown applied, or pending where the run stopped
+            changed = changed_pin(t, f) if t is not None and f.level == "L1" else None
+            matched = res in want and truncation_shown(changed, pins, r.stderr, required,
+                                                       _reported(r.stderr, pins) | rp.seen, rp.ended)
+        else:
+            matched = all_matched(pins, r.stderr, required, rp.seen)
         ctl = control(ctl_pins) if want and res in want and matched else Replay(None, "")
         # a pin on another operation than the traced one: the replay diverged before it, and its
         # outcome says nothing about the alternative, whichever it is

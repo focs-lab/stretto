@@ -72,9 +72,13 @@ alternatives that re-match two wildcard receives on different ranks.
 A replay confirms a finding only if every pinned receive *matched* in the rerun (the replay
 library prints `matched widx=W` when a pinned receive completes; `applied` only says the source
 argument was rewritten, and forcing an impossible match hangs as well), the run reaches the
-predicted outcome (a hang for 1c/1d, the specific MPI error for 1a), and a control rerun that
-pins the same receives to their observed senders finishes. A finding whose control does not
-finish is inconclusive. `stretto confirm` prints all three.
+predicted outcome (a hang for 1c/1d, `MPI_ERR_TRUNCATE` for a 1a truncation), and a control
+rerun that pins the same receives to their observed senders finishes. A finding whose control
+does not finish is inconclusive, and so is one whose pin fell on another operation than the
+traced one (the pins carry its communicator, tag and call site, `replay/pin.h`). A truncating
+receive fails inside the call, so its pin counts as taken when it is shown applied, or pending
+where the run stopped; a 1a type mismatch or ready send without a receive is reported by
+neither MPI library and cannot be confirmed (`n/a`). `stretto confirm` prints all three.
 
 ## Coverage
 

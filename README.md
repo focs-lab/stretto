@@ -227,6 +227,12 @@ confirm` writes also carry the traced operation's identity, `rank:idx:src[:tag]@
 diverged before a pin would otherwise pin another operation and report it matched. The replay
 library ends such a run with exit code 86, and the replay is inconclusive (`replay/pin.h`).
 
+Of class 1a only a truncation is confirmable: the receive fails with `MPI_ERR_TRUNCATE`, inside
+the call, so its pin shows as applied (and, under the tracer, the receive as pending where the
+run stopped) rather than matched. A type signature mismatch and a ready send with no posted
+receive are erroneous, but neither Open MPI nor MPICH reports them, so a replay cannot confirm
+them and their verdict is `n/a`.
+
 ```bash
 scripts/replay_idiom.sh 04 0:0:2      # pin rank 0's first wildcard receive to rank 2: the predicted run
 ```

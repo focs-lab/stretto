@@ -65,6 +65,27 @@ class Preload(unittest.TestCase):
                 C.run_pinned(3, exe, [], None, timeout=60, preload=bad, extra_env={"STRETTO_SEND_DELAY_MS": "0:1"})
 
 
+class Truncation(unittest.TestCase):
+    """Idiom 05: rank 0's wildcard receive pinned to rank 2, whose message is longer, fails with
+    MPI_ERR_TRUNCATE inside PMPI_Recv; the replay is confirmed by that error, by the pin's
+    applied line and by the replay's trace, which leaves the receive pending where rank 0
+    stopped, while the control finishes."""
+
+    def test_a_truncation_is_confirmed(self):
+        from stretto import report, trace
+        exe, tdir = idiom(self, 5)
+        t = trace.load(tdir)
+        rep = report.analyze(t)
+        res = [c for c in C.confirm(rep, 3, exe, timeout=20, t=t) if c.finding.cls == "1a" and c.finding.level == "L1"]
+        self.assertTrue(res)
+        for c in res:
+            self.assertEqual(c.finding.error, "truncate")
+            self.assertEqual(c.result, "MPI-ERROR:MPI_ERR_TRUNCATE")
+            self.assertTrue(c.pin_matched, c)
+            self.assertEqual(c.control, "FINISHED")
+            self.assertEqual(c.verdict, "confirmed", c)
+
+
 class PinIdentity(unittest.TestCase):
     """The pins carry the traced operation's communicator, tag and call site; the replay
     library checks them where it applies a pin, reports them with every match, and ends a run

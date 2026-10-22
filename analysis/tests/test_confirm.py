@@ -40,8 +40,34 @@ class Classify(unittest.TestCase):
 
     def test_only_a_hang_with_applied_pins_confirms_a_deadlock(self):
         self.assertEqual(expected_outcomes(Finding("1", "1d", "L1+SP", "")), {"TIMEOUT"})
-        self.assertEqual(expected_outcomes(Finding("1", "1a", "L1", "")), {"MPI-ERROR:MPI_ERR_TRUNCATE", "MPI-ERROR:MPI_ERR_TYPE"})
         self.assertEqual(expected_outcomes(Finding("1", "1f", "L1", "")), set())
+
+    def test_of_class_1a_only_a_truncation_is_confirmable(self):
+        """MPI reports a message longer than its receive; neither library reports a type
+        signature mismatch or a ready send with no receive posted."""
+        trunc = Finding("1", "1a", "L1", "recv(0, 0) <- send(2, 0)", error="truncate")
+        self.assertEqual(expected_outcomes(trunc), {"MPI-ERROR:MPI_ERR_TRUNCATE"})
+        self.assertEqual(expected_outcomes(Finding("1", "1a", "L1", "", error="type")), set())
+        self.assertEqual(expected_outcomes(Finding("1", "1a", "L1+SP", "", error="rsend-no-receive")), set())
+        # findings made before the field: by their title
+        self.assertEqual(C.error_of(Finding("1", "1a", "L1+SP", "truncation error in some executions after ...")), "truncate")
+        self.assertEqual(C.error_of(Finding("1", "1a", "L1+SP", "ready-mode send with no posted receive in ...")), "rsend-no-receive")
+        self.assertEqual(C.error_of(Finding("1", "1a", "L1", "r <- s", ["type signature mismatch: ..."])), "type")
+
+    def test_a_truncation_ends_the_run_inside_the_receive(self):
+        """The receive that takes the longer message fails inside the call: it prints no
+        'matched', and the run's trace leaves it pending where its rank stopped."""
+        pins = ["STRETTO_PIN=0:0:1@0:5,0:1:2@0:5"]
+        ch, other = ("recv", 0, 1), ("recv", 0, 0)
+        applied = "[stretto-pin] rank 0: applied widx=1 src=2 (world 2) tag=5 id=0:5:x\n"
+        # with the replay's trace: the changed receive pending at the end, the earlier one matched
+        self.assertTrue(C.truncation_shown(ch, pins, "", {other, ch}, {other}, {ch}))
+        self.assertFalse(C.truncation_shown(ch, pins, "", {other, ch}, set(), {ch}))          # the earlier one never matched
+        self.assertFalse(C.truncation_shown(ch, pins, applied, {other, ch}, {other}, set()))   # the trace shows it did not stop there
+        self.assertFalse(C.truncation_shown(ch, pins, "", {other, ch}, {other, ch}, {ch}))    # it matched: no truncation there
+        # without a trace: the library's applied line, of the pin's identity
+        self.assertTrue(C.truncation_shown(ch, pins, applied, {other, ch}, {other}, None))
+        self.assertFalse(C.truncation_shown(ch, pins, applied.replace("id=0:5:x", "id=0:6:x"), {other, ch}, {other}, None))
 
 
 class PinsApplied(unittest.TestCase):

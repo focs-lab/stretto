@@ -33,6 +33,9 @@ class Finding:
     certainty: str = ""         # L1+SP: 'all' (every execution with the pair) or 'some'
     probe: Optional[Key] = None  # probe alternatives: the probe whose report changes (send = what it reports)
     site: Optional[str] = None   # call site of the changed receive or probe (object+offset), if traced
+    error: str = ""              # 1a: which error, "truncate" (a message longer than the receive, MPI_ERR_TRUNCATE),
+                                 # "type" (a type signature mismatch) or "rsend-no-receive" (a ready send with no
+                                 # posted receive); only the first has an error MPI reports (stretto.confirm)
 
     def __str__(self):
         b = f" [{self.B}]" if self.B else ""
@@ -325,7 +328,7 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
                 f"rank {R} reads no result of the changed receive " + (f"before its record #{q}" if q < len(t.ranks[R]) else "in the rest of its trace")
                 for R, q in sorted(reads.rule1(t, alt.changed).items())))
         f = Finding("1", cls, "L1", alt.describe(t), details, B=brange, recv=alt.recv, send=alt.send,
-                    pin=pin_spec(r, s))
+                    pin=pin_spec(r, s), error=("truncate" if why.startswith("count mismatch") else "type") if cls == "1a" else "")
         rep.findings.append(f)
         # a deadlock contained in the horizon (theorem T7): possible only when a changed rank
         # stops before rule 1 cuts it, i.e. at a nonblocking changed receive, or inside the
@@ -421,14 +424,14 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
                             return None
                         return next((o for o in outs if pred(o) and witness_respects(t, o, positions, reads) is None), None)
 
-                    def promote(cls: str, what: str, w: explore.Outcome, c: str) -> None:
+                    def promote(cls: str, what: str, w: explore.Outcome, c: str, error: str = "") -> None:
                         rep.findings.append(Finding(
                             "1", cls, "L1", f"{what} in an execution of every program consistent with the trace and its read bounds, "
                             f"after {t.recvs[rk]} <- {t.sends[sk]}",
                             [f"single-path witness at B={_fmt_B(B)}: every rank stops before the read bound of each of its results "
                              "that differ from the trace, so the program issues the trace's calls up to there (docs/firstread.md)",
                              f"under the single-path assumption: in {'every execution' if c == 'all' else 'some executions'} with the change"],
-                            B=f"B={_fmt_B(B)}", recv=rk, send=sk, pin=pin_from_execution(t, w), certainty="some"))
+                            B=f"B={_fmt_B(B)}", recv=rk, send=sk, pin=pin_from_execution(t, w), certainty="some", error=error))
 
                     dead = [o for o in outs if o.kind == "deadlock"]
                     if dead and base_deadlock:
@@ -458,10 +461,11 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
                             c = certainty(lambda o, err=err: err in o.error_kinds)
                             w = respecting(lambda o, err=err: err in o.error_kinds)
                             if w is not None:
-                                promote("1a", what, w, c)
+                                promote("1a", what, w, c, err)
                             else:
                                 rep.findings.append(Finding("1", "1a", "L1+SP", f"{what} in {'every execution' if c == 'all' else 'some executions'} {tail}",
-                                                            B=f"B={_fmt_B(B)}", recv=rk, send=sk, pin=witness(lambda o, err=err: err in o.error_kinds), certainty=c))
+                                                            B=f"B={_fmt_B(B)}", recv=rk, send=sk, pin=witness(lambda o, err=err: err in o.error_kinds), certainty=c,
+                                                            error=err))
             # one finding per consequence, with the thresholds it holds at merged into its B
             uniq, out = {}, []
             for f in rep.findings:
