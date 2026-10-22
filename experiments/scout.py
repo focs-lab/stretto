@@ -10,6 +10,10 @@ exchanges are separated by collectives on the sending side, as in HYPRE's ParaSa
 "same" otherwise. A same-phase alternative can still cross exchanges that nothing collective
 separates; the replays decide.
 
+A receive alternative is replayed as the steal it names (the receive that took the message in
+the run is left without it) or, when the steal has no feasible horizon, as the swap the analysis
+found (that receive takes another message), as experiments/e8_hb.py does.
+
 Each replay and control runs under the tracer (stretto.confirm.run_checked), which judges it a
 run of the program without its pins or not, and its standard output, with the lines matching
 --ignore removed, is compared with the control's and with the traced run's. An alternative
@@ -58,6 +62,7 @@ sys.path.insert(0, os.path.join(ROOT, "analysis"))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from stretto import trace  # noqa: E402
 from stretto.confirm import _horizon, all_matched, run_checked, tracer_lib  # noqa: E402
+from stretto.matching import candidates_full  # noqa: E402
 from stretto.report import ERROR_CLASSES, analyze  # noqa: E402
 from stretto.sites import _is_dyn  # noqa: E402
 from provenance import code_commit  # noqa: E402
@@ -258,11 +263,23 @@ def main() -> int:
     prepared = {}
     for j in sorted({j for j, *_ in todo}):
         t = trace.load(traced[j][1])
+        cands = None
         for jj, f, *_ in todo:
-            if jj == j:
-                h = _horizon(t, f)
-                prepared[id(f)] = (None, None) if h is None else ((h[0], h[1]), h[2])
-        del t
+            if jj != j:
+                continue
+            h = _horizon(t, f)
+            if h is None and f.recv is not None and f.probe is None:
+                # not a steal: the receive the steal robs must take another message (two
+                # changes, the analysis' swap); pin the candidate matching the analysis checked
+                if cands is None:
+                    cands = candidates_full(t, lambda a, b: False)[0]
+                for a in cands:
+                    if a.recv == f.recv and a.send == f.send and a.kind != "steal":
+                        h = _horizon(t, f, M=a.M, changed=a.changed)
+                        if h is not None:
+                            break
+            prepared[id(f)] = (None, None) if h is None else ((h[0], h[1]), h[2])
+        del t, cands
     for _, d, *_ in traced:
         shutil.rmtree(d, ignore_errors=True)
 
