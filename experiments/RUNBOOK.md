@@ -442,10 +442,14 @@ the race occurs at the default settings, which is why the replays hang with no e
 downloads, Open MPI wrappers, optimised. PCHYPRE exposes ParaSails' level count and threshold, so
 PETSc's own KSP tutorial `ex2` reaches the race with command-line options only, nothing patched:
 `-pc_type hypre -pc_hypre_type parasails -pc_hypre_parasails_nlevels 2 -pc_hypre_parasails_thresh
-0.01`. The second level requests new off-processor rows only when the pattern is dense enough; at
-PETSc's default threshold 0.1 the pattern converges at level 1 and no cross alternative appears,
-so the headline uses a denser threshold (a legitimate, more accurate ParaSails). `parasails` runs
-the dense two-level case, its one-level control and the default-threshold case; `predict` scouts
+0.01`. PETSc 3.26.0 passes the level count to HYPRE only together with the threshold
+(`PCSetFromOptions_HYPRE_ParaSails`, `src/ksp/pc/impls/hypre/impl/ihypre.c`: `HYPRE_ParaSailsSetParams`
+inside the `if` of `-pc_hypre_parasails_thresh`), so `-pc_hypre_parasails_nlevels 2` alone runs one
+level (ParaSails' logging prints `num_levels 1` while `-ksp_view` prints `nlevels 2`) and shows no
+cross alternative; with the threshold given, at 0.01, 0.05 or PETSc's default 0.1 alike, every
+level count of two or more does (`scan.csv`). `parasails` runs the two-level case with the
+threshold 0.01 ("dense"), its one-level control and the level count without a threshold
+(`parasails-default-m32.csv` is a first pass of the latter at `-m 32`, made at 3a87e3a); `predict` scouts
 PETSc's own wildcard sites (`PetscCommBuildTwoSided` NBX, `PetscGatherMessageLengths`, the legacy
 Mat/Vec stashes, `MatIncreaseOverlap`), which each take a fresh tag per call and begin or end with
 a collective, so they produce only same-exchange alternatives. `stress` and `ninja` are the

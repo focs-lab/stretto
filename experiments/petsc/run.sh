@@ -10,9 +10,11 @@
 # pattern levels and its threshold as -pc_hypre_parasails_nlevels and -pc_hypre_parasails_thresh,
 # so PETSc's own KSP tutorial ex2 reaches the ParaSails race of experiments/hypre3/ with
 # command-line options only. The driver and the options are all PETSc's own; nothing is patched.
-# The second pattern level requests new off-processor rows only when the pattern is dense enough,
-# so the headline uses a threshold below PETSc's default 0.1 (a denser, more accurate ParaSails);
-# at the default the second level adds nothing and no cross alternative appears.
+# PCSetFromOptions_HYPRE_ParaSails (src/ksp/pc/impls/hypre/impl/ihypre.c, 3.26.0) passes the level
+# count to HYPRE only together with the threshold (HYPRE_ParaSailsSetParams inside the if of
+# -pc_hypre_parasails_thresh), so -pc_hypre_parasails_nlevels alone is ignored (ParaSails' own
+# logging prints num_levels 1, -ksp_view nlevels 2) and the threshold must be given too; any value
+# reaches the race (the scan step: 0.01, 0.05 and 0.1, PETSc's default, all do).
 #
 # Steps, inside the experiment container, from the repository root, Open MPI build:
 #   fetch    download PETSc 3.26.0 (GitHub), f2cblaslapack 3.8.0.q2 (PETSc's site) and HYPRE
@@ -54,12 +56,13 @@ declare -A URL=([petsc-3.26.0.tar.gz]=https://github.com/petsc/petsc/archive/ref
                 [f2cblaslapack-3.8.0.q2.tar.gz]=https://web.cels.anl.gov/projects/petsc/download/externalpackages/f2cblaslapack-3.8.0.q2.tar.gz
                 [hypre-3.2.0.tar.gz]=https://github.com/hypre-space/hypre/archive/refs/tags/v3.2.0.tar.gz)
 # driver name, process counts, arguments of ex2 or ex3. The ParaSails group: two pattern levels
-# with a dense pattern (the race); one level, the same pattern (a control with no cross); and
-# two levels at the default threshold (the pattern converges at level 1, so no cross).
+# with the threshold given (the race; "dense" for the threshold 0.01 the campaign used); one
+# level, the same threshold (a control with no cross); and the level count without a threshold,
+# which PETSc does not pass on, so HYPRE runs one level (no cross).
 PS="ex2 -m 48 -n 48 -pc_type hypre -pc_hypre_type parasails"
 PARASAILS="ex2-parasails2-dense|4 8|$PS -pc_hypre_parasails_nlevels 2 -pc_hypre_parasails_thresh 0.01
 ex2-parasails1-dense|4 8|$PS -pc_hypre_parasails_nlevels 1 -pc_hypre_parasails_thresh 0.01
-ex2-parasails2|4 8|$PS -pc_hypre_parasails_nlevels 2"
+ex2-parasails2-nothresh|4 8|$PS -pc_hypre_parasails_nlevels 2"
 DRIVERS="ex2-gamg|4 8|ex2 -m 32 -n 32 -pc_type gamg
 ex2-asm2|4|ex2 -m 32 -n 32 -pc_type asm -pc_asm_overlap 2
 ex2-boomeramg|4|ex2 -m 32 -n 32 -pc_type hypre -pc_hypre_type boomeramg
