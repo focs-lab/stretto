@@ -22,12 +22,14 @@ horizon.compute_cut. The generic check stays as the reference; the tests compare
 every alternative.
 """
 from __future__ import annotations
+from array import array
 from bisect import bisect_left, bisect_right
+from heapq import heappop, heappush
 from typing import Dict, Iterable, List, Optional, Set, Tuple
 
 from .feasible import Verdict
 from .horizon import coll_can_complete
-from .matching import Alternative, build_graph, is_hub, is_match, match_node, send_blocks
+from .matching import Alternative, Graph, build_graph, is_hub, is_match, match_node, send_blocks
 from .trace import ANY, Coll, Key, Probe, Recv, Send, Trace
 
 INF = 10 ** 9
@@ -35,6 +37,40 @@ INF = 10 ** 9
 
 def _cidx(x) -> int:
     return x.complete_idx if x.complete_idx is not None else x.idx
+
+
+def lamport_times(t: Trace, g: Graph) -> Optional[Dict[int, array]]:
+    """The Lamport time of every record of the observed run in graph g: for each rank an array
+    with the length of the longest path to record k's issue node at 2k and to its completion
+    node at 2k + 1. None if g is cyclic."""
+    lam = {rank: array("l", [0]) * (2 * len(recs)) for rank, recs in t.ranks.items()}
+    other: Dict = {}                      # match nodes and collective hubs
+
+    def get(n) -> int:
+        if n[0] >= 0 and n[2] != "m":
+            return lam[n[0]][2 * n[1] + (n[2] == "c")]
+        return other.get(n, 0)
+
+    indeg: Dict = {}
+    for succ in g.succ.values():
+        for b in succ:
+            indeg[b] = indeg.get(b, 0) + 1
+    ready = [n for n in g.nodes if n not in indeg]
+    while ready:
+        n = ready.pop()
+        v = get(n) + 1
+        for b in g.succ.get(n, ()):
+            if v > get(b):
+                if b[0] >= 0 and b[2] != "m":
+                    lam[b[0]][2 * b[1] + (b[2] == "c")] = v
+                else:
+                    other[b] = v
+            indeg[b] -= 1
+            if indeg[b] == 0:
+                ready.append(b)
+    if any(indeg.values()):
+        return None
+    return lam
 
 
 class Suffix2:
@@ -71,6 +107,7 @@ class Indexes:
         self.length = {rank: len(recs) for rank, recs in t.ranks.items()}
         self.recv_of0: Dict[Key, Key] = {sk: rk for rk, sk in t.observed.items()}
         self._sends = self._recvs = self._colls = self._unmatched = None
+        self._lam = None                  # Lamport times (lamport()); False if unavailable
         # receives without an observed send, per rank in posting order; orphan sends
         self.unmatched: Dict[int, List[Recv]] = {}
         for r in sorted(t.recvs.values(), key=lambda r: (r.rank, r.idx)):
@@ -213,6 +250,15 @@ class Indexes:
             self._strong0 = build_graph(self.t, self.t.observed, None, 0, strong_only=True).find_cycle() is None
         return self._strong0
 
+    def lamport(self, g: Optional[Graph] = None) -> Optional[Dict[int, array]]:
+        """Lamport times of the observed graph at B = inf (lamport_times), the order in which
+        Observed.closure processes its worklist; None if that graph is cyclic. g, if given, is
+        that graph already built (Observed(t, None).graph())."""
+        if self._lam is None:
+            g = g if g is not None else build_graph(self.t, self.t.observed, None, None)
+            self._lam = lamport_times(self.t, g) or False
+        return self._lam or None
+
     def ready(self) -> None:
         if self._sends is None:
             self._build_sends()
@@ -268,12 +314,22 @@ class Observed:
         dropped_sends without a receive. exclude2 = (R, Q, position) names a stale entry of
         the rule-2 index (the changed receive's observed send), exclude3 one of the rule-3
         index (the receive that lost the send now taken by the changed receive). bounds: read
-        bounds for rule 1, as in horizon.compute_cut. Returns (cut, issued)."""
+        bounds for rule 1, as in horizon.compute_cut. Returns (cut, issued).
+
+        The worklist holds ranks whose cut moved. It is taken in the order of the Lamport
+        times of the observed run (Indexes.lamport), the earliest removed record first: a
+        removal makes the operations that depend on the removed one lose their completion,
+        and those come later, so a rank is usually processed once, at the cut where it ends.
+        Taken last in first out, as before 22 Oct 2026, the closure of a probe of AMG's trace
+        processed each rank 4.0 times on average at 16 processes, 5.5 at 32 and 7.7 at 64; in
+        this order, once at each. The closure is the greatest fixpoint of the rules whatever
+        the order; the order of the lowerings only decides which reason is recorded first for a
+        rank, so a closure that records hangs keeps the old order and its texts."""
         t, ix, B = self.t, self.ix, self.B
         new_pairs = new_pairs or {}
         cut = dict(ix.length)
         issued: Dict[int, int] = {}
-        work: List[Tuple[int, int]] = []
+        work: List = []
         probe_ranks = {p.rank: p.idx for p in changed_probes}
         changed_probe_at = {(p.rank, p.idx) for p in changed_probes}
         dropped_keys = {r.key for r in dropped_recvs}
@@ -282,18 +338,26 @@ class Observed:
         stale = {(rk[0], t.recvs[rk].idx) for rk in list(new_pairs) + list(dropped_keys)}
 
         record = hangs is not None and mode == "SP"
+        lam = None if record else ix.lamport()
+        done: Dict[int, Tuple[int, bool]] = {}     # the state at which each rank was last processed
+
+        def push(rank: int, idx: int, kept: bool) -> None:
+            if lam is None:
+                work.append((rank, idx))
+            else:
+                heappush(work, (lam[rank][2 * idx + kept], rank))
 
         def lower(rank: int, idx: int, why=None, issue_kept: bool = False) -> None:
             """why: a callable producing the reason text, formatted only when hangs are recorded.
             A rule that removes the issue kept at the current cut still applies (horizon.compute_cut)."""
             if idx == cut[rank] and issued.get(rank) == idx and not issue_kept:
                 issued.pop(rank, None)
-                work.append((rank, idx))
+                push(rank, idx, False)
                 if record and rank not in hangs:
                     hangs[rank] = why() if why else ""
                 return
             if idx < cut[rank]:
-                work.append((rank, idx))
+                push(rank, idx, issue_kept)
                 cut[rank] = idx
                 if issue_kept:
                     issued[rank] = idx
@@ -365,7 +429,17 @@ class Observed:
             if r.completed and r.idx < cut[r.rank]:
                 rule6(r)
         while work:
-            R, new = work.pop()
+            if lam is None:
+                R, new = work.pop()
+            else:
+                # the rank's records from its current cut on are removed: one pass covers every
+                # lowering of it since it was last processed
+                R = heappop(work)[1]
+                new = cut[R]
+                st = (new, issued.get(R) == new)
+                if done.get(R) == st:
+                    continue
+                done[R] = st
             # rule 6: the receives of R's removed sends stay pending; Q is cut at the smallest
             # competitor among them (a send cut at its own record with its issue kept is
             # still delivered, so it starts the suffix after itself)
@@ -470,6 +544,8 @@ class Observed:
         if self._graph is None:
             self._graph = build_graph(self.t, self.t.observed, None, self.B)
             self._cycle = self._graph.find_cycle()
+            if self.B is None and self._cycle and self.ix._lam is None:
+                self.ix._lam = False          # the graph of Indexes.lamport, cyclic: no Lamport times
         return self._graph
 
     def acyclic(self) -> bool:
@@ -510,22 +586,37 @@ class Observed:
                 indeg[b] = indeg.get(b, 0) + 1
         ready = [n for n in g.nodes if indeg[n] == 0]
         vc: Dict = {}
+        # at B = inf this is the graph of Indexes.lamport: its Lamport times come with the clocks
+        lam = {rank: array("l", [0]) * (2 * len(recs)) for rank, recs in self.t.ranks.items()} \
+            if self.B is None and self.ix._lam is None else None
+        lam_other: Dict = {}
         while ready:
             n = ready.pop()
             v = [-1] * P
+            ln = 0
             for a in self._preds(n):
                 va = vc[a]
                 for i in range(P):
                     if va[i] > v[i]:
                         v[i] = va[i]
+                if lam is not None:
+                    la = (lam[a[0]][2 * a[1] + (a[2] == "c")] if a[0] >= 0 and a[2] != "m" else lam_other[a]) + 1
+                    if la > ln:
+                        ln = la
             if not is_hub(n) and not is_match(n):   # hubs and match nodes are no rank's events
                 v[self._rank_pos[n[0]]] = 2 * n[1] + (1 if n[2] == "c" else 0)
+                if lam is not None:
+                    lam[n[0]][2 * n[1] + (n[2] == "c")] = ln
+            elif lam is not None:
+                lam_other[n] = ln
             vc[n] = v
             for b in g.succ.get(n, ()):
                 indeg[b] -= 1
                 if indeg[b] == 0:
                     ready.append(b)
         self._vc = vc
+        if lam is not None:
+            self.ix._lam = lam
 
     def _preds(self, n):
         if not hasattr(self, "_pred"):

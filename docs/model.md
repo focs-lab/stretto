@@ -81,12 +81,26 @@ O(n + m) per alternative and threshold; it is the reference. The fast checks
 (`stretto.fast`) answer the same questions for single-change alternatives from indexes:
 the closure runs as a worklist over ranks, where a cut on one rank finds the earliest
 receive, rendezvous sender, collective or probe it drags along by a suffix-minimum query on
-a per-pair-of-ranks list (O(P² log n) per alternative); matching order follows from the
+a per-pair-of-ranks list, O(P log n) per lowering of a rank (and a scan of the rank's later
+collectives); matching order follows from the
 kernel that enumerated the candidate (the send is the earliest unconsumed one of its
 source), so only the receives of the changed rank are looked at; and, for a steal at a
 *blocking* receive, acyclicity reduces to reachability queries on the observed graph of the
 threshold, answered by vector clocks computed once per threshold (match nodes carry no
-timestamp of their own, like hubs). Rule 1 cuts the rank right after the receive, so the
+timestamp of their own, like hubs). The worklist takes the rank
+whose first removed record is earliest in the Lamport times of the observed run at B = ∞
+(`Indexes.lamport`): a removal makes the operations that need the removed one lose their
+completion, and those come later, so a rank is usually processed once, at the cut where it
+ends, and a closure costs O(P² log n). The order is a heuristic, not a bound: rule 6 cuts at
+a receive's posting and rule 2 at the call of the wait that completes a receive, which can
+precede the removed send in that order, so a rank can be processed again, and since each
+lowering lands on a record the worst case is O(n P log n) per closure. Taken last in first
+out, as before 22 Oct 2026, the closure of a probe of AMG's trace processed each rank 4.0
+times on average at 16 processes, 5.5 at 32 and 7.7 at 64, so that its cost grew with the
+trace (5, 27 and 190 ms); in Lamport order each rank once (2, 7 and 34 ms). The greatest
+fixpoint does not depend on the order (the appendix's lemma on the worklist); only the reason
+recorded first for a rank does, so a closure that records the single-path hangs (the observed
+run's verdict) keeps the old order and its texts. Rule 1 cuts the rank right after the receive, so the
 only kept successor of the new match is the completion of a rendezvous send, and a cycle
 exists iff that completion reaches one of the match's predecessors: the receive's issue or
 the match nodes of its order edges. Reachability in the observed graph over the whole trace
@@ -301,9 +315,13 @@ k + 2 (T2 does not cover it).
 The check is thus quasi-linear per alternative for any number of changed receives; what grows
 with the number of changed receives is the number of alternatives, and the choice of which
 receives to change is the problem that is NP-complete in general (MOPPER's), which this work
-does not solve. The fast check (`stretto.fast`), for steals at blocking receives, has the same
-bound after O(n log n) preparation per trace and per threshold; in practice it costs far less
-per alternative.
+does not solve. The fast check (`stretto.fast`), for steals at blocking receives and for probe
+and completion-order alternatives, needs O(n log n) preparation per trace and the vector
+clocks per threshold, O((n + m) P), and then costs O(P log n) per lowering of a rank in its
+closure. A lowering lands on a record, so a closure costs at most O(n P log n), within a
+factor P of (ii), and O(P² log n) when each rank is lowered once, which the Lamport order of
+its worklist makes the usual case (§2, cost). The bound of (ii) is the generic check's, whose
+worklist takes records, not ranks, and holds whatever the order.
 *Sketch.* (i) by construction of `matching.candidates_full`; (ii) each rule of the closure is
 evaluated at the start and then once per record whose issue it depends on, records lose their
 issue at most once because cuts only decrease, and the cut states are ordered (index, issue

@@ -688,6 +688,34 @@ def closure_equals_fixpoint(tc, t):
             tc.assertEqual(res[0], res[1], f"B={B} mode={mode} changed={changed} probe={pk}")
 
 
+def closure_orders_agree(tc, t):
+    """fast.Observed.closure taken in Lamport order (the default) and last in first out (its
+    order before 22 Oct 2026): the same cut and issued sends for the observed matching in both
+    modes and the same verdicts and cuts for every alternative, probe alternative and
+    completion-order alternative, at every breakpoint."""
+    ordered, lifo = fast.Indexes(t), fast.Indexes(t)
+    lifo._lam = False
+    hb = fast.Observed(t, None, fast.Indexes(t)).reaches
+    alts, _ = candidates_full(t, hb)
+    probes = probe_candidates(t, hb)
+    waits = _completion_alternatives(t, hb)
+
+    def v(x):
+        return None if x is None else (x.feasible, x.reason, x.cut)
+
+    for B in breakpoints(t) + [None]:
+        res = []
+        for ix in (ordered, lifo):
+            ob = fast.Observed(t, B, ix)
+            out = [ob.closure(), ob.closure(mode="SP")]
+            out += [v(ob.check_alternative(a)) for a in alts]
+            out += [ob.closure(changed_probes=[p]) for p, _ in probes]
+            out += [v(ob.check_probe(p, s)) for p, s in probes]
+            out += [v(ob.check_event(rec.rank, rec.idx, s_j)) for rec, _, _, s_j in waits]
+            res.append(out)
+        tc.assertEqual(res[0], res[1], f"B={B}")
+
+
 class C_FastEqualsGeneric(unittest.TestCase):
     def test_traces_of_this_module(self):
         # every in-memory trace the other tests build, re-created here
@@ -712,6 +740,22 @@ class C_FastEqualsGeneric(unittest.TestCase):
             with self.subTest(trace=i):
                 fast_equals_generic(self, t)
                 closure_equals_fixpoint(self, t)
+                closure_orders_agree(self, t)
+
+    def test_closure_order_on_a_cascade(self):
+        """A cascade over four ranks that the LIFO order processes rank 3 twice in: rank 0's
+        cut after its probe removes its sends to 1 and 3, and rank 1's removal reaches 3
+        again, earlier. Records are numbered from the init record at 0."""
+        pr = {"op": "probe", "kind": "probe", "src": 0, "anysrc": 1, "tag": 1, "comm": 0, "flag": 1, "msrc": 2, "mtag": 1}
+        t = mk({0: [pr, recv(2, 1, 2, 1), send(3, 5), send(1, 4)],
+                1: [recv(0, 4, 0, 4), send(3, 6)],
+                2: [send(0, 1), send(0, 1)],
+                3: [recv(1, 6, 1, 6), recv(0, 5, 0, 5)]})
+        self.assertIsNotNone(t.fast_indexes().lamport())
+        closure_orders_agree(self, t)
+        ob = fast.Observed(t, None)
+        cut, _ = ob.closure(changed_probes=[t.probes[(0, 0)]])
+        self.assertEqual((cut[0], cut[1], cut[3]), (2, 1, 1))
 
 
 class C_MatchNodes(unittest.TestCase):
@@ -1270,30 +1314,52 @@ class C_EnumerationComplete(unittest.TestCase):
     PROGRAMS, MAX_STATES = 40, 5000
 
     def test_e6_programs(self):
-        rng = __import__("random").Random(20261016)
-        made = attempts = pruned = 0
-        while made < self.PROGRAMS and attempts < self.PROGRAMS * 20:
-            attempts += 1
-            nranks = rng.choice([3, 4, 4, 5])
-            prog, comms = dsl.random_matched_program(rng, nranks, mixed=rng.random() < 0.5)
-            try:
-                res = explore.explore(prog, None, comms=comms, max_states=self.MAX_STATES)
-            except (explore.StateCapReached, explore.ExploreError):
-                continue
-            done = [o for o in res.outcomes if o.kind == "done" and not o.leaked and not o.errors]
-            if not done:
-                continue
-            o = rng.choice(done)
-            t = T.Trace()
-            T._build(t, dsl.trace_from_execution(prog, dict(o.matching), comms))
-            if not any(r.wildcard for r in t.recvs.values()):
-                continue
+        made = pruned = 0
+        for t in e6_traces(self.PROGRAMS, self.MAX_STATES):
             made += 1
             pruned += len(candidates_full(t)[1])
             with self.subTest(program=made):
                 self.assertEqual(realised_but_pruned(t, self.MAX_STATES), [])
         self.assertEqual(made, self.PROGRAMS)
         self.assertGreater(pruned, 0)
+
+
+def e6_traces(n: int, max_states: int):
+    """The traces of the first n random programs of E6 (experiments/e6_checker_vs_explorer.py
+    --synthetic, seed 20261016) that have a wildcard receive, as C_EnumerationComplete draws them."""
+    rng = __import__("random").Random(20261016)
+    made = attempts = 0
+    while made < n and attempts < n * 20:
+        attempts += 1
+        nranks = rng.choice([3, 4, 4, 5])
+        prog, comms = dsl.random_matched_program(rng, nranks, mixed=rng.random() < 0.5)
+        try:
+            res = explore.explore(prog, None, comms=comms, max_states=max_states)
+        except (explore.StateCapReached, explore.ExploreError):
+            continue
+        done = [o for o in res.outcomes if o.kind == "done" and not o.leaked and not o.errors]
+        if not done:
+            continue
+        o = rng.choice(done)
+        t = T.Trace()
+        T._build(t, dsl.trace_from_execution(prog, dict(o.matching), comms))
+        if not any(r.wildcard for r in t.recvs.values()):
+            continue
+        made += 1
+        yield t
+
+
+class C_ClosureOrderRandom(unittest.TestCase):
+    """closure_orders_agree on E6's random programs: wildcard receives, every send mode,
+    sub-communicators and collectives."""
+
+    def test_e6_programs(self):
+        n = 0
+        for i, t in enumerate(e6_traces(30, 5000)):
+            with self.subTest(program=i + 1):
+                closure_orders_agree(self, t)
+            n += 1
+        self.assertEqual(n, 30)
 
 
 def ready_before_receive_trace():
