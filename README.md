@@ -65,11 +65,18 @@ judges the run it sees) and stress testing with random delays.
 
 | corpus | programs | Stretto, one run | false positives | MUST 1.9.2 | stress testing |
 |---|---:|---:|---:|---:|---:|
-| MBI (message races, probes, buffering) | 115 | **0.97** | 0 | 0.83–0.89 | 0.90 |
+| MBI (message races, probes, buffering) | 115 | **0.97** | 0 | 0.83–0.89 | 0.90, 0.97 with the eager limit forced down |
 | MPI-BugBench level 2 | 388 | **0.95**, 0.99 with the buffer guard | 4 | 0.94–0.94 | – |
 
 Every MBI error that stress testing never exposes (12 programs, the
-buffering-dependent deadlocks) is predicted from a run that finished. The MPI-BugBench misses
+buffering-dependent deadlocks) is predicted from a run that finished. With Open MPI's eager limit
+forced down so that it buffers no payload byte, the same stress runs hang
+8 of them, those that send to another rank, and fail
+no correct program
+(F1 0.97); the other
+4 send to their own rank, which Open MPI buffers at any limit.
+Testing finds them once one suspects that buffering matters; Stretto finds them from one run at
+the default setting and reports the threshold. The MPI-BugBench misses
 are programs that touch a buffer while a nonblocking call still uses it, which no MPI call
 records. The buffer guard (`STRETTO_GUARD=1`) watches those buffers in the run itself and finds
 20 of the 20 under Open MPI and 22 of

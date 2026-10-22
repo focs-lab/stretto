@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="860" height="420" viewBox="0 0 860 420" role="img" aria-label="F1 score on labelled MPI benchmarks (higher is better)">
-<rect x="1" y="1" width="858" height="418" rx="14" fill="#FFFDF8" stroke="#E2DDD2" stroke-width="2"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="860" height="454" viewBox="0 0 860 454" role="img" aria-label="F1 score on labelled MPI benchmarks (higher is better)">
+<rect x="1" y="1" width="858" height="452" rx="14" fill="#FFFDF8" stroke="#E2DDD2" stroke-width="2"/>
 <text x="28" y="40" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="19" font-weight="600" fill="#14213D">F1 score on labelled MPI benchmarks (higher is better)</text>
 <text x="28" y="76" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#14213D">MBI: message races, probes, buffering (115 programs)</text>
 <text x="276" y="106" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" fill="#14213D" text-anchor="end">Stretto, one run</text>
@@ -18,25 +18,29 @@
 <rect x="290" y="194" width="470" height="20" rx="4" fill="#E9ECF2"/>
 <rect x="290" y="194" width="423.0" height="20" rx="4" fill="#E8873A"/>
 <text x="772" y="209" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#14213D">0.90</text>
-<text x="28" y="246" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#14213D">MPI-BugBench level 2 (388 programs)</text>
-<text x="276" y="276" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" fill="#14213D" text-anchor="end">Stretto, one run</text>
-<rect x="290" y="262" width="470" height="20" rx="4" fill="#E9ECF2"/>
-<rect x="290" y="262" width="446.5" height="20" rx="4" fill="#1F5FA8"/>
-<text x="772" y="277" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#14213D">0.95</text>
-<text x="276" y="310" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" fill="#14213D" text-anchor="end">Stretto with the buffer guard</text>
+<text x="276" y="242" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" fill="#14213D" text-anchor="end">stress, eager limit forced down</text>
+<rect x="290" y="228" width="470" height="20" rx="4" fill="#E9ECF2"/>
+<rect x="290" y="228" width="455.9" height="20" rx="4" fill="#E8873A"/>
+<text x="772" y="243" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#14213D">0.97</text>
+<text x="28" y="280" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#14213D">MPI-BugBench level 2 (388 programs)</text>
+<text x="276" y="310" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" fill="#14213D" text-anchor="end">Stretto, one run</text>
 <rect x="290" y="296" width="470" height="20" rx="4" fill="#E9ECF2"/>
-<rect x="290" y="296" width="465.3" height="20" rx="4" fill="#1F5FA8"/>
-<text x="772" y="311" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#14213D">0.99</text>
-<text x="276" y="344" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" fill="#14213D" text-anchor="end">MUST 1.9.2</text>
+<rect x="290" y="296" width="446.5" height="20" rx="4" fill="#1F5FA8"/>
+<text x="772" y="311" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#14213D">0.95</text>
+<text x="276" y="344" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" fill="#14213D" text-anchor="end">Stretto with the buffer guard</text>
 <rect x="290" y="330" width="470" height="20" rx="4" fill="#E9ECF2"/>
-<rect x="290" y="330" width="441.8" height="20" rx="4" fill="#9AA3B2"/>
-<text x="772" y="345" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#14213D">0.94</text>
-<text x="276" y="378" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" fill="#14213D" text-anchor="end">MUST, a timeout or crash as an error</text>
+<rect x="290" y="330" width="465.3" height="20" rx="4" fill="#1F5FA8"/>
+<text x="772" y="345" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#14213D">0.99</text>
+<text x="276" y="378" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" fill="#14213D" text-anchor="end">MUST 1.9.2</text>
 <rect x="290" y="364" width="470" height="20" rx="4" fill="#E9ECF2"/>
 <rect x="290" y="364" width="441.8" height="20" rx="4" fill="#9AA3B2"/>
 <text x="772" y="379" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#14213D">0.94</text>
-<line x1="525.0" y1="78" x2="525.0" y2="390" stroke="#9AA3B2" stroke-width="1" stroke-dasharray="3 4"/>
-<text x="525.0" y="406" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="#9AA3B2" text-anchor="middle">0.5</text>
-<line x1="760.0" y1="78" x2="760.0" y2="390" stroke="#9AA3B2" stroke-width="1" stroke-dasharray="3 4"/>
-<text x="760.0" y="406" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="#9AA3B2" text-anchor="middle">1.0</text>
+<text x="276" y="412" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" fill="#14213D" text-anchor="end">MUST, a timeout or crash as an error</text>
+<rect x="290" y="398" width="470" height="20" rx="4" fill="#E9ECF2"/>
+<rect x="290" y="398" width="441.8" height="20" rx="4" fill="#9AA3B2"/>
+<text x="772" y="413" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#14213D">0.94</text>
+<line x1="525.0" y1="78" x2="525.0" y2="424" stroke="#9AA3B2" stroke-width="1" stroke-dasharray="3 4"/>
+<text x="525.0" y="440" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="#9AA3B2" text-anchor="middle">0.5</text>
+<line x1="760.0" y1="78" x2="760.0" y2="424" stroke="#9AA3B2" stroke-width="1" stroke-dasharray="3 4"/>
+<text x="760.0" y="440" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12" fill="#9AA3B2" text-anchor="middle">1.0</text>
 </svg>

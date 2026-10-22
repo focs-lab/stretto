@@ -78,7 +78,7 @@ others exited with an error. The buffering replays are in RQ3 and HYPRE's in RQ6
 the recorded run itself; \emph{predicted} findings are claims about other runs of a program,
 \cls{2-buffering} on a run that finished among them.
 A hang the harness kills counts as an error for \tool; for \MUST both scorings are shown.
-The stress row covers the MBI programs only.}
+The stress rows cover the MBI programs only.}
 \label{tab:rq2}
 \small
 \begin{tabular}{@{}lrrrrr@{}}
@@ -110,15 +110,17 @@ from \nRepsCleanPredicted of the \nRepsCleanRuns runs that showed nothing; the r
 value-checking programs.
 
 Stress testing makes \nMBIStressFound of the \nMBIStressErr fail, mostly in its first run;
-\nMBIStressLater need more than one. The \nMBIStressPredMissed it never makes fail are the buffering programs, which deadlock only if the implementation
-does not buffer a 4-byte send. Open MPI buffers every message that small, so no delay exposes
-them. \tool predicts each of them from one finished run, as realisable only from a threshold of
-4~bytes. The replays of RQ3 confirm the threshold for the eight that send to another rank, so
-stress testing with a lower eager limit would expose those too. \MUST reports these programs
-as well, because it treats standard sends as unbuffered~\citep{hilbrich12must}; what \tool
-adds there is the threshold. NINJA, in each of its three modes, makes exactly the errors
-fail that stress testing does (F1 \NinjaMBIRandomfone, \NinjaMBISystemfone and
-\NinjaMBIAppfone; its application-centric mode crashes on \nNinjaMBIAppFP correct programs).
+\nMBIStressLater need more than one. The \nMBIStressPredMissed it never makes fail are the
+buffering programs: they deadlock only if a 4-byte send is not buffered, and Open MPI buffers
+it. \tool predicts each from one finished run, as realisable only from 4~bytes on. With the
+eager limit forced to \nMBIStressEagerBytes~bytes on TCP (RQ3), stress testing hangs the
+\nMBIStressEagerBufFound that send to another rank, not the \nMBIStressEagerPredMissedSelf that
+send to themselves, and fails no correct program (F1 \MBIfonestresseager). It needs the
+suspicion that buffering matters; \tool needs none, and gives the threshold from one run at the
+default setting. \MUST reports them as well, treating standard sends as
+unbuffered~\citep{hilbrich12must}. Each of NINJA's three modes makes exactly the errors fail
+that stress testing at the default limits does (F1 \NinjaMBIRandomfone, \NinjaMBISystemfone and
+\NinjaMBIAppfone; the application-centric one crashes on \nNinjaMBIAppFP correct programs).
 
 \MBB's errors show in the run itself: by design, every incorrect program's error is
 expected to be observable~\citep{jammer24quality}, so a score there measures detection, not
@@ -341,8 +343,8 @@ small; the exhaustive comparison of RQ1 reaches \nEsixMaxEvents events. Of
 written knowing the labels, and the HYPRE campaign replays only the probe whose tag the documented fix
 changed. \MUST sees its own run under MPICH, not the traced one,
 and for both the harness's timeout decides what is a hang.
-Stress testing and NINJA ran at the default eager limits, one setting per mode; others
-or a lower limit may find more. The model assumes a
+NINJA ran at the default eager limits, one setting per mode, and stress testing at those and
+at the lowest; other settings may find more. The model assumes a
 complete trace of the modelled fragment (a call outside it limits the report to observed
 findings), one threshold for all standard sends of a run, and an angelic choice in
 \mpicall{Waitany}. The HYPRE campaign uses one input and two process counts, MG's

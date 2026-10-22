@@ -55,6 +55,21 @@ it has no alternative, so E6 lost its 2 pairs and every other row is the same. T
 read bounds had come from the traces of an earlier corpus run; their corpus rows now come from
 the traces E6 uses (310 pairs instead of 308).
 
+The stress baseline with the eager limit forced down is opt-in too: `run_remaining.sh
+stresseager` runs `stress_baseline.py --eager 0` on MBI and on MPI-BugBench's call-ordering and
+correct programs, with the runs, delays and timeout of `stress`, and writes `stress-eager.csv`
+next to each corpus table. Every run uses E2's TCP setting at the least eager limit Open MPI
+accepts (56 bytes, its header: no payload byte is buffered; below that it refuses to start), so
+it needs `experiments/results/b_impl.csv`. Step `stress` itself has never run on MPI-BugBench:
+its pattern has '/' where the program names have '__'. The tables of 22 Oct 2026 come from a copy
+of commit 0dabfce with the harness files of 1a0ec98, the only files in which the two differ; the
+rows record the copy's `COMMIT`, 0dabfce. They ran in the experiment image on 4 processors
+(`CPUS=18-19,58-59`, `MEMORY=8g`, containers `stretto-eager-mbi` and `stretto-eager-mbb`),
+`TIMEOUT=60`, MBI at `JOBS=2` in 37 minutes and MPI-BugBench at `JOBS=4` in 63 minutes, one
+after the other. The programs are the binaries the corpus runs built: MBI's are identical byte
+for byte in the runs of 20 and 21 Oct, while MPI-BugBench's correct programs are numbered as in
+`mbb.csv` only in those of 21 Oct, which the runs used. The replay library was built in the copy.
+
 Variables the scripts read (all optional):
 
 | variable | script | meaning (default) |

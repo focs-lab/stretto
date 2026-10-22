@@ -418,6 +418,103 @@ def stress(name, path, key=None):
         f"Correct programs that failed under stress (a hang under load or a delay): {len(fp)}.", ""])
 
 
+def stress_eager(name, path, key=None):
+    """The stress-testing baseline again with the eager threshold forced down in every run
+    (stress_baseline.py --eager: stress-eager.csv), against the same baseline at the default
+    limits (stress.csv)."""
+    d = os.path.dirname(path)
+    se = rows(os.path.join(d, "stress-eager.csv"))
+    if not se:
+        return ""
+    st = {r["program"]: r for r in rows(os.path.join(d, "stress.csv"))}
+    by = {r["name"]: r for r in score.compiled(rows(path))}
+    err = [r for r in se if r["expect"] == "ERROR" and r["program"] in by]
+    ok = [r for r in se if r["expect"] == "OK" and r["program"] in by]
+    found = [r for r in err if r["first_failure"]]
+    later = [r for r in found if int(r["first_failure"]) > 1]
+    fp = [r for r in ok if r["first_failure"]]
+    runs = max(int(r["runs"]) for r in se)
+    eager = ", ".join(sorted({r["eager_bytes"] for r in se}))
+    args = ", ".join(sorted({f"`{r['mpirun_args']}`" for r in se}))
+    hung = [r for r in found + fp if r["outcome"] == "TIMEOUT"]
+    other = collections.Counter(r["outcome"] for r in found + fp if r["outcome"] != "TIMEOUT")
+    # the errors Stretto predicts from one run that the runs at the default limits never make
+    # fail (the buffering programs on MBI), and how many of them the forced limit exposes; E2's
+    # replays mark the ones that send to their own rank untestable below their bound
+    pred = [r for r in err if score.predicted_verdict(by[r["program"]]) == "ERROR"]
+    missed = [r for r in pred if r["program"] in st and not st[r["program"]]["first_failure"]]
+    missed_found = [r for r in missed if r["first_failure"]]
+    still = [r for r in missed if not r["first_failure"]]
+    untestable = {r["trace"].split("/")[-2] for r in rows(os.path.join(RES, "e2_replay.csv")) if r["verdict"] == "untestable"}
+    still_self = [r for r in still if r["program"] in untestable]
+    new = [r for r in err if r["first_failure"] and r["program"] in st and not st[r["program"]]["first_failure"]]
+    lost = [r for r in err if not r["first_failure"] and r["program"] in st and st[r["program"]]["first_failure"]]
+    # against Stretto's verdict from one run: the errors only one of the two reports
+    only_stretto = [r for r in err if not r["first_failure"] and score.verdict(by[r["program"]]) == "ERROR"]
+    only_stress = [r for r in found if score.verdict(by[r["program"]]) != "ERROR"]
+    c = {"tp": len(found), "fp": len(fp), "fn": len(err) - len(found), "tn": len(ok) - len(fp)}
+    prec = c["tp"] / (c["tp"] + c["fp"]) if c["tp"] + c["fp"] else 0.0
+    rec = c["tp"] / (c["tp"] + c["fn"]) if c["tp"] + c["fn"] else 0.0
+    c["f1"] = 2 * prec * rec / (prec + rec) if prec + rec else 0.0
+    if key:
+        CONF[(key, "stresseager")] = c
+        num(f"{key}fonestresseager", c["f1"])
+        num(f"n{key}StressEagerRuns", runs)
+        num(f"n{key}StressEagerBytes", eager)
+        num(f"n{key}StressEagerErr", len(err))
+        num(f"n{key}StressEagerFound", len(found))
+        num(f"n{key}StressEagerLater", len(later))
+        num(f"n{key}StressEagerFP", len(fp))
+        num(f"n{key}StressEagerHung", len(hung))
+        num(f"n{key}StressEagerNew", len(new))
+        num(f"n{key}StressEagerLost", len(lost))
+        num(f"n{key}StressEagerBufFound", len(missed_found))
+        num(f"n{key}StressEagerPredMissed", len(still))
+        num(f"n{key}StressEagerPredMissedSelf", len(still_self))
+        num(f"n{key}StressEagerOnlyStretto", len(only_stretto))
+        num(f"n{key}StressEagerOnlyStress", len(only_stress))
+
+    def outcome(r):
+        if not r:
+            return "not run"
+        return f"fails in run {r['first_failure']} ({r['outcome']})" if r["first_failure"] else f"finishes all {r['runs']} runs"
+    names = lambda sel: " (" + ", ".join(r["program"] for r in sel) + ")" if sel else ""    # noqa: E731
+    if st:
+        against = (f"Against the default limits: {len(new)} of these do not fail there, and {len(lost)} that fail there never fail"
+                   f" here{names(lost)}. Of the {len(missed)} errors Stretto predicts that the default limits never expose,"
+                   f" {len(missed_found)} fail and {len(still)} still never fail{names(still)}, {len(still_self)} of them sending to"
+                   " their own rank (untestable below their bound in E2).")
+    else:
+        against = ("The baseline at the default limits has no table for this corpus (step stress of `run_remaining.sh` selects"
+                   " none of its programs), so there is nothing to compare with.")
+    out = [f"### Stress-testing baseline with the eager limit forced down: {name}", "",
+           f"The same baseline (up to {runs} runs per program, the same random delays, seed and timeout) with Open MPI's eager",
+           f"threshold forced down to {eager} payload bytes in every run (`stress_baseline.py --eager`, `stress-eager.csv`):",
+           f"{args}.",
+           "This is the setting E2 replays a buffering finding with below its bound, at the least eager limit the TCP",
+           "transport accepts; the shared-memory transport is left out because it sends up to 256 bytes inline whatever its",
+           "limit, and the self transport does the same for a send to the sending rank.",
+           f"Programs: {len(se)}. Rows by code commit: {commits(se)}.", "",
+           f"Labelled-error programs: {len(err)}. Forced down, stress testing makes {len(found)} fail ({len(later)} only after the first run).",
+           against,
+           f"Correct programs that fail: {len(fp)}{names(fp)}"
+           + (f", {sum(1 for r in fp if by[r['program']].get('run') == r['outcome'])} of them ending as the traced run at the"
+              " default limits did (column `run` of the corpus table)" if fp else "") + ".",
+           f"Of the {len(found) + len(fp)} failures, {len(hung)} are hangs killed at the timeout"
+           + (" and the others end with " + ", ".join(f"{o} ({n})" for o, n in sorted(other.items())) if other else "") + ".",
+           f"Against Stretto's verdict from one run: {len(only_stretto)} errors Stretto reports are never made to fail{names(only_stretto)},",
+           f"and {len(only_stress)} made to fail Stretto does not report{names(only_stress)}.", "",
+           "| | TP | FP | FN | TN | F1 |", "|---|---|---|---|---|---|",
+           f"| random delays, eager limit forced down | {c['tp']} | {c['fp']} | {c['fn']} | {c['tn']} | {c['f1']:.2f} |", ""]
+    diff = [r for r in se if r["program"] in by and r["program"] in st and bool(r["first_failure"]) != bool(st[r["program"]]["first_failure"])]
+    if diff:
+        out += ["Programs whose outcome the forced limit changes:", "",
+                "| program | label | default limits | eager limit forced down |", "|---|---|---|---|"]
+        out += [f"| {r['program']} | {r['expect']} | {outcome(st[r['program']])} | {outcome(r)} |" for r in diff]
+        out.append("")
+    return "\n".join(out)
+
+
 def hypre():
     """The real bug: HYPRE 2.10.1's ParaSails hang (experiments/hypre/run.sh)."""
     d = os.path.join(RES, "hypre")
@@ -776,7 +873,8 @@ def write_paper_numbers():
     body = []
     labels = (("union", "\\tool, observed or predicted"), ("observed", "\\tool, observed in the run"),
               ("predicted", "\\tool, predicted"), ("guard", "\\tool with the buffer guard"), ("MUST", "\\MUST, a timeout not counted"), ("MUSTsym", "\\MUST, a timeout or failed run counted as an error"),
-              ("stress", "random delays, up to \\n{key}StressRuns runs"))
+              ("stress", "random delays, up to \\n{key}StressRuns runs"),
+              ("stresseager", "random delays, eager limit forced down"))
     for key, title in (("MBI", "MBI"), ("MBB", "\\MBB level~2")):
         if not any((key, l) in CONF for l, _ in labels):
             continue
@@ -785,9 +883,11 @@ def write_paper_numbers():
             c = CONF.get((key, l))
             if l == "guard" and c == CONF.get((key, "union")):    # the guard changed no verdict: no row
                 continue
+            if l == "stresseager" and (key, "stress") not in CONF:  # shown next to the default limits only
+                continue
             if c:
                 label = text.replace("{key}", key)
-                if l == "stress":       # the baseline runs a subset of the corpus (stress_baseline.py --select)
+                if l.startswith("stress"):      # the baseline runs a subset of the corpus (stress_baseline.py --select)
                     label += f" ({c['tp'] + c['fp'] + c['fn'] + c['tn']} programs)"
                 body.append(f"{label} & {c['tp']} & {c['fp']} & {c['fn']} & {c['tn']} & {c['f1']:.2f} \\\\")
         body.append("\\midrule")
@@ -2042,7 +2142,9 @@ def main():
            e1("MPI Bugs Initiative (MBI): message-race, tag-matching, probe and buffering programs", os.path.join(RES, "mbi", "mbi.csv"), "MBI"),
            e1("MPI-BugBench level 2: point-to-point and collective call-ordering, missing-call, local-concurrency and correct programs", os.path.join(RES, "mbb", "mbb.csv"), "MBB"),
            stress("MBI", os.path.join(RES, "mbi", "mbi.csv"), "MBI"),
+           stress_eager("MBI", os.path.join(RES, "mbi", "mbi.csv"), "MBI"),
            stress("MPI-BugBench level 2", os.path.join(RES, "mbb", "mbb.csv"), "MBB"),
+           stress_eager("MPI-BugBench level 2", os.path.join(RES, "mbb", "mbb.csv"), "MBB"),
            "### Repeated runs: how often each verdict holds (MBI)", "", reps(),
            "## E2: buffering ablation", "", e2(),
            "## E3: level ablation", "", e3(),
