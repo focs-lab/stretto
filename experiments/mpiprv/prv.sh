@@ -3,7 +3,7 @@
 # digest), with the repository mounted at /w, in the foreground. The image keeps its tool
 # paths in /root/.bashrc, which the command sources first, and expects to run as root; the
 # files the command creates under /w are handed back to the calling user at the end.
-#   CPUS     processors the container may use (default 26-27,66-67)
+#   CPUS     processors the container may use (default: every processor; the paper's runs used four)
 #   MEMORY   memory limit (default 16g)
 #   NAME     container name (default stretto-prv)
 #   PRV_IMAGE  the image (default: the pinned digest)
@@ -14,7 +14,7 @@
 # usage: experiments/mpiprv/prv.sh <shell command>      (run from the repository root)
 set -euo pipefail
 PRV_IMAGE="${PRV_IMAGE:-mpiprv/mpiprv@sha256:af980da29375ffca673d1e5a16aa8c1d06a9d69211e79b6f948a137ba95c43cf}"
-CPUS="${CPUS:-26-27,66-67}"
+CPUS="${CPUS:-0-$(($(nproc) - 1))}"
 MEMORY="${MEMORY:-16g}"
 NAME="${NAME:-stretto-prv}"
 read -r -a extra <<< "${DOCKER_ARGS---cap-add SYS_PTRACE}"
