@@ -1365,9 +1365,10 @@ class C_EnumerationComplete(unittest.TestCase):
         self.assertGreater(pruned, 0)
 
 
-def e6_traces(n: int, max_states: int):
+def e6_traces(n: int, max_states: int, raw: bool = False):
     """The traces of the first n random programs of E6 (experiments/e6_checker_vs_explorer.py
-    --synthetic, seed 20261016) that have a wildcard receive, as C_EnumerationComplete draws them."""
+    --synthetic, seed 20261016) that have a wildcard receive, as C_EnumerationComplete draws them;
+    with raw, their records in the tracer's format instead (experiments/report_diff.py)."""
     rng = __import__("random").Random(20261016)
     made = attempts = 0
     while made < n and attempts < n * 20:
@@ -1383,11 +1384,12 @@ def e6_traces(n: int, max_states: int):
             continue
         o = rng.choice(done)
         t = T.Trace()
-        T._build(t, dsl.trace_from_execution(prog, dict(o.matching), comms))
+        records = dsl.trace_from_execution(prog, dict(o.matching), comms)
+        T._build(t, records)
         if not any(r.wildcard for r in t.recvs.values()):
             continue
         made += 1
-        yield t
+        yield records if raw else t
 
 
 def random_probe_trace(rng, nranks: int, rounds: int = 4):

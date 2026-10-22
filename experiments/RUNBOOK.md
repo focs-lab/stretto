@@ -256,6 +256,31 @@ On 21 Oct 2026 the window of `CPUS=20-25,60-65` left room for the plain run on M
 table is `mbb/must1112tsan-lc.csv`, which E8 reads); the plain run on MPI-BugBench and both
 corpus runs with ThreadSanitizer are still to do.
 
+## Checking that a faster analysis reports the same
+
+A change that only makes the analysis faster or leaner must leave every report as it was.
+`experiments/report_diff.py --base <old>/analysis --out <dir> --jobs N @list` analyses each
+trace directory of the list with the old code and with this repository's, as a text report,
+with `--json` and with `--full-profile --json`, and compares the outputs and exit statuses byte
+for byte; `--no-sp` and `--modes` narrow it for large traces, whose text and JSON are enough.
+The old code is `git archive <commit> analysis` unpacked next to the copy. The inputs used for
+the analysis changes of 22 Oct 2026 (closures in Lamport order and chained over a rank's probes,
+vector clocks at joins only, one graph per threshold, profiles as intervals):
+
+- the corpus traces of the last corpus run (`experiments/results/{mbi,mbb}/*/trace`, 503) and
+  the idiom traces (`traces/openmpi`, 14) of the copy E8b ran in, mounted read-only, and the
+  golden traces (`analysis/tests/golden/openmpi`, 14);
+- E8b's application traces (`experiments/results/e8/*/trace`: AMG at 8 ranks, HYPRE 2.10.1 at 4
+  and 8, NPB MG at 16 and 32);
+- AMG at 16 and 32 processes and HYPRE's ij at 16, traced as `experiments/scale/run.sh` traces
+  them, with `--no-sp --modes text,json`;
+- 100 of E6's random programs and 100 random runs with many probes per rank, written as trace
+  directories by `--synthetic <dir>:100` (`e6_traces` and `random_probe_records` of
+  `analysis/tests/test_checker.py`); the probe runs with `--no-sp`, as the single-path
+  explorer, which those changes do not touch, takes hours on each of them.
+
+The unit tests cover the same properties on the closures themselves (`closure_orders_agree`).
+
 ## Shared-host protocol on the development host
 
 Jobs that may exceed 20 GiB or use 8 sustained cores run one at a time through
