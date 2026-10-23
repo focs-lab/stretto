@@ -72,6 +72,7 @@ def main() -> int:
     ap.add_argument("--keep-campaign", default=None,
                     help="with KEEP_TRACES set, keep the traces under this campaign (stretto.keep; default: the table's)")
     args = ap.parse_args()
+    args.bindir = os.path.abspath(args.bindir)     # the runs change into it, so a relative path would point elsewhere
     need_preload(TRACER)                     # ld.so would ignore a missing tracer, and the runs leave no trace
     campaign = args.keep_campaign or keep.campaign_of(args.out)
     rows, traced = [], []

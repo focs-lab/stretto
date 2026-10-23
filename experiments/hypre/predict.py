@@ -107,6 +107,7 @@ def main() -> int:
     ap.add_argument("--keep-campaign", default=None,
                     help="with KEEP_TRACES set, keep the traces under this campaign (stretto.keep; default: the table's)")
     args = ap.parse_args()
+    args.testdir = os.path.abspath(args.testdir)   # the runs change into it, so a relative path would point elsewhere
     need_preload(TRACER)                     # ld.so would ignore a missing tracer, and the runs leave no trace
     failed = os.path.join(os.path.dirname(os.path.abspath(args.out)), "failed")
     campaign = args.keep_campaign or keep.campaign_of(args.out)
