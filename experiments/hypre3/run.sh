@@ -41,13 +41,15 @@
 # Writes experiments/results/hypre3/{predict,stress,ninja}[-fix].csv.
 # usage: experiments/hypre3/run.sh [fetch|build|predict|stress|ninja|all]
 #        RUNS (10), STRESS_RUNS (40), TIMEOUT (30), JOBS (1), MAKE_JOBS (12), VARIANT (release),
-#        HYPRE3_DIR (third_party/apps/hypre3), NINJA_DIR (third_party/ninja)
+#        HYPRE3_DIR (third_party/apps/hypre3), NINJA_DIR (third_party/ninja), MPI_CC and MPI_CXX
+#        (the build's MPI wrappers, default Open MPI's: experiments/must/apps.sh builds with MPICH's)
 set -uo pipefail
 R="$(cd "$(dirname "$0")/../.." && pwd)"; cd "$R"
 D="${HYPRE3_DIR:-$R/third_party/apps/hypre3}"
 OUT="$R/experiments/results/hypre3"; mkdir -p "$OUT"
 RUNS="${RUNS:-10}"; STRESS_RUNS="${STRESS_RUNS:-40}"; TIMEOUT="${TIMEOUT:-30}"
 PINLIB="$R/replay/bin/openmpi/libstretto-pin.so"
+MPI_CC="${MPI_CC:-/usr/bin/mpicc.openmpi}"; MPI_CXX="${MPI_CXX:-/usr/bin/mpicxx.openmpi}"
 source "$R/experiments/harness.sh"
 export STRETTO_COMMIT="${STRETTO_COMMIT:-$(python3 "$R/experiments/provenance.py")}"
 V=3.2.0
@@ -78,7 +80,7 @@ step_fetch() {
 }
 step_build() {
     if [ ! -f "$SRC/hypre/lib/libHYPRE.a" ]; then
-        (cd "$SRC" && ./configure CC=/usr/bin/mpicc.openmpi CXX=/usr/bin/mpicxx.openmpi CFLAGS="-O2 -g" CXXFLAGS="-O2 -g" \
+        (cd "$SRC" && ./configure CC="$MPI_CC" CXX="$MPI_CXX" CFLAGS="-O2 -g" CXXFLAGS="-O2 -g" \
              --disable-fortran --with-MPI > "$TREE/configure.log" 2>&1 && make -j"${MAKE_JOBS:-12}" > "$TREE/make.log" 2>&1) \
             || { echo "build of HYPRE $V ($TREE) failed" >&2; return 1; }
     fi
@@ -88,7 +90,7 @@ step_build() {
         -e 's/^         else if ( strcmp(argv\[arg_index\], "-vis") == 0 )/         else if ( strcmp(argv[arg_index], "-sai_levels") == 0 )\n         {\n            arg_index++;\n            sai_levels = atoi(argv[arg_index++]);\n         }\n         else if ( strcmp(argv[arg_index], "-vis") == 0 )/' \
         -e 's/int      sai_max_levels = 1;/int      sai_max_levels = sai_levels;/' "$ex/ex5.c" > "$ex/ex5_levels.c"
     [ "$(diff "$ex/ex5.c" "$ex/ex5_levels.c" | grep -c '^>')" = 7 ] || { echo "the ex5.c patch did not apply" >&2; return 1; }
-    (cd "$ex" && /usr/bin/mpicc.openmpi -O2 -g -I../hypre/include -o ex5_levels ex5_levels.c -L../hypre/lib -lHYPRE -lm) \
+    (cd "$ex" && "$MPI_CC" -O2 -g -I../hypre/include -o ex5_levels ex5_levels.c -L../hypre/lib -lHYPRE -lm) \
         || { echo "build of ex5_levels failed" >&2; return 1; }
 }
 step_predict() {

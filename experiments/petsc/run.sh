@@ -49,17 +49,19 @@
 # Writes experiments/results/petsc/{parasails,predict,stress,ninja,scan}.csv.
 # usage: experiments/petsc/run.sh [fetch|build|parasails|predict|stress|ninja|scan|all]
 #        RUNS (5), STRESS_RUNS (40), SCAN_RUNS (2), TIMEOUT (30), JOBS (1), MAKE_JOBS (12), SAME_SAMPLE (20),
-#        PETSC_SRC_DIR (third_party/apps/petsc), NINJA_DIR (third_party/ninja)
+#        PETSC_SRC_DIR (third_party/apps/petsc), NINJA_DIR (third_party/ninja), MPI_CC and MPI_CXX
+#        (the build's MPI wrappers, default Open MPI's), PETSC_ARCH (arch-ompi-opt)
 set -uo pipefail
 R="$(cd "$(dirname "$0")/../.." && pwd)"; cd "$R"
 D="${PETSC_SRC_DIR:-$R/third_party/apps/petsc}"
 OUT="$R/experiments/results/petsc"; mkdir -p "$OUT"
 RUNS="${RUNS:-5}"; STRESS_RUNS="${STRESS_RUNS:-40}"; TIMEOUT="${TIMEOUT:-30}"
 PINLIB="$R/replay/bin/openmpi/libstretto-pin.so"
+MPI_CC="${MPI_CC:-/usr/bin/mpicc.openmpi}"; MPI_CXX="${MPI_CXX:-/usr/bin/mpicxx.openmpi}"
 source "$R/experiments/harness.sh"
 export STRETTO_COMMIT="${STRETTO_COMMIT:-$(python3 "$R/experiments/provenance.py")}"
 V=3.26.0
-export PETSC_DIR="$D/petsc-$V" PETSC_ARCH=arch-ompi-opt
+export PETSC_DIR="$D/petsc-$V" PETSC_ARCH="${PETSC_ARCH:-arch-ompi-opt}"
 TUT="$PETSC_DIR/src/ksp/ksp/tutorials"
 declare -A SHA=([petsc-3.26.0.tar.gz]=3f1d722dd3b189a6c5ed0a114abcaae624feb9f525023d8db45d514872da64bd
                 [f2cblaslapack-3.8.0.q2.tar.gz]=12fa8d5001e313aeeea22eb2054883f59e3e3c656f11129f31abb02ddbf8ad60
@@ -96,7 +98,7 @@ step_fetch() {
 }
 step_build() {
     if [ ! -f "$PETSC_DIR/$PETSC_ARCH/lib/libpetsc.so" ]; then
-        (cd "$PETSC_DIR" && ./configure --with-cc=/usr/bin/mpicc.openmpi --with-cxx=/usr/bin/mpicxx.openmpi --with-fc=0 \
+        (cd "$PETSC_DIR" && ./configure --with-cc="$MPI_CC" --with-cxx="$MPI_CXX" --with-fc=0 \
              --with-debugging=0 COPTFLAGS="-O2 -g" CXXOPTFLAGS="-O2 -g" --with-x=0 \
              --download-f2cblaslapack="$D/f2cblaslapack-3.8.0.q2.tar.gz" --download-hypre="$D/hypre-3.2.0.tar.gz" \
              --with-make-np="${MAKE_JOBS:-12}" > "$D/configure.log" 2>&1 \

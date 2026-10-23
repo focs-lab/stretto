@@ -4,6 +4,8 @@
 #                 from MUST's site when missing, and checked against its sha256 either way
 #   IMAGE         image name (default stretto-must:1.11.2)
 #   JOBS          make jobs inside the build (default 8)
+#   FORTRAN       ON builds MUST with its Fortran interface (default OFF, as MPI-BugBench's image;
+#                 experiments/must/apps.sh uses IMAGE=stretto-must:1.11.2-fortran for NPB MG)
 #   CPUS, MEMORY  the build's cpuset and memory limit (default: none); they need the legacy
 #                 builder, which this script selects
 #   DOCKER_BUILD_ARGS  more docker build options (e.g. --cgroup-parent=docker.slice)
@@ -21,7 +23,7 @@ echo "$SHA  $TARBALL" | sha256sum -c -
 ctx="$(mktemp -d)"; trap 'rm -rf "$ctx"' EXIT
 cp "$R/experiments/must/Dockerfile" "$TARBALL" "$ctx/"
 read -r -a extra <<< "${DOCKER_BUILD_ARGS:-}"
-DOCKER_BUILDKIT=0 docker build -t "$IMAGE" --build-arg JOBS="${JOBS:-8}" \
+DOCKER_BUILDKIT=0 docker build -t "$IMAGE" --build-arg JOBS="${JOBS:-8}" --build-arg FORTRAN="${FORTRAN:-OFF}" \
     ${CPUS:+--cpuset-cpus "$CPUS"} ${MEMORY:+--memory "$MEMORY" --memory-swap "$MEMORY"} \
     ${extra[@]+"${extra[@]}"} "$ctx"
 docker run --rm "$IMAGE" bash -c 'ls /MBB-builds/MUST1112/bin/mustrun /MBB-builds/MUST1112/bin/must-tsan-cc && mpichversion | head -1 && clang --version | head -1'
