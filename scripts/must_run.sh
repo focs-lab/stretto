@@ -16,8 +16,20 @@
 # user: a directory docker creates for a volume belongs to root, and MUST, which runs as the user,
 # then fails every run with "mkdir: cannot create directory '/cache/must'".
 # prints one line: MUST:<verdict> where verdict is OK | ERROR:<summary> | TIMEOUT | CE:<msg> | RE:<msg> (a MUST run
-# that ended without its report) | HARNESS-ERROR:<msg> (no MUST run to judge: docker failed, or the
-# container was killed before the timeout); exit status 1 on a harness error
+# that ended without its report) | HARNESS-ERROR:<msg> (no MUST run to judge: docker failed, the
+# container was killed before the timeout, MUST stopped before it started the program, or the run
+# hung after MUST had finished); exit status 1 on a harness error
+# A run that hangs after MUST has finished is no verdict on the program. MUST's tool layer shuts
+# down only after every rank of the program has reached MPI_Finalize; some runs then hang, either
+# in the tool's shutdown, where the backtrace the timeout's SIGTERM prints shows GTI's
+# shutdown(GTI_FLUSH_TYPE, ...) under the tool place's destructor (with ThreadSanitizer), or
+# after it, when the tool layer has written gti_layer_1.profile and the processes hang in MPICH's
+# teardown, where the SIGTERM finds MPI_COMM_WORLD gone ("MPI_Abort(MPI_COMM_WORLD, errorcode=143)
+# failed ... Invalid communicator"). After the frozen rerun of 23 Oct 2026 this happened to MUST
+# 1.11.2 in about one run in two of some correct programs. A program that deadlocks never gets
+# there: its tool place is still in its event loop (ThreadedMPIPlace::run), and no profile is
+# written. ("rank -1 (of -1) ... caught signal nr 15" in run.out is no sign of either: one of MUST's
+# tool processes prints it in every run the timeout ends.)
 set -uo pipefail
 np="$1"; src="$(readlink -f "$2")"; to="${3:-120}"
 img="${MUST_IMAGE:-mbb-must:latest}"
@@ -60,6 +72,12 @@ out=$(docker run --rm --memory 4g ${MUST_CPUS:+--cpuset-cpus "$MUST_CPUS"} --use
   if grep -qi "detected a deadlock" run.out run.err 2>/dev/null; then echo "ERROR:deadlock (MUST detected a deadlock)"
   elif [ "${json%%:*}" = ERROR ]; then echo "$json"
   elif grep -qa "ThreadSanitizer: data race" run.out run.err 2>/dev/null; then echo "ERROR:data race (ThreadSanitizer report)"
+  elif ! grep -qF "[MUST] Executing application" run.out 2>/dev/null; then
+      echo "HARNESS-ERROR:MUST stopped before it started the program (status $rc): $(tail -c 160 run.err | tr "\n" " ")"
+  elif { [ $rc -eq 124 ] || { [ $rc -eq 137 ] && [ $took -ge '"$to"' ]; }; } && [ -s gti_layer_1.profile ]; then
+      echo "HARNESS-ERROR:hung after MUST had finished (gti_layer_1.profile written), killed by the timeout"
+  elif { [ $rc -eq 124 ] || { [ $rc -eq 137 ] && [ $took -ge '"$to"' ]; }; } && grep -q "8shutdownENS_14GTI_FLUSH_TYPE" run.err 2>/dev/null; then
+      echo "HARNESS-ERROR:hung in the shutdown of the MUST tool layer, after the program had finished, killed by the timeout"
   elif [ $rc -eq 124 ] || { [ $rc -eq 137 ] && [ $took -ge '"$to"' ]; }; then echo TIMEOUT
   elif [ $rc -eq 137 ]; then echo "HARNESS-ERROR:killed after ${took} s, before the timeout (memory cap?)"
   elif [ -n "$json" ]; then echo "$json"
@@ -74,6 +92,7 @@ if [ $rc -ne 0 ] || [ -z "$out" ]; then
     status=1
 else
     echo "MUST:$out"
+    case "$out" in HARNESS-ERROR:*) status=1;; esac
 fi
 [ -n "${MUST_KEEP:-}" ] && echo "kept $work" >&2 || rm -rf "$work"
 exit $status

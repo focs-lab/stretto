@@ -5,6 +5,8 @@ With --merge-only, only merge an existing must.csv (the MUST runs and the harnes
 independent and may finish in either order). --column NAME writes NAME.csv and merges the
 column NAME instead, for another MUST version or configuration, chosen by the environment of
 scripts/must_run.sh (MUST_IMAGE, MUST_PREFIX, MUST_TSAN); the default column is MUST 1.9.2's.
+A run that ends in a harness error (HARNESS-ERROR) runs again, up to 3 more times; if any is
+left after that, the column is still merged and the script exits with status 1.
 usage: run_must.py [--jobs J] [--timeout S] [--column NAME] [--merge-only] results.csv   (options first: Python 3.6 argparse)"""
 import argparse, csv, os, subprocess, sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -17,10 +19,19 @@ args = ap.parse_args()
 col = args.column
 corpus = os.path.basename(args.csv).split(".")[0]
 rows = list(csv.DictReader(open(args.csv)))
+# a run the harness could not complete (HARNESS-ERROR: docker failed, MUST stopped before it
+# started the program, or the run hung after MUST had finished; scripts/must_run.sh) is no verdict
+# of MUST's: it runs again, up to RETRIES more times, and the table keeps the last attempt
+RETRIES = 3
 def one(r):
     src = os.path.join(CORPORA[corpus], r["name"].replace("__", "/") + ".c")
-    p = subprocess.run([os.path.join(ROOT, "scripts", "must_run.sh"), str(r["np"]), src, str(args.timeout)], stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)  # Python 3.6 compatible
-    return r["name"], (p.stdout.strip().splitlines() or ["MUST:HARNESS-ERROR:must_run.sh printed nothing"])[-1]
+    for attempt in range(RETRIES + 1):
+        p = subprocess.run([os.path.join(ROOT, "scripts", "must_run.sh"), str(r["np"]), src, str(args.timeout)], stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)  # Python 3.6 compatible
+        v = (p.stdout.strip().splitlines() or ["MUST:HARNESS-ERROR:must_run.sh printed nothing"])[-1]
+        if not v.startswith("MUST:HARNESS-ERROR"):
+            break
+        print(f"  {r['name']}: attempt {attempt + 1} of {RETRIES + 1}: {v[:120]}", flush=True)
+    return r["name"], v
 out = os.path.join(os.path.dirname(args.csv), col + ".csv")
 if not args.merge_only:
     # the code commit of scripts/must_run.sh (experiments/provenance.py, which Python 3.6 runs too)
@@ -63,4 +74,4 @@ print("merged into", args.csv)
 # a run the harness could not complete is no verdict of MUST's (score.py counts it apart): say so
 bad = sorted(n for n, v in verdicts.items() if v.startswith("MUST:HARNESS-ERROR"))
 if bad:
-    sys.exit(f"{len(bad)} MUST run(s) failed in the harness (HARNESS-ERROR; rerun_must.py reruns them): {', '.join(bad[:10])}")
+    sys.exit(f"{len(bad)} MUST run(s) failed in the harness {RETRIES + 1} times (HARNESS-ERROR; rerun_must.py reruns them): {', '.join(bad[:10])}")
