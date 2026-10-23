@@ -27,11 +27,25 @@ if not args.merge_only:
     sys.path.insert(0, os.path.join(ROOT, "experiments"))
     from provenance import code_commit
     commit = code_commit()
+    # with ThreadSanitizer, MUST builds a tool layout for each process count at run time, into
+    # MUST_CACHE: the first program of each count runs alone, so that parallel runs do not build
+    # the same layout at once (experiments/RUNBOOK.md)
+    first = []
+    if os.environ.get("MUST_TSAN") == "1":
+        counts = set()
+        for r in rows:
+            if r["np"] not in counts:
+                counts.add(r["np"]); first.append(r)
+    rest = [r for r in rows if not any(r is f for f in first)]
     with ThreadPoolExecutor(max_workers=args.jobs) as ex, open(out, "w", newline="") as fh:
         w = csv.writer(fh, lineterminator="\n"); w.writerow(["name", col, "commit"])
-        for i, f in enumerate(as_completed([ex.submit(one, r) for r in rows]), 1):
-            name, v = f.result(); w.writerow([name, v, commit]); fh.flush()
+        def done(i, name, v):
+            w.writerow([name, v, commit]); fh.flush()
             print(f"[{i}/{len(rows)}] {name:<50} {v[:70]}", flush=True)
+        for i, r in enumerate(first, 1):
+            done(i, *one(r))
+        for i, f in enumerate(as_completed([ex.submit(one, r) for r in rest]), len(first) + 1):
+            done(i, *f.result())
     print("wrote", out)
 # merge the verdicts into the harness table's column
 side = list(csv.DictReader(open(out)))

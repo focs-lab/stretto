@@ -12,13 +12,19 @@
 # for clang 14 and later, the run sets MUST_DISABLE_TSAN_ONREPORT=1, since with clang 14 MUST's
 # hook into ThreadSanitizer's reports misreads them and the run hangs after the first race.
 # MUST_CACHE is a host directory for MUST's user cache, where MUST builds the tool layouts it
-# has no prebuilt one for (the TSan ones), so that each is built once.
+# has no prebuilt one for (the TSan ones), so that each is built once. It is created here, as the
+# user: a directory docker creates for a volume belongs to root, and MUST, which runs as the user,
+# then fails every run with "mkdir: cannot create directory '/cache/must'".
 # prints one line: MUST:<verdict> where verdict is OK | ERROR:<summary> | TIMEOUT | CE:<msg> | RE:<msg> (a MUST run
 # that ended without its report) | HARNESS-ERROR:<msg> (no MUST run to judge: docker failed, or the
 # container was killed before the timeout); exit status 1 on a harness error
 set -uo pipefail
 np="$1"; src="$(readlink -f "$2")"; to="${3:-120}"
 img="${MUST_IMAGE:-mbb-must:latest}"
+if [ -n "${MUST_CACHE:-}" ] && { ! mkdir -p "$MUST_CACHE" || [ ! -w "$MUST_CACHE" ]; }; then
+    echo "MUST:HARNESS-ERROR:MUST_CACHE $MUST_CACHE cannot be created or is not writable"
+    exit 1
+fi
 work="$(mktemp -d)"
 mkdir -p "$work/src"; cp "$(dirname "$src")"/*.h "$(dirname "$src")"/../*.h "$work/" 2>/dev/null; cp "$src" "$work/src/prog.c"
 cat > "$work/parse.py" <<'EOF'

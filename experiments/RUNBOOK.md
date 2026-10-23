@@ -317,8 +317,10 @@ for c in mbi mbb; do
 done
 ```
 
-MUST builds the ThreadSanitizer tool layouts at run time into `MUST_CACHE`; run one program
-per process count with `MUST_TSAN=1` first, so that parallel runs do not build the same layout.
+MUST builds the ThreadSanitizer tool layouts at run time into `MUST_CACHE`, which
+`must_run.sh` creates as the user (a directory docker creates for the volume belongs to root,
+and every run then fails); with `MUST_TSAN=1`, `run_must.py` runs the first program of each
+process count alone before the others, so that parallel runs do not build the same layout.
 The four runs of 21 Oct 2026 (UTC) took 12 minutes (MBI, plain), 46 (MPI-BugBench, plain), 16
 (MBI with ThreadSanitizer) and 80 (MPI-BugBench with ThreadSanitizer) on `CPUS=20-25,60-65`, from
 the copy deployed at commit 3b8e846; their tables `<corpus>/must1112*.csv` were then merged
