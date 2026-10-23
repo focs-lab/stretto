@@ -115,6 +115,9 @@ claims() {   # claims <rq ...>: regenerate the numbers, check the claims, compar
 corpora() { once corpora box corpora experiments/run_remaining.sh build tests mbi mbb; }
 amg() { once amg box amg experiments/amg/run.sh all; }
 nekbone() { [ "${NEKBONE:-1}" = 0 ] || MEMORY=48g once nekbone box nekbone experiments/nekbone/run.sh all; }
+# HYPRE 2.10.1 and 2.11.0, built once: rq6's campaigns run them, and so does rq2's guard step
+# (HYPRE's ij among its applications)
+hypre() { once hypre box hypre bash -c "experiments/hypre/run.sh fetch && experiments/hypre/run.sh build"; }
 # HYPRE, AMG and NPB LU from 16 to 64 processes; HYPRE is built here unless rq6 built it, and
 # scale/run.sh appends to its table, so the table starts afresh
 scale() {
@@ -225,7 +228,12 @@ t_rq2() {
                 --column "must1112$([ $tsan = 1 ] && echo tsan)"
         done
     done
-    box guard experiments/run_remaining.sh guard
+    # the buffer guard: the corpora traced again with it and its own checks, which run HYPRE's ij
+    # too; its checks run in both modes of the MPI libraries' single-copy transports, which the
+    # container's seccomp profile refuses unless it has CAP_SYS_PTRACE (experiments/guard/run.sh)
+    hypre
+    box guard env SINGLE_COPY=off experiments/run_remaining.sh guard
+    DOCKER_ARGS="--cap-add SYS_PTRACE" box guard-cma env SINGLE_COPY=on REPS=3 experiments/guard/run.sh all
     box reps experiments/run_remaining.sh reps
     box ninja bash -c "experiments/ninja/build.sh && RAND_DELAYS=50000 experiments/ninja/campaign.sh mbi"
     mpiprv
@@ -241,11 +249,16 @@ t_rq5() {
     claims 5
 }
 t_rq6() {
-    box rq6 bash -c "experiments/hypre/run.sh fetch && experiments/hypre/run.sh build \
-        && JOBS=${JOBS:-4} experiments/hypre/campaign.sh all \
+    hypre
+    box rq6 bash -c "JOBS=${JOBS:-4} experiments/hypre/campaign.sh all \
         && HYPRE_VERSION=2.11.0 JOBS=${JOBS:-4} experiments/hypre/campaign.sh predict"
-    box npbmg experiments/npbmg/run.sh all
-    box dealii bash -c "JOBS=${JOBS:-4} experiments/dealii/run.sh all"
+    # the settings of the paper's tables (experiments/RUNBOOK.md): NPB MG built for 16 and 32
+    # processes (E8b traces both), 3 traced runs at 16 and 20 stress runs at each count;
+    # deal.II 20 traced runs and 50 stress runs
+    box npbmg bash -c "experiments/npbmg/run.sh fetch build && RUNS=3 NPS=16 experiments/npbmg/run.sh predict \
+        && RUNS=20 experiments/npbmg/run.sh stress"
+    box dealii bash -c "experiments/dealii/run.sh fetch build && RUNS=20 JOBS=${JOBS:-4} experiments/dealii/run.sh predict \
+        && RUNS=50 experiments/dealii/run.sh stress changes"
     box ninja bash -c "experiments/ninja/build.sh && RUNS=10 experiments/ninja/campaign.sh calibrate \
         && experiments/ninja/campaign.sh hypre && NPS=16 RAND_DELAYS=50000 experiments/ninja/campaign.sh mg"
     newbug
