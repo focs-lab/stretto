@@ -1,0 +1,84 @@
+label,np,mode,setting,run,result,seconds,reached,value,commit
+mapping_01-9.3.0-rc1,4,random,ratio=10% delay=50000us,1,SIGNAL:6,5.5,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,random,ratio=10% delay=50000us,2,SIGNAL:6,5.5,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,random,ratio=10% delay=50000us,3,SIGNAL:6,5.5,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,random,ratio=10% delay=50000us,4,SIGNAL:6,5.5,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,random,ratio=10% delay=50000us,5,SIGNAL:6,5.5,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,random,ratio=10% delay=50000us,6,SIGNAL:6,5.6,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,random,ratio=10% delay=50000us,7,SIGNAL:6,5.4,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,random,ratio=10% delay=50000us,8,SIGNAL:6,5.7,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,random,ratio=10% delay=50000us,9,SIGNAL:6,5.7,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,random,ratio=10% delay=50000us,10,SIGNAL:6,5.7,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,random,ratio=10% delay=50000us,11,SIGNAL:6,5.6,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,random,ratio=10% delay=50000us,12,SIGNAL:6,5.6,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,random,ratio=10% delay=50000us,13,SIGNAL:6,5.4,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,random,ratio=10% delay=50000us,14,SIGNAL:6,5.5,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,random,ratio=10% delay=50000us,15,SIGNAL:6,5.4,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,random,ratio=10% delay=50000us,16,SIGNAL:6,5.6,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,random,ratio=10% delay=50000us,17,SIGNAL:6,5.5,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,random,ratio=10% delay=50000us,18,SIGNAL:6,5.4,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,random,ratio=10% delay=50000us,19,SIGNAL:6,5.5,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,random,ratio=10% delay=50000us,20,SIGNAL:6,5.5,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,random,ratio=10% delay=50000us,21,SIGNAL:6,5.5,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,random,ratio=10% delay=50000us,22,SIGNAL:6,5.5,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,random,ratio=10% delay=50000us,23,SIGNAL:6,5.7,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,random,ratio=10% delay=50000us,24,SIGNAL:6,5.4,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,random,ratio=10% delay=50000us,25,SIGNAL:6,5.5,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,random,ratio=10% delay=50000us,26,SIGNAL:6,5.6,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,random,ratio=10% delay=50000us,27,SIGNAL:6,5.4,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,random,ratio=10% delay=50000us,28,SIGNAL:6,5.5,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,random,ratio=10% delay=50000us,29,SIGNAL:6,5.6,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,random,ratio=10% delay=50000us,30,SIGNAL:6,5.5,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,random,ratio=10% delay=50000us,31,SIGNAL:6,5.6,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,random,ratio=10% delay=50000us,32,SIGNAL:6,5.5,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,random,ratio=10% delay=50000us,33,SIGNAL:6,5.4,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,random,ratio=10% delay=50000us,34,SIGNAL:6,5.6,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,random,ratio=10% delay=50000us,35,SIGNAL:6,5.5,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,random,ratio=10% delay=50000us,36,SIGNAL:6,5.5,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,random,ratio=10% delay=50000us,37,SIGNAL:6,5.7,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,random,ratio=10% delay=50000us,38,SIGNAL:6,5.6,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,random,ratio=10% delay=50000us,39,SIGNAL:6,5.5,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,random,ratio=10% delay=50000us,40,SIGNAL:6,5.5,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,system,,1,SIGNAL:6,5.3,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,system,,2,SIGNAL:6,5.3,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,system,,3,SIGNAL:6,5.3,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,system,,4,SIGNAL:6,5.3,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,system,,5,SIGNAL:6,5.3,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,system,,6,SIGNAL:6,5.3,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,system,,7,SIGNAL:6,5.3,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,system,,8,SIGNAL:6,5.3,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,system,,9,SIGNAL:6,5.3,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,system,,10,SIGNAL:6,5.3,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,system,,11,SIGNAL:6,5.3,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,system,,12,SIGNAL:6,5.3,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,system,,13,SIGNAL:6,5.3,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,system,,14,SIGNAL:6,5.3,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,system,,15,SIGNAL:6,5.3,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,system,,16,SIGNAL:6,5.3,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,system,,17,SIGNAL:6,5.3,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,system,,18,SIGNAL:6,5.3,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,system,,19,SIGNAL:6,5.3,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,system,,20,SIGNAL:6,5.3,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,system,,21,SIGNAL:6,5.3,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,system,,22,SIGNAL:6,5.3,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,system,,23,SIGNAL:6,5.3,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,system,,24,SIGNAL:6,5.4,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,system,,25,SIGNAL:6,5.3,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,system,,26,SIGNAL:6,5.3,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,system,,27,SIGNAL:6,5.3,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,system,,28,SIGNAL:6,5.3,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,system,,29,SIGNAL:6,5.3,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,system,,30,SIGNAL:6,5.3,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,system,,31,SIGNAL:6,5.3,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,system,,32,SIGNAL:6,5.3,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,system,,33,SIGNAL:6,5.3,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,system,,34,SIGNAL:6,5.4,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,system,,35,SIGNAL:6,5.3,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,system,,36,SIGNAL:6,5.3,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,system,,37,SIGNAL:6,5.3,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,system,,38,SIGNAL:6,5.3,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,system,,39,SIGNAL:6,5.3,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,system,,40,SIGNAL:6,5.3,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,app,learning run (system-centric),0,SIGNAL:6,5.3,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,app,learning run (system-centric),0,SIGNAL:6,5.3,,207,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,app,learning run (system-centric),0,SIGNAL:6,5.3,,207,8ec4e74-dirty
