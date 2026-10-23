@@ -194,9 +194,11 @@ def analyse(row: dict, out: str, exe: str, tracedir: str, args) -> None:
     row["wildcard_recvs"] = sum(1 for x in t.recvs.values() if x.wildcard)
     row["events"] = sum(len(v) for v in t.ranks.values())
     row["notes"] = "; ".join(rep.notes)[:300]
-    with open(os.path.join(out, "report.txt"), "w") as fh:
+    # an analysis with read bounds keeps the run's own reports, which E3 counts, as reanalyze.py does
+    stem = "report-reads" if args.reads else "report"
+    with open(os.path.join(out, stem + ".txt"), "w") as fh:
         fh.write(report.format_report(t, rep, show_infeasible=True))
-    with open(os.path.join(out, "report.json"), "w") as fh:
+    with open(os.path.join(out, stem + ".json"), "w") as fh:
         json.dump(report.to_json(t, rep), fh, default=str, indent=1)
     if args.confirm:
         res = confirm_mod.confirm(rep, row["np"], exe, timeout=args.timeout, t=t, keep_as=(kept_as(args), row["name"]))
