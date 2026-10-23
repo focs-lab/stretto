@@ -22,7 +22,7 @@ import sys
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 CODE = ["analysis", "tracer", "replay", "rerun", "experiments", "scripts", "idioms", "artifact"]
-NOT_CODE = ["experiments/results"]          # what a run writes
+NOT_CODE = ["experiments/results", "experiments/generated"]   # what a run and tables.py write
 MANIFEST = "COMMIT.files"
 
 
