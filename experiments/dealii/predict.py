@@ -121,7 +121,7 @@ def main() -> int:
     need_preload(TRACER)                     # ld.so would ignore a missing tracer, and the runs leave no trace
     campaign = args.keep_campaign or keep.campaign_of(args.out)
     exe = os.path.join(os.path.abspath(args.bindir), args.test)
-    keep = os.path.join(os.path.dirname(os.path.abspath(args.out)), "outputs")
+    outputs = os.path.join(os.path.dirname(os.path.abspath(args.out)), "outputs")
     rows, traced = [], []
     expected = {}
     for np in args.np:
@@ -184,10 +184,10 @@ def main() -> int:
                    control=rc.result, control_matched=all_matched(ctl, rc.proc.stderr, None, rc.seen), control_expected=oc == exp,
                    control_valid=rc.valid, control_violation=rc.why[:300])
         if oa != exp or oc != exp:
-            os.makedirs(keep, exist_ok=True)
+            os.makedirs(outputs, exist_ok=True)
             name = f"{args.version}-{np}-{i}-{f.pin.split('=', 1)[-1].replace(':', '-')}"
             for role, text in (("replay", oa), ("control", oc)):
-                with open(os.path.join(keep, f"{name}-{role}.txt"), "w") as fh:
+                with open(os.path.join(outputs, f"{name}-{role}.txt"), "w") as fh:
                     fh.write(text)
         return res
 
