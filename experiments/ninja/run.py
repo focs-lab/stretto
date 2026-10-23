@@ -4,9 +4,10 @@ build.sh builds libninja.so) and record which runs do not finish.
 
 NINJA delays sends from a helper thread and keeps the non-overtaking order per destination.
 The runs load libninja-fixed.so, whose random draws work and which runs Fortran programs
-(build.sh); --shipped loads libninja.so as shipped, whose random draws are all equal, so that
-random noise delays no send below a ratio of 100. Its modes, as NINJA reads them from the
-environment:
+(build.sh), or the library that NINJA_LIBRARY names (libninja-fixed-some.so: with the statuses
+of MPI_Waitsome repaired as well); --shipped loads libninja.so as shipped, whose random draws
+are all equal, so that random noise delays no send below a ratio of 100. Its modes, as NINJA
+reads them from the environment:
   random  NIN_PATTERN=1: each send is delayed with probability NIN_RAND_RATIO percent by
           NIN_RAND_DELAY microseconds (--rand-ratio, --rand-delay)
   system  NIN_PATTERN=2 NIN_MODE=0, system-centric: a model of the network queue delays a send
@@ -28,10 +29,12 @@ selected program without its binary and a missing program end the run before any
 
 usage:
   run.py runs --np N --mode MODE --runs K --out CSV [--label L] [--timeout S] [--mpi mpich|openmpi]
-              [--marks name=regex,...] [--value REGEX] [--line-buffered] [--keep DIR] -- exe [args]
+              [--marks name=regex,...] [--value REGEX] [--check CMD] [--line-buffered] [--keep DIR] -- exe [args]
       K runs of one program, one row each: label, np, mode, setting, run, result, seconds,
       reached (the last of --marks found in its output), value (the group of the last match of
-      --value), commit. Rows are appended to CSV, which must have these columns if it exists
+      --value; with --check, the last line that the shell command CMD prints when run in the run's
+      working directory after the run, for a program that writes its result to a file), commit.
+      Rows are appended to CSV, which must have these columns if it exists
       (experiments/ninja/campaign.sh starts each table afresh).
   run.py corpus <corpus csv> --mode MODE --out CSV [--runs 30] [--timeout 60] [--jobs J]
               [--select REGEX] [--mpi openmpi]
@@ -82,7 +85,7 @@ def setting(mode: str, args) -> str:
 
 
 def ninja_lib(args) -> str:
-    return os.path.join(NINJA, args.mpi, "libninja.so" if args.shipped else "libninja-fixed.so")
+    return os.path.join(NINJA, args.mpi, "libninja.so" if args.shipped else os.environ.get("NINJA_LIBRARY") or "libninja-fixed.so")
 
 
 def run_once(np_: int, exe: str, argv: list, mode: str, wd: str, args) -> dict:
@@ -115,6 +118,11 @@ def run_once(np_: int, exe: str, argv: list, mode: str, wd: str, args) -> dict:
     if getattr(args, "value", None):
         m = re.findall(args.value, text)
         out["value"] = m[-1] if m else ""
+    if getattr(args, "check", None):
+        c = subprocess.run(args.check, shell=True, cwd=wd, capture_output=True, text=True, errors="replace",
+                           stdin=subprocess.DEVNULL)
+        lines = c.stdout.strip().splitlines()
+        out["value"] = lines[-1].strip() if lines else f"check-failed:rc={c.returncode}"
     return out
 
 
@@ -273,6 +281,7 @@ def main() -> int:
     p.add_argument("--label", default="")
     p.add_argument("--marks", default="")
     p.add_argument("--value", default="")
+    p.add_argument("--check", default="")
     p.add_argument("--stop-at-first", action="store_true")
     p.add_argument("exe")
     p.add_argument("argv", nargs="*")
