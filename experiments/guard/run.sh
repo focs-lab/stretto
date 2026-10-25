@@ -14,6 +14,10 @@
 # The container's default seccomp profile refuses process_vm_readv/writev, so the single-copy
 # transports (Open MPI's CMA, UCX's cma) fall back to copies; with DOCKER_ARGS="--cap-add
 # SYS_PTRACE" on experiments/container/run.sh they work, and the results go to <step>-cma.txt.
+# SINGLE_COPY=off or on names the mode a run is meant for, and the script stops when the
+# container gives the other one: Docker's default profile allows the calls on some versions
+# (newer than 20.10) and refuses them on others, so the mode must not be left to the host.
+# artifact/reproduce.sh runs both. Without SINGLE_COPY the mode is whatever the container gives.
 # Every run preloads experiments/guard/cmacount.c after the tracer, which prints how many
 # single-copy calls the library made and how many failed. STRETTO_PAYLOAD=<bytes> in the
 # environment records message payloads too (level L2's re-execution), to check that the two
@@ -41,6 +45,15 @@ l, r = iov(ctypes.addressof(dst), 8), iov(ctypes.addressof(src), 8)
 sys.exit(0 if libc.process_vm_readv(os.getpid(), ctypes.byref(l), 1, ctypes.byref(r), 1, 0) == 8 else 1)'
 }
 if single_copy; then TAG=-cma; SC=on; else TAG=; SC="off (process_vm_readv refused)"; fi
+case "${SINGLE_COPY:-}" in
+    "") ;;
+    on|off) if [ "${SC%% *}" != "$SINGLE_COPY" ]; then
+                echo "HARNESS-ERROR: SINGLE_COPY=$SINGLE_COPY, but single-copy is $SC in this container" \
+                     "(on needs DOCKER_ARGS=\"--cap-add SYS_PTRACE\"; off needs a seccomp profile that refuses process_vm_readv)" >&2
+                exit 1
+            fi ;;
+    *) echo "SINGLE_COPY must be on or off" >&2; exit 2 ;;
+esac
 PAYLOAD="${STRETTO_PAYLOAD:-0}"; [ "$PAYLOAD" -gt 0 ] && TAG="$TAG-payload"
 header() { echo "# $1; commit $COMMIT; host ${MACHINE:-$(hostname)}; $(date -u +%Y-%m-%dT%H:%MZ); single-copy $SC; payloads up to $PAYLOAD bytes"; }
 # run <dir> <mpi> <guard> <np> <exe> [args]: one traced run; sets rc
@@ -102,10 +115,21 @@ step_lc() {
         echo "$mpi: 3-local in $found of $built programs built"
     done
 }
+npb_bin() { [ -d third_party/apps/NPB-mpich/bin ] && echo third_party/apps/NPB-mpich/bin || echo third_party/apps/NPB-mpich/NPB3.4-MPI/bin; }
+# a missing binary would give rows of failed runs without records, which read as results: every
+# application must be built before the step starts (HYPRE by experiments/hypre/run.sh build)
+apps_built() {
+    local w; for w in ${APPS:-lu.S lu.A hypre amg}; do
+        case $w in
+            lu.*) need_file "$R/$(npb_bin)/$w.x" ;;
+            hypre) need_file "$R/third_party/apps/hypre/hypre-2.10.1/test/ij" ;;
+            amg) need_file "$R/study/apps/AMG/test/amg" ;;
+        esac || return 1
+    done
+}
 step_apps() {
     header "applications at 4 ranks, guard off and on"
-    local npb=third_party/apps/NPB-mpich/bin
-    [ -d "$npb" ] || npb=third_party/apps/NPB-mpich/NPB3.4-MPI/bin
+    local npb; npb=$(npb_bin)
     for rep in $(seq 1 "${REPS:-1}"); do for g in 0 1; do for w in ${APPS:-lu.S lu.A hypre amg}; do
         local d="$W/app.$w.$g.$rep" mpi=mpich t0 t1
         t0=$(date +%s.%N)
@@ -125,4 +149,8 @@ step_apps() {
     done; done; done
 }
 steps=("$@"); [ ${#steps[@]} -eq 0 ] || [ "${steps[0]}" = all ] && steps=(scenarios lc apps)
-for s in "${steps[@]}"; do STEP=$s; "step_$s" | tee "$OUT/$s$TAG.txt"; done
+# the binaries are checked before any step runs, so that a missing one leaves the tables as they were
+for s in "${steps[@]}"; do [ "$s" != apps ] || apps_built || exit 1; done
+rc=0
+for s in "${steps[@]}"; do STEP=$s; "step_$s" | tee "$OUT/$s$TAG.txt" || rc=1; done
+exit $rc

@@ -30,8 +30,10 @@ The buffer guard (local concurrency, class 3-local) is opt-in and outside that s
 `experiments/mbi/run_mbi.py --guard` (or `experiments/run_remaining.sh guard`) traces a corpus
 with it into `experiments/results/guard/<corpus>.csv`, and `experiments/guard/run.sh` checks it on the real stack (cases with known
 answers, MPI-BugBench's LocalConcurrency programs, NPB LU, HYPRE and AMG with the guard off and
-on), once in the default container and once with `DOCKER_ARGS="--cap-add SYS_PTRACE"`, which
-lets the MPI libraries use single-copy transfers. Its tables are in `experiments/results/guard/`;
+on), once in the default container with `SINGLE_COPY=off` and once with `DOCKER_ARGS="--cap-add
+SYS_PTRACE"` and `SINGLE_COPY=on`, which lets the MPI libraries use single-copy transfers; the
+script stops when the container gives the other mode (Docker's default seccomp profile allows the
+calls on versions newer than 20.10). Its tables are in `experiments/results/guard/`;
 `experiments/tables.py` adds the corpus rows with the guard to E1 and the checks to E8.
 
 Read bounds (rule H1', `docs/firstread.md`, E3b) are outside that sequence too
