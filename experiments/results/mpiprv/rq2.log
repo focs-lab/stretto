@@ -3,250 +3,250 @@ Concurrent processes: 5
 Read time: 0s
 Pattern Not Matched!
 Number of events: 15
-Execution time: 0.014586 seconds
-TIME 0.01 3916
+Execution time: 0.002936 seconds
+TIME 0.00 4096
 ### integrate 2
 Concurrent processes: 2
 Read time: 0s
 Pattern Not Matched!
 Number of events: 8
-Execution time: 0.010605 seconds
-TIME 0.01 4088
+Execution time: 0.001754 seconds
+TIME 0.00 4096
 ### integrate 8
 Concurrent processes: 8
 Read time: 0s
 Pattern Not Matched!
 Number of events: 50
-Execution time: 0.028766 seconds
-TIME 0.03 3976
+Execution time: 0.008682 seconds
+TIME 0.00 4096
 ### integrate 10
 Concurrent processes: 10
 Read time: 0s
 Pattern Not Matched!
 Number of events: 64
-Execution time: 0.023644 seconds
-TIME 0.02 4016
+Execution time: 0.011320 seconds
+TIME 0.01 4096
 ### diffusion2d 4
 Concurrent processes: 4
 Read time: 0s
 Pattern Not Matched!
 Number of events: 46
-Execution time: 0.020884 seconds
-TIME 0.02 4080
+Execution time: 0.007829 seconds
+TIME 0.00 4096
 ### Gauss_elim 2
 Concurrent processes: 2
 Read time: 0s
 Pattern Not Matched!
 Number of events: 18
-Execution time: 0.010460 seconds
-TIME 0.01 4008
+Execution time: 0.003188 seconds
+TIME 0.00 3584
 ### Gauss_elim 4
 Concurrent processes: 4
 Read time: 0s
 Pattern Not Matched!
 Number of events: 40
-Execution time: 0.022304 seconds
-TIME 0.02 4012
+Execution time: 0.006532 seconds
+TIME 0.00 4096
 ### Gauss_elim 8
 Concurrent processes: 8
 Read time: 0s
 Pattern Not Matched!
 Number of events: 84
-Execution time: 0.032493 seconds
-TIME 0.03 4032
+Execution time: 0.013554 seconds
+TIME 0.01 4096
 ### image-manip 4
 Concurrent processes: 4
 Read time: 0s
 Pattern Not Matched!
 Number of events: 16
-Execution time: 0.009808 seconds
-TIME 0.01 4008
+Execution time: 0.002984 seconds
+TIME 0.00 4096
 ### image-manip 24
 Concurrent processes: 24
 Read time: 0s
 Pattern Not Matched!
 Number of events: 56
-Execution time: 0.031952 seconds
-TIME 0.03 3948
+Execution time: 0.010249 seconds
+TIME 0.01 4096
 ### image-manip 127
 Concurrent processes: 127
 Read time: 0s
 Pattern Not Matched!
 Number of events: 262
-Execution time: 0.120423 seconds
-TIME 0.12 3968
+Execution time: 0.074309 seconds
+TIME 0.07 4608
 ### Congrad 4
 Concurrent processes: 4
 Read time: 0s
 Pattern Not Matched!
 Number of events: 12
-Execution time: 0.007288 seconds
-TIME 0.00 4088
+Execution time: 0.002280 seconds
+TIME 0.00 4096
 ### poisson_mpi 4
 Concurrent processes: 4
 Read time: 0s
 Pattern Not Matched!
 Number of events: 9196
-Execution time: 2.383218 seconds
-TIME 2.38 7640
+Execution time: 1.582415 seconds
+TIME 1.58 5120
 ### poisson_mpi 8
 Concurrent processes: 8
 Read time: 0s
 Pattern Not Matched!
 Number of events: 21904
-Execution time: 5.725438 seconds
-TIME 5.72 10664
+Execution time: 3.864293 seconds
+TIME 3.86 8704
 ### poisson_mpi 24
 Concurrent processes: 24
 Read time: 0s
 Pattern Not Matched!
 Number of events: 80524
-Execution time: 23.049701 seconds
-TIME 23.05 21868
+Execution time: 15.525322 seconds
+TIME 15.53 21504
 ### poisson_mpi 64
 Concurrent processes: 64
 Read time: 0s
 Pattern Not Matched!
 Number of events: 292888
-Execution time: 98.286739 seconds
-TIME 98.33 71360
+Execution time: 68.417044 seconds
+TIME 68.45 69508
 ### poisson_mpi 96
 Concurrent processes: 96
 Read time: 0s
 Pattern Not Matched!
 Number of events: 409092
-Execution time: 149.098163 seconds
-TIME 149.20 97656
+Execution time: 110.295585 seconds
+TIME 110.35 97820
 ### poisson_mpi 127
 Concurrent processes: 127
 Read time: 0s
 Pattern Not Matched!
 Number of events: 206011
-Execution time: 82.793349 seconds
-TIME 82.85 51904
+Execution time: 61.364375 seconds
+TIME 61.39 51224
 ### Heat 4
 Concurrent processes: 4
 Read time: 0s
 Pattern Not Matched!
 Number of events: 64
-Execution time: 0.034937 seconds
-TIME 0.03 4016
+Execution time: 0.011004 seconds
+TIME 0.01 4096
 ### adept-kernel-mpi 4
 Concurrent processes: 4
 Read time: 0s
 Pattern Not Matched!
 Number of events: 2608
-Execution time: 0.591127 seconds
-TIME 0.59 4084
+Execution time: 0.419186 seconds
+TIME 0.42 4608
 ### adept-kernel-mpi 8
 Concurrent processes: 8
 Read time: 0s
 Pattern Not Matched!
 Number of events: 5816
-Execution time: 1.314777 seconds
-TIME 1.31 4580
+Execution time: 0.964678 seconds
+TIME 0.96 4608
 ### adept-kernel-mpi 24
 Concurrent processes: 24
 Read time: 0s
 Pattern Not Matched!
 Number of events: 18648
-Execution time: 4.685533 seconds
-TIME 4.68 5868
+Execution time: 3.390425 seconds
+TIME 3.39 5632
 ### adept-kernel-mpi 64
 Concurrent processes: 64
 Read time: 0s
 Pattern Not Matched!
 Number of events: 50728
-Execution time: 15.360998 seconds
-TIME 15.36 10396
+Execution time: 11.281683 seconds
+TIME 11.28 10752
 ### adept-kernel-mpi 127
 Concurrent processes: 127
 Read time: 0s
 Pattern Not Matched!
 Number of events: 101254
-Execution time: 39.203254 seconds
-TIME 39.22 18952
+Execution time: 29.908636 seconds
+TIME 29.91 15872
 ### kf-ray 11
 Concurrent processes: 11
 Read time: 0s
 Pattern Not Matched!
 Number of events: 140
-Execution time: 0.053743 seconds
-TIME 0.05 3912
+Execution time: 0.023650 seconds
+TIME 0.02 4096
 ### clustalW 5
 Concurrent processes: 5
 Read time: 0s
 Pattern Not Matched!
 Number of events: 37
-Execution time: 0.020066 seconds
-TIME 0.02 4072
+Execution time: 0.006508 seconds
+TIME 0.00 4096
 ### clustalW 20
 Concurrent processes: 20
 Read time: 0s
 Pattern Not Matched!
 Number of events: 172
-Execution time: 0.057641 seconds
-TIME 0.06 4072
+Execution time: 0.030340 seconds
+TIME 0.03 4096
 ### clustalW 127
 Concurrent processes: 127
 Read time: 0s
 Pattern Not Matched!
 Number of events: 1135
-Execution time: 0.424060 seconds
-TIME 0.42 3992
+Execution time: 0.317853 seconds
+TIME 0.31 4608
 ### ParMETIS 4
 Concurrent processes: 4
 Read time: 0s
 Pattern Not Matched!
 Number of events: 598174
-Execution time: 241.786813 seconds
-TIME 241.86 105568
+Execution time: 168.412719 seconds
+TIME 168.43 102560
 ### MiniAMR 4
 Concurrent processes: 4
 Read time: 0s
 Pattern Not Matched!
 Number of events: 7608
-Execution time: 1.951300 seconds
-TIME 1.95 4696
+Execution time: 1.291583 seconds
+TIME 1.29 5120
 ### MiniAMR 8
 Concurrent processes: 8
 Read time: 0s
 Pattern Not Matched!
 Number of events: 22816
-Execution time: 5.509464 seconds
-TIME 5.51 6488
+Execution time: 3.950316 seconds
+TIME 3.95 6144
 ### MiniAMR 16
 Concurrent processes: 16
 Read time: 0s
 Pattern Not Matched!
 Number of events: 53232
-Execution time: 13.680881 seconds
-TIME 13.68 11772
+Execution time: 9.714290 seconds
+TIME 9.71 9728
 ### MiniAMR 24
 Concurrent processes: 24
 Read time: 0s
 Pattern Not Matched!
 Number of events: 87448
-Execution time: 23.279815 seconds
-TIME 23.28 13708
+Execution time: 16.612342 seconds
+TIME 16.61 13824
 ### MiniAMR 64
 Concurrent processes: 64
 Read time: 0s
 Pattern Not Matched!
 Number of events: 273728
-Execution time: 85.069827 seconds
-TIME 85.09 35260
+Execution time: 61.906727 seconds
+TIME 61.91 34816
 ### MiniAMR 96
 Concurrent processes: 96
 Read time: 0s
 Pattern Not Matched!
 Number of events: 425792
-Execution time: 147.290315 seconds
-TIME 147.34 51960
+Execution time: 108.152961 seconds
+TIME 108.16 51712
 ### MiniAMR 124
 Concurrent processes: 124
 Read time: 0s
 Pattern Not Matched!
 Number of events: 463848
-Execution time: 174.721845 seconds
-TIME 174.78 57852
+Execution time: 128.125464 seconds
+TIME 128.14 56320

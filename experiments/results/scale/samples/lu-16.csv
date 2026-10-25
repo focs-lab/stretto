@@ -1,1 +1,1 @@
-finding,cls,pin,site,pins,replay,matched,control,control_matched,commit
+finding,cls,pin,site,pins,replay,matched,run_valid,violation,control,control_matched,control_valid,control_violation,commit

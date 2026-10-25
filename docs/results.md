@@ -11,7 +11,7 @@ from `experiments/scale/run.sh` there. The MUST verdicts
 are carried over from MUST 1.9.2 runs under MPICH in MPI-BugBench's own container, with the same timeout
 per program, and those of MUST 1.11.2 from the image of `experiments/must/`; NINJA's runs come from
 `experiments/ninja/campaign.sh`. The E4 times, the AMG trace and its analysis time come from one announced timed leg at commit
-576e917 (`experiments/timing_leg.sh`, the host otherwise idle), and AMG's replay sample from that
+415a6ed-dirty (`experiments/timing_leg.sh`, the host otherwise idle), and AMG's replay sample from that
 trace; the leg's times are the only timing claims. The replays of E8c, every confirmation claim's replays run again
 under the tracer, come from the commands of "Replays as runs of the program" in `experiments/RUNBOOK.md`.
 
@@ -19,7 +19,7 @@ under the tracer, come from the commands of "Replays as runs of the program" in 
 
 ### MPI Bugs Initiative (MBI): message-race, tag-matching, probe and buffering programs
 
-Programs: 115. Rows by code commit: 96dd241 (115).
+Programs: 115. Rows by code commit: 415a6ed-dirty (115).
 
 A program's verdict is ERROR iff a finding of class 1a/1c/1d/2-buffering/2-collective/2-blocked/2-ready/3-local/abort is
 present; 1b, 1f, probe-alt and waitany-order are warnings and never count. The *observed* row uses
@@ -31,30 +31,30 @@ finish is the hang itself and counts as observed. The union is the tool's verdic
 
 | | TP | FP | FN | TN | precision | recall | F1 |
 |---|---|---|---|---|---|---|---|
-| Stretto (union) | 61 | 0 | 4 | 50 | 1.00 | 0.94 | 0.97 |
-| Stretto, observed in the run | 42 | 0 | 23 | 50 | 1.00 | 0.65 | 0.79 |
-| Stretto, predicted | 22 | 0 | 43 | 50 | 1.00 | 0.34 | 0.51 |
-| Stretto with the buffer guard (`STRETTO_GUARD=1`), a separate run | 61 | 0 | 4 | 50 | 1.00 | 0.94 | 0.97 |
+| Stretto (union) | 62 | 0 | 3 | 50 | 1.00 | 0.95 | 0.98 |
+| Stretto, observed in the run | 40 | 0 | 25 | 50 | 1.00 | 0.62 | 0.76 |
+| Stretto, predicted | 23 | 0 | 42 | 50 | 1.00 | 0.35 | 0.52 |
+| Stretto with the buffer guard (`STRETTO_GUARD=1`), a separate run | 63 | 0 | 2 | 50 | 1.00 | 0.97 | 0.98 |
 
-Buffer guard run: 115 programs (rows by code commit: 7117573 (115)); 3-local in 0 of the 0 local-concurrency programs and in 0 others.
+Buffer guard run: 115 programs (rows by code commit: 415a6ed (115)); 3-local in 0 of the 0 local-concurrency programs and in 0 others.
 
-| MUST 1.9.2 (same source, its own run under MPICH) | 46 | 0 | 19 | 50 | 1.00 | 0.71 | 0.83 |
-| MUST 1.9.2, a timeout or a run without a report counted as an error | 52 | 0 | 13 | 50 | 1.00 | 0.80 | 0.89 |
+| MUST 1.9.2 (same source, its own run under MPICH) | 44 | 0 | 21 | 50 | 1.00 | 0.68 | 0.81 |
+| MUST 1.9.2, a timeout or a run without a report counted as an error | 50 | 0 | 15 | 50 | 1.00 | 0.77 | 0.87 |
 | MUST 1.11.2 (same source, its own run under MPICH) | 40 | 0 | 25 | 50 | 1.00 | 0.62 | 0.76 |
-| MUST 1.11.2, a timeout or a run without a report counted as an error | 45 | 0 | 20 | 50 | 1.00 | 0.69 | 0.82 |
-| MUST 1.11.2 with ThreadSanitizer (same source, its own run under MPICH) | 42 | 0 | 23 | 50 | 1.00 | 0.65 | 0.79 |
-| MUST 1.11.2 with ThreadSanitizer, a timeout or a run without a report counted as an error | 48 | 5 | 17 | 45 | 0.91 | 0.74 | 0.81 |
+| MUST 1.11.2, a timeout or a run without a report counted as an error | 47 | 0 | 18 | 50 | 1.00 | 0.72 | 0.84 |
+| MUST 1.11.2 with ThreadSanitizer (same source, its own run under MPICH) | 45 | 0 | 20 | 50 | 1.00 | 0.69 | 0.82 |
+| MUST 1.11.2 with ThreadSanitizer, a timeout or a run without a report counted as an error | 51 | 0 | 14 | 50 | 1.00 | 0.78 | 0.88 |
 
-MUST verdicts: ERROR 46, OK 63, RE 2, TIMEOUT 4. In the first MUST row a run
+MUST verdicts: ERROR 44, OK 65, RE 2, TIMEOUT 4. In the first MUST row a run
 that timed out, crashed or did not compile counts as no error reported. A Stretto run that the harness
 killed at the timeout is reported as a blocked rank (2-blocked) and one whose rank stopped before MPI_Finalize
 as an abort, both errors, so the second MUST row credits MUST's timeouts and its runs that ended without a
 report (RE) the same way; the two rows bracket the comparison. Both tools ran each program once, with
 the same timeout; MUST under MPICH, Stretto under Open MPI, so they did not see the same run.
 
-MUST 1.11.2 verdicts (rows by code commit: 3b8e846 (115)): ERROR 40, OK 70, RE 1, TIMEOUT 4. Labelled errors it reports and MUST 1.9.2 does not: 3 (MessageRace 3); the reverse: 9 (MessageRace 9). Correct programs it reports: 0.
+MUST 1.11.2 verdicts (rows by code commit: 415a6ed-dirty (115)): ERROR 40, OK 68, RE 2, TIMEOUT 5. Labelled errors it reports and MUST 1.9.2 does not: 4 (MessageRace 4); the reverse: 8 (MessageRace 7, TagMatching 1). Correct programs it reports: 0.
 
-MUST 1.11.2 with ThreadSanitizer verdicts (rows by code commit: 3b8e846 (115)): ERROR 42, OK 62, RE 2, TIMEOUT 9. Labelled errors it reports and MUST 1.9.2 does not: 4 (MessageRace 4); the reverse: 8 (MessageRace 8). Correct programs it reports: 0. Programs with a data race reported: 0.
+MUST 1.11.2 with ThreadSanitizer verdicts (rows by code commit: 415a6ed-dirty (115)): ERROR 45, OK 64, RE 2, TIMEOUT 4. Labelled errors it reports and MUST 1.9.2 does not: 6 (MessageRace 6); the reverse: 5 (MessageRace 5). Correct programs it reports: 0. Programs with a data race reported: 0.
 
 MUST 1.11.2 runs from `experiments/must/Dockerfile` (MPI-BugBench's MUST image with 1.11.2: Debian 12,
 MPICH 4.0.2, clang 14), the same harness and timeout as 1.9.2 (`scripts/must_run.sh`). With ThreadSanitizer the
@@ -63,48 +63,36 @@ as an error (MPI-BugBench's harness maps MUST_WARNING_DATARACE to no error class
 clang 14 and later, the run sets MUST_DISABLE_TSAN_ONREPORT=1, so the races are in ThreadSanitizer's report
 rather than MUST's: with the hook on, the runs hung after the first race.
 
-Labelled errors Stretto reports and MUST does not on the same program: **15**, of which
-predicted on a run that showed nothing itself: **4**. With at least one finding replay-confirmed
-(a pinned rerun with every pin matched reaches the predicted outcome and its control finishes): **7** of the
-15, **4** of the 4 predicted ones.
+Labelled errors Stretto reports and MUST does not on the same program: **18**, of which
+predicted on a run that showed nothing itself: **5**. With at least one finding replay-confirmed
+(a pinned rerun with every pin matched reaches the predicted outcome and its control finishes): **6** of the
+18, **5** of the 5 predicted ones.
 
 Message-race programs (label `MessageRace`):
 
 | total | clean observed runs | racing receive flagged (L1) | consequence certified (L1+SP) | replay-confirmed | observed deadlock/abort |
 |---|---|---|---|---|---|
-| 34 | 11 | 33 (clean: 11/11) | 10 (clean: 7/11) | 10 | 23 |
+| 34 | 13 | 33 (clean: 13/13) | 11 (clean: 10/13) | 11 | 21 |
 
 Wildcard competition (the w ablation): 80 programs with wildcard receives, 165 wildcard receives,
-145 feasible L1 alternatives, 0.88 per wildcard receive on average, at most 7 in one program.
+144 feasible L1 alternatives, 0.87 per wildcard receive on average, at most 7 in one program.
 
 Correct programs: 50; with warnings (not counted as errors): 29; findings per program
 mean 1.64, max 3.
 Warnings on correct programs by class: `1b` 1, `1f` 28.
 
-Replays: 72 rows (one per finding and class after removing duplicate pins), 46 distinct pinned runs, 10 programs (a finding is confirmed only if every pinned receive matched in the rerun, the rerun reached the predicted outcome, and a control rerun with the observed senders pinned finished; inconclusive when the control did not finish):
+Replays: 76 rows (one per finding and class after removing duplicate pins), 51 distinct pinned runs, 11 programs (a finding is confirmed only if every pinned receive matched in the rerun, the rerun reached the predicted outcome, and a control rerun with the observed senders pinned finished; inconclusive when the control did not finish):
 
 | class | confirmed | inconclusive | not confirmed | n/a |
 |---|---|---|---|---|
 | 1b | 0 | 0 | 0 | 2 |
-| 1c | 19 | 19 | 0 | 0 |
-| 1d | 20 | 12 | 0 | 0 |
+| 1c | 35 | 7 | 0 | 0 |
+| 1d | 25 | 7 | 0 | 0 |
 
 Not confirmed or inconclusive:
 
 | program | class | certainty | pin | result | pin applied | pin matched | control |
 |---|---|---|---|---|---|---|---|
-| MessageRace_Loop_Isend_Irecv_nok | 1d | some | 0/0/2,0/1/1,0/2/1,0/3/3 | TIMEOUT | True | True | TIMEOUT |
-| MessageRace_Loop_Isend_Irecv_nok | 1c | some | 0/0/2,0/1/1,0/2/1,0/3/3 | TIMEOUT | True | True | TIMEOUT |
-| MessageRace_Loop_Isend_Irecv_nok | 1c | some | 0/0/2,0/1/3,0/2/3,0/3/2 | TIMEOUT | True | True | TIMEOUT |
-| MessageRace_Loop_Isend_Irecv_nok | 1c | some | 0/0/3,0/1/3,0/2/2,0/3/2 | TIMEOUT | True | True | TIMEOUT |
-| MessageRace_Loop_Isend_Irecv_nok | 1d | some | 0/0/1,0/1/1,0/2/3,0/3/2 | TIMEOUT | True | True | TIMEOUT |
-| MessageRace_Loop_Isend_Irecv_nok | 1c | some | 0/0/1,0/1/1,0/2/3,0/3/2 | TIMEOUT | True | True | TIMEOUT |
-| MessageRace_Loop_Isend_Irecv_nok | 1c | some | 0/0/1,0/1/1,0/2/3,0/3/3 | TIMEOUT | True | True | TIMEOUT |
-| MessageRace_Loop_Isend_Irecv_nok | 1d | all | 0/0/1,0/1/3 | TIMEOUT | True | True | TIMEOUT |
-| MessageRace_Loop_Isend_Irecv_nok | 1d | some | 0/0/3,0/1/2,0/2/2,0/3/3 | TIMEOUT | True | True | TIMEOUT |
-| MessageRace_Loop_Isend_Irecv_nok | 1c | some | 0/0/3,0/1/2,0/2/2,0/3/3 | TIMEOUT | True | True | TIMEOUT |
-| MessageRace_Loop_Isend_Irecv_nok | 1c | some | 0/0/2,0/1/2,0/2/3,0/3/3 | TIMEOUT | True | True | TIMEOUT |
-| MessageRace_Loop_Isend_Irecv_nok | 1d | some | 0/0/3,0/1/3,0/2/2,0/3/2 | TIMEOUT | True | True | TIMEOUT |
 | MessageRace_Loop_Send_Irecv_nok | 1d | some | 0/0/2,0/1/1,0/2/1,0/3/3 | TIMEOUT | True | True | TIMEOUT |
 | MessageRace_Loop_Send_Irecv_nok | 1c | some | 0/0/2,0/1/1,0/2/1,0/3/3 | TIMEOUT | True | True | TIMEOUT |
 | MessageRace_Loop_Send_Irecv_nok | 1c | some | 0/0/2,0/1/3,0/2/3,0/3/2 | TIMEOUT | True | True | TIMEOUT |
@@ -113,30 +101,26 @@ Not confirmed or inconclusive:
 | MessageRace_Loop_Send_Irecv_nok | 1d | some | 0/0/1,0/1/2,0/2/1,0/3/3 | TIMEOUT | True | True | TIMEOUT |
 | MessageRace_Loop_Send_Irecv_nok | 1c | some | 0/0/1,0/1/2,0/2/1,0/3/3 | TIMEOUT | True | True | TIMEOUT |
 | MessageRace_Loop_Send_Irecv_nok | 1c | some | 0/0/3,0/1/2,0/2/3,0/3/2 | TIMEOUT | True | True | TIMEOUT |
-| MessageRace_Loop_Send_Irecv_nok | 1c | some | 0/0/2,0/1/2,0/2/3,0/3/3 | TIMEOUT | True | True | TIMEOUT |
-| MessageRace_Loop_Send_Irecv_nok | 1d | some | 0/0/3,0/1/3,0/2/2,0/3/2 | TIMEOUT | True | True | TIMEOUT |
-| MessageRace_Loop_Send_Recv_nok | 1d | some | 0/0/2,0/1/1,0/2/1,0/3/3 | TIMEOUT | True | True | TIMEOUT |
-| MessageRace_Loop_Send_Recv_nok | 1c | some | 0/0/2,0/1/1,0/2/1,0/3/3 | TIMEOUT | True | True | TIMEOUT |
-| MessageRace_Loop_Send_Recv_nok | 1c | some | 0/0/2,0/1/3,0/2/3,0/3/2 | TIMEOUT | True | True | TIMEOUT |
-| MessageRace_Loop_Send_Recv_nok | 1c | some | 0/0/3,0/1/3,0/2/2,0/3/2 | TIMEOUT | True | True | TIMEOUT |
-| MessageRace_Loop_Send_Recv_nok | 1d | some | 0/0/1,0/1/2,0/2/1,0/3/3 | TIMEOUT | True | True | TIMEOUT |
-| MessageRace_Loop_Send_Recv_nok | 1c | some | 0/0/1,0/1/2,0/2/1,0/3/3 | TIMEOUT | True | True | TIMEOUT |
-| MessageRace_Loop_Send_Recv_nok | 1c | some | 0/0/3,0/1/2,0/2/3,0/3/2 | TIMEOUT | True | True | TIMEOUT |
-| MessageRace_Loop_Send_Recv_nok | 1c | some | 0/0/2,0/1/2,0/2/3,0/3/3 | TIMEOUT | True | True | TIMEOUT |
-| MessageRace_Loop_Send_Recv_nok | 1d | some | 0/0/3,0/1/3,0/2/2,0/3/2 | TIMEOUT | True | True | TIMEOUT |
+| MessageRace_Loop_Send_Irecv_nok | 1d | some | 0/0/1,0/1/1,0/2/2,0/3/3 | TIMEOUT | True | True | TIMEOUT |
+| MessageRace_Loop_Send_Irecv_nok | 1c | some | 0/0/1,0/1/1,0/2/2,0/3/3 | TIMEOUT | True | True | TIMEOUT |
+| MessageRace_Loop_Send_Irecv_nok | 1d | all | 0/0/1,0/1/1,0/2/3,0/3/3 | TIMEOUT | True | True | TIMEOUT |
+| MessageRace_Loop_Send_Irecv_nok | 1c | some | 0/0/3,0/1/2,0/2/2,0/3/3 | TIMEOUT | True | True | TIMEOUT |
+| MessageRace_Loop_Send_Recv_nok | 1d | all | 0/0/3 | TIMEOUT | True | True | TIMEOUT |
+| MessageRace_Loop_Send_Recv_nok | 1d | all | 0/0/2,0/1/3 | TIMEOUT | True | True | TIMEOUT |
 
 | label | detail | observed run | Stretto classes | MUST | programs |
 |---|---|---|---|---|---|
 | ERROR | BufferingHazard | FINISHED | 2-buffering | ERROR | 12 |
 | ERROR | CallMatching | TIMEOUT | 2-blocked | TIMEOUT | 4 |
-| ERROR | MessageRace | FINISHED | 1c 1d 1f | ERROR | 3 |
+| ERROR | MessageRace | FINISHED | 1b 1c 1d | OK | 1 |
+| ERROR | MessageRace | FINISHED | 1c 1d 1f | ERROR | 5 |
 | ERROR | MessageRace | FINISHED | 1c 1d 1f | OK | 4 |
 | ERROR | MessageRace | FINISHED | 1f | OK | 2 |
-| ERROR | MessageRace | FINISHED | 1f | RE | 2 |
-| ERROR | MessageRace | TIMEOUT | 1b 1c 2-blocked 2-buffering | ERROR | 1 |
-| ERROR | MessageRace | TIMEOUT | 1c 1d 1f 2-blocked 2-buffering | OK | 3 |
-| ERROR | MessageRace | TIMEOUT | 1c 1f 2-blocked 2-buffering | ERROR | 14 |
-| ERROR | MessageRace | TIMEOUT | 1c 1f 2-blocked 2-buffering | OK | 4 |
+| ERROR | MessageRace | FINISHED | 1f | RE | 1 |
+| ERROR | MessageRace | SIGNAL | 1f abort | RE | 1 |
+| ERROR | MessageRace | TIMEOUT | 1c 1d 1f 2-blocked 2-buffering | OK | 1 |
+| ERROR | MessageRace | TIMEOUT | 1c 1f 2-blocked 2-buffering | ERROR | 11 |
+| ERROR | MessageRace | TIMEOUT | 1c 1f 2-blocked 2-buffering | OK | 7 |
 | ERROR | MessageRace | TIMEOUT | 1c 2-blocked 2-buffering | ERROR | 1 |
 | ERROR | TagMatching | TIMEOUT | 1c 2-blocked | ERROR | 6 |
 | ERROR | TagMatching | TIMEOUT | 1c 2-blocked 2-buffering | ERROR | 9 |
@@ -146,7 +130,7 @@ Not confirmed or inconclusive:
 
 ### MPI-BugBench level 2: point-to-point and collective call-ordering, missing-call, local-concurrency and correct programs
 
-Programs: 388. Not compiled with Open MPI 4.1.6 and left out: 8 (P2P__CallOrdering-unmatched-mpi_precv_init-001, P2P__CallOrdering-unmatched-mpi_psend_init-001, P2P__Correct-mpi_precv_init-001, P2P__Correct-mpi_precv_init-002, P2P__Correct-mpi_psend_init-001, P2P__Correct-mpi_psend_init-002, P2P__LocalConcurrency-receive-mpi_precv_init-001, P2P__LocalConcurrency-send-mpi_psend_init-001). Rows by code commit: 96dd241 (388), unrecorded (8).
+Programs: 388. Not compiled with Open MPI 4.1.6 and left out: 8 (P2P__CallOrdering-unmatched-mpi_precv_init-001, P2P__CallOrdering-unmatched-mpi_psend_init-001, P2P__Correct-mpi_precv_init-001, P2P__Correct-mpi_precv_init-002, P2P__Correct-mpi_psend_init-001, P2P__Correct-mpi_psend_init-002, P2P__LocalConcurrency-receive-mpi_precv_init-001, P2P__LocalConcurrency-send-mpi_psend_init-001). Rows by code commit: 415a6ed-dirty (396).
 
 A program's verdict is ERROR iff a finding of class 1a/1c/1d/2-buffering/2-collective/2-blocked/2-ready/3-local/abort is
 present; 1b, 1f, probe-alt and waitany-order are warnings and never count. The *observed* row uses
@@ -163,25 +147,25 @@ finish is the hang itself and counts as observed. The union is the tool's verdic
 | Stretto, predicted | 7 | 0 | 229 | 152 | 1.00 | 0.03 | 0.06 |
 | Stretto with the buffer guard (`STRETTO_GUARD=1`), a separate run | 236 | 4 | 0 | 148 | 0.98 | 1.00 | 0.99 |
 
-Buffer guard run: 388 programs (rows by code commit: 7117573 (388)); 3-local in 20 of the 20 local-concurrency programs and in 0 others.
+Buffer guard run: 388 programs (rows by code commit: 415a6ed-dirty (388)); 3-local in 20 of the 20 local-concurrency programs and in 0 others.
 
-| MUST 1.9.2 (same source, its own run under MPICH) | 213 | 4 | 23 | 148 | 0.98 | 0.90 | 0.94 |
+| MUST 1.9.2 (same source, its own run under MPICH) | 212 | 4 | 24 | 148 | 0.98 | 0.90 | 0.94 |
 | MUST 1.9.2, a timeout or a run without a report counted as an error | 219 | 9 | 17 | 143 | 0.96 | 0.93 | 0.94 |
-| MUST 1.11.2 (same source, its own run under MPICH) | 213 | 4 | 23 | 148 | 0.98 | 0.90 | 0.94 |
-| MUST 1.11.2, a timeout or a run without a report counted as an error | 219 | 9 | 17 | 143 | 0.96 | 0.93 | 0.94 |
-| MUST 1.11.2 with ThreadSanitizer (same source, its own run under MPICH) | 222 | 4 | 14 | 148 | 0.98 | 0.94 | 0.96 |
-| MUST 1.11.2 with ThreadSanitizer, a timeout or a run without a report counted as an error | 236 | 25 | 0 | 127 | 0.90 | 1.00 | 0.95 |
+| MUST 1.11.2 (same source, its own run under MPICH) | 213 | 4 | 22 | 139 | 0.98 | 0.91 | 0.94 |
+| MUST 1.11.2, a timeout or a run without a report counted as an error | 219 | 9 | 16 | 134 | 0.96 | 0.93 | 0.95 |
+| MUST 1.11.2 with ThreadSanitizer (same source, its own run under MPICH) | 222 | 4 | 14 | 144 | 0.98 | 0.94 | 0.96 |
+| MUST 1.11.2 with ThreadSanitizer, a timeout or a run without a report counted as an error | 236 | 21 | 0 | 127 | 0.92 | 1.00 | 0.96 |
 
-MUST verdicts: ERROR 217, OK 160, RE 5, TIMEOUT 6. In the first MUST row a run
+MUST verdicts: ERROR 216, OK 160, RE 5, TIMEOUT 7. In the first MUST row a run
 that timed out, crashed or did not compile counts as no error reported. A Stretto run that the harness
 killed at the timeout is reported as a blocked rank (2-blocked) and one whose rank stopped before MPI_Finalize
 as an abort, both errors, so the second MUST row credits MUST's timeouts and its runs that ended without a
 report (RE) the same way; the two rows bracket the comparison. Both tools ran each program once, with
 the same timeout; MUST under MPICH, Stretto under Open MPI, so they did not see the same run.
 
-MUST 1.11.2 verdicts (rows by code commit: 3b8e846 (396)): ERROR 217, OK 160, RE 4, TIMEOUT 7. Labelled errors it reports and MUST 1.9.2 does not: 0; the reverse: 0. Correct programs it reports: 4 (P2P__Correct-mpi_improbe-001, P2P__Correct-mpi_imrecv-001, P2P__Correct-mpi_mprobe-001, P2P__Correct-mpi_mrecv-001).
+MUST 1.11.2 verdicts (rows by code commit: 415a6ed-dirty (396)): ERROR 217, HARNESS-ERROR 10, OK 150, RE 4, TIMEOUT 7. Labelled errors it reports and MUST 1.9.2 does not: 1 (CallOrdering 1); the reverse: 0. Correct programs it reports: 4 (P2P__Correct-mpi_improbe-001, P2P__Correct-mpi_imrecv-001, P2P__Correct-mpi_mprobe-001, P2P__Correct-mpi_mrecv-001).
 
-MUST 1.11.2 with ThreadSanitizer verdicts (rows by code commit: 3b8e846 (396)): ERROR 226, OK 127, RE 25, TIMEOUT 10. Labelled errors it reports and MUST 1.9.2 does not: 17 (LocalConcurrency 17); the reverse: 8 (CallOrdering 8). Correct programs it reports: 4 (P2P__Correct-mpi_improbe-001, P2P__Correct-mpi_imrecv-001, P2P__Correct-mpi_mprobe-001, P2P__Correct-mpi_mrecv-001). Programs with a data race reported: 17 (LocalConcurrency 17).
+MUST 1.11.2 with ThreadSanitizer verdicts (rows by code commit: 415a6ed-dirty (396)): ERROR 226, HARNESS-ERROR 4, OK 127, RE 17, TIMEOUT 14. Labelled errors it reports and MUST 1.9.2 does not: 18 (CallOrdering 1, LocalConcurrency 17); the reverse: 8 (CallOrdering 8). Correct programs it reports: 4 (P2P__Correct-mpi_improbe-001, P2P__Correct-mpi_imrecv-001, P2P__Correct-mpi_mprobe-001, P2P__Correct-mpi_mrecv-001). Programs with a data race reported: 17 (LocalConcurrency 17).
 
 MUST 1.11.2 runs from `experiments/must/Dockerfile` (MPI-BugBench's MUST image with 1.11.2: Debian 12,
 MPICH 4.0.2, clang 14), the same harness and timeout as 1.9.2 (`scripts/must_run.sh`). With ThreadSanitizer the
@@ -190,10 +174,10 @@ as an error (MPI-BugBench's harness maps MUST_WARNING_DATARACE to no error class
 clang 14 and later, the run sets MUST_DISABLE_TSAN_ONREPORT=1, so the races are in ThreadSanitizer's report
 rather than MUST's: with the hook on, the runs hung after the first race.
 
-Labelled errors Stretto reports and MUST does not on the same program: **6**, of which
+Labelled errors Stretto reports and MUST does not on the same program: **7**, of which
 predicted on a run that showed nothing itself: **0**. With at least one finding replay-confirmed
 (a pinned rerun with every pin matched reaches the predicted outcome and its control finishes): **0** of the
-6, **0** of the 0 predicted ones.
+7, **0** of the 0 predicted ones.
 
 Labelled-error programs that use a wildcard (`MPI_ANY_SOURCE` or `MPI_ANY_TAG`):
 
@@ -216,34 +200,32 @@ mean 0.05, max 2.
 | ERROR | CallOrdering | TIMEOUT | 1c 2-blocked | ERROR | 3 |
 | ERROR | CallOrdering | TIMEOUT | 1c 2-blocked 2-buffering | TIMEOUT | 2 |
 | ERROR | CallOrdering | TIMEOUT | 1f 2-blocked | ERROR | 1 |
-| ERROR | CallOrdering | TIMEOUT | 2-blocked | ERROR | 15 |
+| ERROR | CallOrdering | TIMEOUT | 2-blocked | ERROR | 14 |
 | ERROR | CallOrdering | TIMEOUT | 2-blocked | RE | 1 |
-| ERROR | CallOrdering | TIMEOUT | 2-blocked | TIMEOUT | 3 |
+| ERROR | CallOrdering | TIMEOUT | 2-blocked | TIMEOUT | 4 |
 | ERROR | CallOrdering | TIMEOUT | 2-blocked 2-collective | ERROR | 143 |
 | ERROR | LocalConcurrency | FINISHED | - | ERROR | 3 |
 | ERROR | LocalConcurrency | FINISHED | - | OK | 17 |
 | ERROR | MissingCall | TIMEOUT | 2-blocked | ERROR | 3 |
 | OK |  | FINISHED | - | ERROR | 4 |
-| OK |  | FINISHED | - | OK | 141 |
-| OK |  | FINISHED | - | RE | 2 |
+| OK |  | FINISHED | - | OK | 143 |
 | OK |  | FINISHED | - | TIMEOUT | 1 |
-| OK |  | MPI-ERROR | 2-blocked | OK | 2 |
-| OK |  | MPI-ERROR | 2-blocked | RE | 2 |
+| OK |  | MPI-ERROR | 2-blocked | RE | 4 |
 
 ### Stress-testing baseline: MBI
 
 Up to 30 runs per program with random send and receive delays per rank, stopping at the first run that
-does not finish (`experiments/stress_baseline.py`, `stress.csv`). Programs: 115. Rows by code commit: c27c793 (115).
+does not finish (`experiments/stress_baseline.py`, `stress.csv`). Programs: 115. Rows by code commit: 415a6ed (115).
 
 Labelled-error programs: 65. Stress testing makes 53 fail (median run of the first failure 1;
-16 only after the first run). Stretto reports 61 from one run, 22 of them predicted from a
+17 only after the first run). Stretto reports 62 from one run, 23 of them predicted from a
 run that finished; stress testing never makes 12 of those fail (P2PBuffering_Circular_Isend_Irecv_nok, P2PBuffering_Circular_Isend_Recv_nok, P2PBuffering_Circular_Send_Irecv_nok, P2PBuffering_Circular_Send_Recv_nok, P2PBuffering_Isend_Irecv_Isend_Irecv_nok, P2PBuffering_Isend_Recv_Isend_Recv_nok, P2PBuffering_SameProcess_Isend_Irecv_nok, P2PBuffering_SameProcess_Isend_Recv_nok, P2PBuffering_SameProcess_Send_Irecv_nok, P2PBuffering_SameProcess_Send_Recv_nok, P2PBuffering_Send_Irecv_Send_Irecv_nok, P2PBuffering_Send_Recv_Send_Recv_nok).
 Correct programs that fail: 0.
 Of the 53 failures, 49 are hangs killed at the timeout and the others end with SIGNAL:6 (4).
 
 | | TP | FP | FN | TN | F1 |
 |---|---|---|---|---|---|
-| Stretto, observed or predicted, on these programs | 61 | 0 | 4 | 50 | 0.97 |
+| Stretto, observed or predicted, on these programs | 62 | 0 | 3 | 50 | 0.98 |
 | random delays, default limits | 53 | 0 | 12 | 50 | 0.90 |
 
 ### Stress-testing baseline with the eager limit forced down: MBI
@@ -254,14 +236,14 @@ threshold forced down to 0 payload bytes in every run (`stress_baseline.py --eag
 This is the setting E2 replays a buffering finding with below its bound, at the least eager limit the TCP
 transport accepts; the shared-memory transport is left out because it sends up to 256 bytes inline whatever its
 limit, and the self transport does the same for a send to the sending rank.
-Programs: 115. Rows by code commit: 0dabfce (115).
+Programs: 115. Rows by code commit: 415a6ed (115).
 
-Labelled-error programs: 65. Forced down, stress testing makes 61 fail (15 only after the first run).
+Labelled-error programs: 65. Forced down, stress testing makes 61 fail (16 only after the first run).
 Against the default limits: 8 of these do not fail there, and 0 that fail there never fail here. Of the 12 errors Stretto predicts that the default limits never expose, 8 fail and 4 still never fail (P2PBuffering_SameProcess_Isend_Irecv_nok, P2PBuffering_SameProcess_Isend_Recv_nok, P2PBuffering_SameProcess_Send_Irecv_nok, P2PBuffering_SameProcess_Send_Recv_nok), 4 of them sending to their own rank (untestable below their bound in E2).
 Correct programs that fail: 0.
 Of the 61 failures, 57 are hangs killed at the timeout and the others end with SIGNAL:6 (4).
 Against Stretto's verdict from one run: 4 errors Stretto reports are never made to fail (P2PBuffering_SameProcess_Isend_Irecv_nok, P2PBuffering_SameProcess_Isend_Recv_nok, P2PBuffering_SameProcess_Send_Irecv_nok, P2PBuffering_SameProcess_Send_Recv_nok),
-and 4 made to fail Stretto does not report (MessageRace_Irecv_Isend_nok, MessageRace_Irecv_Send_nok, MessageRace_Recv_Isend_nok, MessageRace_Recv_Send_nok).
+and 3 made to fail Stretto does not report (MessageRace_Irecv_Isend_nok, MessageRace_Irecv_Send_nok, MessageRace_Recv_Send_nok).
 
 | | TP | FP | FN | TN | F1 |
 |---|---|---|---|---|---|
@@ -283,13 +265,13 @@ Programs whose outcome the forced limit changes:
 ### Stress-testing baseline: MPI-BugBench level 2
 
 Up to 30 runs per program with random send and receive delays per rank, stopping at the first run that
-does not finish (`experiments/stress_baseline.py`, `stress.csv`). Programs: 365. Rows by code commit: 604c639 (365).
+does not finish (`experiments/stress_baseline.py`, `stress.csv`). Programs: 365. Rows by code commit: 415a6ed-dirty (365).
 
 Labelled-error programs: 213. Stress testing makes 172 fail (median run of the first failure 1;
 0 only after the first run). Stretto reports 213 from one run, 7 of them predicted from a
 run that finished; stress testing never makes 7 of those fail (P2P__CallOrdering-ANY_TAG-001, P2P__CallOrdering-unmatched-mpi_irsend-001, P2P__CallOrdering-unmatched-mpi_isend-001, P2P__CallOrdering-unmatched-mpi_rsend-001, P2P__CallOrdering-unmatched-mpi_rsend_init-001, P2P__CallOrdering-unmatched-mpi_send-001, P2P__CallOrdering-unmatched-mpi_send_init-001).
-Correct programs that fail: 4 (COLL__Correct-mpi_gather-002, COLL__Correct-mpi_reduce-002, COLL__Correct-mpi_reduce-003, COLL__Correct-mpi_reduce-004), 3 of them ending as the traced run did (column `run` of the corpus table); COLL__Correct-mpi_reduce-003 ends with APP-ERROR:13, the traced run with MPI-ERROR:MPI_ERR_ARG (13 is the error class of MPI_ERR_ARG, the exit status of Open MPI's fatal error handler, whose message was not captured).
-Of the 176 failures, 168 are hangs killed at the timeout and the others end with APP-ERROR:13 (1), MPI-ERROR:MPI_ERR_ARG (3), MPI-ERROR:MPI_ERR_TRUNCATE (4).
+Correct programs that fail: 4 (COLL__Correct-mpi_gather-002, COLL__Correct-mpi_reduce-002, COLL__Correct-mpi_reduce-003, COLL__Correct-mpi_reduce-004), 4 of them ending as the traced run did (column `run` of the corpus table).
+Of the 176 failures, 168 are hangs killed at the timeout and the others end with MPI-ERROR:MPI_ERR_ARG (4), MPI-ERROR:MPI_ERR_TRUNCATE (4).
 
 | | TP | FP | FN | TN | F1 |
 |---|---|---|---|---|---|
@@ -304,11 +286,11 @@ threshold forced down to 0 payload bytes in every run (`stress_baseline.py --eag
 This is the setting E2 replays a buffering finding with below its bound, at the least eager limit the TCP
 transport accepts; the shared-memory transport is left out because it sends up to 256 bytes inline whatever its
 limit, and the self transport does the same for a send to the sending rank.
-Programs: 365. Rows by code commit: 0dabfce (365).
+Programs: 365. Rows by code commit: 415a6ed-dirty (365).
 
 Labelled-error programs: 213. Forced down, stress testing makes 208 fail (0 only after the first run).
 Against the default limits: 36 of these do not fail there, and 0 that fail there never fail here. Of the 7 errors Stretto predicts that the default limits never expose, all 7 fail.
-Correct programs that fail: 4 (COLL__Correct-mpi_gather-002, COLL__Correct-mpi_reduce-002, COLL__Correct-mpi_reduce-003, COLL__Correct-mpi_reduce-004), 4 of them ending as the traced run at the default limits did (column `run` of the corpus table). At the default limits 4 of them fail too, 3 ending the same way, and 0 other correct programs fail.
+Correct programs that fail: 4 (COLL__Correct-mpi_gather-002, COLL__Correct-mpi_reduce-002, COLL__Correct-mpi_reduce-003, COLL__Correct-mpi_reduce-004), 4 of them ending as the traced run at the default limits did (column `run` of the corpus table). At the default limits 4 of them fail too, 4 ending the same way, and 0 other correct programs fail.
 Of the 212 failures, 204 are hangs killed at the timeout and the others end with MPI-ERROR:MPI_ERR_ARG (4), SIGNAL:11 (4).
 Against Stretto's verdict from one run: 5 errors Stretto reports are never made to fail (COLL__CallOrdering-unmatched-mpi_iallreduce-mpi_ialltoall-001, COLL__CallOrdering-unmatched-mpi_ibcast-mpi_iscan-001, COLL__CallOrdering-unmatched-mpi_ibcast-mpi_iscatter-001, COLL__CallOrdering-unmatched-mpi_ireduce-mpi_igather-001, COLL__CallOrdering-unmatched-mpi_iscatter-mpi_iscan-001),
 and 0 made to fail Stretto does not report.
@@ -363,24 +345,24 @@ Programs whose outcome the forced limit changes:
 MBI's programs of E1 run 10 times each with the same harness (`experiments/run_remaining.sh reps`) and
 analysed with the current analysis; MUST and replays are not rerun. One run per program is one schedule:
 these runs say how often each verdict holds. Programs in every run: 115, 65 labelled errors.
-Rows by code commit: 34bf460 (analysis 5f4922d) (1150).
+Rows by code commit: 415a6ed (1150).
 
 | verdict | F1 min | F1 median | F1 max | TP | FP | FN |
 |---|---|---|---|---|---|---|
-| Stretto (union) | 0.98 | 0.99 | 1.00 | 62–65 | 0–0 | 0–3 |
-| Stretto, observed in the run | 0.73 | 0.79 | 0.81 | 37–44 | 0–0 | 21–28 |
-| Stretto, predicted | 0.49 | 0.54 | 0.59 | 21–27 | 0–0 | 38–44 |
+| Stretto (union) | 0.98 | 0.98 | 0.99 | 62–64 | 0–0 | 1–3 |
+| Stretto, observed in the run | 0.75 | 0.78 | 0.81 | 39–44 | 0–0 | 21–26 |
+| Stretto, predicted | 0.51 | 0.52 | 0.56 | 22–25 | 0–0 | 40–43 |
 
 Labelled errors by the number of runs, out of 10, in which the run itself failed (observed) and in which
 Stretto reported the error (union):
 
 | | in every run | in some runs | in no run |
 |---|---|---|---|
-| the run failed (observed) | 26 | 27 | 12 |
+| the run failed (observed) | 32 | 17 | 16 |
 | Stretto reported it | 61 | 4 | 0 |
 
-Runs of a labelled-error program that showed nothing themselves: 234; Stretto predicted the error from
-222 of them (19 to 26 programs per round of runs); the other 12 are runs of MessageRace_Irecv_Isend_nok, MessageRace_Irecv_Send_nok, MessageRace_Recv_Isend_nok, MessageRace_Recv_Send_nok. Correct programs reported as an
+Runs of a labelled-error program that showed nothing themselves: 233; Stretto predicted the error from
+216 of them (20 to 23 programs per round of runs); the other 17 are runs of MessageRace_Irecv_Isend_nok, MessageRace_Irecv_Send_nok, MessageRace_Recv_Isend_nok, MessageRace_Recv_Send_nok. Correct programs reported as an
 error in some run: 0.
 
 Labelled errors whose outcome depends on the run (the run failed or Stretto reported the error in some runs
@@ -390,43 +372,33 @@ Stretto predicted it:
 | program | the run failed | Stretto reported it | predicted from clean runs |
 |---|---|---|---|
 | MessageRace_Allgather_Isend_Irecv_nok | 5/10 | 10/10 | 5/5 |
-| MessageRace_Allgather_Send_Irecv_nok | 7/10 | 10/10 | 3/3 |
-| MessageRace_Allgatherv_Send_Irecv_nok | 8/10 | 10/10 | 2/2 |
-| MessageRace_Allreduce_Isend_Irecv_nok | 9/10 | 10/10 | 1/1 |
-| MessageRace_Allreduce_Send_Irecv_nok | 5/10 | 10/10 | 5/5 |
-| MessageRace_Alltoall_Isend_Irecv_nok | 5/10 | 10/10 | 5/5 |
-| MessageRace_Alltoall_Send_Irecv_nok | 6/10 | 10/10 | 4/4 |
-| MessageRace_Alltoallv_Isend_Irecv_nok | 4/10 | 10/10 | 6/6 |
-| MessageRace_Alltoallv_Send_Irecv_nok | 7/10 | 10/10 | 3/3 |
-| MessageRace_Barrier_Isend_Irecv_nok | 9/10 | 10/10 | 1/1 |
-| MessageRace_Barrier_Send_Irecv_nok | 8/10 | 10/10 | 2/2 |
-| MessageRace_Bcast_Send_Irecv_nok | 8/10 | 10/10 | 2/2 |
-| MessageRace_Exscan_Send_Irecv_nok | 9/10 | 10/10 | 1/1 |
-| MessageRace_Gather_Isend_Irecv_nok | 1/10 | 10/10 | 9/9 |
-| MessageRace_Gather_Send_Irecv_nok | 5/10 | 10/10 | 5/5 |
-| MessageRace_Irecv_Isend_nok | 7/10 | 7/10 | 0/3 |
+| MessageRace_Allgather_Send_Irecv_nok | 4/10 | 10/10 | 6/6 |
+| MessageRace_Allreduce_Isend_Irecv_nok | 8/10 | 10/10 | 2/2 |
+| MessageRace_Alltoall_Isend_Irecv_nok | 6/10 | 10/10 | 4/4 |
+| MessageRace_Alltoall_Send_Irecv_nok | 7/10 | 10/10 | 3/3 |
+| MessageRace_Alltoallv_Isend_Irecv_nok | 6/10 | 10/10 | 4/4 |
+| MessageRace_Alltoallv_Send_Irecv_nok | 5/10 | 10/10 | 5/5 |
+| MessageRace_Barrier_Send_Irecv_nok | 9/10 | 10/10 | 1/1 |
+| MessageRace_Irecv_Isend_nok | 5/10 | 5/10 | 0/5 |
 | MessageRace_Irecv_Send_nok | 7/10 | 7/10 | 0/3 |
-| MessageRace_Loop_Isend_Irecv_nok | 4/10 | 10/10 | 6/6 |
-| MessageRace_Loop_Isend_Recv_nok | 5/10 | 10/10 | 5/5 |
-| MessageRace_Loop_Send_Irecv_nok | 4/10 | 10/10 | 6/6 |
-| MessageRace_Loop_Send_Recv_nok | 1/10 | 10/10 | 9/9 |
-| MessageRace_Recv_Isend_nok | 7/10 | 7/10 | 0/3 |
-| MessageRace_Recv_Send_nok | 7/10 | 7/10 | 0/3 |
-| MessageRace_Reduce_Isend_Irecv_nok | 1/10 | 10/10 | 9/9 |
-| MessageRace_Reduce_Send_Irecv_nok | 3/10 | 10/10 | 7/7 |
-| MessageRace_Scatter_Send_Irecv_nok | 7/10 | 10/10 | 3/3 |
+| MessageRace_Loop_Isend_Irecv_nok | 3/10 | 10/10 | 7/7 |
+| MessageRace_Loop_Isend_Recv_nok | 4/10 | 10/10 | 6/6 |
+| MessageRace_Loop_Send_Irecv_nok | 3/10 | 10/10 | 7/7 |
+| MessageRace_Loop_Send_Recv_nok | 7/10 | 10/10 | 3/3 |
+| MessageRace_Recv_Isend_nok | 5/10 | 5/10 | 0/5 |
+| MessageRace_Recv_Send_nok | 6/10 | 6/10 | 0/4 |
 | MessageRace_tag_ANY_TAG_1_Send_Recv_nok | 7/10 | 10/10 | 3/3 |
 
 ## E2: buffering ablation
 
-Rows by code commit: 96dd241 (670).
+Rows by code commit: 415a6ed-dirty (671).
 
 Every alternative and every observed run is checked at every breakpoint (0, each message size, inf);
 profiles that are not monotone in B: 0.
 
 | traces | observed runs infeasible at B=0 (deadlock on a rendezvous implementation) | feasible alternatives | feasible at B=0 | at B=4096 | at B=inf | B-dependent |
 |---|---|---|---|---|---|---|
-| 516 | 54 | 154 | 143 | 154 | 154 | 11 |
+| 517 | 51 | 154 | 140 | 154 | 154 | 14 |
 
 B-dependent alternatives:
 
@@ -435,14 +407,17 @@ B-dependent alternatives:
 | experiments/results/mbi/MessageRace_Loop_Isend_Irecv_nok/trace | (0, 0)<-(3, 0) [steal] | B >= 4 |
 | experiments/results/mbi/MessageRace_Loop_Isend_Irecv_nok/trace | (0, 1)<-(3, 0) [steal] | B >= 4 |
 | experiments/results/mbi/MessageRace_Loop_Isend_Irecv_nok/trace | (0, 2)<-(3, 0) [steal] | B >= 4 |
+| experiments/results/mbi/MessageRace_Loop_Isend_Irecv_nok/trace | (0, 3)<-(3, 0) [steal] | B >= 4 |
 | experiments/results/mbi/MessageRace_Loop_Isend_Recv_nok/trace | (0, 0)<-(3, 0) [steal] | B >= 4 |
 | experiments/results/mbi/MessageRace_Loop_Isend_Recv_nok/trace | (0, 1)<-(3, 0) [steal] | B >= 4 |
 | experiments/results/mbi/MessageRace_Loop_Isend_Recv_nok/trace | (0, 2)<-(3, 0) [steal] | B >= 4 |
-| experiments/results/mbi/MessageRace_Loop_Isend_Recv_nok/trace | (0, 3)<-(3, 0) [steal] | B >= 4 |
 | experiments/results/mbi/MessageRace_Loop_Send_Irecv_nok/trace | (0, 0)<-(3, 0) [steal] | B >= 4 |
 | experiments/results/mbi/MessageRace_Loop_Send_Irecv_nok/trace | (0, 1)<-(3, 0) [steal] | B >= 4 |
+| experiments/results/mbi/MessageRace_Loop_Send_Irecv_nok/trace | (0, 3)<-(3, 1) [steal] | B >= 4 |
 | experiments/results/mbi/MessageRace_Loop_Send_Recv_nok/trace | (0, 0)<-(3, 0) [steal] | B >= 4 |
 | experiments/results/mbi/MessageRace_Loop_Send_Recv_nok/trace | (0, 1)<-(3, 0) [steal] | B >= 4 |
+| experiments/results/mbi/MessageRace_Loop_Send_Recv_nok/trace | (0, 2)<-(3, 0) [steal] | B >= 4 |
+| experiments/results/mbi/MessageRace_Loop_Send_Recv_nok/trace | (0, 3)<-(3, 0) [steal] | B >= 4 |
 
 Eager threshold of the implementation (`experiments/b_impl.py`: a head-to-head exchange of n bytes finishes
 when the message is eager and hangs when it is rendezvous), per send path, since Open MPI sends up to 256
@@ -500,6 +475,8 @@ which the self transport sends inline up to 256 bytes), at the bound 17/17. Not 
 
 ## E3: level ablation
 
+Reports by analysis commit: 415a6ed-dirty (503).
+
 | corpus | level | class | findings | programs |
 |---|---|---|---|---|
 | mbb | L1 | 1f | 1 | 1 |
@@ -508,12 +485,13 @@ which the self transport sends inline up to 256 bytes), at the bound 17/17. Not 
 | mbb | observed | 2-buffering | 9 | 9 |
 | mbb | observed | 2-collective | 178 | 178 |
 | mbi | L1 | 1b | 2 | 2 |
-| mbi | L1 | 1f | 143 | 60 |
-| mbi | L1+SP | 1c | 45 | 10 |
-| mbi | L1+SP | 1d | 32 | 10 |
-| mbi | observed | 1c | 38 | 38 |
-| mbi | observed | 2-blocked | 49 | 42 |
-| mbi | observed | 2-buffering | 44 | 44 |
+| mbi | L1 | 1f | 142 | 60 |
+| mbi | L1+SP | 1c | 47 | 11 |
+| mbi | L1+SP | 1d | 32 | 11 |
+| mbi | observed | 1c | 35 | 35 |
+| mbi | observed | 2-blocked | 46 | 39 |
+| mbi | observed | 2-buffering | 41 | 41 |
+| mbi | observed | abort | 1 | 1 |
 
 | idiom | L1 classes | L1+SP classes | L2 classes (twin) | L2 twin outcomes | SP spurious? |
 |---|---|---|---|---|---|
@@ -530,6 +508,7 @@ which the self transport sends inline up to 256 bytes), at the bound 17/17. Not 
 | 11 | probe-alt |  | (no twin) | | - |
 | 12 | 1f | 1c 1d | (no twin) | | - |
 | 13 | 1f | 1c 1d | (no twin) | | - |
+| 14 | 1f |  | (no twin) | | - |
 
 
 ## E3b: read bounds (MBI, docs/firstread.md)
@@ -537,29 +516,30 @@ which the self transport sends inline up to 256 bytes), at the bound 17/17. Not 
 The corpus run of E1 analysed again from its traces, each program with the first-read map of its
 source (`experiments/mbi/reads_maps.py`, clang 18 in the image of `experiments/container/Dockerfile.firstread`;
 `reanalyze.py --reads`). 115 maps, 115 of the 115 programs analysed with one; the maps
-have 860 entries (a call that delivers a receive's result, with its posting call), 860 with free sites, none empty. Rows by code commit: 96dd241 (analysis 4121baf) (115).
+have 860 entries (a call that delivers a receive's result, with its posting call), 860 with free sites, none empty. Rows by code commit: 415a6ed-dirty (115).
 
 | verdict | without read bounds: TP / FP / FN / TN | F1 | with read bounds: TP / FP / FN / TN | F1 |
 |---|---|---|---|---|
-| union | 61 / 0 / 4 / 50 | 0.97 | 61 / 0 / 4 / 50 | 0.97 |
-| observed in the run | 42 / 0 / 23 / 50 | 0.79 | 42 / 0 / 23 / 50 | 0.79 |
-| predicted | 22 / 0 / 43 / 50 | 0.51 | 22 / 0 / 43 / 50 | 0.51 |
-| certified at L1 only (no single-path assumption) | 0 / 0 / 65 / 50 | 0.00 | 10 / 0 / 55 / 50 | 0.27 |
+| union | 62 / 0 / 3 / 50 | 0.98 | 62 / 0 / 3 / 50 | 0.98 |
+| observed in the run | 40 / 0 / 25 / 50 | 0.76 | 40 / 0 / 25 / 50 | 0.76 |
+| predicted | 23 / 0 / 42 / 50 | 0.52 | 23 / 0 / 42 / 50 | 0.52 |
+| certified at L1 only (no single-path assumption) | 0 / 0 / 65 / 50 | 0.00 | 11 / 0 / 54 / 50 | 0.29 |
 
-Programs with an error consequence certified at L1 with the bounds and not without: **10** (7 of them with a clean observed run), every one labelled erroneous: 10. Programs that keep a single-path consequence: 0. New false positives: 0; programs whose union verdict changes: 0. Of the 4 programs whose error is a check of the received value, which they read before `MPI_Finalize`, 4 keep no L1 consequence (E7 decides them at L2).
+Programs with an error consequence certified at L1 with the bounds and not without: **11** (10 of them with a clean observed run), every one labelled erroneous: 11. Programs that keep a single-path consequence: 0. New false positives: 0; programs whose union verdict changes: 0. Of the 4 programs whose error is a check of the received value, which they read before `MPI_Finalize`, 4 keep no L1 consequence (E7 decides them at L2).
 
 | program | observed run | levels without read bounds | levels with read bounds |
 |---|---|---|---|
-| MessageRace_Allgather_Send_Irecv_nok | FINISHED | L1+SP:1c L1+SP:1d L1:1f | L1:1c L1:1d L1:1f |
+| MessageRace_Allgather_Isend_Irecv_nok | FINISHED | L1+SP:1c L1+SP:1d L1:1f | L1:1c L1:1d L1:1f |
 | MessageRace_Alltoall_Send_Irecv_nok | FINISHED | L1+SP:1c L1+SP:1d L1:1f | L1:1c L1:1d L1:1f |
-| MessageRace_Bcast_Send_Irecv_nok | FINISHED | L1+SP:1c L1+SP:1d L1:1f | L1:1c L1:1d L1:1f |
 | MessageRace_Gather_Isend_Irecv_nok | FINISHED | L1+SP:1c L1+SP:1d L1:1f | L1:1c L1:1d L1:1f |
 | MessageRace_Gather_Send_Irecv_nok | FINISHED | L1+SP:1c L1+SP:1d L1:1f | L1:1c L1:1d L1:1f |
-| MessageRace_Loop_Isend_Irecv_nok | TIMEOUT | L1+SP:1c L1+SP:1d L1:1f observed:1c observed:2-blocked observed:2-buffering | L1:1c L1:1d L1:1f observed:1c observed:2-blocked observed:2-buffering |
+| MessageRace_Loop_Isend_Irecv_nok | FINISHED | L1+SP:1c L1+SP:1d L1:1f | L1:1c L1:1d L1:1f |
 | MessageRace_Loop_Isend_Recv_nok | FINISHED | L1+SP:1c L1+SP:1d L1:1f | L1:1c L1:1d L1:1f |
 | MessageRace_Loop_Send_Irecv_nok | TIMEOUT | L1+SP:1c L1+SP:1d L1:1f observed:1c observed:2-blocked observed:2-buffering | L1:1c L1:1d L1:1f observed:1c observed:2-blocked observed:2-buffering |
-| MessageRace_Loop_Send_Recv_nok | TIMEOUT | L1+SP:1c L1+SP:1d L1:1f observed:1c observed:2-blocked observed:2-buffering | L1:1c L1:1d L1:1f observed:1c observed:2-blocked observed:2-buffering |
+| MessageRace_Loop_Send_Recv_nok | FINISHED | L1+SP:1c L1+SP:1d L1:1f | L1:1c L1:1d L1:1f |
 | MessageRace_Reduce_Isend_Irecv_nok | FINISHED | L1+SP:1c L1+SP:1d L1:1f | L1:1c L1:1d L1:1f |
+| MessageRace_Reduce_Send_Irecv_nok | FINISHED | L1+SP:1c L1+SP:1d L1:1f | L1:1c L1:1d L1:1f |
+| MessageRace_tag_ANY_TAG_1_Send_Recv_nok | FINISHED | L1+SP:1c L1+SP:1d L1:1b | L1:1b L1:1c L1:1d |
 
 HYPRE 2.10.1 (`distributed_ls/ParaSails/ParaSails.c` with the MPI wrappers of `utilities/mpistubs.c`, MPICH headers): 8 entries, 0 with free sites. ParaSails calls MPI through the wrappers, which hand the status and the buffer to MPI from their parameters, so every bound there is rule H1 and the analysis of a HYPRE trace does not change.
 
@@ -569,12 +549,12 @@ exhaustive explorer of the straight-line program, which reads nothing, so every 
 
 | bounds | traces | pairs (alternative, B) | with a window after the receive | agree | unsound | incomplete | skipped | contained deadlocks confirmed | not confirmed |
 |---|---|---|---|---|---|---|---|---|---|
-| never | 196 | 824 | 824 | 823 | 0 | 1 | 0 | 173 | 0 |
-| random | 196 | 824 | 644 | 823 | 0 | 1 | 0 | 128 | 0 |
+| never | 197 | 824 | 822 | 823 | 0 | 1 | 0 | 171 | 0 |
+| random | 197 | 824 | 644 | 823 | 0 | 1 | 0 | 127 | 0 |
 
-Rows by code commit: 1806722 (1648).
+Rows by code commit: 415a6ed-dirty (1648).
 
-Replays of the L1 consequences (1c, 1d) of the 10 programs whose levels change, each with the pins of its witness (`run_mbi.py --replay-only --reads`, the rule of E1): 25 confirmed, 36 inconclusive, 0 not confirmed, of 61. With the same pins in the E1 replays: 23 confirmed, 29 inconclusive, 0 not confirmed, 9 not replayed there (the E1 replay of a consequence that holds in every single-path execution pins the horizon, not a witness). Rows by code commit: 4121baf (61).
+Replays of the L1 consequences (1c, 1d) of the 11 programs whose levels change, each with the pins of its witness (`run_mbi.py --replay-only --reads`, the rule of E1): 52 confirmed, 14 inconclusive, 0 not confirmed, of 66. With the same pins in the E1 replays: 46 confirmed, 11 inconclusive, 0 not confirmed, 9 not replayed there (the E1 replay of a consequence that holds in every single-path execution pins the horizon, not a witness). Rows by code commit: 415a6ed-dirty (67).
 
 ## E4: tracer overhead and analysis cost (NPB 3.4.3, MPICH build)
 
@@ -582,30 +562,30 @@ Plain, traced and analysis times from the timed leg (`experiments/timing_leg.sh`
 `experiments/results/timing-leg.log`) on the second machine, announced to the other lanes, the
 analysis one process; 5 repetition(s) of the whole set, each row the median over them. The
 wall times include the launcher's start-up; NPB's own timer covers the benchmark's timed section.
-Rows by code commit: 576e917 (100).
+Rows by code commit: 415a6ed-dirty (100).
 
 | benchmark | class | np | plain (s) | traced (s) | slowdown | NPB plain (s) | NPB traced (s) | NPB slowdown (range) | trace (MB) | events | wildcards | analysis (s) | findings |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| is | S | 4 | 4.44 | 4.45 | 1.00 | 0.00 | 0.00 | - (-) | 1 | 360 | 0 | 0.1 | 0  |
-| is | A | 4 | 4.86 | 4.86 | 1.00 | 0.15 | 0.15 | 1.000 (1.00-1.00) | 1 | 360 | 0 | 0.1 | 0  |
-| ep | S | 4 | 4.55 | 4.53 | 1.00 | 0.11 | 0.10 | 0.909 (0.83-1.10) | 1 | 80 | 0 | 0.1 | 0  |
-| ep | A | 4 | 5.52 | 5.54 | 1.00 | 1.10 | 1.13 | 1.009 (0.99-1.05) | 1 | 80 | 0 | 0.1 | 0  |
-| cg | S | 4 | 4.45 | 4.49 | 1.01 | 0.02 | 0.05 | 2.500 (2.00-2.50) | 4 | 33668 | 0 | 0.5 | 0  |
-| cg | A | 4 | 4.72 | 4.72 | 1.00 | 0.21 | 0.22 | 1.047 (0.88-1.28) | 4 | 33668 | 0 | 0.5 | 0  |
-| mg | S | 4 | 4.45 | 4.47 | 1.00 | 0.00 | 0.01 | - (-) | 2 | 9744 | 0 | 0.2 | 0  |
-| mg | A | 4 | 4.99 | 5.02 | 1.01 | 0.34 | 0.35 | 1.029 (0.97-1.03) | 2 | 15144 | 0 | 0.3 | 0  |
-| lu | S | 4 | 4.46 | 4.47 | 1.00 | 0.02 | 0.03 | 1.500 (1.00-3.00) | 3 | 18744 | 0 | 0.3 | 0  |
-| lu | A | 4 | 12.36 | 12.55 | 1.02 | 7.77 | 7.97 | 1.023 (1.02-1.03) | 68 | 508408 | 0 | 8.7 | 0  |
-| is | S | 16 | 4.57 | 4.55 | 1.00 | 0.00 | 0.00 | - (-) | 1 | 1464 | 0 | 0.1 | 0  |
-| is | A | 16 | 4.74 | 4.73 | 1.00 | 0.09 | 0.09 | 1.000 (1.00-1.00) | 1 | 1464 | 0 | 0.1 | 0  |
-| ep | S | 16 | 4.61 | 4.59 | 1.00 | 0.03 | 0.03 | 1.000 (1.00-1.00) | 1 | 320 | 0 | 0.1 | 0  |
-| ep | A | 16 | 5.01 | 4.97 | 0.99 | 0.43 | 0.43 | 1.000 (1.00-1.00) | 1 | 320 | 0 | 0.1 | 0  |
-| cg | S | 16 | 4.58 | 4.65 | 1.01 | 0.01 | 0.05 | 5.000 (4.00-7.00) | 28 | 235792 | 0 | 4.1 | 0  |
-| cg | A | 16 | 4.74 | 4.76 | 1.00 | 0.13 | 0.17 | 1.307 (1.31-1.38) | 28 | 235792 | 0 | 4.1 | 0  |
-| mg | S | 16 | 4.59 | 4.58 | 1.00 | 0.00 | 0.01 | - (-) | 5 | 36976 | 0 | 0.5 | 0  |
-| mg | A | 16 | 5.03 | 5.02 | 1.00 | 0.29 | 0.30 | 1.034 (1.00-1.03) | 7 | 58576 | 0 | 0.9 | 0  |
-| lu | S | 16 | 4.60 | 4.61 | 1.00 | 0.01 | 0.05 | 5.000 (5.00-5.00) | 15 | 111956 | 0 | 1.7 | 0  |
-| lu | A | 16 | 8.95 | 9.71 | 1.08 | 4.33 | 5.08 | 1.173 (1.17-1.19) | 406 | 3049940 | 0 | 55.2 | 0  |
+| is | S | 4 | 4.43 | 4.43 | 1.00 | 0.00 | 0.00 | - (-) | 1 | 360 | 0 | 0.1 | 0  |
+| is | A | 4 | 4.85 | 4.84 | 1.00 | 0.15 | 0.15 | 1.000 (1.00-1.00) | 1 | 360 | 0 | 0.1 | 0  |
+| ep | S | 4 | 4.53 | 4.53 | 1.00 | 0.11 | 0.11 | 1.000 (0.64-1.09) | 1 | 80 | 0 | 0.1 | 0  |
+| ep | A | 4 | 5.55 | 5.55 | 1.00 | 1.12 | 1.12 | 1.009 (0.96-1.03) | 1 | 80 | 0 | 0.1 | 0  |
+| cg | S | 4 | 4.46 | 4.46 | 1.00 | 0.02 | 0.04 | 2.000 (1.50-2.50) | 4 | 33668 | 0 | 0.7 | 0  |
+| cg | A | 4 | 4.71 | 4.71 | 1.00 | 0.25 | 0.25 | 1.040 (0.92-1.04) | 4 | 33668 | 0 | 0.7 | 0  |
+| mg | S | 4 | 4.42 | 4.43 | 1.00 | 0.00 | 0.01 | - (-) | 2 | 9744 | 0 | 0.2 | 0  |
+| mg | A | 4 | 5.01 | 5.01 | 1.00 | 0.35 | 0.36 | 1.028 (0.97-1.03) | 2 | 15144 | 0 | 0.3 | 0  |
+| lu | S | 4 | 4.45 | 4.47 | 1.00 | 0.02 | 0.03 | 1.500 (1.00-2.00) | 3 | 18744 | 0 | 0.3 | 0  |
+| lu | A | 4 | 12.30 | 12.49 | 1.02 | 7.73 | 7.94 | 1.028 (1.02-1.05) | 68 | 508408 | 0 | 11.9 | 0  |
+| is | S | 16 | 4.58 | 4.58 | 1.00 | 0.00 | 0.00 | - (-) | 1 | 1464 | 0 | 0.1 | 0  |
+| is | A | 16 | 4.75 | 4.74 | 1.00 | 0.09 | 0.08 | 0.888 (0.89-1.28) | 1 | 1464 | 0 | 0.1 | 0  |
+| ep | S | 16 | 4.61 | 4.61 | 1.00 | 0.03 | 0.03 | 1.000 (1.00-1.33) | 1 | 320 | 0 | 0.1 | 0  |
+| ep | A | 16 | 4.95 | 4.94 | 1.00 | 0.37 | 0.38 | 1.000 (0.97-1.08) | 1 | 320 | 0 | 0.1 | 0  |
+| cg | S | 16 | 4.60 | 4.66 | 1.01 | 0.01 | 0.07 | 7.000 (6.00-7.00) | 28 | 235792 | 0 | 5.9 | 0  |
+| cg | A | 16 | 4.73 | 4.76 | 1.00 | 0.13 | 0.16 | 1.230 (1.15-1.45) | 28 | 235792 | 0 | 5.8 | 0  |
+| mg | S | 16 | 4.59 | 4.59 | 1.00 | 0.00 | 0.01 | - (-) | 5 | 36976 | 0 | 0.7 | 0  |
+| mg | A | 16 | 5.03 | 5.01 | 1.00 | 0.27 | 0.28 | 1.037 (1.00-1.04) | 7 | 58576 | 0 | 1.2 | 0  |
+| lu | S | 16 | 4.59 | 4.64 | 1.01 | 0.01 | 0.05 | 5.000 (2.50-6.00) | 15 | 111956 | 0 | 2.2 | 0  |
+| lu | A | 16 | 7.82 | 8.22 | 1.05 | 3.16 | 3.59 | 1.136 (1.13-1.17) | 406 | 3049940 | 0 | 75.7 | 0  |
 
 NPB slowdown range in the text: rows whose plain timed section lasts at least 1 s.
 
@@ -614,17 +594,19 @@ NPB slowdown range in the text: rows whose plain timed section lasts at least 1 
 AMG (LLNL), 8 ranks, `-P 2 2 2 -n 16 16 16 -problem 1`, traced with Open MPI (`experiments/amg/run.sh`).
 
 ```
-trace: 8 ranks, 39643 sends, 39643 receives, 53 wildcard receives, 8936 probes, 1180 collective records, 10 communicators
+trace: 8 ranks, 39643 sends, 39643 receives, 53 wildcard receives, 8624 probes, 1190 collective records, 10 communicators
 findings by class: 1f 5, probe-alt 3263
-host: a-p13, one process; analysis 15.53 s, 563888 KB
-timed leg: 2026-10-20T23:06:38Z
+host: a-p13, one process; analysis 7.58 s, 329628 KB
+analysis commit: 415a6ed-dirty
+timed leg: 2026-10-25T10:48:03Z
 ```
 
 Replay of the first probe alternative with its pin (`confirm8.txt`):
 
 ```
-pin: STRETTO_PIN_PROBE=0:0:1
-[stretto-pin] rank 0: applied probe pidx=0 src=1 tag=1000
+pin: STRETTO_PIN_PROBE=0:0:2
+[stretto-pin] rank 0: loaded (replay library)
+[stretto-pin] rank 0: applied probe pidx=0 src=2 tag=1000 id=0:1000:9fa96
 result: FINISHED
 ```
 
@@ -636,7 +618,7 @@ MUST 1.9.2 on the same AMG build and arguments (`experiments/amg/must.sh`, 1800 
 | central | `MUST:ERROR:There are 120 requests that are not freed when MPI_Finalize was issued, a qualit; There are 124 requests that are not freed when MPI_Finalize was iss` |
 
 A random sample of 30 alternatives replayed with the pins of their horizon and a control
-(`experiments/replay_sample.py`); required pins matched in 30. Rows by code commit: 576e917 (30).
+(`experiments/replay_sample.py`); required pins matched in 30. Rows by code commit: 415a6ed-dirty (30).
 
 | replay | control | alternatives |
 |---|---|---|
@@ -655,16 +637,17 @@ in either order; the ping-pong tests, whose tags make the sender unique, produce
 alternatives are the candidate senders the checker refuses, counted by the reason it gives.
 
 ```
-trace: 8 ranks, 2002398 sends, 2002398 receives, 35714 wildcard receives, 0 probes, 56248 collective records, 11 communicators
+trace: 8 ranks, 2038934 sends, 2038934 receives, 35714 wildcard receives, 0 probes, 56264 collective records, 11 communicators
 findings by class: 1f 10000
 rejected alternatives: 8759
 rejected by reason: send causally follows the receive's completion 8759
-records: 10089233
-host: a-p13, one process; analysis 2050.98 s, 31994564 KB
+records: 10271913
+host: a-p13, one process; analysis 2148.01 s, 19305612 KB
+analysis commit: 415a6ed-dirty
 ```
 
 A random sample of 30 alternatives replayed with the pins of their horizon and a control
-(`experiments/replay_sample.py`); required pins matched in 30. Rows by code commit: 4a8814f (30).
+(`experiments/replay_sample.py`); required pins matched in 30. Rows by code commit: 415a6ed-dirty (30).
 
 | replay | control | alternatives |
 |---|---|---|
@@ -725,54 +708,54 @@ Traced runs of `ij -solver 8 -pout 0`; for each, every probe alternative of the 
 on 2.11.0, the fix, tags 221 and 222), replayed with the pins of its whole horizon and with its control
 (`experiments/hypre/predict.py`). An alternative is *cross* if the probe would take a request of the other
 exchange (the race), *same* if another neighbour's request of the same exchange; rows from before that
-classification selected requests of a different size and count as cross. Rows by code commit: 67e043a (550), 53dceae (260).
+classification selected requests of a different size and count as cross. Rows by code commit: 415a6ed (829).
 
 | version | ranks | kind | traced runs | runs with one | runs with a hanging replay | alternatives | replay hangs | replay finishes | other replay results | required pins matched | controls finish | finished with the control's residual |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 2.10.1 | 4 | cross | 20 (+0 failed) | 15 | 15 | 18 | 18 | 0 | 0 | 18/18 | 18/18 | - |
+| 2.10.1 | 4 | cross | 20 (+0 failed) | 18 | 18 | 29 | 29 | 0 | 0 | 29/29 | 29/29 | - |
 | 2.10.1 | 4 | same | 20 (+0 failed) | 20 | 0 | 40 | 0 | 40 | 0 | 40/40 | 40/40 | 40/40 |
-| 2.10.1 | 8 | cross | 20 (+0 failed) | 20 | 20 | 272 | 272 | 0 | 0 | 272/272 | 272/272 | - |
-| 2.10.1 | 8 | same | 20 (+0 failed) | 20 | 0 | 220 | 0 | 219 | 1 APP-ERROR:15 | 219/220 | 220/220 | 219/219 |
+| 2.10.1 | 8 | cross | 20 (+0 failed) | 20 | 20 | 280 | 280 | 0 | 0 | 280/280 | 280/280 | - |
+| 2.10.1 | 8 | same | 20 (+0 failed) | 20 | 0 | 220 | 0 | 220 | 0 | 220/220 | 220/220 | 220/220 |
 | 2.11.0 | 4 | cross | 20 (+0 failed) | 0 | 0 | 0 | 0 | 0 | 0 | 0/0 | 0/0 | - |
 | 2.11.0 | 4 | same | 20 (+0 failed) | 20 | 0 | 40 | 0 | 40 | 0 | 40/40 | 40/40 | 40/40 |
 | 2.11.0 | 8 | cross | 20 (+0 failed) | 0 | 0 | 0 | 0 | 0 | 0 | 0/0 | 0/0 | - |
-| 2.11.0 | 8 | same | 20 (+0 failed) | 20 | 0 | 220 | 0 | 217 | 3 APP-ERROR:15 | 217/220 | 217/220 | 214/217 |
+| 2.11.0 | 8 | same | 20 (+0 failed) | 20 | 0 | 220 | 0 | 220 | 0 | 220/220 | 220/220 | 220/220 |
 
-Changed probes by call site: `ij+0x127e03` 550.
+Changed probes by call site: `ij+0x127e03` 569.
 
 By changed probe (rank, ordinal of its probe):
 
 | ranks | probe | kind | alternatives | replay hangs | replay finishes | other |
 |---|---|---|---|---|---|---|
 | 4 | 1:2 | same | 20 | 0 | 20 | 0 |
-| 4 | 1:3 | cross | 3 | 3 | 0 | 0 |
+| 4 | 1:3 | cross | 13 | 13 | 0 | 0 |
 | 4 | 2:2 | same | 20 | 0 | 20 | 0 |
-| 4 | 2:3 | cross | 15 | 15 | 0 | 0 |
+| 4 | 2:3 | cross | 16 | 16 | 0 | 0 |
 | 8 | 1:2 | cross | 20 | 20 | 0 | 0 |
 | 8 | 1:2 | same | 20 | 0 | 20 | 0 |
 | 8 | 1:3 | cross | 31 | 31 | 0 | 0 |
 | 8 | 1:6 | same | 20 | 0 | 20 | 0 |
 | 8 | 2:2 | cross | 20 | 20 | 0 | 0 |
 | 8 | 2:2 | same | 20 | 0 | 20 | 0 |
-| 8 | 2:3 | cross | 37 | 37 | 0 | 0 |
+| 8 | 2:3 | cross | 33 | 33 | 0 | 0 |
 | 8 | 2:6 | same | 20 | 0 | 20 | 0 |
 | 8 | 3:2 | cross | 20 | 20 | 0 | 0 |
 | 8 | 3:2 | same | 20 | 0 | 20 | 0 |
-| 8 | 3:3 | cross | 31 | 31 | 0 | 0 |
+| 8 | 3:3 | cross | 32 | 32 | 0 | 0 |
 | 8 | 3:6 | same | 20 | 0 | 20 | 0 |
 | 8 | 4:2 | cross | 20 | 20 | 0 | 0 |
 | 8 | 4:2 | same | 20 | 0 | 20 | 0 |
-| 8 | 4:3 | cross | 32 | 32 | 0 | 0 |
-| 8 | 4:6 | same | 20 | 0 | 19 | 1 |
+| 8 | 4:3 | cross | 33 | 33 | 0 | 0 |
+| 8 | 4:6 | same | 20 | 0 | 20 | 0 |
 | 8 | 5:2 | cross | 20 | 20 | 0 | 0 |
 | 8 | 5:2 | same | 20 | 0 | 20 | 0 |
-| 8 | 5:3 | cross | 31 | 31 | 0 | 0 |
+| 8 | 5:3 | cross | 32 | 32 | 0 | 0 |
 | 8 | 5:6 | same | 20 | 0 | 20 | 0 |
 | 8 | 6:2 | same | 20 | 0 | 20 | 0 |
-| 8 | 6:3 | cross | 10 | 10 | 0 | 0 |
+| 8 | 6:3 | cross | 19 | 19 | 0 | 0 |
 
 Untraced runs, each with a 60 s timeout: plain, and with random send and receive delays of 0 to 50 ms
-per rank from the replay library (no pin). Rows by code commit: c27c793 (80).
+per rank from the replay library (no pin). Rows by code commit: 415a6ed (80).
 
 | ranks | setting | runs | finished | timed out | other |
 |---|---|---|---|---|---|
@@ -787,11 +770,11 @@ Traced runs of MG (class S, MPICH build); every alternative the
 analysis accepts is replayed with the pins of its horizon and with its control (`experiments/npbmg/predict.py`).
 A replay *changes the result* when its residual norm differs from its control's; MG 2.4.1's own check accepts
 an absolute error of 1e-8 against the reference, later versions a relative error of 1e-8, which these columns
-apply. Rows by code commit: 8d780ae (563).
+apply. Rows by code commit: 415a6ed-dirty (563).
 
 | version | ranks | traced runs | runs with one | alternatives | replayed | pins matched | finished | result changed | fails the relative check | largest relative change | controls finished | controls with the traced run's norm |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 2.4.1 | 16 | 3 | 3 | 480 | 480 | 479 | 479 | 384 | 383 | 4.1e-04 | 478 | 478 |
+| 2.4.1 | 16 | 3 | 3 | 480 | 480 | 480 | 480 | 384 | 384 | 4.1e-04 | 480 | 480 |
 | 3.3.1 | 16 | 3 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0.0e+00 | 0 | 0 |
 
 Untraced runs of MG 2.4.1, plain and with random send and receive delays from the replay library; a run
@@ -800,11 +783,11 @@ Untraced runs of MG 2.4.1, plain and with random send and receive delays from th
 | ranks | setting | runs | finished | result changed | fails the relative check |
 |---|---|---|---|---|---|
 | 16 | plain | 20 | 20 | 0 | 0 |
-| 16 | delays | 20 | 20 | 4 | 4 |
+| 16 | delays | 20 | 20 | 3 | 3 |
 | 32 | plain | 20 | 20 | 0 | 0 |
-| 32 | delays | 20 | 20 | 4 | 4 |
+| 32 | delays | 20 | 20 | 3 | 3 |
 
-Pin logs of the application replays (HYPRE, MG, AMG and Nekbone samples), replays and controls: 2700 pinned runs, 10 with a pin unmatched, of which 0 hung or finished (the others: 10 APP-ERROR:15).
+Pin logs of the application replays (HYPRE, MG, AMG and Nekbone samples), replays and controls: 2738 pinned runs, 0 with a pin unmatched, of which 0 hung or finished.
 
 ## E5e: a third documented bug (deal.II 9.3.0-rc1, a probe takes a message of the next call)
 
@@ -812,14 +795,14 @@ Traced runs of deal.II's test `mapping_01` (MPICH build); every probe alternativ
 RemotePointEvaluation is replayed with the pins of its horizon and with its control (`experiments/dealii/predict.py`).
 An alternative is *cross* if the probe would see a message of another call (the race), *same* if another
 rank's message of the same call. A replay *changes the output* when the test's log differs from its
-control's; the expected log is the test's own `.output` file. Rows by code commit: 575d291 (5380).
+control's; the expected log is the test's own `.output` file. Rows by code commit: 415a6ed-dirty (5379).
 
 | version | ranks | kind | traced runs | traced runs as expected | runs with one | alternatives | replayed | pins matched | finished | output changed | differs from the expected | controls finished | controls as expected |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 9.3.0-rc1 | 4 | cross | 20 | 20 | 20 | 1440 | 1440 | 1434 | 1440 | 1440 | 1440 | 1440 | 1437 |
-| 9.3.0-rc1 | 4 | same | 20 | 20 | 20 | 1920 | 1920 | 1917 | 1920 | 3 | 3 | 1920 | 1920 |
+| 9.3.0-rc1 | 4 | cross | 20 | 19 | 20 | 1440 | 1440 | 1440 | 1440 | 1439 | 1439 | 1440 | 1370 |
+| 9.3.0-rc1 | 4 | same | 20 | 19 | 20 | 1919 | 1919 | 1919 | 1919 | 5 | 91 | 1919 | 1828 |
 | 9.3.0 | 4 | cross | 20 | 20 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
-| 9.3.0 | 4 | same | 20 | 20 | 20 | 1920 | 1920 | 1911 | 1920 | 0 | 0 | 1920 | 1920 |
+| 9.3.0 | 4 | same | 20 | 20 | 20 | 1920 | 1920 | 1920 | 1920 | 0 | 0 | 1920 | 1920 |
 
 Every traced run also has 324 alternatives of probes on other tags (the consensus algorithms and cell exchanges that set up the
 triangulation and the cache), which are not replayed.
@@ -829,7 +812,7 @@ per rank from the replay library (no pin); a run *differs* when its log differs 
 
 | ranks | setting | runs | finished | differs from the expected |
 |---|---|---|---|---|
-| 4 | plain | 50 | 50 | 1 |
+| 4 | plain | 50 | 50 | 0 |
 | 4 | delays | 50 | 50 | 42 |
 
 Where the logs of 9.3.0-rc1 differ from the expected one (`experiments/dealii/changes.py`). The test prints, per rank,
@@ -838,15 +821,14 @@ ranks and the changed columns the calls whose values were wrong. Every call send
 right whenever it took one message from each sender. A probe of call k that takes a sender's message of call k+1
 makes its own rank's call k wrong, and one later call of the same object, in which the rank takes the other
 sender twice: k+1, or the object's last call if the sender that ran ahead stays ahead. Rows by code commit:
-299d061 (1489).
+415a6ed-dirty (1733).
 
 | runs | logs that differ | the probing rank's values in two consecutive calls | other ranks' values | two wrong calls per changed rank and object | consecutive ones |
 |---|---|---|---|---|---|
-| cross replays | 1440 | 1440 | 2 | 1440 | 1440 |
-| same replays | 3 | 0 | 3 | 3 | 3 |
-| controls | 3 | 0 | 3 | 3 | 3 |
-| untraced, plain | 1 | - | - | 1 | 1 |
-| untraced, with delays | 42 | - | - | 38 | 4 |
+| cross replays | 1439 | 1423 | 51 | 1433 | 1432 |
+| same replays | 91 | 20 | 71 | 91 | 91 |
+| controls | 161 | 39 | 122 | 161 | 161 |
+| untraced, with delays | 42 | - | - | 36 | 4 |
 
 ## E5f: a new bug in a current release (HYPRE 3.2.0 ParaSails, a probe takes the next level's request)
 
@@ -861,14 +843,14 @@ it took (another level's), *same* if another rank's request of its level, *other
 alternative is replayed with the pins of its horizon and with its control, both under the tracer, which judges
 each a run of the program without its pins or not (`experiments/hypre3/predict.py`, `experiments/scout.py`).
 The fixed variant sends the requests of even levels under a tag of their own (227). Runs at 4 and 8
-processes, Open MPI, its default eager limits. Rows by code commit: 0ca587d (4689), 3a87e3a (1739), e3d3933 (1200), f372280 (144).
+processes, Open MPI, its default eager limits. Rows by code commit: 415a6ed (7031), 3a87e3a (1739).
 
 | driver | levels | ranks | traced runs | with a cross alternative | cross alternatives (per trace) | replays hang | pins matched | replays runs of the program | controls finish | controls runs of the program | realisable from |
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | hypre's `ex5` with `-sai_levels`, HYPRE 3.2.0 | 1 | 4 | 10 | 0 | 0 | - | - | - | - | - | - |
-| hypre's `ex5` with `-sai_levels`, HYPRE 3.2.0 | 2 | 4 | 10 | 10 | 20 (2 each) | 20 | 20 | 20 | 20 | 20 | not recorded |
+| hypre's `ex5` with `-sai_levels`, HYPRE 3.2.0 | 2 | 4 | 10 | 10 | 20 (2 each) | 20 | 20 | 20 | 20 | 20 | B >= 920 |
 | hypre's `ex5` with `-sai_levels`, HYPRE 3.2.0 | 1 | 8 | 10 | 0 | 0 | - | - | - | - | - | - |
-| hypre's `ex5` with `-sai_levels`, HYPRE 3.2.0 | 2 | 8 | 10 | 10 | 60 (6 each) | 60 | 60 | 60 | 60 | 60 | not recorded |
+| hypre's `ex5` with `-sai_levels`, HYPRE 3.2.0 | 2 | 8 | 10 | 10 | 60 (6 each) | 60 | 60 | 60 | 60 | 60 | B >= 920 |
 | the same, even levels' requests under tag 227 (the fix) | 1 | 4 | 10 | 0 | 0 | - | - | - | - | - | - |
 | the same, even levels' requests under tag 227 (the fix) | 2 | 4 | 10 | 0 | 0 | - | - | - | - | - | - |
 | the same, even levels' requests under tag 227 (the fix) | 1 | 8 | 10 | 0 | 0 | - | - | - | - | - | - |
@@ -878,9 +860,9 @@ processes, Open MPI, its default eager limits. Rows by code commit: 0ca587d (468
 | PETSc 3.26.0's `ex2 -m 48 -n 48`, `-pc_hypre_parasails_thresh 0.01` | 1 | 8 | 10 | 0 | 0 | - | - | - | - | - | - |
 | PETSc 3.26.0's `ex2 -m 48 -n 48`, `-pc_hypre_parasails_thresh 0.01` | 2 | 8 | 10 | 10 | 60 (6 each) | 60 | 60 | 60 | 60 | 60 | B >= 1340 |
 | PETSc's `ex2`, `-pc_hypre_parasails_nlevels` without a threshold | 1 (not passed to HYPRE) | 4 | 10 | 0 | 0 | - | - | - | - | - | - |
-| PETSc's `ex2`, `-pc_hypre_parasails_nlevels` without a threshold | 2 (not passed to HYPRE) | 4 | 9 (+1 failed) | 0 | 0 | - | - | - | - | - | - |
+| PETSc's `ex2`, `-pc_hypre_parasails_nlevels` without a threshold | 2 (not passed to HYPRE) | 4 | 19 (+1 failed) | 0 | 0 | - | - | - | - | - | - |
 | PETSc's `ex2`, `-pc_hypre_parasails_nlevels` without a threshold | 1 (not passed to HYPRE) | 8 | 10 | 0 | 0 | - | - | - | - | - | - |
-| PETSc's `ex2`, `-pc_hypre_parasails_nlevels` without a threshold | 2 (not passed to HYPRE) | 8 | 10 | 0 | 0 | - | - | - | - | - | - |
+| PETSc's `ex2`, `-pc_hypre_parasails_nlevels` without a threshold | 2 (not passed to HYPRE) | 8 | 20 | 0 | 0 | - | - | - | - | - | - |
 
 A cross alternative needs the neighbour that sends the next level's request to have left the level, after
 the Waitall of its replies, one of which goes to the probing rank, which has not yet posted its receive: that
@@ -898,16 +880,16 @@ replayed):
 | driver | kind | alternatives | no horizon | replays finish | hang | other | pins matched | replays runs of the program | controls finish | controls runs of the program |
 |---|---|---|---|---|---|---|---|---|---|---|
 | hypre's `ex5` with `-sai_levels`, HYPRE 3.2.0 | same | 240 | 0 | 240 | 0 | 0 | 240 | 240 | 240 | 240 |
-| hypre's `ex5` with `-sai_levels`, HYPRE 3.2.0 | other | 880 | 0 | 877 | 3 | 0 | 877 | 880 | 880 | 880 |
+| hypre's `ex5` with `-sai_levels`, HYPRE 3.2.0 | other | 880 | 0 | 880 | 0 | 0 | 880 | 880 | 880 | 880 |
 | the same, even levels' requests under tag 227 (the fix) | same | 240 | 0 | 240 | 0 | 0 | 240 | 240 | 240 | 240 |
-| the same, even levels' requests under tag 227 (the fix) | other | 880 | 0 | 879 | 1 | 0 | 879 | 880 | 879 | 880 |
-| PETSc 3.26.0's `ex2 -m 48 -n 48`, `-pc_hypre_parasails_thresh 0.01` | same | 1920 | 160 | 1759 | 1 | 0 | 1759 | 1760 | 1758 | 1760 |
-| PETSc's `ex2`, `-pc_hypre_parasails_nlevels` without a threshold | same | 1738 | 158 | 1575 | 5 | 0 | 1575 | 1580 | 1578 | 1580 |
+| the same, even levels' requests under tag 227 (the fix) | other | 880 | 0 | 880 | 0 | 0 | 880 | 880 | 880 | 880 |
+| PETSc 3.26.0's `ex2 -m 48 -n 48`, `-pc_hypre_parasails_thresh 0.01` | same | 1920 | 0 | 1920 | 0 | 0 | 1920 | 1920 | 1920 | 1920 |
+| PETSc's `ex2`, `-pc_hypre_parasails_nlevels` without a threshold | same | 2618 | 158 | 2455 | 5 | 0 | 2455 | 2460 | 2458 | 2460 |
 
 Untraced runs, plain and with random send and receive delays of 0 to 50 ms per rank from the replay library
 (no pin), 30 s each, the budget and delays of E5c. The delays are sleeps before a call, so they cannot make a
 request issued before the level's Allreduce arrive after one issued after it, which the race needs. The PETSc
-runs were stopped after the two-level ones and part of the one-level ones. Rows by code commit: 0ca587d (843).
+runs were stopped after the two-level ones and part of the one-level ones. Rows by code commit: 415a6ed (960).
 
 | driver | levels | ranks | setting | runs | finished | timed out | other |
 |---|---|---|---|---|---|---|---|
@@ -915,8 +897,10 @@ runs were stopped after the two-level ones and part of the one-level ones. Rows 
 | `ex2`, PETSc 3.26.0 | 2 | 4 | delays | 40 | 40 | 0 | 0 |
 | `ex2`, PETSc 3.26.0 | 2 | 8 | plain | 40 | 40 | 0 | 0 |
 | `ex2`, PETSc 3.26.0 | 2 | 8 | delays | 40 | 40 | 0 | 0 |
-| `ex2`, PETSc 3.26.0 | 1 | 4 | plain | 22 | 22 | 0 | 0 |
-| `ex2`, PETSc 3.26.0 | 1 | 4 | delays | 21 | 21 | 0 | 0 |
+| `ex2`, PETSc 3.26.0 | 1 | 4 | plain | 40 | 40 | 0 | 0 |
+| `ex2`, PETSc 3.26.0 | 1 | 4 | delays | 40 | 40 | 0 | 0 |
+| `ex2`, PETSc 3.26.0 | 1 | 8 | plain | 40 | 40 | 0 | 0 |
+| `ex2`, PETSc 3.26.0 | 1 | 8 | delays | 40 | 40 | 0 | 0 |
 | `ex5`, HYPRE 3.2.0 | 2 | 4 | plain | 40 | 40 | 0 | 0 |
 | `ex5`, HYPRE 3.2.0 | 2 | 4 | delays | 40 | 40 | 0 | 0 |
 | `ex5`, HYPRE 3.2.0 | 2 | 8 | plain | 40 | 40 | 0 | 0 |
@@ -928,39 +912,39 @@ runs were stopped after the two-level ones and part of the one-level ones. Rows 
 | `ex5`, HYPRE 3.2.0-fix | 2 | 4 | plain | 40 | 40 | 0 | 0 |
 | `ex5`, HYPRE 3.2.0-fix | 2 | 4 | delays | 40 | 40 | 0 | 0 |
 | `ex5`, HYPRE 3.2.0-fix | 2 | 8 | plain | 40 | 40 | 0 | 0 |
-| `ex5`, HYPRE 3.2.0-fix | 2 | 8 | delays | 40 | 40 | 0 | 0 |
+| `ex5`, HYPRE 3.2.0-fix | 2 | 8 | delays | 40 | 39 | 0 | 1 |
 | `ex5`, HYPRE 3.2.0-fix | 1 | 4 | plain | 40 | 40 | 0 | 0 |
 | `ex5`, HYPRE 3.2.0-fix | 1 | 4 | delays | 40 | 40 | 0 | 0 |
 | `ex5`, HYPRE 3.2.0-fix | 1 | 8 | plain | 40 | 40 | 0 | 0 |
-| `ex5`, HYPRE 3.2.0-fix | 1 | 8 | delays | 40 | 39 | 1 | 0 |
+| `ex5`, HYPRE 3.2.0-fix | 1 | 8 | delays | 40 | 40 | 0 | 0 |
 
 NINJA (E10) on `ex5` at two levels, the release and the fixed variant, 30 s per run; a run that hangs in
 the ParaSails setup is killed before ParaSails reports its levels (*of which in the setup*). Rows by code
-commit: 0ca587d (484).
+commit: 415a6ed (485).
 
 | program | ranks | noise | runs | finished | hung | of which in the setup | other | first hang in the setup (run) | its rate | learning run |
 |---|---|---|---|---|---|---|---|---|---|---|
-| ex5_levels-3.2.0-2 | 4 | random, 10% of sends by 0.05 s | 40 | 33 | 7 | 7 | 0 | 6 | 0.17 | - |
-| ex5_levels-3.2.0-2 | 4 | system-centric | 40 | 39 | 1 | 1 | 0 | 20 | 0.03 | - |
-| ex5_levels-3.2.0-2 | 4 | application-centric | 40 | 31 | 9 | 9 | 0 | 5 | 0.23 | FINISHED |
-| ex5_levels-3.2.0-2 | 8 | random, 10% of sends by 0.05 s | 40 | 31 | 9 | 9 | 0 | 3 | 0.23 | - |
-| ex5_levels-3.2.0-2 | 8 | system-centric | 40 | 40 | 0 | 0 | 0 | - | 0.00 | - |
-| ex5_levels-3.2.0-2 | 8 | application-centric | 40 | 35 | 5 | 5 | 0 | 24 | 0.12 | FINISHED |
+| ex5_levels-3.2.0-2 | 4 | random, 10% of sends by 0.05 s | 40 | 31 | 9 | 9 | 0 | 3 | 0.23 | - |
+| ex5_levels-3.2.0-2 | 4 | system-centric | 40 | 36 | 4 | 4 | 0 | 7 | 0.10 | - |
+| ex5_levels-3.2.0-2 | 4 | application-centric | 40 | 30 | 10 | 10 | 0 | 1 | 0.25 | TIMEOUT, FINISHED |
+| ex5_levels-3.2.0-2 | 8 | random, 10% of sends by 0.05 s | 40 | 28 | 12 | 12 | 0 | 2 | 0.30 | - |
+| ex5_levels-3.2.0-2 | 8 | system-centric | 40 | 39 | 1 | 1 | 0 | 18 | 0.03 | - |
+| ex5_levels-3.2.0-2 | 8 | application-centric | 40 | 21 | 19 | 19 | 0 | 2 | 0.47 | FINISHED |
 | ex5_levels-3.2.0-fix-2 | 4 | random, 10% of sends by 0.05 s | 40 | 40 | 0 | 0 | 0 | - | 0.00 | - |
 | ex5_levels-3.2.0-fix-2 | 4 | system-centric | 40 | 40 | 0 | 0 | 0 | - | 0.00 | - |
 | ex5_levels-3.2.0-fix-2 | 4 | application-centric | 40 | 40 | 0 | 0 | 0 | - | 0.00 | FINISHED |
 | ex5_levels-3.2.0-fix-2 | 8 | random, 10% of sends by 0.05 s | 40 | 40 | 0 | 0 | 0 | - | 0.00 | - |
 | ex5_levels-3.2.0-fix-2 | 8 | system-centric | 40 | 40 | 0 | 0 | 0 | - | 0.00 | - |
-| ex5_levels-3.2.0-fix-2 | 8 | application-centric | 40 | 39 | 1 | 1 | 0 | 25 | 0.03 | FINISHED |
+| ex5_levels-3.2.0-fix-2 | 8 | application-centric | 40 | 40 | 0 | 0 | 0 | - | 0.00 | FINISHED |
 
-NINJA on PETSc's `ex2` at two levels with the threshold 0.01, 30 s per run. Rows by code commit: 0ca587d (242).
+NINJA on PETSc's `ex2` at two levels with the threshold 0.01, 30 s per run. Rows by code commit: 415a6ed (242).
 
 | program | ranks | noise | runs | finished | hung | other | first hang (run) | hang rate | learning run |
 |---|---|---|---|---|---|---|---|---|---|
-| ex2-parasails2-dense | 4 | random, 10% of sends by 0.05 s | 40 | 31 | 9 | 0 | 3 | 0.23 | - |
-| ex2-parasails2-dense | 4 | system-centric | 40 | 40 | 0 | 0 | - | 0.00 | - |
+| ex2-parasails2-dense | 4 | random, 10% of sends by 0.05 s | 40 | 33 | 7 | 0 | 6 | 0.17 | - |
+| ex2-parasails2-dense | 4 | system-centric | 40 | 38 | 2 | 0 | 2 | 0.05 | - |
 | ex2-parasails2-dense | 4 | application-centric | 40 | 0 | 0 | 40 APP-ERROR:59 | - | 0.00 | FINISHED |
-| ex2-parasails2-dense | 8 | random, 10% of sends by 0.05 s | 40 | 32 | 8 | 0 | 5 | 0.20 | - |
+| ex2-parasails2-dense | 8 | random, 10% of sends by 0.05 s | 40 | 26 | 14 | 0 | 3 | 0.35 | - |
 | ex2-parasails2-dense | 8 | system-centric | 40 | 40 | 0 | 0 | - | 0.00 | - |
 | ex2-parasails2-dense | 8 | application-centric | 40 | 0 | 0 | 40 APP-ERROR:59 | - | 0.00 | FINISHED |
 
@@ -971,7 +955,7 @@ The reach of the race (`experiments/petsc/run.sh scan`, analysis only, no replay
 ParaSails threshold (0.01, 0.05 and 0.1, PETSc's default), level count and symmetry setting, on `ex2` and on
 `ex45`'s 3D seven-point Laplacian (`-da_grid_x 16 -da_grid_y 16 -da_grid_z 16`), at 4 and 8 processes,
 every setting. *Realisable from*: the thresholds of the cross
-alternatives of every trace (any B: realisable at every threshold). Rows by code commit: f372280 (144).
+alternatives of every trace (any B: realisable at every threshold). Rows by code commit: 415a6ed (144).
 
 | driver | ranks | levels | thresholds | symmetry | traced runs | with a cross alternative | cross alternatives per trace | realisable from |
 |---|---|---|---|---|---|---|---|---|
@@ -1003,11 +987,11 @@ posted before its issue is erroneous and counts for none of these.
 
 | traces | pairs (alternative, B) | agree | unsound | incomplete | skipped (explorer cap) | exact as well | events per trace, max | checker time | explorer time |
 |---|---|---|---|---|---|---|---|---|---|
-| corpus and idiom traces (71) | 310 | 310 | 0 | 0 | 0 | 120 | 48 | 49 ms | 245 ms |
-| synthetic traces (125) | 514 | 513 | 0 | 1 | 0 | 73 | 74 | 140 ms | 30175 ms |
+| corpus and idiom traces (72) | 310 | 310 | 0 | 0 | 0 | 121 | 48 | 35 ms | 199 ms |
+| synthetic traces (125) | 514 | 513 | 0 | 1 | 0 | 73 | 77 | 114 ms | 26198 ms |
 
 Contained deadlocks (theorem T7, class 1d at L1) among the accepted pairs: 25 confirmed by the explorer,
-0 not. Rows by code commit: 1806722 (824).
+0 not. Rows by code commit: 415a6ed-dirty (824).
 
 ## E7: the value skeleton on MBI (level L2)
 
@@ -1021,7 +1005,7 @@ certify a consequence; the twin yields the abort.
 |---|---|---|---|---|---|---|
 | MessageRace_Irecv_Isend_nok | ERROR MessageRace | FINISHED | 1f | - | 1e | the program aborts on its own check in every execution; the program aborts on its own check in some executions |
 | MessageRace_Irecv_Send_nok | ERROR MessageRace | FINISHED | 1f | - | 1e | the program aborts on its own check in every execution; the program aborts on its own check in some executions |
-| MessageRace_Recv_Isend_nok | ERROR MessageRace | FINISHED | 1f | - | 1e | the program aborts on its own check in every execution; the program aborts on its own check in some executions |
+| MessageRace_Recv_Isend_nok | ERROR MessageRace | SIGNAL:6 | 1f | - | 1e | the program aborts on its own check in every execution; the program aborts on its own check in some executions |
 | MessageRace_Recv_Send_nok | ERROR MessageRace | FINISHED | 1f | - | 1e | the program aborts on its own check in every execution; the program aborts on its own check in some executions |
 
 
@@ -1031,9 +1015,9 @@ MPI-BugBench local-concurrency programs traced with the guard (`lc.txt`): openmp
 
 Two-rank cases that each name the guard record they must give (`scenarios.txt`): openmpi: 19 of 19 as expected; mpich: 19 of 19 as expected.
 
-Applications at 4 ranks (`apps.txt`, `apps-cma.txt`): 32 runs of amg, hypre, lu.A, lu.S; 0 ended with a nonzero status or a guard record.
+Applications at 4 ranks (`apps.txt`, `apps-cma.txt`): 48 runs of amg, hypre, lu.A, lu.S; 0 ended with a nonzero status or a guard record.
 
-lu.A by NPB's own timer: 12.50 to 12.57 s with the guard off, 12.51 to 12.59 s on (shared processors, not a timed leg).
+lu.A by NPB's own timer: 8.39 to 9.25 s with the guard off, 8.48 to 9.51 s on (shared processors, not a timed leg).
 
 ### MUST 1.11.2 with ThreadSanitizer on the local-concurrency programs
 
@@ -1054,19 +1038,19 @@ operation's buffer accesses as a concurrent thread, and plain MUST runs. A race 
 | P2P__LocalConcurrency-mpi_irecv-002 | 3-local | ERROR | ERROR | ERROR |
 | P2P__LocalConcurrency-receive-mpi_imrecv-001 | 3-local | ERROR | ERROR | ERROR |
 | P2P__LocalConcurrency-receive-mpi_irecv-001 | 3-local | ERROR | OK | OK |
-| P2P__LocalConcurrency-receive-mpi_precv_init-001 | 3-local | OK | OK | RE |
+| P2P__LocalConcurrency-receive-mpi_precv_init-001 | 3-local | HARNESS-ERROR | OK | RE |
 | P2P__LocalConcurrency-receive-mpi_recv_init-001 | 3-local | ERROR | OK | OK |
 | P2P__LocalConcurrency-send-mpi_bsend_init-001 | 3-local | ERROR | OK | OK |
 | P2P__LocalConcurrency-send-mpi_ibsend-001 | 3-local | ERROR | OK | OK |
 | P2P__LocalConcurrency-send-mpi_irsend-001 | 3-local | ERROR | OK | OK |
 | P2P__LocalConcurrency-send-mpi_isend-001 | 3-local | ERROR | OK | OK |
 | P2P__LocalConcurrency-send-mpi_issend-001 | 3-local | ERROR | OK | OK |
-| P2P__LocalConcurrency-send-mpi_psend_init-001 | 3-local | TIMEOUT | OK | RE |
+| P2P__LocalConcurrency-send-mpi_psend_init-001 | 3-local | HARNESS-ERROR | OK | RE |
 | P2P__LocalConcurrency-send-mpi_rsend_init-001 | 3-local | ERROR | OK | OK |
 | P2P__LocalConcurrency-send-mpi_send_init-001 | 3-local | ERROR | OK | OK |
-| P2P__LocalConcurrency-send-mpi_ssend_init-001 | 3-local | ERROR | OK | OK |
+| P2P__LocalConcurrency-send-mpi_ssend_init-001 | 3-local | ERROR | HARNESS-ERROR | OK |
 
-Programs: 22. The guard reports 22, MUST with ThreadSanitizer 20; both 20, only the guard 2, only MUST 0. The guard run's code commit: 7117573; MUST's rows: 3b8e846 (22).
+Programs: 22. The guard reports 22, MUST with ThreadSanitizer 20; both 20, only the guard 2, only MUST 0. The guard run's code commit: unknown; MUST's rows: 415a6ed-dirty (22).
 
 ## E8b: happens-before candidate selection against the check
 
@@ -1080,39 +1064,39 @@ order (program order, message to the completion that returned it, probes, collec
 exact vector clocks. The rules coincide at blocking receives and probes; they differ only at a
 nonblocking receive whose rank sends or enters a collective while it is pending. *Only (a)*: the rule
 selects the pair and the check rejects it; *check only*: the check accepts it and the rule does not.
-Rows by code commit: 7941c12 (420), 1806722 (89).
+Rows by code commit: 415a6ed-dirty (510).
 
 | corpus | traces | records, max | wildcard receives | blocking | nonblocking, nothing sent while pending | nonblocking, pending across a send | nonblocking, never completed | wildcard probes | not analysed |
 |---|---|---|---|---|---|---|---|---|---|
 | MBI | 115 | 48 | 165 | 37 | 62 | 48 | 18 | 0 | 0 |
 | MPI-BugBench level 2 | 388 | 29 | 12 | 12 | 0 | 0 | 0 | 0 | 0 |
 | idioms | 14 | 88 | 14 | 13 | 0 | 1 | 0 | 2 | 0 |
-| AMG, 8 ranks | 1 | 99804 | 53 | 53 | 0 | 0 | 0 | 1158 | 0 |
-| HYPRE 2.10.1, 4 and 8 ranks | 2 | 4294 | 11 | 11 | 0 | 0 | 0 | 182 | 0 |
+| AMG, 8 ranks | 1 | 105436 | 53 | 53 | 0 | 0 | 0 | 1158 | 0 |
+| HYPRE 2.10.1, 4 and 8 ranks | 2 | 4176 | 11 | 11 | 0 | 0 | 0 | 182 | 0 |
 | NPB MG 2.4.1, class S, 16 and 32 ranks | 2 | 42624 | 19792 | 0 | 400 | 19392 | 0 | 0 | 0 |
 
 Pairs by corpus:
 
 | | pairs | (a) and check | only (a) | check only, not (a) | (b) and check | only (b) | check only, not (b) | neither |
 |---|---|---|---|---|---|---|---|---|
-| MBI | 121 | 58 | 0 | 63 | 97 | 0 | 24 | 0 |
+| MBI | 120 | 56 | 0 | 64 | 96 | 0 | 24 | 0 |
 | MPI-BugBench level 2 | 1 | 1 | 0 | 0 | 1 | 0 | 0 | 0 |
 | idioms | 12 | 10 | 0 | 0 | 10 | 1 | 0 | 1 |
-| AMG, 8 ranks | 7106 | 3268 | 0 | 0 | 3268 | 0 | 0 | 3838 |
+| AMG, 8 ranks | 7107 | 3268 | 0 | 0 | 3268 | 0 | 0 | 3839 |
 | HYPRE 2.10.1, 4 and 8 ranks | 200 | 148 | 0 | 0 | 148 | 0 | 0 | 52 |
 | NPB MG 2.4.1, class S, 16 and 32 ranks | 3120 | 240 | 0 | 240 | 480 | 0 | 0 | 2640 |
-| **all real traces** | 10560 | 3725 | 0 | 303 | 4004 | 1 | 24 | 6531 |
+| **all real traces** | 10560 | 3723 | 0 | 304 | 4003 | 1 | 24 | 6532 |
 
 Pairs by kind of receive, all real traces (a probe is one call: (a) and (b) coincide):
 
 | | pairs | (a) and check | only (a) | check only, not (a) | (b) and check | only (b) | check only, not (b) | neither |
 |---|---|---|---|---|---|---|---|---|
 | blocking | 66 | 41 | 0 | 0 | 41 | 0 | 0 | 25 |
-| nonblocking, nothing sent while pending | 47 | 23 | 0 | 24 | 23 | 0 | 24 | 0 |
-| nonblocking, pending across a send | 3170 | 250 | 0 | 279 | 529 | 1 | 0 | 2640 |
-| probes | 7277 | 3411 | 0 | 0 | 3411 | 0 | 0 | 3866 |
+| nonblocking, nothing sent while pending | 46 | 22 | 0 | 24 | 22 | 0 | 24 | 0 |
+| nonblocking, pending across a send | 3170 | 249 | 0 | 280 | 529 | 1 | 0 | 2640 |
+| probes | 7278 | 3411 | 0 | 0 | 3411 | 0 | 0 | 3867 |
 
-Programs with a disagreement (46 of 522; every other program agrees under both rules):
+Programs with a disagreement (47 of 522; every other program agrees under both rules):
 
 | program | pairs | (a) and check | only (a) | check only, not (a) | (b) and check | only (b) | check only, not (b) | neither |
 |---|---|---|---|---|---|---|---|---|
@@ -1153,6 +1137,7 @@ Programs with a disagreement (46 of 522; every other program agrees under both r
 | mbi/MessageRace_Gather_Send_Irecv_ok | 2 | 0 | 0 | 2 | 1 | 0 | 1 | 0 |
 | mbi/MessageRace_Reduce_Isend_Irecv_nok | 1 | 0 | 0 | 1 | 1 | 0 | 0 | 0 |
 | mbi/MessageRace_Reduce_Isend_Irecv_ok | 2 | 0 | 0 | 2 | 1 | 0 | 1 | 0 |
+| mbi/MessageRace_Reduce_Send_Irecv_nok | 1 | 0 | 0 | 1 | 1 | 0 | 0 | 0 |
 | mbi/MessageRace_Reduce_Send_Irecv_ok | 2 | 0 | 0 | 2 | 1 | 0 | 1 | 0 |
 | mbi/MessageRace_Scan_Isend_Irecv_nok | 1 | 0 | 0 | 1 | 1 | 0 | 0 | 0 |
 | mbi/MessageRace_Scan_Isend_Irecv_ok | 2 | 0 | 0 | 2 | 1 | 0 | 1 | 0 |
@@ -1163,8 +1148,8 @@ Programs with a disagreement (46 of 522; every other program agrees under both r
 | npbmg/mg-2.4.1-S-np16 | 1040 | 80 | 0 | 80 | 160 | 0 | 0 | 880 |
 | npbmg/mg-2.4.1-S-np32 | 2080 | 160 | 0 | 160 | 320 | 0 | 0 | 1760 |
 
-Why rule (a) misses the pairs only the check accepts: causally after the receive's posting 279, taken in the run by an earlier receive of its rank (a swap) 24. Why the check rejects the pairs rule (b) selects: constraint cycle 1.
-The generic check judged as well the 334 pairs of the 519 traces of up to 20,000 records and differs from the fast checks on 0.
+Why rule (a) misses the pairs only the check accepts: causally after the receive's posting 280, taken in the run by an earlier receive of its rank (a swap) 24. Why the check rejects the pairs rule (b) selects: constraint cycle 1.
+The generic check judged as well the 333 pairs of the 519 traces of up to 20,000 records and differs from the fast checks on 0.
 
 Replays of the disagreements (up to 30 per program and class, chosen at random with a fixed seed), each
 pinned over its horizon with a control pinned to the observed senders, both recorded by the tracer. *Realised*:
@@ -1177,18 +1162,18 @@ control shows nothing (it did not finish, did not match, or is itself no run of 
 
 | corpus | class | disagreements | replayed | realised | realised, run did not finish | realised, other pins unmatched | realised, truncation error | pins only | not realised | control failed | controls finished, pins matched |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| MBI | check only, not (a) | 63 | 63 | 58 | 5 | 0 | 0 | 0 | 0 | 0 | 49 |
+| MBI | check only, not (a) | 64 | 64 | 58 | 6 | 0 | 0 | 0 | 0 | 0 | 50 |
 | idioms | only (b), check rejects | 1 | 1 | 0 | 0 | 0 | 0 | 1 | 0 | 0 | 1 |
-| NPB MG 2.4.1, class S, 16 and 32 ranks | check only, not (a) | 240 | 60 | 60 | 0 | 0 | 0 | 0 | 0 | 0 | 60 |
+| NPB MG 2.4.1, class S, 16 and 32 ranks | check only, not (a) | 240 | 60 | 60 | 0 | 0 | 0 | 0 | 0 | 0 | 58 |
 
 Examples, two per class and outcome:
 
 | class | outcome | program | pair | receive | why the other side disagrees | replay / control |
 |---|---|---|---|---|---|---|
 | hb-only | pins only | idioms/14_pending_wildcard_overtaken | `recv(0, 0) src=ANY tag=41 cap=4B <- send(2, 0)->0 tag=41 4B; observed send(1, 0)->0 tag=41 4B` | nonblocking, pending across a send | constraint cycle | FINISHED / FINISHED |
-| stretto-only | realised | mbi/MessageRace_Allgather_Isend_Irecv_nok | `recv(1, 0) src=ANY tag=ANY cap=4B <- send(2, 0)->1 tag=0 4B; observed send(0, 0)->1 tag=0 4B` | nonblocking, pending across a send | causally after the receive's posting | FINISHED / TIMEOUT |
 | stretto-only | realised | mbi/MessageRace_Allgather_Isend_Irecv_ok | `recv(1, 0) src=ANY tag=ANY cap=4B <- send(0, 0)->1 tag=0 4B; observed send(2, 0)->1 tag=0 4B` | nonblocking, pending across a send | causally after the receive's posting | FINISHED / FINISHED |
-| stretto-only | realised, run did not finish | mbi/MessageRace_Allgather_Send_Irecv_nok | `recv(1, 0) src=ANY tag=ANY cap=4B <- send(0, 0)->1 tag=0 4B; observed send(2, 0)->1 tag=0 4B` | nonblocking, pending across a send | causally after the receive's posting | TIMEOUT / FINISHED |
+| stretto-only | realised | mbi/MessageRace_Allgather_Isend_Irecv_ok | `recv(1, 1) src=ANY tag=ANY cap=4B <- send(2, 0)->1 tag=0 4B; observed send(0, 0)->1 tag=0 4B` | nonblocking, nothing sent while pending | taken in the run by an earlier receive of its rank (a swap) | FINISHED / FINISHED |
+| stretto-only | realised, run did not finish | mbi/MessageRace_Allgather_Isend_Irecv_nok | `recv(1, 0) src=ANY tag=ANY cap=4B <- send(0, 0)->1 tag=0 4B; observed send(2, 0)->1 tag=0 4B` | nonblocking, pending across a send | causally after the receive's posting | TIMEOUT / FINISHED |
 | stretto-only | realised, run did not finish | mbi/MessageRace_Alltoall_Send_Irecv_nok | `recv(1, 0) src=ANY tag=ANY cap=4B <- send(0, 0)->1 tag=0 4B; observed send(2, 0)->1 tag=0 4B` | nonblocking, pending across a send | causally after the receive's posting | TIMEOUT / FINISHED |
 
 Synthetic traces: 100 random programs from E6's generator, all with sends, receives and waits
@@ -1233,30 +1218,28 @@ campaigns replay a random sample of alternatives of new traced runs (the earlier
 with the seed in the table, and AMG and Nekbone the same alternatives of the same trace as their samples.
 A required pin counts as matched when the replay library reports it or, since 13f2174, when the replay's own
 trace shows the pinned receive or probe took its pinned source (`stretto.confirm.trace_matches`).
-Rows by code commit: 58fa178 (349), 13f2174 (30).
+Rows by code commit: 415a6ed-dirty (386).
 
 | campaign | alternatives to draw from | replays | runs of the program | not runs | undetermined | controls that are runs | confirmed, old rule | confirmed, new rule |
 |---|---|---|---|---|---|---|---|---|
-| MBI (E1), every replay | 72 findings, 72 of the 72 replayed for the claims | 72 | 72 | 0 | 0 | 70 of 70 | 38 | 38 |
-| MBI with read bounds (E3b), every replay | 61 findings, 61 of the 61 replayed for the claims | 61 | 61 | 0 | 0 | 61 of 61 | 25 | 25 |
+| MBI (E1), every replay | 75 findings, 75 of the 76 replayed for the claims | 75 | 75 | 0 | 0 | 74 of 74 | 63 | 63 |
+| MBI with read bounds (E3b), every replay | 67 findings, 67 of the 67 replayed for the claims | 67 | 67 | 0 | 0 | 66 of 66 | 52 | 52 |
 | NPB MG 2.4.1 (E5d), a sample | 480 in 3 traced runs, seed 20261022 | 60 | 60 | 0 | 0 | 60 of 60 | 46 | 46 |
 | deal.II 9.3.0-rc1 (E5e), cross alternatives, a sample | 360 in 5 traced runs, seed 20261022 | 60 | 60 | 0 | 0 | 60 of 60 | 60 | 60 |
-| HYPRE 2.10.1 (E5c), cross alternatives, a sample | 146 in 20 traced runs, seed 20261022 | 60 | 60 | 0 | 0 | 60 of 60 | 60 | 60 |
+| HYPRE 2.10.1 (E5c), cross alternatives, a sample | 150 in 20 traced runs, seed 20261022 | 60 | 60 | 0 | 0 | 60 of 60 | 60 | 60 |
 | AMG (E5), the sample of E5 | the sample of 30 | 30 | 30 | 0 | 0 | 30 of 30 | 30 | 30 |
 | Nekbone (E5b), the sample of E5b | the sample of 30 | 30 | 30 | 0 | 0 | 30 of 30 | 30 | 30 |
-| **all** | | 373 | 373 | 0 | 0 | 371 of 371 | 289 | 289 |
+| **all** | | 382 | 382 | 0 | 0 | 380 of 380 | 341 | 341 |
 
 Replays of MBI whose verdict under the old rule differs from that of the committed replay with the same finding and pins (the outcome of one run of a racing program is one schedule):
 
 | campaign | program | class | pin | committed | this run |
 |---|---|---|---|---|---|
-| MBI (E1), every replay | MessageRace_Loop_Isend_Irecv_nok | 1d | 0/0/3 | confirmed (TIMEOUT, control FINISHED) | inconclusive (TIMEOUT, control TIMEOUT) |
-| MBI (E1), every replay | MessageRace_Loop_Isend_Irecv_nok | 1d | 0/0/1,0/1/3 | inconclusive (TIMEOUT, control TIMEOUT) | confirmed (TIMEOUT, control FINISHED) |
-| MBI (E1), every replay | MessageRace_Loop_Isend_Recv_nok | 1d | 0/0/3 | confirmed (TIMEOUT, control FINISHED) | inconclusive (TIMEOUT, control TIMEOUT) |
-| MBI (E1), every replay | MessageRace_Loop_Isend_Recv_nok | 1d | 0/0/2,0/1/3 | confirmed (TIMEOUT, control FINISHED) | inconclusive (TIMEOUT, control TIMEOUT) |
 | MBI (E1), every replay | MessageRace_Loop_Send_Irecv_nok | 1d | 0/0/3 | inconclusive (TIMEOUT, control TIMEOUT) | confirmed (TIMEOUT, control FINISHED) |
+| MBI (E1), every replay | MessageRace_Loop_Send_Recv_nok | 1d | 0/0/3 | inconclusive (TIMEOUT, control TIMEOUT) | confirmed (TIMEOUT, control FINISHED) |
+| MBI (E1), every replay | MessageRace_Loop_Send_Recv_nok | 1d | 0/0/2,0/1/3 | inconclusive (TIMEOUT, control TIMEOUT) | confirmed (TIMEOUT, control FINISHED) |
 
-Replays that hung, the predicted outcome of 1c, 1d and HYPRE's cross alternatives, and were judged at their end as well: 191, of which 191 are runs of the program.
+Replays that hung, the predicted outcome of 1c, 1d and HYPRE's cross alternatives, and were judged at their end as well: 202, of which 202 are runs of the program.
 
 Every replay and every control is a run of the program without its pins: no pin forced a match or a hang that the program cannot have, so no confirmation rests on the pins alone.
 
@@ -1266,7 +1249,7 @@ MPI-PRV ("Efficient Predictive Monitoring of Message Passing Interface Programs"
 artifact image, pinned by digest (`experiments/mpiprv/README.md`), in a container with four processors of
 the second machine, outside any timed leg: its times are indicative. Stretto's tracer, an LD_PRELOAD library
 built for the same Open MPI 4.1.6, runs inside the same image.
-Rows by code commit: 1110e11 (840), 8ab453c (294), fdb226d (105), e624aae (29), 3b4fc21 (3).
+Rows by code commit: 415a6ed (1271).
 
 ### Its own evaluation, rerun
 
@@ -1278,64 +1261,64 @@ RQ1 (`RQ1/TestallProp.sh`, the ten properties, each on its own buggy program), 5
 | Prop2 | Concurrency_Recv_Isend_nok.c | 5 of 5 | `p0_Isend p0_Write p1_Recv` |
 | Prop3 | Concurrency_Irecv_Send_nok.c | 5 of 5 | `p1_Irecv p1_Use p0_Isend` |
 | Prop4 | Communicator_free_error.c | 5 of 5 | `p1_ComCreate p0_ComFree p1_ComUse` |
-| Prop5 | MPI_Ptr_uaferror.c | 5 of 5 | `p1_CreatePtr p1_FreePtr p0_Use` |
+| Prop5 | MPI_Ptr_uaferror.c | 5 of 5 | `p1_CreatePtr p0_FreePtr p1_Use` |
 | Prop6 | MPIRMA_Use_error_nok.c | 5 of 5 | `p1_Wincreate p0_Winfree p0_Winfree p1_WinPut` |
-| Prop7 | MPIRMA_doublefree_nok.c | 5 of 5 | `p1_Wincreate p1_Winfree` |
+| Prop7 | MPIRMA_doublefree_nok.c | 5 of 5 | `p1_Wincreate p0_Winfree p0_Winfree` |
 | Prop8 | LocalConcurrency_Recv_init_Send_nok.c | 5 of 5 | `p1_Recvinit p1_Start p1_write p1_Wait` |
 | Prop9 | CallOrdering_Ireduce_Barrier_nok.c | 5 of 5 | `p1_Ireduce p0_Barrier p1_Wait` |
-| Prop10 | ResLeak_Comm_create_nok.c | 5 of 5 | `p0_CommCreate p0_Nofree p0_MPIFinalize` |
+| Prop10 | ResLeak_Comm_create_nok.c | 5 of 5 | `p1_CommCreate p0_Nofree p0_MPIFinalize` |
 
 Its motivating example (Adept Kernel MPI, `stencil.c`, the marker `usea0()` before the interior loop; pattern `Irecv Use Isend`, 4 ranks): `MPI-PRV.sh` analyses the trace shipped with the example; the other rows are fresh runs of the instrumented kernel shipped with it. The last column says whether the reported send goes to the reported receiving rank (in this stencil rank r receives only from r - 1 and r + 1).
 
 | trace | events | reported | sequence | send to the receiving rank |
 |---|---|---|---|---|
 | shipped | 2608 | PASS | `p3_Irecv p3_Use p0_Isend` | no |
-| fresh1 | 2608 | PASS | `p0_Irecv p0_Use p1_Isend` | yes |
-| fresh2 | 2608 | PASS | `p0_Irecv p0_Use p2_Isend` | no |
-| fresh3 | 2608 | PASS | `p0_Irecv p0_Use p3_Isend` | no |
+| fresh1 | 2608 | PASS | `p2_Irecv p0_Use p1_Isend` | yes |
+| fresh2 | 2608 | PASS | `p0_Irecv p0_Use p3_Isend` | no |
+| fresh3 | 2608 | PASS | `p1_Irecv p0_Use p3_Isend` | no |
 | fresh4 | 2608 | PASS | `p0_Irecv p0_Use p3_Isend` | no |
-| fresh5 | 2608 | PASS | `p0_Irecv p0_Use p1_Isend` | yes |
+| fresh5 | 2608 | PASS | `p3_Irecv p3_Use p0_Isend` | no |
 
 RQ2/RQ3 (`RQ2-3/MPI-PRV_result.sh`): MPI-PRV on the trace shipped for each application and process count, with that application's pattern. The artifact's scripts write the result column of their table as a constant (√, whatever the analyser prints); `reported` is what the analyser printed. `absent` lists the pattern's events that never occur in the trace.
 
 | application | np | pattern | events | absent | reported | analysis (s), here | analysis (s), artifact's table |
 |---|---|---|---|---|---|---|---|
-| DTG | 5 | Irecv Use Isend | 15 | Irecv Use Isend | none | 0.01 | 0.003253 |
-| integrate | 2 | Irecv Use Isend | 8 | Irecv Use Isend | none | 0.01 | 0.005034 |
-| integrate | 8 | Irecv Use Isend | 50 | Irecv Use Isend | none | 0.03 | 0.013153 |
-| integrate | 10 | Irecv Use Isend | 64 | Irecv Use Isend | none | 0.02 | 0.012260 |
-| diffusion2d | 4 | Irecv Use Isend | 46 | Irecv Use Isend | none | 0.02 | 0.008679 |
-| Gauss_elim | 2 | Irecv Use Isend | 18 | Irecv Use Isend | none | 0.01 | 0.003510 |
-| Gauss_elim | 4 | Irecv Use Isend | 40 | Irecv Use Isend | none | 0.02 | 0.007199 |
-| Gauss_elim | 8 | Irecv Use Isend | 84 | Irecv Use Isend | none | 0.03 | 0.018424 |
-| image-manip | 4 | Irecv Use Isend | 16 | Irecv Use Isend | none | 0.01 | 0.003326 |
-| image-manip | 24 | Irecv Use Isend | 56 | Irecv Use Isend | none | 0.03 | 0.011543 |
-| image-manip | 127 | Irecv Use Isend | 262 | Irecv Use Isend | none | 0.12 | 0.087029 |
+| DTG | 5 | Irecv Use Isend | 15 | Irecv Use Isend | none | 0.00 | 0.003253 |
+| integrate | 2 | Irecv Use Isend | 8 | Irecv Use Isend | none | 0.00 | 0.005034 |
+| integrate | 8 | Irecv Use Isend | 50 | Irecv Use Isend | none | 0.00 | 0.013153 |
+| integrate | 10 | Irecv Use Isend | 64 | Irecv Use Isend | none | 0.01 | 0.012260 |
+| diffusion2d | 4 | Irecv Use Isend | 46 | Irecv Use Isend | none | 0.00 | 0.008679 |
+| Gauss_elim | 2 | Irecv Use Isend | 18 | Irecv Use Isend | none | 0.00 | 0.003510 |
+| Gauss_elim | 4 | Irecv Use Isend | 40 | Irecv Use Isend | none | 0.00 | 0.007199 |
+| Gauss_elim | 8 | Irecv Use Isend | 84 | Irecv Use Isend | none | 0.01 | 0.018424 |
+| image-manip | 4 | Irecv Use Isend | 16 | Irecv Use Isend | none | 0.00 | 0.003326 |
+| image-manip | 24 | Irecv Use Isend | 56 | Irecv Use Isend | none | 0.01 | 0.011543 |
+| image-manip | 127 | Irecv Use Isend | 262 | Irecv Use Isend | none | 0.07 | 0.087029 |
 | Congrad | 4 | Irecv Use Isend | 12 | Irecv Use Isend | none | 0.00 | 0.003714 |
-| poisson_mpi | 4 | Irecv Create Isend | 9196 | Create | none | 2.38 | 1.735981 |
-| poisson_mpi | 8 | Irecv Create Isend | 21904 | Create | none | 5.72 | 3.413356 |
-| poisson_mpi | 24 | Irecv Create Isend | 80524 | Create | none | 23.05 | 13.432528 |
-| poisson_mpi | 64 | Irecv Create Isend | 292888 | Create | none | 98.33 | 60.665897 |
-| poisson_mpi | 96 | Irecv Create Isend | 409092 | Create | none | 149.20 | 97.569582 |
-| poisson_mpi | 127 | Irecv Create Isend | 206011 | Create | none | 82.85 | 55.273440 |
-| Heat | 4 | Irecv Use Isend | 64 | Irecv Use | none | 0.03 | 0.014367 |
-| adept-kernel-mpi | 4 | Irecv Create Isend | 2608 | Create | none | 0.59 | 0.467616 |
-| adept-kernel-mpi | 8 | Irecv Create Isend | 5816 | Create | none | 1.31 | 1.054731 |
-| adept-kernel-mpi | 24 | Irecv Create Isend | 18648 | Create | none | 4.68 | 3.280217 |
-| adept-kernel-mpi | 64 | Irecv Create Isend | 50728 | Create | none | 15.36 | 10.201579 |
-| adept-kernel-mpi | 127 | Irecv Create Isend | 101254 | Create | none | 39.22 | 26.577784 |
-| kf-ray | 11 | Isend MPIFinalize Irecv | 140 | Isend Irecv | none | 0.05 | 0.029808 |
-| clustalW | 5 | Isend MPIFinalize Irecv | 37 | Isend Irecv | none | 0.02 | 0.008015 |
-| clustalW | 20 | Isend MPIFinalize Irecv | 172 | Isend Irecv | none | 0.06 | 0.040489 |
-| clustalW | 127 | Isend MPIFinalize Irecv | 1135 | Isend Irecv | none | 0.42 | 0.360099 |
-| ParMETIS | 4 | Isend MPIFinalize Irecv | 598174 |  | none | 241.86 | 153.753854 |
-| MiniAMR | 4 | Isend Create Irecv | 7608 | Create | none | 1.95 | 1.311203 |
-| MiniAMR | 8 | Isend Create Irecv | 22816 | Create | none | 5.51 | 3.565693 |
-| MiniAMR | 16 | Isend Create Irecv | 53232 | Create | none | 13.68 | 8.394478 |
-| MiniAMR | 24 | Isend Create Irecv | 87448 | Create | none | 23.28 | 14.268092 |
-| MiniAMR | 64 | Isend Create Irecv | 273728 | Create | none | 85.09 | 53.882190 |
-| MiniAMR | 96 | Isend Create Irecv | 425792 | Create | none | 147.34 | 95.300166 |
-| MiniAMR | 124 | Isend Create Irecv | 463848 | Create | none | 174.78 | 114.605275 |
+| poisson_mpi | 4 | Irecv Create Isend | 9196 | Create | none | 1.58 | 1.735981 |
+| poisson_mpi | 8 | Irecv Create Isend | 21904 | Create | none | 3.86 | 3.413356 |
+| poisson_mpi | 24 | Irecv Create Isend | 80524 | Create | none | 15.53 | 13.432528 |
+| poisson_mpi | 64 | Irecv Create Isend | 292888 | Create | none | 68.45 | 60.665897 |
+| poisson_mpi | 96 | Irecv Create Isend | 409092 | Create | none | 110.35 | 97.569582 |
+| poisson_mpi | 127 | Irecv Create Isend | 206011 | Create | none | 61.39 | 55.273440 |
+| Heat | 4 | Irecv Use Isend | 64 | Irecv Use | none | 0.01 | 0.014367 |
+| adept-kernel-mpi | 4 | Irecv Create Isend | 2608 | Create | none | 0.42 | 0.467616 |
+| adept-kernel-mpi | 8 | Irecv Create Isend | 5816 | Create | none | 0.96 | 1.054731 |
+| adept-kernel-mpi | 24 | Irecv Create Isend | 18648 | Create | none | 3.39 | 3.280217 |
+| adept-kernel-mpi | 64 | Irecv Create Isend | 50728 | Create | none | 11.28 | 10.201579 |
+| adept-kernel-mpi | 127 | Irecv Create Isend | 101254 | Create | none | 29.91 | 26.577784 |
+| kf-ray | 11 | Isend MPIFinalize Irecv | 140 | Isend Irecv | none | 0.02 | 0.029808 |
+| clustalW | 5 | Isend MPIFinalize Irecv | 37 | Isend Irecv | none | 0.00 | 0.008015 |
+| clustalW | 20 | Isend MPIFinalize Irecv | 172 | Isend Irecv | none | 0.03 | 0.040489 |
+| clustalW | 127 | Isend MPIFinalize Irecv | 1135 | Isend Irecv | none | 0.31 | 0.360099 |
+| ParMETIS | 4 | Isend MPIFinalize Irecv | 598174 |  | none | 168.43 | 153.753854 |
+| MiniAMR | 4 | Isend Create Irecv | 7608 | Create | none | 1.29 | 1.311203 |
+| MiniAMR | 8 | Isend Create Irecv | 22816 | Create | none | 3.95 | 3.565693 |
+| MiniAMR | 16 | Isend Create Irecv | 53232 | Create | none | 9.71 | 8.394478 |
+| MiniAMR | 24 | Isend Create Irecv | 87448 | Create | none | 16.61 | 14.268092 |
+| MiniAMR | 64 | Isend Create Irecv | 273728 | Create | none | 61.91 | 53.882190 |
+| MiniAMR | 96 | Isend Create Irecv | 425792 | Create | none | 108.16 | 95.300166 |
+| MiniAMR | 124 | Isend Create Irecv | 463848 | Create | none | 128.14 | 114.605275 |
 
 Reported in 0 of 36 configurations.
 
@@ -1356,7 +1339,7 @@ Each program is correct; `expected` is *none* when no execution has the pattern'
 | unrelated | rank 0 receives from 1 and uses; later rank 2 sends to 3 | Irecv Use Isend | none | 5 of 5 | `p0_Irecv p0_Use p2_Isend` |
 | lc-error | MPI-BugBench receive-mpi_irecv-001, marker at its labelled access (error) | Irecv Use Isend | matched | 20 of 20 | `p0_Irecv p0_Use p1_Isend` |
 | lc-twin | its twin: the access and marker after MPI_Wait (correct) | Irecv Use Isend | none | 0 of 20 |  |
-| lc-twin-loaded | the twin, with four busy loops on the same processors | Irecv Use Isend | none | 4 of 20 | `p0_Irecv p0_Use p1_Isend` |
+| lc-twin-loaded | the twin, with four busy loops on the same processors | Irecv Use Isend | none | 1 of 20 | `p0_Irecv p0_Use p1_Isend` |
 
 ### The Adept Kernel report (`experiments/mpiprv/adept.sh`)
 
@@ -1365,27 +1348,27 @@ The example's sources built without instrumentation; `fixed` completes the two h
 | run | command | result | same result as normal | sends after marker | after loop | of | delayed rank's sends after loop | of | guard records |
 |---|---|---|---|---|---|---|---|---|---|
 | normal | `src/kernel -b stencil -o 27 -s 512 -d double -a normal LD_PRELOAD=sum.so ` | a09e3039 | True | - | - | - | - | - |   |
-| overlapped-1 | `src/kernel -b stencil -o 27 -s 512 -d double -a overlapped LD_PRELOAD=order.so ` | 66f6b516 | False | 68 | 0 | 600 | - | - |   |
-| overlapped-2 | `src/kernel -b stencil -o 27 -s 512 -d double -a overlapped LD_PRELOAD=order.so ` | efa73d3e | False | 49 | 0 | 600 | - | - |   |
-| fixed | `fixed/kernel -b stencil -o 27 -s 512 -d double -a overlapped LD_PRELOAD=order.so ` | a09e3039 | True | 80 | 0 | 600 | - | - |   |
-| fixed-delay1 | `fixed/kernel -b stencil -o 27 -s 512 -d double -a overlapped LD_PRELOAD=order.so ADEPT_DELAY=1:2500` | a09e3039 | True | 209 | 200 | 600 | 200 | 200 |   |
-| fixed-delay2 | `fixed/kernel -b stencil -o 27 -s 512 -d double -a overlapped LD_PRELOAD=order.so ADEPT_DELAY=2:2500` | a09e3039 | True | 294 | 200 | 600 | 200 | 200 |   |
-| mutant | `mutant/kernel -b stencil -o 27 -s 512 -d double -a overlapped LD_PRELOAD=order.so ` | a6679322 | False | 35 | 0 | 600 | - | - |   |
-| mutant-delay1 | `mutant/kernel -b stencil -o 27 -s 512 -d double -a overlapped LD_PRELOAD=order.so ADEPT_DELAY=1:2500` | a6679322 | False | 213 | 200 | 600 | 200 | 200 |   |
+| overlapped-1 | `src/kernel -b stencil -o 27 -s 512 -d double -a overlapped LD_PRELOAD=order.so ` | e55c941d | False | 107 | 0 | 600 | - | - |   |
+| overlapped-2 | `src/kernel -b stencil -o 27 -s 512 -d double -a overlapped LD_PRELOAD=order.so ` | 8bac6562 | False | 105 | 0 | 600 | - | - |   |
+| fixed | `fixed/kernel -b stencil -o 27 -s 512 -d double -a overlapped LD_PRELOAD=order.so ` | a09e3039 | True | 89 | 0 | 600 | - | - |   |
+| fixed-delay1 | `fixed/kernel -b stencil -o 27 -s 512 -d double -a overlapped LD_PRELOAD=order.so ADEPT_DELAY=1:2500` | a09e3039 | True | 204 | 200 | 600 | 200 | 200 |   |
+| fixed-delay2 | `fixed/kernel -b stencil -o 27 -s 512 -d double -a overlapped LD_PRELOAD=order.so ADEPT_DELAY=2:2500` | a09e3039 | True | 283 | 200 | 600 | 200 | 200 |   |
+| mutant | `mutant/kernel -b stencil -o 27 -s 512 -d double -a overlapped LD_PRELOAD=order.so ` | d0a24056 | False | 133 | 0 | 600 | - | - |   |
+| mutant-delay1 | `mutant/kernel -b stencil -o 27 -s 512 -d double -a overlapped LD_PRELOAD=order.so ADEPT_DELAY=1:2500` | 27106816 | False | 214 | 200 | 600 | 200 | 200 |   |
 | guard | `src/kernel -b stencil -o 27 -s 512 -d double -a overlapped LD_PRELOAD=libstretto-trace.so STRETTO_TRACE_DIR=/w/experiments/mpiprv/work/adept/guard.trace STRETTO_GUARD=1` | - | - | - | - | - | - | - | 600 access:write:isend*600 |
 | guard-fixed | `fixed/kernel -b stencil -o 27 -s 512 -d double -a overlapped LD_PRELOAD=libstretto-trace.so STRETTO_TRACE_DIR=/w/experiments/mpiprv/work/adept/guard-fixed.trace STRETTO_GUARD=1` | - | - | - | - | - | - | - | 0  |
 
 Guard records by site (`adept-guard.txt`; count, site, function and source line):
 
 ```
-# guard: Adept Kernel MPI (src), -a overlapped -b stencil -o 27 -s 512 -d double, 4 ranks, Stretto's tracer with STRETTO_GUARD=1; run at commit 1110e11, summarised at commit 10210ff
+# guard: Adept Kernel MPI (src), -a overlapped -b stencil -o 27 -s 512 -d double, 4 ranks, Stretto's tracer with STRETTO_GUARD=1; run at commit 415a6ed, summarised at commit 415a6ed
 600 kernel+0x106a5 double_stencil27_overlapped stencil.c:1875
-# guard-fixed: Adept Kernel MPI (fixed), -a overlapped -b stencil -o 27 -s 512 -d double, 4 ranks, Stretto's tracer with STRETTO_GUARD=1; run at commit 1110e11, summarised at commit 10210ff
+# guard-fixed: Adept Kernel MPI (fixed), -a overlapped -b stencil -o 27 -s 512 -d double, 4 ranks, Stretto's tracer with STRETTO_GUARD=1; run at commit 415a6ed, summarised at commit 415a6ed
 ```
 
 ### MPI-PRV on Stretto's corpora (`experiments/mpiprv/run.py`)
 
-Programs run: 250; outside MPI-PRV's declared scope (probes, message races, buffering), listed and not scored: 6 (P2P__Correct-mpi_improbe-001, P2P__Correct-mpi_imrecv-001, P2P__Correct-mpi_mprobe-001, P2P__Correct-mpi_mrecv-001, P2P__LocalConcurrency-receive-mpi_imrecv-001, twin:P2P__LocalConcurrency-receive-mpi_imrecv-001); not built with Open MPI 4.1.6: 8. Rows by code commit: 1110e11 (774).
+Programs run: 250; outside MPI-PRV's declared scope (probes, message races, buffering), listed and not scored: 6 (P2P__Correct-mpi_improbe-001, P2P__Correct-mpi_imrecv-001, P2P__Correct-mpi_mprobe-001, P2P__Correct-mpi_mrecv-001, P2P__LocalConcurrency-receive-mpi_imrecv-001, twin:P2P__LocalConcurrency-receive-mpi_imrecv-001); not built with Open MPI 4.1.6: 8. Rows by code commit: 415a6ed (774).
 
 Arm a: the shipped properties whose events are all MPI calls (1, 6, 7, 9), program unchanged. Arm b: the buffer properties (2, 3, 8, with both members of the paper's unions) with markers inserted by a script that does not read the labels. Arm c: the same properties with markers at the labelled lines and at the moved lines of the twins, an upper bound. Twins are the local-concurrency errors corrected (the labelled access moved after the completing call), labelled correct. `a+b` is the tool run with every shipped property and the blind markers: an error if either arm reports one.
 
@@ -1393,23 +1376,31 @@ All programs in scope: 244 programs, 59 labelled errors.
 
 | | TP | FP | FN | TN | precision | recall | F1 |
 |---|---|---|---|---|---|---|---|
-| MPI-PRV, arm a (no markers) | 11 | 31 | 48 | 154 | 0.26 | 0.19 | 0.22 |
-| MPI-PRV, arm b (blind markers) | 11 | 0 | 48 | 185 | 1.00 | 0.19 | 0.31 |
-| MPI-PRV, arm c (markers at the labels) | 11 | 4 | 48 | 181 | 0.73 | 0.19 | 0.30 |
-| MPI-PRV, arms a and b | 22 | 31 | 37 | 154 | 0.42 | 0.37 | 0.39 |
+| MPI-PRV, arm a (no markers) | 11 | 33 | 48 | 148 | 0.25 | 0.19 | 0.21 |
+| (MPI-PRV, arm a (no markers): 4 program(s) without a verdict, a run without a trace or a failed analyser, and 0 analysis crash(es), left out of the row) | | | | | | | |
+| MPI-PRV, arm b (blind markers) | 11 | 0 | 48 | 181 | 1.00 | 0.19 | 0.31 |
+| (MPI-PRV, arm b (blind markers): 4 program(s) without a verdict, a run without a trace or a failed analyser, and 0 analysis crash(es), left out of the row) | | | | | | | |
+| MPI-PRV, arm c (markers at the labels) | 11 | 6 | 48 | 175 | 0.65 | 0.19 | 0.29 |
+| (MPI-PRV, arm c (markers at the labels): 4 program(s) without a verdict, a run without a trace or a failed analyser, and 0 analysis crash(es), left out of the row) | | | | | | | |
+| MPI-PRV, arms a and b | 22 | 33 | 37 | 148 | 0.40 | 0.37 | 0.39 |
+| (MPI-PRV, arms a and b: 4 program(s) without a verdict, a run without a trace or a failed analyser, and 0 analysis crash(es), left out of the row) | | | | | | | |
 | Stretto with the buffer guard (`stretto_corpus.py`) | 27 | 4 | 32 | 181 | 0.87 | 0.46 | 0.60 |
 
 Local-concurrency errors and the correct programs (the domain of the buffer properties): 212 programs, 27 labelled errors.
 
 | | TP | FP | FN | TN | precision | recall | F1 |
 |---|---|---|---|---|---|---|---|
-| MPI-PRV, arm a (no markers) | 8 | 31 | 19 | 154 | 0.21 | 0.30 | 0.24 |
-| MPI-PRV, arm b (blind markers) | 11 | 0 | 16 | 185 | 1.00 | 0.41 | 0.58 |
-| MPI-PRV, arm c (markers at the labels) | 11 | 4 | 16 | 181 | 0.73 | 0.41 | 0.52 |
-| MPI-PRV, arms a and b | 19 | 31 | 8 | 154 | 0.38 | 0.70 | 0.49 |
+| MPI-PRV, arm a (no markers) | 8 | 33 | 19 | 148 | 0.20 | 0.30 | 0.24 |
+| (MPI-PRV, arm a (no markers): 4 program(s) without a verdict, a run without a trace or a failed analyser, and 0 analysis crash(es), left out of the row) | | | | | | | |
+| MPI-PRV, arm b (blind markers) | 11 | 0 | 16 | 181 | 1.00 | 0.41 | 0.58 |
+| (MPI-PRV, arm b (blind markers): 4 program(s) without a verdict, a run without a trace or a failed analyser, and 0 analysis crash(es), left out of the row) | | | | | | | |
+| MPI-PRV, arm c (markers at the labels) | 11 | 6 | 16 | 175 | 0.65 | 0.41 | 0.50 |
+| (MPI-PRV, arm c (markers at the labels): 4 program(s) without a verdict, a run without a trace or a failed analyser, and 0 analysis crash(es), left out of the row) | | | | | | | |
+| MPI-PRV, arms a and b | 19 | 33 | 8 | 148 | 0.37 | 0.70 | 0.48 |
+| (MPI-PRV, arms a and b: 4 program(s) without a verdict, a run without a trace or a failed analyser, and 0 analysis crash(es), left out of the row) | | | | | | | |
 | Stretto with the buffer guard (`stretto_corpus.py`) | 25 | 4 | 2 | 181 | 0.86 | 0.93 | 0.89 |
 
-Arm a's reports by pattern (labelled errors / correct programs): P1 11 / 31.
+Arm a's reports by pattern (labelled errors / correct programs): P1 11 / 33.
 
 
 By group, programs in scope reported as errors (a / b / c; Stretto with the guard):
@@ -1427,7 +1418,7 @@ By group, programs in scope reported as errors (a / b / c; Stretto with the guar
 | MBI correct | 10 | 1 | 0 | 0 | 0 | MPI_Request_free (4), MPI_Comm_free (3), MPI_Send_init (2), MPI_Comm_group (2), MPI_Group_free (2), MPI_Comm_create (1) |
 | MPI-BugBench LocalConcurrency | 19 | 7 | 5 | 5 | 19 | MPI_Request_free (5), MPI_Buffer_attach (2), MPI_Buffer_detach (2), MPI_Iallreduce (1), MPI_Ialltoall (1), MPI_Ibcast (1) |
 | MPI-BugBench correct | 148 | 20 | 0 | 0 | 4 | MPI_Comm_free (43), MPI_Bcast (27), MPI_Comm_split (22), MPI_Comm_dup (14), MPI_Request_free (11), MPI_Allreduce (10) |
-| twins of the local-concurrency errors (correct) | 27 | 10 | 0 | 4 | 0 | MPI_Request_free (13), MPI_Send_init (4), MPI_Buffer_attach (2), MPI_Buffer_detach (2), MPI_Iallreduce (1), MPI_Ialltoall (1) |
+| twins of the local-concurrency errors (correct) | 27 | 12 | 0 | 6 | 0 | MPI_Request_free (13), MPI_Send_init (4), MPI_Buffer_attach (2), MPI_Buffer_detach (2), MPI_Iallreduce (1), MPI_Ialltoall (1) |
 
 Correct programs reported as errors:
 
@@ -1453,17 +1444,21 @@ Correct programs reported as errors:
 | P2P__Correct-mpi_ssend-003 | a | `P1: p1_MPIFinalize p0_Irecv` |
 | P2P__Correct-mpi_ssend_init-001 | a | `P1: p1_MPIFinalize p0_Irecv` |
 | P2P__Correct-mpi_ssend_init-002 | a | `P1: p1_MPIFinalize p0_Irecv` |
-| ReqLifecycle_Send_init_Irecv_ok | a | `P1: p1_MPIFinalize p0_Irecv` |
+| ReqLifecycle_Send_init_Irecv_ok | a | `P1: p0_MPIFinalize p1_Irecv` |
+| twin:LocalConcurrency_Irecv_Isend_nok | a | `P1: p0_MPIFinalize p1_Irecv` |
+| twin:LocalConcurrency_Irecv_Isend_nok | c | `P2irecv: p0_Isend p0_Write p1_Irecv` |
 | twin:LocalConcurrency_Irecv_Send_init_nok | a | `P1: p0_MPIFinalize p1_Irecv` |
-| twin:LocalConcurrency_Recv_init_Isend_nok | c | `P8: p1_Recvinit p1_Start p1_write p0_Wait` |
+| twin:LocalConcurrency_Recv_init_Isend_nok | c | `P2: p0_Isend p0_Write p1_Recv ; P8: p1_Recvinit p1_Start p1_write p0_Wait` |
 | twin:LocalConcurrency_Recv_init_Send_init_nok | c | `P8: p1_Recvinit p0_Start p1_write p0_Wait` |
 | twin:P2P__LocalConcurrency-mpi_irecv-001 | a | `P1: p1_MPIFinalize p0_Irecv` |
 | twin:P2P__LocalConcurrency-mpi_irecv-001 | c | `P3send: p0_Irecv p0_Use p1_Send` |
-| twin:P2P__LocalConcurrency-mpi_irecv-002 | a | `P1: p1_MPIFinalize p0_Irecv` |
+| twin:P2P__LocalConcurrency-receive-mpi_irecv-001 | a | `P1: p1_MPIFinalize p0_Irecv` |
 | twin:P2P__LocalConcurrency-receive-mpi_recv_init-001 | c | `P8: p0_Recvinit p0_Start p0_write p1_Wait` |
 | twin:P2P__LocalConcurrency-send-mpi_bsend_init-001 | a | `P1: p1_MPIFinalize p0_Irecv` |
 | twin:P2P__LocalConcurrency-send-mpi_ibsend-001 | a | `P1: p1_MPIFinalize p0_Irecv` |
 | twin:P2P__LocalConcurrency-send-mpi_irsend-001 | a | `P1: p1_MPIFinalize p0_Irecv` |
+| twin:P2P__LocalConcurrency-send-mpi_isend-001 | a | `P1: p1_MPIFinalize p0_Irecv` |
+| twin:P2P__LocalConcurrency-send-mpi_isend-001 | c | `P2irecv: p1_Isend p1_Write p0_Irecv` |
 | twin:P2P__LocalConcurrency-send-mpi_issend-001 | a | `P1: p1_MPIFinalize p0_Irecv` |
 | twin:P2P__LocalConcurrency-send-mpi_rsend_init-001 | a | `P1: p1_MPIFinalize p0_Irecv` |
 | twin:P2P__LocalConcurrency-send-mpi_send_init-001 | a | `P1: p1_MPIFinalize p0_Irecv` |
@@ -1475,38 +1470,38 @@ The artifact's binaries (built with its instrumentation, which only appends its 
 
 | application | np | run | records | wildcard receives | classes | alternatives | replays | confirmed | under rendezvous | analysis (s) | MPI-PRV (s) | with the guard: run, classes, confirmed, under rendezvous |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
-| DTG | 5 | rc=0 | 55 | 3 | 1c*1 1d*1 1f*1 | 1 | FINISHED/matched/control-FINISHED*1 | 1c:not-confirmed*1 1d:not-confirmed*1 | 1c at B=0: TIMEOUT/matched/control-FINISHED; 1d at B=0: TIMEOUT/matched/control-FINISHED | 0.09 | 0.01 | rc=0 1f*1 2-buffering*1  observed run (B < 40): TIMEOUT |
-| integrate | 2 | rc=0 | 62 | 0 |  | 0 |  |  |  | 0.09 | 0.01 | rc=0    |
-| integrate | 8 | rc=0 | 320 | 0 |  | 0 |  |  |  | 0.08 | 0.03 | rc=0    |
-| integrate | 10 | rc=0 | 406 | 0 |  | 0 |  |  |  | 0.08 | 0.02 | rc=0    |
-| diffusion2d | 4 | rc=0 | 143 | 0 | 1c*6 2-buffering*1 | 0 |  |  | observed run (B < 16): TIMEOUT | 0.10 | 0.02 | rc=0 1c*6 2-buffering*1  observed run (B < 16): TIMEOUT |
-| Gauss_elim | 2 | rc=0 | 64 | 2 |  | 0 |  |  |  | 0.09 | 0.01 | rc=0    |
-| Gauss_elim | 4 | rc=0 | 134 | 6 | 1f*2 | 2 | FINISHED/matched/control-FINISHED*2 |  |  | 0.35 | 0.02 | rc=0 1f*2   |
-| Gauss_elim | 8 | rc=0 | 274 | 14 | 1f*6 | 6 | FINISHED/matched/control-FINISHED*6 |  |  | 7.13 | 0.03 | rc=0 1f*6   |
-| image-manip | 4 | rc=0 | 76 | 4 | 1b*3 | 3 | FINISHED/matched/control-FINISHED*3 |  |  | 0.11 | 0.01 | rc=0 1b*3   |
-| image-manip | 24 | rc=0 | 357 | 4 | 1b*6 | 6 | FINISHED/matched/control-FINISHED*6 |  |  | 0.34 | 0.03 | rc=0 1b*6   |
-| image-manip | 127 | skipped (more than 24 ranks) |  |  |  |  |  |  |  |  | 0.12 |     |
-| Congrad | 4 | rc=0 | 388 | 0 |  | 0 |  |  |  | 0.08 | 0.00 | rc=0    |
-| poisson_mpi | 4 | rc=0 | 27152 | 0 | 1c*4518 | 0 |  |  |  | 0.59 | 2.38 | rc=0 1c*4608 3-local*76698   |
-| poisson_mpi | 8 | rc=0 | 60132 | 0 | 1c*11060 | 0 |  |  |  | 1.42 | 5.72 | rc=0 1c*11340 3-local*187746   |
-| poisson_mpi | 24 | rc=0 | 241476 | 0 | 1c*47012 | 0 |  |  |  | 6.33 | 23.05 | rc=0 1c*78706 3-local*1293809   |
-| poisson_mpi | 64 | skipped (more than 24 ranks) |  |  |  |  |  |  |  |  | 98.33 |     |
-| poisson_mpi | 96 | skipped (more than 24 ranks) |  |  |  |  |  |  |  |  | 149.20 |     |
-| poisson_mpi | 127 | skipped (more than 24 ranks) |  |  |  |  |  |  |  |  | 82.85 |     |
-| Heat | 4 | rc=0 | 192 | 4 | 1b*2 1c*2 1d*2 | 2 | TIMEOUT/matched/control-FINISHED*2 | 1b:n/a*2 1c:confirmed*2 1d:confirmed*2 |  | 0.20 | 0.03 | rc=0 1b*2 1c*2 1d*2 3-local*4 1b:n/a*2 1c:confirmed*2 1d:confirmed*2  |
-| adept-kernel-mpi | 4 | rc=0 | 3254 | 0 |  | 0 |  |  |  | 0.13 | 0.59 | rc=0 3-local*600   |
-| adept-kernel-mpi | 8 | rc=0 | 7314 | 0 |  | 0 |  |  |  | 0.20 | 1.31 | rc=0 3-local*1400   |
-| adept-kernel-mpi | 24 | rc=0 | 23554 | 0 |  | 0 |  |  |  | 0.52 | 4.68 | rc=0 3-local*4600   |
-| adept-kernel-mpi | 64 | skipped (more than 24 ranks) |  |  |  |  |  |  |  |  | 15.36 |     |
-| adept-kernel-mpi | 127 | skipped (more than 24 ranks) |  |  |  |  |  |  |  |  | 39.22 |     |
-| kf-ray | 11 | rc=139 | 610 | 90 | 1c*315 1d*315 1f*315 abort*1 | 315 | not replayed: the traced run ended with rc=139 |  |  | 614.14 | 0.05 | rc=139 1c*315 1d*315 1f*315 abort*1   |
-| clustalW | 5 | rc=0 | 126 | 16 | 1f*6 | 6 | FINISHED/matched/control-FINISHED*6 |  |  | 8.39 | 0.02 | rc=0 1f*6   |
-| clustalW | 20 | rc=0 | 561 | 76 | 1f*171 | 171 | FINISHED/matched/control-FINISHED*30 |  |  | 883.46 | 0.06 | rc=0 1f*171   |
-| clustalW | 127 | skipped (more than 24 ranks) |  |  |  |  |  |  |  |  | 0.42 |     |
-| ParMETIS | 4 | rc=0 | 1237494 | 0 |  | 0 |  |  |  | 42.63 | 241.86 | rc=0    |
-| MiniAMR | 4 | rc=0 | 51236 | 0 |  | 0 |  |  |  | 1.02 | 1.95 | rc=0    |
-| MiniAMR | 8 | rc=0 | 125280 | 0 |  | 0 |  |  |  | 2.74 | 5.51 | rc=0    |
-| MiniAMR | 16 | rc=0 | 273376 | 0 | waitany-order*3800 | 0 |  |  |  | 16.62 | 13.68 | rc=0 waitany-order*3800   |
+| DTG | 5 | rc=0 | 55 | 3 | 1c*1 1d*1 1f*1 | 1 | FINISHED/matched/control-FINISHED*1 | 1c:not-confirmed*1 1d:not-confirmed*1 | 1c at B=0: TIMEOUT/matched/control-FINISHED; 1d at B=0: TIMEOUT/matched/control-FINISHED | 0.06 | 0.00 | rc=0 1c*1 1d*1 1f*1 1c:not-confirmed*1 1d:not-confirmed*1 1c at B=0: TIMEOUT/matched/control-FINISHED; 1d at B=0: TIMEOUT/matched/control-FINISHED |
+| integrate | 2 | rc=0 | 62 | 0 |  | 0 |  |  |  | 0.05 | 0.00 | rc=0    |
+| integrate | 8 | rc=0 | 320 | 0 |  | 0 |  |  |  | 0.06 | 0.00 | rc=0    |
+| integrate | 10 | rc=0 | 406 | 0 |  | 0 |  |  |  | 0.06 | 0.01 | rc=0    |
+| diffusion2d | 4 | rc=0 | 143 | 0 | 1c*6 2-buffering*1 | 0 |  |  | observed run (B < 16): TIMEOUT | 0.06 | 0.00 | rc=0 1c*6 2-buffering*1  observed run (B < 16): TIMEOUT |
+| Gauss_elim | 2 | rc=0 | 64 | 2 |  | 0 |  |  |  | 0.05 | 0.00 | rc=0    |
+| Gauss_elim | 4 | rc=0 | 134 | 6 | 1f*2 | 2 | FINISHED/matched/control-FINISHED*2 |  |  | 0.21 | 0.00 | rc=0 1f*2   |
+| Gauss_elim | 8 | rc=0 | 274 | 14 | 1f*6 | 6 | FINISHED/matched/control-FINISHED*6 |  |  | 5.04 | 0.01 | rc=0 1f*6   |
+| image-manip | 4 | rc=0 | 76 | 4 | 1b*3 | 3 | FINISHED/matched/control-FINISHED*3 |  |  | 0.07 | 0.00 | rc=0 1b*3   |
+| image-manip | 24 | rc=0 | 357 | 4 | 1b*6 | 6 | FINISHED/matched/control-FINISHED*6 |  |  | 0.19 | 0.01 | rc=0 1b*6   |
+| image-manip | 127 | skipped (more than 24 ranks) |  |  |  |  |  |  |  |  | 0.07 |     |
+| Congrad | 4 | rc=0 | 388 | 0 |  | 0 |  |  |  | 0.06 | 0.00 | rc=0    |
+| poisson_mpi | 4 | rc=0 | 27692 | 0 | 1c*4608 | 0 |  |  |  | 0.35 | 1.58 | rc=0 1c*4608 3-local*76698   |
+| poisson_mpi | 8 | rc=0 | 60132 | 0 | 1c*11060 | 0 |  |  |  | 1.01 | 3.86 | rc=0 1c*10920 3-local*181818   |
+| poisson_mpi | 24 | rc=0 | 208436 | 0 | 1c*40572 | 0 |  |  |  | 4.37 | 15.53 | rc=0 1c*47058 3-local*769032   |
+| poisson_mpi | 64 | skipped (more than 24 ranks) |  |  |  |  |  |  |  |  | 68.45 |     |
+| poisson_mpi | 96 | skipped (more than 24 ranks) |  |  |  |  |  |  |  |  | 110.35 |     |
+| poisson_mpi | 127 | skipped (more than 24 ranks) |  |  |  |  |  |  |  |  | 61.39 |     |
+| Heat | 4 | rc=0 | 192 | 4 | 1b*2 1c*2 1d*2 | 2 | TIMEOUT/matched/control-FINISHED*2 | 1b:n/a*2 1c:confirmed*2 1d:confirmed*2 |  | 0.13 | 0.01 | rc=0 1b*2 1c*2 1d*2 3-local*4 1b:n/a*2 1c:confirmed*2 1d:confirmed*2  |
+| adept-kernel-mpi | 4 | rc=0 | 3254 | 0 |  | 0 |  |  |  | 0.09 | 0.42 | rc=0 3-local*600   |
+| adept-kernel-mpi | 8 | rc=0 | 7314 | 0 |  | 0 |  |  |  | 0.13 | 0.96 | rc=0 3-local*1400   |
+| adept-kernel-mpi | 24 | rc=0 | 23554 | 0 |  | 0 |  |  |  | 0.32 | 3.39 | rc=0 3-local*4600   |
+| adept-kernel-mpi | 64 | skipped (more than 24 ranks) |  |  |  |  |  |  |  |  | 11.28 |     |
+| adept-kernel-mpi | 127 | skipped (more than 24 ranks) |  |  |  |  |  |  |  |  | 29.91 |     |
+| kf-ray | 11 | rc=139 | 610 | 90 | 1c*315 1d*315 1f*315 abort*1 | 315 | not replayed: the traced run ended with rc=139 |  |  | 466.81 | 0.02 | rc=139 1c*315 1d*315 1f*315 abort*1   |
+| clustalW | 5 | rc=0 | 126 | 16 | 1f*6 | 6 | FINISHED/matched/control-FINISHED*6 |  |  | 6.29 | 0.00 | rc=0 1f*6   |
+| clustalW | 20 | rc=0 | 561 | 76 | 1f*171 | 171 | FINISHED/matched/control-FINISHED*30 |  |  | 689.60 | 0.03 | rc=0 1f*171   |
+| clustalW | 127 | skipped (more than 24 ranks) |  |  |  |  |  |  |  |  | 0.31 |     |
+| ParMETIS | 4 | rc=0 | 1237530 | 0 |  | 0 |  |  |  | 43.97 | 168.43 | rc=0    |
+| MiniAMR | 4 | rc=0 | 51236 | 0 |  | 0 |  |  |  | 0.79 | 1.29 | rc=0    |
+| MiniAMR | 8 | rc=0 | 125280 | 0 |  | 0 |  |  |  | 2.28 | 3.95 | rc=0    |
+| MiniAMR | 16 | rc=0 | 273376 | 0 | waitany-order*3800 | 0 |  |  |  | 10.24 | 9.71 | rc=0 waitany-order*3800   |
 
 ## E10: NINJA (noise injection)
 
@@ -1525,22 +1520,22 @@ baseline (`experiments/ninja/run.py`, `experiments/ninja/campaign.sh`).
 NINJA's replica of the ParaSails race (`test/ninja_test_hypre_parasails.c`; two request exchanges with one tag,
 a one-second pause between them, which as shipped needs 64 processes; here the copy without that check, and
 `replica-fixed`, the same with the second exchange on its own tag as in HYPRE 2.11.0), 5 iterations per run, 60 s
-each. Rows by code commit: 3b8e846 (224).
+each. Rows by code commit: 415a6ed (224).
 
 | program | ranks | noise | runs | finished | hung | other | first hang (run) | hang rate | learning run |
 |---|---|---|---|---|---|---|---|---|---|
 | replica | 4 | none (plain runs) | 10 | 10 | 0 | 0 | - | 0.00 | - |
-| replica | 4 | random, 10% of sends by 1.2 s | 10 | 8 | 2 | 0 | 5 | 0.20 | - |
+| replica | 4 | random, 10% of sends by 1.2 s | 10 | 5 | 5 | 0 | 1 | 0.50 | - |
 | replica | 4 | random, 10% of sends by 1.2 s (as shipped) | 10 | 10 | 0 | 0 | - | 0.00 | - |
 | replica | 4 | random, 10% of sends by 0.05 s | 10 | 10 | 0 | 0 | - | 0.00 | - |
 | replica | 4 | system-centric | 10 | 10 | 0 | 0 | - | 0.00 | - |
 | replica | 4 | application-centric | 10 | 10 | 0 | 0 | - | 0.00 | FINISHED |
 | replica | 8 | none (plain runs) | 10 | 10 | 0 | 0 | - | 0.00 | - |
-| replica | 8 | random, 10% of sends by 1.2 s | 10 | 1 | 9 | 0 | 1 | 0.90 | - |
+| replica | 8 | random, 10% of sends by 1.2 s | 10 | 2 | 8 | 0 | 2 | 0.80 | - |
 | replica | 8 | random, 10% of sends by 1.2 s (as shipped) | 10 | 10 | 0 | 0 | - | 0.00 | - |
 | replica | 8 | random, 10% of sends by 0.05 s | 10 | 10 | 0 | 0 | - | 0.00 | - |
 | replica | 8 | system-centric | 10 | 10 | 0 | 0 | - | 0.00 | - |
-| replica | 8 | application-centric | 10 | 0 | 10 | 0 | 1 | 1.00 | FINISHED |
+| replica | 8 | application-centric | 10 | 1 | 9 | 0 | 1 | 0.90 | FINISHED |
 | replica-fixed | 4 | none (plain runs) | 10 | 10 | 0 | 0 | - | 0.00 | - |
 | replica-fixed | 4 | random, 10% of sends by 1.2 s | 10 | 10 | 0 | 0 | - | 0.00 | - |
 | replica-fixed | 4 | random, 10% of sends by 0.05 s | 10 | 10 | 0 | 0 | - | 0.00 | - |
@@ -1556,20 +1551,23 @@ each. Rows by code commit: 3b8e846 (224).
 
 `ij -solver 8 -pout 0` as in E5c, 60 s per run. A run that hangs in the ParaSails setup is killed before
 ij prints its setup times (*of which in the setup*); a run killed later was slow, not hung in the race.
-Rows by code commit: 3b8e846 (524).
+Rows by code commit: 415a6ed (644).
 
 | program | ranks | noise | runs | finished | hung | of which in the setup | other | first hang in the setup (run) | its rate | learning run |
 |---|---|---|---|---|---|---|---|---|---|---|
-| hypre-2.10.1 | 4 | random, 10% of sends by 1.2 s | 40 | 39 | 1 | 1 | 0 | 30 | 0.03 | - |
-| hypre-2.10.1 | 4 | random, 10% of sends by 0.05 s | 40 | 32 | 8 | 8 | 0 | 2 | 0.20 | - |
+| hypre-2.10.1 | 4 | random, 10% of sends by 1.2 s | 40 | 36 | 4 | 4 | 0 | 2 | 0.10 | - |
+| hypre-2.10.1 | 4 | random, 10% of sends by 0.05 s | 40 | 35 | 5 | 5 | 0 | 11 | 0.12 | - |
 | hypre-2.10.1 | 4 | system-centric | 40 | 40 | 0 | 0 | 0 | - | 0.00 | - |
 | hypre-2.10.1 | 4 | application-centric | 40 | 40 | 0 | 0 | 0 | - | 0.00 | FINISHED |
-| hypre-2.10.1 | 8 | random, 10% of sends by 0.05 s | 40 | 29 | 11 | 11 | 0 | 3 | 0.28 | - |
-| hypre-2.10.1 | 8 | system-centric | 40 | 40 | 0 | 0 | 0 | - | 0.00 | - |
-| hypre-2.10.1 | 8 | application-centric | 40 | 15 | 25 | 25 | 0 | 1 | 0.62 | FINISHED |
+| hypre-2.10.1 | 8 | random, 10% of sends by 1.2 s | 40 | 31 | 9 | 9 | 0 | 2 | 0.23 | - |
+| hypre-2.10.1 | 8 | random, 10% of sends by 0.05 s | 40 | 28 | 12 | 12 | 0 | 7 | 0.30 | - |
+| hypre-2.10.1 | 8 | system-centric | 40 | 39 | 1 | 1 | 0 | 17 | 0.03 | - |
+| hypre-2.10.1 | 8 | application-centric | 40 | 15 | 25 | 25 | 0 | 4 | 0.62 | FINISHED |
+| hypre-2.11.0 | 4 | random, 10% of sends by 1.2 s | 40 | 40 | 0 | 0 | 0 | - | 0.00 | - |
 | hypre-2.11.0 | 4 | random, 10% of sends by 0.05 s | 40 | 40 | 0 | 0 | 0 | - | 0.00 | - |
 | hypre-2.11.0 | 4 | system-centric | 40 | 40 | 0 | 0 | 0 | - | 0.00 | - |
 | hypre-2.11.0 | 4 | application-centric | 40 | 40 | 0 | 0 | 0 | - | 0.00 | FINISHED |
+| hypre-2.11.0 | 8 | random, 10% of sends by 1.2 s | 40 | 40 | 0 | 0 | 0 | - | 0.00 | - |
 | hypre-2.11.0 | 8 | random, 10% of sends by 0.05 s | 40 | 40 | 0 | 0 | 0 | - | 0.00 | - |
 | hypre-2.11.0 | 8 | system-centric | 40 | 40 | 0 | 0 | 0 | - | 0.00 | - |
 | hypre-2.11.0 | 8 | application-centric | 40 | 40 | 0 | 0 | 0 | - | 0.00 | FINISHED |
@@ -1579,7 +1577,7 @@ Rows by code commit: 3b8e846 (524).
 The programs of the stress baseline, up to 30 runs per program and mode (in application-centric mode
 the learning run is the first), stopping at the first that does not finish, 60 s each. The last columns: of the
 programs Stretto predicts from a run that finished, how many the mode never makes fail; and of the programs
-stress testing never makes fail, how many the mode does. Rows by code commit: 3b8e846 (345).
+stress testing never makes fail, how many the mode does. Rows by code commit: 415a6ed (345).
 
 A failure is any run that does not finish, as in the stress baseline; some are segmentation faults of NINJA
 itself (*of them crashes*: errors made to fail by one, and correct programs failing by one), and the second F1
@@ -1587,22 +1585,22 @@ does not count them.
 
 | noise | labelled errors | made to fail | median first failure | after the first run | correct programs failing | of them crashes | F1 | F1, crashes not counted | Stretto's predicted errors missed | stress misses found |
 |---|---|---|---|---|---|---|---|---|---|---|
-| random, 10% of sends by 0.05 s | 65 | 53 | 1 | 16 | 0 | 0 / 0 | 0.90 | 0.90 | 12 of 22 | 0 of 12 |
-| system-centric | 65 | 53 | 1 | 9 | 0 | 0 / 0 | 0.90 | 0.90 | 12 of 22 | 0 of 12 |
-| application-centric | 65 | 53 | 1 | 15 | 4 | 3 / 4 | 0.87 | 0.87 | 12 of 22 | 0 of 12 |
+| random, 10% of sends by 0.05 s | 65 | 53 | 1 | 12 | 0 | 0 / 0 | 0.90 | 0.90 | 12 of 23 | 0 of 12 |
+| system-centric | 65 | 53 | 1 | 14 | 0 | 0 / 0 | 0.90 | 0.90 | 12 of 23 | 0 of 12 |
+| application-centric | 65 | 53 | 1 | 16 | 4 | 2 / 3 | 0.87 | 0.87 | 12 of 23 | 0 of 12 |
 
 ### NPB MG 2.4.1
 
 MG class S as in E5d, 120 s per run; a run *changes the result* when its residual norm differs
 from the plain runs' (every plain run printed the same), and fails the relative check of later versions when it is
-more than 1e-8 off the reference. Rows by code commit: 3b8e846 (81).
+more than 1e-8 off the reference. Rows by code commit: 415a6ed (81).
 
 | ranks | noise | runs | finished | result changed | fails the relative check |
 |---|---|---|---|---|---|
 | 16 | none (plain runs) | 20 | 20 | 0 | 0 |
 | 16 | random, 10% of sends by 0.05 s | 20 | 20 | 8 | 8 |
-| 16 | system-centric | 20 | 20 | 1 | 1 |
-| 16 | application-centric | 20 | 20 | 9 | 9 |
+| 16 | system-centric | 20 | 20 | 0 | 0 |
+| 16 | application-centric | 20 | 20 | 8 | 8 |
 
 ## E11: scale (16 to 64 processes)
 
@@ -1615,28 +1613,28 @@ runs measure the analysis, which runs in one process, not the traced program's s
 leg, with other containers on the machine: the times show the cost and are not timing claims. Peak memory is
 the analysis's maximum resident set. *Per record* is the analysis time over the trace's records, *per
 alternative* the time over the alternatives reported, *per alternative and record* that over the records too.
-Rows by code commit: 8771752 (9).
+Rows by code commit: 415a6ed-dirty (9).
 
 | application | processes | traced run | records | wildcard receives | probes | findings by class | analysis (s) | peak memory (GB) | per record (µs) | per alternative (ms) | per alternative and record (ns) | replays | pins matched | finished | controls finished | control pins matched |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| HYPRE 2.10.1, ParaSails | 16 | FINISHED | 87656 | 23 | 38687 | probe-alt 187, 1f 8 | 4.4 | 0.2 | 50.1 | 22.5 | 256.8 | 10 | 10 | 10 | 9 | 9 |
-| HYPRE 2.10.1, ParaSails | 32 | FINISHED | 413005 | 40 | 197866 | probe-alt 199, 1f 9 | 22.8 | 0.8 | 55.2 | 109.7 | 265.5 | 10 | 10 | 10 | 10 | 10 |
-| HYPRE 2.10.1, ParaSails | 64 | FINISHED | 861233 | 70 | 415000 | probe-alt 219, 1f 7 | 43.3 | 1.7 | 50.2 | 191.5 | 222.3 | 10 | 10 | 9 | 10 | 10 |
-| AMG | 16 | FINISHED | 326271 | 103 | 24428 | probe-alt 16934, 1f 10 | 31.3 | 1.0 | 96.1 | 1.8 | 5.7 | 10 | 10 | 10 | 10 | 10 |
-| AMG | 32 | FINISHED | 941207 | 209 | 69415 | probe-alt 91578, 1f 16 | 112.1 | 3.0 | 119.1 | 1.2 | 1.3 | 10 | 10 | 10 | 10 | 10 |
-| AMG | 64 | FINISHED | 2511250 | 497 | 99567 | probe-alt 501881, 1f 66 | 415.6 | 8.7 | 165.5 | 0.8 | 0.3 | 10 | 10 | 10 | 10 | 10 |
-| NPB LU, class A | 16 | FINISHED | 3049940 | 0 | 0 | none | 89.6 | 5.3 | 29.4 | - | - | 0 | 0 | 0 | 0 | 0 |
-| NPB LU, class A | 32 | FINISHED | 6608024 | 0 | 0 | none | 199.1 | 11.2 | 30.1 | - | - | 0 | 0 | 0 | 0 | 0 |
-| NPB LU, class A | 64 | FINISHED | 14232316 | 0 | 0 | none | 434.6 | 23.7 | 30.5 | - | - | 0 | 0 | 0 | 0 | 0 |
+| HYPRE 2.10.1, ParaSails | 16 | FINISHED | 15902 | 23 | 2810 | probe-alt 191, 1f 8 | 0.5 | 0.0 | 33.3 | 2.7 | 167.5 | 10 | 10 | 10 | 10 | 10 |
+| HYPRE 2.10.1, ParaSails | 32 | FINISHED | 22123 | 40 | 2425 | probe-alt 203, 1f 9 | 0.8 | 0.1 | 33.9 | 3.5 | 159.9 | 10 | 10 | 10 | 10 | 10 |
+| HYPRE 2.10.1, ParaSails | 64 | FINISHED | 474599 | 70 | 221683 | probe-alt 218, 1f 7 | 21.4 | 0.9 | 45.1 | 95.1 | 200.3 | 10 | 10 | 8 | 10 | 10 |
+| AMG | 16 | FINISHED | 324701 | 103 | 23636 | probe-alt 16934, 1f 10 | 27.0 | 1.0 | 83.2 | 1.6 | 4.9 | 10 | 10 | 10 | 10 | 10 |
+| AMG | 32 | FINISHED | 926624 | 209 | 62110 | probe-alt 91578, 1f 16 | 93.4 | 3.0 | 100.8 | 1.0 | 1.1 | 10 | 10 | 10 | 10 | 10 |
+| AMG | 64 | FINISHED | 2979765 | 497 | 333796 | probe-alt 501881, 1f 66 | 365.4 | 9.6 | 122.6 | 0.7 | 0.2 | 10 | 10 | 10 | 10 | 10 |
+| NPB LU, class A | 16 | FINISHED | 3049940 | 0 | 0 | none | 76.0 | 5.3 | 24.9 | - | - | 0 | 0 | 0 | 0 | 0 |
+| NPB LU, class A | 32 | FINISHED | 6608024 | 0 | 0 | none | 173.4 | 11.2 | 26.2 | - | - | 0 | 0 | 0 | 0 | 0 |
+| NPB LU, class A | 64 | FINISHED | 14232316 | 0 | 0 | none | 499.3 | 23.7 | 35.1 | - | - | 0 | 0 | 0 | 0 | 0 |
 
-Traced runs that finished: 9 of 9; analyses that finished: 9 of 9. Sampled replays: 60 (1f 4, probe-alt 56); with every pin matched: 60; finished: 59; controls finished: 59, with every pin matched: 59. A trace without wildcard receives or probes (LU) has no alternative to sample.
+Traced runs that finished: 9 of 9; analyses that finished: 9 of 9. Sampled replays: 60 (1f 4, probe-alt 56); with every pin matched: 60; finished: 58; controls finished: 60, with every pin matched: 60. A trace without wildcard receives or probes (LU) has no alternative to sample.
 
-Replays that did not finish: TIMEOUT, hypre at 64 processes, a request probe of ParaSails (tag 222), the race of E5c. Controls that did not finish: APP-ERROR:15, hypre at 16 processes, the control of a probe-alt alternative. Status 15 is the unexplained exit of some of HYPRE's replays and controls in E5c, which plain runs launched the same way never took.
+Replays that did not finish: TIMEOUT, hypre at 64 processes, a request probe of ParaSails (tag 222), the race of E5c; TIMEOUT, hypre at 64 processes, a request probe of ParaSails (tag 222), the race of E5c. Controls that did not finish: none.
 
-Where the time goes. LU has no alternative: its analysis costs 29 to 31 µs and 1.67 to 1.72 kB per record at every process count. AMG's alternatives grow faster than its trace
-(16944 to 501947 as its records grow 7.7-fold), and the time per alternative falls (1.85 to 0.83 ms): the analysis is about linear in the records plus the alternatives,
-74 µs per record and 0.46 ms per alternative by a least-squares fit of AMG's 3 traces (each within 2%),
-and its peak memory is 3.1 to 3.5 kB per record. Theorem T4 bounds a check by a quasi-linear function
+Where the time goes. LU has no alternative: its analysis costs 25 to 35 µs and 1.67 to 1.73 kB per record at every process count. AMG's alternatives grow faster than its trace
+(16944 to 501947 as its records grow 9.2-fold), and the time per alternative falls (1.60 to 0.73 ms): the analysis is about linear in the records plus the alternatives,
+69 µs per record and 0.32 ms per alternative by a least-squares fit of AMG's 3 traces (each within 3%),
+and its peak memory is 3.1 to 3.2 kB per record. Theorem T4 bounds a check by a quasi-linear function
 of the trace; the fast checks of probe alternatives cost far less (docs/model.md, §2: closures in the Lamport
 order of the run, chained over a rank's probes).
 
@@ -1645,15 +1643,15 @@ own runs, so the traces differ a little): analysis time, peak memory and time pe
 
 | application | processes | records before / now | alternatives before / now | analysis (s) before / now | peak memory (GB) before / now | per alternative (ms) before / now |
 |---|---|---|---|---|---|---|
-| HYPRE 2.10.1, ParaSails | 16 | 167802 / 87656 | 195 / 195 | 12.4 / 4.4 | 0.7 / 0.2 | 63.69 / 22.51 |
-| HYPRE 2.10.1, ParaSails | 32 | 425093 / 413005 | 211 / 208 | 34.2 / 22.8 | 2.1 / 0.8 | 162.04 / 109.66 |
-| HYPRE 2.10.1, ParaSails | 64 | 962967 / 861233 | 222 / 226 | 90.9 / 43.3 | 5.7 / 1.7 | 409.50 / 191.46 |
-| AMG | 16 | 329453 / 326271 | 16944 / 16944 | 65.2 / 31.3 | 2.1 / 1.0 | 3.85 / 1.85 |
-| AMG | 32 | 976135 / 941207 | 91594 / 91594 | 704.1 / 112.1 | 7.4 / 3.0 | 7.69 / 1.22 |
-| AMG | 64 | 2573046 / 2511250 | 501947 / 501947 | 10837.6 / 415.6 | 37.5 / 8.7 | 21.59 / 0.83 |
-| NPB LU, class A | 16 | 3049940 / 3049940 | 0 / 0 | 87.3 / 89.6 | 5.2 / 5.3 | - / - |
-| NPB LU, class A | 32 | 6608024 / 6608024 | 0 / 0 | 185.2 / 199.1 | 11.0 / 11.2 | - / - |
-| NPB LU, class A | 64 | 14232316 / 14232316 | 0 / 0 | 419.1 / 434.6 | 23.4 / 23.7 | - / - |
+| HYPRE 2.10.1, ParaSails | 16 | 167802 / 15902 | 195 / 199 | 12.4 / 0.5 | 0.7 / 0.0 | 63.69 / 2.66 |
+| HYPRE 2.10.1, ParaSails | 32 | 425093 / 22123 | 211 / 212 | 34.2 / 0.8 | 2.1 / 0.1 | 162.04 / 3.54 |
+| HYPRE 2.10.1, ParaSails | 64 | 962967 / 474599 | 222 / 225 | 90.9 / 21.4 | 5.7 / 0.9 | 409.50 / 95.07 |
+| AMG | 16 | 329453 / 324701 | 16944 / 16944 | 65.2 / 27.0 | 2.1 / 1.0 | 3.85 / 1.60 |
+| AMG | 32 | 976135 / 926624 | 91594 / 91594 | 704.1 / 93.4 | 7.4 / 3.0 | 7.69 / 1.02 |
+| AMG | 64 | 2573046 / 2979765 | 501947 / 501947 | 10837.6 / 365.4 | 37.5 / 9.6 | 21.59 / 0.73 |
+| NPB LU, class A | 16 | 3049940 / 3049940 | 0 / 0 | 87.3 / 76.0 | 5.2 / 5.3 | - / - |
+| NPB LU, class A | 32 | 6608024 / 6608024 | 0 / 0 | 185.2 / 173.4 | 11.0 / 11.2 | - / - |
+| NPB LU, class A | 64 | 14232316 / 14232316 | 0 / 0 | 419.1 / 499.3 | 23.4 / 23.7 | - / - |
 
 ## Statistics
 
@@ -1672,9 +1670,9 @@ Traced runs with a cross alternative (the race predicted from one run):
 
 | | k of n | 95% interval | macro |
 |---|---|---|---|
-| HYPRE 2.10.1, 4 processes | 15 of 20 | [0.53, 0.89] | `nHypreFourExposedCI` |
+| HYPRE 2.10.1, 4 processes | 18 of 20 | [0.70, 0.972] | `nHypreFourExposedCI` |
 | HYPRE 2.10.1, 8 processes | 20 of 20 | [0.84, 1] | `nHypreEightExposedCI` |
-| HYPRE 2.10.1, both process counts | 35 of 40 | [0.74, 0.945] | `nHypreExposedCI` |
+| HYPRE 2.10.1, both process counts | 38 of 40 | [0.83, 0.986] | `nHypreExposedCI` |
 | HYPRE 2.11.0, the fix | 0 of 40 | [0, 0.088] | `nHypreFixedExposedCI` |
 | HYPRE 3.2.0 `ex5`, two levels | 20 of 20 | [0.84, 1] | `nHypreNewTwoExposedCI` |
 | PETSc 3.26.0 `ex2`, two levels | 20 of 20 | [0.84, 1] | `nPetscTwoExposedCI` |
@@ -1695,11 +1693,11 @@ Untraced runs, plain and with the replay library's random delays (stress testing
 | PETSc 3.26.0 `ex2`, two levels, runs with delays that hang | 0 of 80 | [0, 0.046] | `nPetscStressTwoDelayHangCI` |
 | HYPRE 3.2.0, `ex5` and `ex2` at two levels, runs with delays that hang | 0 of 160 | [0, 0.023] | `nHypreNewAllStressDelayHangCI` |
 | HYPRE 3.2.0, `ex5` and `ex2` at two levels, runs that hang | 0 of 320 | [0, 0.012] | `nHypreNewAllStressHangCI` |
-| HYPRE 3.2.0 `ex5` with the fix, runs that hang | 1 of 320 | [0.00055, 0.017] | `nHypreNewFixStressHangCI` |
-| NPB MG 2.4.1, runs whose residual changes | 8 of 80 | [0.052, 0.19] | `nMGStressChangedCI` |
-| deal.II 9.3.0-rc1, plain runs that print wrong values | 1 of 50 | [0.0035, 0.10] | `nDealStressPlainChangedCI` |
+| HYPRE 3.2.0 `ex5` with the fix, runs that hang | 0 of 320 | [0, 0.012] | `nHypreNewFixStressHangCI` |
+| NPB MG 2.4.1, runs whose residual changes | 6 of 80 | [0.035, 0.15] | `nMGStressChangedCI` |
+| deal.II 9.3.0-rc1, plain runs that print wrong values | 0 of 50 | [0, 0.071] | `nDealStressPlainChangedCI` |
 | deal.II 9.3.0-rc1, runs with delays that print wrong values | 42 of 50 | [0.71, 0.917] | `nDealStressDelayChangedCI` |
-| deal.II 9.3.0-rc1, runs that print wrong values | 43 of 100 | [0.34, 0.53] | `nDealStressChangedCI` |
+| deal.II 9.3.0-rc1, runs that print wrong values | 42 of 100 | [0.33, 0.52] | `nDealStressChangedCI` |
 
 Replay samples and controls:
 
@@ -1707,7 +1705,7 @@ Replay samples and controls:
 |---|---|---|---|
 | AMG: sampled alternatives whose replay did not finish with its pins matched, or whose control did not finish | 0 of 30 | [0, 0.11] | `nAMGsampleFailedCI` |
 | Nekbone: the same | 0 of 30 | [0, 0.11] | `nNeksampleFailedCI` |
-| deal.II 9.3.0-rc1: controls of the cross replays that print the expected values | 1437 of 1440 | [0.9939, 0.99929] | `nDealControlsSameCI` |
+| deal.II 9.3.0-rc1: controls of the cross replays that print the expected values | 1370 of 1440 | [0.939, 0.961] | `nDealControlsSameCI` |
 
 NINJA (E10, E5f):
 
@@ -1715,44 +1713,47 @@ NINJA (E10, E5f):
 |---|---|---|---|
 | HYPRE 2.10.1, 4 processes, application-centric noise: runs that hang in the setup | 0 of 40 | [0, 0.088] | `nNinjaHypreFourAppHangSetupCI` |
 | HYPRE 2.10.1, 4 processes, system-centric noise: runs that hang in the setup | 0 of 40 | [0, 0.088] | `nNinjaHypreFourSystemHangSetupCI` |
-| HYPRE 2.10.1, 4 processes, random noise, the shorter delay: runs that hang in the setup | 8 of 40 | [0.10, 0.35] | `nNinjaHypreFourRandomShortHangSetupCI` |
-| HYPRE 2.10.1, 4 processes, random noise, the longer delay: runs that hang in the setup | 1 of 40 | [0.0044, 0.13] | `nNinjaHypreFourRandomLongHangSetupCI` |
+| HYPRE 2.10.1, 4 processes, random noise, the shorter delay: runs that hang in the setup | 5 of 40 | [0.055, 0.26] | `nNinjaHypreFourRandomShortHangSetupCI` |
+| HYPRE 2.10.1, 4 processes, random noise, the longer delay: runs that hang in the setup | 4 of 40 | [0.040, 0.23] | `nNinjaHypreFourRandomLongHangSetupCI` |
 | HYPRE 2.10.1, 8 processes, application-centric noise: runs that hang in the setup | 25 of 40 | [0.47, 0.76] | `nNinjaHypreEightAppHangSetupCI` |
-| HYPRE 2.10.1, 8 processes, system-centric noise: runs that hang in the setup | 0 of 40 | [0, 0.088] | `nNinjaHypreEightSystemHangSetupCI` |
-| HYPRE 2.10.1, 8 processes, random noise, the shorter delay: runs that hang in the setup | 11 of 40 | [0.16, 0.43] | `nNinjaHypreEightRandomShortHangSetupCI` |
+| HYPRE 2.10.1, 8 processes, system-centric noise: runs that hang in the setup | 1 of 40 | [0.0044, 0.13] | `nNinjaHypreEightSystemHangSetupCI` |
+| HYPRE 2.10.1, 8 processes, random noise, the shorter delay: runs that hang in the setup | 12 of 40 | [0.18, 0.45] | `nNinjaHypreEightRandomShortHangSetupCI` |
+| HYPRE 2.10.1, 8 processes, random noise, the longer delay: runs that hang in the setup | 9 of 40 | [0.12, 0.38] | `nNinjaHypreEightRandomLongHangSetupCI` |
 | HYPRE 2.11.0, the fix, 4 processes, application-centric noise: runs that hang in the setup | 0 of 40 | [0, 0.088] | `nNinjaHypreFixedFourAppHangSetupCI` |
 | HYPRE 2.11.0, the fix, 4 processes, system-centric noise: runs that hang in the setup | 0 of 40 | [0, 0.088] | `nNinjaHypreFixedFourSystemHangSetupCI` |
 | HYPRE 2.11.0, the fix, 4 processes, random noise, the shorter delay: runs that hang in the setup | 0 of 40 | [0, 0.088] | `nNinjaHypreFixedFourRandomShortHangSetupCI` |
+| HYPRE 2.11.0, the fix, 4 processes, random noise, the longer delay: runs that hang in the setup | 0 of 40 | [0, 0.088] | `nNinjaHypreFixedFourRandomLongHangSetupCI` |
 | HYPRE 2.11.0, the fix, 8 processes, application-centric noise: runs that hang in the setup | 0 of 40 | [0, 0.088] | `nNinjaHypreFixedEightAppHangSetupCI` |
 | HYPRE 2.11.0, the fix, 8 processes, system-centric noise: runs that hang in the setup | 0 of 40 | [0, 0.088] | `nNinjaHypreFixedEightSystemHangSetupCI` |
 | HYPRE 2.11.0, the fix, 8 processes, random noise, the shorter delay: runs that hang in the setup | 0 of 40 | [0, 0.088] | `nNinjaHypreFixedEightRandomShortHangSetupCI` |
-| HYPRE 3.2.0 `ex5`, two levels, 4 processes, application-centric noise: runs that hang in the setup | 9 of 40 | [0.12, 0.38] | `nNinjaHypreNewFourAppHangSetupCI` |
-| HYPRE 3.2.0 `ex5`, two levels, 4 processes, system-centric noise: runs that hang in the setup | 1 of 40 | [0.0044, 0.13] | `nNinjaHypreNewFourSystemHangSetupCI` |
-| HYPRE 3.2.0 `ex5`, two levels, 4 processes, random noise: runs that hang in the setup | 7 of 40 | [0.087, 0.32] | `nNinjaHypreNewFourRandomHangSetupCI` |
-| HYPRE 3.2.0 `ex5`, two levels, 8 processes, application-centric noise: runs that hang in the setup | 5 of 40 | [0.055, 0.26] | `nNinjaHypreNewEightAppHangSetupCI` |
-| HYPRE 3.2.0 `ex5`, two levels, 8 processes, system-centric noise: runs that hang in the setup | 0 of 40 | [0, 0.088] | `nNinjaHypreNewEightSystemHangSetupCI` |
-| HYPRE 3.2.0 `ex5`, two levels, 8 processes, random noise: runs that hang in the setup | 9 of 40 | [0.12, 0.38] | `nNinjaHypreNewEightRandomHangSetupCI` |
+| HYPRE 2.11.0, the fix, 8 processes, random noise, the longer delay: runs that hang in the setup | 0 of 40 | [0, 0.088] | `nNinjaHypreFixedEightRandomLongHangSetupCI` |
+| HYPRE 3.2.0 `ex5`, two levels, 4 processes, application-centric noise: runs that hang in the setup | 10 of 40 | [0.14, 0.40] | `nNinjaHypreNewFourAppHangSetupCI` |
+| HYPRE 3.2.0 `ex5`, two levels, 4 processes, system-centric noise: runs that hang in the setup | 4 of 40 | [0.040, 0.23] | `nNinjaHypreNewFourSystemHangSetupCI` |
+| HYPRE 3.2.0 `ex5`, two levels, 4 processes, random noise: runs that hang in the setup | 9 of 40 | [0.12, 0.38] | `nNinjaHypreNewFourRandomHangSetupCI` |
+| HYPRE 3.2.0 `ex5`, two levels, 8 processes, application-centric noise: runs that hang in the setup | 19 of 40 | [0.33, 0.63] | `nNinjaHypreNewEightAppHangSetupCI` |
+| HYPRE 3.2.0 `ex5`, two levels, 8 processes, system-centric noise: runs that hang in the setup | 1 of 40 | [0.0044, 0.13] | `nNinjaHypreNewEightSystemHangSetupCI` |
+| HYPRE 3.2.0 `ex5`, two levels, 8 processes, random noise: runs that hang in the setup | 12 of 40 | [0.18, 0.45] | `nNinjaHypreNewEightRandomHangSetupCI` |
 | HYPRE 3.2.0 `ex5` with the fix, two levels, 4 processes, application-centric noise: runs that hang in the setup | 0 of 40 | [0, 0.088] | `nNinjaHypreNewFixFourAppHangSetupCI` |
 | HYPRE 3.2.0 `ex5` with the fix, two levels, 4 processes, system-centric noise: runs that hang in the setup | 0 of 40 | [0, 0.088] | `nNinjaHypreNewFixFourSystemHangSetupCI` |
 | HYPRE 3.2.0 `ex5` with the fix, two levels, 4 processes, random noise: runs that hang in the setup | 0 of 40 | [0, 0.088] | `nNinjaHypreNewFixFourRandomHangSetupCI` |
-| HYPRE 3.2.0 `ex5` with the fix, two levels, 8 processes, application-centric noise: runs that hang in the setup | 1 of 40 | [0.0044, 0.13] | `nNinjaHypreNewFixEightAppHangSetupCI` |
+| HYPRE 3.2.0 `ex5` with the fix, two levels, 8 processes, application-centric noise: runs that hang in the setup | 0 of 40 | [0, 0.088] | `nNinjaHypreNewFixEightAppHangSetupCI` |
 | HYPRE 3.2.0 `ex5` with the fix, two levels, 8 processes, system-centric noise: runs that hang in the setup | 0 of 40 | [0, 0.088] | `nNinjaHypreNewFixEightSystemHangSetupCI` |
 | HYPRE 3.2.0 `ex5` with the fix, two levels, 8 processes, random noise: runs that hang in the setup | 0 of 40 | [0, 0.088] | `nNinjaHypreNewFixEightRandomHangSetupCI` |
 | PETSc 3.26.0 `ex2`, two levels, 4 processes, application-centric noise: runs that hang | 0 of 40 | [0, 0.088] | `nNinjaPetscFourAppHangCI` |
-| PETSc 3.26.0 `ex2`, two levels, 4 processes, system-centric noise: runs that hang | 0 of 40 | [0, 0.088] | `nNinjaPetscFourSystemHangCI` |
-| PETSc 3.26.0 `ex2`, two levels, 4 processes, random noise: runs that hang | 9 of 40 | [0.12, 0.38] | `nNinjaPetscFourRandomHangCI` |
+| PETSc 3.26.0 `ex2`, two levels, 4 processes, system-centric noise: runs that hang | 2 of 40 | [0.014, 0.17] | `nNinjaPetscFourSystemHangCI` |
+| PETSc 3.26.0 `ex2`, two levels, 4 processes, random noise: runs that hang | 7 of 40 | [0.087, 0.32] | `nNinjaPetscFourRandomHangCI` |
 | PETSc 3.26.0 `ex2`, two levels, 8 processes, application-centric noise: runs that hang | 0 of 40 | [0, 0.088] | `nNinjaPetscEightAppHangCI` |
 | PETSc 3.26.0 `ex2`, two levels, 8 processes, system-centric noise: runs that hang | 0 of 40 | [0, 0.088] | `nNinjaPetscEightSystemHangCI` |
-| PETSc 3.26.0 `ex2`, two levels, 8 processes, random noise: runs that hang | 8 of 40 | [0.10, 0.35] | `nNinjaPetscEightRandomHangCI` |
-| HYPRE 2.10.1, every noise and process count: runs that hang in the setup | 45 of 280 | [0.12, 0.21] | `nNinjaHypreHangCI` |
-| HYPRE 2.11.0, the fix, every noise and process count: runs that hang in the setup | 0 of 240 | [0, 0.016] | `nNinjaHypreFixedHangCI` |
-| HYPRE 3.2.0 `ex5`, every noise and process count: runs that hang in the setup | 31 of 240 | [0.093, 0.18] | `nNinjaHypreNewHangSetupCI` |
-| HYPRE 3.2.0 `ex5` with the fix, every noise and process count: runs that hang in the setup | 1 of 240 | [0.00074, 0.023] | `nNinjaHypreNewFixHangSetupCI` |
+| PETSc 3.26.0 `ex2`, two levels, 8 processes, random noise: runs that hang | 14 of 40 | [0.22, 0.50] | `nNinjaPetscEightRandomHangCI` |
+| HYPRE 2.10.1, every noise and process count: runs that hang in the setup | 56 of 320 | [0.14, 0.22] | `nNinjaHypreHangCI` |
+| HYPRE 2.11.0, the fix, every noise and process count: runs that hang in the setup | 0 of 320 | [0, 0.012] | `nNinjaHypreFixedHangCI` |
+| HYPRE 3.2.0 `ex5`, every noise and process count: runs that hang in the setup | 55 of 240 | [0.18, 0.29] | `nNinjaHypreNewHangSetupCI` |
+| HYPRE 3.2.0 `ex5` with the fix, every noise and process count: runs that hang in the setup | 0 of 240 | [0, 0.016] | `nNinjaHypreNewFixHangSetupCI` |
 | PETSc 3.26.0 `ex2`, application-centric noise, both process counts: runs that hang | 0 of 80 | [0, 0.046] | `nNinjaPetscAppHangCI` |
-| PETSc 3.26.0 `ex2`, system-centric noise, both process counts: runs that hang | 0 of 80 | [0, 0.046] | `nNinjaPetscSystemHangCI` |
-| PETSc 3.26.0 `ex2`, random noise, both process counts: runs that hang | 17 of 80 | [0.14, 0.31] | `nNinjaPetscRandomHangCI` |
-| NPB MG 2.4.1, 16 processes, application-centric noise: runs whose residual changes | 9 of 20 | [0.26, 0.66] | `nNinjaMGSixteenAppChangedCI` |
-| NPB MG 2.4.1, 16 processes, system-centric noise: runs whose residual changes | 1 of 20 | [0.0089, 0.24] | `nNinjaMGSixteenSystemChangedCI` |
+| PETSc 3.26.0 `ex2`, system-centric noise, both process counts: runs that hang | 2 of 80 | [0.0069, 0.087] | `nNinjaPetscSystemHangCI` |
+| PETSc 3.26.0 `ex2`, random noise, both process counts: runs that hang | 21 of 80 | [0.18, 0.37] | `nNinjaPetscRandomHangCI` |
+| NPB MG 2.4.1, 16 processes, application-centric noise: runs whose residual changes | 8 of 20 | [0.22, 0.61] | `nNinjaMGSixteenAppChangedCI` |
+| NPB MG 2.4.1, 16 processes, system-centric noise: runs whose residual changes | 0 of 20 | [0, 0.16] | `nNinjaMGSixteenSystemChangedCI` |
 | NPB MG 2.4.1, 16 processes, random noise: runs whose residual changes | 8 of 20 | [0.22, 0.61] | `nNinjaMGSixteenRandomChangedCI` |
 | NPB MG 2.4.1, 16 processes, no noise: runs whose residual changes | 0 of 20 | [0, 0.16] | `nNinjaMGSixteenPlainChangedCI` |
 
@@ -1768,14 +1769,14 @@ the same alternative, so a count of replays counts it once per trace that has it
 
 | campaign | processes | kind | replays | traced runs with one | distinct alternatives | replays per alternative | macro |
 |---|---|---|---|---|---|---|---|
-| HYPRE 2.10.1 (E5c) | 4 | cross | 18 | 15 | 2 | 3–15 | `nHypreFourDistinctPins` |
-| HYPRE 2.10.1 (E5c) | 4 | same | 40 | 20 | 4 | 3–17 | `nHypreFourLocalDistinctPins` |
-| HYPRE 2.10.1 (E5c) | 8 | cross | 272 | 20 | 16 | 10–20 | `nHypreEightDistinctPins` |
-| HYPRE 2.10.1 (E5c) | 8 | same | 220 | 20 | 22 | 3–17 | `nHypreEightLocalDistinctPins` |
-| HYPRE 2.10.1 (E5c) | 4/8 | cross | 290 | 35 | 18 | 3–20 | `nHypreDistinctPins` |
+| HYPRE 2.10.1 (E5c) | 4 | cross | 29 | 18 | 2 | 13–16 | `nHypreFourDistinctPins` |
+| HYPRE 2.10.1 (E5c) | 4 | same | 40 | 20 | 4 | 4–16 | `nHypreFourLocalDistinctPins` |
+| HYPRE 2.10.1 (E5c) | 8 | cross | 280 | 20 | 16 | 11–20 | `nHypreEightDistinctPins` |
+| HYPRE 2.10.1 (E5c) | 8 | same | 220 | 20 | 22 | 1–19 | `nHypreEightLocalDistinctPins` |
+| HYPRE 2.10.1 (E5c) | 4/8 | cross | 309 | 38 | 18 | 11–20 | `nHypreDistinctPins` |
 | NPB MG 2.4.1 (E5d) | 16 | - | 480 | 3 | 160 | 3 | `nMGDistinctPins` |
-| deal.II 9.3.0-rc1 (E5e) | 4 | cross | 1440 | 20 | 142 | 2–20 | `nDealDistinctPins` |
-| deal.II 9.3.0-rc1 (E5e) | 4 | same | 1920 | 20 | 190 | 2–20 | `nDealSameDistinctPins` |
+| deal.II 9.3.0-rc1 (E5e) | 4 | cross | 1440 | 20 | 145 | 1–20 | `nDealDistinctPins` |
+| deal.II 9.3.0-rc1 (E5e) | 4 | same | 1919 | 20 | 192 | 1–20 | `nDealSameDistinctPins` |
 | HYPRE 3.2.0 `ex5` (E5f) | 4 | cross, two levels | 20 | 10 | 2 | 10 | `nHypreNewFourDistinctPins` |
 | HYPRE 3.2.0 `ex5` (E5f) | 8 | cross, two levels | 60 | 10 | 6 | 10 | `nHypreNewEightDistinctPins` |
 | HYPRE 3.2.0 `ex5` (E5f) | 4/8 | cross, two levels | 80 | 20 | 8 | 10 | `nHypreNewDistinctPins` |
@@ -1784,9 +1785,9 @@ the same alternative, so a count of replays counts it once per trace that has it
 | PETSc 3.26.0 `ex2` (E5f) | 4/8 | cross, two levels | 80 | 20 | 8 | 10 | `nPetscDistinctPins` |
 | HYPRE 3.2.0, `ex5` and `ex2` (E5f) | 4/8 | cross, two levels | 160 | 40 | 16 | 10 | `nHypreNewAllDistinctPins` |
 
-So the 290 cross replays of HYPRE 2.10.1 test 18 alternatives, the 480 replays of NPB MG test 160 alternatives, the 1440 cross replays of deal.II test 142 alternatives, and the 160 cross replays of HYPRE 3.2.0 test 16 alternatives.
+So the 309 cross replays of HYPRE 2.10.1 test 18 alternatives, the 480 replays of NPB MG test 160 alternatives, the 1440 cross replays of deal.II test 145 alternatives, and the 160 cross replays of HYPRE 3.2.0 test 16 alternatives.
 
-NPB MG 2.4.1: the 3 traced runs have the same number of records, the same alternatives and the same residual (`nMGDistinctTraces` = 1). Their 480 replays have 161 distinct outcomes (alternative, result, residual; `nMGDistinctOutcomes`). 383 replays finished with a residual other than the traced run's (`nMGChangedTraced`), which every control that finished printed (478); they pin 128 distinct alternatives (`nMGDistinctChanged`), 0 of which change it in some finished replays and not in others (`nMGDistinctMixed`). E5d's count of replays that change the result compares with the control's residual, so it also counts 1 replay whose residual is the traced run's and whose control printed none.
+NPB MG 2.4.1: the 3 traced runs have the same number of records, the same alternatives and the same residual (`nMGDistinctTraces` = 1). Their 480 replays have 160 distinct outcomes (alternative, result, residual; `nMGDistinctOutcomes`). 384 replays finished with a residual other than the traced run's (`nMGChangedTraced`), which every control that finished printed (480); they pin 128 distinct alternatives (`nMGDistinctChanged`), 0 of which change it in some finished replays and not in others (`nMGDistinctMixed`).
 
 ### The pin log of every application campaign
 
@@ -1797,16 +1798,16 @@ reads the first four campaigns only.
 
 | campaign | pinned runs | a pin unmatched | of which finished | hung | other | rows by code commit | macros |
 |---|---|---|---|---|---|---|---|
-| HYPRE 2.10.1 and 2.11.0 (E5c) | 1620 | 7 | 0 | 0 | 7 APP-ERROR:15 | 67e043a (550), 53dceae (260) | `nPinRunsHypre`, `nPinUnmatchedHypre`, ... |
-| NPB MG 2.4.1 and 3.3.1 (E5d) | 960 | 3 | 0 | 0 | 3 APP-ERROR:15 | 8d780ae (480) | `nPinRunsMG`, `nPinUnmatchedMG`, ... |
-| AMG, the sample of E5 | 60 | 0 | 0 | 0 | 0 | 576e917 (30) | `nPinRunsAMG`, `nPinUnmatchedAMG`, ... |
-| Nekbone, the sample of E5b | 60 | 0 | 0 | 0 | 0 | 4a8814f (30) | `nPinRunsNek`, `nPinUnmatchedNek`, ... |
-| deal.II 9.3.0-rc1 and 9.3.0 (E5e) | 10560 | 49 | 49 | 0 | 0 | 575d291 (5280) | `nPinRunsDeal`, `nPinUnmatchedDeal`, ... |
-| HYPRE 3.2.0 `ex5` and its fixed variant (E5f) | 4640 | 5 | 0 | 5 | 0 | e3d3933 (1200), 0ca587d (1120) | `nPinRunsHypreNew`, `nPinUnmatchedHypreNew`, ... |
-| PETSc 3.26.0 `ex2` (E5f) | 6840 | 10 | 0 | 10 | 0 | 0ca587d (1840), 3a87e3a (1580) | `nPinRunsPetsc`, `nPinUnmatchedPetsc`, ... |
-| **all** | 24740 | 74 | 49 | 15 | 10 | | `nPinRunsAll`, `nPinUnmatchedAll`, `nPinUnmatchedEndedAll`, ... |
+| HYPRE 2.10.1 and 2.11.0 (E5c) | 1658 | 0 | 0 | 0 | 0 | 415a6ed (829) | `nPinRunsHypre`, `nPinUnmatchedHypre`, ... |
+| NPB MG 2.4.1 and 3.3.1 (E5d) | 960 | 0 | 0 | 0 | 0 | 415a6ed-dirty (480) | `nPinRunsMG`, `nPinUnmatchedMG`, ... |
+| AMG, the sample of E5 | 60 | 0 | 0 | 0 | 0 | 415a6ed-dirty (30) | `nPinRunsAMG`, `nPinUnmatchedAMG`, ... |
+| Nekbone, the sample of E5b | 60 | 0 | 0 | 0 | 0 | 415a6ed-dirty (30) | `nPinRunsNek`, `nPinUnmatchedNek`, ... |
+| deal.II 9.3.0-rc1 and 9.3.0 (E5e) | 10558 | 0 | 0 | 0 | 0 | 415a6ed-dirty (5279) | `nPinRunsDeal`, `nPinUnmatchedDeal`, ... |
+| HYPRE 3.2.0 `ex5` and its fixed variant (E5f) | 4640 | 0 | 0 | 0 | 0 | 415a6ed (2320) | `nPinRunsHypreNew`, `nPinUnmatchedHypreNew`, ... |
+| PETSc 3.26.0 `ex2` (E5f) | 8920 | 7 | 0 | 7 | 0 | 415a6ed (2880), 3a87e3a (1580) | `nPinRunsPetsc`, `nPinUnmatchedPetsc`, ... |
+| **all** | 26856 | 7 | 0 | 7 | 0 | | `nPinRunsAll`, `nPinUnmatchedAll`, `nPinUnmatchedEndedAll`, ... |
 
-deal.II 9.3.0-rc1: of the 1440 cross replays that print wrong values, 1434 had every required pin matched and a control that finished (`nDealWrongConfirmed`), the confirmation rule of E1 and E8c.
+deal.II 9.3.0-rc1: of the 1439 cross replays that print wrong values, 1439 had every required pin matched and a control that finished (`nDealWrongConfirmed`), the confirmation rule of E1 and E8c.
 
 ### The baselines together
 
@@ -1818,18 +1819,18 @@ and missed by another is what a single comparison of F1 scores does not show.
 | labelled errors | MBI | MPI-BugBench level 2 | macro |
 |---|---|---|---|
 | labelled errors compared (the ones the stress baseline ran) | 65 | 213 | `n<corpus>UnionErrors` |
-| found by Stretto (from one run, observed or predicted) | 61 | 213 | `n<corpus>UnionStretto` |
-| found by MUST 1.9.2 | 46 | 207 | `n<corpus>UnionMUST` |
-| found by MUST 1.9.2, a timeout or failed run counted | 52 | 213 | `n<corpus>UnionMUSTsym` |
+| found by Stretto (from one run, observed or predicted) | 62 | 213 | `n<corpus>UnionStretto` |
+| found by MUST 1.9.2 | 44 | 206 | `n<corpus>UnionMUST` |
+| found by MUST 1.9.2, a timeout or failed run counted | 50 | 213 | `n<corpus>UnionMUSTsym` |
 | found by the stress baseline at the default limits | 53 | 172 | `n<corpus>UnionStress` |
 | found by MUST 1.9.2 or the stress baseline | 65 | 213 | `n<corpus>UnionMUSTStress` |
 | found by MUST 1.9.2 (timeouts counted) or the stress baseline | 65 | 213 | `n<corpus>UnionMUSTsymStress` |
 | found by Stretto and by neither MUST 1.9.2 nor the stress baseline | 0 | 0 | `n<corpus>UnionStrettoNeither` |
 | the same, MUST's timeouts counted | 0 | 0 | `n<corpus>UnionStrettoNeitherMUSTsym` |
-| found by MUST 1.9.2 or the stress baseline and not by Stretto | 4 | 0 | `n<corpus>UnionNotStretto` |
-| the same, MUST's timeouts counted | 4 | 0 | `n<corpus>UnionNotStrettoMUSTsym` |
+| found by MUST 1.9.2 or the stress baseline and not by Stretto | 3 | 0 | `n<corpus>UnionNotStretto` |
+| the same, MUST's timeouts counted | 3 | 0 | `n<corpus>UnionNotStrettoMUSTsym` |
 
-MBI, found by a baseline and not by Stretto: MessageRace_Irecv_Isend_nok, MessageRace_Irecv_Send_nok, MessageRace_Recv_Isend_nok, MessageRace_Recv_Send_nok.
+MBI, found by a baseline and not by Stretto: MessageRace_Irecv_Isend_nok, MessageRace_Irecv_Send_nok, MessageRace_Recv_Send_nok.
 
 Stretto against each baseline on the same labelled errors: the errors one finds and the other misses, and
 the exact two-sided sign test of that split (the errors both find or both miss carry no information), the
@@ -1837,11 +1838,11 @@ probability of a split at least as uneven if each such error were as likely to g
 
 | corpus | against | Stretto only | the baseline only | p | macros |
 |---|---|---|---|---|---|
-| MBI | the stress baseline at the default limits | 12 | 4 | 0.077 | `nMBISignStressStretto`, `nMBISignStressOther`, `MBISignStressP` |
-| MBI | MUST 1.9.2 | 15 | 0 | 0.000061 | `nMBISignMUSTStretto`, `nMBISignMUSTOther`, `MBISignMUSTP` |
-| MBI | MUST 1.9.2, a timeout or failed run counted | 11 | 2 | 0.022 | `nMBISignMUSTsymStretto`, `nMBISignMUSTsymOther`, `MBISignMUSTsymP` |
+| MBI | the stress baseline at the default limits | 12 | 3 | 0.035 | `nMBISignStressStretto`, `nMBISignStressOther`, `MBISignStressP` |
+| MBI | MUST 1.9.2 | 18 | 0 | 0.0000076 | `nMBISignMUSTStretto`, `nMBISignMUSTOther`, `MBISignMUSTP` |
+| MBI | MUST 1.9.2, a timeout or failed run counted | 13 | 1 | 0.0018 | `nMBISignMUSTsymStretto`, `nMBISignMUSTsymOther`, `MBISignMUSTsymP` |
 | MPI-BugBench level 2 | the stress baseline at the default limits | 41 | 0 | 9.1e-13 | `nMBBSignStressStretto`, `nMBBSignStressOther`, `MBBSignStressP` |
-| MPI-BugBench level 2 | MUST 1.9.2 | 6 | 0 | 0.031 | `nMBBSignMUSTStretto`, `nMBBSignMUSTOther`, `MBBSignMUSTP` |
+| MPI-BugBench level 2 | MUST 1.9.2 | 7 | 0 | 0.016 | `nMBBSignMUSTStretto`, `nMBBSignMUSTOther`, `MBBSignMUSTP` |
 | MPI-BugBench level 2 | MUST 1.9.2, a timeout or failed run counted | 0 | 0 | 1 | `nMBBSignMUSTsymStretto`, `nMBBSignMUSTsymOther`, `MBBSignMUSTsymP` |
 
 ### E4: the configurations of the overhead range
@@ -1852,8 +1853,8 @@ whose plain timed section lasts at least 1 s by NPB's own timer: 3 of the 20 con
 
 | configuration | NPB plain (s) | NPB traced (s) | NPB slowdown, median (range over the repetitions) |
 |---|---|---|---|
-| ep.A.4 | 1.10 | 1.13 | 1.009 (0.99-1.05) |
-| lu.A.4 | 7.77 | 7.97 | 1.023 (1.02-1.03) |
-| lu.A.16 | 4.33 | 5.08 | 1.173 (1.17-1.19) |
+| ep.A.4 | 1.12 | 1.12 | 1.009 (0.96-1.03) |
+| lu.A.4 | 7.73 | 7.94 | 1.028 (1.02-1.05) |
+| lu.A.16 | 3.16 | 3.59 | 1.136 (1.13-1.17) |
 
-The other 17 configurations' plain timed sections last 0.00 to 0.43 s by the median (NPB prints hundredths of a second), and their median slowdowns range from 0.909 to 5.000; 4 have no NPB slowdown, their plain timed section printing 0.00 s.
+The other 17 configurations' plain timed sections last 0.00 to 0.37 s by the median (NPB prints hundredths of a second), and their median slowdowns range from 0.888 to 7.000; 4 have no NPB slowdown, their plain timed section printing 0.00 s.

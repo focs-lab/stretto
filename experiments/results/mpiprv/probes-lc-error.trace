@@ -1,7 +1,7 @@
-event: {Irecv,0x555ace7659d0,1,0,0x555ace75db00,lc_error.c:41:24,0}
+event: {Isend,0x65377d8aa2b0,0,0,0x7cb85d5d7640,lc_error.c:47:5,1}
+event: {Irecv,0x57912d013420,1,0,0x57912d00b600,lc_error.c:41:24,0}
+event: {Wait,0x7cb85d5d7640,lc_error.c:48:5,1}
 event: {Use,lc_error.c:43:24,0}
-event: {Wait,0x555ace75db00,lc_error.c:44:5,0}
-event: {Isend,0x55d8b2982a10,0,0,0x7ff6b58ca640,lc_error.c:47:5,1}
-event: {Wait,0x7ff6b58ca640,lc_error.c:48:5,1}
+event: {Wait,0x57912d00b600,lc_error.c:44:5,0}
 event: {MPIFinalize,lc_error.c:52:3,1}
 event: {MPIFinalize,lc_error.c:52:3,0}

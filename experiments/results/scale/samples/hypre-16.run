@@ -10,9 +10,9 @@ Running with these driver parameters:
 IJ Matrix Setup:
 =============================================
 Spatial operator:
-  wall clock time = 0.040000 seconds
+  wall clock time = 0.000000 seconds
   wall MFLOPS     = 0.000000
-  cpu clock time  = 0.031057 seconds
+  cpu clock time  = 0.000805 seconds
   cpu MFLOPS      = 0.000000
 
   RHS vector has unit components
@@ -23,7 +23,7 @@ IJ Vector Setup:
 RHS and Initial Guess:
   wall clock time = 0.000000 seconds
   wall MFLOPS     = 0.000000
-  cpu clock time  = 0.004038 seconds
+  cpu clock time  = 0.000090 seconds
   cpu MFLOPS      = 0.000000
 
 Solver: ParaSails-PCG
@@ -32,9 +32,9 @@ HYPRE_ParCSRPCGGetPrecond got good precond
 Setup phase times:
 =============================================
 PCG Setup:
-  wall clock time = 0.210000 seconds
+  wall clock time = 0.020000 seconds
   wall MFLOPS     = 0.000000
-  cpu clock time  = 0.208420 seconds
+  cpu clock time  = 0.020138 seconds
   cpu MFLOPS      = 0.000000
 
 <b,b>: 1.000000e+03
@@ -67,9 +67,9 @@ Iters       ||r||_2     conv.rate  ||r||_2/||b||_2
 Solve phase times:
 =============================================
 PCG Solve:
-  wall clock time = 0.820000 seconds
+  wall clock time = 0.010000 seconds
   wall MFLOPS     = 0.000000
-  cpu clock time  = 0.815997 seconds
+  cpu clock time  = 0.007168 seconds
   cpu MFLOPS      = 0.000000
 
 

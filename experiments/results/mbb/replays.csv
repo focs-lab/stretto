@@ -1,1 +1,1 @@
-program,cls,level,certainty,pin,result,pin_applied,pin_matched,control,verdict,stderr_tail,commit
+program,cls,level,certainty,pin,result,pin_applied,pin_matched,control,verdict,run_valid,violation,control_valid,control_violation,strict_verdict,misapplied,stderr_tail,commit

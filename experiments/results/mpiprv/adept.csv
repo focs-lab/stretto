@@ -1,11 +1,11 @@
 run,command,rc,duration_s,ranks_hashed,result_id,same_result_as_normal,sends_after_marker,sends_after_loop,send_pairs,delayed_sends_after_loop,delayed_sends,guard_records,guard_kinds,commit
-normal,"src/kernel -b stencil -o 27 -s 512 -d double -a normal LD_PRELOAD=sum.so ",0,105.774493349,4,a09e3039,True,-,-,-,-,-,-,"",1110e11
-overlapped-1,"src/kernel -b stencil -o 27 -s 512 -d double -a overlapped LD_PRELOAD=order.so ",0,103.099934195,4,66f6b516,False,68,0,600,-,-,-,"",1110e11
-overlapped-2,"src/kernel -b stencil -o 27 -s 512 -d double -a overlapped LD_PRELOAD=order.so ",0,100.868696512,4,efa73d3e,False,49,0,600,-,-,-,"",1110e11
-fixed,"fixed/kernel -b stencil -o 27 -s 512 -d double -a overlapped LD_PRELOAD=order.so ",0,102.483143747,4,a09e3039,True,80,0,600,-,-,-,"",1110e11
-fixed-delay1,"fixed/kernel -b stencil -o 27 -s 512 -d double -a overlapped LD_PRELOAD=order.so ADEPT_DELAY=1:2500",0,598.997252290,4,a09e3039,True,209,200,600,200,200,-,"",1110e11
-fixed-delay2,"fixed/kernel -b stencil -o 27 -s 512 -d double -a overlapped LD_PRELOAD=order.so ADEPT_DELAY=2:2500",0,599.229336736,4,a09e3039,True,294,200,600,200,200,-,"",1110e11
-mutant,"mutant/kernel -b stencil -o 27 -s 512 -d double -a overlapped LD_PRELOAD=order.so ",0,102.809920557,4,a6679322,False,35,0,600,-,-,-,"",1110e11
-mutant-delay1,"mutant/kernel -b stencil -o 27 -s 512 -d double -a overlapped LD_PRELOAD=order.so ADEPT_DELAY=1:2500",0,599.845373165,4,a6679322,False,213,200,600,200,200,-,"",1110e11
-guard,"src/kernel -b stencil -o 27 -s 512 -d double -a overlapped LD_PRELOAD=libstretto-trace.so STRETTO_TRACE_DIR=/w/experiments/mpiprv/work/adept/guard.trace STRETTO_GUARD=1",0,103.051276909,0,-,-,-,-,-,-,-,600,"access:write:isend*600",1110e11
-guard-fixed,"fixed/kernel -b stencil -o 27 -s 512 -d double -a overlapped LD_PRELOAD=libstretto-trace.so STRETTO_TRACE_DIR=/w/experiments/mpiprv/work/adept/guard-fixed.trace STRETTO_GUARD=1",0,103.829890628,0,-,-,-,-,-,-,-,0,"",1110e11
+normal,"src/kernel -b stencil -o 27 -s 512 -d double -a normal LD_PRELOAD=sum.so ",0,44.942452395,4,a09e3039,True,-,-,-,-,-,-,"",415a6ed
+overlapped-1,"src/kernel -b stencil -o 27 -s 512 -d double -a overlapped LD_PRELOAD=order.so ",0,44.437759523,4,e55c941d,False,107,0,600,-,-,-,"",415a6ed
+overlapped-2,"src/kernel -b stencil -o 27 -s 512 -d double -a overlapped LD_PRELOAD=order.so ",0,22.358317855,4,8bac6562,False,105,0,600,-,-,-,"",415a6ed
+fixed,"fixed/kernel -b stencil -o 27 -s 512 -d double -a overlapped LD_PRELOAD=order.so ",0,45.522208139,4,a09e3039,True,89,0,600,-,-,-,"",415a6ed
+fixed-delay1,"fixed/kernel -b stencil -o 27 -s 512 -d double -a overlapped LD_PRELOAD=order.so ADEPT_DELAY=1:2500",0,533.270754432,4,a09e3039,True,204,200,600,200,200,-,"",415a6ed
+fixed-delay2,"fixed/kernel -b stencil -o 27 -s 512 -d double -a overlapped LD_PRELOAD=order.so ADEPT_DELAY=2:2500",0,533.278874128,4,a09e3039,True,283,200,600,200,200,-,"",415a6ed
+mutant,"mutant/kernel -b stencil -o 27 -s 512 -d double -a overlapped LD_PRELOAD=order.so ",0,46.367872508,4,d0a24056,False,133,0,600,-,-,-,"",415a6ed
+mutant-delay1,"mutant/kernel -b stencil -o 27 -s 512 -d double -a overlapped LD_PRELOAD=order.so ADEPT_DELAY=1:2500",0,521.817866509,4,27106816,False,214,200,600,200,200,-,"",415a6ed
+guard,"src/kernel -b stencil -o 27 -s 512 -d double -a overlapped LD_PRELOAD=libstretto-trace.so STRETTO_TRACE_DIR=/w/experiments/mpiprv/work/adept/guard.trace STRETTO_GUARD=1",0,44.117151418,0,-,-,-,-,-,-,-,600,"access:write:isend*600",415a6ed
+guard-fixed,"fixed/kernel -b stencil -o 27 -s 512 -d double -a overlapped LD_PRELOAD=libstretto-trace.so STRETTO_TRACE_DIR=/w/experiments/mpiprv/work/adept/guard-fixed.trace STRETTO_GUARD=1",0,45.466925843,0,-,-,-,-,-,-,-,0,"",415a6ed

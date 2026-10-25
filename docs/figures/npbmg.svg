@@ -9,18 +9,18 @@
 <text x="28" y="138" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#14213D">Replays that take the predicted message</text>
 <text x="28" y="158" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" fill="#3F4A5C">pins of the whole horizon</text>
 <rect x="330" y="130" width="400" height="22" rx="5" fill="#E9ECF2"/>
-<rect x="330" y="130" width="399.2" height="22" rx="5" fill="#1F5FA8"/>
-<text x="832" y="147" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#14213D" text-anchor="end">479 / 480</text>
+<rect x="330" y="130" width="400.0" height="22" rx="5" fill="#1F5FA8"/>
+<text x="832" y="147" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#14213D" text-anchor="end">480 / 480</text>
 <text x="28" y="196" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#14213D">Replays whose result changes</text>
-<text x="28" y="216" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" fill="#3F4A5C">478 of 480 controls keep the traced result</text>
+<text x="28" y="216" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" fill="#3F4A5C">480 of 480 controls keep the traced result</text>
 <rect x="330" y="188" width="400" height="22" rx="5" fill="#E9ECF2"/>
 <rect x="330" y="188" width="320.0" height="22" rx="5" fill="#B4561A"/>
 <text x="832" y="205" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#14213D" text-anchor="end">384 / 480</text>
 <text x="28" y="254" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#14213D">Testing runs whose result changes</text>
 <text x="28" y="274" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" fill="#3F4A5C">plain runs and runs with random delays</text>
 <rect x="330" y="246" width="400" height="22" rx="5" fill="#E9ECF2"/>
-<rect x="330" y="246" width="40.0" height="22" rx="5" fill="#E8873A"/>
-<text x="832" y="263" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#14213D" text-anchor="end">8 / 80</text>
+<rect x="330" y="246" width="30.0" height="22" rx="5" fill="#E8873A"/>
+<text x="832" y="263" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#14213D" text-anchor="end">6 / 80</text>
 <text x="28" y="312" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#14213D">Traces of the fix that predict it</text>
 <text x="28" y="332" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" fill="#3F4A5C">NPB 3.3.1</text>
 <rect x="330" y="304" width="400" height="22" rx="5" fill="#E9ECF2"/>

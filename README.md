@@ -67,7 +67,7 @@ judges the run it sees) and stress testing with random delays.
 
 | corpus | programs | Stretto, one run | false positives | MUST 1.9.2 | stress testing |
 |---|---:|---:|---:|---:|---:|
-| MBI (message races, probes, buffering) | 115 | **0.97** | 0 | 0.83–0.89 | 0.90, 0.97 with the eager limit forced down |
+| MBI (message races, probes, buffering) | 115 | **0.98** | 0 | 0.81–0.87 | 0.90, 0.97 with the eager limit forced down |
 | MPI-BugBench level 2 | 388 | **0.95**, 0.99 with the buffer guard | 4 | 0.94–0.94 | 0.88, 0.98 forced down, on its 365 call-ordering and correct programs (Stretto 0.99 on them) |
 
 Every MBI error that stress testing never exposes (12 programs, the
@@ -85,22 +85,22 @@ records. The buffer guard (`STRETTO_GUARD=1`) watches those buffers in the run i
 22 under MPICH, with no new false positive.
 
 **One run is one schedule.** Run 10 times, MBI's racing programs fail in some runs
-and finish cleanly in others: the run itself shows 26 of the
-65 labelled errors every time, 27 only sometimes and
-12 never. Stretto reports 61 of them in every run (F1
-0.98–1.00, no false positive in any run): of the
-234 runs of an erroneous program that showed nothing, it predicts the error
-from 222. The other 12 are runs of
+and finish cleanly in others: the run itself shows 32 of the
+65 labelled errors every time, 17 only sometimes and
+16 never. Stretto reports 61 of them in every run (F1
+0.98–0.99, no false positive in any run): of the
+233 runs of an erroneous program that showed nothing, it predicts the error
+from 216. The other 17 are runs of
 4 programs whose error is a check of the received value, which the
 value level (L2) decides.
 
 **Reads.** A program reads the result of a receive later, if at all. A static analysis of the
 C sources (clang, [`docs/firstread.md`](docs/firstread.md)) bounds where; a deadlock or lost
 message the single-path explorer finds then occurs in an execution of every program consistent
-with the trace, if its witness execution issues nothing past those bounds. On MBI, 10
-erroneous programs (7 with a clean run) get such a consequence; F1 counting
+with the trace, if its witness execution issues nothing past those bounds. On MBI, 11
+erroneous programs (10 with a clean run) get such a consequence; F1 counting
 only what needs no single-path assumption rises from 0.00 to
-0.27, with 0 new false positives. The 4
+0.29, with 0 new false positives. The 4
 value checks still need L2. Against the explorer with read bounds, 0 of
 1 648 judged alternatives are unsound.
 
@@ -108,7 +108,7 @@ value checks still need L2. Against the explorer with read bounds, 0 of
 a wildcard probe; a probe can take a request of the next exchange, and the solver hangs. A
 message race in HYPRE 2.10.1 hung a production code intermittently for 18 months, and
 diagnosing it took 291 jobs and 10,392 compute-node hours (the NINJA noise-injection paper,
-PPoPP 2017); HYPRE's changelog for 2.11.0 places the fix in ParaSails. NINJA, the noise injector of that paper, hangs it in 25 of 40 runs at 8 processes (its application-centric mode) and in 11 of 40 with random noise, and never on the fix.
+PPoPP 2017); HYPRE's changelog for 2.11.0 places the fix in ParaSails. NINJA, the noise injector of that paper, hangs it in 25 of 40 runs at 8 processes (its application-centric mode) and in 12 of 40 with random noise, and never on the fix.
 
 <p align="center"><img src="docs/figures/hypre.svg" width="760" alt="HYPRE ParaSails results"></p>
 
@@ -123,7 +123,7 @@ one level. Forced, all 160 such alternatives hang with every pin matched, each a
 the program, and every control finishes. The race needs only the neighbour's 1 340-byte reply
 buffered (920 bytes in `ex5`), below Open MPI's default eager limit of 4 040 bytes. None of
 320 plain and delayed two-level runs hang: a delay before a call cannot hold back a
-request already sent. NINJA, which delays sends in transit, hangs `ex5` in 31 of
+request already sent. NINJA, which delays sends in transit, hangs `ex5` in 55 of
 240 runs. Giving even levels' requests a tag of their own removes every cross
 alternative. Along the way: PETSc passes `-pc_hypre_parasails_nlevels` to HYPRE only when
 `-pc_hypre_parasails_thresh` is given too.
@@ -135,8 +135,8 @@ with a tag that does not depend on the grid level; its changelog says this "coul
 return a message meant for the wrong k", fixed in 3.2.1. From one clean run Stretto predicts
 receives that take a message of another exchange. Forced, 384 of
 480 replays compute another residual; 15 of them fail 2.4.1's own
-check, an absolute error of 1e-8, and 383 fail the relative check of later
-versions. Testing changes the residual in 8 of 80 runs, and
+check, an absolute error of 1e-8, and 384 fail the relative check of later
+versions. Testing changes the residual in 6 of 80 runs, and
 nothing in those runs reports it.
 
 <p align="center"><img src="docs/figures/npbmg.svg" width="760" alt="NPB MG results"></p>
@@ -148,33 +148,33 @@ race condition if called multiple times"). Every one of 20 clean runs of
 deal.II's own test predicts it. Forced, all 1 440 replays finish with status 0
 and print wrong values, in the two calls the code predicts; the fix has no such alternative.
 Here testing finds the race too: 42 of 50 runs
-with random delays print wrong values, 1 of 50
+with random delays print wrong values, 0 of 50
 plain runs.
 
 <p align="center"><img src="docs/figures/dealii.svg" width="760" alt="deal.II results"></p>
 
 **Soundness in practice.** Against an exhaustive explorer, 0 of
-824 judged alternatives are unsound. Replays on MBI: 39
-confirmed, 31 inconclusive (the control itself hung),
+824 judged alternatives are unsound. Replays on MBI: 60
+confirmed, 14 inconclusive (the control itself hung),
 0 contradicted. Random samples of 30 alternatives on AMG
 and on Nekbone: every replay matched its pins and finished, and so did every control.
 A pin makes a wildcard receive a receive from one rank, which is another program, so the
 replays behind these results (every MBI replay, samples of the application campaigns) were run
 again under the tracer and each one's own trace judged as a run of the program without the
-pins: 373 of 373 are, and 289 of the 289 confirmations among them
+pins: 382 of 382 are, and 341 of the 341 confirmations among them
 stand when a confirmation needs that too.
 
-**Cost.** Tracing slows NPB by 1.01–1.17× (its own timers). Analysis: lu.A on 16
-processes (3.05 M events) in 55 s, AMG in 15.5 s, Nekbone
-(10.1 M records) in 34 min and 33 GB.
+**Cost.** Tracing slows NPB by 1.01–1.14× (its own timers). Analysis: lu.A on 16
+processes (3.05 M events) in 76 s, AMG in 7.6 s, Nekbone
+(10.3 M records) in 36 min and 20 GB.
 
 **Scale.** From 16 to 64 processes, in a container of 12 hardware threads that the
 larger counts oversubscribe (so these runs measure the analysis, not the programs), the analysis
-of AMG grows from 31 s and 1.0 GB to 416 s and 8.7 GB, about linear in its records
-(0.33 M to 2.51 M) plus its probe alternatives (16 934 to 501 881): each alternative
-takes 1.8 ms at 16 processes and 0.8 ms at 64 (74 µs per record plus 0.46 ms per alternative fits each trace within 2%). HYPRE's
-analysis grows from 4 to 43 s; LU's, with no wildcards, 4.8-fold with its
-4.7-fold trace. All 60 sampled replays matched their pins and all but one finished: the one left takes a request probe of HYPRE's ParaSails, the race above; one control exited with status 15, the unexplained exit of some of HYPRE's replays and controls in E5c.
+of AMG grows from 27 s and 1.0 GB to 365 s and 9.6 GB, about linear in its records
+(0.32 M to 2.98 M) plus its probe alternatives (16 934 to 501 881): each alternative
+takes 1.6 ms at 16 processes and 0.7 ms at 64 (69 µs per record plus 0.32 ms per alternative fits each trace within 3%). HYPRE's
+analysis grows from 1 to 21 s; LU's, with no wildcards, 6.6-fold with its
+4.7-fold trace. All 60 sampled replays matched their pins and all but two finished: each of those left takes a request probe of HYPRE's ParaSails, the race above; every control finished.
 
 Full tables: [`docs/results.md`](docs/results.md).
 <!-- results:end -->

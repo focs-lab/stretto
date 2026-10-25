@@ -41,7 +41,7 @@ Read time: 0s
 
 Pattern Matched!
 p0_MPIFinalize p1_Irecv 
-Program execution time: 0.006846 seconds
+Program execution time: 0.001075 seconds
 
 [Step 4/4] Executing cleanup command:
 rm -f output.txt
@@ -55,7 +55,7 @@ rm -f output.txt
 
 Pattern Matched!
 p0_MPIFinalize p1_Irecv 
-Program execution time: 0.006846 seconds
+Program execution time: 0.001075 seconds
 
 All commands executed successfully!
 
@@ -87,8 +87,8 @@ mpirun -np 2 Concurrency_Recv_Isend_nok
 
 =====================================================
 
-Hello from rank 1 
 Hello from rank 0 
+Hello from rank 1 
 Rank 0 finished normally
 Rank 1 finished normally
 
@@ -104,7 +104,7 @@ Read time: 0s
 
 Pattern Matched!
 p0_Isend p0_Write p1_Recv 
-Program execution time: 0.004513 seconds
+Program execution time: 0.001111 seconds
 
 [Step 4/4] Executing cleanup command:
 rm -f output.txt
@@ -118,7 +118,7 @@ rm -f output.txt
 
 Pattern Matched!
 p0_Isend p0_Write p1_Recv 
-Program execution time: 0.004513 seconds
+Program execution time: 0.001111 seconds
 
 All commands executed successfully!
 
@@ -153,8 +153,8 @@ mpirun -np 2 ./Concurrency_Irecv_Send_nok
 Hello from rank 1 
 Hello from rank 0 
 Rank 1 - Received value (uninitialized!): -1
-Rank 0 finished normally (but bug occurred!)
 Rank 1 finished normally (but bug occurred!)
+Rank 0 finished normally (but bug occurred!)
 
 [Step 3/4] Executing MPI-PRV analysis command:
 MPI-PRV -trace output.txt  -pattern ./MPI3aspect/Pattern.txt  -np 2
@@ -168,7 +168,7 @@ Read time: 0s
 
 Pattern Matched!
 p1_Irecv p1_Use p0_Isend 
-Program execution time: 0.005137 seconds
+Program execution time: 0.001141 seconds
 
 [Step 4/4] Executing cleanup command:
 rm -f output.txt
@@ -182,7 +182,7 @@ rm -f output.txt
 
 Pattern Matched!
 p1_Irecv p1_Use p0_Isend 
-Program execution time: 0.005137 seconds
+Program execution time: 0.001141 seconds
 
 All commands executed successfully!
 
@@ -214,8 +214,8 @@ mpirun -np 2 ./Communicator_free_error
 
 =====================================================
 
-Rank 0: New communicator created (handle: 0x55f08280a4a0)
-Rank 1: New communicator created (handle: 0x561271898510)
+Rank 0: New communicator created (handle: 0x578bd02ce150)
+Rank 1: New communicator created (handle: 0x60824d1b4fd0)
 Rank 0: Received data: 10 (from rank1 using valid comm)
 Rank 0: Communicator freed (logical error but no runtime crash)
 Rank 1: MPI_Send executed (appears normal) - sent data: 10
@@ -233,7 +233,7 @@ Read time: 0s
 
 Pattern Matched!
 p1_ComCreate p0_ComFree p1_ComUse 
-Program execution time: 0.007935 seconds
+Program execution time: 0.001882 seconds
 
 [Step 4/4] Executing cleanup command:
 rm -f output.txt
@@ -247,7 +247,7 @@ rm -f output.txt
 
 Pattern Matched!
 p1_ComCreate p0_ComFree p1_ComUse 
-Program execution time: 0.007935 seconds
+Program execution time: 0.001882 seconds
 
 All commands executed successfully!
 
@@ -279,8 +279,8 @@ mpirun -np 2 ./MPI_Ptr_uaferror
 
 =====================================================
 
-Rank 1: Illegal use - received 99 via freed pointer
 Rank 0: Illegal use - sent 99 via freed pointer
+Rank 1: Illegal use - received 99 via freed pointer
 
 [Step 3/4] Executing MPI-PRV analysis command:
 MPI-PRV -trace output.txt  -pattern ./MPI5aspect/Pattern.txt  -np 2
@@ -293,8 +293,8 @@ Concurrent processes: 2
 Read time: 0s
 
 Pattern Matched!
-p1_CreatePtr p1_FreePtr p0_Use 
-Program execution time: 0.007277 seconds
+p1_CreatePtr p0_FreePtr p1_Use 
+Program execution time: 0.001541 seconds
 
 [Step 4/4] Executing cleanup command:
 rm -f output.txt
@@ -307,8 +307,8 @@ rm -f output.txt
 =====================================================
 
 Pattern Matched!
-p1_CreatePtr p1_FreePtr p0_Use 
-Program execution time: 0.007277 seconds
+p1_CreatePtr p0_FreePtr p1_Use 
+Program execution time: 0.001541 seconds
 
 All commands executed successfully!
 
@@ -355,7 +355,7 @@ Read time: 0s
 
 Pattern Matched!
 p1_Wincreate p0_Winfree p0_Winfree p1_WinPut 
-Program execution time: 0.005090 seconds
+Program execution time: 0.001419 seconds
 
 [Step 4/4] Executing cleanup command:
 rm -f output.txt
@@ -369,7 +369,7 @@ rm -f output.txt
 
 Pattern Matched!
 p1_Wincreate p0_Winfree p0_Winfree p1_WinPut 
-Program execution time: 0.005090 seconds
+Program execution time: 0.001419 seconds
 
 All commands executed successfully!
 
@@ -414,8 +414,8 @@ Concurrent processes: 2
 Read time: 0s
 
 Pattern Matched!
-p1_Wincreate p1_Winfree 
-Program execution time: 0.004903 seconds
+p1_Wincreate p0_Winfree p0_Winfree 
+Program execution time: 0.001348 seconds
 
 [Step 4/4] Executing cleanup command:
 rm -f output.txt
@@ -428,8 +428,8 @@ rm -f output.txt
 =====================================================
 
 Pattern Matched!
-p1_Wincreate p1_Winfree 
-Program execution time: 0.004903 seconds
+p1_Wincreate p0_Winfree p0_Winfree 
+Program execution time: 0.001348 seconds
 
 All commands executed successfully!
 
@@ -461,10 +461,10 @@ mpirun -np 2 ./LocalConcurrency_Recv_init_Send_nok
 
 =====================================================
 
-Hello from rank 1 
 Hello from rank 0 
-Rank 1 finished normally
+Hello from rank 1 
 Rank 0 finished normally
+Rank 1 finished normally
 
 [Step 3/4] Executing MPI-PRV analysis command:
 MPI-PRV -trace output.txt  -pattern ./MPI8aspect/Pattern.txt  -np 2
@@ -478,7 +478,7 @@ Read time: 0s
 
 Pattern Matched!
 p1_Recvinit p1_Start p1_write p1_Wait 
-Program execution time: 0.009588 seconds
+Program execution time: 0.001715 seconds
 
 [Step 4/4] Executing cleanup command:
 rm -f output.txt
@@ -492,7 +492,7 @@ rm -f output.txt
 
 Pattern Matched!
 p1_Recvinit p1_Start p1_write p1_Wait 
-Program execution time: 0.009588 seconds
+Program execution time: 0.001715 seconds
 
 All commands executed successfully!
 
@@ -526,8 +526,8 @@ mpirun -np 2 ./CallOrdering_Ireduce_Barrier_nok
 
 Hello from rank 0 
 Hello from rank 1 
-Rank 1 finished normally
 Rank 0 finished normally
+Rank 1 finished normally
 
 [Step 3/4] Executing MPI-PRV analysis command:
 MPI-PRV -trace output.txt  -pattern ./MPI9aspect/Pattern.txt  -np 2
@@ -541,7 +541,7 @@ Read time: 0s
 
 Pattern Matched!
 p1_Ireduce p0_Barrier p1_Wait 
-Program execution time: 0.005548 seconds
+Program execution time: 0.001285 seconds
 
 [Step 4/4] Executing cleanup command:
 rm -f output.txt
@@ -555,7 +555,7 @@ rm -f output.txt
 
 Pattern Matched!
 p1_Ireduce p0_Barrier p1_Wait 
-Program execution time: 0.005548 seconds
+Program execution time: 0.001285 seconds
 
 All commands executed successfully!
 
@@ -603,8 +603,8 @@ Concurrent processes: 2
 Read time: 0s
 
 Pattern Matched!
-p0_CommCreate p0_Nofree p0_MPIFinalize 
-Program execution time: 0.004595 seconds
+p1_CommCreate p0_Nofree p0_MPIFinalize 
+Program execution time: 0.001413 seconds
 
 [Step 4/4] Executing cleanup command:
 rm -f output.txt
@@ -617,8 +617,8 @@ rm -f output.txt
 =====================================================
 
 Pattern Matched!
-p0_CommCreate p0_Nofree p0_MPIFinalize 
-Program execution time: 0.004595 seconds
+p1_CommCreate p0_Nofree p0_MPIFinalize 
+Program execution time: 0.001413 seconds
 
 All commands executed successfully!
 
@@ -680,7 +680,7 @@ Read time: 0s
 
 Pattern Matched!
 p0_MPIFinalize p1_Irecv 
-Program execution time: 0.003623 seconds
+Program execution time: 0.001078 seconds
 
 [Step 4/4] Executing cleanup command:
 rm -f output.txt
@@ -694,7 +694,7 @@ rm -f output.txt
 
 Pattern Matched!
 p0_MPIFinalize p1_Irecv 
-Program execution time: 0.003623 seconds
+Program execution time: 0.001078 seconds
 
 All commands executed successfully!
 
@@ -743,7 +743,7 @@ Read time: 0s
 
 Pattern Matched!
 p0_Isend p0_Write p1_Recv 
-Program execution time: 0.003753 seconds
+Program execution time: 0.001130 seconds
 
 [Step 4/4] Executing cleanup command:
 rm -f output.txt
@@ -757,7 +757,7 @@ rm -f output.txt
 
 Pattern Matched!
 p0_Isend p0_Write p1_Recv 
-Program execution time: 0.003753 seconds
+Program execution time: 0.001130 seconds
 
 All commands executed successfully!
 
@@ -792,8 +792,8 @@ mpirun -np 2 ./Concurrency_Irecv_Send_nok
 Hello from rank 0 
 Hello from rank 1 
 Rank 1 - Received value (uninitialized!): -1
-Rank 0 finished normally (but bug occurred!)
 Rank 1 finished normally (but bug occurred!)
+Rank 0 finished normally (but bug occurred!)
 
 [Step 3/4] Executing MPI-PRV analysis command:
 MPI-PRV -trace output.txt  -pattern ./MPI3aspect/Pattern.txt  -np 2
@@ -807,7 +807,7 @@ Read time: 0s
 
 Pattern Matched!
 p1_Irecv p1_Use p0_Isend 
-Program execution time: 0.004850 seconds
+Program execution time: 0.001311 seconds
 
 [Step 4/4] Executing cleanup command:
 rm -f output.txt
@@ -821,7 +821,7 @@ rm -f output.txt
 
 Pattern Matched!
 p1_Irecv p1_Use p0_Isend 
-Program execution time: 0.004850 seconds
+Program execution time: 0.001311 seconds
 
 All commands executed successfully!
 
@@ -853,12 +853,12 @@ mpirun -np 2 ./Communicator_free_error
 
 =====================================================
 
-Rank 0: New communicator created (handle: 0x55c4d4d074a0)
-Rank 1: New communicator created (handle: 0x5629e8004510)
-Rank 0: Received data: 10 (from rank1 using valid comm)
-Rank 0: Communicator freed (logical error but no runtime crash)
+Rank 0: New communicator created (handle: 0x610d71397150)
+Rank 1: New communicator created (handle: 0x5eb9bc32ff90)
 Rank 1: MPI_Send executed (appears normal) - sent data: 10
 Rank 1: Communicator freed (resource cleaned up)
+Rank 0: Received data: 10 (from rank1 using valid comm)
+Rank 0: Communicator freed (logical error but no runtime crash)
 
 [Step 3/4] Executing MPI-PRV analysis command:
 MPI-PRV -trace output.txt  -pattern ./MPI4aspect/Pattern.txt  -np 2
@@ -871,8 +871,8 @@ Concurrent processes: 2
 Read time: 0s
 
 Pattern Matched!
-p1_ComCreate p0_ComFree p1_ComUse 
-Program execution time: 0.005723 seconds
+p0_ComCreate p0_ComFree p1_ComUse 
+Program execution time: 0.001895 seconds
 
 [Step 4/4] Executing cleanup command:
 rm -f output.txt
@@ -885,8 +885,8 @@ rm -f output.txt
 =====================================================
 
 Pattern Matched!
-p1_ComCreate p0_ComFree p1_ComUse 
-Program execution time: 0.005723 seconds
+p0_ComCreate p0_ComFree p1_ComUse 
+Program execution time: 0.001895 seconds
 
 All commands executed successfully!
 
@@ -932,8 +932,8 @@ Concurrent processes: 2
 Read time: 0s
 
 Pattern Matched!
-p0_CreatePtr p1_FreePtr p0_Use 
-Program execution time: 0.004820 seconds
+p1_CreatePtr p1_FreePtr p0_Use 
+Program execution time: 0.001392 seconds
 
 [Step 4/4] Executing cleanup command:
 rm -f output.txt
@@ -946,8 +946,8 @@ rm -f output.txt
 =====================================================
 
 Pattern Matched!
-p0_CreatePtr p1_FreePtr p0_Use 
-Program execution time: 0.004820 seconds
+p1_CreatePtr p1_FreePtr p0_Use 
+Program execution time: 0.001392 seconds
 
 All commands executed successfully!
 
@@ -994,7 +994,7 @@ Read time: 0s
 
 Pattern Matched!
 p1_Wincreate p0_Winfree p0_Winfree p1_WinPut 
-Program execution time: 0.005010 seconds
+Program execution time: 0.001412 seconds
 
 [Step 4/4] Executing cleanup command:
 rm -f output.txt
@@ -1008,7 +1008,7 @@ rm -f output.txt
 
 Pattern Matched!
 p1_Wincreate p0_Winfree p0_Winfree p1_WinPut 
-Program execution time: 0.005010 seconds
+Program execution time: 0.001412 seconds
 
 All commands executed successfully!
 
@@ -1054,7 +1054,7 @@ Read time: 0s
 
 Pattern Matched!
 p1_Wincreate p1_Winfree 
-Program execution time: 0.005048 seconds
+Program execution time: 0.001322 seconds
 
 [Step 4/4] Executing cleanup command:
 rm -f output.txt
@@ -1068,7 +1068,7 @@ rm -f output.txt
 
 Pattern Matched!
 p1_Wincreate p1_Winfree 
-Program execution time: 0.005048 seconds
+Program execution time: 0.001322 seconds
 
 All commands executed successfully!
 
@@ -1100,8 +1100,8 @@ mpirun -np 2 ./LocalConcurrency_Recv_init_Send_nok
 
 =====================================================
 
-Hello from rank 1 
 Hello from rank 0 
+Hello from rank 1 
 Rank 1 finished normally
 Rank 0 finished normally
 
@@ -1117,7 +1117,7 @@ Read time: 0s
 
 Pattern Matched!
 p1_Recvinit p1_Start p1_write p1_Wait 
-Program execution time: 0.005701 seconds
+Program execution time: 0.001719 seconds
 
 [Step 4/4] Executing cleanup command:
 rm -f output.txt
@@ -1131,7 +1131,7 @@ rm -f output.txt
 
 Pattern Matched!
 p1_Recvinit p1_Start p1_write p1_Wait 
-Program execution time: 0.005701 seconds
+Program execution time: 0.001719 seconds
 
 All commands executed successfully!
 
@@ -1165,8 +1165,8 @@ mpirun -np 2 ./CallOrdering_Ireduce_Barrier_nok
 
 Hello from rank 0 
 Hello from rank 1 
-Rank 1 finished normally
 Rank 0 finished normally
+Rank 1 finished normally
 
 [Step 3/4] Executing MPI-PRV analysis command:
 MPI-PRV -trace output.txt  -pattern ./MPI9aspect/Pattern.txt  -np 2
@@ -1180,7 +1180,7 @@ Read time: 0s
 
 Pattern Matched!
 p1_Ireduce p0_Barrier p1_Wait 
-Program execution time: 0.003979 seconds
+Program execution time: 0.001273 seconds
 
 [Step 4/4] Executing cleanup command:
 rm -f output.txt
@@ -1194,7 +1194,7 @@ rm -f output.txt
 
 Pattern Matched!
 p1_Ireduce p0_Barrier p1_Wait 
-Program execution time: 0.003979 seconds
+Program execution time: 0.001273 seconds
 
 All commands executed successfully!
 
@@ -1226,10 +1226,10 @@ mpirun -np 2 ./ResLeak_Comm_create_nok
 
 =====================================================
 
-Hello from rank 1 
 Hello from rank 0 
-Rank 1 finished normally
+Hello from rank 1 
 Rank 0 finished normally
+Rank 1 finished normally
 
 [Step 3/4] Executing MPI-PRV analysis command:
 MPI-PRV -trace output.txt  -pattern ./MPI10aspect/Pattern.txt  -np 2
@@ -1242,8 +1242,8 @@ Concurrent processes: 2
 Read time: 0s
 
 Pattern Matched!
-p1_CommCreate p0_Nofree p0_MPIFinalize 
-Program execution time: 0.007340 seconds
+p1_CommCreate p1_Nofree p1_MPIFinalize 
+Program execution time: 0.001414 seconds
 
 [Step 4/4] Executing cleanup command:
 rm -f output.txt
@@ -1256,8 +1256,8 @@ rm -f output.txt
 =====================================================
 
 Pattern Matched!
-p1_CommCreate p0_Nofree p0_MPIFinalize 
-Program execution time: 0.007340 seconds
+p1_CommCreate p1_Nofree p1_MPIFinalize 
+Program execution time: 0.001414 seconds
 
 All commands executed successfully!
 
@@ -1319,7 +1319,7 @@ Read time: 0s
 
 Pattern Matched!
 p0_MPIFinalize p1_Irecv 
-Program execution time: 0.005942 seconds
+Program execution time: 0.001273 seconds
 
 [Step 4/4] Executing cleanup command:
 rm -f output.txt
@@ -1333,7 +1333,7 @@ rm -f output.txt
 
 Pattern Matched!
 p0_MPIFinalize p1_Irecv 
-Program execution time: 0.005942 seconds
+Program execution time: 0.001273 seconds
 
 All commands executed successfully!
 
@@ -1367,8 +1367,8 @@ mpirun -np 2 Concurrency_Recv_Isend_nok
 
 Hello from rank 0 
 Hello from rank 1 
-Rank 1 finished normally
 Rank 0 finished normally
+Rank 1 finished normally
 
 [Step 3/4] Executing MPI-PRV analysis command:
 MPI-PRV -trace output.txt  -pattern ./MPI2aspect/Pattern.txt  -np 2
@@ -1382,7 +1382,7 @@ Read time: 0s
 
 Pattern Matched!
 p0_Isend p0_Write p1_Recv 
-Program execution time: 0.006013 seconds
+Program execution time: 0.001162 seconds
 
 [Step 4/4] Executing cleanup command:
 rm -f output.txt
@@ -1396,7 +1396,7 @@ rm -f output.txt
 
 Pattern Matched!
 p0_Isend p0_Write p1_Recv 
-Program execution time: 0.006013 seconds
+Program execution time: 0.001162 seconds
 
 All commands executed successfully!
 
@@ -1446,7 +1446,7 @@ Read time: 0s
 
 Pattern Matched!
 p1_Irecv p1_Use p0_Isend 
-Program execution time: 0.005661 seconds
+Program execution time: 0.001304 seconds
 
 [Step 4/4] Executing cleanup command:
 rm -f output.txt
@@ -1460,7 +1460,7 @@ rm -f output.txt
 
 Pattern Matched!
 p1_Irecv p1_Use p0_Isend 
-Program execution time: 0.005661 seconds
+Program execution time: 0.001304 seconds
 
 All commands executed successfully!
 
@@ -1492,8 +1492,8 @@ mpirun -np 2 ./Communicator_free_error
 
 =====================================================
 
-Rank 0: New communicator created (handle: 0x5605fe8944a0)
-Rank 1: New communicator created (handle: 0x559bc4096510)
+Rank 0: New communicator created (handle: 0x60cb33677150)
+Rank 1: New communicator created (handle: 0x611b92313fd0)
 Rank 0: Received data: 10 (from rank1 using valid comm)
 Rank 0: Communicator freed (logical error but no runtime crash)
 Rank 1: MPI_Send executed (appears normal) - sent data: 10
@@ -1511,7 +1511,7 @@ Read time: 0s
 
 Pattern Matched!
 p1_ComCreate p0_ComFree p1_ComUse 
-Program execution time: 0.004379 seconds
+Program execution time: 0.001894 seconds
 
 [Step 4/4] Executing cleanup command:
 rm -f output.txt
@@ -1525,7 +1525,7 @@ rm -f output.txt
 
 Pattern Matched!
 p1_ComCreate p0_ComFree p1_ComUse 
-Program execution time: 0.004379 seconds
+Program execution time: 0.001894 seconds
 
 All commands executed successfully!
 
@@ -1572,7 +1572,7 @@ Read time: 0s
 
 Pattern Matched!
 p0_CreatePtr p0_FreePtr p1_Use 
-Program execution time: 0.003363 seconds
+Program execution time: 0.001404 seconds
 
 [Step 4/4] Executing cleanup command:
 rm -f output.txt
@@ -1586,7 +1586,7 @@ rm -f output.txt
 
 Pattern Matched!
 p0_CreatePtr p0_FreePtr p1_Use 
-Program execution time: 0.003363 seconds
+Program execution time: 0.001404 seconds
 
 All commands executed successfully!
 
@@ -1632,8 +1632,8 @@ Concurrent processes: 2
 Read time: 0s
 
 Pattern Matched!
-p1_Wincreate p0_Winfree p0_Winfree p1_WinPut 
-Program execution time: 0.003339 seconds
+p0_Wincreate p0_Winfree p0_Winfree p1_WinPut 
+Program execution time: 0.001423 seconds
 
 [Step 4/4] Executing cleanup command:
 rm -f output.txt
@@ -1646,8 +1646,8 @@ rm -f output.txt
 =====================================================
 
 Pattern Matched!
-p1_Wincreate p0_Winfree p0_Winfree p1_WinPut 
-Program execution time: 0.003339 seconds
+p0_Wincreate p0_Winfree p0_Winfree p1_WinPut 
+Program execution time: 0.001423 seconds
 
 All commands executed successfully!
 
@@ -1692,8 +1692,8 @@ Concurrent processes: 2
 Read time: 0s
 
 Pattern Matched!
-p1_Wincreate p1_Winfree 
-Program execution time: 0.003155 seconds
+p0_Wincreate p1_Winfree 
+Program execution time: 0.001340 seconds
 
 [Step 4/4] Executing cleanup command:
 rm -f output.txt
@@ -1706,8 +1706,8 @@ rm -f output.txt
 =====================================================
 
 Pattern Matched!
-p1_Wincreate p1_Winfree 
-Program execution time: 0.003155 seconds
+p0_Wincreate p1_Winfree 
+Program execution time: 0.001340 seconds
 
 All commands executed successfully!
 
@@ -1741,8 +1741,8 @@ mpirun -np 2 ./LocalConcurrency_Recv_init_Send_nok
 
 Hello from rank 0 
 Hello from rank 1 
-Rank 1 finished normally
 Rank 0 finished normally
+Rank 1 finished normally
 
 [Step 3/4] Executing MPI-PRV analysis command:
 MPI-PRV -trace output.txt  -pattern ./MPI8aspect/Pattern.txt  -np 2
@@ -1756,7 +1756,7 @@ Read time: 0s
 
 Pattern Matched!
 p1_Recvinit p1_Start p1_write p1_Wait 
-Program execution time: 0.004409 seconds
+Program execution time: 0.001720 seconds
 
 [Step 4/4] Executing cleanup command:
 rm -f output.txt
@@ -1770,7 +1770,7 @@ rm -f output.txt
 
 Pattern Matched!
 p1_Recvinit p1_Start p1_write p1_Wait 
-Program execution time: 0.004409 seconds
+Program execution time: 0.001720 seconds
 
 All commands executed successfully!
 
@@ -1804,8 +1804,8 @@ mpirun -np 2 ./CallOrdering_Ireduce_Barrier_nok
 
 Hello from rank 0 
 Hello from rank 1 
-Rank 0 finished normally
 Rank 1 finished normally
+Rank 0 finished normally
 
 [Step 3/4] Executing MPI-PRV analysis command:
 MPI-PRV -trace output.txt  -pattern ./MPI9aspect/Pattern.txt  -np 2
@@ -1819,7 +1819,7 @@ Read time: 0s
 
 Pattern Matched!
 p1_Ireduce p0_Barrier p1_Wait 
-Program execution time: 0.006244 seconds
+Program execution time: 0.001287 seconds
 
 [Step 4/4] Executing cleanup command:
 rm -f output.txt
@@ -1833,7 +1833,7 @@ rm -f output.txt
 
 Pattern Matched!
 p1_Ireduce p0_Barrier p1_Wait 
-Program execution time: 0.006244 seconds
+Program execution time: 0.001287 seconds
 
 All commands executed successfully!
 
@@ -1865,10 +1865,10 @@ mpirun -np 2 ./ResLeak_Comm_create_nok
 
 =====================================================
 
-Hello from rank 0 
 Hello from rank 1 
-Rank 1 finished normally
+Hello from rank 0 
 Rank 0 finished normally
+Rank 1 finished normally
 
 [Step 3/4] Executing MPI-PRV analysis command:
 MPI-PRV -trace output.txt  -pattern ./MPI10aspect/Pattern.txt  -np 2
@@ -1882,7 +1882,7 @@ Read time: 0s
 
 Pattern Matched!
 p1_CommCreate p0_Nofree p0_MPIFinalize 
-Program execution time: 0.006012 seconds
+Program execution time: 0.001399 seconds
 
 [Step 4/4] Executing cleanup command:
 rm -f output.txt
@@ -1896,7 +1896,7 @@ rm -f output.txt
 
 Pattern Matched!
 p1_CommCreate p0_Nofree p0_MPIFinalize 
-Program execution time: 0.006012 seconds
+Program execution time: 0.001399 seconds
 
 All commands executed successfully!
 
@@ -1958,7 +1958,7 @@ Read time: 0s
 
 Pattern Matched!
 p0_MPIFinalize p1_Irecv 
-Program execution time: 0.002157 seconds
+Program execution time: 0.001104 seconds
 
 [Step 4/4] Executing cleanup command:
 rm -f output.txt
@@ -1972,7 +1972,7 @@ rm -f output.txt
 
 Pattern Matched!
 p0_MPIFinalize p1_Irecv 
-Program execution time: 0.002157 seconds
+Program execution time: 0.001104 seconds
 
 All commands executed successfully!
 
@@ -2021,7 +2021,7 @@ Read time: 0s
 
 Pattern Matched!
 p0_Isend p0_Write p1_Recv 
-Program execution time: 0.003006 seconds
+Program execution time: 0.001150 seconds
 
 [Step 4/4] Executing cleanup command:
 rm -f output.txt
@@ -2035,7 +2035,7 @@ rm -f output.txt
 
 Pattern Matched!
 p0_Isend p0_Write p1_Recv 
-Program execution time: 0.003006 seconds
+Program execution time: 0.001150 seconds
 
 All commands executed successfully!
 
@@ -2067,8 +2067,8 @@ mpirun -np 2 ./Concurrency_Irecv_Send_nok
 
 =====================================================
 
-Hello from rank 0 
 Hello from rank 1 
+Hello from rank 0 
 Rank 1 - Received value (uninitialized!): -1
 Rank 0 finished normally (but bug occurred!)
 Rank 1 finished normally (but bug occurred!)
@@ -2085,7 +2085,7 @@ Read time: 0s
 
 Pattern Matched!
 p1_Irecv p1_Use p0_Isend 
-Program execution time: 0.003103 seconds
+Program execution time: 0.001164 seconds
 
 [Step 4/4] Executing cleanup command:
 rm -f output.txt
@@ -2099,7 +2099,7 @@ rm -f output.txt
 
 Pattern Matched!
 p1_Irecv p1_Use p0_Isend 
-Program execution time: 0.003103 seconds
+Program execution time: 0.001164 seconds
 
 All commands executed successfully!
 
@@ -2131,8 +2131,8 @@ mpirun -np 2 ./Communicator_free_error
 
 =====================================================
 
-Rank 0: New communicator created (handle: 0x556a982134d0)
-Rank 1: New communicator created (handle: 0x5584d82064e0)
+Rank 0: New communicator created (handle: 0x6085917cc150)
+Rank 1: New communicator created (handle: 0x5cafb3ce4fd0)
 Rank 0: Received data: 10 (from rank1 using valid comm)
 Rank 0: Communicator freed (logical error but no runtime crash)
 Rank 1: MPI_Send executed (appears normal) - sent data: 10
@@ -2150,7 +2150,7 @@ Read time: 0s
 
 Pattern Matched!
 p1_ComCreate p0_ComFree p1_ComUse 
-Program execution time: 0.004141 seconds
+Program execution time: 0.001934 seconds
 
 [Step 4/4] Executing cleanup command:
 rm -f output.txt
@@ -2164,7 +2164,7 @@ rm -f output.txt
 
 Pattern Matched!
 p1_ComCreate p0_ComFree p1_ComUse 
-Program execution time: 0.004141 seconds
+Program execution time: 0.001934 seconds
 
 All commands executed successfully!
 
@@ -2196,8 +2196,8 @@ mpirun -np 2 ./MPI_Ptr_uaferror
 
 =====================================================
 
-Rank 0: Illegal use - sent 99 via freed pointer
 Rank 1: Illegal use - received 99 via freed pointer
+Rank 0: Illegal use - sent 99 via freed pointer
 
 [Step 3/4] Executing MPI-PRV analysis command:
 MPI-PRV -trace output.txt  -pattern ./MPI5aspect/Pattern.txt  -np 2
@@ -2211,7 +2211,7 @@ Read time: 0s
 
 Pattern Matched!
 p0_CreatePtr p0_FreePtr p1_Use 
-Program execution time: 0.002780 seconds
+Program execution time: 0.001399 seconds
 
 [Step 4/4] Executing cleanup command:
 rm -f output.txt
@@ -2225,7 +2225,7 @@ rm -f output.txt
 
 Pattern Matched!
 p0_CreatePtr p0_FreePtr p1_Use 
-Program execution time: 0.002780 seconds
+Program execution time: 0.001399 seconds
 
 All commands executed successfully!
 
@@ -2271,8 +2271,8 @@ Concurrent processes: 2
 Read time: 0s
 
 Pattern Matched!
-p1_Wincreate p0_Winfree p0_Winfree p1_WinPut 
-Program execution time: 0.007845 seconds
+p0_Wincreate p0_Winfree p0_Winfree p1_WinPut 
+Program execution time: 0.001447 seconds
 
 [Step 4/4] Executing cleanup command:
 rm -f output.txt
@@ -2285,8 +2285,8 @@ rm -f output.txt
 =====================================================
 
 Pattern Matched!
-p1_Wincreate p0_Winfree p0_Winfree p1_WinPut 
-Program execution time: 0.007845 seconds
+p0_Wincreate p0_Winfree p0_Winfree p1_WinPut 
+Program execution time: 0.001447 seconds
 
 All commands executed successfully!
 
@@ -2331,8 +2331,8 @@ Concurrent processes: 2
 Read time: 0s
 
 Pattern Matched!
-p0_Wincreate p1_Winfree 
-Program execution time: 0.004259 seconds
+p1_Wincreate p1_Winfree 
+Program execution time: 0.001370 seconds
 
 [Step 4/4] Executing cleanup command:
 rm -f output.txt
@@ -2345,8 +2345,8 @@ rm -f output.txt
 =====================================================
 
 Pattern Matched!
-p0_Wincreate p1_Winfree 
-Program execution time: 0.004259 seconds
+p1_Wincreate p1_Winfree 
+Program execution time: 0.001370 seconds
 
 All commands executed successfully!
 
@@ -2378,8 +2378,8 @@ mpirun -np 2 ./LocalConcurrency_Recv_init_Send_nok
 
 =====================================================
 
-Hello from rank 0 
 Hello from rank 1 
+Hello from rank 0 
 Rank 0 finished normally
 Rank 1 finished normally
 
@@ -2395,7 +2395,7 @@ Read time: 0s
 
 Pattern Matched!
 p1_Recvinit p1_Start p1_write p1_Wait 
-Program execution time: 0.003197 seconds
+Program execution time: 0.001691 seconds
 
 [Step 4/4] Executing cleanup command:
 rm -f output.txt
@@ -2409,7 +2409,7 @@ rm -f output.txt
 
 Pattern Matched!
 p1_Recvinit p1_Start p1_write p1_Wait 
-Program execution time: 0.003197 seconds
+Program execution time: 0.001691 seconds
 
 All commands executed successfully!
 
@@ -2458,7 +2458,7 @@ Read time: 0s
 
 Pattern Matched!
 p1_Ireduce p0_Barrier p1_Wait 
-Program execution time: 0.003400 seconds
+Program execution time: 0.001283 seconds
 
 [Step 4/4] Executing cleanup command:
 rm -f output.txt
@@ -2472,7 +2472,7 @@ rm -f output.txt
 
 Pattern Matched!
 p1_Ireduce p0_Barrier p1_Wait 
-Program execution time: 0.003400 seconds
+Program execution time: 0.001283 seconds
 
 All commands executed successfully!
 
@@ -2506,8 +2506,8 @@ mpirun -np 2 ./ResLeak_Comm_create_nok
 
 Hello from rank 0 
 Hello from rank 1 
-Rank 1 finished normally
 Rank 0 finished normally
+Rank 1 finished normally
 
 [Step 3/4] Executing MPI-PRV analysis command:
 MPI-PRV -trace output.txt  -pattern ./MPI10aspect/Pattern.txt  -np 2
@@ -2520,8 +2520,8 @@ Concurrent processes: 2
 Read time: 0s
 
 Pattern Matched!
-p0_CommCreate p1_Nofree p1_MPIFinalize 
-Program execution time: 0.003189 seconds
+p0_CommCreate p0_Nofree p0_MPIFinalize 
+Program execution time: 0.001405 seconds
 
 [Step 4/4] Executing cleanup command:
 rm -f output.txt
@@ -2534,8 +2534,8 @@ rm -f output.txt
 =====================================================
 
 Pattern Matched!
-p0_CommCreate p1_Nofree p1_MPIFinalize 
-Program execution time: 0.003189 seconds
+p0_CommCreate p0_Nofree p0_MPIFinalize 
+Program execution time: 0.001405 seconds
 
 All commands executed successfully!
 
@@ -2597,7 +2597,7 @@ Read time: 0s
 
 Pattern Matched!
 p0_MPIFinalize p1_Irecv 
-Program execution time: 0.003139 seconds
+Program execution time: 0.001271 seconds
 
 [Step 4/4] Executing cleanup command:
 rm -f output.txt
@@ -2611,7 +2611,7 @@ rm -f output.txt
 
 Pattern Matched!
 p0_MPIFinalize p1_Irecv 
-Program execution time: 0.003139 seconds
+Program execution time: 0.001271 seconds
 
 All commands executed successfully!
 
@@ -2645,8 +2645,8 @@ mpirun -np 2 Concurrency_Recv_Isend_nok
 
 Hello from rank 0 
 Hello from rank 1 
-Rank 1 finished normally
 Rank 0 finished normally
+Rank 1 finished normally
 
 [Step 3/4] Executing MPI-PRV analysis command:
 MPI-PRV -trace output.txt  -pattern ./MPI2aspect/Pattern.txt  -np 2
@@ -2660,7 +2660,7 @@ Read time: 0s
 
 Pattern Matched!
 p0_Isend p0_Write p1_Recv 
-Program execution time: 0.003420 seconds
+Program execution time: 0.001151 seconds
 
 [Step 4/4] Executing cleanup command:
 rm -f output.txt
@@ -2674,7 +2674,7 @@ rm -f output.txt
 
 Pattern Matched!
 p0_Isend p0_Write p1_Recv 
-Program execution time: 0.003420 seconds
+Program execution time: 0.001151 seconds
 
 All commands executed successfully!
 
@@ -2709,8 +2709,8 @@ mpirun -np 2 ./Concurrency_Irecv_Send_nok
 Hello from rank 0 
 Hello from rank 1 
 Rank 1 - Received value (uninitialized!): -1
-Rank 1 finished normally (but bug occurred!)
 Rank 0 finished normally (but bug occurred!)
+Rank 1 finished normally (but bug occurred!)
 
 [Step 3/4] Executing MPI-PRV analysis command:
 MPI-PRV -trace output.txt  -pattern ./MPI3aspect/Pattern.txt  -np 2
@@ -2724,7 +2724,7 @@ Read time: 0s
 
 Pattern Matched!
 p1_Irecv p1_Use p0_Isend 
-Program execution time: 0.003164 seconds
+Program execution time: 0.001295 seconds
 
 [Step 4/4] Executing cleanup command:
 rm -f output.txt
@@ -2738,7 +2738,7 @@ rm -f output.txt
 
 Pattern Matched!
 p1_Irecv p1_Use p0_Isend 
-Program execution time: 0.003164 seconds
+Program execution time: 0.001295 seconds
 
 All commands executed successfully!
 
@@ -2770,8 +2770,8 @@ mpirun -np 2 ./Communicator_free_error
 
 =====================================================
 
-Rank 0: New communicator created (handle: 0x557cec1534a0)
-Rank 1: New communicator created (handle: 0x558971c18500)
+Rank 0: New communicator created (handle: 0x57c1f38fa140)
+Rank 1: New communicator created (handle: 0x59ccb7fb7fd0)
 Rank 0: Received data: 10 (from rank1 using valid comm)
 Rank 0: Communicator freed (logical error but no runtime crash)
 Rank 1: MPI_Send executed (appears normal) - sent data: 10
@@ -2789,7 +2789,7 @@ Read time: 0s
 
 Pattern Matched!
 p1_ComCreate p0_ComFree p1_ComUse 
-Program execution time: 0.004143 seconds
+Program execution time: 0.001912 seconds
 
 [Step 4/4] Executing cleanup command:
 rm -f output.txt
@@ -2803,7 +2803,7 @@ rm -f output.txt
 
 Pattern Matched!
 p1_ComCreate p0_ComFree p1_ComUse 
-Program execution time: 0.004143 seconds
+Program execution time: 0.001912 seconds
 
 All commands executed successfully!
 
@@ -2849,8 +2849,8 @@ Concurrent processes: 2
 Read time: 0s
 
 Pattern Matched!
-p0_CreatePtr p1_FreePtr p0_Use 
-Program execution time: 0.003036 seconds
+p0_CreatePtr p0_FreePtr p1_Use 
+Program execution time: 0.001428 seconds
 
 [Step 4/4] Executing cleanup command:
 rm -f output.txt
@@ -2863,8 +2863,8 @@ rm -f output.txt
 =====================================================
 
 Pattern Matched!
-p0_CreatePtr p1_FreePtr p0_Use 
-Program execution time: 0.003036 seconds
+p0_CreatePtr p0_FreePtr p1_Use 
+Program execution time: 0.001428 seconds
 
 All commands executed successfully!
 
@@ -2910,8 +2910,8 @@ Concurrent processes: 2
 Read time: 0s
 
 Pattern Matched!
-p1_Wincreate p0_Winfree p0_Winfree p1_WinPut 
-Program execution time: 0.002981 seconds
+p0_Wincreate p0_Winfree p0_Winfree p1_WinPut 
+Program execution time: 0.001413 seconds
 
 [Step 4/4] Executing cleanup command:
 rm -f output.txt
@@ -2924,8 +2924,8 @@ rm -f output.txt
 =====================================================
 
 Pattern Matched!
-p1_Wincreate p0_Winfree p0_Winfree p1_WinPut 
-Program execution time: 0.002981 seconds
+p0_Wincreate p0_Winfree p0_Winfree p1_WinPut 
+Program execution time: 0.001413 seconds
 
 All commands executed successfully!
 
@@ -2970,8 +2970,8 @@ Concurrent processes: 2
 Read time: 0s
 
 Pattern Matched!
-p1_Wincreate p1_Winfree 
-Program execution time: 0.002767 seconds
+p0_Wincreate p1_Winfree 
+Program execution time: 0.001354 seconds
 
 [Step 4/4] Executing cleanup command:
 rm -f output.txt
@@ -2984,8 +2984,8 @@ rm -f output.txt
 =====================================================
 
 Pattern Matched!
-p1_Wincreate p1_Winfree 
-Program execution time: 0.002767 seconds
+p0_Wincreate p1_Winfree 
+Program execution time: 0.001354 seconds
 
 All commands executed successfully!
 
@@ -3034,7 +3034,7 @@ Read time: 0s
 
 Pattern Matched!
 p1_Recvinit p1_Start p1_write p1_Wait 
-Program execution time: 0.003286 seconds
+Program execution time: 0.001708 seconds
 
 [Step 4/4] Executing cleanup command:
 rm -f output.txt
@@ -3048,7 +3048,7 @@ rm -f output.txt
 
 Pattern Matched!
 p1_Recvinit p1_Start p1_write p1_Wait 
-Program execution time: 0.003286 seconds
+Program execution time: 0.001708 seconds
 
 All commands executed successfully!
 
@@ -3097,7 +3097,7 @@ Read time: 0s
 
 Pattern Matched!
 p1_Ireduce p0_Barrier p1_Wait 
-Program execution time: 0.002755 seconds
+Program execution time: 0.001275 seconds
 
 [Step 4/4] Executing cleanup command:
 rm -f output.txt
@@ -3111,7 +3111,7 @@ rm -f output.txt
 
 Pattern Matched!
 p1_Ireduce p0_Barrier p1_Wait 
-Program execution time: 0.002755 seconds
+Program execution time: 0.001275 seconds
 
 All commands executed successfully!
 
@@ -3159,8 +3159,8 @@ Concurrent processes: 2
 Read time: 0s
 
 Pattern Matched!
-p1_CommCreate p1_Nofree p1_MPIFinalize 
-Program execution time: 0.002615 seconds
+p0_CommCreate p1_Nofree p1_MPIFinalize 
+Program execution time: 0.001412 seconds
 
 [Step 4/4] Executing cleanup command:
 rm -f output.txt
@@ -3173,8 +3173,8 @@ rm -f output.txt
 =====================================================
 
 Pattern Matched!
-p1_CommCreate p1_Nofree p1_MPIFinalize 
-Program execution time: 0.002615 seconds
+p0_CommCreate p1_Nofree p1_MPIFinalize 
+Program execution time: 0.001412 seconds
 
 All commands executed successfully!
 

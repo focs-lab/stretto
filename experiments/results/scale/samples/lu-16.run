@@ -44,15 +44,15 @@
  Class           =                        A
  Size            =             64x  64x  64
  Iterations      =                      250
- Time in seconds =                    18.04
+ Time in seconds =                     3.74
  Total processes =                       16
  Active processes=                       16
- Mop/s total     =                  6611.44
- Mop/s/process   =                   413.21
+ Mop/s total     =                 31890.41
+ Mop/s/process   =                  1993.15
  Operation type  =           floating point
  Verification    =               SUCCESSFUL
  Version         =                    3.4.3
- Compile date    =              21 Oct 2026
+ Compile date    =              22 Oct 2026
 
  Compile options:
     MPIFC        = /usr/bin/mpifort.mpich

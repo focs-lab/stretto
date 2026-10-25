@@ -36,6 +36,11 @@ experiments/results/e4/*.err
 experiments/results/e4/*.report.txt
 experiments/results/hypre/predict*.log
 experiments/results/hypre/stress*.log
+# build logs of experiments/hypre/run.sh build and experiments/npbmg/run.sh build
+experiments/results/hypre/configure*.log
+experiments/results/hypre/make*.log
+experiments/results/hypre/ij*.log
+experiments/results/npbmg/build-*.log
 experiments/results/amg/*
 !experiments/results/amg/summary8.txt
 !experiments/results/amg/confirm8.txt

@@ -1,5 +1,5 @@
-event: {Send,0x7fff4a3c8704,0,0,wild_recv.c:26:5,1}
-event: {Recv,0x7ffe694a43d8,1,0,wild_recv.c:21:5,0}
+event: {Recv,0x7fffad933488,1,0,wild_recv.c:21:5,0}
+event: {Send,0x7ffd2e526914,0,0,wild_recv.c:26:5,1}
 event: {MPIFinalize,wild_recv.c:28:3,1}
 event: {Use,wild_recv.c:23:5,0}
 event: {MPIFinalize,wild_recv.c:28:3,0}

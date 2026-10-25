@@ -1,11 +1,11 @@
-finding,cls,pin,site,pins,replay,matched,control,control_matched,commit
-"probe(7, 11) src=ANY tag=226 could observe send(6, 19)->7 tag=226 400B instead of send(5, 20)->7 tag=226 400B",probe-alt,STRETTO_PIN_PROBE=7:11:6,ij+0x135a95,127,FINISHED,True,FINISHED,True,8771752
-"probe(5, 11) src=ANY tag=226 could observe send(6, 18)->5 tag=226 400B instead of send(7, 17)->5 tag=226 400B",probe-alt,STRETTO_PIN_PROBE=5:11:6,ij+0x135a95,126,FINISHED,True,FINISHED,True,8771752
-"probe(8, 7) src=ANY tag=223 could observe send(7, 14)->8 tag=223 3444B instead of send(6, 14)->8 tag=223 3444B",probe-alt,STRETTO_PIN_PROBE=8:7:7,ij+0x12a7a8,87,FINISHED,True,FINISHED,True,8771752
-"recv(9, 14) src=ANY tag=17 cap=8B <- send(2, 29)->9 tag=17 8B (observed send(3, 27)->9 tag=17 8B); recv(9, 15) src=ANY tag=17 cap=8B left without send(2, 29)->9",1f,STRETTO_PIN=9:0:2,ij+0xa56f6,234,FINISHED,True,FINISHED,True,8771752
-"probe(5, 11) src=ANY tag=226 could observe send(4, 19)->5 tag=226 400B instead of send(7, 17)->5 tag=226 400B",probe-alt,STRETTO_PIN_PROBE=5:11:4,ij+0x135a95,126,FINISHED,True,FINISHED,True,8771752
-"iprobe(5, 16) src=ANY tag=1000 could observe send(2, 32)->5 tag=1000 8B instead of send(0, 19)->5 tag=1000 8B",probe-alt,STRETTO_PIN_PROBE=5:15:2,ij+0xd6696,242,FINISHED,True,FINISHED,True,8771752
-"probe(4, 11) src=ANY tag=226 could observe send(6, 17)->4 tag=226 400B instead of send(7, 16)->4 tag=226 400B",probe-alt,STRETTO_PIN_PROBE=4:11:6,ij+0x135a95,126,FINISHED,True,FINISHED,True,8771752
-"iprobe(11, 1) src=ANY tag=1000 could observe send(4, 33)->11 tag=1000 8B instead of send(2, 36)->11 tag=1000 8B",probe-alt,STRETTO_PIN_PROBE=11:0:4,ij+0xd6696,242,FINISHED,True,FINISHED,True,8771752
-"iprobe(12, 0) src=ANY tag=1000 could observe send(2, 37)->12 tag=1000 8B instead of send(5, 32)->12 tag=1000 8B",probe-alt,STRETTO_PIN_PROBE=12:0:2,ij+0xd6696,240,FINISHED,True,FINISHED,True,8771752
-"probe(3, 11) src=ANY tag=226 could observe send(4, 18)->3 tag=226 400B instead of send(6, 16)->3 tag=226 400B",probe-alt,STRETTO_PIN_PROBE=3:11:4,ij+0x135a95,126,FINISHED,True,FINISHED,True,8771752
+finding,cls,pin,site,pins,replay,matched,run_valid,violation,control,control_matched,control_valid,control_violation,commit
+"probe(7, 8) src=ANY tag=223 could observe send(5, 14)->7 tag=223 3444B instead of send(6, 12)->7 tag=223 3444B",probe-alt,STRETTO_PIN_PROBE=7:8:5,ij+0x12a7a8,87,FINISHED,True,True,,FINISHED,True,True,,415a6ed-dirty
+"probe(5, 10) src=ANY tag=226 could observe send(6, 18)->5 tag=226 400B instead of send(8, 14)->5 tag=226 400B",probe-alt,STRETTO_PIN_PROBE=5:10:6,ij+0x135a95,125,FINISHED,True,True,,FINISHED,True,True,,415a6ed-dirty
+"probe(8, 0) src=ANY tag=226 could observe send(7, 3)->8 tag=226 400B instead of send(9, 1)->8 tag=226 400B",probe-alt,STRETTO_PIN_PROBE=8:0:7,ij+0x135a95,17,FINISHED,True,True,,FINISHED,True,True,,415a6ed-dirty
+"recv(9, 14) src=ANY tag=17 cap=8B <- send(2, 29)->9 tag=17 8B (observed send(3, 27)->9 tag=17 8B); recv(9, 15) src=ANY tag=17 cap=8B left without send(2, 29)->9",1f,STRETTO_PIN=9:0:2,ij+0xa56f6,227,FINISHED,True,True,,FINISHED,True,True,,415a6ed-dirty
+"probe(5, 10) src=ANY tag=226 could observe send(4, 19)->5 tag=226 400B instead of send(8, 14)->5 tag=226 400B",probe-alt,STRETTO_PIN_PROBE=5:10:4,ij+0x135a95,125,FINISHED,True,True,,FINISHED,True,True,,415a6ed-dirty
+"probe(5, 12) src=ANY tag=226 could observe send(3, 20)->5 tag=226 400B instead of send(7, 17)->5 tag=226 400B",probe-alt,STRETTO_PIN_PROBE=5:12:3,ij+0x135a95,127,FINISHED,True,True,,FINISHED,True,True,,415a6ed-dirty
+"probe(4, 11) src=ANY tag=226 could observe send(2, 19)->4 tag=226 400B instead of send(6, 17)->4 tag=226 400B",probe-alt,STRETTO_PIN_PROBE=4:11:2,ij+0x135a95,126,FINISHED,True,True,,FINISHED,True,True,,415a6ed-dirty
+"iprobe(9, 9) src=ANY tag=1000 could observe send(1, 34)->9 tag=1000 8B instead of send(3, 34)->9 tag=1000 8B",probe-alt,STRETTO_PIN_PROBE=9:8:1,ij+0xd6696,241,FINISHED,True,True,,FINISHED,True,True,,415a6ed-dirty
+"iprobe(9, 9) src=ANY tag=1000 could observe send(2, 34)->9 tag=1000 8B instead of send(3, 34)->9 tag=1000 8B",probe-alt,STRETTO_PIN_PROBE=9:8:2,ij+0xd6696,241,FINISHED,True,True,,FINISHED,True,True,,415a6ed-dirty
+"probe(3, 11) src=ANY tag=226 could observe send(4, 18)->3 tag=226 400B instead of send(2, 18)->3 tag=226 400B",probe-alt,STRETTO_PIN_PROBE=3:11:4,ij+0x135a95,126,FINISHED,True,True,,FINISHED,True,True,,415a6ed-dirty

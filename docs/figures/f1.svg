@@ -4,16 +4,16 @@
 <text x="28" y="76" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#14213D">MBI: message races, probes, buffering (115 programs)</text>
 <text x="276" y="106" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" fill="#14213D" text-anchor="end">Stretto, one run</text>
 <rect x="290" y="92" width="470" height="20" rx="4" fill="#E9ECF2"/>
-<rect x="290" y="92" width="455.9" height="20" rx="4" fill="#1F5FA8"/>
-<text x="772" y="107" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#14213D">0.97</text>
+<rect x="290" y="92" width="460.6" height="20" rx="4" fill="#1F5FA8"/>
+<text x="772" y="107" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#14213D">0.98</text>
 <text x="276" y="140" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" fill="#14213D" text-anchor="end">MUST 1.9.2</text>
 <rect x="290" y="126" width="470" height="20" rx="4" fill="#E9ECF2"/>
-<rect x="290" y="126" width="390.1" height="20" rx="4" fill="#9AA3B2"/>
-<text x="772" y="141" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#14213D">0.83</text>
+<rect x="290" y="126" width="380.7" height="20" rx="4" fill="#9AA3B2"/>
+<text x="772" y="141" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#14213D">0.81</text>
 <text x="276" y="174" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" fill="#14213D" text-anchor="end">MUST, a timeout or crash as an error</text>
 <rect x="290" y="160" width="470" height="20" rx="4" fill="#E9ECF2"/>
-<rect x="290" y="160" width="418.3" height="20" rx="4" fill="#9AA3B2"/>
-<text x="772" y="175" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#14213D">0.89</text>
+<rect x="290" y="160" width="408.9" height="20" rx="4" fill="#9AA3B2"/>
+<text x="772" y="175" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#14213D">0.87</text>
 <text x="276" y="208" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" fill="#14213D" text-anchor="end">stress testing, up to 30 runs</text>
 <rect x="290" y="194" width="470" height="20" rx="4" fill="#E9ECF2"/>
 <rect x="290" y="194" width="423.0" height="20" rx="4" fill="#E8873A"/>

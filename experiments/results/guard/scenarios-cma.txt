@@ -1,4 +1,4 @@
-# scenarios: case, exit status, expected and found guard records; commit 7117573; host a-p13; 2026-10-21T13:40Z; single-copy on; payloads up to 0 bytes
+# scenarios: case, exit status, expected and found guard records; commit 415a6ed-dirty; host a-p13; 2026-10-25T04:59Z; single-copy on; payloads up to 0 bytes
 openmpi   1 rc=0   expect=none          got=[] ok payloads=0 single-copy=[]
 openmpi   2 rc=0   expect=access:write  got=[access:write*1] ok payloads=0 single-copy=[]
 openmpi   3 rc=0   expect=access:read   got=[access:read*1] ok payloads=0 single-copy=[1x readv 1 (EPERM 0, EFAULT 0) writev 0 (EPERM 0, EFAULT 0)]

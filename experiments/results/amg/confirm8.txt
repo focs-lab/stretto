@@ -1,3 +1,4 @@
-pin: STRETTO_PIN_PROBE=0:0:1
-[stretto-pin] rank 0: applied probe pidx=0 src=1 tag=1000
+pin: STRETTO_PIN_PROBE=0:0:2
+[stretto-pin] rank 0: loaded (replay library)
+[stretto-pin] rank 0: applied probe pidx=0 src=2 tag=1000 id=0:1000:9fa96
 result: FINISHED

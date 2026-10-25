@@ -1,4 +1,4 @@
-# MPI-BugBench LocalConcurrency programs: exit status, guard records, Stretto classes; commit 7117573; host a-p13; 2026-10-21T13:42Z; single-copy on; payloads up to 0 bytes
+# MPI-BugBench LocalConcurrency programs: exit status, guard records, Stretto classes; commit 415a6ed-dirty; host a-p13; 2026-10-25T05:00Z; single-copy on; payloads up to 0 bytes
 openmpi  P2P__LocalConcurrency-mpi_irecv-001                rc=0   guard=[overlap*1] classes=[3-local*1] payloads=0
 openmpi  P2P__LocalConcurrency-mpi_irecv-002                rc=0   guard=[overlap*1] classes=[3-local*1] payloads=0
 openmpi  P2P__LocalConcurrency-receive-mpi_imrecv-001       rc=0   guard=[access:write*1] classes=[3-local*1] payloads=0

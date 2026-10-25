@@ -8,12 +8,12 @@ Read time: 0s
 
 Pattern Matched!
 p3_Irecv p3_Use p0_Isend 
-Program execution time: 0.006237 seconds
+Program execution time: 0.002599 seconds
 
 === MPI-PRV analysis results ===
 Pattern Matched!
 p3_Irecv p3_Use p0_Isend 
-Program execution time: 0.006237 seconds
+Program execution time: 0.002599 seconds
 ### fresh run 1
 Running with 4 MPI processes.
 Benchmark is stencil.
@@ -25,7 +25,7 @@ Algorithm is overlapped
 --- Stencil - 27 point
 --- Timings ------------------------------------------------------------------------
 |
-| Start: 470565.878663718   End: 470659.974139430   Duration: 94.095475712 s
+| Start: 3618467.116246134   End: 3618500.794162537   Duration: 33.677916403 s
 |
 ------------------------------------------------------------------------------------
 Trace: "fresh1.txt"
@@ -34,8 +34,8 @@ Concurrent processes: 4
 Read time: 0s
 
 Pattern Matched!
-p0_Irecv p0_Use p1_Isend 
-Program execution time: 0.009675 seconds
+p2_Irecv p0_Use p1_Isend 
+Program execution time: 0.003813 seconds
 ### fresh run 2
 Running with 4 MPI processes.
 Benchmark is stencil.
@@ -47,7 +47,7 @@ Algorithm is overlapped
 --- Stencil - 27 point
 --- Timings ------------------------------------------------------------------------
 |
-| Start: 470661.466721979   End: 470719.725498805   Duration: 58.258776826 s
+| Start: 3618501.899743387   End: 3618532.933120915   Duration: 31.033377528 s
 |
 ------------------------------------------------------------------------------------
 Trace: "fresh2.txt"
@@ -56,8 +56,8 @@ Concurrent processes: 4
 Read time: 0s
 
 Pattern Matched!
-p0_Irecv p0_Use p2_Isend 
-Program execution time: 0.007347 seconds
+p0_Irecv p0_Use p3_Isend 
+Program execution time: 0.002560 seconds
 ### fresh run 3
 Running with 4 MPI processes.
 Benchmark is stencil.
@@ -69,7 +69,7 @@ Algorithm is overlapped
 --- Stencil - 27 point
 --- Timings ------------------------------------------------------------------------
 |
-| Start: 470721.443613652   End: 470779.394904925   Duration: 57.951291273 s
+| Start: 3618534.037314773   End: 3618566.235921179   Duration: 32.198606406 s
 |
 ------------------------------------------------------------------------------------
 Trace: "fresh3.txt"
@@ -78,8 +78,8 @@ Concurrent processes: 4
 Read time: 0s
 
 Pattern Matched!
-p0_Irecv p0_Use p3_Isend 
-Program execution time: 0.008777 seconds
+p1_Irecv p0_Use p3_Isend 
+Program execution time: 0.003964 seconds
 ### fresh run 4
 Running with 4 MPI processes.
 Benchmark is stencil.
@@ -91,7 +91,7 @@ Algorithm is overlapped
 --- Stencil - 27 point
 --- Timings ------------------------------------------------------------------------
 |
-| Start: 470780.963704656   End: 470840.163970786   Duration: 59.200266130 s
+| Start: 3618567.345483023   End: 3618599.795120616   Duration: 32.449637593 s
 |
 ------------------------------------------------------------------------------------
 Trace: "fresh4.txt"
@@ -101,7 +101,7 @@ Read time: 0s
 
 Pattern Matched!
 p0_Irecv p0_Use p3_Isend 
-Program execution time: 0.008545 seconds
+Program execution time: 0.002949 seconds
 ### fresh run 5
 Running with 4 MPI processes.
 Benchmark is stencil.
@@ -113,7 +113,7 @@ Algorithm is overlapped
 --- Stencil - 27 point
 --- Timings ------------------------------------------------------------------------
 |
-| Start: 470841.697337732   End: 470899.775260594   Duration: 58.077922862 s
+| Start: 3618600.903707147   End: 3618633.562026611   Duration: 32.658319464 s
 |
 ------------------------------------------------------------------------------------
 Trace: "fresh5.txt"
@@ -122,5 +122,5 @@ Concurrent processes: 4
 Read time: 0s
 
 Pattern Matched!
-p0_Irecv p0_Use p1_Isend 
-Program execution time: 0.006154 seconds
+p3_Irecv p3_Use p0_Isend 
+Program execution time: 0.003285 seconds

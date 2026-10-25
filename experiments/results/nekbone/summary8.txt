@@ -1,6 +1,7 @@
-trace: 8 ranks, 2002398 sends, 2002398 receives, 35714 wildcard receives, 0 probes, 56248 collective records, 11 communicators
+trace: 8 ranks, 2038934 sends, 2038934 receives, 35714 wildcard receives, 0 probes, 56264 collective records, 11 communicators
 findings by class: 1f 10000
 rejected alternatives: 8759
 rejected by reason: send causally follows the receive's completion 8759
-records: 10089233
-host: a-p13, one process; analysis 2050.98 s, 31994564 KB
+records: 10271913
+host: a-p13, one process; analysis 2148.01 s, 19305612 KB
+analysis commit: 415a6ed-dirty
