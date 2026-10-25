@@ -18,7 +18,8 @@
 set -uo pipefail
 R="$(cd "$(dirname "$0")/.." && pwd)"
 source "$R/experiments/harness.sh"
-BIN="$R/third_party/apps/NPB-mpich/bin"
+# third_party/fetch.sh builds into NPB3.4-MPI/bin; a copy made as in RUNBOOK.md has bin/ at the top
+BIN="$R/third_party/apps/NPB-mpich/bin"; [ -d "$BIN" ] || BIN="$R/third_party/apps/NPB-mpich/NPB3.4-MPI/bin"
 TR="$R/tracer/bin/mpich/libstretto-trace.so"
 OUT="$R/experiments/results/e4"; mkdir -p "$OUT"
 export OMPI_MCA_rmaps_base_oversubscribe=1 PYTHONPATH="$R/analysis"
