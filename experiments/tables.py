@@ -1701,6 +1701,14 @@ def guard():
         out += ["Two-rank cases that each name the guard record they must give (`scenarios.txt`): "
                 + "; ".join(f"{m}: {a} of {b} as expected" for m, a, b in sc) + "."]
         num("nGuardCases", int(sc[0][2]))
+    # the runs of the two single-copy modes are counted together only when they come from one
+    # commit on one host (the header line of experiments/guard/run.sh's tables)
+    origin = {f: re.search(r"; commit (\S+); host (\S+);", read(f)) for f in ("apps.txt", "apps-cma.txt") if read(f)}
+    if len({m.groups() if m else None for m in origin.values()}) > 1:
+        raise SystemExit("tables.py: guard/apps.txt and guard/apps-cma.txt come from different runs ("
+                         + "; ".join(f"{f}: commit {m.group(1)}, host {m.group(2)}" if m else f"{f}: no header"
+                                     for f, m in origin.items())
+                         + "); run experiments/guard/run.sh apps again in both modes")
     runs = re.findall(r"^(\S+)\s+(\S+)\s+guard=(\d) rep=\d+ rc=(\d+)\s+wall=\s*[\d.]+s npb=(\S+)\s+records=\d+\s+guard=\[([^]]*)\]",
                       read("apps.txt") + read("apps-cma.txt"), re.M)
     if runs:
