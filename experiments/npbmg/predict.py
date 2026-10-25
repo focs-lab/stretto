@@ -140,6 +140,10 @@ def main() -> int:
         w.writeheader()
         w.writerows(rows)
     print("wrote", args.out)
+    # a table of failed traced runs only is no result (a wrong path, a missing build): say so
+    if not traced:
+        print(f"every traced run failed ({len(rows)} of {len(rows)}); see the table's replay column", file=sys.stderr)
+        return 1
     return 0
 
 
