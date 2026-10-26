@@ -40,6 +40,33 @@ class Recv:
 @dataclass(frozen=True)
 class Wait:
     req: str
+    mark: Optional[str] = None      # recorded in the outcome when the wait returns (explore.Outcome.marks)
+
+
+@dataclass(frozen=True)
+class Probe:
+    """MPI_Probe (blocking: waits until a message it accepts can be received) or MPI_Iprobe
+    (may return false whatever is pending, since nothing guarantees progress, or true with a
+    message it accepts that a receive posted at this point would take). Non-consuming. into is
+    bound to the message's Meta, or to None for a false flag."""
+    src: int
+    tag: int
+    comm: int = 0
+    blocking: bool = False
+    into: Optional[str] = None
+
+
+def Iprobe(src, tag, comm=0, into=None):
+    return Probe(src, tag, comm, False, into)
+
+
+@dataclass(frozen=True)
+class Test:
+    """MPI_Test of a request that returns false: always a possible result, since nothing
+    guarantees progress, and the only one the explorer gives (a test that succeeds is a Wait).
+    A trace written from an execution records it as a failed test (trace_from_execution), the
+    record whose flip to true docs/model.md §3 predicts."""
+    req: str
 
 
 @dataclass(frozen=True)
@@ -96,7 +123,7 @@ class Meta:
     data: Optional[str] = None
 
 
-Op = Union[Send, Recv, Wait, Waitany, Coll, If, Abort, Lazy, Unknown]
+Op = Union[Send, Recv, Wait, Waitany, Coll, Probe, Test, If, Abort, Lazy, Unknown]
 Program = Dict[int, List[Op]]
 
 
@@ -111,17 +138,25 @@ def Irecv(src, tag, cap=4, req="r", comm=0, into=None):
 _MODE = {"ssend": "ssend", "issend": "ssend", "bsend": "bsend", "ibsend": "bsend", "rsend": "rsend", "irsend": "rsend"}
 
 
-def program_from_trace(t, positions: Optional[Dict[int, List[int]]] = None) -> Program:
+def program_from_trace(t, positions: Optional[Dict[int, List[int]]] = None, probes: bool = False,
+                       mark_test: Optional[Tuple[int, int]] = None) -> Program:
     """Straight-line DSL program from a trace (single-path assumption), built from the
     loaded Send/Recv/Coll objects: ranks are world ranks, communicator ids are the global
     ones (explore(..., comms=t.comm_members)), ANY is the loaded ANY, and the ordinals are
     trace.py's by construction, since both skip MPI_PROC_NULL operations. A call the rank
     was blocked in when the run ended is part of the program: the explorer finds the hang.
-    positions, if given, receives per rank the trace record of each op of the program."""
+    positions, if given, receives per rank the trace record of each op of the program.
+    probes=True also issues the probes: Probe and Iprobe ops (whose results the program
+    ignores, so that an Iprobe constrains nothing unless explore forces its result; a blocking
+    probe waits for a message), with the ordinals of trace.py; a matched probe (Mprobe,
+    Improbe) is not modelled and raises ValueError. mark_test, (rank, record) of a failed test
+    of a receive's request, makes that test a wait for the request marked "flip" (a test flip,
+    explore.Outcome.marks); the later wait of the request then returns at once."""
     prog: Program = {}
     colls = {}
     for c in t.colls:
         colls[(c.rank, c.idx)] = c
+    probe_at = {(p.rank, p.idx): p for p in t.probes.values()} if probes else {}
     for rank, recs in t.ranks.items():
         sends = {s.idx: s for s in t.sends_of(rank)}
         recvs = {r.idx: r for r in t.recvs_of(rank)}
@@ -130,7 +165,15 @@ def program_from_trace(t, positions: Optional[Dict[int, List[int]]] = None) -> P
         for rec in recs:
             raw = rec.raw
             call = raw.get("call") if rec.op == "blocked" else rec.op
-            if call == "send":
+            if mark_test == (rank, rec.idx):
+                ops.extend(Wait(f"q{q}", "flip") for q in raw.get("reqs", []) if q is not None and q >= 0)
+            elif call == "probe" and probes:
+                p = probe_at.get((rank, rec.idx))
+                if p is not None:          # None: a probe of MPI_PROC_NULL
+                    if p.kind in ("mprobe", "improbe"):
+                        raise ValueError("program_from_trace: matched probes are not modelled")
+                    ops.append(Probe(p.src, p.tag, p.comm, p.kind == "probe"))
+            elif call == "send":
                 s = sends.get(rec.idx)
                 if s is not None:          # None: a send to MPI_PROC_NULL
                     ops.append(Send(s.dst, s.tag, s.bytes, s.comm, None if s.blocking else f"q{s.req}",
@@ -237,11 +280,15 @@ _RAW_IMODE = {"std": "isend", "ssend": "issend", "bsend": "ibsend", "rsend": "ir
 
 
 def trace_from_execution(prog: Program, matching: Dict[Tuple[int, int], Tuple[int, int]],
-                         comms: Dict[int, List[int]]) -> Dict[int, List[dict]]:
+                         comms: Dict[int, List[int]],
+                         probes: Optional[Dict[Tuple[int, int], Optional[Tuple[int, int]]]] = None) -> Dict[int, List[dict]]:
     """Raw tracer records ({rank: [record]}) of a run of a straight-line program (no If, no
     Waitany) whose receives matched as `matching` (recv key -> send key, every receive
-    matched). trace._build loads the result like a real trace: ranks are written comm-local,
-    requests get ids, wildcard receives their ordinal, sends with a payload their data."""
+    matched) and whose probes returned what `probes` says (probe key -> the send it saw, None
+    or absent for a false flag; explore.Outcome.probes). trace._build loads the result like a
+    real trace: ranks are written comm-local, requests get ids, wildcard receives their
+    ordinal, sends with a payload their data."""
+    probes = probes or {}
     sends_by_key = {}
     for r, ops in prog.items():
         n = 0
@@ -261,7 +308,7 @@ def trace_from_execution(prog: Program, matching: Dict[Tuple[int, int], Tuple[in
                 recs.append({"op": "comm", "name": "split", "parent": 0, "id": -1})
         reqid: Dict[str, int] = {}
         reqkind: Dict[str, Tuple[str, Tuple[int, int]]] = {}
-        nreq = nsend = nrecv = widx = 0
+        nreq = nsend = nrecv = widx = nprobe = 0
 
         def local(comm: int, world: int) -> int:
             return comms[comm].index(world)
@@ -309,6 +356,24 @@ def trace_from_execution(prog: Program, matching: Dict[Tuple[int, int], Tuple[in
                 if kind and kind[0] == "recv":
                     done.update(kind[1])
                 recs.append({"op": "wait", "kind": "wait", "reqs": [q], "done": [done]})
+            elif isinstance(op, Test):
+                recs.append({"op": "wait", "kind": "test", "flag": 0, "reqs": [reqid.get(op.req)], "done": []})
+            elif isinstance(op, Probe):
+                sk = probes.get((r, nprobe))
+                rec = {"op": "probe", "kind": "probe" if op.blocking else "iprobe",
+                       "src": -1 if op.src == ANY else local(op.comm, op.src), "tag": op.tag, "comm": op.comm,
+                       "flag": 1 if sk is not None else 0}
+                if op.src == ANY:
+                    rec["anysrc"] = 1
+                if op.tag == ANY:
+                    rec["anytag"] = 1
+                if sk is not None:
+                    s = sends_by_key[sk]
+                    rec.update({"msrc": local(op.comm, sk[0]), "mtag": s.tag, "mbytes": s.bytes})
+                elif op.blocking:
+                    raise ValueError("trace_from_execution: a blocking probe without a message")
+                recs.append(rec)
+                nprobe += 1
             elif isinstance(op, Coll):
                 rec = {"op": "coll", "name": op.name, "comm": op.comm, "root": local(op.comm, op.root) if op.root is not None else -1,
                        "count": 1, "tsize": 4, "tsig": "MPI_INT"}
@@ -326,7 +391,7 @@ def trace_from_execution(prog: Program, matching: Dict[Tuple[int, int], Tuple[in
 
 def random_matched_program(rng: random.Random, nranks: int, rounds: Tuple[int, int] = (2, 4),
                            msgs_per_round: Tuple[int, int] = (2, 5), wildcard: float = 0.6,
-                           mixed: bool = False) -> Tuple[Program, Dict[int, List[int]]]:
+                           mixed: bool = False, probes: float = 0.0) -> Tuple[Program, Dict[int, List[int]]]:
     """A straight-line program with races: in every round each rank issues its sends
     (standard or buffered, blocking or not) and posts its receives (blocking, or nonblocking
     and waited later in the round), one per message addressed to it, most of them
@@ -340,7 +405,14 @@ def random_matched_program(rng: random.Random, nranks: int, rounds: Tuple[int, i
     a nonblocking wildcard may then stay pending while later receives complete and the rank
     sends again, which is the shape a re-matched pending receive constrains (docs/model.md
     §2, match nodes). Such a program can deadlock or fail; the caller keeps the ones whose
-    explorer finds a clean execution."""
+    explorer finds a clean execution.
+
+    probes > 0 puts, with that probability, a polling loop before a receive, unrolled as a
+    straight line: one to three Iprobes of the receive's envelope (the iterations a trace
+    records, folded, as failed polls and perhaps a success), or, before a blocking receive,
+    sometimes a blocking Probe. Their results, which the program ignores, are what the trace of
+    an execution records (explore(record_probes=True)), and the flag flips of docs/model.md §3
+    are the alternatives at them."""
     prog: Program = {r: [] for r in range(nranks)}
     comms = {0: list(range(nranks)), 1: [0, 1]}
     nreq = 0
@@ -368,16 +440,33 @@ def random_matched_program(rng: random.Random, nranks: int, rounds: Tuple[int, i
             for src, _, tag, size, comm in lst:
                 wsrc = ANY if rng.random() < wildcard else src
                 wtag = ANY if rng.random() < wildcard / 3 else tag
-                if rng.random() < (0.5 if mixed else 0.4):
+                nonblocking = rng.random() < (0.5 if mixed else 0.4)
+                if probes and rng.random() < probes:
+                    if not nonblocking and rng.random() < 0.25:
+                        recvs[dst].append((Probe(wsrc, wtag, comm, True), None))
+                    else:
+                        recvs[dst].extend((Iprobe(wsrc, wtag, comm), None) for _ in range(rng.randint(1, 3)))
+                if nonblocking:
                     name = f"q{nreq}"; nreq += 1
                     recvs[dst].append((Irecv(wsrc, wtag, 4096, req=name, comm=comm), name))
                 else:
                     recvs[dst].append((Recv(wsrc, wtag, 4096, comm), None))
+        recv_reqs = {name for lst in recvs.values() for _, name in lst if name}
+
+        def wait_for(name: str) -> List[Op]:
+            """The wait of a request, after a test of it that fails, with probes, sometimes (a
+            receive's polling test)."""
+            if probes and name in recv_reqs and rng.random() < probes:
+                return [Test(name), Wait(name)]
+            return [Wait(name)]
+
         for r in range(nranks):
             if not mixed:
                 ops = sends[r] + recvs[r]
                 prog[r].extend(op for op, _ in ops)
-                prog[r].extend(Wait(name) for _, name in ops if name)
+                for _, name in ops:
+                    if name:
+                        prog[r].extend(wait_for(name))
                 continue
             # a random merge of the rank's sends and receives, each list in its own order, with
             # each wait at a random later position
@@ -394,8 +483,9 @@ def random_matched_program(rng: random.Random, nranks: int, rounds: Tuple[int, i
                 if name:
                     pending.append(name)
                 if pending and rng.random() < 0.3:
-                    body.append(Wait(pending.pop(rng.randrange(len(pending)))))
-            body.extend(Wait(name) for name in pending)
+                    body.extend(wait_for(pending.pop(rng.randrange(len(pending)))))
+            for name in pending:
+                body.extend(wait_for(name))
             prog[r].extend(body)
         if rng.random() < 0.5:
             comm = 1 if nranks > 2 and rng.random() < 0.3 else 0

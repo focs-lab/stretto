@@ -11,6 +11,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import random
 import unittest
 
+from stretto import dsl, trace as T
 from stretto.dsl import ANY, Abort, Coll, If, Irecv, Isend, Lazy, Recv, Send, Unknown, Wait, Waitany
 from stretto.explore import ExploreError, StateCapReached, explore, ready_errors
 
@@ -345,6 +346,79 @@ class T14_ReadyMode(unittest.TestCase):
         self.assertTrue(orphaned)
         self.assertTrue(all((1, 0) in ready_errors(o) for o in orphaned))
         self.assertTrue(any(not o.errors for o in res.outcomes if (1, 0) not in o.orphans))
+
+
+class T11_Probes(unittest.TestCase):
+    """Probes and failing tests (dsl.Probe, dsl.Test), against which E6 judges probe
+    alternatives and flag flips (docs/model.md §3): an Iprobe may return false, or true with a
+    message it accepts that is the earliest of its source and that no receive posted by its
+    rank would take first; a forced result waits until it can be returned."""
+
+    def test_iprobe_results(self):
+        prog = {0: [dsl.Iprobe(ANY, 1), Recv(ANY, 1)], 1: [Send(0, 1)], 2: [Send(0, 1)]}
+        res = explore(prog, None, record_probes=True)
+        seen = {dict(o.probes)[(0, 0)] for o in res.outcomes}
+        self.assertEqual(seen, {None, (1, 0), (2, 0)})
+
+    def test_a_posted_receive_hides_the_message(self):
+        # the Irecv(ANY) posted before the probe takes whatever arrives first
+        prog = {0: [Irecv(ANY, 1, req="a"), dsl.Iprobe(ANY, 1), Wait("a"), Recv(ANY, 1)],
+                1: [Send(0, 1)], 2: [Send(0, 1)]}
+        res = explore(prog, None, force_probes={(0, 0): (1, 0)})
+        ok = [o for o in res.outcomes if dict(o.probes).get((0, 0)) == (1, 0)]
+        # rank 1's message is seen only once the Irecv has taken rank 2's
+        self.assertTrue(ok)
+        self.assertTrue(all(((0, 0), (2, 0)) in o.matching for o in ok))
+
+    def test_non_overtaking(self):
+        prog = {0: [dsl.Iprobe(1, ANY), Recv(1, ANY), Recv(1, ANY)], 1: [Send(0, 1), Send(0, 2)]}
+        res = explore(prog, None, record_probes=True)
+        self.assertEqual({dict(o.probes)[(0, 0)] for o in res.outcomes}, {None, (1, 0)})
+
+    def test_blocking_probe_waits(self):
+        prog = {0: [dsl.Probe(ANY, 1, blocking=True), Recv(ANY, 1)], 1: []}
+        self.assertEqual(kinds(prog, None), {"deadlock"})
+
+    def test_forced_false_and_marked_wait(self):
+        prog = {0: [dsl.Iprobe(ANY, 1), Irecv(1, 1, req="a"), dsl.Test("a"), Wait("a", "flip"), Wait("a")], 1: [Send(0, 1)]}
+        res = explore(prog, None, force_probes={(0, 0): None})
+        self.assertEqual({(o.kind, o.marks, o.probes) for o in res.outcomes}, {("done", ("flip",), (((0, 0), None),))})
+
+    def test_reduced_equals_unreduced(self):
+        rng = random.Random(7)
+        n = 0
+        for _ in range(20):
+            prog, comms = dsl.random_matched_program(rng, 3, rounds=(1, 2), msgs_per_round=(2, 3), probes=0.6)
+            try:
+                a = explore(prog, None, comms=comms, record_probes=True, max_states=200000)
+                b = explore(prog, None, comms=comms, record_probes=True, reduce=False, max_states=200000)
+            except StateCapReached:
+                continue
+            self.assertEqual(a.sigs(), b.sigs())
+            n += 1
+        self.assertGreater(n, 10)
+
+    def test_trace_of_an_execution_has_its_probes(self):
+        rng = random.Random(11)
+        made = 0
+        while made < 10:
+            prog, comms = dsl.random_matched_program(rng, 3, rounds=(1, 2), msgs_per_round=(2, 3), probes=0.8)
+            try:
+                res = explore(prog, None, comms=comms, record_probes=True, max_states=100000)
+            except StateCapReached:
+                continue
+            done = [o for o in res.outcomes if o.kind == "done" and not o.errors]
+            if not done:
+                continue
+            o = done[0]
+            t = T.Trace()
+            T._build(t, dsl.trace_from_execution(prog, dict(o.matching), comms, dict(o.probes)))
+            for key, sk in o.probes:
+                p = t.probes[key]
+                self.assertEqual(p.flag, sk is not None)
+                if sk is not None:
+                    self.assertEqual(p.seen, sk)
+            made += 1
 
 
 if __name__ == "__main__":

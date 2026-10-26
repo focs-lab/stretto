@@ -54,7 +54,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Dict, FrozenSet, List, Optional, Set, Tuple, Union
 
-from .dsl import ANY, Abort, Coll, If, Lazy, Meta, Op, Program, Recv, Send, Unknown, Wait, Waitany
+from .dsl import ANY, Abort, Coll, If, Lazy, Meta, Op, Probe, Program, Recv, Send, Test, Unknown, Wait, Waitany
 from .matching import coll_shape
 
 Key = Tuple[int, int]
@@ -105,6 +105,7 @@ class PState:
     blocked_recv: Optional[Key] = None               # process parked until this receive matches
     blocked_coll: Optional[Tuple[int, int]] = None   # process parked at (comm, ordinal)
     reqs: Tuple[Tuple[str, Tuple[str, object]], ...] = ()   # name -> (kind, key), live requests only
+    nprobe: int = 0
 
 
 @dataclass(frozen=True)
@@ -125,6 +126,10 @@ class GState:
     # pending ready-mode sends issued while a receive that accepts them was posted, each with
     # those receives: the only ones that may take it without error (sorted by send key)
     ready: Tuple[Tuple[Key, FrozenSet[Key]], ...] = ()
+    # results of the probes whose result is recorded (forced ones, or all with record_probes):
+    # (probe key, send key or None for a false flag), and the marks of marked waits, in order
+    probed: Tuple[Tuple[Key, Optional[Key]], ...] = ()
+    marks: Tuple[str, ...] = ()
 
 
 @dataclass
@@ -143,9 +148,11 @@ class Outcome:
     # in the program and the kind of op it is parked at ('send', 'recv', 'coll', or ''); not
     # part of sig, so it is the first witness's of the outcome (stretto.reads reads it)
     stops: Tuple[Tuple[int, int, str], ...] = ()
+    probes: Tuple[Tuple[Key, Optional[Key]], ...] = ()   # recorded probe results (GState.probed)
+    marks: Tuple[str, ...] = ()                         # marks of the marked waits that returned
 
     def sig(self):
-        return (self.kind, self.matching, self.orphans, self.leaked, self.errors, self.unknown)
+        return (self.kind, self.matching, self.orphans, self.leaked, self.errors, self.unknown, self.probes, self.marks)
 
     @property
     def error_kinds(self):
@@ -265,10 +272,16 @@ def _ready_error(key: Key) -> str:
 
 def explore(prog: Program, B: Optional[int] = None, force: Optional[Dict[Key, Key]] = None,
             max_states: int = 2_000_000, comms: Optional[Dict[int, List[int]]] = None,
-            reduce: bool = True) -> Result:
+            reduce: bool = True, force_probes: Optional[Dict[Key, Optional[Key]]] = None,
+            record_probes: bool = False) -> Result:
     """force: {recv key: send key} restricts match transitions for those receives.
     comms: communicator id -> member ranks (default: comm 0 = all ranks; other ids must
-    be given)."""
+    be given). force_probes: {probe key: send key, or None for a false flag} fixes what those
+    probes return: the probe waits until the message can be seen (for ever if it never can),
+    and a false flag is always possible for an Iprobe; their results are recorded
+    (Outcome.probes). record_probes also branches on, and records, what every other probe
+    returns; otherwise a probe whose result is bound to no variable is one step: an Iprobe
+    constrains nothing (false is always possible) and a blocking probe waits for a message."""
     force = force or {}
     ranks = sorted(prog)
     comms = dict(comms or {})
@@ -279,7 +292,7 @@ def explore(prog: Program, B: Optional[int] = None, force: Optional[Dict[Key, Ke
         # receiver's posting and the sender's issue, so posting no longer commutes with
         # every other step and the persistent-set reduction is unsound: explore unreduced
         reduce = False
-    ctx = _Ctx(prog, B, force, ranks, comms, reduce)
+    ctx = _Ctx(prog, B, force, ranks, comms, reduce, force_probes or {}, record_probes)
     init = GState(tuple(PState(0, (), (), 0, 0) for r in ranks),
                   (), (), (), (), frozenset(), frozenset(), (), frozenset())
     res = Result()
@@ -301,7 +314,8 @@ def explore(prog: Program, B: Optional[int] = None, force: Optional[Dict[Key, Ke
             res.outcomes.append(ctx.terminal(st))
     if reduce and dynamic_rsend is not None and dynamic_rsend():
         # a ready-mode send was computed during the exploration: the reduction did not apply
-        return explore(prog, B, force, max_states, comms, reduce=False)
+        return explore(prog, B, force, max_states, comms, reduce=False, force_probes=force_probes,
+                       record_probes=record_probes)
     uniq, out = set(), []
     for o in res.outcomes:
         if o.sig() not in uniq:
@@ -323,8 +337,9 @@ def _has_rsend(prog: Program) -> bool:
 
 
 class _Ctx:
-    def __init__(self, prog, B, force, ranks, comms, reduce):
+    def __init__(self, prog, B, force, ranks, comms, reduce, force_probes=None, record_probes=False):
         self.prog, self.B, self.force, self.ranks, self.comms, self.reduce = prog, B, force, ranks, comms, reduce
+        self.force_probes, self.record_probes = force_probes or {}, record_probes
         self.progs = [tuple(prog[r]) for r in ranks]
 
     def done_p(self, i: int, p: PState) -> bool:
@@ -359,7 +374,75 @@ class _Ctx:
             # a ready send that no receive took has no matching receive at all
             errors = _add_error(errors, _ready_error(key))
         return Outcome(kind, frozenset(st.matched), frozenset(m.key for m in st.pending), "; ".join(errors),
-                       frozenset(r.key for r in st.posted), errors, st.matched, st.sent, ncoll, st.unknown, stops)
+                       frozenset(r.key for r in st.posted), errors, st.matched, st.sent, ncoll, st.unknown, stops,
+                       probes=st.probed, marks=st.marks)
+
+    # ---- probes
+    def visible(self, st: GState, rank: int, op: Probe) -> List[Msg]:
+        """The messages a probe of rank could return now: pending, accepted, the earliest
+        pending one of its source that the probe accepts (non-overtaking), and taken by no
+        receive the rank has posted (MPI 4.1 §3.8.1: a probe returns what a receive posted at
+        that point would match, and a posted receive that accepts the message comes first)."""
+        out = []
+        for m in st.pending:
+            if not (m.dst == rank and m.comm == op.comm and (op.src == ANY or op.src == m.src) and (op.tag == ANY or op.tag == m.tag)):
+                continue
+            if any(x.src == m.src and x.dst == rank and x.comm == m.comm and x.key < m.key and (op.tag == ANY or op.tag == x.tag)
+                   for x in st.pending):
+                continue
+            if any(r.rank == rank and _accepts(r, m) for r in st.posted):
+                continue
+            out.append(m)
+        return out
+
+    def probe_results(self, st: GState, i: int) -> Tuple[List[Tuple[Optional[Msg], bool]], bool]:
+        """What the probe that is process i's next op can return now, each with whether it is
+        recorded, and whether the step can be taken alone (persistent-set reduction): a
+        forced probe, or one whose result nothing records, has at most one result, which no
+        other transition disables (only a receive of the probe's rank could take a message it
+        sees, and the rank is at the probe), so it commutes with every other step."""
+        p = st.procs[i]
+        op = self.next_op(i, p)
+        rank = self.ranks[i]
+        key = (rank, p.nprobe)
+        if key in self.force_probes:
+            want = self.force_probes[key]
+            if want is None:
+                return ([] if op.blocking else [(None, True)]), True
+            return [(m, True) for m in self.visible(st, rank, op) if m.key == want], True
+        vis = self.visible(st, rank, op)
+        if not self.record_probes and op.into is None:
+            if op.blocking:
+                return ([(vis[0], False)] if vis else []), True
+            return [(None, False)], True
+        res = [(m, True) for m in vis] + ([] if op.blocking else [(None, True)])
+        return res, False
+
+    def probe_step(self, st: GState, i: int, m: Optional[Msg], recorded: bool) -> GState:
+        p = st.procs[i]
+        op = self.next_op(i, p)
+        key = (self.ranks[i], p.nprobe)
+        env = p.env
+        if op.into is not None:
+            e = _env(p)
+            e[op.into] = Meta(m.src, m.tag, m.bytes, m.data) if m is not None else None
+            env = tuple(sorted(e.items()))
+        np_ = self.advance(p, nprobe=p.nprobe + 1, env=env)
+        probed = st.probed + ((key, m.key if m is not None else None),) if recorded else st.probed
+        return _gs(st, procs=_procs(st, i, np_), probed=probed)
+
+    def probe_steps(self, st: GState, i: int, alone: bool) -> List[GState]:
+        """The steps of process i at a probe: those that can be taken alone (alone=True) or the
+        branching ones (alone=False)."""
+        p = st.procs[i]
+        if p.blocked_send is not None or p.blocked_recv is not None or p.blocked_coll is not None or self.done_p(i, p):
+            return []
+        if not isinstance(self.next_op(i, p), Probe):
+            return []
+        res, single = self.probe_results(st, i)
+        if single != alone:
+            return []
+        return [self.probe_step(st, i, m, rec) for m, rec in res]
 
     def _force_starved(self, st: GState) -> bool:
         """Some posted forced receive could match a pending send if the force were lifted."""
@@ -557,6 +640,9 @@ class _Ctx:
             reqs = p.reqs + ((op.req, ("recv", key)),) if op.req else p.reqs
             np_ = self.advance(p, nrecv=p.nrecv + 1, blocked_recv=key if op.req is None else None, reqs=reqs)
             return _gs(st, procs=_procs(st, i, np_), posted=st.posted + (post,))
+        if isinstance(op, Test):
+            # a test that fails, always possible (no progress guarantee): a step of its rank alone
+            return _gs(st, procs=_procs(st, i, self.advance(p)))
         if isinstance(op, Wait):
             live = dict(p.reqs)
             if op.req not in live:      # MPI_REQUEST_NULL (already completed): returns at once
@@ -564,7 +650,8 @@ class _Ctx:
             kind, key = live[op.req]
             if not self._req_complete(st, p, kind, key):
                 return None
-            return self._finish_request(st, i, p, op.req, kind, key, None, None)
+            nst = self._finish_request(st, i, p, op.req, kind, key, None, None)
+            return _gs(nst, marks=nst.marks + (op.mark,)) if getattr(op, "mark", None) else nst
         if isinstance(op, Coll):
             comm = op.comm
             k = _ncoll(p, comm)
@@ -624,10 +711,14 @@ class _Ctx:
                 res = self.local_step(st, i)
                 if res is not None:
                     return [res], outs
+                alone = self.probe_steps(st, i, True)
+                if alone:
+                    return alone, outs
             for r, m in matches:
                 succs.append(self.match_step(st, r, m))
             for i in range(len(st.procs)):
                 succs.extend(self.waitany_steps(st, i))
+                succs.extend(self.probe_steps(st, i, False))
             return succs, outs
         # unreduced: every enabled transition
         for r, m in matches:
@@ -640,4 +731,6 @@ class _Ctx:
             if res is not None:
                 succs.append(res)
             succs.extend(self.waitany_steps(st, i))
+            succs.extend(self.probe_steps(st, i, True))
+            succs.extend(self.probe_steps(st, i, False))
         return succs, outs
