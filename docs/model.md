@@ -11,8 +11,9 @@ completes at the wait/test record that completed its request, or at the first
 `MPI_Request_get_status` that found it complete, if that comes earlier: a true flag is a result,
 like a successful test's, so the match precedes it and rule 1 cuts after it (before 22 Oct 2026
 such queries were dropped, and an alternative could need the match after the query that had
-seen it done; `C_RequestGetStatus`). A false flag, like a failed test, says nothing, since the
-model guarantees no progress.
+seen it done; `C_RequestGetStatus`). A false flag, like a failed test, says nothing about the
+matching, since the model guarantees no progress; it is a result all the same, and another
+execution may give the other one (flag flips, §3, since 26 Oct 2026).
 
 Objects:
 
@@ -418,7 +419,9 @@ no changed receive: the cut and the order obligations are those of σ at every B
 rendezvous edges disappear as B grows). A probe alternative (§3): the one edge
 `issue(s) → complete(p)` replaces `issue(seen) → complete(p)`; neither mentions B, and a send
 issued inside H(B) is issued inside H(B') ⊇ H(B). A completion-order alternative (§3): the cut
-after the wait record is rule 1, independent of B, and the added edge does not mention B. Each
+after the wait record is rule 1, independent of B, and the added edge does not mention B. A
+flag flip (§3) is a probe alternative whose probe saw nothing in σ (or, unflipped, reports
+nothing), and a test flip a completion-order alternative: the same argument holds. Each
 profile is therefore monotone in B and its bisection exact. Evidence: the bisect-versus-full
 differential on the 516 traces and on AMG (3 263 probe alternatives, identical findings);
 E2's full profiles cover the observed run and receive alternatives, not probes, so for probes
@@ -552,6 +555,108 @@ observed probe edge is acyclic; a completion-order alternative (Waitany/Waitsome
 another index) cuts after that record and adds `issue(s_j) → complete(wait)`. Both are
 profiled over the breakpoints like receive alternatives.
 
+**Flag flips** (since 26 Oct 2026). A poll's flag is a result, as a probe's message is, and a
+polling loop branches on it. Before 26 Oct 2026 only probes that saw a message were re-matched,
+so a race decided by when a polling `MPI_Iprobe` first returns true was outside the model
+(HDF5 1.8.9's ph5diff, HDFFV-8003: the drain loop's `Probe(ANY, ANY)` meets a token return
+only if an earlier polling Iprobe returned true). Three alternatives change a flag:
+
+- *probe flip* (`matching.flip_candidates`): an Iprobe or Improbe p that returned false returns
+  true with message s. For each source p accepts, s is the head of that source's queue among
+  the messages p accepts that no receive posted before p took, no matched probe before p
+  removed and no cancel withdrew (the non-overtaking kernel of probe alternatives), and that does
+  not causally follow `complete(p)` in the observed graph (pruned as in §2: such a send is
+  outside the horizon, which cuts p's rank right after p);
+- *probe unflip*: an Iprobe or Improbe that returned true returns false;
+- *test flip* (`matching.test_flip_candidates`): an `MPI_Test` or `MPI_Request_get_status` on
+  the request of a receive r that returned false finds r complete, with its observed message
+  s = M₀(r) (r completes later in σ, and s does not causally follow the call). Calls on several
+  requests (Testall, Testany, Testsome) and tests of send requests are not flipped.
+
+A flip of p at B is feasible (`feasible.check` with `changed_probes = {p}` and
+`probe_alt = {p: s}`, or `{p: None}` for an unflip; a test flip as a completion-order
+alternative, `changed_events` and `must_issue = [s]`; `fast.Observed.check_probe` and
+`check_event`) iff, over the kept prefix H:
+
+1. rule 1 cuts p's rank right after p: what the rank does after the other flag is not in the
+   trace (a polling loop's other branch), and p is exempt from rules 5 and 6 (it reports s, or
+   nothing, not what it saw);
+2. p is kept;
+3. for a flip to true: s is issued inside H (a blocking send cut at its own record counts, as its
+   envelope is visible to a probe); no receive of p's rank posted before p that accepts s is
+   pending through H, neither one without a message in M₀ nor one whose M₀ message is not issued
+   in H (it would take s on arrival, and a probe sees only what a receive posted at its point
+   would take: rule 6 for s's envelope); every earlier message of s's channel that p accepts is
+   matched to a receive posted before p (the kernel), and the graph gets `issue(s) →
+   complete(p)` and the order edges of conditions 2 and 3' into `complete(p)` (`build_graph`
+   with `probe_alt`). For a test flip: s is issued inside H, and the graph gets `m(r, s) →
+   complete(test)`: r is matched before the test returns;
+4. the graph on H is acyclic. `complete(p)` has no kept successor, so no cycle passes through the
+   new edges, and the graph is that of the observed matching on H with p's edges changed.
+
+The causal condition of the request ("m not causally after the probe") is therefore the
+horizon's: a send that causally follows `complete(p)` is beyond the cut (§2, pruning), and the
+enumeration prunes it beforehand. Buffering enters as for receives: a send stuck in a
+rendezvous below its threshold is still issued, and the profile over B (T2') says from which
+threshold on s is issued inside H. An Improbe that flips takes s off the queue; the only
+receives that could have taken s are p's rank's after p, beyond H.
+
+*Soundness* (theorem T1 for flips). The graph on H is the graph of the observed matching on H,
+with p's observed edges (none for a failed probe) replaced by `issue(s) → complete(p)` and the
+order edges into `complete(p)`, and it is acyclic; replay its topological order as in T1. At
+`complete(p)`, the probe's return, s has been issued; it is not matched, since its receiver in
+M₀, if any, lies on p's rank after p, beyond H; every earlier message of its source that p
+accepts is matched (their match nodes precede `complete(p)`); and no receive of the rank posted
+before p and unmatched accepts s (condition 3). So a receive posted at that point would take s,
+and with arbitrary message delays s can have arrived: `MPI_Iprobe` may return it (MPI 4.1
+§3.8.1). The other operations of H keep their results, as in T1, and nothing of p's rank after
+p is in H, so every program consistent with σ on H issues H's operations in that order. A test
+flip is the same with `m(r, s) → complete(test)`: the receive is matched, its data may have
+arrived, and `MPI_Test` returns true once the operation is complete. An unflip removes edges
+only, and at `complete(p)` the message may still be in transit: a single Iprobe returning false
+is a correct result at any time, since only a loop that busy-waits is guaranteed to see the
+message eventually (§3.8.1). Tests: `test_flips.py` (in-memory traces, the fast check against
+the generic one on random runs with failed polls) and E6 with `--probes`, which forces the
+probe's result in the explorer (`explore(force_probes=)`, a test flip as a marked wait) and
+keeps every kept probe's recorded result (a program consistent with σ may branch on it).
+
+*Levels.* Flips are reported at L1 only, as classes `probe-flip`, `probe-unflip` and
+`test-flip`, which are warnings (not error classes), like `probe-alt`. Under the single-path
+assumption SP(σ) issues σ's calls whatever they return, so a flipped flag changes nothing that
+follows and the explorer would find no consequence; a polling loop never ignores its flag, so a
+consequence found that way would be a statement about no real program. Nor can the trace supply
+the other branch: the calls after a true flag are usually a receive of the probed envelope,
+which the trace shows at the loop's later success, but splicing that continuation into an
+earlier iteration assumes that the loop's state (counters, which branch, the data) is the same
+at both, which the trace does not show. So no L1+SP and no L2 consequence of a flip is stated
+(re-execution, `stretto.rerun`, has no probes or tests in its shim). The consequence is checked
+by replay: the pin forces the flip and the program runs its own branch, and the control forces
+the recorded result (`STRETTO_PIN_FLIP`, below).
+
+*Naming a failed poll.* A polling loop spins a number of times that differs from run to run,
+and the tracer folds repeated failed polls into one record. A failed poll is therefore named by
+its poll segment (`trace.poll_segments`): a maximal run of failed polls of any kind on a rank
+with no other call between them, numbered from the start of the rank, the buffer guard's and
+overflow records skipped. A program consistent with σ issues the same calls between segments,
+so the replay library counts the same segments (`replay/pin.h`, `STRETTO_PIN_FLIP=rank:seg:src
+[:tag]@comm:tag:site:found`: the first call of that identity in that segment, whose source and
+tag arguments admit the pinned ones, waits until the message is available and returns it; `-1`,
+the control, returns false without polling; `-2` completes a test's request). A replay that
+follows the trace only up to a point counts other segments after it (a loop that finds its
+messages in another order has its segments elsewhere), and its forced call could then wait for
+a message that never comes; found, the number of the rank's wildcard probes that found a message
+before the call, is compared at the call, and a replay that meets it after another number ends
+as misapplied (inconclusive) instead. The check is partial: a replay can reach the segment with
+the same number after another call (a Testall that succeeded earlier, a nonblocking barrier
+entered later), and its forced call can then wait for a message that the rank's own missing
+call holds back. Such a replay ends by the timeout without "matched flip" and is inconclusive;
+only a replay whose flip matched counts (on a driver of the NBX consensus pattern, 26 Oct 2026,
+half the replays of the flips of one rank were of this kind). Within a segment the
+records have only failed polls between them, which have no edge but program order, so a flip
+at a later record of a segment is the flip at the first record of its identity and call site,
+with the same horizon; only that one is enumerated. An unflip is pinned by the probe ordinal
+(`STRETTO_PIN_PROBE` with source `-1`: the call returns false once).
+
 `R*` must survive the closure (`witness_kept`): a blocking changed receive must complete inside
 H, a nonblocking one must be posted inside H with its new message issued inside H (the match
 is decided then; the wait that completes it may lie beyond H, as when a later blocking
@@ -629,6 +734,10 @@ shaped collectives and metadata branches.
 
 ## 6. Open questions
 
+- Flag flips (§3) beyond one call: the flips of Testall, Testany and Testsome and of tests of
+  send requests; two flips together (a loop's later iteration flipped too); and consequences
+  of a flip above L1, which need the code after the other flag (re-execution with probes and
+  tests in its shim).
 - Multi-change alternatives: the check is linear for any M' (T4); the enumeration of
   k-change alternatives by kernel heads on distinct ranks is the next rung, and its count the
   question.
