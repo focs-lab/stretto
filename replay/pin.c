@@ -21,15 +21,21 @@ static int g_nwild = 0, g_nsend = 0, g_nrecv = 0, g_nprobe = 0;
    tag, for an ANY_TAG receive). Its identity, if the token gives one, is the traced operation's
    communicator (its creation ordinal on the rank), its tag argument (-1 for ANY_TAG) and its call
    site (offset in its object); each part is checked when given. seen_*: what the run's operation
-   had, for the report lines. */
+   had, for the report lines. A flip pin (STRETTO_PIN_FLIP) has the poll segment as its idx; used:
+   a pin that applies once (a flip, a probe pin to flag 0) has been applied. */
 struct pin {
     int idx, src, tag;
     int ident, has_comm, has_otag, has_site;
     int comm, otag; long site;
     int seen_comm, seen_otag; long seen_site;
+    int nprobe, has_nprobe;           /* a flip pin: how many wildcard probes of the rank found a message before the call */
+    int used;
 };
-static struct pin *g_pins = NULL, *g_ppins = NULL;
-static int g_npins = 0, g_nppins = 0;
+static struct pin *g_pins = NULL, *g_ppins = NULL, *g_fpins = NULL;
+static int g_npins = 0, g_nppins = 0, g_nfpins = 0;
+/* poll segments for STRETTO_PIN_FLIP: how many have begun on this rank, and whether the last
+   record was a failed poll (stretto_pin_record) */
+static int g_seg = 0, g_inpoll = 0;
 static int g_send_delay_ms = 0, g_recv_delay_ms = 0;
 static struct { int is_send, k, ms; } *g_at = NULL;
 static int g_nat = 0;
@@ -88,6 +94,7 @@ static void parse_ident(char *s, struct pin *p) {
         if (k == 0) { p->comm = atoi(f); p->has_comm = 1; }
         else if (k == 1) { p->otag = atoi(f); p->has_otag = 1; }
         else if (k == 2) { p->site = strtol(f, NULL, 16); p->has_site = 1; }
+        else if (k == 3) { p->nprobe = atoi(f); p->has_nprobe = 1; }   /* flips: the wildcard probes found before */
     }
 }
 
@@ -142,7 +149,7 @@ HIDDEN void stretto_pin_init(int rank) {
     int announce = 1;
     const char *what = "replay library";
 #else
-    int announce = getenv("STRETTO_PIN") || getenv("STRETTO_PIN_PROBE") || getenv("STRETTO_SEND_DELAY_MS")
+    int announce = getenv("STRETTO_PIN") || getenv("STRETTO_PIN_PROBE") || getenv("STRETTO_PIN_FLIP") || getenv("STRETTO_SEND_DELAY_MS")
                    || getenv("STRETTO_RECV_DELAY_MS") || getenv("STRETTO_DELAY_AT");
     const char *what = "tracer";
 #endif
@@ -154,6 +161,8 @@ HIDDEN void stretto_pin_init(int rank) {
         fprintf(stderr, "[stretto-pin] rank %d: %d pin(s) active\n", rank, g_npins);
     g_nprobe = 0;
     g_nppins = parse_pins("STRETTO_PIN_PROBE", rank, &g_ppins);
+    g_seg = g_inpoll = 0;
+    g_nfpins = parse_pins("STRETTO_PIN_FLIP", rank, &g_fpins);
     g_send_delay_ms = parse_rank_ms(getenv("STRETTO_SEND_DELAY_MS"), rank);
     g_recv_delay_ms = parse_rank_ms(getenv("STRETTO_RECV_DELAY_MS"), rank);
     const char *at = getenv("STRETTO_DELAY_AT");
@@ -261,6 +270,14 @@ HIDDEN void stretto_pin_matched(int widx, int comm_src) {
 static int g_pinned_probe = -1;   /* the pidx whose pin was applied by the last peek */
 static int g_misapplied_probe = -1;   /* the pidx whose pin the last peek found on another operation */
 
+HIDDEN int stretto_pin_probe_ordinal(int src, int tag) {
+    if (src != MPI_ANY_SOURCE && tag != MPI_ANY_TAG) return -1;
+    pthread_mutex_lock(&g_pmu);
+    int idx = g_nprobe;
+    pthread_mutex_unlock(&g_pmu);
+    return idx;
+}
+
 HIDDEN int stretto_pin_probe(int *src, int *tag, MPI_Comm comm, int *pidx) {
     /* Peek only: the ordinal advances in stretto_pin_probe_commit(), called when the probe
        found a message. Failed polls (Iprobe/Improbe with flag 0) do not count, so the
@@ -274,11 +291,19 @@ HIDDEN int stretto_pin_probe(int *src, int *tag, MPI_Comm comm, int *pidx) {
     pthread_mutex_unlock(&g_pmu);
     *pidx = idx;
     struct pin *p = find_pin(g_ppins, g_nppins, idx);
-    if (!p) return 0;
+    if (!p || p->used) return 0;
     current_ident(comm, *tag, p);
     if (!ident_holds(p)) {
         pthread_mutex_lock(&g_pmu); g_misapplied_probe = idx; g_pinned_probe = -1; pthread_mutex_unlock(&g_pmu);
         return 0;
+    }
+    if (p->src == -1) {
+        /* a flag flip to false: this call returns flag 0 without polling, once; the ordinal does
+           not advance (no message was found), and the loop's next call at it is not pinned */
+        char id[96];
+        p->used = 1;
+        fprintf(stderr, "[stretto-pin] rank %d: applied unflip pidx=%d%s\n", g_rank, idx, seen_ident(p, id, sizeof id));
+        return 2;
     }
     if (*src == MPI_ANY_SOURCE) {
         int cr = to_comm_rank(comm, p->src);
@@ -313,13 +338,93 @@ HIDDEN void stretto_pin_probe_commit(int pidx, int src, int tag) {
     pthread_mutex_unlock(&g_pmu);
 }
 
+/* ---- flag flips (STRETTO_PIN_FLIP). A failed poll is named by its poll segment, which the
+   tracer's records delimit: every record passes here, a failed poll starts a segment unless
+   the previous record was one too. The count is the analysis's (trace.poll_segments), and it
+   does not depend on how often a polling loop spins. */
+HIDDEN void stretto_pin_record(const char *body, int failed_poll) {
+    if (!g_nfpins || strncmp(body, "\"op\":\"guard\"", 12) == 0 || strncmp(body, "\"op\":\"overflow\"", 15) == 0)
+        return;
+    pthread_mutex_lock(&g_pmu);
+    if (!failed_poll) g_inpoll = 0;
+    else if (!g_inpoll) { g_seg++; g_inpoll = 1; }
+    pthread_mutex_unlock(&g_pmu);
+}
+
+/* A flip pin that names the number of wildcard probes found before its call (the fourth field
+   of its identity) and meets its call after another number: the replay diverged before the
+   call, whose segment then names another iteration of the loop, and forcing it could wait for
+   a message that never comes. The run ends as for any misapplied pin. */
+static void flip_count_holds(const struct pin *p, int seg) {
+    if (!p->has_nprobe) return;
+    pthread_mutex_lock(&g_pmu);
+    int n = g_nprobe;
+    pthread_mutex_unlock(&g_pmu);
+    if (n == p->nprobe) return;
+    fprintf(stderr, "[stretto-pin] rank %d: flip pin seg=%d misapplied: the run's call follows %d wildcard probe(s) that found a message, the trace's %d\n",
+            g_rank, seg, n, p->nprobe);
+    fflush(stderr);
+    PMPI_Abort(MPI_COMM_WORLD, STRETTO_PIN_MISAPPLIED);
+}
+
+static int g_flip_seg = -1;          /* the segment of the flip being forced (for the matched line) */
+static struct pin *g_flip_pin = NULL;
+
+HIDDEN int stretto_pin_flip(int is_test, int src, int tag, MPI_Comm comm, int *fsrc, int *ftag, int *seg) {
+    if (!g_nfpins) return 0;
+    pthread_mutex_lock(&g_pmu);
+    int k = g_inpoll ? g_seg - 1 : g_seg;     /* the segment this call is in if it fails */
+    pthread_mutex_unlock(&g_pmu);
+    *seg = k;
+    struct pin *p = find_pin(g_fpins, g_nfpins, k);
+    for (; p && p < g_fpins + g_nfpins && p->idx == k; p++) {
+        if (p->used || (is_test ? p->src >= 0 : p->src == -2)) continue;
+        current_ident(comm, is_test ? MPI_ANY_TAG : tag, p);
+        if (is_test) p->seen_comm = p->comm, p->seen_otag = p->otag;   /* a test has neither: its site names it */
+        if (!ident_holds(p)) continue;
+        char id[96];
+        if (p->src == -1) {
+            flip_count_holds(p, k);
+            p->used = 1;
+            fprintf(stderr, "[stretto-pin] rank %d: applied flip seg=%d flag=0%s\n", g_rank, k, seen_ident(p, id, sizeof id));
+            return -1;
+        }
+        if (is_test) {
+            flip_count_holds(p, k);
+            p->used = 1; g_flip_seg = k; g_flip_pin = p;
+            fprintf(stderr, "[stretto-pin] rank %d: applied flip seg=%d test%s\n", g_rank, k, seen_ident(p, id, sizeof id));
+            return 1;
+        }
+        int cr = to_comm_rank(comm, p->src);
+        if (cr == MPI_UNDEFINED || (src != MPI_ANY_SOURCE && src != cr)) continue;   /* another call of the loop */
+        int t = tag == MPI_ANY_TAG ? p->tag : tag;
+        if (tag != MPI_ANY_TAG && p->tag != MPI_ANY_TAG && p->tag != tag) continue;
+        flip_count_holds(p, k);
+        p->used = 1; g_flip_seg = k; g_flip_pin = p;
+        *fsrc = cr; *ftag = t;
+        fprintf(stderr, "[stretto-pin] rank %d: applied flip seg=%d src=%d (world %d) tag=%d%s\n", g_rank, k, cr, p->src, t,
+                seen_ident(p, id, sizeof id));
+        return 1;
+    }
+    return 0;
+}
+
+HIDDEN void stretto_pin_flip_matched(int seg, int src, int tag) {
+    char id[96] = "";
+    if (g_flip_pin && g_flip_seg == seg) seen_ident(g_flip_pin, id, sizeof id);
+    fprintf(stderr, "[stretto-pin] rank %d: matched flip seg=%d src=%d tag=%d%s\n", g_rank, seg, src, tag, id);
+}
+
 HIDDEN void stretto_pin_finalize(void) {
     for (int i = 0; i < g_npins; i++)
         if (g_pins[i].idx >= g_nwild)
             fprintf(stderr, "[stretto-pin] rank %d: pin widx=%d unused: the run posted %d wildcard receive(s)\n", g_rank, g_pins[i].idx, g_nwild);
     for (int i = 0; i < g_nppins; i++)
-        if (g_ppins[i].idx >= g_nprobe)
+        if (g_ppins[i].idx >= g_nprobe && !g_ppins[i].used)
             fprintf(stderr, "[stretto-pin] rank %d: probe pin pidx=%d unused: %d wildcard probe(s) found a message\n", g_rank, g_ppins[i].idx, g_nprobe);
+    for (int i = 0; i < g_nfpins; i++)
+        if (!g_fpins[i].used)
+            fprintf(stderr, "[stretto-pin] rank %d: flip pin seg=%d unused: %d poll segment(s), no call of its identity forced\n", g_rank, g_fpins[i].idx, g_seg);
 }
 
 static void delay_at(int is_send, int k) {

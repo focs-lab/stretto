@@ -136,10 +136,10 @@ Ident = Tuple[Optional[int], Optional[int], Optional[int]]     # (communicator, 
 
 @dataclass(frozen=True)
 class PinToken:
-    kind: str                 # "recv" (STRETTO_PIN) or "probe" (STRETTO_PIN_PROBE)
+    kind: str                 # "recv" (STRETTO_PIN), "probe" (STRETTO_PIN_PROBE) or "flip" (STRETTO_PIN_FLIP)
     rank: int
-    idx: int                  # widx or pidx
-    src: int                  # the sender's world rank
+    idx: int                  # widx, pidx, or a flip's poll segment
+    src: int                  # the sender's world rank; -1 a flag 0, -2 a test's request (flips, replay/pin.h)
     tag: Optional[int]        # the tag an ANY_TAG operation takes, None if the pin names none
     ident: Optional[Ident]    # the traced operation's identity, None in a token without it
 
@@ -155,13 +155,17 @@ def _ident_text(ident: Ident) -> str:
     return f"{'x' if c is None else c}:{'x' if g is None else g}" + ("" if s is None else f":{s:x}")
 
 
+def _pin_kind(name: str) -> str:
+    return {"STRETTO_PIN_PROBE": "probe", "STRETTO_PIN_FLIP": "flip"}.get(name, "recv")
+
+
 def pin_tokens(pins) -> List[PinToken]:
     """The tokens of "STRETTO_PIN=..." and "STRETTO_PIN_PROBE=..." assignments (one, a list, or
     None), in both formats."""
     out = []
     for a in ([pins] if isinstance(pins, str) else (pins or [])):
         name, _, spec = a.partition("=")
-        kind = "probe" if name == "STRETTO_PIN_PROBE" else "recv"
+        kind = _pin_kind(name)
         for tok in re.split(r"[,\s]+", spec):
             head, at, ident = tok.partition("@")
             parts = head.split(":")
@@ -184,7 +188,7 @@ def pin_name(pin: Optional[str]) -> str:
     if not pin:
         return "nopin"
     name, _, spec = strip_identity(pin).partition("=")
-    return ("probe-" if name.endswith("PROBE") else "") + spec.replace(":", ".").replace(",", "_")
+    return {"probe": "probe-", "flip": "flip-"}.get(_pin_kind(name), "") + spec.replace(":", ".").replace(",", "_")
 
 
 def _local_comms(t) -> Dict[Tuple[int, int], int]:
@@ -246,7 +250,7 @@ def with_identity(t, pins: List[str]) -> List[str]:
     out = []
     for a in pins:
         name, _, spec = a.partition("=")
-        kind = "probe" if name == "STRETTO_PIN_PROBE" else "recv"
+        kind = _pin_kind(name)
         toks = []
         for tok in spec.split(","):
             parts = tok.split("@")[0].split(":")
@@ -270,9 +274,15 @@ def _expected(pins) -> Dict[Tuple[str, int, int], Optional[Ident]]:
     return {(k.kind, k.rank, k.idx): k.ident for k in pin_tokens(pins)}
 
 
-_LINE = re.compile(r"\[stretto-pin\] rank (\d+): (matched widx|applied widx|applied probe pidx)=(\d+)\b([^\n]*)")
+_LINE = re.compile(r"\[stretto-pin\] rank (\d+): (matched widx|applied widx|applied probe pidx|applied unflip pidx"
+                   r"|applied flip seg|matched flip seg)=(\d+)\b([^\n]*)")
+# what each line says, and the pin it shows taken: a receive pin when its receive completed, a
+# probe pin when the probe found its message or returned false as pinned (unflip), a flip pin
+# when the forced call returned true (matched flip) or false as pinned (applied flip ... flag=0)
+_WHAT = {"matched widx": "matched", "applied widx": "applied", "applied probe pidx": "probe",
+         "applied unflip pidx": "unflip", "applied flip seg": "flip-applied", "matched flip seg": "flip"}
 _LINE_ID = re.compile(r"\bid=(-?[0-9]+|x):(-?[0-9]+|x):([0-9a-f]+|x)")
-_MISAPPLIED = re.compile(r"\[stretto-pin\] rank \d+: (?:probe )?pin (?:widx|pidx)=\d+ misapplied[^\n]*")
+_MISAPPLIED = re.compile(r"\[stretto-pin\] rank \d+: (?:probe |flip )?pin (?:widx|pidx|seg)=\d+ misapplied[^\n]*")
 
 
 def _lines(stderr: str):
@@ -282,8 +292,15 @@ def _lines(stderr: str):
     quadratic."""
     for m in _LINE.finditer(stderr):
         i = _LINE_ID.search(m.group(4))
-        what = {"matched widx": "matched", "applied widx": "applied", "applied probe pidx": "probe"}[m.group(2)]
+        what = _WHAT[m.group(2)]
+        if what == "flip-applied" and " flag=0" in m.group(4):
+            what = "flip"          # the control's flip: the call returned false as pinned
         yield what, int(m.group(1)), int(m.group(3)), _parse_ident(":".join(i.groups())) if i else None
+
+
+def _line_key(what: str, rank: int, idx: int) -> Tuple[str, int, int]:
+    """The pin a report line is about."""
+    return ({"flip": "flip", "flip-applied": "flip"}.get(what) or ("probe" if what in ("probe", "unflip") else "recv"), rank, idx)
 
 
 def pins_misapplied(stderr: str) -> List[str]:
@@ -299,7 +316,7 @@ def pins_applied(pin: str, stderr: str) -> bool:
     seen = {}
     for what, rank, idx, ident in _lines(stderr):
         if what != "matched":
-            seen[("probe" if what == "probe" else "recv", rank, idx)] = ident
+            seen[_line_key(what, rank, idx)] = ident
     return bool(want) and all(k in seen and _agrees(e, seen[k]) for k, e in want.items())
 
 
@@ -310,9 +327,9 @@ def _reported(stderr: str, pins=None) -> Set[Tuple[str, int, int]]:
     want = _expected(pins) if pins else {}
     out = set()
     for what, rank, idx, ident in _lines(stderr):
-        if what == "applied":
+        if what in ("applied", "flip-applied"):
             continue
-        key = ("probe" if what == "probe" else "recv", rank, idx)
+        key = _line_key(what, rank, idx)
         if _agrees(want.get(key), ident):
             out.add(key)
     return out
@@ -320,7 +337,7 @@ def _reported(stderr: str, pins=None) -> Set[Tuple[str, int, int]]:
 
 def _taken(pin: str, reported: Set[Tuple[str, int, int]]) -> bool:
     name, _, spec = pin.partition("=")
-    kind = "probe" if name == "STRETTO_PIN_PROBE" else "recv"
+    kind = _pin_kind(name)
     for tok in spec.split(","):
         parts = tok.split(":")
         if len(parts) < 3 or (kind, int(parts[0]), int(parts[1])) not in reported:
@@ -339,8 +356,17 @@ def control_pin(t, pin: str) -> Optional[str]:
     """The same receives (or probes) pinned to the senders they took in the recorded run, with
     their identity. Receives that never completed there are left unpinned. None if no pin
     remains."""
-    name = pin.partition("=")[0]
+    name, _, spec = pin.partition("=")
     toks = []
+    if _pin_kind(name) == "flip":
+        # the trace's own result: the failed poll returns flag 0; the identity as it is (it may
+        # carry a fourth field, the probes found before the call, replay/pin.h)
+        for tok in re.split(r"[,\s]+", spec):
+            head, at, ident = tok.partition("@")
+            parts = head.split(":")
+            if len(parts) >= 3:
+                toks.append(f"{parts[0]}:{parts[1]}:-1" + (at + ident if at else ""))
+        return f"{name}={','.join(toks)}" if toks else None
     for k in pin_tokens(pin):
         x = _op_at(t, k.kind, k.rank, k.idx)
         if x is None:
@@ -461,6 +487,10 @@ def parse_pins(pins) -> Tuple[Dict[Tuple[int, int], Tuple[int, Optional[int]]], 
     recv: Dict[Tuple[int, int], Tuple[int, Optional[int]]] = {}
     probe: Dict[Tuple[int, int], Tuple[int, Optional[int]]] = {}
     for k in pin_tokens(pins):
+        if k.kind == "flip" or k.src < 0:
+            # a flip forces a poll's result without changing its envelope, and a probe pinned to
+            # flag 0 leaves its ordinal to the next probe that finds a message, unpinned
+            continue
         (probe if k.kind == "probe" else recv)[(k.rank, k.idx)] = (k.src, k.tag)
     return recv, probe
 

@@ -209,5 +209,56 @@ class PinIdentity(unittest.TestCase):
         self.assertIn(("probe", q.rank, 0), C._reported(rp.proc.stderr, [f"STRETTO_PIN_PROBE={C.pin_token(t, q, src)}"]) | rp.seen)
 
 
+class FlipPins(unittest.TestCase):
+    """STRETTO_PIN_FLIP (replay/pin.h): a failed poll named by its poll segment forced to return
+    true with a given message, and the control forcing its recorded false."""
+
+    analysed = PinIdentity.analysed
+
+    def test_a_failed_iprobe_is_forced_to_see_the_later_message(self):
+        """Idiom 11: the first polling loop spins until rank 1's message arrives; the flip of its
+        failed Iprobe to rank 2's message makes it wait for that message and return it, and the
+        run then takes rank 1's in the second loop."""
+        exe, t, rep = self.analysed(11)
+        fl = [f for f in rep.by_class("probe-flip") if f.send is not None and t.sends[f.send].rank == 2
+              and t.poll_seg.get((0, t.probes[f.probe].idx)) == 0]
+        if not fl:
+            self.skipTest("the first loop of this trace did not fail before rank 1's message")
+        f = fl[0]
+        self.assertRegex(f.pin, r"^STRETTO_PIN_FLIP=0:0:2@0:11:[0-9a-fx]+:0$")    # no wildcard probe found a message before
+        rp = C.run_checked(3, exe, [], [f.pin], timeout=20)
+        self.assertEqual(rp.result, "FINISHED", rp.proc.stderr[-2000:])
+        self.assertRegex(rp.proc.stderr, r"\[stretto-pin\] rank 0: matched flip seg=0 src=2 tag=11\b")
+        self.assertTrue(C.all_matched([f.pin], rp.proc.stderr, None, rp.seen))
+        ctl = C.control_pin(t, f.pin)
+        self.assertRegex(ctl, r"^STRETTO_PIN_FLIP=0:0:-1@")
+        rc = C.run_checked(3, exe, [], [ctl], timeout=20)
+        self.assertEqual(rc.result, "FINISHED")
+        self.assertRegex(rc.proc.stderr, r"\[stretto-pin\] rank 0: applied flip seg=0 flag=0\b")
+        self.assertTrue(C.all_matched([ctl], rc.proc.stderr, None, rc.seen))
+
+    def test_a_flip_pin_after_another_probe_count_ends_the_run(self):
+        """The same flip pin naming one wildcard probe found before the call, where the replay
+        has found none: the replay diverged, and the library ends it as misapplied."""
+        exe, t, rep = self.analysed(11)
+        fl = [f for f in rep.by_class("probe-flip") if t.poll_seg.get((0, t.probes[f.probe].idx)) == 0]
+        if not fl:
+            self.skipTest("no flip in the first segment of this trace")
+        bad = fl[0].pin.rsplit(":", 1)[0] + ":1"
+        rp = C.run_checked(3, exe, [], [bad], timeout=20)
+        self.assertEqual(rp.result, f"APP-ERROR:{C.PIN_MISAPPLIED}")
+        self.assertTrue(C.pins_misapplied(rp.proc.stderr))
+
+    def test_a_true_iprobe_is_forced_to_return_false_once(self):
+        """Idiom 11: the probe that found rank 1's message returns false once (STRETTO_PIN_PROBE
+        with source -1); the loop's next call finds the message, and the run finishes."""
+        exe, t, rep = self.analysed(11)
+        (u,) = [f for f in rep.by_class("probe-unflip") if t.probes[f.probe].pidx == 0]
+        rp = C.run_checked(3, exe, [], [u.pin], timeout=20)
+        self.assertEqual(rp.result, "FINISHED")
+        self.assertRegex(rp.proc.stderr, r"\[stretto-pin\] rank 0: applied unflip pidx=0\b")
+        self.assertNotIn("unused", rp.proc.stderr)
+
+
 if __name__ == "__main__":
     unittest.main()
