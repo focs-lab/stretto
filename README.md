@@ -258,8 +258,11 @@ checksum only, and reads only on pages that lie wholly inside a point-to-point r
 ### Replay and pins
 
 `STRETTO_PIN="rank:idx:src[:tag],..."` pins the idx-th wildcard receive of a rank to a source;
-`STRETTO_PIN_PROBE` does the same for wildcard probes, and `STRETTO_PIN=@file` reads a list too
-long for one environment string. `STRETTO_SEND_DELAY_MS="rank:ms,..."` and
+`STRETTO_PIN_PROBE` does the same for wildcard probes (source -1: an Iprobe that found a message
+returns false once), and `STRETTO_PIN=@file` reads a list too long for one environment string.
+`STRETTO_PIN_FLIP="rank:seg:src[:tag]@comm:tag:site:found"` forces a poll that failed in the trace,
+named by its poll segment, to wait for the message of src and return it (-2: a test waits for its
+request; -1, the control: returns false). `STRETTO_SEND_DELAY_MS="rank:ms,..."` and
 `STRETTO_RECV_DELAY_MS` add delays, which the stress-testing baseline uses. The pins `stretto
 confirm` writes also carry the traced operation's identity, `rank:idx:src[:tag]@comm:tag:site`
 (its communicator's creation ordinal on the rank, its tag argument, its call site): a replay that
@@ -306,6 +309,9 @@ describes how the runs were made.
 | 2-buffering | the observed run itself deadlocks below an eager threshold | observed |
 | waitany-order | another request could have completed first | L1 |
 | probe-alt | a wildcard probe could have observed another message | L1 |
+| probe-flip | an Iprobe or Improbe that returned false could have returned true with a message | L1 |
+| probe-unflip | an Iprobe or Improbe that returned true could have returned false | L1 |
+| test-flip | an MPI_Test or MPI_Request_get_status that returned false could have found its receive complete | L1 |
 | 2-collective | ranks disagree on a collective (name or participation) | observed |
 | 2-blocked | the run ended with a rank blocked in a call or spinning in a polling loop | observed |
 | 2-ready | the run issued a ready-mode send before the receive that takes it was posted (alternatives are then not predicted) | observed |

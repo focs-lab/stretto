@@ -17,7 +17,7 @@ from .deadlock import contained_deadlock
 from .reads import _cidx, erroneous, witness_respects
 
 
-# classes that make a program's verdict ERROR (the warnings 1b, 1f, probe-alt and
+# classes that make a program's verdict ERROR (the warnings 1b, 1f, probe-alt, the flag flips and
 # waitany-order do not); experiments/mbi/score.py uses the same set
 ERROR_CLASSES = frozenset({"1a", "1c", "1d", "2-buffering", "2-collective", "2-blocked", "2-ready", "3-local", "abort"})
 

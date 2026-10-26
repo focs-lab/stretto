@@ -4,7 +4,7 @@ what a verdict is. experiments/tables.py imports it; on its own it prints the su
 
 A program's Stretto verdict is ERROR iff a finding of an error class is present:
   error classes   : 1a 1c 1d 2-buffering 2-collective 2-blocked 2-ready 3-local abort
-  warning classes : 1b 1f probe-alt waitany-order   (reported, never counted as errors)
+  warning classes : 1b 1f probe-alt waitany-order probe-flip probe-unflip test-flip   (reported, never counted as errors)
 Findings are qualified by the level that established them ("levels" column: observed:2-blocked,
 L1:1f, L1+SP:1d, ...), which separates what any observational tool sees in the run from
 what Stretto predicts about other runs:
@@ -33,7 +33,7 @@ import sys
 from typing import Dict, Iterable, List
 
 ERROR = {"1a", "1c", "1d", "2-buffering", "2-collective", "2-blocked", "2-ready", "3-local", "abort"}
-WARN = {"1b", "1f", "probe-alt", "waitany-order"}
+WARN = {"1b", "1f", "probe-alt", "waitany-order", "probe-flip", "probe-unflip", "test-flip"}
 OBSERVED = {"observed:1c", "observed:2-blocked", "observed:2-collective", "observed:2-ready", "observed:3-local",
             "observed:abort"}
 PREDICTED = {"L1:1a", "L1:1c", "L1:1d", "L1+SP:1a", "L1+SP:1c", "L1+SP:1d", "observed:2-buffering"}   # 2-buffering on finished runs only
