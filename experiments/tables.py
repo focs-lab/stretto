@@ -1238,6 +1238,240 @@ def hypre_new():
     return "\n".join(out) + "\n"
 
 
+HIST_NP_WORD = {3: "Three", 4: "Four", 8: "Eight"}
+HIST_ERRORS = ("1a", "1b", "1c", "1d", "2-buffering")
+
+
+def _counts(text: str) -> dict:
+    """'1d/L1+SP=6;1f/L1=9' -> {'1d/L1+SP': 6, '1f/L1': 9}."""
+    return {k: int(v) for k, v in (x.split("=") for x in (text or "").split(";") if x)}
+
+
+def _clean(r) -> bool:
+    return r.get("traced") == "FINISHED" and r.get("traced_ok") == "True"
+
+
+def _tally(rs, key) -> str:
+    """'TIMEOUT 28, FINISHED 1': how many rows have each value of key, most first."""
+    return ", ".join(f"{k or '-'} {n}" for k, n in collections.Counter(r.get(key) for r in rs).most_common()) or "-"
+
+
+def hist_predict(prefix: str, rs: list, exposed, classified: bool, fixed: bool = False) -> list:
+    """The table rows (one per process count) and the macros of one version's prediction table
+    from experiments/history_predict.py. exposed(run row) says whether a clean run predicts the
+    bug; classified, whether the campaign named the kinds of the alternatives (--classify).
+    Macros, with n<prefix> (n<prefix>Fix for the fix) and, per process count, the same followed
+    by Three, Four or Eight: Traced, Clean, Exposed, ErrorRuns (clean runs with a finding of an
+    error class); for the findings stretto confirm replayed (role confirm) Replayed, ReplayHang,
+    ReplayFail, Matched, ControlsFinish, Confirmed, Strict; for a classified campaign CrossAlts,
+    SameAlts and, of the replayed alternatives (role replay, kind cross), CrossReplayed,
+    CrossFail (did not finish, or printed a wrong result), CrossTruncate, CrossMatched,
+    CrossValid, CrossControlsOk, CrossControlsValid."""
+    p = prefix + ("Fix" if fixed else "")
+    out = []
+    for np_ in [None] + sorted({int(r["np"]) for r in rs}):
+        sel = [r for r in rs if np_ is None or int(r["np"]) == np_]
+        runs = {(r["np"], r["run"]): r for r in sel}
+        clean = [r for r in runs.values() if _clean(r)]
+        exp = [r for r in clean if exposed(r)]
+        errs = [r for r in clean if any(k.split("/")[0] in HIST_ERRORS and not k.endswith("/observed") for k in _counts(r.get("findings")))]
+        conf = [r for r in sel if r.get("role") == "confirm"]
+        cross = [r for r in sel if r.get("role") == "replay" and r.get("kind") == "cross"]
+        cross_alts = sum(_counts(r.get("kinds")).get("cross", 0) for r in clean)
+        same_alts = sum(_counts(r.get("kinds")).get("same", 0) for r in clean)
+        failed = [r for r in cross if r.get("replay") != "FINISHED" or r.get("replay_ok") != "True"]
+        ctl_ok = [r for r in cross if r.get("control") == "FINISHED" and r.get("control_ok") == "True"]
+        s = p + ("" if np_ is None else HIST_NP_WORD[np_])
+        num(f"n{s}Traced", len(runs))
+        num(f"n{s}Clean", len(clean))
+        num(f"n{s}Exposed", len(exp))
+        num(f"n{s}ErrorRuns", len(errs))
+        if conf:
+            num(f"n{s}Replayed", len(conf))
+            num(f"n{s}ReplayHang", sum(r.get("replay") == "TIMEOUT" for r in conf))
+            num(f"n{s}ReplayFail", sum(r.get("replay") != "FINISHED" for r in conf))
+            num(f"n{s}Matched", sum(r.get("matched") == "True" for r in conf))
+            num(f"n{s}ControlsFinish", sum(r.get("control") == "FINISHED" for r in conf))
+            num(f"n{s}Confirmed", sum(r.get("verdict") == "confirmed" for r in conf))
+            num(f"n{s}Strict", sum(r.get("strict") == "confirmed" for r in conf))
+        if classified:
+            num(f"n{s}CrossAlts", cross_alts)
+            num(f"n{s}SameAlts", same_alts)
+            num(f"n{s}CrossReplayed", len(cross))
+            num(f"n{s}CrossFail", len(failed))
+            num(f"n{s}CrossTruncate", sum(r.get("replay") == "MPI-ERROR:MPI_ERR_TRUNCATE" for r in cross))
+            num(f"n{s}CrossMatched", sum(r.get("matched") == "True" for r in cross))
+            num(f"n{s}CrossValid", sum(r.get("run_valid") == "True" for r in cross))
+            num(f"n{s}CrossControlsOk", len(ctl_ok))
+            num(f"n{s}CrossControlsValid", sum(r.get("control_valid") == "True" for r in cross))
+        if np_ is None:
+            continue
+        findings = collections.Counter()
+        for r in clean:
+            findings.update(_counts(r.get("findings")))
+        crossed = (f"| {cross_alts} / {same_alts} | {len(cross)} | {_tally(cross, 'replay') if cross else '-'} | {len(failed)} "
+                   f"| {sum(r.get('matched') == 'True' for r in cross)} | {sum(r.get('run_valid') == 'True' for r in cross)} "
+                   f"| {len(ctl_ok)} |") if classified else "| - | - | - | - | - | - | - |"
+        out.append(f"| {rs[0]['version']} | {np_} | {len(runs)} | {len(clean)} | {len(exp)} "
+                   f"| {', '.join(f'{k} {n}' for k, n in sorted(findings.items())) or '-'} "
+                   f"| {len(conf)} | {_tally(conf, 'replay') if conf else '-'} | {sum(r.get('matched') == 'True' for r in conf)} "
+                   f"| {sum(r.get('control') == 'FINISHED' for r in conf)} | {sum(r.get('strict') == 'confirmed' for r in conf)} "
+                   + crossed)
+    return out
+
+
+HIST_PREDICT_HEAD = ["| version | ranks | traced runs | clean | clean runs that predict it | findings of the clean runs (class/level) "
+                     "| error findings replayed | replay results | pins matched | controls finished | confirmed, replay a run of the program "
+                     "| cross / same alternatives | cross replayed | cross replay results | failed or wrong output | pins matched "
+                     "| runs of the program | controls finished with correct output |",
+                     "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
+
+
+def hist_stress(prefix: str, rs: list, fixed: bool = False) -> list:
+    """The table rows and macros of one version's untraced runs (experiments/history_stress.py):
+    n<prefix>[Fix]Stress{,Plain,Delay,Eager}{Runs,Fail,Hang}, a failure being a run that did not
+    finish or whose output was wrong."""
+    p = prefix + ("Fix" if fixed else "") + "Stress"
+    out = []
+    for setting, word in ((None, ""), ("plain", "Plain"), ("delays", "Delay"), ("eager", "Eager")):
+        sel = [r for r in rs if setting is None or r["setting"] == setting]
+        if not sel:
+            continue
+        num(f"n{p}{word}Runs", len(sel))
+        num(f"n{p}{word}Fail", sum(r["result"] != "FINISHED" or r["ok"] != "True" for r in sel))
+        num(f"n{p}{word}Hang", sum(r["result"] == "TIMEOUT" for r in sel))
+    for label in dict.fromkeys(r["label"] for r in rs):
+        for np_ in sorted({int(r["np"]) for r in rs if r["label"] == label}):
+            for setting in ("plain", "delays", "eager"):
+                sel = [r for r in rs if r["label"] == label and int(r["np"]) == np_ and r["setting"] == setting]
+                if not sel:
+                    continue
+                bad = [r for r in sel if r["result"] != "FINISHED" or r["ok"] != "True"]
+                out.append(f"| {sel[0]['version']} | {label} | {np_} | {setting} | {len(sel)} | {len(bad)} "
+                           f"| {sum(r['result'] == 'TIMEOUT' for r in sel)} | {_tally(bad, 'result') if bad else '-'} |")
+    return out
+
+
+HIST_NOTES = {
+    "cabana": ["The deadlock is an L1+SP finding: the L1 findings (1f) are reorderings of the round-1 counts, and under the",
+               "single-path assumption the explorer finds executions in which a later round-1 wildcard receive takes a round-2",
+               "id and the plan hangs (1d), leaving a count unreceived (1c). `stretto confirm` replays each distinct set of pins",
+               "and class once, with the explorer's witness; a replay whose own trace could not be judged (`unknown`) counts as",
+               "confirmed by its pins only. `Test10NoTopo-repeat2` is the same test run twice in one run (`--gtest_repeat=2`)."],
+    "stempy": ["The cross alternatives are the bug at L1 (class 1f: the 8-byte size fits the map's buffer). At 4 ranks the",
+               "explorer also turns them into truncations (1a, L1+SP), which `stretto confirm` does not confirm: it expects",
+               "MPI_ERR_TRUNCATE, and the run ends earlier, in the harness's MPI_Abort(3) after cereal's exception, so the",
+               "single-path assumption (the program goes on receiving) does not hold here. At 8 ranks the explorer is off (it",
+               "had not finished one trace in 15 minutes). Every failed replay's output has cereal's \"Failed to read\"."],
+    "mfem332": ["The analysis reports the cross alternative as class 1f (the other mesh's row fits the receive's buffer); its",
+                "consequence, the truncation of a longer row (MPI_ERR_TRUNCATE) or the abort of \"integer set not found\"",
+                "(APP-ERROR:1), shows in the replay. The explorer is off: it hits its state cap on these traces. At 8 ranks the",
+                "race strikes after the horizon too, which alone is pinned: some controls fail and some replays leave a pin",
+                "unmatched, so the 8-rank replays are weaker evidence; most traced runs fail there as well."],
+}
+HIST_STRESS_HEAD = ["| version | driver | ranks | setting | runs | failed | hung | how the failures ended |", "|---|---|---|---|---|---|---|---|"]
+
+
+def history():
+    """E5g: four documented bugs from the histories of Cabana, stempy, MFEM and LAMMPS, each
+    predicted from clean traced runs of the version with the bug and replayed, tested by
+    untraced runs, and the same on the fix (experiments/{cabana,stempy,mfem332,lammps}/run.sh;
+    experiments/history_predict.py, history_stress.py, lammps/predict.py)."""
+    out = []
+    cases = [
+        ("cabana", "Cabana", "Cabana `CommunicationPlan::createFromImports`, a round-1 wildcard receive takes a round-2 id (hang; PR #835)",
+         "fbbcc37f", "38170631", ["predict-{v}.csv"], lambda r: any(k.startswith("1d/") for k in _counts(r.get("findings")))),
+        ("stempy", "Stempy", "stempy 3.3.5 `gatherEvents`, the map receive takes another worker's size (cereal exception; issue #292)",
+         "3.3.5", "3.3.6", ["predict-{v}-np4.csv", "predict-{v}-np8.csv"], lambda r: _counts(r.get("kinds")).get("cross", 0) > 0),
+        ("mfem332", "MfemGroup", "MFEM 3.3.2 `GroupTopology::Create`, a receive takes the next mesh's group row (truncation or abort; c52c6243b)",
+         "3.3.2", "3.4", ["predict-{v}.csv"], lambda r: _counts(r.get("kinds")).get("cross", 0) > 0),
+    ]
+    for d, prefix, title, bug, fix, tables, exposed in cases:
+        pr = [r for t in tables for r in rows(os.path.join(RES, d, t.format(v=bug)))]
+        fx = [r for t in tables for r in rows(os.path.join(RES, d, t.format(v=fix)))]
+        st, sf = (rows(os.path.join(RES, d, f"stress-{v}.csv")) for v in (bug, fix))
+        if not pr:
+            continue
+        out += [f"### {title}", "", f"`experiments/{d}/run.sh`; rows by code commit: {commits(pr + fx + st + sf)}.", ""]
+        classified = d != "cabana"      # Cabana's campaign confirms its error findings and classifies nothing
+        out += HIST_PREDICT_HEAD + hist_predict(prefix, pr, exposed, classified) + \
+            (hist_predict(prefix, fx, exposed, classified, fixed=True) if fx else [])
+        num(f"n{prefix}Ranks", "/".join(str(n) for n in sorted({int(r["np"]) for r in pr})))
+        out += ["", *HIST_NOTES[d]]
+        if st or sf:
+            out += ["", "Untraced runs, plain and with random send and receive delays of 0 to 20 ms per rank from the replay library.", ""]
+            out += HIST_STRESS_HEAD + (hist_stress(prefix, st) if st else []) + (hist_stress(prefix, sf, fixed=True) if sf else [])
+        out.append("")
+    out += lammps_history()
+    if not out:
+        return "_no results_\n"
+    return "\n".join(["Each bug is reproduced from the project's own history: the version with the bug, its fix, and a driver that",
+                      "reaches the code (the project's own test or input where there is one). A run is *clean* when it exits with",
+                      "status 0 and prints the correct result; each clean traced run is analysed, its findings of an error class are",
+                      "replayed by `stretto confirm` (the pins of the alternative's horizon or of the explorer's witness, and a",
+                      "control that pins the recorded matching), and its *cross* alternatives (a receive that would take a message of",
+                      "another round, call or kind, `experiments/<case>/classify.py`) are replayed with the pins of their whole",
+                      "horizon and with their control (`experiments/history_predict.py`). Replays and controls run under the tracer,",
+                      "which judges each a run of the program without its pins.", ""] + out) + "\n"
+
+
+def lammps_history() -> list:
+    """LAMMPS Irregular::create_atom (experiments/lammps/run.sh): predict-<v>.csv from
+    experiments/lammps/predict.py, stress-<v>.csv. Macros n<Lammps|LammpsFix>{Traced,Clean,
+    Exposed}, BLammps (the bound), n<...>{Default,Below,At}{Runs,Finish,Hang}, and the stress
+    macros of hist_stress."""
+    pr, fx, st, sf = (rows(os.path.join(RES, "lammps", f)) for f in
+                      ("predict-3a2da51a.csv", "predict-411c069b.csv", "stress-3a2da51a.csv", "stress-411c069b.csv"))
+    if not pr:
+        return []
+    out = ["### LAMMPS `Irregular::create_atom`, blocking count sends before the wildcard receives (deadlock without eager buffering; 411c069b)", "",
+           "`experiments/lammps/run.sh`: traced runs analysed at L1, then untraced runs with Open MPI's default settings and",
+           "on the TCP transport with the eager threshold just below and at the 2-buffering finding's bound",
+           "(`experiments/lammps/predict.py`); the fix, which has no such finding, is rerun at the bound of the version with",
+           f"the bug. Rows by code commit: {commits(pr + fx + st + sf)}.", "",
+           "| version | ranks | traced runs | finished | with a 2-buffering finding | bound | cycle's call sites | default: finished | below the bound: hung | at the bound: finished |",
+           "|---|---|---|---|---|---|---|---|---|---|"]
+    bounds = set()
+    for vrows, p in ((pr, "Lammps"), (fx, "LammpsFix")):
+        if not vrows:
+            continue
+        for np_ in [None] + sorted({int(r["np"]) for r in vrows}):
+            sel = [r for r in vrows if np_ is None or int(r["np"]) == np_]
+            tr = [r for r in sel if r["kind"] == "traced"]
+            fin = [r for r in tr if r["result"] == "FINISHED"]
+            exp = [r for r in fin if int(r.get("buffering") or 0) > 0]
+            s = p + ("" if np_ is None else HIST_NP_WORD[np_])
+            num(f"n{s}Traced", len(tr))
+            num(f"n{s}Clean", len(fin))
+            num(f"n{s}Exposed", len(exp))
+            reruns = {}
+            for kind, word in (("default", "Default"), ("below", "Below"), ("at", "At")):
+                k = [r for r in sel if r["kind"] == kind]
+                reruns[kind] = k
+                num(f"n{s}{word}Runs", len(k))
+                num(f"n{s}{word}Finish", sum(r["result"] == "FINISHED" for r in k))
+                num(f"n{s}{word}Hang", sum(r["result"] == "TIMEOUT" for r in k))
+            if np_ is None:
+                continue
+            for r in exp:
+                m = re.search(r"B < (\d+)", r.get("bound") or "")
+                if m and p == "Lammps":
+                    bounds.add(int(m.group(1)))
+            sites_ = "; ".join(sorted({x for r in exp for x in (r.get("cycle_sites") or "").split("; ") if x})) or "-"
+            out.append(f"| {sel[0]['version']} | {np_} | {len(tr)} | {len(fin)} | {len(exp)} | {'; '.join(sorted({r.get('bound') or '' for r in exp})) or '-'} "
+                       f"| {sites_} | {sum(r['result'] == 'FINISHED' for r in reruns['default'])} of {len(reruns['default'])} "
+                       f"| {sum(r['result'] == 'TIMEOUT' for r in reruns['below'])} of {len(reruns['below'])} "
+                       f"| {sum(r['result'] == 'FINISHED' for r in reruns['at'])} of {len(reruns['at'])} |")
+    if len(bounds) == 1:
+        num("BLammps", bounds.pop())
+    if st or sf:
+        out += ["", "Untraced runs, plain, with random send and receive delays of 0 to 20 ms per rank from the replay library, and",
+                "with Open MPI's eager threshold forced down to 0 payload bytes (`eager`: the TCP transport, as stress testing on",
+                "the corpora with the limit forced down).", ""]
+        out += HIST_STRESS_HEAD + (hist_stress("Lammps", st) if st else []) + (hist_stress("Lammps", sf, fixed=True) if sf else [])
+    return out + [""]
+
+
 def app_sample(app="amg", prefix="AMG"):
     """A sample of an application's alternatives replayed with horizon pins and controls
     (replay_sample.py, experiments/<app>/run.sh sample)."""
@@ -3236,7 +3470,8 @@ def main():
            "(the container of `experiments/container/`, 12 cores of one NUMA node); the HYPRE campaign from",
            "`experiments/hypre/campaign.sh`, the NPB MG and deal.II campaigns from `experiments/npbmg/run.sh` and",
            "`experiments/dealii/run.sh`, the HYPRE 3.2.0 and PETSc campaigns (E5f) from `experiments/hypre3/run.sh` and",
-           "`experiments/petsc/run.sh`, Nekbone from `experiments/nekbone/run.sh` and the scale campaign (E11)",
+           "`experiments/petsc/run.sh`, the four bugs of projects' histories (E5g) from `experiments/cabana/`, `stempy/`,",
+           "`mfem332/` and `lammps/run.sh`, Nekbone from `experiments/nekbone/run.sh` and the scale campaign (E11)",
            "from `experiments/scale/run.sh` there. The MUST verdicts",
            "are carried over from MUST 1.9.2 runs under MPICH in MPI-BugBench's own container, with the same timeout",
            "per program, and those of MUST 1.11.2 from the image of `experiments/must/`; NINJA's runs come from",
@@ -3263,6 +3498,7 @@ def main():
            "## E5d: a second documented bug (NPB MG 2.4.1, a message of another exchange)", "", npbmg() + pin_log(),
            "## E5e: a third documented bug (deal.II 9.3.0-rc1, a probe takes a message of the next call)", "", dealii(),
            "## E5f: a new bug in a current release (HYPRE 3.2.0 ParaSails, a probe takes the next level's request)", "", hypre_new(),
+           "## E5g: four documented bugs from projects' histories (Cabana, stempy, MFEM 3.3.2, LAMMPS)", "", history(),
            "## E6: polynomial checker vs exhaustive explorer", "", e6(),
            "## E7: the value skeleton on MBI (level L2)", "", e7(),
            "## E8: the buffer guard (local concurrency, class 3-local)", "", guard() + must_tsan_local(),
