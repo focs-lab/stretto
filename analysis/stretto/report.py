@@ -9,7 +9,8 @@ from typing import Dict, List, Optional, Set, Tuple
 from . import dsl, explore
 from . import fast
 from .feasible import Verdict, breakpoints, check, feasible_profile, observed_feasible_at, profile_summary
-from .matching import candidates_full, observed_hb, observed_ready_errors, probe_candidates
+from .matching import (candidates_full, flip_candidates, match_node, observed_hb, observed_ready_errors,
+                       probe_candidates, test_flip_candidates)
 from .trace import ANY, Key, Probe, Recv, Send, Trace
 from . import types
 from .deadlock import contained_deadlock
@@ -24,7 +25,8 @@ ERROR_CLASSES = frozenset({"1a", "1c", "1d", "2-buffering", "2-collective", "2-b
 @dataclass
 class Finding:
     family: str                 # '1' message race, '2' deadlock/ordering, '3' local concurrency, 'run', 'waitany', 'probe'
-    cls: str                    # '1a'..'1f', '2-buffering', '2-collective', '2-blocked', '2-ready', '3-local', 'abort', 'waitany-order', 'probe-alt'
+    cls: str                    # '1a'..'1f', '2-buffering', '2-collective', '2-blocked', '2-ready', '3-local', 'abort', 'waitany-order',
+                                # 'probe-alt', and the flag flips 'probe-flip', 'probe-unflip', 'test-flip' (docs/model.md §3)
     level: str                  # 'L1', 'L1+SP', 'observed'
     title: str
     detail: List[str] = field(default_factory=list)
@@ -38,6 +40,7 @@ class Finding:
     error: str = ""              # 1a: which error, "truncate" (a message longer than the receive, MPI_ERR_TRUNCATE),
                                  # "type" (a type signature mismatch) or "rsend-no-receive" (a ready send with no
                                  # posted receive); only the first has an error MPI reports (stretto.confirm)
+    event: Optional[Tuple[int, int]] = None   # test-flip: (rank, record) of the test whose flag changes
 
     def __str__(self):
         b = f" [{self.B}]" if self.B else ""
@@ -297,8 +300,8 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
     hb = ob_inf.reaches if not generic else observed_hb(t)
     alts, pruned = candidates_full(t, hb)
     rep.infeasible.extend((d, why) for d, why in pruned)
-    probes = probe_candidates(t, hb)
-    waits = _completion_alternatives(t, hb)
+    probes = probe_items(t, hb)
+    waits = wait_items(t, hb)
     pr = _profiles_generic(t, alts, probes, waits, reads) if generic else \
         _profiles_fast(t, alts, probes, waits, full_profile, reads, ob_inf, cross_check)
     rep.notes.extend(pr.notes)
@@ -614,7 +617,10 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
     for j, (p, s) in enumerate(probes):
         minB, at_inf, brange = summarise(pr.probe[j])
         if minB is None and not at_inf:
-            rep.infeasible.append((f"{p} sees {s}", pr.probe_reason[j]))
+            rep.infeasible.append((probe_title(p, s), pr.probe_reason[j]))
+            continue
+        if not p.flag or s is None:
+            rep.findings.append(flip_finding(t, p, s, brange))
             continue
         seen = t.sends[p.seen]
         cls, why = classify_probe(p, s, seen)
@@ -629,7 +635,11 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
         minB, at_inf, brange = summarise(pr.wait[k])
         kind = rec.raw.get("kind")
         if minB is None and not at_inf:
-            rep.infeasible.append((f"{kind} rank {rec.rank} #{rec.idx} index {j}", pr.wait_reason[k]))
+            what = f"{kind} rank {rec.rank} #{rec.idx} " + (f"index {j}" if j is not None else f"finds {r_j} complete")
+            rep.infeasible.append((what, pr.wait_reason[k]))
+            continue
+        if j is None:                     # a failed test or request query that could have found its receive done
+            rep.findings.append(test_flip_finding(t, rec, r_j, s_j, brange))
             continue
         rep.findings.append(Finding("waitany", "waitany-order", "L1",
                                     f"{kind} at rank {rec.rank} #{rec.idx} could complete index {j} ({r_j} <- {s_j}) first",
@@ -637,9 +647,67 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
                                      "no replay mechanism for completion order: not confirmable by pin"], B=brange))
     for f in rep.findings:
         x = t.probes.get(f.probe) if f.probe is not None else t.recvs.get(f.recv) if f.recv is not None else None
-        if x is not None:
+        if f.event is not None:
+            f.site = t.site_label(*f.event)
+        elif x is not None:
             f.site = t.site_label(x.rank, x.idx)
     return rep
+
+
+def probe_title(p: Probe, s: Optional[Send]) -> str:
+    """How a probe alternative or flag flip is named among the rejected alternatives."""
+    if s is None:
+        return f"{p} returns false"
+    return f"{p} sees {s}" if p.flag else f"{p} returns true with {s}"
+
+
+FLIP_LEVEL_NOTE = ("L1 only: the rank's calls after the other flag are not in the trace, so no single-path "
+                   "consequence is stated (docs/model.md §3, flag flips); a replay with the pin runs the program's own branch")
+
+
+def flip_pin(t: Trace, rank: int, idx: int, src: int, tag: Optional[int], ident) -> Optional[str]:
+    """STRETTO_PIN_FLIP for the failed poll at record idx of rank: its poll segment, the source
+    (world rank; -2 completes a test's request) and tag it is to return, and the call's
+    identity (replay/pin.h): communicator, tag argument, call site, and the number of the rank's
+    wildcard probes that found a message before it, which the replay library compares with its
+    own count, so that a replay that diverged before the call ends instead of forcing another
+    iteration's call. None if the record is not a failed poll."""
+    seg = t.poll_seg.get((rank, idx))
+    if seg is None:
+        return None
+    c, g, s = ident
+    found = sum(1 for p in t.probes.values() if p.rank == rank and p.idx < idx and p.flag and p.wildcard and p.completed)
+    ident_text = f"{'x' if c is None else c}:{'x' if g is None else g}:{'x' if s is None else format(s, 'x')}:{found}"
+    return f"STRETTO_PIN_FLIP={rank}:{seg}:{src}" + (f":{tag}" if tag is not None else "") + "@" + ident_text
+
+
+def flip_finding(t: Trace, p: Probe, s: Optional[Send], brange: str) -> Finding:
+    """A flag flip of an Iprobe or Improbe: false -> true with s, or true -> false (s None)."""
+    from .confirm import _ident_text, identity     # confirm imports this module
+    if s is None:
+        seen = t.sends[p.seen]
+        pin = (f"STRETTO_PIN_PROBE={p.rank}:{p.pidx}:-1@" + _ident_text(identity(t, p))) if p.pidx is not None else None
+        return Finding("probe", "probe-unflip", "L1", f"{p} could return false instead of reporting {seen}",
+                       ["a false flag is always a possible result (no progress guarantee): the message may arrive later",
+                        f"L1: continuation of rank {p.rank} after the probe undetermined", FLIP_LEVEL_NOTE],
+                       B=brange, pin=pin, probe=p.key)
+    pin = flip_pin(t, p.rank, p.idx, s.rank, s.tag if p.tag == ANY else None, identity(t, p))
+    return Finding("probe", "probe-flip", "L1", f"{p} could return true with {s} instead of false",
+                   [f"{s} is issued inside the horizon, not after the probe, and no receive posted before the probe takes it",
+                    f"L1: what rank {p.rank} does after a true flag is undetermined", FLIP_LEVEL_NOTE],
+                   B=brange, pin=pin, probe=p.key, send=s.key)
+
+
+def test_flip_finding(t: Trace, rec, r: Recv, s: Send, brange: str) -> Finding:
+    """A failed MPI_Test or MPI_Request_get_status that could have found receive r complete."""
+    kind = rec.raw.get("kind")
+    site = t.site_of(rec.rank, rec.idx)
+    pin = flip_pin(t, rec.rank, rec.idx, -2, None, (None, None, site[1] if site else None))
+    return Finding("waitany", "test-flip", "L1",
+                   f"{kind} at rank {rec.rank} #{rec.idx} could find {r} complete with {s} instead of returning false",
+                   [f"{s} is issued inside the horizon and not after the call: {r} can be matched before it",
+                    f"L1: what rank {rec.rank} does after a true flag is undetermined", FLIP_LEVEL_NOTE],
+                   B=brange, pin=pin, event=(rec.rank, rec.idx))
 
 
 def ready_findings(certain: List[Tuple[Recv, Send]], others: List[Send]) -> List[Finding]:
@@ -659,6 +727,19 @@ def ready_findings(certain: List[Tuple[Recv, Send]], others: List[Send]) -> List
                            [why, "in every execution with the recorded matching one of these receives is posted after the "
                             "issue of its ready send: their ready-mode orders close a cycle"]))
     return out
+
+
+def probe_items(t: Trace, hb) -> List[Tuple[Probe, Optional[Send]]]:
+    """Probe alternatives (another message) and flag flips (a message after a false flag, or
+    none after a true one), in probe order, so that the closures of a rank's probes chain
+    (fast.Observed.probe_closure)."""
+    return sorted(probe_candidates(t, hb) + flip_candidates(t, hb), key=lambda ps: ps[0].key)
+
+
+def wait_items(t: Trace, hb) -> List[Tuple]:
+    """Completion-order alternatives (record, index, receive, send) and the test flips, which
+    are completion events too, as (record, None, receive, send)."""
+    return _completion_alternatives(t, hb) + [(rec, None, r, s) for rec, r, s in test_flip_candidates(t, hb)]
 
 
 def _completion_alternatives(t: Trace, hb) -> List[Tuple]:
@@ -994,14 +1075,13 @@ def _profiles_fast(t: Trace, alts, probes, waits, full: bool = False, reads=None
         pr.alt_reason[i] = seen[None].reason
     def probe_at(B, p, s, notes):
         def generic():
-            return check(t, t.observed, set(), B, "L1", changed_probes={p.key}, probe_alt={p.key: s.key})
+            return check(t, t.observed, set(), B, "L1", **probe_kw(p, s))
         fv = at(B).check_probe(p, s)
-        return confirmed(fv, generic, f"{p} sees {s}", B, notes) if fv is not None else generic()
+        return confirmed(fv, generic, probe_title(p, s), B, notes) if fv is not None else generic()
 
-    def wait_at(B, rec, s_j):
+    def wait_at(B, rec, j, r_j, s_j):
         def generic():
-            return check(t, t.observed, set(), B, "L1", extra_edges=[(s_j.issue_node(), rec.complete)],
-                         changed_events={(rec.rank, rec.idx)}, must_issue=[s_j.key])
+            return check(t, t.observed, set(), B, "L1", **wait_kw(rec, j, r_j, s_j))
         fv = at(B).check_event(rec.rank, rec.idx, s_j)
         return confirmed(fv, generic, f"the completion order of rank {rec.rank} #{rec.idx}", B) if fv is not None else generic()
 
@@ -1011,12 +1091,12 @@ def _profiles_fast(t: Trace, alts, probes, waits, full: bool = False, reads=None
     for j in reversed(range(len(probes))):
         p, s = probes[j]
         pr.probe[j], seen = profile(lambda B, p=p, s=s, n=probe_notes[j]: probe_at(B, p, s, n), lambda v: v.feasible,
-                                    f"{p} sees {s}", floor, notes=probe_notes[j])
+                                    probe_title(p, s), floor, notes=probe_notes[j])
         pr.probe_reason[j] = seen[None].reason
     for n in probe_notes:
         pr.notes.extend(n)
     for k, (rec, j, r_j, s_j) in enumerate(waits):
-        pr.wait[k], seen = profile(lambda B, rec=rec, s_j=s_j: wait_at(B, rec, s_j),
+        pr.wait[k], seen = profile(lambda B, rec=rec, j=j, r_j=r_j, s_j=s_j: wait_at(B, rec, j, r_j, s_j),
                                    lambda v: v.feasible, f"completion order of rank {rec.rank} #{rec.idx} index {j}", floor)
         pr.wait_reason[k] = seen[None].reason
     if unconfirmed[0]:
@@ -1053,14 +1133,31 @@ def _profiles_generic(t: Trace, alts, probes, waits, reads=None) -> _Profiles:
         pr.alt.append(prof)
         pr.alt_reason.append(check(t, a.M, a.changed, None, "L1").reason)
     for p, s in probes:
-        kw = dict(changed_probes={p.key}, probe_alt={p.key: s.key})
+        kw = probe_kw(p, s)
         pr.probe.append(feasible_profile(t, t.observed, set(), mode="L1", full=False, floor=B0, **kw))
         pr.probe_reason.append(check(t, t.observed, set(), None, "L1", **kw).reason)
     for rec, j, r_j, s_j in waits:
-        kw = dict(extra_edges=[(s_j.issue_node(), rec.complete)], changed_events={(rec.rank, rec.idx)}, must_issue=[s_j.key])
+        kw = wait_kw(rec, j, r_j, s_j)
         pr.wait.append(feasible_profile(t, t.observed, set(), mode="L1", full=False, floor=B0, **kw))
         pr.wait_reason.append(check(t, t.observed, set(), None, "L1", **kw).reason)
     return pr
+
+
+def probe_kw(p: Probe, s: Optional[Send]) -> dict:
+    """feasible.check's arguments for probe p reporting s instead of what it saw: another
+    message, a message after a false flag (a flip), or nothing (s None, a true Iprobe returning
+    false)."""
+    return dict(changed_probes={p.key}, probe_alt={p.key: s.key if s is not None else None})
+
+
+def wait_kw(rec, j: Optional[int], r_j: Recv, s_j: Send) -> dict:
+    """feasible.check's arguments for a completion event at record rec: a Waitany-like call
+    completing index j with r_j, which s_j satisfies, or (j None) a failed test or request query
+    finding r_j complete. Rule 1 cuts after the record, s_j must be issued inside the horizon, and
+    the record's completion follows the issue of s_j, or, for a test, the match of r_j and s_j,
+    which must then come before it."""
+    edge = (match_node(r_j), rec.complete) if j is None else (s_j.issue_node(), rec.complete)
+    return dict(extra_edges=[edge], changed_events={(rec.rank, rec.idx)}, must_issue=[s_j.key])
 
 
 def skeleton_divergence(t: Trace, o: explore.Outcome) -> List[str]:
@@ -1113,8 +1210,10 @@ def finding_ids(rep: Report) -> List[str]:
     seen: Dict[str, int] = {}
     out = []
     for f in rep.findings:
-        keyed = f.recv is not None or f.send is not None or f.probe is not None
+        keyed = f.recv is not None or f.send is not None or f.probe is not None or f.event is not None
         what = [f.family, f.cls, f.level, f.recv, f.send, f.probe, f.certainty, f.error, None if keyed else f.title]
+        if f.event is not None:
+            what.append(list(f.event))      # only then, so that the ids of the other findings stay
         h = f"{f.cls}-" + hashlib.sha1(json.dumps(what, default=list).encode()).hexdigest()[:10]
         seen[h] = seen.get(h, 0) + 1
         out.append(h if seen[h] == 1 else f"{h}-{seen[h]}")

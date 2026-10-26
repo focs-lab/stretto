@@ -978,11 +978,13 @@ class Observed:
             return self.closure(changed_probes=[p])
         return cut, issued
 
-    def check_probe(self, p: Probe, s: Send) -> Optional[Verdict]:
-        """The probe reports s instead of what it saw. Its completion has no kept successor
-        (the closure cuts right after it), so no cycle can pass through the new edges; what
-        remains is that s be issued and that no earlier receive of the probe's rank be
-        pending with s acceptable to it (rule 6)."""
+    def check_probe(self, p: Probe, s: Optional[Send]) -> Optional[Verdict]:
+        """The probe reports s instead of what it saw: another message, or, for an Iprobe that
+        returned false, a message at all (a flag flip, docs/model.md §3); s None: an Iprobe that
+        saw a message returns false. Its completion has no kept successor (the closure cuts
+        right after it), so no cycle can pass through the new edges, and a probe that reports
+        nothing has none; what remains is that s be issued and that no earlier receive of the
+        probe's rank be pending with s acceptable to it (rule 6)."""
         if not self.acyclic():
             return None
         t = self.t
@@ -994,6 +996,8 @@ class Observed:
         cut, issued = self._probe_closure[1]
         if p.idx >= cut[p.rank]:
             return Verdict(False, "witness cut by the horizon closure", cut)
+        if s is None:
+            return Verdict(True, "ok", cut)
         if s.idx >= cut[s.rank] and issued.get(s.rank) != s.idx:
             return Verdict(False, "the message the probe would observe is never issued within the horizon", cut)
         for x in self.ix.unmatched.get(p.rank, ()):

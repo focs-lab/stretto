@@ -130,7 +130,8 @@ def build_graph(t: Trace, M: Dict[Key, Key], cut: Optional[Dict[int, int]], B: O
     B=None means infinite buffering. strong_only drops edges whose necessity is not
     guaranteed by the standard (collectives of unknown shape, probe observations): use it
     when a cycle is to be reported as a certain deadlock. probe_alt maps a probe to the
-    send it observes instead of the one it saw in the run. issued names, per rank, a
+    send it observes instead of the one it saw in the run (an Iprobe that returned false
+    included, a flag flip), or to None for one that now observes nothing. issued names, per rank, a
     blocking send at the cut whose issue node is kept although it never completes. ready
     names the ready-mode sends whose edge issue(r) -> issue(s) is drawn (None: every one),
     for an execution in which the others are issued before their receive."""
@@ -539,6 +540,99 @@ def probe_candidates(t: Trace, hb=None) -> List[Tuple[Probe, Send]]:
     return out
 
 
+POLL_PROBES = ("iprobe", "improbe")     # the probes whose flag can go either way
+
+
+def _canonical_polls(t: Trace, items) -> list:
+    """Of items (x, rank, record index, identity), in record order per rank, the first of each
+    identity and call site within a poll segment (trace.poll_segments). The records of one
+    segment have only failed polls between them, which have no edge but program order, so a
+    flip at a later record of a segment is the flip at the first record of its identity, with
+    the same horizon and the same graph up to failed polls; and the replay library forces the
+    first call of the identity in the segment (STRETTO_PIN_FLIP)."""
+    out, seen = [], set()
+    for x, rank, idx, ident in items:
+        k = (rank, t.poll_seg.get((rank, idx)), ident, t.site_of(rank, idx))
+        if k in seen:
+            continue
+        seen.add(k)
+        out.append(x)
+    return out
+
+
+def flip_candidates(t: Trace, hb=None) -> List[Tuple[Probe, Optional[Send]]]:
+    """Flag flips of polling probes (docs/model.md §3, flag flips): (p, s) for an Iprobe or
+    Improbe p that returned false and could have returned true with s, and (p, None) for one
+    that returned true and could have returned false. For a failed probe and each source it
+    accepts, s is the earliest send of that source's queue that p accepts and that no receive
+    posted before p took, no matched probe before p removed and no cancel withdrew (the
+    non-overtaking kernel, as for probe_candidates), and that does not causally follow p's
+    completion in the observed run. Failed probes are taken once per identity and poll
+    segment (_canonical_polls). A true probe returning false needs no message: a false flag
+    is always a possible result, the model guaranteeing no progress, so every Iprobe or
+    Improbe that saw a message is a candidate."""
+    hb = hb or observed_hb(t)
+    out: List[Tuple[Probe, Optional[Send]]] = []
+    failed = [(p, p.rank, p.idx, (p.kind, p.src, p.tag, p.comm)) for p in sorted(t.probes.values(), key=lambda p: p.key)
+              if p.kind in POLL_PROBES and p.completed and not p.flag]
+    canon = {p.key for p in _canonical_polls(t, failed)}
+    consumed = _ConsumedBefore(t)
+    gone: Dict[Tuple[int, int, int], int] = {}
+    for p in sorted(t.probes.values(), key=lambda p: p.key):
+        if p.kind not in POLL_PROBES or not p.completed:
+            continue
+        if p.flag:
+            if p.seen is not None:
+                out.append((p, None))
+            continue
+        if p.key not in canon:
+            continue
+        consumed_before = consumed.before(p.rank, p.idx)
+        for src in t.sources_to(p.rank, p.comm):
+            if p.src != ANY and src != p.src:
+                continue
+            q, k = t.sends_to(src, p.rank, p.comm), (p.rank, src, p.comm)
+            i = gone.get(k, 0)
+            while i < len(q) and (q[i].key in consumed_before or q[i].cancelled
+                                  or (q[i].reserved_idx is not None and q[i].reserved_idx < p.idx)):
+                i += 1
+            gone[k] = i
+            for s in itertools.islice(q, i, None):
+                if not p.accepts(s) or s.key in consumed_before or s.cancelled:
+                    continue
+                if s.reserved_idx is not None and s.reserved_idx < p.idx:
+                    continue
+                if not hb(p.complete_node(), s.issue_node()):
+                    out.append((p, s))
+                break   # FIFO: only the head of this source's queue can be seen
+    return out
+
+
+def test_flip_candidates(t: Trace, hb=None) -> List[Tuple[object, Recv, Send]]:
+    """(record, r, s) for an MPI_Test or MPI_Request_get_status on the request of a receive r
+    that returned false, while r was later completed in the run with s: the call could have
+    found r complete, had r been matched to s before it (docs/model.md §3, flag flips). s must
+    not causally follow the call's completion in the observed run. Calls on several requests
+    (Testall, Testany, Testsome) are not flipped. Taken once per request and poll segment."""
+    hb = hb or observed_hb(t)
+    cands = []
+    for rank, recs in t.ranks.items():
+        for rec in recs:
+            if (rank, rec.idx) not in t.poll_seg or rec.op != "wait" or rec.raw.get("kind") not in ("test", "getstatus"):
+                continue
+            reqs = [q for q in rec.raw.get("reqs", []) if q is not None and q >= 0]
+            if len(reqs) != 1:
+                continue
+            r = t.recv_by_req(rank, reqs[0])
+            if r is None or not r.completed or r.complete_idx is None or not (r.idx < rec.idx < r.complete_idx):
+                continue
+            s = t.observed_send(r)
+            if s is None or hb(rec.complete, s.issue_node()):
+                continue
+            cands.append(((rec, r, s), rank, rec.idx, (rec.raw.get("kind"), r.key)))
+    return _canonical_polls(t, cands)
+
+
 def matching_order_ok(t: Trace, M: Dict[Key, Key], kept_recv, ranks: Optional[Set[int]] = None,
                       kept_probe=None, probe_alt: Optional[Dict[Key, Key]] = None) -> Optional[str]:
     """MPI matching order for M restricted to receives with kept_recv(key) (posting-index
@@ -595,7 +689,8 @@ def matching_order_ok(t: Trace, M: Dict[Key, Key], kept_recv, ranks: Optional[Se
     if kept_probe is not None:
         probe_alt = probe_alt or {}
         for q in t.probes.values():
-            if (ranks is not None and q.rank not in ranks) or not q.completed or not q.flag or not kept_probe(q):
+            if (ranks is not None and q.rank not in ranks) or not q.completed or not (q.flag or q.key in probe_alt) \
+                    or not kept_probe(q):
                 continue
             sk = probe_alt.get(q.key, q.seen)
             if sk is None:

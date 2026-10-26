@@ -11,7 +11,7 @@ import unittest
 from stretto import dsl, explore, fast, trace as T, types
 from stretto.feasible import breakpoints
 from stretto.matching import Overlay, build_graph, observed_hb, probe_candidates
-from stretto.report import _completion_alternatives
+from stretto.report import _completion_alternatives, probe_items, probe_kw, wait_items, wait_kw
 from stretto.feasible import check, feasible_profile, observed_feasible_at, profile_summary
 from stretto.matching import candidates_full
 from stretto.report import analyze, classify
@@ -907,8 +907,8 @@ def fast_equals_generic(tc, t, tally=None):
     ix = t.fast_indexes()
     hb = fast.Observed(t, None, ix).reaches
     alts, _ = candidates_full(t, hb)
-    probes = probe_candidates(t, hb)
-    waits = _completion_alternatives(t, hb)
+    probes = probe_items(t, hb)          # probe alternatives and flag flips
+    waits = wait_items(t, hb)            # completion order and test flips
 
     def count(kind, f):
         if tally is not None:
@@ -930,15 +930,14 @@ def fast_equals_generic(tc, t, tally=None):
             tc.assertEqual(g.feasible, f.feasible, f"{a.describe(t)} at B={B}: {g} vs {f}")
             tc.assertEqual(g.cut if g.feasible else g.reason, f.cut if f.feasible else f.reason, f"{a.describe(t)} at B={B}")
         for p, s in probes:
-            g = check(t, t.observed, set(), B, "L1", changed_probes={p.key}, probe_alt={p.key: s.key})
+            g = check(t, t.observed, set(), B, "L1", **probe_kw(p, s))
             f = ob.check_probe(p, s)
             if f is None:
                 continue
-            count("probe", f)
+            count("probe" if p.flag and s is not None else "probe flip", f)
             tc.assertEqual((g.feasible, g.cut if g.feasible else None), (f.feasible, f.cut if f.feasible else None), f"{p} sees {s} at B={B}")
         for rec, j, r_j, s_j in waits:
-            g = check(t, t.observed, set(), B, "L1", extra_edges=[(s_j.issue_node(), rec.complete)],
-                      changed_events={(rec.rank, rec.idx)}, must_issue=[s_j.key])
+            g = check(t, t.observed, set(), B, "L1", **wait_kw(rec, j, r_j, s_j))
             f = ob.check_event(rec.rank, rec.idx, s_j)
             if f is None:
                 continue
@@ -953,11 +952,11 @@ def closure_equals_fixpoint(tc, t):
     L1 mode, at every breakpoint."""
     from stretto.horizon import compute_cut, compute_cut_fixpoint
     alts = candidates_full(t)[0]
-    probes = probe_candidates(t)
+    probes = probe_items(t, observed_hb(t))
     for B in breakpoints(t) + [None]:
         items = [(t.observed, set(), "SP", {}, None)]
         items += [(a.M, a.changed, mode, {}, None) for a in alts for mode in ("L1", "SP")]
-        items += [(t.observed, set(), "L1", {p.key: s.key}, p.key) for p, s in probes]
+        items += [(t.observed, set(), "L1", probe_kw(p, s)["probe_alt"], p.key) for p, s in probes]
         for M, changed, mode, palt, pk in items:
             res = []
             for f in (compute_cut, compute_cut_fixpoint):
@@ -978,8 +977,8 @@ def closure_orders_agree(tc, t):
     lifo._lam = False
     hb = fast.Observed(t, None, fast.Indexes(t)).reaches
     alts, _ = candidates_full(t, hb)
-    probes = probe_candidates(t, hb)
-    waits = _completion_alternatives(t, hb)
+    probes = probe_items(t, hb)
+    waits = wait_items(t, hb)
 
     def v(x):
         return None if x is None else (x.feasible, x.reason, x.cut)
@@ -1961,12 +1960,23 @@ def e6_traces(n: int, max_states: int, raw: bool = False):
         yield records if raw else t
 
 
-def random_probe_trace(rng, nranks: int, rounds: int = 4, shapes: bool = False):
+def random_probe_trace(rng, nranks: int, rounds: int = 4, shapes: bool = False, polls: bool = False):
     """The trace of random_probe_records."""
-    return mk(random_probe_records(rng, nranks, rounds, shapes))
+    return mk(random_probe_records(rng, nranks, rounds, shapes, polls))
 
 
-def random_probe_records(rng, nranks: int, rounds: int = 4, shapes: bool = False):
+def failed_iprobe(tag=None):
+    """An Iprobe(ANY_SOURCE) record that returned false (tag None: ANY_TAG)."""
+    d = {"op": "probe", "kind": "iprobe", "src": 0, "anysrc": 1, "comm": 0, "flag": 0}
+    d.update({"tag": 0, "anytag": 1} if tag is None else {"tag": tag})
+    return d
+
+
+def failed_test(req):
+    return {"op": "wait", "kind": "test", "flag": 0, "reqs": [req], "done": []}
+
+
+def random_probe_records(rng, nranks: int, rounds: int = 4, shapes: bool = False, polls: bool = False):
     """A random run with many probes per rank, written in the tracer's format as it goes: in
     each round the ranks send to one another (standard sends of one to three ints, tags 1 and
     2), probe with ANY_SOURCE, and ANY_TAG or a tag, for a message in flight and then mostly
@@ -1986,7 +1996,12 @@ def random_probe_records(rng, nranks: int, rounds: int = 4, shapes: bool = False
     Iallreduce, Ibcast), which each rank waits for later, in an order of its own, among the
     next round's operations. A Waitany over two matched Irecvs completes either of them. An
     Irecv that nothing reaches is never waited for. Without shapes
-    the records are those drawn before (experiments/report_diff.py --synthetic writes them)."""
+    the records are those drawn before (experiments/report_diff.py --synthetic writes them).
+
+    With polls, a probe may first fail (an Iprobe of the same envelope that returned false,
+    whether or not a message was in flight: no progress is guaranteed), and a wait may follow a
+    test of its request that failed: the polling loops whose flag flips docs/model.md §3 predicts.
+    Without polls the records are those drawn before."""
     recs = {r: [] for r in range(nranks)}
     inflight = {}                       # (src, dst) -> tags of the messages not yet taken, in order
     pending = {r: [] for r in range(nranks)}
@@ -2055,6 +2070,8 @@ def random_probe_records(rng, nranks: int, rounds: int = 4, shapes: bool = False
             elif act < 0.65:
                 tag = rng.choice([1, 2, None])
                 cands = avail(r, tag)
+                if polls and rng.random() < 0.5:
+                    recs[r].append(failed_iprobe(tag))
                 if not cands:
                     continue
                 s = rng.choice(cands)
@@ -2083,6 +2100,8 @@ def random_probe_records(rng, nranks: int, rounds: int = 4, shapes: bool = False
                     take(s, r, tg)
                     pending[r].append((req[0], s, tg))
             elif pending[r]:
+                if polls and rng.random() < 0.4:
+                    recs[r].append(failed_test(pending[r][0][0]))
                 recs[r].append(wait(pending[r].pop(0)))
         if shapes:
             for r in range(nranks):       # the last round's nonblocking collectives, in an order of the rank's own

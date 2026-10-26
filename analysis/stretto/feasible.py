@@ -48,6 +48,8 @@ def check(t: Trace, M: Dict[Key, Key], changed, B: Optional[int], mode: str = "L
     # hangs the latter, ok both.
     hang_text = "hang under the single-path assumption: " + "; ".join(hangs[r] for r in sorted(hangs)) if hangs else ""
     for pk, sk in (probe_alt or {}).items():
+        if sk is None:
+            continue           # the probe now observes nothing (a flag flip to false): no message to issue
         s, p = t.sends[sk], t.probes[pk]
         if s.idx >= cut[s.rank] and issued.get(s.rank) != s.idx:
             return Verdict(False, "the message the probe would observe is never issued within the horizon", cut)

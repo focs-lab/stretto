@@ -124,7 +124,7 @@ def compute_cut(t: Trace, M: Dict[Key, Key], changed: Set[Key], B: Optional[int]
     probes_seeing: Dict[Key, List] = {}
     for p in t.probes.values():
         sk = probe_alt.get(p.key, p.seen)
-        if p.completed and p.flag and sk is not None:
+        if p.completed and (p.flag or p.key in probe_alt) and sk is not None:
             m = t.sends[sk]
             for src in (ANY, m.rank):
                 for tag in (ANY, m.tag):
@@ -279,7 +279,7 @@ def compute_cut_fixpoint(t: Trace, M: Dict[Key, Key], changed: Set[Key], B: Opti
     probes_of: Dict[int, list] = {}      # probes that report a message, with the message
     for p in sorted(t.probes.values(), key=lambda p: (p.rank, p.idx)):
         sk = probe_alt.get(p.key, p.seen)
-        if p.completed and p.flag and sk is not None:
+        if p.completed and (p.flag or p.key in probe_alt) and sk is not None:
             probes_of.setdefault(p.rank, []).append((p, t.sends[sk]))
     ready = [s for s in t.sends.values() if s.ready_mode]
     while True:

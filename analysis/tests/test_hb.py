@@ -49,7 +49,8 @@ def reported(t):
         if f.level != "L1" or f.send is None:
             continue
         if f.probe is not None:
-            out.add(("probe", f.probe, f.send))
+            if f.cls == "probe-alt":          # flag flips are no alternative of the probe's message
+                out.add(("probe", f.probe, f.send))
         elif f.recv is not None:
             out.add(("recv", f.recv, f.send))
     return out
