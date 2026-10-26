@@ -250,6 +250,7 @@ class Trace:
     unmodelled: List[Tuple[int, str]] = field(default_factory=list)   # (rank, call) outside the modelled fragment
     incomplete: List[Tuple[str, str]] = field(default_factory=list)  # (reason, detail): why the trace is not a complete record of the run's communication (report.Report.degrade)
     guards: List[Rec] = field(default_factory=list)      # the buffer guard's records (misused buffers of pending operations)
+    poll_seg: Dict[Tuple[int, int], int] = field(default_factory=dict)  # (rank, idx) of a failed poll -> its poll segment (poll_segments)
     guard: Dict[int, int] = field(default_factory=dict)  # rank -> 1 guard on, 0 asked for but off (absent: not asked for)
     sites: Dict[Tuple[int, int], dict] = field(default_factory=dict)    # (rank, site id) -> the tracer's site record
     _site_ids: Dict[int, "array"] = field(default_factory=dict, repr=False)   # rank -> site id per record, -1 if none
@@ -794,6 +795,7 @@ def _build(t: Trace, raw_ranks: Dict[int, List[dict]]) -> None:
                              + str(sorted({r for v in legacy_null.values() for r in v})) + ")"))
     t.index()
     _reconstruct_observed(t)
+    poll_segments(t)
     # call sites, 4 bytes per record, before the dictionaries that name them go
     if t.sites:
         for rank, recs in t.ranks.items():
@@ -810,6 +812,45 @@ def _build(t: Trace, raw_ranks: Dict[int, List[dict]]) -> None:
         for rec in recs:
             if rec.op in ("send", "recv", "irecv", "coll"):
                 rec.raw = None
+
+
+POLL_KINDS = ("test", "testall", "testany", "testsome", "getstatus")   # wait records that may fail
+# records that are not calls of the program, or that a replay need not have (the buffer guard's)
+NOT_CALLS = ("overflow", "guard")
+
+
+def failed_poll(rec: Rec) -> bool:
+    """Is rec a poll that returned false: an Iprobe or Improbe with flag 0, a Test* or an
+    MPI_Request_get_status that found nothing complete? These are the records the tracer
+    passes to rb_emit_kind as failed polls."""
+    raw = rec.raw
+    if raw is None:
+        return False
+    if rec.op == "probe":
+        return raw.get("flag", 1) == 0
+    return rec.op == "wait" and raw.get("kind") in POLL_KINDS and raw.get("flag", 1) == 0
+
+
+def poll_segments(t: Trace) -> None:
+    """Number the poll segments of every rank: a segment is a maximal run of failed polls, of
+    any kind, with no other record between them. A polling loop is one segment however many
+    times it spins, since the replay library sees one call per iteration and the tracer folds
+    repeats into one record; what ends a segment is a call that is not a failed poll, which a
+    program consistent with the trace issues at the same point in every run that follows it.
+    The flip pin (replay/pin.h, STRETTO_PIN_FLIP) names a failed poll by its segment, counted
+    the same way by the replay library. Side records that are not the program's calls (a
+    table overflow, the buffer guard's records) are skipped."""
+    for rank, recs in t.ranks.items():
+        seg, inside = 0, False
+        for rec in recs:
+            if rec.op in NOT_CALLS:
+                continue
+            if failed_poll(rec):
+                if not inside:
+                    seg, inside = seg + 1, True
+                t.poll_seg[(rank, rec.idx)] = seg - 1
+            else:
+                inside = False
 
 
 def _complete_at_status(obj, st: dict, worldg, rank: int) -> None:
