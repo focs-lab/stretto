@@ -19,6 +19,10 @@
 #                     $KEEP_TRACES/CAMPAIGN/NAME.tar.xz with a line in its MANIFEST.tsv
 #                     (stretto.keep), once the run that recorded it is over; without it, nothing.
 #                     Silent; a trace that cannot be kept fails with KEEP-ERROR on stderr.
+# fetch_checked FILE URL SHA256
+#                     download URL to FILE unless FILE is there, then check FILE's sha256; a
+#                     download that fails leaves no FILE behind, and a FILE with another sum
+#                     fails the step
 
 PRELOAD_BANNER='^\[stretto-pin\] rank 0: loaded'
 HARNESS_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -29,6 +33,14 @@ harness_error() { echo "HARNESS-ERROR: $*" >&2; return 1; }
 keep_trace() {
     [ -n "${KEEP_TRACES:-}" ] || return 0
     PYTHONPATH="$HARNESS_ROOT/analysis" python3 -m stretto.keep "$@"
+}
+fetch_checked() {
+    local f=$1 url=$2 sha=$3
+    if [ ! -f "$f" ]; then
+        if ! curl -sSfL -o "$f.part" "$url"; then rm -f "$f.part"; harness_error "cannot download $url"; return 1; fi
+        mv "$f.part" "$f"
+    fi
+    echo "$sha  $f" | sha256sum -c --quiet - || harness_error "$f does not have the sha256 $sha"
 }
 run_result() {
     local rc=$1 s=$2 to=$3
