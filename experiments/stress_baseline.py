@@ -5,7 +5,7 @@ anew for every run) and record after how many runs, if any, the run stops finish
 or an error). This is what a developer without a predictive tool can do: shake the schedule
 and wait for the bad order. Stretto is compared with it from one recorded run.
 
-usage: stress_baseline.py <corpus csv> [--runs N] [--timeout S] [--jobs J] [--select REGEX] [--seed K] [--eager B]
+usage: stress_baseline.py <corpus csv> [--runs N] [--timeout S] [--jobs J] [--select REGEX] [--seed K] [--eager B] [--out CSV]
 
 Writes stress.csv next to the corpus table: program, expect, runs (how many were made),
 first_failure (the run that first did not finish, empty if none), outcome of that run,
@@ -21,6 +21,10 @@ to 256 bytes inline whatever its limit; the self transport does the same, so a s
 sending rank stays buffered. B = 0, the least Open MPI accepts, buffers no payload byte. The
 table is then stress-eager.csv, with B and the mpirun arguments on every row; the delays are
 those of the run without the option (the same seed per program).
+
+--out CSV writes the table there instead, with the seed on every row: a repeated pass of the
+baseline (experiments/run_remaining.sh stressreps) draws its delays from a seed of its own, so
+that the passes are independent samples of the same procedure.
 """
 from __future__ import annotations
 import argparse
@@ -58,6 +62,8 @@ def stress(row: dict, exe: str, args) -> dict:
            "seconds": 0.0, "commit": code_commit()}
     if args.eager is not None:
         out.update(eager_bytes=args.eager, mpirun_args=" ".join(args.mpirun_args))
+    if args.out:
+        out["seed"] = args.seed
     for i in range(1, args.runs + 1):
         r = run_pinned(np, exe, [], None, timeout=args.timeout, mpirun_args=args.mpirun_args, extra_env=delays(rng, np))
         res = classify_rc(r.returncode, r.stderr, r.elapsed, args.timeout)
@@ -78,6 +84,7 @@ def main() -> int:
     ap.add_argument("--select", default=".")
     ap.add_argument("--seed", type=int, default=20261020)
     ap.add_argument("--eager", type=int, metavar="B", help="force the eager threshold of every run down to B payload bytes")
+    ap.add_argument("--out", metavar="CSV", help="the table to write (default: stress.csv or stress-eager.csv next to the corpus table)")
     args = ap.parse_args()
     args.mpirun_args = []
     if args.eager is not None:
@@ -105,9 +112,10 @@ def main() -> int:
         for i, res in enumerate(ex.map(lambda x: stress(x[0], x[1], args), todo), 1):
             results.append(res)
             print(f"[{i}/{len(todo)}] {res['program']:<50} runs={res['runs']:<3} first_failure={res['first_failure'] or '-'} {res['outcome']}", flush=True)
-    out = os.path.join(base, "stress.csv" if args.eager is None else "stress-eager.csv")
+    out = args.out or os.path.join(base, "stress.csv" if args.eager is None else "stress-eager.csv")
+    os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)
     with open(out, "w", newline="") as fh:
-        fields = FIELDS + ([] if args.eager is None else ["eager_bytes", "mpirun_args"])
+        fields = FIELDS + ([] if args.eager is None else ["eager_bytes", "mpirun_args"]) + (["seed"] if args.out else [])
         w = csv.DictWriter(fh, fieldnames=fields, lineterminator="\n")
         w.writeheader()
         w.writerows(sorted(results, key=lambda r: r["program"]))

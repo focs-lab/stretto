@@ -89,6 +89,15 @@ library built in the copy. It ran in the experiment image on the same 4 processo
 (`CPUS=18-19,58-59`, `MEMORY=8g`, container `stretto-mbbstress-mbb`), `JOBS=4`, `TIMEOUT=60`,
 in 57 minutes (01:13 to 02:10 UTC). MBI's `stress.csv` is that of the corpus rerun of 21 Oct.
 
+One stress pass is one sample: a program whose outcome under stress depends on the schedule can
+turn the sign test against Stretto either way (12 against 4 on 21 Oct, 12 against 3 on 23 Oct).
+`run_remaining.sh stressreps` runs the MBI baseline `REPS` more times (default 10) at the
+settings of `stress` (30 runs, the default limits, `TIMEOUT`, `JOBS`, the same programs), pass k
+with the seed 20261020 + k for its delays (`stress.csv` has 20261020, the default), and writes
+`experiments/results/reps/stress-mbi-<k>.csv` with the seed on every row. It needs the MBI
+binaries of the `mbi` step. `REPS_FIRST` (default 1) numbers the first pass, so that two
+containers can share the passes; `stress.csv` stays the table of the single pass.
+
 Variables the scripts read (all optional):
 
 | variable | script | meaning (default) |

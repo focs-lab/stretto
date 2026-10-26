@@ -4,14 +4,17 @@
 # under experiments/results/ and logs to experiments/results/run-remaining.log. MUST runs are
 # separate (experiments/mbi/run_must.py, experiments/amg/must.sh): they need docker on the host.
 #
-# usage: experiments/run_remaining.sh [step ...]     steps: build tests mbi mbb stress e2 e6 amg e4 e3 guard reps e6reads stresseager
-#        (no step: all but guard, reps, e6reads and stresseager, in that order; guard traces the
-#        corpora again with the buffer guard, reps traces MBI REPS more times, e6reads runs E6 with
-#        read bounds, stresseager runs the stress baseline with the eager threshold forced down)
+# usage: experiments/run_remaining.sh [step ...]     steps: build tests mbi mbb stress e2 e6 amg e4 e3 guard reps e6reads stresseager stressreps
+#        (no step: all but guard, reps, e6reads, stresseager and stressreps, in that order; guard
+#        traces the corpora again with the buffer guard, reps traces MBI REPS more times, e6reads
+#        runs E6 with read bounds, stresseager runs the stress baseline with the eager threshold
+#        forced down, stressreps runs the stress baseline on MBI REPS more times)
 # Exit status: 0 if every step succeeded, 1 if one failed (the others still run, but a failed
 # build stops the script), 2 for an unknown step.
 #   JOBS     parallel programs in the corpus steps (default 6)
 #   TIMEOUT  per program run and per replay, seconds (default 60); MUST gets the same
+#   REPS     passes of the reps and stressreps steps (default 10); REPS_FIRST, stressreps's first
+#            pass (default 1), lets two copies of that step share the passes
 set -uo pipefail
 R="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$R"
@@ -75,6 +78,17 @@ step_stress() {
     python3 experiments/stress_baseline.py experiments/results/mbi/mbi.csv --runs 30 --jobs "$JOBS" --timeout "$TIMEOUT" &&
     python3 experiments/stress_baseline.py experiments/results/mbb/mbb.csv --runs 30 --jobs "$JOBS" --timeout "$TIMEOUT" \
         --select "$MBB_STRESS_SELECT"
+}
+step_stressreps() {
+    # the stress baseline on MBI again REPS times, at the paper's settings (30 runs, the default
+    # limits, the same timeout and programs), each pass with delays from its own seed (the
+    # single pass, stress.csv, has stress_baseline.py's default, 20261020): a program whose
+    # outcome under stress depends on the schedule makes one pass a single sample. Tables in
+    # experiments/results/reps/stress-mbi-<k>.csv; the MBI binaries come from the mbi step.
+    for k in $(seq "${REPS_FIRST:-1}" "${REPS:-10}"); do
+        python3 experiments/stress_baseline.py experiments/results/mbi/mbi.csv --runs 30 --jobs "$JOBS" --timeout "$TIMEOUT" \
+            --seed $((20261020 + k)) --out "experiments/results/reps/stress-mbi-$k.csv" || return 1
+    done
 }
 step_stresseager() {
     # the baseline again with no payload byte buffered (stress_baseline.py --eager 0: E2's TCP

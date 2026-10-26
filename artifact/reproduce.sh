@@ -235,6 +235,8 @@ t_rq2() {
     box guard env SINGLE_COPY=off experiments/run_remaining.sh guard
     DOCKER_ARGS="--cap-add SYS_PTRACE" box guard-cma env SINGLE_COPY=on REPS=3 experiments/guard/run.sh all
     box reps experiments/run_remaining.sh reps
+    # the stress baseline on MBI ten more times, each pass with delays from its own seed
+    box stressreps experiments/run_remaining.sh stressreps
     box ninja bash -c "experiments/ninja/build.sh && RAND_DELAYS=50000 experiments/ninja/campaign.sh mbi"
     mpiprv
     claims 2
