@@ -98,6 +98,14 @@ with the seed 20261020 + k for its delays (`stress.csv` has 20261020, the defaul
 binaries of the `mbi` step. `REPS_FIRST` (default 1) numbers the first pass, so that two
 containers can share the passes; `stress.csv` stays the table of the single pass.
 
+The ten passes of 26 Oct 2026 ran from a fresh clone of commit 1db69d3 on the second machine,
+in the experiment image (`MACHINE=apollo`, `MEMORY=24g`, `JOBS=6`, `TIMEOUT=60`). The MBI
+binaries came from that clone's own `build` and `mbi` steps (05:39 to 06:01 UTC, on
+`CPUS=4-9,36-41`), the corpus run's tables of which were discarded. Then two containers ran
+five passes each, as the single pass had run, on 12 processors at `JOBS=6`: passes 1 to 5 on
+`CPUS=4-9,36-41` and 6 to 10 on `CPUS=10-15,42-47`, 06:01 to 06:56 UTC, 10 to 12 minutes a pass.
+Every row records 1db69d3.
+
 Variables the scripts read (all optional):
 
 | variable | script | meaning (default) |

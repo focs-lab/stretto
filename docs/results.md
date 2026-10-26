@@ -389,6 +389,96 @@ Stretto predicted it:
 | MessageRace_Recv_Send_nok | 6/10 | 6/10 | 0/4 |
 | MessageRace_tag_ANY_TAG_1_Send_Recv_nok | 7/10 | 10/10 | 3/3 |
 
+### Repeated stress passes against repeated runs (MBI)
+
+The stress baseline on MBI passed 10 more times (`experiments/run_remaining.sh stressreps`,
+`reps/stress-mbi-<k>.csv`) at the settings of the single pass: up to 30 runs per program with random delays at
+the default limits, stopping at the first run that does not finish; pass k draws its delays from the seed
+20261020 + k (the rows' seeds: 20261021 to 20261030).
+Rows by code commit: 1db69d3 (1150). Stretto's side is its 11 traced runs, the
+corpus run and the 10 repetitions above, each scored by its verdict, observed or predicted. Labelled errors in
+every pass and every traced run: 65.
+
+| labelled errors | in every pass or run | in some | in none |
+|---|---|---|---|
+| made to fail by a stress pass (of 10) | 53 | 0 | 12 |
+| reported by Stretto from a traced run (of 11) | 61 | 4 | 0 |
+
+Each pass against Stretto's corpus run, as the single comparison ("The baselines together"): the errors
+Stretto finds and the pass misses, the reverse, and the exact two-sided sign test of that split.
+
+| pass | seed | errors made to fail | correct programs failing | Stretto only | the pass only | p |
+|---|---|---|---|---|---|---|
+| 1 | 20261021 | 53 | 1 | 12 | 3 | 0.035 |
+| 2 | 20261022 | 53 | 2 | 12 | 3 | 0.035 |
+| 3 | 20261023 | 53 | 0 | 12 | 3 | 0.035 |
+| 4 | 20261024 | 53 | 0 | 12 | 3 | 0.035 |
+| 5 | 20261025 | 53 | 0 | 12 | 3 | 0.035 |
+| 6 | 20261026 | 53 | 1 | 12 | 3 | 0.035 |
+| 7 | 20261027 | 53 | 0 | 12 | 3 | 0.035 |
+| 8 | 20261028 | 53 | 0 | 12 | 3 | 0.035 |
+| 9 | 20261029 | 53 | 0 | 12 | 3 | 0.035 |
+| 10 | 20261030 | 53 | 0 | 12 | 3 | 0.035 |
+
+Correct programs a pass makes fail: 3, in 3 of the 10 passes (MessageRace_Allgatherv_Send_Irecv_ok in pass 1, run 29, TIMEOUT; MessageRace_Allgatherv_Send_Irecv_ok in pass 2, run 19, TIMEOUT; MessageRace_Alltoallv_Send_Irecv_ok in pass 2, run 12, TIMEOUT; CallOrdering_Probe_Irecv_Send_ok in pass 6, run 1, SIGNAL:11).
+
+Passes that make exactly the labelled errors of the single pass (`stress.csv`, 53) fail: 10 of 10 (`nRepsStressAsSingle`).
+
+Stretto's lead is significant at 5% (p < 0.05, Stretto ahead) against 10 of the 10 passes; p ranges
+from 0.035 to 0.035 (median 0.035) (`nRepsStressPassSig`, `RepsStressPassPMin`, `RepsStressPassPMedian`, `RepsStressPassPMax`).
+
+The corpus run is one sample of Stretto's side as a pass is of stress testing's: each of the 11 traced runs
+against each of the 10 passes, the same split and test (ranges over the passes):
+
+| traced run | errors reported | Stretto only | the pass only | p | passes against which the lead is significant |
+|---|---|---|---|---|---|
+| corpus run | 62 | 12 | 3 | 0.035 | 10 |
+| repetition 1 | 63 | 12 | 2 | 0.013 | 10 |
+| repetition 2 | 62 | 12 | 3 | 0.035 | 10 |
+| repetition 3 | 63 | 12 | 2 | 0.013 | 10 |
+| repetition 4 | 64 | 12 | 1 | 0.0034 | 10 |
+| repetition 5 | 63 | 12 | 2 | 0.013 | 10 |
+| repetition 6 | 63 | 12 | 2 | 0.013 | 10 |
+| repetition 7 | 64 | 12 | 1 | 0.0034 | 10 |
+| repetition 8 | 63 | 12 | 2 | 0.013 | 10 |
+| repetition 9 | 64 | 12 | 1 | 0.0034 | 10 |
+| repetition 10 | 64 | 12 | 1 | 0.0034 | 10 |
+
+Of the 110 pairs, the lead is significant in 110; p ranges from 0.0034 to 0.035
+(median 0.013) (`nRepsStressPairs`, `nRepsStressPairSig`, `RepsStressPairPMin`,
+`RepsStressPairPMedian`, `RepsStressPairPMax`).
+
+Pooled over the passes and runs, by program: each labelled error's detection rate with Stretto (traced runs
+that report it, of 11) against stress testing's (passes that make it fail, of 10), and the exact paired
+permutation test of the per-program differences (each difference's sign flipped at random; with one run on
+each side it is the single comparison's sign test). The program is the unit, as runs of one program are not
+independent. One traced run finds 63.18 of the 65 labelled errors on average, one stress pass
+53.00; Stretto's rate is the higher for 12 programs and stress testing's for 4:
+p = 0.0031 (`RepsStressMeanStretto`, `RepsStressMeanOther`, `nRepsStressRateStretto`,
+`nRepsStressRateOther`, `RepsStressRateP`). The sign test over the programs whose rates differ, which counts
+only which rate is the higher, gives p = 0.077.
+
+Labelled errors some pass or some traced run misses (the other 49 are found by every one):
+
+| program | stress passes that make it fail | Stretto's traced runs that report it |
+|---|---|---|
+| MessageRace_Irecv_Isend_nok | 10/10 | 5/11 |
+| MessageRace_Irecv_Send_nok | 10/10 | 7/11 |
+| MessageRace_Recv_Isend_nok | 10/10 | 6/11 |
+| MessageRace_Recv_Send_nok | 10/10 | 6/11 |
+| P2PBuffering_Circular_Isend_Irecv_nok | 0/10 | 11/11 |
+| P2PBuffering_Circular_Isend_Recv_nok | 0/10 | 11/11 |
+| P2PBuffering_Circular_Send_Irecv_nok | 0/10 | 11/11 |
+| P2PBuffering_Circular_Send_Recv_nok | 0/10 | 11/11 |
+| P2PBuffering_Isend_Irecv_Isend_Irecv_nok | 0/10 | 11/11 |
+| P2PBuffering_Isend_Recv_Isend_Recv_nok | 0/10 | 11/11 |
+| P2PBuffering_SameProcess_Isend_Irecv_nok | 0/10 | 11/11 |
+| P2PBuffering_SameProcess_Isend_Recv_nok | 0/10 | 11/11 |
+| P2PBuffering_SameProcess_Send_Irecv_nok | 0/10 | 11/11 |
+| P2PBuffering_SameProcess_Send_Recv_nok | 0/10 | 11/11 |
+| P2PBuffering_Send_Irecv_Send_Irecv_nok | 0/10 | 11/11 |
+| P2PBuffering_Send_Recv_Send_Recv_nok | 0/10 | 11/11 |
+
 ## E2: buffering ablation
 
 Rows by code commit: 415a6ed-dirty (671).
