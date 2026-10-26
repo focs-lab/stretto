@@ -200,10 +200,15 @@ a call that a rule of H1 removes, while the edges it adds reach only matches and
 so no cycle closes. Rank d receives r from any source (it took g's message) and then, before
 reading r's result, sends x to e and receives r2 from e; rank e posts r_e1 from any source
 (which took x) and r_e2 from f (which took y), sends s to d, and waits for both; f sends y.
-For r taking s instead, H1 cuts d right after r: x is never sent, r_e1 stays pending, rule
-H:pending removes the posting of r_e2 and with it s, and r has no message. H1' keeps x: r_e1
-takes x, r_e2 takes y, s is sent, and the path c(r) -> x -> m(r_e1) -> m(r_e2) -> c(Wait r_e2)
-never reaches the issue of s. Nothing makes the H1' verdict monotone in B either (later
+For r taking s instead, H1 cuts d right after r: x is never sent, r_e1 stays pending, and until
+26 Oct 2026 rule H:pending removed the posting of r_e2 and with it s, so r had no message. H1'
+keeps x: r_e1 takes x, r_e2 takes y, s is sent, and the path c(r) -> x -> m(r_e1) -> m(r_e2) ->
+c(Wait r_e2) never reaches the issue of s. Since 26 Oct 2026 rule H:pending deprives r_e2 of y
+instead of removing it (a nonblocking receive whose result e reads only at its wait,
+docs/model.md §2b), s is sent under H1 as well, and H1 accepts this alternative too
+(`test_reads.HorizonUnion`); a call that a rule of H1 removes without an edge into the window
+is what H1' needs, and the deprivation of a nonblocking receive was the one such case known.
+The union stays, as both claims are sound. Nothing makes the H1' verdict monotone in B either (later
 receives of the window become judged as B grows), so theorem T2, which makes the H1 profile of
 a steal at a blocking receive an interval and its bisection exact, says nothing about the
 union: an alternative whose bounds keep a window is judged at every breakpoint

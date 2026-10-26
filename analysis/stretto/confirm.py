@@ -449,8 +449,8 @@ def _horizon(t, f: Finding, B=None, infeasible_ok: bool = False, M=None, changed
         rtok, ptok = [], []
         for r in sorted(t.recvs.values(), key=lambda r: (r.rank, r.idx)):
             outside = r.idx >= cut[r.rank] and not (change[0] == "recv" and change[1] == r.key)
-            if r.widx is None or outside:
-                continue
+            if r.widx is None or outside or (alternative and r.key in chk.deprived):
+                continue          # a receive rule 6 deprived of its message may take another: not pinned
             # the alternative's sender (none for the receive a steal leaves without a message)
             sk = M.get(r.key) if alternative else t.observed.get(r.key)
             if sk is None:

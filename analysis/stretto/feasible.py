@@ -5,8 +5,17 @@ from dataclasses import dataclass, field
 from typing import Dict, Iterable, List, Optional, Set, Tuple
 
 from .horizon import compute_cut, witness_kept
-from .matching import affected_ranks, build_graph, matching_order_ok
+from .matching import Overlay, affected_ranks, build_graph, matching_order_ok
 from .trace import Key, Trace
+
+
+def without(M, keys):
+    """M without the pairs of the receives keys (an Overlay over M), M itself if there are none."""
+    if not keys:
+        return M
+    if isinstance(M, Overlay):
+        return M.with_(removed=keys)
+    return Overlay(M, {}, keys)
 
 
 @dataclass
@@ -17,6 +26,9 @@ class Verdict:
     cycle: Optional[list] = None
     hangs: Dict[int, str] = field(default_factory=dict)   # SP mode: ranks that never complete an operation
     issued: Dict[int, int] = field(default_factory=dict)  # rank -> a blocking send cut at its own record, issued
+    # nonblocking receives that rule 6 deprived of their message: posted inside the horizon,
+    # judged by nothing (the claim leaves them out of the matching)
+    deprived: Set[Key] = field(default_factory=set)
 
     @property
     def ok(self) -> bool:
@@ -27,10 +39,13 @@ class Verdict:
 def check(t: Trace, M: Dict[Key, Key], changed, B: Optional[int], mode: str = "L1",
           extra_edges: Iterable = (), changed_probes: Set[Key] = frozenset(), strong_only: bool = False,
           probe_alt: Optional[Dict[Key, Key]] = None, changed_events: Set[Tuple[int, int]] = frozenset(),
-          must_issue: Iterable[Key] = (), bounds=None) -> Verdict:
+          must_issue: Iterable[Key] = (), bounds=None, must_match: Iterable[Key] = ()) -> Verdict:
     """must_issue: sends the alternative needs issued inside the kept prefix besides those
     of M (the message a Waitany alternative completes with). bounds: read bounds
-    (stretto.reads) for rule 1 of the horizon, H1 when None."""
+    (stretto.reads) for rule 1 of the horizon, H1 when None. must_match: receives that must
+    keep their message of M inside the horizon (the receive a Waitany alternative or a test
+    flip completes), which rule 6 may deprive of it. The matching judged is M without the
+    receives rule 6 deprived (Verdict.deprived)."""
     seen = {}
     for rk, sk in M.items():
         if rk not in t.recvs or sk not in t.sends:
@@ -42,7 +57,10 @@ def check(t: Trace, M: Dict[Key, Key], changed, B: Optional[int], mode: str = "L
         seen[sk] = rk
     hangs: Dict[int, str] = {}
     issued: Dict[int, int] = {}
-    cut = compute_cut(t, M, set(changed), B, mode, changed_probes, hangs, changed_events, issued, probe_alt, bounds)
+    deprived: Set[Key] = set()
+    cut = compute_cut(t, M, set(changed), B, mode, changed_probes, hangs, changed_events, issued, probe_alt, bounds,
+                      deprived)
+    M = without(M, deprived)
     # SP mode only: the continuation is fixed, so a cut operation is one its rank never completes.
     # The matching may still be realisable (the run then deadlocks): feasible says the former,
     # hangs the latter, ok both.
@@ -62,7 +80,10 @@ def check(t: Trace, M: Dict[Key, Key], changed, B: Optional[int], mode: str = "L
         s = t.sends[sk]
         if s.idx >= cut[s.rank] and issued.get(s.rank) != s.idx:
             return Verdict(False, "the message that would complete first is never issued within the horizon", cut)
-    if not witness_kept(t, cut, changed, changed_probes, changed_events, M, issued):
+    for rk in must_match:
+        if rk in deprived:
+            return Verdict(False, f"{t.recvs[rk]} is deprived of its message: a receive posted before it is pending", cut)
+    if not witness_kept(t, cut, changed, changed_probes, changed_events, M, issued, deprived):
         # in L1 the horizon cut it; in SP a receive that can never complete precedes it
         return Verdict(False, "witness cut by the horizon closure" if mode == "L1" else
                        "witness unreachable: an earlier receive on its rank can never complete", cut)
@@ -90,8 +111,8 @@ def check(t: Trace, M: Dict[Key, Key], changed, B: Optional[int], mode: str = "L
     g = build_graph(t, M, cut, B, extra_edges, strong_only, probe_alt, issued)
     cyc = g.find_cycle()
     if cyc:
-        return Verdict(False, "constraint cycle", cut, cyc, hangs, issued)
-    return Verdict(True, hang_text or "ok", cut, None, hangs, issued)
+        return Verdict(False, "constraint cycle", cut, cyc, hangs, issued, deprived)
+    return Verdict(True, hang_text or "ok", cut, None, hangs, issued, deprived)
 
 
 def observed_feasible_at(t: Trace, B: Optional[int], strong_only: bool = True) -> Verdict:

@@ -53,7 +53,7 @@ import time
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, os.path.join(ROOT, "analysis"))
 from stretto import dsl, explore, report, trace  # noqa: E402
-from stretto.feasible import check  # noqa: E402
+from stretto.feasible import check, without  # noqa: E402
 from stretto.matching import build_graph, candidates_full, match_node, observed_hb  # noqa: E402
 from stretto.deadlock import contained_deadlock  # noqa: E402
 from stretto.reads import NeverReads, Table  # noqa: E402
@@ -75,12 +75,15 @@ def read_bounds(t, kind, rng):
     return Table(out)
 
 
-def judged(t, M, cut):
+def judged(t, M, cut, deprived=()):
     """Receives the checker's claim covers: posted inside the cut and either unmatched in M
-    or matched to a send issued inside the cut."""
+    or matched to a send issued inside the cut, but for those rule 6 deprived of their
+    message (Verdict.deprived), whose match the claim leaves open."""
     out = []
     for rk, r in t.recvs.items():
         if cut is not None and r.idx >= cut.get(r.rank, 10**9):
+            continue
+        if rk in deprived:
             continue
         sk = M.get(rk)
         if sk is None or cut is None or t.sends[sk].idx < cut.get(sk[0], 10**9):
@@ -128,7 +131,7 @@ def compare(t, name, args, rows, counts, times):
             t1 = time.perf_counter()
             try:
                 res = explore.explore(prog, B, force={a.recv: a.send}, max_states=args.max_states, comms=t.comm_members)
-                keys = set(judged(t, a.M, v.cut)) | set(a.changed)
+                keys = set(judged(t, a.M, v.cut, v.deprived)) | set(a.changed)
                 if a.kind == "steal" and a.stolen_from is not None:
                     keys.add(a.stolen_from)        # left without a message: the execution must leave it so
                 pairs = {rk: a.M[rk] for rk in keys if rk in a.M}
@@ -152,7 +155,7 @@ def compare(t, name, args, rows, counts, times):
                     exp_err = "realised only with a ready send before its receive"
                 # theorem T7: a contained deadlock means every execution with the changed match deadlocks
                 rule1 = bounds.rule1(t, a.changed, a.M) if bounds is not None else None
-                dl = contained_deadlock(t, a.M, a.changed, v.cut, v.issued, B, rule1) if v.feasible else None
+                dl = contained_deadlock(t, without(a.M, v.deprived), a.changed, v.cut, v.issued, B, rule1) if v.feasible else None
                 with_pair = [o for o in clean if (a.recv, a.send) in o.matching]
                 t7 = "" if not dl else ("ok" if with_pair and all(o.kind == "deadlock" for o in with_pair) else "UNSOUND")
             except explore.StateCapReached:
@@ -226,7 +229,7 @@ def compare_probes(t, name, args, rows, counts, times):
             fp.update(forced or {})
             try:
                 res = explore.explore(prog, B, max_states=args.max_states, comms=t.comm_members, force_probes=fp)
-                keys = set(judged(t, t.observed, cut))
+                keys = set(judged(t, t.observed, cut, v.deprived))
                 pairs = {rk: t.observed[rk] for rk in keys if rk in t.observed}
 
                 def reached(outcomes):

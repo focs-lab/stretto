@@ -315,7 +315,8 @@ L1)` accepts, then for every program P consistent with σ on H there is an execu
 threshold B in which every operation of H is issued and whose matching agrees with M' on every
 receive *judged* by H: a receive posted inside H that M' leaves unmatched, or whose M' message
 is issued inside H (a match is decided once message and receive are both present, so a
-nonblocking receive whose wait lies beyond H is judged all the same).
+nonblocking receive whose wait lies beyond H is judged all the same), but for the receives rule
+6 deprived (§3), whose match is left open.
 *Sketch.* The constraint graph on H is acyclic, so it has a topological order; replay the
 operations of H in that order. Program order is respected by construction. Every delivery edge
 `issue(s) → complete(r)` puts the send before the receive's completion; the matching-order
@@ -334,6 +335,37 @@ cannot guarantee, so the order contains no completion the library would withhold
 with σ on H means P issues the operations of H in that order. Tests: `CheckerSoundness` (every
 accepted alternative of every traced idiom is realised by the explorer) and E6 on the corpus
 traces and on synthetic traces; evidence so far: 0 unsound pairs.
+
+*Deprived receives* (rule 6 at a nonblocking receive x, since 26 Oct 2026). Before then rule 6
+removed x's posting and everything after it. That was more than needed: the call that posts x
+returns a request and nothing else, and the rank reads x's result only at the record that
+completes x (a wait, a successful test or request query), so the records between x's posting
+and its completion are issued by every program consistent with σ whatever x takes. The
+refinement keeps them and leaves x's match open. The argument of T1 then needs three facts.
+(i) x takes nothing a judged receive needs: a message of a judged receive posted before x goes
+to that receive, which was posted first (matching order on the receiver's side, rule 3'); a
+message of a judged receive r3 posted after x that x accepts is impossible, since rule 6 applied
+to x, which is pending, deprives r3 (nonblocking) or cuts it (blocking), so r3 is not judged.
+(ii) x's own message s is claimed by nobody: its rendezvous completion is removed (rule 3) and
+a ready s is removed (rule 7), since x may not take it. (iii) A judged receive or kept probe of
+x's rank that takes or reports a later message of s's channel, and accepts s, has an
+obligation: s must be matched before it, and only a pending receive, which may take another
+message, could take s. The matching order is therefore checked on M' without the deprived
+receives (`feasible.check`): conditions 2 and the probe order then reject such an alternative,
+since s has no receive. The deprived x itself is no witness: the changed receive, and the
+receive a test flip or completion-order alternative completes, must keep their message
+(`witness_kept`, `must_match`). Which receives end up deprived depends on the order of the
+closure's steps only for receives that a later step cuts at or before their posting; the
+closure keeps the deprived receives still posted (`horizon._posted_only`), and the deprivation
+is antitone in the prefix, so the greatest fixpoint is unique as before. The fast checks apply
+the same rule (`fast.Observed.closure`, `deprive`) and leave to the generic check every
+alternative whose horizon deprives a receive of a message issued inside it (obligation (iii),
+which their indexes do not answer: `Observed._orphaned`), and the observed run's single-path
+verdict whenever a receive is deprived. Motivation: Cabana's CommunicationPlan (PR 835), where
+the round-1 wildcard receive that takes a round-2 id was rejected at L1 because rule 6 cut the
+sender's later round-2 Isends at its second round-2 Irecv (`C_DeprivedIrecv`). Rule H1' of the
+read bounds had its example of an alternative H1 rejects and H1' accepts in this cut
+(docs/firstread.md); with the refinement H1 accepts it too.
 
 *Gaps found by the audit of 20 Oct 2026, all repaired.* (a) and (b) by the match nodes of §2
 (regression tests `C_MatchNodes`); (c) by rule 6 over probes, rule 7 and the probe order edges
@@ -539,11 +571,16 @@ set closed under (`horizon.compute_cut`):
 6. a receive posted inside the prefix whose `M'` send is not issued there (removed, or absent)
    stays pending through the prefix, so a later receive of its rank cannot take a message the
    pending one accepts (the standard's second non-overtaking clause, §3.5: the later receive
-   "cannot be satisfied by this message if the first one is still unmatched"): that receive
-   and what follows it are removed. A later probe that reports such a message is removed too,
-   since a probe reports what a receive posted at that point would take. The rule is what
-   lets the claim cover receives that complete beyond the prefix: a pending receive competes
-   for every message its rank gets;
+   "cannot be satisfied by this message if the first one is still unmatched"). A blocking
+   receive is removed with what follows it; so is a later probe that reports such a message,
+   since a probe reports what a receive posted at that point would take. A nonblocking receive
+   is *deprived* instead (since 26 Oct 2026): it stays posted and loses its `M'` message, so
+   that for the other rules it is a receive without a message (rule 2 removes its completion,
+   rules 3 and 7 treat its message as one without a receive, and this rule applies to it in
+   turn), and it is judged by nothing (`Verdict.deprived`; the matching judged is `M'` without
+   it). The rule goes on past it to the later receives of the rank. The rule is what lets the
+   claim cover receives that complete beyond the prefix: a pending receive competes for every
+   message its rank gets;
 7. a ready-mode send whose `M'` receive is not posted inside the prefix would be erroneous:
    the send and what follows it are removed.
 

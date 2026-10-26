@@ -154,7 +154,7 @@ class C_TestFlip(unittest.TestCase):
             g = check(t, t.observed, set(), B, "L1", **wait_kw(rec, None, r, s))
             self.assertTrue(g.feasible, g.reason)
             self.assertEqual(g.cut[0], rec.idx + 1)
-            f = fast.Observed(t, B).check_event(rec.rank, rec.idx, s)
+            f = fast.Observed(t, B).check_event(rec.rank, rec.idx, s, r)
             self.assertEqual((f.feasible, f.cut), (True, g.cut))
         (fl,) = analyze(t, with_sp=False).by_class("test-flip")
         self.assertEqual((fl.event, fl.pin), ((0, 2), "STRETTO_PIN_FLIP=0:0:-2@x:x:x:0"))

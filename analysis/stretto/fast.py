@@ -97,6 +97,17 @@ class Suffix2:
         return self.m1[i], self.p1[i]
 
 
+class Closure(tuple):
+    """What Observed.closure returns: the pair (cut, issued), which unpacks and compares as
+    before, and the receives that rule 6 deprived of their message (horizon.compute_cut) as
+    .deprived."""
+
+    def __new__(cls, cut: Dict[int, int], issued: Dict[int, int], deprived: Set[Key] = frozenset()):
+        self = super().__new__(cls, (cut, issued))
+        self.deprived = frozenset(deprived)
+        return self
+
+
 class Indexes:
     """Threshold-independent indexes of a trace (Trace.fast_indexes()). Each group is built on
     first use: a trace without wildcard receives, probes or orphans never touches the
@@ -361,7 +372,7 @@ class Observed:
                 changed_probes: Iterable[Probe] = (), changed_events: Iterable[Tuple[int, int]] = (),
                 mode: str = "L1", hangs: Optional[Dict[int, str]] = None,
                 bounds=None, cuts: Iterable[Tuple[int, int]] = (),
-                start: Optional[Tuple[Dict[int, int], Dict[int, int]]] = None) -> Tuple[Dict[int, int], Dict[int, int]]:
+                start: Optional[Tuple[Dict[int, int], Dict[int, int]]] = None) -> Closure:
         """The horizon closure (horizon.compute_cut) for the observed matching with the
         receives in new_pairs re-matched, dropped_recvs left without a send and
         dropped_sends without a receive. exclude2 = (R, Q, position) names a stale entry of
@@ -372,7 +383,8 @@ class Observed:
         cut from rules 5 and 6. start: the (cut, issued) of a closure computed with the same
         arguments but fewer cuts, a fixpoint of the same rules, to continue from instead of
         the whole trace (its rule-1 cuts and the seeds of rules 2, 3, 6 and 7 hold there
-        already). Returns (cut, issued).
+        already). Returns (cut, issued), a Closure whose .deprived names the nonblocking
+        receives rule 6 deprived of their message (they stay posted; horizon.compute_cut).
 
         The worklist holds ranks whose cut moved. It is taken in the order of the Lamport
         times of the observed run (Indexes.lamport), the earliest removed record first: a
@@ -388,6 +400,7 @@ class Observed:
         dropped_sends = list(dropped_sends)
         cut = dict(start[0]) if start is not None else dict(ix.length)
         issued: Dict[int, int] = dict(start[1]) if start is not None else {}
+        dep: Set[Key] = set(getattr(start, "deprived", ())) if start is not None else set()
         work: List = []
         probe_ranks = {p.rank: p.idx for p in changed_probes}
         changed_probe_at = {(p.rank, p.idx) for p in changed_probes}
@@ -427,32 +440,70 @@ class Observed:
 
         def rule6(r: Recv) -> None:
             """r is posted inside the prefix and its message is not issued there: it stays
-            pending, so the rank is cut at the first later receive that takes a message r
-            accepts (the standard's second non-overtaking clause)."""
+            pending, so a later receive that takes a message r accepts cannot (the standard's
+            second non-overtaking clause). The rank is cut at the first such blocking receive
+            or probe; a nonblocking one before it is deprived of its message instead and stays
+            posted (deprive), and the search goes on after it."""
             rank = r.rank
-            best, best_r = cut[rank], None
             key = (rank, r.comm, r.src, r.tag)
             ents = ix.r6.get(key)
-            if ents:
-                j = bisect_right(ix.r6_idx[key], r.idx)
-                while j < len(ents) and ents[j][0] < best:
-                    rk2 = ents[j][1]
-                    if rk2 not in new_pairs and rk2 not in dropped_keys:
-                        best, best_r = ents[j][0], rk2
-                        break
-                    j += 1
-            for rk2, sk2 in new_pairs.items():
-                if rk2[0] == rank and r.idx < t.recvs[rk2].idx < best and r.accepts(t.sends[sk2]):
-                    best, best_r = t.recvs[rk2].idx, rk2
             pl = ix.p6.get(key)
-            if pl:
-                j = bisect_right(pl, r.idx)
-                while j < len(pl) and (rank, pl[j]) in changed_probe_at:
-                    j += 1
-                if j < len(pl) and pl[j] < best:
-                    best, best_r = pl[j], ("probe", pl[j])
-            if best_r is not None:
+            pos = r.idx
+            while True:
+                best, best_r = cut[rank], None
+                if ents:
+                    j = bisect_right(ix.r6_idx[key], pos)
+                    while j < len(ents) and ents[j][0] < best:
+                        rk2 = ents[j][1]
+                        if rk2 not in new_pairs and rk2 not in dropped_keys and rk2 not in dep:
+                            best, best_r = ents[j][0], rk2
+                            break
+                        j += 1
+                for rk2, sk2 in new_pairs.items():
+                    if rk2[0] == rank and pos < t.recvs[rk2].idx < best and rk2 not in dep and r.accepts(t.sends[sk2]):
+                        best, best_r = t.recvs[rk2].idx, rk2
+                if pl:
+                    j = bisect_right(pl, pos)
+                    while j < len(pl) and (rank, pl[j]) in changed_probe_at:
+                        j += 1
+                    if j < len(pl) and pl[j] < best:
+                        best, best_r = pl[j], ("probe", pl[j])
+                if best_r is None:
+                    return
+                if best_r[0] != "probe" and not t.recvs[best_r].blocking:
+                    deprive(t.recvs[best_r], r)
+                    pos = best
+                    continue
                 lower(rank, best, lambda r=r, rk2=best_r, best=best: f"{ix.probe_at[(rank, best)] if rk2[0] == 'probe' else t.recvs[rk2]} is deprived: {r}, posted before it and still pending, takes the message")
+                return
+
+        def message_of(x: Recv) -> Optional[Key]:
+            """x's message in M': re-matched, dropped, deprived, or the observed one."""
+            if x.key in dep or x.key in dropped_keys:
+                return None
+            return new_pairs.get(x.key, t.observed.get(x.key))
+
+        def deprive(x: Recv, by: Recv) -> None:
+            """Rule 6 at a nonblocking receive x (horizon.compute_cut): it keeps its posting and
+            loses its message; rule 2 cuts at its completion, rules 3 and 7 treat its message
+            as one without a receive, and rule 6 applies to x."""
+            sk = message_of(x)
+            dep.add(x.key)
+            if x.completed:
+                lower(x.rank, _cidx(x), lambda: f"{x} never gets its message: {by}, posted before it and still pending, takes it")
+            if sk is not None:
+                s = t.sends[sk]
+                if s.completed and send_blocks(s, B):
+                    lower(s.rank, _cidx(s), lambda: f"{s} never completes: rendezvous with no posted receive", _cidx(s) == s.idx)
+                if s.ready_mode:
+                    lower(s.rank, s.idx, lambda: f"{s} is a ready send whose receive is never posted")
+            rule6(x)
+
+        def nonblocking_at(Q: int, v: int) -> bool:
+            """Is the record at v of rank Q a nonblocking receive, which rule 6 deprives rather
+            than cuts?"""
+            x = ix.recv_at.get((Q, v))
+            return x is not None and not x.blocking
 
         def deprived(Q: int, v: int) -> str:
             """What rule 6 takes from the record at v of rank Q, a receive or a probe."""
@@ -502,7 +553,10 @@ class Observed:
                         if gone:
                             v = ix.comp0.get(rk, INF)      # rule 6
                             if v < cut[s.dst]:
-                                lower(s.dst, v)
+                                if nonblocking_at(s.dst, v):
+                                    rule6(t.recvs[rk])     # deprived rather than cut, and the next looked at
+                                else:
+                                    lower(s.dst, v)
                         x = t.recvs[rk]
                         if x.completed:                    # rule 2
                             lower(x.rank, _cidx(x))
@@ -634,9 +688,11 @@ class Observed:
                             # depends on the message it reports instead); every competitor after
                             # it lies beyond rule 1's cut right after it
                             pass
-                        elif (Q, v) in stale or exempt:
-                            # the competitor the index names is re-matched, dropped or exempt:
-                            # judge each pending receive of the suffix by its M' competitor
+                        elif (Q, v) in stale or exempt or nonblocking_at(Q, v):
+                            # the competitor the index names is re-matched, dropped or exempt, or
+                            # a nonblocking receive, which rule 6 deprives and does not cut (the
+                            # pending receives may then deprive later ones): judge each pending
+                            # receive of the suffix by its M' competitors
                             for j in range(i, len(ix.sq[key])):
                                 if j != ex and ix.sq[key][j].key in ix.recv_of0:
                                     rule6(t.recvs[ix.recv_of0[ix.sq[key][j].key]])
@@ -706,7 +762,7 @@ class Observed:
                     v, pos = ix.r5[key].query(i)
                     if v < INF and probe_ranks.get(Q) != v:
                         lower(Q, v, lambda Q=Q, v=v, key=key, pos=pos: f"{ix.probe_at[(Q, v)]} observes another message: {ix.sq[key][pos]} is never issued")
-        return cut, issued
+        return Closure(cut, issued, {k for k in dep if t.recvs[k].idx < cut[k[0]]})   # as horizon._posted_only
 
     # -------------------------------------------------------------------- graph
     def graph(self):
@@ -897,13 +953,16 @@ class Observed:
         self.ix.ready()
         exclude2 = (s_obs.rank, r.rank, self.ix.sq_pos[s_obs.key]) if s_obs is not None else None
         exclude3 = (r2.rank, s.rank, self.ix.rq_pos[r2.key]) if r2 is not None else None
-        cut, issued = self.closure(changed=[r.key], new_pairs={r.key: s.key},
+        c = self.closure(changed=[r.key], new_pairs={r.key: s.key},
                                    dropped_recvs=[r2] if r2 is not None else (),
                                    dropped_sends=[s_obs] if s_obs is not None else (),
                                    exclude2=exclude2, exclude3=exclude3)
+        cut, issued = c
         if r.idx >= cut[r.rank] or (r.completed and r.blocking and _cidx(r) >= cut[r.rank]) or \
            (not r.blocking and s.idx >= cut[s.rank] and issued.get(s.rank) != s.idx):
             return Verdict(False, "witness cut by the horizon closure", cut)
+        if self._orphaned(c):
+            return None
         why = self._order(r, s, r2, cut)
         if why:
             return Verdict(False, why, cut)
@@ -919,7 +978,22 @@ class Observed:
                 return Verdict(False, "constraint cycle", cut)
         if s.ready_mode and self.reaches(s.issue_node(), r.issue_node()):
             return Verdict(False, "constraint cycle", cut)      # a ready send needs the receive posted first
-        return Verdict(True, "ok", cut)
+        return Verdict(True, "ok", cut, deprived=set(c.deprived))
+
+    def _orphaned(self, c: Closure) -> bool:
+        """Has rule 6 deprived a receive of a message that is issued inside the horizon? Such a
+        message is taken by one of the pending receives before it, or by none, and a receive or
+        probe of its rank that takes or reports a later message of its channel and accepts it
+        has an obligation the indexes do not answer: the message may still be there when it
+        looks. The generic check's matching order judges those (feasible.check, on M without
+        the deprived receives), so the fast checks leave such an alternative to it. A deprived
+        receive is never the changed or the dropped one, so its message is the observed one."""
+        cut, issued = c
+        for k in c.deprived:
+            s = self.t.sends[self.t.observed[k]]
+            if s.idx < cut[s.rank] or issued.get(s.rank) == s.idx:
+                return True
+        return False
 
     def _order(self, r: Recv, s: Send, r2: Optional[Recv], cut: Dict[int, int]) -> Optional[str]:
         """Matching order for r <- s with r2 (if any) left without a message. Sender-side
@@ -953,7 +1027,7 @@ class Observed:
                     return f"receiver order: earlier {r2} accepts {t.sends[sk]} and has no message in this matching"
         return None
 
-    def probe_closure(self, p: Probe) -> Tuple[Dict[int, int], Dict[int, int]]:
+    def probe_closure(self, p: Probe) -> Closure:
         """closure(changed_probes=[p]), continued from the closure of the last probe asked for
         when that one is a later probe of the same rank. The two differ in where rule 1 cuts
         the rank, and the closure is monotone in the cut, so the earlier probe's horizon is the
@@ -972,11 +1046,11 @@ class Observed:
             start = self._base
         else:
             start = ch[2]
-        cut, issued = self.closure(cuts=[(p.rank, p.idx + 1)], start=start)
-        self._chain = (p.rank, p.idx, (cut, issued))
-        if cut[p.rank] <= p.idx:
+        c = self.closure(cuts=[(p.rank, p.idx + 1)], start=start)
+        self._chain = (p.rank, p.idx, c)
+        if c[0][p.rank] <= p.idx:
             return self.closure(changed_probes=[p])
-        return cut, issued
+        return c
 
     def check_probe(self, p: Probe, s: Optional[Send]) -> Optional[Verdict]:
         """The probe reports s instead of what it saw: another message, or, for an Iprobe that
@@ -993,11 +1067,14 @@ class Observed:
         # closure serves them all
         if self._probe_closure is None or self._probe_closure[0] != p.key:
             self._probe_closure = (p.key, self.probe_closure(p))
-        cut, issued = self._probe_closure[1]
+        c = self._probe_closure[1]
+        cut, issued = c
         if p.idx >= cut[p.rank]:
             return Verdict(False, "witness cut by the horizon closure", cut)
+        if self._orphaned(c):
+            return None
         if s is None:
-            return Verdict(True, "ok", cut)
+            return Verdict(True, "ok", cut, deprived=set(c.deprived))
         if s.idx >= cut[s.rank] and issued.get(s.rank) != s.idx:
             return Verdict(False, "the message the probe would observe is never issued within the horizon", cut)
         for x in self.ix.unmatched.get(p.rank, ()):
@@ -1007,22 +1084,34 @@ class Observed:
                 return Verdict(False, f"receiver order: earlier {x} accepts {s} and has no message in this matching", cut)
         for x in t.earlier_competitors(p, s):
             sk = t.observed.get(x.key)
+            if x.key in c.deprived:
+                # deprived of its message by rule 6: pending, it takes s (an earlier receive of its
+                # class that is deprived too makes x deprived, so the latest one tells)
+                return Verdict(False, f"receiver order: earlier {x} accepts {s} and has no message in this matching", cut)
             if sk is not None:
                 sx = t.sends[sk]
                 if sx.idx >= cut[sx.rank] and issued.get(sx.rank) != sx.idx:
                     return Verdict(False, "witness cut by the horizon closure", cut)    # x stays pending and takes s
-        return Verdict(True, "ok", cut)
+        return Verdict(True, "ok", cut, deprived=set(c.deprived))
 
-    def check_event(self, rank: int, idx: int, must_issue: Send) -> Optional[Verdict]:
+    def check_event(self, rank: int, idx: int, must_issue: Send, must_match: Optional[Recv] = None) -> Optional[Verdict]:
+        """A completion event at record idx of rank (a Waitany completing another index, a test
+        flip): rule 1 cuts after it, must_issue is issued inside the horizon, and must_match,
+        the receive the record completes, keeps its message (rule 6 may deprive it)."""
         if not self.acyclic():
             return None
-        cut, issued = self.closure(changed_events=[(rank, idx)])
+        c = self.closure(changed_events=[(rank, idx)])
+        cut, issued = c
         if idx >= cut[rank]:
             return Verdict(False, "witness cut by the horizon closure", cut)
+        if self._orphaned(c):
+            return None
         s = must_issue
         if s.idx >= cut[s.rank] and issued.get(s.rank) != s.idx:
             return Verdict(False, "the message that would complete first is never issued within the horizon", cut)
-        return Verdict(True, "ok", cut)
+        if must_match is not None and must_match.key in c.deprived:
+            return Verdict(False, f"{must_match} is deprived of its message: a receive posted before it is pending", cut)
+        return Verdict(True, "ok", cut, deprived=set(c.deprived))
 
     def observed_verdict(self, strong: bool = True) -> Verdict:
         """feasible.observed_feasible_at(t, B, strong): the observed matching under the
@@ -1033,9 +1122,15 @@ class Observed:
         if v is None:
             if self._obs_closure is None:
                 hangs: Dict[int, str] = {}
-                cut, issued = self.closure(mode="SP", hangs=hangs)
-                self._obs_closure = cut, issued, hangs
-            cut, issued, hangs = self._obs_closure
+                c = self.closure(mode="SP", hangs=hangs)
+                self._obs_closure = c[0], c[1], hangs, c.deprived
+            cut, issued, hangs, deprived = self._obs_closure
+            if deprived:
+                # rule 6 deprived receives of their messages: the matching judged is the observed
+                # one without them, whose obligations the generic check evaluates
+                from .feasible import observed_feasible_at
+                v = self._observed[strong] = observed_feasible_at(self.t, self.B, strong)
+                return v
             # a closure that removes nothing leaves the graph of the whole trace at B, whose
             # acyclicity the graphs built at other thresholds may decide (Indexes.acyclic_known)
             whole = not issued and all(cut[r] == n for r, n in self.ix.length.items())

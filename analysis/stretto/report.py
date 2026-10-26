@@ -8,7 +8,7 @@ from typing import Dict, List, Optional, Set, Tuple
 
 from . import dsl, explore
 from . import fast
-from .feasible import Verdict, breakpoints, check, feasible_profile, observed_feasible_at, profile_summary
+from .feasible import Verdict, breakpoints, check, feasible_profile, observed_feasible_at, profile_summary, without
 from .matching import (candidates_full, flip_candidates, match_node, observed_hb, observed_ready_errors,
                        probe_candidates, test_flip_candidates)
 from .trace import ANY, Key, Probe, Recv, Send, Trace
@@ -403,7 +403,7 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
                 if v is None or not v.feasible:
                     v, rule1 = check(t, alt.M, alt.changed, B, "L1"), None
                 if v.feasible:
-                    D = contained_deadlock(t, alt.M, alt.changed, v.cut, v.issued, B, rule1)
+                    D = contained_deadlock(t, without(alt.M, v.deprived), alt.changed, v.cut, v.issued, B, rule1)
                     if D and any(x.rank not in D or v.cut[x.rank] > _cidx(x) for x in errs):
                         D = None
                     if D:
@@ -1082,7 +1082,7 @@ def _profiles_fast(t: Trace, alts, probes, waits, full: bool = False, reads=None
     def wait_at(B, rec, j, r_j, s_j):
         def generic():
             return check(t, t.observed, set(), B, "L1", **wait_kw(rec, j, r_j, s_j))
-        fv = at(B).check_event(rec.rank, rec.idx, s_j)
+        fv = at(B).check_event(rec.rank, rec.idx, s_j, r_j)
         return confirmed(fv, generic, f"the completion order of rank {rec.rank} #{rec.idx}", B) if fv is not None else generic()
 
     # last to first, so that at each threshold the probes of a rank come latest first and each
@@ -1157,7 +1157,7 @@ def wait_kw(rec, j: Optional[int], r_j: Recv, s_j: Send) -> dict:
     the record's completion follows the issue of s_j, or, for a test, the match of r_j and s_j,
     which must then come before it."""
     edge = (match_node(r_j), rec.complete) if j is None else (s_j.issue_node(), rec.complete)
-    return dict(extra_edges=[edge], changed_events={(rec.rank, rec.idx)}, must_issue=[s_j.key])
+    return dict(extra_edges=[edge], changed_events={(rec.rank, rec.idx)}, must_issue=[s_j.key], must_match=[r_j.key])
 
 
 def skeleton_divergence(t: Trace, o: explore.Outcome) -> List[str]:

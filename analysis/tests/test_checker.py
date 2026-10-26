@@ -912,7 +912,7 @@ def fast_equals_generic(tc, t, tally=None):
 
     def count(kind, f):
         if tally is not None:
-            tally[f"{kind} {'accepted' if f.feasible else 'rejected'}"] += 1
+            tally[kind if f is None else f"{kind} {'accepted' if f.feasible else 'rejected'}"] += 1
 
     for B in breakpoints(t) + [None]:
         ob = fast.Observed(t, B, ix)
@@ -921,6 +921,8 @@ def fast_equals_generic(tc, t, tally=None):
         for a in alts:
             f = ob.check_alternative(a)
             if f is None:
+                if a.kind == "steal" and t.recvs[a.recv].blocking:
+                    count("steal left to the generic check", None)
                 continue
             g = check(t, a.M, a.changed, B, "L1")
             if tally is not None and g.feasible and not f.feasible and f.reason == "constraint cycle":
@@ -929,20 +931,25 @@ def fast_equals_generic(tc, t, tally=None):
             count("steal", f)
             tc.assertEqual(g.feasible, f.feasible, f"{a.describe(t)} at B={B}: {g} vs {f}")
             tc.assertEqual(g.cut if g.feasible else g.reason, f.cut if f.feasible else f.reason, f"{a.describe(t)} at B={B}")
+            if g.feasible:
+                tc.assertEqual(g.deprived, f.deprived, f"{a.describe(t)} at B={B}: deprived receives")
         for p, s in probes:
             g = check(t, t.observed, set(), B, "L1", **probe_kw(p, s))
             f = ob.check_probe(p, s)
             if f is None:
+                count("probe left to the generic check", None)
                 continue
             count("probe" if p.flag and s is not None else "probe flip", f)
-            tc.assertEqual((g.feasible, g.cut if g.feasible else None), (f.feasible, f.cut if f.feasible else None), f"{p} sees {s} at B={B}")
+            tc.assertEqual((g.feasible, g.cut if g.feasible else None, g.deprived if g.feasible else None),
+                           (f.feasible, f.cut if f.feasible else None, f.deprived if f.feasible else None), f"{p} sees {s} at B={B}")
         for rec, j, r_j, s_j in waits:
             g = check(t, t.observed, set(), B, "L1", **wait_kw(rec, j, r_j, s_j))
-            f = ob.check_event(rec.rank, rec.idx, s_j)
+            f = ob.check_event(rec.rank, rec.idx, s_j, r_j)
             if f is None:
                 continue
             count("completion order", f)
-            tc.assertEqual((g.feasible, g.cut if g.feasible else None), (f.feasible, f.cut if f.feasible else None), f"wait {rec.idx} at B={B}")
+            tc.assertEqual((g.feasible, g.cut if g.feasible else None, g.deprived if g.feasible else None),
+                           (f.feasible, f.cut if f.feasible else None, f.deprived if f.feasible else None), f"wait {rec.idx} at B={B}")
 
 
 def closure_equals_fixpoint(tc, t):
@@ -960,9 +967,9 @@ def closure_equals_fixpoint(tc, t):
         for M, changed, mode, palt, pk in items:
             res = []
             for f in (compute_cut, compute_cut_fixpoint):
-                issued, hangs = {}, {}
-                cut = f(t, M, set(changed), B, mode, {pk} if pk else set(), hangs, set(), issued, palt)
-                res.append((cut, issued, set(hangs)))
+                issued, hangs, deprived = {}, {}, set()
+                cut = f(t, M, set(changed), B, mode, {pk} if pk else set(), hangs, set(), issued, palt, deprived=deprived)
+                res.append((cut, issued, set(hangs), deprived))
             tc.assertEqual(res[0], res[1], f"B={B} mode={mode} changed={changed} probe={pk}")
 
 
@@ -981,21 +988,24 @@ def closure_orders_agree(tc, t):
     waits = wait_items(t, hb)
 
     def v(x):
-        return None if x is None else (x.feasible, x.reason, x.cut)
+        return None if x is None else (x.feasible, x.reason, x.cut, x.deprived if x.feasible else None)
+
+    def c(x):
+        return (x[0], x[1], x.deprived)
 
     for B in breakpoints(t) + [None]:
         res = []
         for ix in (ordered, lifo):
             ob = fast.Observed(t, B, ix)
-            out = [ob.closure(), ob.closure(mode="SP")]
+            out = [c(ob.closure()), c(ob.closure(mode="SP"))]
             out += [v(ob.check_alternative(a)) for a in alts]
-            out += [ob.closure(changed_probes=[p]) for p, _ in probes]
+            out += [c(ob.closure(changed_probes=[p])) for p, _ in probes]
             out += [v(ob.check_probe(p, s)) for p, s in probes]
-            out += [v(ob.check_event(rec.rank, rec.idx, s_j)) for rec, _, _, s_j in waits]
+            out += [v(ob.check_event(rec.rank, rec.idx, s_j, r_j)) for rec, _, r_j, s_j in waits]
             res.append(out)
             chained = fast.Observed(t, B, ix)
             for p in sorted({p.key: p for p, _ in probes}.values(), key=lambda p: p.key, reverse=True):
-                tc.assertEqual(chained.probe_closure(p), fast.Observed(t, B, ix).closure(changed_probes=[p]), f"{p} at B={B}")
+                tc.assertEqual(c(chained.probe_closure(p)), c(fast.Observed(t, B, ix).closure(changed_probes=[p])), f"{p} at B={B}")
         tc.assertEqual(res[0], res[1], f"B={B}")
 
 
@@ -1099,9 +1109,12 @@ class C_FastEqualsGeneric(unittest.TestCase):
         Irecv x(ANY, tag 1), which takes rank 1's y; Probe p(ANY, ANY), which saw rank 2's tag-1
         message; Send q -> 1; receives. Rank 1: Irecv u(ANY, tag 4), which takes q; Irecv
         v(ANY, tag 4), which takes rank 4's message; Send y -> 0; waits. If p reports rank 3's
-        tag-2 message instead, q is beyond the horizon, u stays pending and deprives v, rank 1
-        is cut at v, before y, and x stays pending: it accepts what p saw, not what p reports,
-        so p is kept. The fast check cut p and rejected the alternative."""
+        tag-2 message instead, q is beyond the horizon and u stays pending. Until 26 Oct 2026
+        rule 6 then cut rank 1 at v, before y, and x stayed pending: it accepts what p saw, not
+        what p reports, so p is kept, and the fast check cut p and rejected the alternative.
+        Rule 6 now deprives v of its message instead, y is sent and x takes it; the scenario no
+        longer arises (a removal that leaves x pending would follow p, and x, which accepts
+        what p saw, is matched before p in the observed run), and the two checks agree."""
         pr = {"op": "probe", "kind": "probe", "src": 0, "anysrc": 1, "tag": 0, "anytag": 1, "comm": 0, "flag": 1,
               "msrc": 2, "mtag": 1}
         t = mk({0: [irecv(T.ANY, 1, 10), pr, send(1, 4), recv(2, 1, 2, 1), recv(3, 2, 3, 2), wait((10, 1, 1))],
@@ -1112,11 +1125,71 @@ class C_FastEqualsGeneric(unittest.TestCase):
         for B in breakpoints(t) + [None]:
             g = check(t, t.observed, set(), B, "L1", changed_probes={p.key}, probe_alt={p.key: s.key})
             self.assertTrue(g.feasible, g.reason)
-            self.assertEqual((g.cut[0], g.cut[1]), (p.idx + 1, t.recvs[(1, 1)].idx))
+            self.assertEqual((g.cut[0], g.cut[1]), (p.idx + 1, t.recvs[(1, 1)].complete_idx))
+            self.assertEqual(g.deprived, {(1, 1)})
             ob = fast.Observed(t, B)
             self.assertEqual(ob.closure(changed_probes=[p])[0], g.cut)
-            f = ob.check_probe(p, s)
-            self.assertEqual((f.feasible, f.cut), (True, g.cut), f.reason)
+            # v's message is issued inside the horizon and has no receive there: the generic
+            # check judges what that leaves open (fast.Observed._orphaned)
+            self.assertIsNone(ob.check_probe(p, s))
+        fast_equals_generic(self, t)
+        closure_equals_fixpoint(self, t)
+        closure_orders_agree(self, t)
+
+
+def two_rounds(ids: int = 2):
+    """The shape of Cabana's CommunicationPlan::createFromImports before its fix (PR 835): three
+    ranks, one tag. Round 1: two Irecv(ANY) for the counts, a blocking send of this rank's count
+    to each other rank, Waitall. Round 2: ids Irecv per other rank from that rank, ids Isend to
+    each other rank, Waitall. In the run every round-1 receive takes a count."""
+    T_ = 7
+    recs = {}
+    for r in range(3):
+        others = [o for o in range(3) if o != r]
+        rr, q = [], 0
+        rr += [irecv(T.ANY, T_, 0), irecv(T.ANY, T_, 1)]
+        rr += [send(o, T_) for o in others]
+        rr.append(wait((0, others[0], T_), (1, others[1], T_), kind="waitall"))   # the counts, in rank order
+        q = 2
+        posted, sent = [], []
+        for o in others:
+            for _ in range(ids):
+                rr.append(irecv(o, T_, q))
+                posted.append((q, o))
+                q += 1
+        for o in others:
+            for _ in range(ids):
+                rr.append(send(o, T_, mode="isend", req=q))
+                sent.append(q)
+                q += 1
+        rr.append(wait(*[(x, o, T_) for x, o in posted], *[(x, None, None) for x in sent], kind="waitall"))
+        recs[r] = rr
+    return mk(recs)
+
+
+class C_DeprivedIrecv(unittest.TestCase):
+    """Rule 6 at a nonblocking receive (since 26 Oct 2026): the receive is deprived of its message
+    and stays posted, instead of being cut with everything after it (docs/model.md §3)."""
+
+    def test_round_one_receive_takes_a_round_two_id(self):
+        """The Cabana alternative: rank 1's second round-1 receive takes rank 0's first round-2
+        id. Rank 1 is cut after its round-1 Waitall, so rank 0's round-2 receives from rank 1
+        have no message: the first stays pending, and rule 6 used to cut rank 0 at the second,
+        before its Isends, the id among them. Now the second is deprived, rank 0 keeps its Isends
+        and the alternative is feasible at L1."""
+        t = two_rounds()
+        r, s = t.recvs[(1, 1)], t.sends[(0, 2)]
+        self.assertEqual((s.dst, s.mode), (1, "isend"))
+        alt = next(a for a in candidates_full(t)[0] if (a.recv, a.send, a.kind) == (r.key, s.key, "steal"))
+        for B in (0, None):
+            v = check(t, alt.M, alt.changed, B, "L1")
+            self.assertTrue(v.feasible, (B, v.reason))
+            self.assertIn((0, 3), v.deprived)                  # rank 0's second receive from rank 1
+            self.assertGreater(v.cut[0], s.idx)                # the Isend of the id is kept
+            # rank 0 stops at its round-2 Waitall, which completes the receives left without a message
+            self.assertEqual(v.cut[0], t.recvs[(0, 2)].complete_idx)
+        rep = analyze(t, with_sp=False)
+        self.assertTrue(any((f.recv, f.send, f.level) == (r.key, s.key, "L1") for f in rep.findings))
         fast_equals_generic(self, t)
         closure_equals_fixpoint(self, t)
         closure_orders_agree(self, t)
@@ -2176,9 +2249,11 @@ class C_FastEqualsGenericRandom(unittest.TestCase):
             shapes.update(shapes_seen(t))
         for what, n in shapes.items():
             self.assertGreater(n, 50, (what, dict(shapes)))
+        # since 26 Oct 2026 rule 6 deprives Irecvs rather than cutting at them: fewer steals are
+        # rejected, and those that leave a message without a receive go to the generic check
         for kind, least in (("steal", 100), ("probe", 100), ("completion order", 3)):
             for v in ("accepted", "rejected"):
-                self.assertGreater(tally[f"{kind} {v}"], least, (kind, v, dict(tally)))
+                self.assertGreater(tally[f"{kind} {v}"], 10 if v == "rejected" and kind != "completion order" else least, (kind, v, dict(tally)))
 
 
 class C_ClosureOrderRandom(unittest.TestCase):

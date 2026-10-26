@@ -23,8 +23,14 @@ determined by the trace. Rules, iterated to a fixpoint:
   5. a probe whose observed send is cut (never issued inside the kept prefix) observes
      something else: cut at the probe;
   6. a receive posted inside the prefix whose M' send is not issued there stays pending, so
-     a later receive or probe of its rank cannot take or report a message it accepts: cut
-     there (the standard's second non-overtaking clause);
+     a later receive or probe of its rank cannot take or report a message it accepts (the
+     standard's second non-overtaking clause): a blocking receive or a probe is cut there; a
+     nonblocking receive is *deprived* instead (since 26 Oct 2026): it stays posted, and
+     loses its M' message, so it is a receive without a message for the other rules (rule 2
+     cuts at its completion, rules 3 and 7 treat its message as having no receive, and rule 6
+     applies to it in turn), since nothing its rank does before the completion reads its
+     result. Before then it was cut at its posting with everything after it, which removed
+     sends that do not depend on it (Cabana's CommunicationPlan, docs/model.md §3);
   7. a ready-mode send whose M' receive is not posted inside the prefix is erroneous: cut at
      the send.
 mode='L1' applies all rules; mode='SP' (single-path assumption, MOPPER's setting)
@@ -60,16 +66,31 @@ def _cidx(x) -> int:
     return x.complete_idx if x.complete_idx is not None else x.idx
 
 
+def _posted_only(t: Trace, cut: Dict[int, int], deprived: Set[Key]) -> None:
+    """Keep in deprived the receives still posted inside the prefix. A receive deprived and
+    then cut at or before its posting is one the prefix does not hold, and whether a closure
+    deprived it before cutting it depends on the order of its steps, not on the fixpoint: its
+    deprivation's effects (on its completion, its message, the later receives of its rank)
+    are those of the cut too."""
+    gone = [k for k in deprived if t.recvs[k].idx >= cut[k[0]]]
+    deprived.difference_update(gone)
+
+
 def compute_cut(t: Trace, M: Dict[Key, Key], changed: Set[Key], B: Optional[int], mode: str = "L1",
                 changed_probes: Set[Key] = frozenset(), hangs: Optional[Dict[int, str]] = None,
                 changed_events: Set[Tuple[int, int]] = frozenset(),
                 issued: Optional[Dict[int, int]] = None, probe_alt: Optional[Dict[Key, Key]] = None,
-                bounds=None) -> Dict[int, int]:
+                bounds=None, deprived: Optional[Set[Key]] = None) -> Dict[int, int]:
     """The horizon closure as a worklist: every rule is evaluated once at the start and then
     only where an input of its condition changed, which happens when a record loses its
-    issue (each record does so at most once, since cuts only decrease). The result is the
-    greatest fixpoint of the rules, the one compute_cut_fixpoint reaches by rescanning.
-    Cost O((n + |M|) log n) per call: the bisections of rule 6.
+    issue (each record does so at most once, since cuts only decrease) or a receive is
+    deprived (each at most once). The result is the greatest fixpoint of the rules, the one
+    compute_cut_fixpoint reaches by rescanning. Cost O((n + |M|) log n) per call: the
+    bisections of rule 6, whose walk past deprived receives visits each pair of M at most
+    once per pending receive of its class (in practice, a few).
+
+    deprived, if given, receives the nonblocking receives rule 6 deprived of their M' message
+    (they stay posted and are not judged: feasible.check leaves them out of M').
 
     changed_events: (rank, idx) of records whose outcome changes without being a receive
     or a probe, such as a Waitany completing another index; the horizon cuts after them.
@@ -82,6 +103,8 @@ def compute_cut(t: Trace, M: Dict[Key, Key], changed: Set[Key], B: Optional[int]
     cut: Dict[int, int] = {rank: len(recs) for rank, recs in t.ranks.items()}
     if issued is None:
         issued = {}
+    if deprived is None:
+        deprived = set()
     work: List[Tuple[int, int, int, bool]] = []     # (rank, lo, hi, issue kept at lo)
 
     def lower(rank: int, idx: int, why=None, issue_kept: bool = False) -> None:
@@ -113,14 +136,15 @@ def compute_cut(t: Trace, M: Dict[Key, Key], changed: Set[Key], B: Optional[int]
     recv_of = {sk: rk for rk, sk in M.items()}
     probe_alt = probe_alt or {}
     # rule 6 index: by (rank, comm, source or ANY, tag or ANY) of the message each receive
-    # takes under M and each probe reports, the posting indexes, so that a pending receive
-    # finds the first later receive or probe it deprives with one bisection
-    comp: Dict[Tuple[int, int, int, int], List[int]] = {}
+    # takes under M and each probe reports, the posting indexes with the receive (None for a
+    # probe), so that a pending receive finds the first later receive or probe it deprives
+    # with one bisection
+    comp: Dict[Tuple[int, int, int, int], List[Tuple[int, Optional[Key]]]] = {}
     for rk, sk in M.items():
         x, m = t.recvs[rk], t.sends[sk]
         for src in (ANY, m.rank):
             for tag in (ANY, m.tag):
-                comp.setdefault((x.rank, x.comm, src, tag), []).append(x.idx)
+                comp.setdefault((x.rank, x.comm, src, tag), []).append((x.idx, rk))
     probes_seeing: Dict[Key, List] = {}
     for p in t.probes.values():
         sk = probe_alt.get(p.key, p.seen)
@@ -128,11 +152,12 @@ def compute_cut(t: Trace, M: Dict[Key, Key], changed: Set[Key], B: Optional[int]
             m = t.sends[sk]
             for src in (ANY, m.rank):
                 for tag in (ANY, m.tag):
-                    comp.setdefault((p.rank, p.comm, src, tag), []).append(p.idx)
+                    comp.setdefault((p.rank, p.comm, src, tag), []).append((p.idx, None))
         if p.key not in changed_probes and p.completed and p.flag and p.seen is not None:
             probes_seeing.setdefault(p.seen, []).append(p)
     for v in comp.values():
-        v.sort()
+        v.sort(key=lambda e: e[0])
+    comp_idx = {k: [i for i, _ in v] for k, v in comp.items()}
     send_at = {(s.rank, s.idx): s for s in t.sends.values()}
     recv_at = {(r.rank, r.idx): r for r in t.recvs.values()}
     coll_at = {(c.rank, c.idx): c for c in t.colls}
@@ -142,22 +167,45 @@ def compute_cut(t: Trace, M: Dict[Key, Key], changed: Set[Key], B: Optional[int]
         if r.completed and kept(r.rank, _cidx(r)):
             lower(r.rank, _cidx(r), lambda: f"{r} never completes: no send for it")
 
-    def rule6(r: Recv) -> None:          # a pending receive deprives a later receive or probe
-        if not r.completed or not kept(r.rank, r.idx):
+    def rule6(r: Recv) -> None:          # a pending receive deprives later receives and probes
+        if not (r.completed or r.key in deprived) or not kept(r.rank, r.idx):
             return
-        lst = comp.get((r.rank, r.comm, r.src, r.tag))
-        if lst:
-            j = bisect_right(lst, r.idx)
-            if j < len(lst) and lst[j] < cut[r.rank]:
-                lower(r.rank, lst[j], lambda: f"the receive or probe at {r.rank}#{lst[j]} is deprived: {r}, posted before it and still pending, takes the message")
+        key = (r.rank, r.comm, r.src, r.tag)
+        lst = comp.get(key)
+        if not lst:
+            return
+        j = bisect_right(comp_idx[key], r.idx)
+        while j < len(lst) and lst[j][0] < cut[r.rank]:
+            idx, rk = lst[j]
+            j += 1
+            if rk is not None and rk in deprived:
+                continue                 # takes no message any more
+            if rk is not None and not t.recvs[rk].blocking:
+                deprive(t.recvs[rk], r)  # stays posted without its message; the next one is looked at too
+                continue
+            lower(r.rank, idx, lambda idx=idx: f"the receive or probe at {r.rank}#{idx} is deprived: {r}, posted before it and still pending, takes the message")
+            return
+
+    def deprive(x: Recv, by: Recv) -> None:
+        """Rule 6 at a nonblocking receive x whose M' message the pending receive by accepts:
+        x keeps its posting and loses its message. The rank does not read x's result before
+        x's completion, so what it issues up to there stays; x is then a receive without a
+        message (rule 2 at its completion, rules 3 and 7 for its message, rule 6 for x)."""
+        deprived.add(x.key)
+        if x.completed and kept(x.rank, _cidx(x)):
+            lower(x.rank, _cidx(x), lambda: f"{x} never gets {t.sends[M[x.key]]}: {by}, posted before it and still pending, takes the message")
+        s = t.sends[M[x.key]]
+        rule3(s, None)
+        rule7(s, None)
+        rule6(x)
 
     def rule3(s, rk) -> None:            # a rendezvous send with no posted receive does not complete
-        if s.completed and send_blocks(s, B) and kept(s.rank, _cidx(s)) and (rk is None or not kept(rk[0], t.recvs[rk].idx)):
+        if s.completed and send_blocks(s, B) and kept(s.rank, _cidx(s)) and (rk is None or rk in deprived or not kept(rk[0], t.recvs[rk].idx)):
             lower(s.rank, _cidx(s), lambda: f"{s} never completes: rendezvous with no posted receive", _cidx(s) == s.idx)
 
     def rule7(s, rk) -> None:            # a ready send needs its receive posted
         issued_now = kept(s.rank, s.idx) or issued.get(s.rank) == s.idx
-        if s.ready_mode and issued_now and (rk is None or not kept(rk[0], t.recvs[rk].idx)):
+        if s.ready_mode and issued_now and (rk is None or rk in deprived or not kept(rk[0], t.recvs[rk].idx)):
             lower(s.rank, s.idx, lambda: f"{s} is a ready send whose receive is never posted")
 
     def rule4(cs) -> None:               # a collective completes when its shape's members issue it
@@ -214,6 +262,7 @@ def compute_cut(t: Trace, M: Dict[Key, Key], changed: Set[Key], B: Optional[int]
             c = coll_at.get((rank, idx))
             if c is not None:
                 rule4(sets[(c.comm, c.ordinal)])
+    _posted_only(t, cut, deprived)
     return cut
 
 
@@ -221,7 +270,7 @@ def compute_cut_fixpoint(t: Trace, M: Dict[Key, Key], changed: Set[Key], B: Opti
                 changed_probes: Set[Key] = frozenset(), hangs: Optional[Dict[int, str]] = None,
                 changed_events: Set[Tuple[int, int]] = frozenset(),
                 issued: Optional[Dict[int, int]] = None, probe_alt: Optional[Dict[Key, Key]] = None,
-                bounds=None) -> Dict[int, int]:
+                bounds=None, deprived: Optional[Set[Key]] = None) -> Dict[int, int]:
     """The closure by iterating every rule over the whole trace until nothing moves: the
     reference for compute_cut, which reaches the same fixpoint with a worklist (the tests
     compare the two). changed_events: (rank, idx) of records whose outcome changes without being a receive
@@ -229,10 +278,21 @@ def compute_cut_fixpoint(t: Trace, M: Dict[Key, Key], changed: Set[Key], B: Opti
     issued, if given, receives rank -> idx of a blocking send that rule 3 cut at its own
     record: the rank never gets past it, but the send *is* issued (a probe can see it).
     probe_alt maps a changed probe to the send it reports instead of the observed one.
-    bounds: read bounds for rule 1, as in compute_cut."""
+    bounds: read bounds for rule 1, as in compute_cut. deprived receives the receives rule 6
+    deprived of their message, as in compute_cut."""
     cut: Dict[int, int] = {rank: len(recs) for rank, recs in t.ranks.items()}
     if issued is None:
         issued = {}
+    if deprived is None:
+        deprived = set()
+
+    def m_of(rk: Key) -> Optional[Key]:
+        """The receive's message in M, none once rule 6 deprived it."""
+        return None if rk in deprived else M.get(rk)
+
+    def recv_of_send(sk: Key) -> Optional[Key]:
+        rk = recv_of.get(sk)
+        return None if rk in deprived else rk
 
     def lower(rank: int, idx: int, why: str = "", issue_kept: bool = False) -> bool:
         if idx == cut[rank] and issued.get(rank) == idx and not issue_kept:
@@ -290,23 +350,28 @@ def compute_cut_fixpoint(t: Trace, M: Dict[Key, Key], changed: Set[Key], B: Opti
             cidx = _cidx(r)
             if not kept(r.rank, cidx):
                 continue
-            sk = M.get(r.key)
+            sk = m_of(r.key)
             if sk is None or not kept(t.sends[sk].rank, t.sends[sk].idx):
                 moved |= lower(r.rank, cidx, f"{r} never completes: no send for it")
         # rule 6: a receive posted inside the prefix whose message is not issued there stays
         # pending through the prefix, so a later receive of its rank cannot take a message it
-        # accepts (the standard's second non-overtaking clause)
+        # accepts (the standard's second non-overtaking clause): a blocking one is cut, a
+        # nonblocking one deprived of its message, and the next one looked at
         for rank, rs in recvs_of.items():
             for i, r in enumerate(rs):
                 if not kept(rank, r.idx):
                     break
-                if not r.completed or sent(M.get(r.key)):
+                if not (r.completed or r.key in deprived) or sent(m_of(r.key)):
                     continue
                 for r2 in rs[i + 1:]:
                     if not kept(rank, r2.idx):
                         break
-                    sk2 = M.get(r2.key)
+                    sk2 = m_of(r2.key)
                     if sk2 is not None and r.accepts(t.sends[sk2]):
+                        if not r2.blocking:
+                            deprived.add(r2.key)
+                            moved = True
+                            continue
                         moved |= lower(rank, r2.idx, f"{r2} never gets {t.sends[sk2]}: {r}, posted before it and still pending, takes the message")
                         break
                 for p, sp in probes_of.get(rank, ()):
@@ -321,7 +386,7 @@ def compute_cut_fixpoint(t: Trace, M: Dict[Key, Key], changed: Set[Key], B: Opti
         for s in ready:
             if not kept(s.rank, s.idx) and issued.get(s.rank) != s.idx:
                 continue
-            rk = recv_of.get(s.key)
+            rk = recv_of_send(s.key)
             if rk is None or not kept(t.recvs[rk].rank, t.recvs[rk].idx):
                 moved |= lower(s.rank, s.idx, f"{s} is a ready send whose receive is never posted")
         for s in t.sends.values():
@@ -330,7 +395,7 @@ def compute_cut_fixpoint(t: Trace, M: Dict[Key, Key], changed: Set[Key], B: Opti
             cidx = _cidx(s)
             if not kept(s.rank, cidx):
                 continue
-            rk = recv_of.get(s.key)
+            rk = recv_of_send(s.key)
             if rk is None or not kept(t.recvs[rk].rank, t.recvs[rk].idx):
                 moved |= lower(s.rank, cidx, f"{s} never completes: rendezvous with no posted receive", issue_kept=cidx == s.idx)
         for cs in t.coll_sets():
@@ -352,22 +417,23 @@ def compute_cut_fixpoint(t: Trace, M: Dict[Key, Key], changed: Set[Key], B: Opti
                 moved |= lower(p.rank, p.idx, f"{p} observes another message: {seen} is never issued")
         if not moved:
             break
+    _posted_only(t, cut, deprived)
     return cut
 
 
 def witness_kept(t: Trace, cut: Dict[int, int], changed: Set[Key], changed_probes: Set[Key] = frozenset(),
                  changed_events: Set[Tuple[int, int]] = frozenset(), M: Optional[Dict[Key, Key]] = None,
-                 issued: Optional[Dict[int, int]] = None) -> bool:
+                 issued: Optional[Dict[int, int]] = None, deprived: Set[Key] = frozenset()) -> bool:
     """The alternative is meaningful only if every changed receive is matched inside the
     kept prefix: a blocking receive must complete there; a nonblocking one must be posted
     there with its new message issued there (the match is decided then, whether or not the
-    wait that completes it is kept)."""
+    wait that completes it is kept), and not be deprived of it by rule 6."""
     for rank, idx in changed_events:
         if idx >= cut[rank]:
             return False
     for rk in changed:
         r = t.recvs[rk]
-        if r.idx >= cut[r.rank]:
+        if r.idx >= cut[r.rank] or rk in deprived:
             return False
         if r.completed and r.blocking and _cidx(r) >= cut[r.rank]:
             return False
