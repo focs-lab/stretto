@@ -32,6 +32,14 @@ buffered and nonblocking sends, sub-communicators, shaped collectives; with --mi
 them interleave sends, receives and waits and use synchronous and ready sends) whose execution the
 explorer chose is written back as a trace (dsl.trace_from_execution), so that the comparison
 also covers traces with more events and several wildcard receives per rank.
+
+With --probes P, the synthetic programs have, with probability P before a receive, a polling
+loop unrolled as a straight line (Iprobes of its envelope, sometimes a blocking Probe, and
+tests of receive requests that fail), the execution's probe results are written into the trace,
+and the probe items of every trace are compared too (compare_probes): probe alternatives and
+the flag flips of docs/model.md §3, the explorer forcing the probe's new result (a test flip:
+the test made a wait) and every other kept probe's recorded one. The table is then
+results/e6_probes.csv.
 """
 from __future__ import annotations
 import argparse
@@ -44,9 +52,9 @@ import time
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, os.path.join(ROOT, "analysis"))
-from stretto import dsl, explore, trace  # noqa: E402
+from stretto import dsl, explore, report, trace  # noqa: E402
 from stretto.feasible import check  # noqa: E402
-from stretto.matching import build_graph, candidates_full, match_node  # noqa: E402
+from stretto.matching import build_graph, candidates_full, match_node, observed_hb  # noqa: E402
 from stretto.deadlock import contained_deadlock  # noqa: E402
 from stretto.reads import NeverReads, Table  # noqa: E402
 from provenance import code_commit  # noqa: E402
@@ -178,17 +186,102 @@ def compare(t, name, args, rows, counts, times):
             rows.append(row)
 
 
+def probe_items(t):
+    """The probe items the report judges (report.probe_items, report.wait_items): probe
+    alternatives, flag flips of Iprobes, and test flips, each as (label, check arguments,
+    forced probe results or None, record of a test flip or None)."""
+    hb = observed_hb(t)
+    out = []
+    for p, s in report.probe_items(t, hb):
+        kind = "probe-alt" if p.flag and s is not None else "probe-unflip" if s is None else "probe-flip"
+        out.append((f"{p.key}->{s.key if s is not None else 'false'} [{kind}]", report.probe_kw(p, s),
+                    {p.key: s.key if s is not None else None}, None))
+    for rec, j, r, s in report.wait_items(t, hb):
+        if j is None:
+            out.append((f"test {rec.rank}#{rec.idx} completes {r.key}<-{s.key} [test-flip]", report.wait_kw(rec, j, r, s),
+                        None, (rec.rank, rec.idx)))
+    return out
+
+
+def compare_probes(t, name, args, rows, counts, times):
+    """The probe items of trace t (probe_items) against the explorer over the trace as a
+    straight-line program with its probes (dsl.program_from_trace(probes=True)). The claim
+    (theorem T1 with the probe's new result) is an execution in which the judged pairs are
+    matched, the changed probe returns its new result (or the test finds its receive complete)
+    and every other probe the horizon keeps returns what it returned in the trace: a program
+    consistent with the trace may branch on those results. So the explorer forces the kept
+    probes that saw a message to their message (an Iprobe that returned false may always do
+    so again) and the changed one to its new result."""
+    if any(p.kind in ("mprobe", "improbe") for p in t.probes.values()):
+        return       # matched probes are not modelled by the explorer
+    for label, kw, forced, test in probe_items(t):
+        prog = dsl.program_from_trace(t, probes=True, mark_test=test)
+        for B in (0, None):
+            t0 = time.perf_counter()
+            v = check(t, t.observed, set(), B, "L1", **kw)
+            t1 = time.perf_counter()
+            cut = v.cut
+            fp = {q.key: q.seen for q in t.probes.values()
+                  if q.flag and q.seen is not None and cut is not None and q.idx < cut.get(q.rank, 10**9)}
+            fp.update(forced or {})
+            try:
+                res = explore.explore(prog, B, max_states=args.max_states, comms=t.comm_members, force_probes=fp)
+                keys = set(judged(t, t.observed, cut))
+                pairs = {rk: t.observed[rk] for rk in keys if rk in t.observed}
+
+                def reached(outcomes):
+                    # the forced probes returned their results (a probe its rank never reached has none)
+                    ok = [o for o in outcomes if (test is None or "flip" in o.marks)
+                          and all(dict(o.probes).get(k, "-") == sk for k, sk in fp.items())]
+                    outs = [{rk: sk for rk, sk in o.matching if rk in t.recvs} for o in ok]
+                    prefix = any(all(om.get(rk) == sk for rk, sk in pairs.items()) for om in outs)
+                    kept_exact = any(all(om.get(rk) == t.observed.get(rk) for rk in keys) for om in outs)
+                    return prefix, kept_exact
+
+                clean = model_executions(t, res.outcomes, cut, pairs, B)
+                reach_prefix, reach_kept_exact = reached(clean)
+                exp_err = ""
+                if len(clean) < len(res.outcomes) and reached(res.outcomes) != (reach_prefix, reach_kept_exact):
+                    exp_err = "realised only with a ready send before its receive"
+            except explore.StateCapReached:
+                reach_prefix = reach_kept_exact = None
+                exp_err = "state-space"
+            except explore.ExploreError as e:
+                reach_prefix = reach_kept_exact = None
+                exp_err = str(e)
+            t2 = time.perf_counter()
+            times[0] += t1 - t0
+            times[1] += t2 - t1
+            if reach_prefix is None:
+                kind = "skip"
+            elif v.feasible and not reach_prefix:
+                kind = "UNSOUND"
+            elif not v.feasible and reach_kept_exact:
+                kind = "incomplete"
+            else:
+                kind = "agree"
+            counts[kind] += 1
+            rows.append({"trace": name, "events": sum(len(x) for x in t.ranks.values()), "alt": label,
+                         "B": "inf" if B is None else B, "checker": v.feasible, "checker_reason": v.reason,
+                         "explorer_prefix": reach_prefix, "explorer_kept_exact": reach_kept_exact, "explorer_exact": "",
+                         "note": exp_err, "t_checker_ms": round((t1 - t0) * 1000, 2), "t_explorer_ms": round((t2 - t1) * 1000, 2),
+                         "kind": kind, "l1_deadlock": "", "commit": code_commit()})
+
+
 def synthetic(args, rows, counts, times) -> int:
-    """Random straight-line programs whose explorer-chosen execution becomes the trace."""
+    """Random straight-line programs whose explorer-chosen execution becomes the trace. With
+    --probes, the programs have unrolled polling loops (dsl.random_matched_program(probes=)),
+    the execution's probe results are recorded in the trace, and the probe items are compared
+    too (compare_probes)."""
     rng = random.Random(args.seed)
     made = 0
     attempts = 0
     while made < args.synthetic and attempts < args.synthetic * 20:
         attempts += 1
         nranks = rng.choice([3, 4, 4, 5])
-        prog, comms = dsl.random_matched_program(rng, nranks, mixed=rng.random() < args.mixed)
+        prog, comms = dsl.random_matched_program(rng, nranks, mixed=rng.random() < args.mixed, probes=args.probes)
         try:
-            res = explore.explore(prog, None, comms=comms, max_states=args.max_states)
+            res = explore.explore(prog, None, comms=comms, max_states=args.max_states, record_probes=args.probes > 0)
         except (explore.StateCapReached, explore.ExploreError):
             continue
         done = [o for o in res.outcomes if o.kind == "done" and not o.leaked and not o.errors]
@@ -196,11 +289,13 @@ def synthetic(args, rows, counts, times) -> int:
             continue
         o = rng.choice(done)
         t = trace.Trace()
-        trace._build(t, dsl.trace_from_execution(prog, dict(o.matching), comms))
-        if not any(r.wildcard for r in t.recvs.values()):
+        trace._build(t, dsl.trace_from_execution(prog, dict(o.matching), comms, dict(o.probes)))
+        if not any(r.wildcard for r in t.recvs.values()) and not (args.probes and t.probes):
             continue
         made += 1
         compare(t, f"synthetic/{made:03d}", args, rows, counts, times)
+        if args.probes:
+            compare_probes(t, f"synthetic/{made:03d}", args, rows, counts, times)
     return made
 
 
@@ -215,11 +310,16 @@ def main() -> int:
     ap.add_argument("--seed", type=int, default=20261016)
     ap.add_argument("--reads", choices=["never", "random"], default=None,
                     help="judge with read bounds (rule H1'): no result ever read, or a random bound per receive")
-    ap.add_argument("--out", default=None, help="default: results/e6_checker_vs_explorer.csv, or e6_reads_<kind>.csv with --reads")
+    ap.add_argument("--probes", type=float, default=0.0,
+                    help="probability of an unrolled polling loop before a synthetic receive; with it, the probe "
+                         "alternatives and flag flips of every trace are compared too (compare_probes)")
+    ap.add_argument("--out", default=None, help="default: results/e6_checker_vs_explorer.csv, e6_reads_<kind>.csv with "
+                                                "--reads, e6_probes.csv with --probes")
     args = ap.parse_args()
     if args.out is None:
         args.out = os.path.join(ROOT, "experiments", "results",
-                                f"e6_reads_{args.reads}.csv" if args.reads else "e6_checker_vs_explorer.csv")
+                                f"e6_reads_{args.reads}.csv" if args.reads else "e6_probes.csv" if args.probes
+                                else "e6_checker_vs_explorer.csv")
     dirs = args.dirs or sorted(glob.glob(os.path.join(ROOT, "traces", "openmpi", "*")) +
                                glob.glob(os.path.join(ROOT, "experiments", "results", "*", "*", "trace")))
     rows: list = []
@@ -239,6 +339,8 @@ def main() -> int:
             skipped += 1
             continue
         compare(t, d.replace(ROOT + "/", ""), args, rows, counts, times)
+        if args.probes:
+            compare_probes(t, d.replace(ROOT + "/", ""), args, rows, counts, times)
     made = synthetic(args, rows, counts, times) if args.synthetic else 0
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
     keys = ["trace", "events", "alt", "B", "checker", "checker_reason", "explorer_prefix", "explorer_kept_exact", "explorer_exact",
