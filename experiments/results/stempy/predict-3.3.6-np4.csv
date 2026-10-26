@@ -1,0 +1,16 @@
+version,np,run,traced,traced_ok,traced_s,records,status,analyse_s,findings,kinds,role,cls,level,kind,pin,title,replay,matched,replay_ok,run_valid,violation,verdict,strict,control,control_matched,control_ok,control_valid,control_violation,misapplied,commit
+3.3.6,4,1,FINISHED,True,0.6,28,complete,0.0,,,,,,,,,,,,,,,,,,,,,,4196c4c
+3.3.6,4,2,FINISHED,True,0.6,28,complete,0.0,,,,,,,,,,,,,,,,,,,,,,4196c4c
+3.3.6,4,3,FINISHED,True,0.6,28,complete,0.0,,,,,,,,,,,,,,,,,,,,,,4196c4c
+3.3.6,4,4,FINISHED,True,0.6,28,complete,0.0,,,,,,,,,,,,,,,,,,,,,,4196c4c
+3.3.6,4,5,FINISHED,True,0.6,28,complete,0.0,,,,,,,,,,,,,,,,,,,,,,4196c4c
+3.3.6,4,6,FINISHED,True,0.6,28,complete,0.0,,,,,,,,,,,,,,,,,,,,,,4196c4c
+3.3.6,4,7,FINISHED,True,0.5,28,complete,0.0,,,,,,,,,,,,,,,,,,,,,,4196c4c
+3.3.6,4,8,FINISHED,True,0.6,28,complete,0.0,,,,,,,,,,,,,,,,,,,,,,4196c4c
+3.3.6,4,9,FINISHED,True,0.5,28,complete,0.0,,,,,,,,,,,,,,,,,,,,,,4196c4c
+3.3.6,4,10,FINISHED,True,0.5,28,complete,0.0,,,,,,,,,,,,,,,,,,,,,,4196c4c
+3.3.6,4,11,FINISHED,True,0.5,28,complete,0.0,,,,,,,,,,,,,,,,,,,,,,4196c4c
+3.3.6,4,12,FINISHED,True,0.5,28,complete,0.0,,,,,,,,,,,,,,,,,,,,,,4196c4c
+3.3.6,4,13,FINISHED,True,0.5,28,complete,0.0,,,,,,,,,,,,,,,,,,,,,,4196c4c
+3.3.6,4,14,FINISHED,True,0.5,28,complete,0.0,,,,,,,,,,,,,,,,,,,,,,4196c4c
+3.3.6,4,15,FINISHED,True,0.5,28,complete,0.0,,,,,,,,,,,,,,,,,,,,,,4196c4c

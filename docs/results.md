@@ -6,7 +6,8 @@ E2, E6 and the E3 and E7 inputs come from `experiments/run_remaining.sh` on the 
 (the container of `experiments/container/`, 12 cores of one NUMA node); the HYPRE campaign from
 `experiments/hypre/campaign.sh`, the NPB MG and deal.II campaigns from `experiments/npbmg/run.sh` and
 `experiments/dealii/run.sh`, the HYPRE 3.2.0 and PETSc campaigns (E5f) from `experiments/hypre3/run.sh` and
-`experiments/petsc/run.sh`, Nekbone from `experiments/nekbone/run.sh` and the scale campaign (E11)
+`experiments/petsc/run.sh`, the four bugs of projects' histories (E5g) from `experiments/cabana/`, `stempy/`,
+`mfem332/` and `lammps/run.sh`, Nekbone from `experiments/nekbone/run.sh` and the scale campaign (E11)
 from `experiments/scale/run.sh` there. The MUST verdicts
 are carried over from MUST 1.9.2 runs under MPICH in MPI-BugBench's own container, with the same timeout
 per program, and those of MUST 1.11.2 from the image of `experiments/must/`; NINJA's runs come from
@@ -1064,6 +1065,147 @@ alternatives of every trace (any B: realisable at every threshold). Rows by code
 
 On `ex45` some cross alternatives of every multi-level trace are realisable at
 every threshold; the scan does not replay, and its rows do not record which probes those alternatives belong to.
+
+## E5g: four documented bugs from projects' histories (Cabana, stempy, MFEM 3.3.2, LAMMPS)
+
+Each bug is reproduced from the project's own history: the version with the bug, its fix, and a driver that
+reaches the code (the project's own test or input where there is one). A run is *clean* when it exits with
+status 0 and prints the correct result; each clean traced run is analysed, its findings of an error class are
+replayed by `stretto confirm` (the pins of the alternative's horizon or of the explorer's witness, and a
+control that pins the recorded matching), and its *cross* alternatives (a receive that would take a message of
+another round, call or kind, `experiments/<case>/classify.py`) are replayed with the pins of their whole
+horizon and with their control (`experiments/history_predict.py`). Replays and controls run under the tracer,
+which judges each a run of the program without its pins.
+
+### Cabana `CommunicationPlan::createFromImports`, a round-1 wildcard receive takes a round-2 id (hang; PR #835)
+
+`experiments/cabana/run.sh`; rows by code commit: 4196c4c (815).
+
+| version | ranks | traced runs | clean | clean runs that predict it | findings of the clean runs (class/level) | error findings replayed | replay results | pins matched | controls finished | confirmed, replay a run of the program | cross / same alternatives | cross replayed | cross replay results | failed or wrong output | pins matched | runs of the program | controls finished with correct output |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| fbbcc37f | 3 | 15 | 15 | 15 | 1c/L1+SP 180, 1d/L1+SP 90, 1f/L1 135 | 160 | TIMEOUT 160 | 160 | 160 | 138 | - | - | - | - | - | - | - |
+| 38170631 | 3 | 15 | 15 | 0 | 1f/L1 135 | 0 | - | 0 | 0 | 0 | - | - | - | - | - | - | - |
+
+The deadlock is an L1+SP finding: the L1 findings (1f) are reorderings of the round-1 counts, and under the
+single-path assumption the explorer finds executions in which a later round-1 wildcard receive takes a round-2
+id and the plan hangs (1d), leaving a count unreceived (1c). `stretto confirm` replays each distinct set of pins
+and class once, with the explorer's witness; a replay whose own trace could not be judged (`unknown`) counts as
+confirmed by its pins only. `Test10NoTopo-repeat2` is the same test run twice in one run (`--gtest_repeat=2`).
+
+Untraced runs, plain and with random send and receive delays of 0 to 20 ms per rank from the replay library.
+
+| version | driver | ranks | setting | runs | failed | hung | how the failures ended |
+|---|---|---|---|---|---|---|---|
+| fbbcc37f | Test10NoTopo | 3 | plain | 40 | 0 | 0 | - |
+| fbbcc37f | Test10NoTopo | 3 | delays | 40 | 13 | 13 | TIMEOUT 13 |
+| fbbcc37f | Test10NoTopo | 4 | plain | 40 | 1 | 1 | TIMEOUT 1 |
+| fbbcc37f | Test10NoTopo | 4 | delays | 40 | 21 | 21 | TIMEOUT 21 |
+| fbbcc37f | Test10NoTopo-repeat2 | 3 | plain | 40 | 0 | 0 | - |
+| fbbcc37f | Test10NoTopo-repeat2 | 3 | delays | 40 | 11 | 11 | TIMEOUT 11 |
+| fbbcc37f | Test10NoTopo-repeat2 | 4 | plain | 40 | 3 | 3 | TIMEOUT 3 |
+| fbbcc37f | Test10NoTopo-repeat2 | 4 | delays | 40 | 22 | 22 | TIMEOUT 22 |
+| 38170631 | Test10NoTopo | 3 | plain | 40 | 0 | 0 | - |
+| 38170631 | Test10NoTopo | 3 | delays | 40 | 0 | 0 | - |
+| 38170631 | Test10NoTopo | 4 | plain | 40 | 0 | 0 | - |
+| 38170631 | Test10NoTopo | 4 | delays | 40 | 0 | 0 | - |
+| 38170631 | Test10NoTopo-repeat2 | 3 | plain | 40 | 0 | 0 | - |
+| 38170631 | Test10NoTopo-repeat2 | 3 | delays | 40 | 0 | 0 | - |
+| 38170631 | Test10NoTopo-repeat2 | 4 | plain | 40 | 0 | 0 | - |
+| 38170631 | Test10NoTopo-repeat2 | 4 | delays | 40 | 0 | 0 | - |
+
+### stempy 3.3.5 `gatherEvents`, the map receive takes another worker's size (cereal exception; issue #292)
+
+`experiments/stempy/run.sh`; rows by code commit: 4196c4c (800).
+
+| version | ranks | traced runs | clean | clean runs that predict it | findings of the clean runs (class/level) | error findings replayed | replay results | pins matched | controls finished | confirmed, replay a run of the program | cross / same alternatives | cross replayed | cross replay results | failed or wrong output | pins matched | runs of the program | controls finished with correct output |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 3.3.5 | 4 | 15 | 15 | 15 | 1a/L1+SP 90, 1f/L1 90 | 90 | APP-ERROR:3 90 | 0 | 0 | 0 | 45 / 45 | 45 | APP-ERROR:3 45 | 45 | 45 | 45 | 45 |
+| 3.3.5 | 8 | 15 | 15 | 15 | 1f/L1 630 | 0 | - | 0 | 0 | 0 | 315 / 315 | 315 | APP-ERROR:3 306, TIMEOUT 7, APP-ERROR:-11 2 | 315 | 315 | 315 | 315 |
+| 3.3.6 | 4 | 15 | 15 | 0 | - | 0 | - | 0 | 0 | 0 | 0 / 0 | 0 | - | 0 | 0 | 0 | 0 |
+| 3.3.6 | 8 | 15 | 15 | 0 | - | 0 | - | 0 | 0 | 0 | 0 / 0 | 0 | - | 0 | 0 | 0 | 0 |
+
+The cross alternatives are the bug at L1 (class 1f: the 8-byte size fits the map's buffer). At 4 ranks the
+explorer also turns them into truncations (1a, L1+SP), which `stretto confirm` does not confirm: it expects
+MPI_ERR_TRUNCATE, and the run ends earlier, in the harness's MPI_Abort(3) after cereal's exception, so the
+single-path assumption (the program goes on receiving) does not hold here. At 8 ranks the explorer is off (it
+had not finished one trace in 15 minutes). Every failed replay's output has cereal's "Failed to read".
+
+Untraced runs, plain and with random send and receive delays of 0 to 20 ms per rank from the replay library.
+
+| version | driver | ranks | setting | runs | failed | hung | how the failures ended |
+|---|---|---|---|---|---|---|---|
+| 3.3.5 | gatherEvents | 4 | plain | 40 | 0 | 0 | - |
+| 3.3.5 | gatherEvents | 4 | delays | 40 | 11 | 0 | APP-ERROR:3 11 |
+| 3.3.5 | gatherEvents | 8 | plain | 40 | 0 | 0 | - |
+| 3.3.5 | gatherEvents | 8 | delays | 40 | 32 | 2 | APP-ERROR:3 28, TIMEOUT 2, APP-ERROR:-11 2 |
+| 3.3.6 | gatherEvents | 4 | plain | 40 | 0 | 0 | - |
+| 3.3.6 | gatherEvents | 4 | delays | 40 | 0 | 0 | - |
+| 3.3.6 | gatherEvents | 8 | plain | 40 | 0 | 0 | - |
+| 3.3.6 | gatherEvents | 8 | delays | 40 | 0 | 0 | - |
+
+### MFEM 3.3.2 `GroupTopology::Create`, a receive takes the next mesh's group row (truncation or abort; c52c6243b)
+
+`experiments/mfem332/run.sh`; rows by code commit: 4196c4c (499).
+
+| version | ranks | traced runs | clean | clean runs that predict it | findings of the clean runs (class/level) | error findings replayed | replay results | pins matched | controls finished | confirmed, replay a run of the program | cross / same alternatives | cross replayed | cross replay results | failed or wrong output | pins matched | runs of the program | controls finished with correct output |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 3.3.2 | 4 | 20 | 17 | 14 | 1f/L1 99, probe-alt/L1 119, waitany-order/L1 113 | 0 | - | 0 | 0 | 0 | 38 / 61 | 38 | MPI-ERROR:MPI_ERR_TRUNCATE 38 | 38 | 38 | 38 | 38 |
+| 3.3.2 | 8 | 20 | 7 | 7 | 1f/L1 226, probe-alt/L1 210, waitany-order/L1 210 | 0 | - | 0 | 0 | 0 | 82 / 144 | 82 | MPI-ERROR:MPI_ERR_TRUNCATE 40, APP-ERROR:1 38, FINISHED 3, APP-ERROR:15 1 | 79 | 76 | 82 | 67 |
+| 3.4 | 4 | 20 | 20 | 0 | probe-alt/L1 140, waitany-order/L1 167 | 0 | - | 0 | 0 | 0 | 0 / 0 | 0 | - | 0 | 0 | 0 | 0 |
+| 3.4 | 8 | 20 | 20 | 0 | probe-alt/L1 600, waitany-order/L1 827 | 0 | - | 0 | 0 | 0 | 0 / 0 | 0 | - | 0 | 0 | 0 | 0 |
+
+The analysis reports the cross alternative as class 1f (the other mesh's row fits the receive's buffer); its
+consequence, the truncation of a longer row (MPI_ERR_TRUNCATE) or the abort of "integer set not found"
+(APP-ERROR:1), shows in the replay. The explorer is off: it hits its state cap on these traces. At 8 ranks the
+race strikes after the horizon too, which alone is pinned: some controls fail and some replays leave a pin
+unmatched, so the 8-rank replays are weaker evidence; most traced runs fail there as well.
+
+Untraced runs, plain and with random send and receive delays of 0 to 20 ms per rank from the replay library.
+
+| version | driver | ranks | setting | runs | failed | hung | how the failures ended |
+|---|---|---|---|---|---|---|---|
+| 3.3.2 | twomesh | 4 | plain | 40 | 5 | 0 | MPI-ERROR:MPI_ERR_TRUNCATE 5 |
+| 3.3.2 | twomesh | 4 | delays | 40 | 13 | 0 | MPI-ERROR:MPI_ERR_TRUNCATE 13 |
+| 3.3.2 | twomesh | 8 | plain | 40 | 32 | 0 | APP-ERROR:1 24, MPI-ERROR:MPI_ERR_TRUNCATE 8 |
+| 3.3.2 | twomesh | 8 | delays | 40 | 35 | 0 | APP-ERROR:1 24, MPI-ERROR:MPI_ERR_TRUNCATE 11 |
+| 3.4 | twomesh | 4 | plain | 40 | 0 | 0 | - |
+| 3.4 | twomesh | 4 | delays | 40 | 0 | 0 | - |
+| 3.4 | twomesh | 8 | plain | 40 | 0 | 0 | - |
+| 3.4 | twomesh | 8 | delays | 40 | 0 | 0 | - |
+
+### LAMMPS `Irregular::create_atom`, blocking count sends before the wildcard receives (deadlock without eager buffering; 411c069b)
+
+`experiments/lammps/run.sh`: traced runs analysed at L1, then untraced runs with Open MPI's default settings and
+on the TCP transport with the eager threshold just below and at the 2-buffering finding's bound
+(`experiments/lammps/predict.py`); the fix, which has no such finding, is rerun at the bound of the version with
+the bug. Rows by code commit: 4196c4c (680).
+
+| version | ranks | traced runs | finished | with a 2-buffering finding | bound | cycle's call sites | default: finished | below the bound: hung | at the bound: finished |
+|---|---|---|---|---|---|---|---|---|---|
+| 3a2da51a | 4 | 20 | 20 | 20 | B < 4 | irregular.cpp:398; irregular.cpp:409 | 10 of 10 | 10 of 10 | 10 of 10 |
+| 3a2da51a | 8 | 20 | 20 | 20 | B < 4 | irregular.cpp:398; irregular.cpp:409 | 10 of 10 | 10 of 10 | 10 of 10 |
+| 411c069b | 4 | 20 | 20 | 0 | - | - | 10 of 10 | 0 of 10 | 10 of 10 |
+| 411c069b | 8 | 20 | 20 | 0 | - | - | 10 of 10 | 0 of 10 | 10 of 10 |
+
+Untraced runs, plain, with random send and receive delays of 0 to 20 ms per rank from the replay library, and
+with Open MPI's eager threshold forced down to 0 payload bytes (`eager`: the TCP transport, as stress testing on
+the corpora with the limit forced down).
+
+| version | driver | ranks | setting | runs | failed | hung | how the failures ended |
+|---|---|---|---|---|---|---|---|
+| 3a2da51a | in.displace | 4 | plain | 40 | 0 | 0 | - |
+| 3a2da51a | in.displace | 4 | delays | 40 | 0 | 0 | - |
+| 3a2da51a | in.displace | 4 | eager | 40 | 40 | 40 | TIMEOUT 40 |
+| 3a2da51a | in.displace | 8 | plain | 40 | 0 | 0 | - |
+| 3a2da51a | in.displace | 8 | delays | 40 | 0 | 0 | - |
+| 3a2da51a | in.displace | 8 | eager | 40 | 40 | 40 | TIMEOUT 40 |
+| 411c069b | in.displace | 4 | plain | 40 | 0 | 0 | - |
+| 411c069b | in.displace | 4 | delays | 40 | 0 | 0 | - |
+| 411c069b | in.displace | 4 | eager | 40 | 0 | 0 | - |
+| 411c069b | in.displace | 8 | plain | 40 | 0 | 0 | - |
+| 411c069b | in.displace | 8 | delays | 40 | 0 | 0 | - |
+| 411c069b | in.displace | 8 | eager | 40 | 0 | 0 | - |
+
 
 ## E6: polynomial checker vs exhaustive explorer
 

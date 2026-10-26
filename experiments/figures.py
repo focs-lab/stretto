@@ -197,6 +197,21 @@ alternative. Along the way: PETSc passes `-pc_hypre_parasails_nlevels` to HYPRE 
 
 <p align="center"><img src="docs/figures/hypre32.svg" width="760" alt="HYPRE 3.2.0 ParaSails results"></p>
 """
+    history = ""
+    if v("nCabanaClean") and v("nStempyClean") and v("nMfemGroupClean") and v("nLammpsClean"):
+        history = f"""
+**Four documented bugs from projects' histories.** Each was fixed and described by its project;
+each case builds the version with the bug and its fix and runs a driver that reaches the code
+(the project's own unit test or input where there is one). Stress testing is untraced runs,
+plain and with random delays.
+
+| bug | clean traced runs that predict it | forced, the predicted execution | controls | stress testing | the fix |
+|---|---:|---|---:|---:|---|
+| Cabana `createFromImports`, a round-1 wildcard receive takes a round-2 id (PR #835) | {t('nCabanaExposed')} of {t('nCabanaClean')} (deadlock, L1+SP) | {t('nCabanaReplayHang')} of {t('nCabanaReplayed')} replays hang | {t('nCabanaControlsFinish')} of {t('nCabanaReplayed')} finish | {t('nCabanaStressHang')} of {t('nCabanaStressRuns')} runs hang ({t('nCabanaStressPlainHang')} of {t('nCabanaStressPlainRuns')} plain) | no finding in {t('nCabanaFixClean')} runs |
+| stempy 3.3.5 `gatherEvents`, the map receive takes another worker's size (issue #292) | {t('nStempyExposed')} of {t('nStempyClean')} (L1) | {t('nStempyCrossFail')} of {t('nStempyCrossReplayed')} replays fail, cereal throws | {t('nStempyCrossControlsOk')} of {t('nStempyCrossReplayed')} correct | {t('nStempyStressFail')} of {t('nStempyStressRuns')} runs fail ({t('nStempyStressPlainFail')} of {t('nStempyStressPlainRuns')} plain) | no alternative in {t('nStempyFixClean')} runs |
+| MFEM 3.3.2 `GroupTopology::Create`, a receive takes the next mesh's row (c52c6243b) | {t('nMfemGroupExposed')} of {t('nMfemGroupClean')} (L1) | {t('nMfemGroupCrossFail')} of {t('nMfemGroupCrossReplayed')} replays fail ({t('nMfemGroupFourCrossFail')} of {t('nMfemGroupFourCrossReplayed')} at 4 ranks) | {t('nMfemGroupCrossControlsOk')} of {t('nMfemGroupCrossReplayed')} correct ({t('nMfemGroupFourCrossControlsOk')} of {t('nMfemGroupFourCrossReplayed')}) | {t('nMfemGroupStressFail')} of {t('nMfemGroupStressRuns')} runs fail ({t('nMfemGroupStressPlainFail')} of {t('nMfemGroupStressPlainRuns')} plain) | no cross alternative in {t('nMfemGroupFixClean')} runs |
+| LAMMPS `Irregular::create_atom`, blocking count sends before the receives (411c069b) | {t('nLammpsExposed')} of {t('nLammpsClean')} (deadlock below {t('BLammps')} bytes) | {t('nLammpsBelowHang')} of {t('nLammpsBelowRuns')} runs hang just below the bound | {t('nLammpsAtFinish')} of {t('nLammpsAtRuns')} finish at it | {t('nLammpsStressPlainHang')} of {t('nLammpsStressPlainRuns')} plain and {t('nLammpsStressDelayHang')} of {t('nLammpsStressDelayRuns')} delayed runs hang; {t('nLammpsStressEagerHang')} of {t('nLammpsStressEagerRuns')} with the eager limit forced down | no finding in {t('nLammpsFixClean')} runs |
+"""
     reads = ""
     if v("nReadsProgs"):
         reads = f"""
@@ -289,7 +304,7 @@ diagnosing it took 291 jobs and 10,392 compute-node hours (the NINJA noise-injec
 PPoPP 2017); HYPRE's changelog for 2.11.0 places the fix in ParaSails.{ninja}
 
 <p align="center"><img src="docs/figures/hypre.svg" width="760" alt="HYPRE ParaSails results"></p>
-{newbug}{mg}{dealii}
+{newbug}{mg}{dealii}{history}
 **Soundness in practice.** Against an exhaustive explorer, {t('nEsixUnsound')} of
 {t('nEsixPairs')} judged alternatives are unsound. Replays on MBI: {t('nMBIReplayConfirmed')}
 confirmed, {t('nMBIReplayInconclusive')} inconclusive (the control itself hung),

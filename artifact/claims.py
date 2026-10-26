@@ -42,7 +42,7 @@ RQ_OF = [
     (3, r"^nEtwo|^B[a-z]+OMPI$"),
     (4, r"^n(MBI|MBB)(one|sp|obs)[A-Z]"),
     (5, r"^TraceOverhead|^LuAnalysis|^LuEvents|^AMGtime|^Nek(GB|Minutes|PerAlt|Records)|^nEfour|^n?Scale"),
-    (6, r"^nHypre|^BHypre|^nAMG|^nNek|^nDeal|^nPetsc|^BPetsc"),
+    (6, r"^nHypre|^BHypre|^nAMG|^nNek|^nDeal|^nPetsc|^BPetsc|^n(Cabana|Stempy|MfemGroup|Lammps)|^BLammps"),
 ]
 # numbers the inputs fix: a difference there is unexpected; every other number is a time or a
 # count taken from recorded runs, which depends on their schedule
@@ -57,7 +57,10 @@ FIXED = re.compile(r"^n(MBI|MBB)(progs|notBuilt|correct|errors|race)$|^B[a-z]+OM
                    r"|^nScale(Traces|Sample|NpMin|NpMax)$"
                    r"|^nPRV(rqOne(Rounds|Props)|rqTwo(Configs|Absent|Matched)|adeptTraces|adept(Orig|Fixed)Runs"
                    r"|adept[A-Za-z]*(Pairs|Delayed)|probe[A-Za-z]*Runs|corpus|inScope|outScope|twins|apps|appConfigs)$"
-                   r"|^nValid(MBI|Reads|MG|Deal|Hypre|AMG|Nek)Replays$|^nValid(MBI|Reads)Committed$|^nValid(MG|Deal|Hypre)Traced$")
+                   r"|^nValid(MBI|Reads|MG|Deal|Hypre|AMG|Nek)Replays$|^nValid(MBI|Reads)Committed$|^nValid(MG|Deal|Hypre)Traced$"
+                   r"|^n(Cabana|Stempy|MfemGroup|Lammps)(Fix)?(Three|Four|Eight)?Traced$|^n(Cabana|Stempy|MfemGroup|Lammps)Ranks$"
+                   r"|^n(Cabana|Stempy|MfemGroup|Lammps)(Fix)?Stress(Plain|Delay|Eager)?Runs$"
+                   r"|^nLammps(Fix)?(Three|Four|Eight)?(Default|Below|At)Runs$|^BLammps$")
 
 
 def load(path: str) -> dict:
@@ -309,6 +312,43 @@ def claims(n: dict) -> list:
     claim(6, "HYPRE 3.2.0 with a tag for even levels (the fix): no trace of ex5 has a cross-level alternative",
           ["nHypreNewFixTraced", "nHypreNewFixExposed", "nHypreNewFixCrossAlts"], lambda t, e, a: t > 0 and e == 0 and a == 0,
           over=["nHypreNewFixTraced"])
+    # four documented bugs from projects' histories (experiments/cabana/, stempy/, mfem332/, lammps/)
+    claim(6, "Cabana fbbcc37f: every clean traced run predicts the hang (a deadlock finding)",
+          ["nCabanaClean", "nCabanaExposed"], lambda c, e: c > 0 and c == e, over=["nCabanaClean"])
+    claim(6, "Cabana fbbcc37f: every replay of an error finding hangs with its pins matched, and every control finishes",
+          ["nCabanaReplayed", "nCabanaReplayHang", "nCabanaMatched", "nCabanaControlsFinish"],
+          lambda r, h, m, c: r == h == m == c, over=["nCabanaReplayed"])
+    claim(6, "Cabana 38170631, the fix: no clean traced run has an error finding, and no untraced run fails",
+          ["nCabanaFixClean", "nCabanaFixErrorRuns", "nCabanaFixStressRuns", "nCabanaFixStressFail"],
+          lambda c, e, r, f: e == 0 and f == 0, over=["nCabanaFixClean", "nCabanaFixStressRuns"])
+    claim(6, "stempy 3.3.5: every clean traced run has an alternative in which a receive takes a message of the other kind",
+          ["nStempyClean", "nStempyExposed"], lambda c, e: c > 0 and c == e, over=["nStempyClean"])
+    claim(6, "stempy 3.3.5, 4 ranks: every such replay fails with its pins matched, and every control gathers correctly",
+          ["nStempyFourCrossReplayed", "nStempyFourCrossFail", "nStempyFourCrossMatched", "nStempyFourCrossControlsOk"],
+          lambda r, f, m, c: r == f == m == c, over=["nStempyFourCrossReplayed"])
+    claim(6, "stempy 3.3.6, the fix: no clean traced run has a receive alternative, and no untraced run fails",
+          ["nStempyFixClean", "nStempyFixCrossAlts", "nStempyFixSameAlts", "nStempyFixStressRuns", "nStempyFixStressFail"],
+          lambda c, x, s, r, f: x == 0 and s == 0 and f == 0, over=["nStempyFixClean", "nStempyFixStressRuns"])
+    claim(6, "MFEM 3.3.2, 4 ranks: every replay of a receive taking the other mesh's row fails with its pins matched, "
+             "and every control finishes with both areas right",
+          ["nMfemGroupFourCrossReplayed", "nMfemGroupFourCrossFail", "nMfemGroupFourCrossMatched", "nMfemGroupFourCrossControlsOk"],
+          lambda r, f, m, c: r == f == m == c, over=["nMfemGroupFourCrossReplayed"])
+    claim(6, "MFEM 3.4, the fix: no clean traced run has a cross-call alternative, and no untraced run fails",
+          ["nMfemGroupFixClean", "nMfemGroupFixCrossAlts", "nMfemGroupFixStressRuns", "nMfemGroupFixStressFail"],
+          lambda c, x, r, f: x == 0 and f == 0, over=["nMfemGroupFixClean", "nMfemGroupFixStressRuns"])
+    claim(6, "LAMMPS 3a2da51a: every traced run that finished predicts the deadlock below a 4-byte eager threshold",
+          ["nLammpsClean", "nLammpsExposed", "BLammps"], lambda c, e, b: c > 0 and c == e and b == 4, over=["nLammpsClean"])
+    claim(6, "LAMMPS 3a2da51a: every rerun just below the bound hangs, every rerun at it and with the defaults finishes",
+          ["nLammpsBelowRuns", "nLammpsBelowHang", "nLammpsAtRuns", "nLammpsAtFinish", "nLammpsDefaultRuns", "nLammpsDefaultFinish"],
+          lambda br, bh, ar, af, dr, df: br == bh and ar == af and dr == df, over=["nLammpsBelowRuns", "nLammpsAtRuns", "nLammpsDefaultRuns"])
+    claim(6, "LAMMPS 411c069b, the fix: no traced run predicts a buffering deadlock, every rerun below the bound finishes, "
+             "and no untraced run fails",
+          ["nLammpsFixClean", "nLammpsFixExposed", "nLammpsFixBelowRuns", "nLammpsFixBelowFinish", "nLammpsFixStressRuns",
+           "nLammpsFixStressFail"],
+          lambda c, e, r, f, sr, sf: e == 0 and r == f and sf == 0, over=["nLammpsFixClean", "nLammpsFixBelowRuns", "nLammpsFixStressRuns"])
+    claim(6, "LAMMPS 3a2da51a: no plain or delayed untraced run hangs",
+          ["nLammpsStressPlainHang", "nLammpsStressDelayHang"], lambda p, d: p == 0 and d == 0,
+          over=["nLammpsStressPlainRuns", "nLammpsStressDelayRuns"])
     # existence claims: their tests are the counts themselves
     claim(6, "HYPRE 3.2.0: NINJA hangs ex5 and ex2 in some runs",
           ["nNinjaHypreNewHang", "nNinjaPetscRandomHang"], lambda a, b: a > 0 and b > 0, vacuous=True)

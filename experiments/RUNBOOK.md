@@ -128,7 +128,7 @@ Variables the scripts read (all optional):
 | `STRETTO_MACHINE_LOCK`, `STRETTO_CPUS` | `scripts/heavy.sh` | the shared-host lock file and the processors a heavy job may use |
 | `IMAGE`, `CPUS`, `MEMORY`, `NAME`, `MACHINE`, `DETACH` | `experiments/container/run.sh` | container image, cpuset (`0-11,40-51`), memory (`24g`), name, the host name the summaries print (the host's), `0` to run in the foreground (detached) |
 | `DOCKER_ARGS` | `experiments/container/run.sh` | more `docker run` options; `--cap-add SYS_PTRACE` lets the MPI libraries use single-copy transfers (`experiments/guard/run.sh`) |
-| `CPUS`, `MEMORY`, `JOBS`, `NEKBONE`, `SCALE`, `MPIPRV` | `artifact/reproduce.sh` | as above, but `CPUS` defaults to every processor; `NEKBONE=0` leaves Nekbone out, `SCALE=0` the runs from 16 to 64 processes, `MPIPRV=0` MPI-PRV (E9) |
+| `CPUS`, `MEMORY`, `JOBS`, `NEKBONE`, `SCALE`, `MPIPRV`, `HISTBUGS` | `artifact/reproduce.sh` | as above, but `CPUS` defaults to every processor; `NEKBONE=0` leaves Nekbone out, `SCALE=0` the runs from 16 to 64 processes, `MPIPRV=0` MPI-PRV (E9), `HISTBUGS=0` the four bugs from projects' histories (E5g) |
 | `PRV_IMAGE`, `CPUS`, `MEMORY`, `DOCKER_ARGS`; `REPS`, `TWIN_REPS`, `DELAY`, `MAXNP` | `experiments/mpiprv/prv.sh`; its scripts | MPI-PRV's image (the pinned digest), cpuset (every processor), memory (`16g`), more `docker run` options (`--cap-add SYS_PTRACE`); rounds of its RQ1 and runs per probe (5), runs of the twin probes (20), the Adept delay in ms (2500), the largest process count `apps.py` runs (24) |
 | `NPS`, `SAMPLE`, `TIMEOUT` | `experiments/scale/run.sh` | process counts (`16 32 64`), replays sampled per trace (10), seconds per replay (120) |
 | `BENCHMARKS`, `CLASSES`, `CSV` | `experiments/e4_overhead.sh` | which NPB rows to measure and which table to write |
@@ -281,6 +281,66 @@ test's log is compared with its expected output after deal.II's own
 program under Open MPI's `mpirun` spends about 4 s idle in start-up in the image (an MPICH
 hello world takes 4.4 s), so the campaign of 21 Oct ran `RUNS=20 JOBS=8 predict` (about 3.5
 minutes per trace of 9.3.0-rc1, 2 per trace of 9.3.0) and `RUNS=50 stress`, two hours in all.
+
+## Documented bugs from projects' histories (E5g)
+
+Four bugs that their projects fixed and described, each a case with `run.sh
+[fetch|build|predict|stress|fixed|all]`: `experiments/cabana/` (CommunicationPlan's
+createFromImports, PR #835: a round-1 wildcard receive takes a round-2 id and the plan hangs; the
+in-tree test CommPlan.Test10NoTopo at 3 ranks), `experiments/stempy/` (gatherEvents in 3.3.5,
+issue #292: the map receive takes another worker's size and cereal throws; a harness around
+stempy's own gather code at 4 and 8 ranks), `experiments/mfem332/` (GroupTopology::Create in
+MFEM 3.3.2, c52c6243b: a receive takes a row of the next ParMesh's call; `twomesh.cpp`, two meshes
+back to back, at 4 and 8 ranks) and `experiments/lammps/` (Irregular::create_atom before 411c069b:
+blocking count sends before the wildcard receives, a deadlock without eager buffering;
+`in.displace` at 4 and 8 ranks). `fetch` downloads the version with the bug and its fix and
+every dependency (Kokkos 4.1.00, googletest 1.14.0 and CMake 3.28.3 for Cabana; cereal and BigMPI
+at pinned commits for stempy; HYPRE 2.11.2 and METIS 4.0.3 for MFEM) under
+`third_party/apps/<case>/`, each archive checked by sha256 (`fetch_checked` in
+`experiments/harness.sh`); `build` builds with the Open MPI wrappers at `MAKE_JOBS` (8). Every
+case exports `OMPI_MCA_btl_vader_single_copy_mechanism=none`: the container refuses
+`process_vm_readv`, and Open MPI's shared-memory transport would print a line per refused
+transfer. `predict` runs `experiments/history_predict.py` (`experiments/lammps/predict.py` for
+LAMMPS), `stress` `experiments/history_stress.py` on the version with the bug, and `fixed` both
+on the fix; the tables are `experiments/results/<case>/{predict,stress}-<version>.csv`, the
+outputs of failed runs, replays and controls under `outputs/` there (not committed).
+
+`history_predict.py` traces `RUNS` runs per process count, analyses each clean one (status 0 and
+the output `--ok` expects), replays its findings of an error class with `stretto confirm` and,
+with `--classify`, the alternatives of the kinds `--replay` names with their horizon pins and
+controls; each traced run with its analysis and replays is a process of its own, `JOBS` at a
+time, and every run of one campaign runs in one directory. The classifiers:
+`experiments/stempy/classify.py` (cross: the receive would take a size where it took a map, or
+the reverse) and `experiments/mfem332/classify.py` (cross: the receive and the one that took the
+message in the run lie in different calls of Create, calls counted by the waits of Create's
+closing MPI_Waitall). Cabana's campaign classifies nothing: its deadlock is an L1+SP finding,
+which `stretto confirm` replays with the explorer's witness. MFEM's is analysed at L1 only (the
+explorer hits its state cap on these traces), and stempy's at 8 ranks too: on one 8-rank trace
+the explorer had not finished after 15 minutes (26 Oct, a-p13), while a 4-rank trace takes 0.2 s.
+`lammps/predict.py` reports each traced run's 2-buffering finding and reruns the untraced program
+`REPLAYS` times with the default settings and on TCP with the eager threshold just below and at
+the bound (`experiments/b_impl.py`'s TCP header, as E2). The stress settings are plain runs and
+runs with the replay library's random delays (per rank one of 0, 0, 0, 1, 5 and 20 ms, the delays
+of NPB MG and deal.II), and for LAMMPS also Open MPI's eager threshold forced down to 0 bytes, as
+the corpora's stress testing does.
+
+The campaign of 26 Oct ran every step of the four cases one after another in one container on
+a-p13 (`--cpuset-cpus 0-9,40-49 -m 24g`; other lanes' containers ran on other processors of the
+node) at the defaults: Cabana `RUNS=15` at 3 ranks, `STRESS_RUNS=40` at 3 and 4, with one call
+and two (`--gtest_repeat=2`); stempy `RUNS=15` and MFEM `RUNS=20` at 4 and 8, `STRESS_RUNS=40`;
+LAMMPS `RUNS=20`, `REPLAYS=10`, `STRESS_RUNS=40` at 4 and 8; `JOBS=3`. Fetch and build took 4
+minutes for all four (1.6 GB under `third_party/apps/`); the campaigns took about 6 minutes for
+stempy, 3 for MFEM, 36 for LAMMPS (most of it the 30 s timeouts of the hanging reruns and the
+per-run `addr2line` that names the cycle's call sites) and 43 for Cabana (25 of them the
+prediction: a 3-rank trace's analysis takes about a minute, nearly all of it the explorer, and
+each of its 160 replays hangs until its 20 s timeout), 87 minutes in all. The scouting
+prototypes of the same day (commit dca7f96) differ in three ways: they confirmed or replayed at
+most three findings per trace, these every one (Cabana 160 confirmations instead of 28, stempy
+360 cross replays instead of 90, MFEM 120 instead of 42); they ran fewer runs in places (MFEM
+30 stress runs per setting and 12 traced runs of 3.4, LAMMPS 10 traced runs and 5 reruns, no
+untraced LAMMPS runs); and their stress runs ran next to other campaigns, while the failure
+rates of stempy and MFEM depend on the load (stempy's plain runs failed 5 of 40 and 21 of 40
+there, none here).
 
 ## Happens-before selection against the check (E8b)
 

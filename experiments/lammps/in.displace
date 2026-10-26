@@ -1,0 +1,16 @@
+# The driver of experiments/lammps/run.sh: LAMMPS's examples/melt input (3d Lennard-Jones,
+# 4000 atoms on an fcc lattice) without its integrator and output, with one random
+# displacement of every atom by up to 3 lattice units in each direction, which migrates atoms
+# between all subdomains in both directions through Irregular::migrate_atoms
+units		lj
+atom_style	atomic
+lattice		fcc 0.8442
+region		box block 0 10 0 10 0 10
+create_box	1 box
+create_atoms	1 box
+mass		1 1.0
+velocity	all create 1.0 87287
+pair_style	lj/cut 2.5
+pair_coeff	1 1 1.0 1.0 2.5
+displace_atoms	all random 3.0 3.0 3.0 4927
+run		10
