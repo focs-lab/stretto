@@ -15,7 +15,19 @@ The statistics of the last section of docs/results.md ("Statistics") have macros
   n<corpus>Union...                     the labelled errors each tool and each union of baselines finds
   n<corpus>Sign<baseline>Stretto/Other  the labelled errors Stretto finds and a baseline misses, and the
   <corpus>Sign<baseline>P               reverse, with the exact two-sided sign test's p-value
-  nEfourLong, nEfourLongNames           the E4 configurations the overhead range is taken over"""
+  nEfourLong, nEfourLongNames           the E4 configurations the overhead range is taken over
+The repeated stress passes on MBI (section E1, "Repeated stress passes") have theirs:
+  nRepsStress{Always,Sometimes,Never}   the labelled errors every pass, some passes and no pass makes fail;
+  nRepsStressStretto{...}               the same of Stretto's traced runs, the corpus run and the reps
+  nRepsStressPass...                    each pass against Stretto's corpus run: the range over the passes
+                                        of the split and its p-value, and nRepsStressPassSig, the passes
+                                        against which Stretto's lead is significant at 5%
+  nRepsStressPair..., RepsStressPair... the same over every pair of a traced run and a pass
+  nRepsStressFPProgs, ...FPPasses       the correct programs some pass makes fail, and the passes that do
+  nRepsStressAsSingle                   the passes that make exactly the single pass's labelled errors fail
+  nRepsStressRateStretto/Other,         the labelled errors whose detection rate is higher with Stretto's
+  RepsStressMeanStretto/Other,          traced runs and with the passes, the labelled errors one traced run
+  RepsStressRateP                       and one pass find on average, and the paired permutation test's p"""
 from __future__ import annotations
 import collections
 import csv
@@ -70,6 +82,25 @@ def sign_test(b: int, c: int) -> float:
     if n == 0:
         return 1.0
     return min(1.0, 2 * sum(math.comb(n, i) for i in range(min(b, c) + 1)) / 2 ** n)
+
+
+def paired_permutation(d: list) -> float:
+    """The exact two-sided paired permutation test of integer differences d (a sign-flip test):
+    the probability, with each difference's sign flipped at random, of a sum at least as far from
+    0 as sum(d). Exact over every sign vector, by counting the sums one difference at a time. With
+    differences of -1, 0 and 1 it is sign_test of the 1s against the -1s."""
+    a = [abs(x) for x in d if x]
+    obs = abs(sum(d))
+    if not a or obs == 0:
+        return 1.0
+    ways = {0: 1}
+    for x in a:
+        nxt = collections.Counter()
+        for t, w in ways.items():
+            nxt[t + x] += w
+            nxt[t - x] += w
+        ways = nxt
+    return min(1.0, sum(w for t, w in ways.items() if abs(t) >= obs) / 2 ** len(a))
 
 
 def p_text(p: float) -> str:
@@ -376,6 +407,150 @@ def reps():
         c = [b for b in runs if score.observed_verdict(b[p]) != "ERROR"]
         out.append(f"| {p} | {k_obs[p]}/{n} | {k_uni[p]}/{n} | "
                    f"{sum(score.predicted_verdict(b[p]) == 'ERROR' for b in c)}/{len(c)} |")
+    return "\n".join(out) + "\n"
+
+
+def stress_reps():
+    """The stress baseline on MBI passed again and again (experiments/run_remaining.sh
+    stressreps: reps/stress-mbi-<k>.csv) against Stretto's traced runs, the corpus run and the
+    repetitions of reps(). Scored as the single comparison of _baselines(): a labelled error is
+    found by a stress pass when one of its runs did not finish, and by a traced run when
+    Stretto's verdict (observed or predicted) is ERROR. Empty without the passes."""
+    d = os.path.join(RES, "reps")
+    files = os.listdir(d) if os.path.isdir(d) else []
+    passes = sorted((p for p in files if re.fullmatch(r"stress-mbi-\d+\.csv", p)), key=lambda p: int(p[11:-4]))
+    main_path = os.path.join(RES, "mbi", "mbi.csv")
+    if not passes or not os.path.exists(main_path):
+        return ""
+    st = [{r["program"]: r for r in rows(os.path.join(d, p))} for p in passes]
+    reps_ = sorted((p for p in files if re.fullmatch(r"mbi-\d+\.csv", p)), key=lambda p: int(p[4:-4]))
+    traced = [{r["name"]: r for r in score.compiled(rows(main_path))}] + \
+             [{r["name"]: r for r in score.compiled(rows(os.path.join(d, p)))} for p in reps_]
+    # the labelled errors every pass ran and every traced run built
+    err = sorted(p for p in set.intersection(*(set(s) for s in st), *(set(b) for b in traced))
+                 if st[0][p]["expect"] == "ERROR")
+    ok = sorted(p for p in set.intersection(*(set(s) for s in st)) if st[0][p]["expect"] == "OK")
+    m, n = len(st), len(traced)
+    k_st = {p: sum(bool(s[p]["first_failure"]) for s in st) for p in err}
+    k_tr = {p: sum(score.verdict(b[p]) == "ERROR" for b in traced) for p in err}
+    S = {p for p in err if score.verdict(traced[0][p]) == "ERROR"}     # the corpus run, as _baselines() uses
+    seeds = sorted({r.get("seed") or "none" for s in st for r in s.values()})
+    seed_text = f"{seeds[0]} to {seeds[-1]}" if all(x.isdigit() for x in seeds) and \
+        [int(x) for x in seeds] == list(range(int(seeds[0]), int(seeds[-1]) + 1)) else ", ".join(seeds)
+    # the single pass (stress.csv), for how far one pass stands for the others
+    single = {r["program"]: r for r in rows(os.path.join(RES, "mbi", "stress.csv"))}
+    num("nRepsStressPasses", m)
+    num("nRepsStressTraced", n)
+    num("nRepsStressErr", len(err))
+    for who, k, tot in (("", k_st, m), ("Stretto", k_tr, n)):
+        num(f"nRepsStress{who}Always", sum(k[p] == tot for p in err))
+        num(f"nRepsStress{who}Never", sum(k[p] == 0 for p in err))
+        num(f"nRepsStress{who}Sometimes", sum(0 < k[p] < tot for p in err))
+    out = [f"The stress baseline on MBI passed {m} more times (`experiments/run_remaining.sh stressreps`,",
+           "`reps/stress-mbi-<k>.csv`) at the settings of the single pass: up to 30 runs per program with random delays at",
+           "the default limits, stopping at the first run that does not finish; pass k draws its delays from the seed",
+           f"20261020 + k (the rows' seeds: {seed_text}).",
+           f"Rows by code commit: {commits([r for s in st for r in s.values()])}. Stretto's side is its {n} traced runs, the",
+           f"corpus run and the {n - 1} repetitions above, each scored by its verdict, observed or predicted. Labelled errors in",
+           f"every pass and every traced run: {len(err)}.", "",
+           "| labelled errors | in every pass or run | in some | in none |", "|---|---|---|---|",
+           f"| made to fail by a stress pass (of {m}) | {sum(k_st[p] == m for p in err)} | {sum(0 < k_st[p] < m for p in err)} | {sum(k_st[p] == 0 for p in err)} |",
+           f"| reported by Stretto from a traced run (of {n}) | {sum(k_tr[p] == n for p in err)} | {sum(0 < k_tr[p] < n for p in err)} | {sum(k_tr[p] == 0 for p in err)} |",
+           "", "Each pass against Stretto's corpus run, as the single comparison (\"The baselines together\"): the errors",
+           "Stretto finds and the pass misses, the reverse, and the exact two-sided sign test of that split.", "",
+           "| pass | seed | errors made to fail | correct programs failing | Stretto only | the pass only | p |",
+           "|---|---|---|---|---|---|---|"]
+    per = []
+    for p_name, s in zip(passes, st):
+        T = {p for p in err if s[p]["first_failure"]}
+        b, c = len(S - T), len(T - S)
+        per.append((b, c, sign_test(b, c)))
+        fp = sum(1 for p in ok if s[p]["first_failure"])
+        seed = next(iter(s.values())).get("seed", "")
+        out.append(f"| {p_name[11:-4]} | {seed} | {len(T)} | {fp} | {b} | {c} | {p_text(per[-1][2])} |")
+    sig = [x for x in per if x[0] > x[1] and x[2] < 0.05]
+    fails = [(p, p_name[11:-4], s[p]) for p_name, s in zip(passes, st) for p in ok if s[p]["first_failure"]]
+    num("nRepsStressFPPasses", len({k for _, k, _ in fails}))
+    num("nRepsStressFPProgs", len({p for p, _, _ in fails}))
+    if fails:
+        out += ["", f"Correct programs a pass makes fail: {len({p for p, _, _ in fails})}, in {len({k for _, k, _ in fails})} of the {m} passes ("
+                + "; ".join(f"{p} in pass {k}, run {r['first_failure']}, {r['outcome']}" for p, k, r in fails) + ")."]
+    if all(p in single for p in err):
+        T1 = {p for p in err if single[p]["first_failure"]}
+        alike = sum({p for p in err if s[p]["first_failure"]} == T1 for s in st)
+        num("nRepsStressAsSingle", alike)
+        out += ["", f"Passes that make exactly the labelled errors of the single pass (`stress.csv`, {len(T1)}) fail: "
+                f"{alike} of {m} (`nRepsStressAsSingle`)."]
+    ps = sorted(x[2] for x in per)
+    num("nRepsStressPassFoundMin", min(sum(bool(s[p]["first_failure"]) for p in err) for s in st))
+    num("nRepsStressPassFoundMax", max(sum(bool(s[p]["first_failure"]) for p in err) for s in st))
+    num("nRepsStressPassStrettoMin", min(x[0] for x in per))
+    num("nRepsStressPassStrettoMax", max(x[0] for x in per))
+    num("nRepsStressPassOtherMin", min(x[1] for x in per))
+    num("nRepsStressPassOtherMax", max(x[1] for x in per))
+    num("RepsStressPassPMin", p_text(ps[0]))
+    num("RepsStressPassPMedian", p_text(statistics.median(ps)))
+    num("RepsStressPassPMax", p_text(ps[-1]))
+    num("nRepsStressPassSig", len(sig))
+    # every traced run against every pass: the corpus run is one sample of Stretto's side too
+    Ts = [{p for p in err if s[p]["first_failure"]} for s in st]
+    Ss = [{p for p in err if score.verdict(b[p]) == "ERROR"} for b in traced]
+    pairs = [[(len(Si - T), len(T - Si), sign_test(len(Si - T), len(T - Si))) for T in Ts] for Si in Ss]
+    flat = sorted(x[2] for row in pairs for x in row)
+    pair_sig = sum(x[0] > x[1] and x[2] < 0.05 for row in pairs for x in row)
+    num("nRepsStressPairs", len(flat))
+    num("nRepsStressPairSig", pair_sig)
+    num("RepsStressPairPMin", p_text(flat[0]))
+    num("RepsStressPairPMedian", p_text(statistics.median(flat)))
+    num("RepsStressPairPMax", p_text(flat[-1]))
+    # The pooled test: the program is the unit, since the runs of one program share its code and
+    # are not independent of each other, while programs are. Each labelled error has a detection
+    # rate on each side, Stretto's (traced runs that report it, of n) and stress testing's (passes
+    # that make it fail, of m), and the test is the exact paired permutation (sign-flip) test of
+    # the per-program differences of the rates: their sum is how many more labelled errors one
+    # traced run finds than one stress pass, in expectation, and under the null hypothesis that
+    # the two are alike on every program each difference is as likely negative as positive. It
+    # weighs a program by how far its rates differ (11 of 11 against 9 of 10 counts less than
+    # against 0 of 10), needs no model of how rates vary between programs, and with one run on
+    # each side it is the single comparison's sign test.
+    hi = [p for p in err if k_tr[p] * m > k_st[p] * n]
+    lo = [p for p in err if k_tr[p] * m < k_st[p] * n]
+    mean_tr = sum(k_tr.values()) / n
+    mean_st = sum(k_st.values()) / m
+    pooled = paired_permutation([k_tr[p] * m - k_st[p] * n for p in err])
+    num("nRepsStressRateStretto", len(hi))
+    num("nRepsStressRateOther", len(lo))
+    num("RepsStressMeanStretto", mean_tr)
+    num("RepsStressMeanOther", mean_st)
+    num("RepsStressRateP", p_text(pooled))
+    rng_ = lambda xs: f"{min(xs)}" if min(xs) == max(xs) else f"{min(xs)}–{max(xs)}"    # noqa: E731
+    out += ["", f"Stretto's lead is significant at 5% (p < 0.05, Stretto ahead) against {len(sig)} of the {m} passes; p ranges",
+            f"from {p_text(ps[0])} to {p_text(ps[-1])} (median {p_text(statistics.median(ps))}) "
+            f"(`nRepsStressPassSig`, `RepsStressPassPMin`, `RepsStressPassPMedian`, `RepsStressPassPMax`).", "",
+            f"The corpus run is one sample of Stretto's side as a pass is of stress testing's: each of the {n} traced runs",
+            f"against each of the {m} passes, the same split and test (ranges over the passes):", "",
+            "| traced run | errors reported | Stretto only | the pass only | p | passes against which the lead is significant |",
+            "|---|---|---|---|---|---|"]
+    for label, Si, row in zip(["corpus run"] + [f"repetition {p[4:-4]}" for p in reps_], Ss, pairs):
+        out.append(f"| {label} | {len(Si)} | {rng_([x[0] for x in row])} | {rng_([x[1] for x in row])} | "
+                   + (p_text(min(x[2] for x in row)) if len({x[2] for x in row}) == 1 else
+                      f"{p_text(min(x[2] for x in row))}–{p_text(max(x[2] for x in row))}")
+                   + f" | {sum(x[0] > x[1] and x[2] < 0.05 for x in row)} |")
+    out += ["", f"Of the {len(flat)} pairs, the lead is significant in {pair_sig}; p ranges from {p_text(flat[0])} to {p_text(flat[-1])}",
+            f"(median {p_text(statistics.median(flat))}) (`nRepsStressPairs`, `nRepsStressPairSig`, `RepsStressPairPMin`,",
+            "`RepsStressPairPMedian`, `RepsStressPairPMax`).", "",
+            "Pooled over the passes and runs, by program: each labelled error's detection rate with Stretto (traced runs",
+            f"that report it, of {n}) against stress testing's (passes that make it fail, of {m}), and the exact paired",
+            "permutation test of the per-program differences (each difference's sign flipped at random; with one run on",
+            "each side it is the single comparison's sign test). The program is the unit, as runs of one program are not",
+            f"independent. One traced run finds {mean_tr:.2f} of the {len(err)} labelled errors on average, one stress pass",
+            f"{mean_st:.2f}; Stretto's rate is the higher for {len(hi)} programs and stress testing's for {len(lo)}:",
+            f"p = {p_text(pooled)} (`RepsStressMeanStretto`, `RepsStressMeanOther`, `nRepsStressRateStretto`,",
+            "`nRepsStressRateOther`, `RepsStressRateP`). The sign test over the programs whose rates differ, which counts",
+            f"only which rate is the higher, gives p = {p_text(sign_test(len(hi), len(lo)))}.", "",
+            f"Labelled errors some pass or some traced run misses (the other {sum(k_st[p] == m and k_tr[p] == n for p in err)} are found by every one):", "",
+            "| program | stress passes that make it fail | Stretto's traced runs that report it |", "|---|---|---|"]
+    out += [f"| {p} | {k_st[p]}/{m} | {k_tr[p]}/{n} |" for p in err if not (k_st[p] == m and k_tr[p] == n)]
     return "\n".join(out) + "\n"
 
 
@@ -3260,6 +3435,7 @@ def main():
            stress("MPI-BugBench level 2", os.path.join(RES, "mbb", "mbb.csv"), "MBB"),
            stress_eager("MPI-BugBench level 2", os.path.join(RES, "mbb", "mbb.csv"), "MBB"),
            "### Repeated runs: how often each verdict holds (MBI)", "", reps(),
+           *[y for x in [stress_reps()] if x for y in ("### Repeated stress passes against repeated runs (MBI)", "", x)],
            "## E2: buffering ablation", "", e2(),
            "## E3: level ablation", "", e3(),
            "## E3b: read bounds (MBI, docs/firstread.md)", "", reads_section(),
