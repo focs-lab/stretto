@@ -384,7 +384,9 @@ def horizon_pins(t, f: Finding, B=None, infeasible_ok: bool = False, M=None, cha
     """Pins that force, in a replay, the alternative's execution over its whole horizon, and the
     control: every wildcard receive (STRETTO_PIN) and every wildcard probe that found a message
     (STRETTO_PIN_PROBE) posted inside the horizon is pinned to the sender it took in the run,
-    and the changed one to the alternative's (the control keeps the observed sender there too).
+    and the changed one to the alternative's (the control keeps the observed sender there too);
+    the failed poll of a flag flip takes the finding's STRETTO_PIN_FLIP, and the control its
+    recorded false.
     The receive a steal leaves without a message is not pinned in the alternative: it has no
     sender there, and pinning it to its observed one would ask for a match the alternative
     excludes. Pinning the changed operation alone leaves the earlier wildcard operations free
@@ -402,8 +404,9 @@ def horizon_pins(t, f: Finding, B=None, infeasible_ok: bool = False, M=None, cha
 def required_matches(t, f: Finding, B=None, infeasible_ok: bool = False, M=None, changed=None) -> Optional[Set[Tuple[str, int, int]]]:
     """The pins of horizon_pins(t, f, B) whose match a replay must show: ("recv", rank, widx)
     for a pinned receive whose completion lies inside the horizon, ("probe", rank, pidx) for a
-    pinned probe. A receive posted inside the horizon but completed beyond it is pinned to steer
-    the run, yet its wait may lie after the predicted hang, where its match cannot be logged."""
+    pinned probe, ("flip", rank, segment) for a flag flip's forced poll. A receive posted inside
+    the horizon but completed beyond it is pinned to steer the run, yet its wait may lie after
+    the predicted hang, where its match cannot be logged."""
     h = _horizon(t, f, B, infeasible_ok, M, changed)
     return None if h is None else h[2]
 
@@ -444,6 +447,16 @@ def _horizon(t, f: Finding, B=None, infeasible_ok: bool = False, M=None, changed
         return None
     cut = chk.cut
     required: Set[Tuple[str, int, int]] = set()
+    # a flag flip changes a failed poll, which no probe pin names: its own pin (STRETTO_PIN_FLIP,
+    # the message to return) forces it in the alternative, and the control pins the recorded
+    # false (control_pin); the alternative must show "matched flip seg", the forced call
+    # returning true
+    flip = change[0] == "probe" and not t.probes[change[1]].flag
+    if flip:
+        ftoks = [k for k in pin_tokens(f.pin) if k.kind == "flip"] if f.pin else []
+        if len(ftoks) != 1:
+            return None
+        flip_ctl = control_pin(t, f.pin)
 
     def specs(alternative: bool) -> List[str]:
         rtok, ptok = [], []
@@ -475,6 +488,10 @@ def _horizon(t, f: Finding, B=None, infeasible_ok: bool = False, M=None, changed
             out.append("STRETTO_PIN=" + ",".join(rtok))
         if ptok:
             out.append("STRETTO_PIN_PROBE=" + ",".join(ptok))
+        if flip:
+            out.append(f.pin if alternative else flip_ctl)
+            if alternative:
+                required.add(("flip", ftoks[0].rank, ftoks[0].idx))
         return out
 
     return specs(True), specs(False), required

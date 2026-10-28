@@ -15,7 +15,7 @@ from stretto import confirm as C  # noqa: E402
 from stretto import trace as T  # noqa: E402
 from stretto.matching import candidates_full  # noqa: E402
 from stretto.report import Finding  # noqa: E402
-from test_checker import mk, recv, send, wait  # noqa: E402
+from test_checker import failed_iprobe, mk, recv, send, wait  # noqa: E402
 from test_hb import irecv, reply_to_pending_receive, stolen_after_later_receive  # noqa: E402
 
 APPLIED = ("[stretto-pin] rank 0: 2 pin(s) active\n[stretto-pin] rank 0: applied widx=0 src=2 (world 2) tag=5\n"
@@ -160,6 +160,37 @@ class HorizonPins(unittest.TestCase):
         self.assertEqual(req, {("recv", 1, 0)})
         self.assertTrue(all_matched(alt, "[stretto-pin] rank 1: matched widx=0 src=0 id=0:-1:x\n", req))
         self.assertFalse(all_matched(alt, "[stretto-pin] rank 1: applied widx=0 id=0:-1:x\n", req))
+
+    def test_flag_flip_is_pinned_in_its_horizon(self):
+        """A probe-flip changes a failed Iprobe, which no probe pin names: the alternative takes
+        the finding's flip pin, the control the recorded false, and the alternative must show
+        the forced call returning true ("matched flip"), not only the pin applied."""
+        from stretto.report import analyze
+        t = mk({0: [failed_iprobe(1), recv(T.ANY, 1, 1, 1)], 1: [send(0, 1)]})
+        (fl,) = analyze(t, with_sp=False).by_class("probe-flip")
+        self.assertEqual(fl.pin, "STRETTO_PIN_FLIP=0:0:1@0:1:x:0")
+        alt, ctl = horizon_pins(t, fl)
+        self.assertEqual(alt, ["STRETTO_PIN_FLIP=0:0:1@0:1:x:0"])     # rank 0 is cut after the probe: its receive is outside
+        self.assertEqual(ctl, ["STRETTO_PIN_FLIP=0:0:-1@0:1:x:0"])
+        req = required_matches(t, fl)
+        self.assertEqual(req, {("flip", 0, 0)})
+        self.assertTrue(all_matched(alt, "[stretto-pin] rank 0: applied flip seg=0 src=1 (world 1) tag=1 id=0:1:x\n"
+                                         "[stretto-pin] rank 0: matched flip seg=0 src=1 tag=1 id=0:1:x\n", req))
+        # applied but never returned true: the flip did not happen
+        self.assertFalse(all_matched(alt, "[stretto-pin] rank 0: applied flip seg=0 src=1 (world 1) tag=1 id=0:1:x\n", req))
+        self.assertFalse(all_matched(alt, "", req))
+        self.assertFalse(all_matched(alt, "[stretto-pin] rank 0: matched flip seg=0 src=1 tag=1 id=0:7:x\n", req))
+        # the control's flip is the recorded false
+        self.assertTrue(all_matched(ctl, "[stretto-pin] rank 0: applied flip seg=0 flag=0 id=0:1:x\n"))
+        self.assertFalse(all_matched(ctl, ""))
+
+    def test_receive_alternative_has_no_flip_pin(self):
+        t = self.trace()
+        f = Finding("1", "1f", "L1", "", recv=(0, 1), send=(3, 0))
+        alt, ctl = horizon_pins(t, f)
+        self.assertEqual(alt, ["STRETTO_PIN=0:0:1@0:1,0:1:3@0:1"])
+        self.assertEqual(bare(ctl), ["STRETTO_PIN=0:0:1,0:1:2"])
+        self.assertEqual(required_matches(t, f), {("recv", 0, 0), ("recv", 0, 1)})
 
 
 
