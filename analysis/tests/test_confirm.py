@@ -15,7 +15,7 @@ from stretto import confirm as C  # noqa: E402
 from stretto import trace as T  # noqa: E402
 from stretto.matching import candidates_full  # noqa: E402
 from stretto.report import Finding  # noqa: E402
-from test_checker import mk, recv, send, wait  # noqa: E402
+from test_checker import failed_iprobe, mk, recv, send, wait  # noqa: E402
 from test_hb import irecv, reply_to_pending_receive, stolen_after_later_receive  # noqa: E402
 
 APPLIED = ("[stretto-pin] rank 0: 2 pin(s) active\n[stretto-pin] rank 0: applied widx=0 src=2 (world 2) tag=5\n"
@@ -160,6 +160,39 @@ class HorizonPins(unittest.TestCase):
         self.assertEqual(req, {("recv", 1, 0)})
         self.assertTrue(all_matched(alt, "[stretto-pin] rank 1: matched widx=0 src=0 id=0:-1:x\n", req))
         self.assertFalse(all_matched(alt, "[stretto-pin] rank 1: applied widx=0 id=0:-1:x\n", req))
+
+    def test_flag_flip_is_pinned_in_its_horizon(self):
+        """A probe-flip changes a failed Iprobe, which no probe pin names: the alternative takes
+        the finding's flip pin, the control the recorded false, and the alternative must show
+        the forced call returning true ("matched flip"), not only the pin applied."""
+        from stretto.report import analyze
+        t = mk({0: [failed_iprobe(1), recv(T.ANY, 1, 1, 1)], 1: [send(0, 1)]})
+        (fl,) = analyze(t, with_sp=False).by_class("probe-flip")
+        self.assertEqual(fl.pin, "STRETTO_PIN_FLIP=0:1:1@0:1:x:0")     # key 1: the poll follows init
+        alt, ctl = horizon_pins(t, fl)
+        self.assertEqual(alt, ["STRETTO_PIN_FLIP=0:1:1@0:1:x:0"])     # rank 0 is cut after the probe: its receive is outside
+        self.assertEqual(ctl, ["STRETTO_PIN_FLIP=0:1:-1@0:1:x:0"])
+        req = required_matches(t, fl)
+        self.assertEqual(req, {("flip", 0, 1)})
+        self.assertTrue(all_matched(alt, "[stretto-pin] rank 0: applied flip key=1 src=1 (world 1) tag=1 id=0:1:x\n"
+                                         "[stretto-pin] rank 0: matched flip key=1 src=1 tag=1 id=0:1:x\n", req))
+        # applied but never returned true: the flip did not happen
+        self.assertFalse(all_matched(alt, "[stretto-pin] rank 0: applied flip key=1 src=1 (world 1) tag=1 id=0:1:x\n", req))
+        self.assertFalse(all_matched(alt, "", req))
+        self.assertFalse(all_matched(alt, "[stretto-pin] rank 0: matched flip key=1 src=1 tag=1 id=0:7:x\n", req))
+        # a flip forced at another key is another poll's
+        self.assertFalse(all_matched(alt, "[stretto-pin] rank 0: matched flip key=2 src=1 tag=1 id=0:1:x\n", req))
+        # the control's flip is the recorded false
+        self.assertTrue(all_matched(ctl, "[stretto-pin] rank 0: applied flip key=1 flag=0 id=0:1:x\n"))
+        self.assertFalse(all_matched(ctl, ""))
+
+    def test_receive_alternative_has_no_flip_pin(self):
+        t = self.trace()
+        f = Finding("1", "1f", "L1", "", recv=(0, 1), send=(3, 0))
+        alt, ctl = horizon_pins(t, f)
+        self.assertEqual(alt, ["STRETTO_PIN=0:0:1@0:1,0:1:3@0:1"])
+        self.assertEqual(bare(ctl), ["STRETTO_PIN=0:0:1,0:1:2"])
+        self.assertEqual(required_matches(t, f), {("recv", 0, 0), ("recv", 0, 1)})
 
 
 
@@ -343,6 +376,30 @@ class TraceMatches(unittest.TestCase):
             seen = set()
             self.assertEqual(judge_replay(d, "FINISHED", "STRETTO_PIN=0:0:1", seen), ("True", ""))
             self.assertEqual(seen, {("recv", 0, 0)})
+
+    def test_a_trace_over_the_limit_is_not_read(self):
+        """A replay that hung in a polling loop can write gigabytes: over the limit its trace is
+        not loaded, the verdict is unknown, no pin counts as taken from it, and the pins are
+        judged from the pin log alone."""
+        with tempfile.TemporaryDirectory() as d:
+            for rank, recs in {0: [recv(T.ANY, 0, 1, 0, widx=0)], 1: [send(0, 0)]}.items():
+                with open(os.path.join(d, f"rank-{rank}.jsonl"), "w") as fh:
+                    fh.write("".join(json.dumps(r) + "\n" for r in [{"op": "init", "np": 2}] + recs + [{"op": "finalize"}]))
+            size = sum(os.path.getsize(os.path.join(d, f)) for f in os.listdir(d))
+            old = C.MAX_JUDGED_TRACE_BYTES
+            try:
+                C.MAX_JUDGED_TRACE_BYTES = size - 1
+                seen, ended = set(), set()
+                valid, why = judge_replay(d, "TIMEOUT", "STRETTO_PIN=0:0:1", seen, [], ended)
+                self.assertEqual(valid, "unknown")
+                self.assertTrue(why.startswith("trace not judged"), why)
+                self.assertEqual((seen, ended), (set(), set()))
+                self.assertFalse(all_matched(["STRETTO_PIN=0:0:1"], "", None, seen))
+                self.assertTrue(all_matched(["STRETTO_PIN=0:0:1"], "[stretto-pin] rank 0: matched widx=0 src=1\n", None, seen))
+                C.MAX_JUDGED_TRACE_BYTES = size
+                self.assertEqual(judge_replay(d, "FINISHED", "STRETTO_PIN=0:0:1", seen), ("True", ""))
+            finally:
+                C.MAX_JUDGED_TRACE_BYTES = old
 
 
 def on_a_dup(tag=7, site_offset=0x1234):

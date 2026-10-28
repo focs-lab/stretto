@@ -318,7 +318,7 @@ def claims(n: dict) -> list:
     claim(6, "HYPRE 3.2.0 with a tag for even levels (the fix): no trace of ex5 has a cross-level alternative",
           ["nHypreNewFixTraced", "nHypreNewFixExposed", "nHypreNewFixCrossAlts"], lambda t, e, a: t > 0 and e == 0 and a == 0,
           over=["nHypreNewFixTraced"])
-    # four documented bugs from projects' histories (experiments/cabana/, stempy/, mfem332/, lammps/)
+    # five documented bugs from projects' histories (experiments/cabana/, stempy/, mfem332/, dealii8929/, lammps/)
     claim(6, "Cabana fbbcc37f: every clean traced run predicts the hang (a deadlock finding)",
           ["nCabanaClean", "nCabanaExposed"], lambda c, e: c > 0 and c == e, over=["nCabanaClean"])
     claim(6, "Cabana fbbcc37f: every replay of an error finding hangs with its pins matched, and every control finishes",
@@ -342,6 +342,19 @@ def claims(n: dict) -> list:
     claim(6, "MFEM 3.4, the fix: no clean traced run has a cross-call alternative, and no untraced run fails",
           ["nMfemGroupFixClean", "nMfemGroupFixCrossAlts", "nMfemGroupFixStressRuns", "nMfemGroupFixStressFail"],
           lambda c, x, r, f: x == 0 and f == 0, over=["nMfemGroupFixClean", "nMfemGroupFixStressRuns"])
+    claim(6, "deal.II 2c1b27fb (NBX, issue 8929): every clean traced run predicts a probe of one call taking the next call's request",
+          ["nDealNbxClean", "nDealNbxExposed"], lambda c, e: c > 0 and c == e, over=["nDealNbxClean"])
+    claim(6, "deal.II 2c1b27fb: every cross alternative is replayed, forces its flip and prints wrong answers",
+          ["nDealNbxCrossAlts", "nDealNbxCrossReplayed", "nDealNbxCrossMatched", "nDealNbxCrossFail"],
+          lambda a, r, m, f: a > 0 and a == r == m == f, over=["nDealNbxCrossAlts"])
+    claim(6, "deal.II 2c1b27fb: every replay whose control printed the expected answers is confirmed; the others are inconclusive",
+          ["nDealNbxCrossReplayed", "nDealNbxCrossControlsOk", "nDealNbxCrossConfirmed", "nDealNbxCrossInconclusive"],
+          lambda r, c, k, i: k == c > 0 and c + i == r, over=["nDealNbxCrossReplayed"])
+    claim(6, "deal.II f9ea3396, the fix: no clean traced run has a cross alternative, and no untraced run fails",
+          ["nDealNbxFixClean", "nDealNbxFixCrossAlts", "nDealNbxFixStressRuns", "nDealNbxFixStressFail"],
+          lambda c, x, r, f: c > 0 and x == 0 and r > 0 and f == 0, over=["nDealNbxFixClean", "nDealNbxFixStressRuns"])
+    claim(6, "deal.II 2c1b27fb: fewer than one untraced run in twenty, plain or delayed, shows the race",
+          ["nDealNbxStressRuns", "nDealNbxStressFail"], lambda r, f: r > 0 and 20 * f < r, over=["nDealNbxStressRuns"])
     claim(6, "LAMMPS 3a2da51a: every traced run that finished predicts the deadlock below a 4-byte eager threshold",
           ["nLammpsClean", "nLammpsExposed", "BLammps"], lambda c, e, b: c > 0 and c == e and b == 4, over=["nLammpsClean"])
     claim(6, "LAMMPS 3a2da51a: every rerun just below the bound hangs, every rerun at it and with the defaults finishes",

@@ -251,6 +251,7 @@ class Trace:
     incomplete: List[Tuple[str, str]] = field(default_factory=list)  # (reason, detail): why the trace is not a complete record of the run's communication (report.Report.degrade)
     guards: List[Rec] = field(default_factory=list)      # the buffer guard's records (misused buffers of pending operations)
     poll_seg: Dict[Tuple[int, int], int] = field(default_factory=dict)  # (rank, idx) of a failed poll -> its poll segment (poll_segments)
+    poll_key: Dict[Tuple[int, int], int] = field(default_factory=dict)  # the same -> its key, the calls before it that are not failed polls
     guard: Dict[int, int] = field(default_factory=dict)  # rank -> 1 guard on, 0 asked for but off (absent: not asked for)
     sites: Dict[Tuple[int, int], dict] = field(default_factory=dict)    # (rank, site id) -> the tracer's site record
     _site_ids: Dict[int, "array"] = field(default_factory=dict, repr=False)   # rank -> site id per record, -1 if none
@@ -837,11 +838,17 @@ def poll_segments(t: Trace) -> None:
     times it spins, since the replay library sees one call per iteration and the tracer folds
     repeats into one record; what ends a segment is a call that is not a failed poll, which a
     program consistent with the trace issues at the same point in every run that follows it.
-    The flip pin (replay/pin.h, STRETTO_PIN_FLIP) names a failed poll by its segment, counted
-    the same way by the replay library. Side records that are not the program's calls (a
-    table overflow, the buffer guard's records) are skipped."""
+    Side records that are not the program's calls (a table overflow, the buffer guard's
+    records) are skipped.
+
+    Each failed poll also gets its key (Trace.poll_key): the number of the rank's calls before
+    it that are not failed polls. The flip pin (replay/pin.h, STRETTO_PIN_FLIP) names a failed
+    poll by its key, which the replay library counts the same way. A segment's polls share
+    one key, and two segments never do; but a replay of the same calls can have fewer or more
+    segments before a given one, since a loop that finds a message at once does not fail
+    between two of its calls, and the key does not change with that."""
     for rank, recs in t.ranks.items():
-        seg, inside = 0, False
+        seg, inside, calls = 0, False, 0
         for rec in recs:
             if rec.op in NOT_CALLS:
                 continue
@@ -849,8 +856,10 @@ def poll_segments(t: Trace) -> None:
                 if not inside:
                     seg, inside = seg + 1, True
                 t.poll_seg[(rank, rec.idx)] = seg - 1
+                t.poll_key[(rank, rec.idx)] = calls
             else:
                 inside = False
+                calls += 1
 
 
 def _complete_at_status(obj, st: dict, worldg, rank: int) -> None:

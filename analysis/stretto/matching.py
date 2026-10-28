@@ -545,14 +545,15 @@ POLL_PROBES = ("iprobe", "improbe")     # the probes whose flag can go either wa
 
 def _canonical_polls(t: Trace, items) -> list:
     """Of items (x, rank, record index, identity), in record order per rank, the first of each
-    identity and call site within a poll segment (trace.poll_segments). The records of one
-    segment have only failed polls between them, which have no edge but program order, so a
-    flip at a later record of a segment is the flip at the first record of its identity, with
-    the same horizon and the same graph up to failed polls; and the replay library forces the
-    first call of the identity in the segment (STRETTO_PIN_FLIP)."""
+    identity and call site among the failed polls of one key (Trace.poll_key: the rank's calls
+    before them that are not failed polls; in the trace, the polls of one segment). These
+    records have only failed polls between them, which have no edge but program order, so a
+    flip at a later one is the flip at the first record of its identity, with the same horizon
+    and the same graph up to failed polls; and the replay library forces the first call of the
+    identity with that key (STRETTO_PIN_FLIP)."""
     out, seen = [], set()
     for x, rank, idx, ident in items:
-        k = (rank, t.poll_seg.get((rank, idx)), ident, t.site_of(rank, idx))
+        k = (rank, t.poll_key.get((rank, idx)), ident, t.site_of(rank, idx))
         if k in seen:
             continue
         seen.add(k)
@@ -567,8 +568,8 @@ def flip_candidates(t: Trace, hb=None) -> List[Tuple[Probe, Optional[Send]]]:
     accepts, s is the earliest send of that source's queue that p accepts and that no receive
     posted before p took, no matched probe before p removed and no cancel withdrew (the
     non-overtaking kernel, as for probe_candidates), and that does not causally follow p's
-    completion in the observed run. Failed probes are taken once per identity and poll
-    segment (_canonical_polls). A true probe returning false needs no message: a false flag
+    completion in the observed run. Failed probes are taken once per identity and poll key
+    (_canonical_polls). A true probe returning false needs no message: a false flag
     is always a possible result, the model guaranteeing no progress, so every Iprobe or
     Improbe that saw a message is a candidate."""
     hb = hb or observed_hb(t)
@@ -613,12 +614,12 @@ def test_flip_candidates(t: Trace, hb=None) -> List[Tuple[object, Recv, Send]]:
     that returned false, while r was later completed in the run with s: the call could have
     found r complete, had r been matched to s before it (docs/model.md §3, flag flips). s must
     not causally follow the call's completion in the observed run. Calls on several requests
-    (Testall, Testany, Testsome) are not flipped. Taken once per request and poll segment."""
+    (Testall, Testany, Testsome) are not flipped. Taken once per request and poll key."""
     hb = hb or observed_hb(t)
     cands = []
     for rank, recs in t.ranks.items():
         for rec in recs:
-            if (rank, rec.idx) not in t.poll_seg or rec.op != "wait" or rec.raw.get("kind") not in ("test", "getstatus"):
+            if (rank, rec.idx) not in t.poll_key or rec.op != "wait" or rec.raw.get("kind") not in ("test", "getstatus"):
                 continue
             reqs = [q for q in rec.raw.get("reqs", []) if q is not None and q >= 0]
             if len(reqs) != 1:

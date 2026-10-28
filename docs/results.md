@@ -6,8 +6,8 @@ E2, E6 and the E3 and E7 inputs come from `experiments/run_remaining.sh` on the 
 (the container of `experiments/container/`, 12 cores of one NUMA node); the HYPRE campaign from
 `experiments/hypre/campaign.sh`, the NPB MG and deal.II campaigns from `experiments/npbmg/run.sh` and
 `experiments/dealii/run.sh`, the HYPRE 3.2.0 and PETSc campaigns (E5f) from `experiments/hypre3/run.sh` and
-`experiments/petsc/run.sh`, the four bugs of projects' histories (E5g) from `experiments/cabana/`, `stempy/`,
-`mfem332/` and `lammps/run.sh`, Nekbone from `experiments/nekbone/run.sh` and the scale campaign (E11)
+`experiments/petsc/run.sh`, the five bugs of projects' histories (E5g) from `experiments/cabana/`, `stempy/`,
+`mfem332/`, `dealii8929/` and `lammps/run.sh`, Nekbone from `experiments/nekbone/run.sh` and the scale campaign (E11)
 from `experiments/scale/run.sh` there. The MUST verdicts
 are carried over from MUST 1.9.2 runs under MPICH in MPI-BugBench's own container, with the same timeout
 per program, and those of MUST 1.11.2 from the image of `experiments/must/`; NINJA's runs come from
@@ -1066,7 +1066,7 @@ alternatives of every trace (any B: realisable at every threshold). Rows by code
 On `ex45` some cross alternatives of every multi-level trace are realisable at
 every threshold; the scan does not replay, and its rows do not record which probes those alternatives belong to.
 
-## E5g: four documented bugs from projects' histories (Cabana, stempy, MFEM 3.3.2, LAMMPS)
+## E5g: five documented bugs from projects' histories (Cabana, stempy, MFEM 3.3.2, deal.II's NBX, LAMMPS)
 
 Each bug is reproduced from the project's own history: the version with the bug, its fix, and a driver that
 reaches the code (the project's own test or input where there is one). A run is *clean* when it exits with
@@ -1173,6 +1173,43 @@ Untraced runs, plain and with random send and receive delays of 0 to 20 ms per r
 | 3.4 | twomesh | 8 | plain | 40 | 0 | 0 | - |
 | 3.4 | twomesh | 8 | delays | 40 | 0 | 0 | - |
 
+### deal.II `ConsensusAlgorithm_NBX` (October 2019), a probe of one call takes the next call's request (wrong answers; issue #8929)
+
+`experiments/dealii8929/run.sh`; rows by code commit: 0d4323a (1700).
+
+| version | ranks | traced runs | clean | clean runs that predict it | findings of the clean runs (class/level) | error findings replayed | replay results | pins matched | controls finished | confirmed, replay a run of the program | cross / same alternatives | cross replayed | cross replay results | failed or wrong output | pins matched | runs of the program | controls finished with correct output |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 2c1b27fb | 4 | 10 | 10 | 10 | probe-alt/L1 360, probe-flip/L1 346, probe-unflip/L1 360 | 0 | - | 0 | 0 | 0 | 240 / 466 | 240 | FINISHED 240 | 240 | 240 | 240 | 186 |
+| 2c1b27fb | 8 | 10 | 10 | 10 | probe-alt/L1 5040, probe-flip/L1 1929, probe-unflip/L1 1680 | 0 | - | 0 | 0 | 0 | 1120 / 5849 | 1120 | FINISHED 1120 | 1120 | 1120 | 1120 | 728 |
+| f9ea3396 | 4 | 10 | 10 | 0 | probe-alt/L1 360, probe-flip/L1 9, probe-unflip/L1 360 | 0 | - | 0 | 0 | 0 | 0 / 369 | 0 | - | 0 | 0 | 0 | 0 |
+| f9ea3396 | 8 | 10 | 10 | 0 | probe-alt/L1 5040, probe-flip/L1 14, probe-unflip/L1 1680 | 0 | - | 0 | 0 | 0 | 0 / 5054 | 0 | - | 0 | 0 | 0 | 0 |
+
+The cross alternatives are flag flips (probe-flip, L1): a failed `MPI_Iprobe(MPI_ANY_SOURCE, 12)` of one call's loop after
+its `MPI_Ibarrier` that could return another rank's request of the next call. The driver, `experiments/dealii8929/nbx_calls.cc`,
+calls `ConsensusAlgorithm_NBX` three times back to back. The replay forces the flip (`STRETTO_PIN_FLIP`, its poll named by the
+rank's calls before it) and the recorded matching over the horizon. Every replay printed the wrong answer the alternative
+predicts, for the predicted pair of ranks: the next call's request answered from the earlier call (checked on the kept
+outputs of the campaign, not in the table). Its control forces the
+recorded false once and pins nothing after the horizon, so under the replay library the race also strikes on its own,
+mostly in other ranks' loops: a replay counts as confirmed only where its control printed the expected output, and the
+others are inconclusive. Untraced runs rarely show the race. Campaign of 28 Oct 2026 (apollo, node 0, 12 processors):
+`TIMEOUT=5 JOBS=1`.
+At 4 ranks: 186 of 240 replays confirmed, 54 inconclusive (the control printed wrong answers).
+At 8 ranks: 728 of 1120 replays confirmed, 392 inconclusive (the control printed wrong answers).
+
+Untraced runs, plain and with random send and receive delays of 0 to 20 ms per rank from the replay library.
+
+| version | driver | ranks | setting | runs | failed | hung | how the failures ended |
+|---|---|---|---|---|---|---|---|
+| 2c1b27fb | nbx_calls 3 | 4 | plain | 40 | 0 | 0 | - |
+| 2c1b27fb | nbx_calls 3 | 4 | delays | 40 | 0 | 0 | - |
+| 2c1b27fb | nbx_calls 3 | 8 | plain | 40 | 1 | 0 | FINISHED 1 |
+| 2c1b27fb | nbx_calls 3 | 8 | delays | 40 | 1 | 0 | FINISHED 1 |
+| f9ea3396 | nbx_calls 3 | 4 | plain | 40 | 0 | 0 | - |
+| f9ea3396 | nbx_calls 3 | 4 | delays | 40 | 0 | 0 | - |
+| f9ea3396 | nbx_calls 3 | 8 | plain | 40 | 0 | 0 | - |
+| f9ea3396 | nbx_calls 3 | 8 | delays | 40 | 0 | 0 | - |
+
 ### LAMMPS `Irregular::create_atom`, blocking count sends before the wildcard receives (deadlock without eager buffering; 411c069b)
 
 `experiments/lammps/run.sh`: traced runs analysed at L1, then untraced runs with Open MPI's default settings and
@@ -1207,7 +1244,7 @@ the corpora with the limit forced down).
 | 411c069b | in.displace | 8 | eager | 40 | 0 | 0 | - |
 
 
-## E5h: the other tools on the bugs of E5g and two new ones (MUST, NINJA, MPI-PRV)
+## E5h: the other tools on four bugs of E5g and two new ones (MUST, NINJA, MPI-PRV)
 
 The tools the paper compares with, on the bugs of E5g and the two found since: MUST 1.11.2 (20 runs per
 configuration under `mustrun`, MUST's image, MPICH; `experiments/must/apps.sh` with `CASES=hist`), NINJA

@@ -671,27 +671,30 @@ by replay: the pin forces the flip and the program runs its own branch, and the 
 the recorded result (`STRETTO_PIN_FLIP`, below).
 
 *Naming a failed poll.* A polling loop spins a number of times that differs from run to run,
-and the tracer folds repeated failed polls into one record. A failed poll is therefore named by
-its poll segment (`trace.poll_segments`): a maximal run of failed polls of any kind on a rank
-with no other call between them, numbered from the start of the rank, the buffer guard's and
-overflow records skipped. A program consistent with σ issues the same calls between segments,
-so the replay library counts the same segments (`replay/pin.h`, `STRETTO_PIN_FLIP=rank:seg:src
-[:tag]@comm:tag:site:found`: the first call of that identity in that segment, whose source and
-tag arguments admit the pinned ones, waits until the message is available and returns it; `-1`,
-the control, returns false without polling; `-2` completes a test's request). A replay that
-follows the trace only up to a point counts other segments after it (a loop that finds its
-messages in another order has its segments elsewhere), and its forced call could then wait for
-a message that never comes; found, the number of the rank's wildcard probes that found a message
-before the call, is compared at the call, and a replay that meets it after another number ends
-as misapplied (inconclusive) instead. The check is partial: a replay can reach the segment with
-the same number after another call (a Testall that succeeded earlier, a nonblocking barrier
-entered later), and its forced call can then wait for a message that the rank's own missing
-call holds back. Such a replay ends by the timeout without "matched flip" and is inconclusive;
-only a replay whose flip matched counts (on a driver of the NBX consensus pattern, 26 Oct 2026,
-half the replays of the flips of one rank were of this kind). Within a segment the
-records have only failed polls between them, which have no edge but program order, so a flip
-at a later record of a segment is the flip at the first record of its identity and call site,
-with the same horizon; only that one is enumerated. An unflip is pinned by the probe ordinal
+and the tracer folds repeated failed polls into one record. A poll is an Iprobe or Improbe, or
+an MPI_Test, Testall, Testany, Testsome or MPI_Request_get_status; it failed when it returned
+false (no index, for Testany and Testsome). A failed poll is named by its key
+(`Trace.poll_key`, `trace.poll_segments`): the number of the rank's calls before it that are
+not failed polls, the buffer guard's and overflow records skipped. A program consistent with σ
+issues the same calls between its failed polls, so the replay library counts the same keys
+(`replay/pin.h`, `STRETTO_PIN_FLIP=rank:key:src[:tag]@comm:tag:site:found`: the first call of
+that identity after exactly key such calls, whose source and tag arguments admit the pinned
+ones, waits until the message is available and returns it; `-1`, the control, returns false
+without polling; `-2` completes a test's request; "matched flip key=K" reports the forced call
+returning true, and only that line confirms the flip). The polls of one key are those of one
+poll segment, a maximal run of failed polls with no other call between them; but the ordinal of
+a segment is not a name: a loop that finds its message at once in a replay does not fail
+between two of its calls, and the later segments are numbered one lower. A name by segment
+ordinal sent forced calls to an earlier loop, where they waited for a message that the rank's
+own later calls hold back (on a driver of deal.II's NBX consensus algorithm, 28 Oct 2026, 9 of
+the first 33 replays hung so). A replay that follows the trace only up to a point can still
+reach a key after other calls; found, the number of the rank's wildcard probes that found a
+message before the call, is compared at the call, and a replay that meets it after another
+number ends as misapplied (inconclusive) instead. A replay whose forced call never returns ends
+by the timeout without "matched flip" and is inconclusive. The records of one key have only
+failed polls between them, which have no edge but program order, so a flip at a later record is
+the flip at the first record of its identity and call site, with the same horizon; only that
+one is enumerated. An unflip is pinned by the probe ordinal
 (`STRETTO_PIN_PROBE` with source `-1`: the call returns false once).
 
 `R*` must survive the closure (`witness_kept`): a blocking changed receive must complete inside

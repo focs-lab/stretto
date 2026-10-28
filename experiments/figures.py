@@ -200,9 +200,15 @@ alternative. Along the way: PETSc passes `-pc_hypre_parasails_nlevels` to HYPRE 
 <p align="center"><img src="docs/figures/hypre32.svg" width="760" alt="HYPRE 3.2.0 ParaSails results"></p>
 """
     history = ""
+    nbx = (f"| deal.II `ConsensusAlgorithm_NBX` (2019), a probe of one call takes the next call's request (issue #8929) "
+           f"| {t('nDealNbxExposed')} of {t('nDealNbxClean')} (L1, a flag flip) | {t('nDealNbxCrossFail')} of "
+           f"{t('nDealNbxCrossReplayed')} replays print wrong answers | {t('nDealNbxCrossControlsOk')} of {t('nDealNbxCrossReplayed')} "
+           f"correct; the others inconclusive | {t('nDealNbxStressFail')} of {t('nDealNbxStressRuns')} runs fail "
+           f"({t('nDealNbxStressPlainFail')} of {t('nDealNbxStressPlainRuns')} plain) | no cross alternative in {t('nDealNbxFixClean')} runs |\n"
+           if v("nDealNbxClean") else "")
     if v("nCabanaClean") and v("nStempyClean") and v("nMfemGroupClean") and v("nLammpsClean"):
         history = f"""
-**Four documented bugs from projects' histories.** Each was fixed and described by its project;
+**{'Five' if nbx else 'Four'} documented bugs from projects' histories.** Each was fixed and described by its project;
 each case builds the version with the bug and its fix and runs a driver that reaches the code
 (the project's own unit test or input where there is one). Stress testing is untraced runs,
 plain and with random delays.
@@ -212,7 +218,7 @@ plain and with random delays.
 | Cabana `createFromImports`, a round-1 wildcard receive takes a round-2 id (PR #835) | {t('nCabanaExposed')} of {t('nCabanaClean')} (deadlock, L1+SP) | {t('nCabanaReplayHang')} of {t('nCabanaReplayed')} replays hang | {t('nCabanaControlsFinish')} of {t('nCabanaReplayed')} finish | {t('nCabanaStressHang')} of {t('nCabanaStressRuns')} runs hang ({t('nCabanaStressPlainHang')} of {t('nCabanaStressPlainRuns')} plain) | no finding in {t('nCabanaFixClean')} runs |
 | stempy 3.3.5 `gatherEvents`, the map receive takes another worker's size (issue #292) | {t('nStempyExposed')} of {t('nStempyClean')} (L1) | {t('nStempyCrossFail')} of {t('nStempyCrossReplayed')} replays fail, cereal throws | {t('nStempyCrossControlsOk')} of {t('nStempyCrossReplayed')} correct | {t('nStempyStressFail')} of {t('nStempyStressRuns')} runs fail ({t('nStempyStressPlainFail')} of {t('nStempyStressPlainRuns')} plain) | no alternative in {t('nStempyFixClean')} runs |
 | MFEM 3.3.2 `GroupTopology::Create`, a receive takes the next mesh's row (c52c6243b) | {t('nMfemGroupExposed')} of {t('nMfemGroupClean')} (L1) | {t('nMfemGroupCrossFail')} of {t('nMfemGroupCrossReplayed')} replays fail ({t('nMfemGroupFourCrossFail')} of {t('nMfemGroupFourCrossReplayed')} at 4 ranks) | {t('nMfemGroupCrossControlsOk')} of {t('nMfemGroupCrossReplayed')} correct ({t('nMfemGroupFourCrossControlsOk')} of {t('nMfemGroupFourCrossReplayed')}) | {t('nMfemGroupStressFail')} of {t('nMfemGroupStressRuns')} runs fail ({t('nMfemGroupStressPlainFail')} of {t('nMfemGroupStressPlainRuns')} plain) | no cross alternative in {t('nMfemGroupFixClean')} runs |
-| LAMMPS `Irregular::create_atom`, blocking count sends before the receives (411c069b) | {t('nLammpsExposed')} of {t('nLammpsClean')} (deadlock below {t('BLammps')} bytes) | {t('nLammpsBelowHang')} of {t('nLammpsBelowRuns')} runs hang just below the bound | {t('nLammpsAtFinish')} of {t('nLammpsAtRuns')} finish at it | {t('nLammpsStressPlainHang')} of {t('nLammpsStressPlainRuns')} plain and {t('nLammpsStressDelayHang')} of {t('nLammpsStressDelayRuns')} delayed runs hang; {t('nLammpsStressEagerHang')} of {t('nLammpsStressEagerRuns')} with the eager limit forced down | no finding in {t('nLammpsFixClean')} runs |
+{nbx}| LAMMPS `Irregular::create_atom`, blocking count sends before the receives (411c069b) | {t('nLammpsExposed')} of {t('nLammpsClean')} (deadlock below {t('BLammps')} bytes) | {t('nLammpsBelowHang')} of {t('nLammpsBelowRuns')} runs hang just below the bound | {t('nLammpsAtFinish')} of {t('nLammpsAtRuns')} finish at it | {t('nLammpsStressPlainHang')} of {t('nLammpsStressPlainRuns')} plain and {t('nLammpsStressDelayHang')} of {t('nLammpsStressDelayRuns')} delayed runs hang; {t('nLammpsStressEagerHang')} of {t('nLammpsStressEagerRuns')} with the eager limit forced down | no finding in {t('nLammpsFixClean')} runs |
 """
     reads = ""
     if v("nReadsProgs"):

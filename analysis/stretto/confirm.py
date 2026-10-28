@@ -138,7 +138,7 @@ Ident = Tuple[Optional[int], Optional[int], Optional[int]]     # (communicator, 
 class PinToken:
     kind: str                 # "recv" (STRETTO_PIN), "probe" (STRETTO_PIN_PROBE) or "flip" (STRETTO_PIN_FLIP)
     rank: int
-    idx: int                  # widx, pidx, or a flip's poll segment
+    idx: int                  # widx, pidx, or a flip's poll key (Trace.poll_key)
     src: int                  # the sender's world rank; -1 a flag 0, -2 a test's request (flips, replay/pin.h)
     tag: Optional[int]        # the tag an ANY_TAG operation takes, None if the pin names none
     ident: Optional[Ident]    # the traced operation's identity, None in a token without it
@@ -275,14 +275,14 @@ def _expected(pins) -> Dict[Tuple[str, int, int], Optional[Ident]]:
 
 
 _LINE = re.compile(r"\[stretto-pin\] rank (\d+): (matched widx|applied widx|applied probe pidx|applied unflip pidx"
-                   r"|applied flip seg|matched flip seg)=(\d+)\b([^\n]*)")
+                   r"|applied flip key|matched flip key)=(\d+)\b([^\n]*)")
 # what each line says, and the pin it shows taken: a receive pin when its receive completed, a
 # probe pin when the probe found its message or returned false as pinned (unflip), a flip pin
 # when the forced call returned true (matched flip) or false as pinned (applied flip ... flag=0)
 _WHAT = {"matched widx": "matched", "applied widx": "applied", "applied probe pidx": "probe",
-         "applied unflip pidx": "unflip", "applied flip seg": "flip-applied", "matched flip seg": "flip"}
+         "applied unflip pidx": "unflip", "applied flip key": "flip-applied", "matched flip key": "flip"}
 _LINE_ID = re.compile(r"\bid=(-?[0-9]+|x):(-?[0-9]+|x):([0-9a-f]+|x)")
-_MISAPPLIED = re.compile(r"\[stretto-pin\] rank \d+: (?:probe |flip )?pin (?:widx|pidx|seg)=\d+ misapplied[^\n]*")
+_MISAPPLIED = re.compile(r"\[stretto-pin\] rank \d+: (?:probe |flip )?pin (?:widx|pidx|key)=\d+ misapplied[^\n]*")
 
 
 def _lines(stderr: str):
@@ -384,7 +384,9 @@ def horizon_pins(t, f: Finding, B=None, infeasible_ok: bool = False, M=None, cha
     """Pins that force, in a replay, the alternative's execution over its whole horizon, and the
     control: every wildcard receive (STRETTO_PIN) and every wildcard probe that found a message
     (STRETTO_PIN_PROBE) posted inside the horizon is pinned to the sender it took in the run,
-    and the changed one to the alternative's (the control keeps the observed sender there too).
+    and the changed one to the alternative's (the control keeps the observed sender there too);
+    the failed poll of a flag flip takes the finding's STRETTO_PIN_FLIP, and the control its
+    recorded false.
     The receive a steal leaves without a message is not pinned in the alternative: it has no
     sender there, and pinning it to its observed one would ask for a match the alternative
     excludes. Pinning the changed operation alone leaves the earlier wildcard operations free
@@ -402,8 +404,9 @@ def horizon_pins(t, f: Finding, B=None, infeasible_ok: bool = False, M=None, cha
 def required_matches(t, f: Finding, B=None, infeasible_ok: bool = False, M=None, changed=None) -> Optional[Set[Tuple[str, int, int]]]:
     """The pins of horizon_pins(t, f, B) whose match a replay must show: ("recv", rank, widx)
     for a pinned receive whose completion lies inside the horizon, ("probe", rank, pidx) for a
-    pinned probe. A receive posted inside the horizon but completed beyond it is pinned to steer
-    the run, yet its wait may lie after the predicted hang, where its match cannot be logged."""
+    pinned probe, ("flip", rank, key) for a flag flip's forced poll. A receive posted inside the
+    horizon but completed beyond it is pinned to steer the run, yet its wait may lie after the
+    predicted hang, where its match cannot be logged."""
     h = _horizon(t, f, B, infeasible_ok, M, changed)
     return None if h is None else h[2]
 
@@ -444,6 +447,16 @@ def _horizon(t, f: Finding, B=None, infeasible_ok: bool = False, M=None, changed
         return None
     cut = chk.cut
     required: Set[Tuple[str, int, int]] = set()
+    # a flag flip changes a failed poll, which no probe pin names: its own pin (STRETTO_PIN_FLIP,
+    # the message to return) forces it in the alternative, and the control pins the recorded
+    # false (control_pin); the alternative must show "matched flip key" for the pin's key, the
+    # forced call returning true
+    flip = change[0] == "probe" and not t.probes[change[1]].flag
+    if flip:
+        ftoks = [k for k in pin_tokens(f.pin) if k.kind == "flip"] if f.pin else []
+        if len(ftoks) != 1:
+            return None
+        flip_ctl = control_pin(t, f.pin)
 
     def specs(alternative: bool) -> List[str]:
         rtok, ptok = [], []
@@ -475,6 +488,10 @@ def _horizon(t, f: Finding, B=None, infeasible_ok: bool = False, M=None, changed
             out.append("STRETTO_PIN=" + ",".join(rtok))
         if ptok:
             out.append("STRETTO_PIN_PROBE=" + ",".join(ptok))
+        if flip:
+            out.append(f.pin if alternative else flip_ctl)
+            if alternative:
+                required.add(("flip", ftoks[0].rank, ftoks[0].idx))
         return out
 
     return specs(True), specs(False), required
@@ -742,6 +759,13 @@ def trace_misapplied(t, pins) -> List[str]:
     return out
 
 
+# The largest replay trace judge_replay reads, about two million records. A replay that hangs
+# in a polling loop of two alternating calls (an Iprobe and a Test, which the tracer's folding of
+# repeats does not cover) writes records until its timeout: gigabytes in 20 s on a driver of
+# deal.II's NBX algorithm, which took a worker past 24 GB to load (28 Oct 2026).
+MAX_JUDGED_TRACE_BYTES = 200 * 1024 * 1024
+
+
 def judge_replay(tracedir: str, result: str, pins=None, seen: Optional[set] = None,
                  misapplied: Optional[list] = None, ended: Optional[set] = None) -> Tuple[str, str]:
     """("True", "") if the trace a replay recorded in tracedir is a run of the program without
@@ -749,8 +773,14 @@ def judge_replay(tracedir: str, result: str, pins=None, seen: Optional[set] = No
     classify_rc), ("False", the violation), or ("unknown", why) when the trace cannot be read or
     its readings are too many. seen, if given, receives the pins the trace shows taken
     (trace_matches), misapplied the pins that fell on another operation (trace_misapplied),
-    ended the pinned receives still pending where their rank stopped (trace_ended)."""
+    ended the pinned receives still pending where their rank stopped (trace_ended). A trace of
+    more than MAX_JUDGED_TRACE_BYTES is not read: ("unknown", "trace not judged: ..."), and the
+    replay's pins are then judged from its pin log alone (all_matched on its stderr)."""
     from . import trace as trace_mod
+    size = sum(os.path.getsize(os.path.join(tracedir, f)) for f in os.listdir(tracedir)
+               if os.path.isfile(os.path.join(tracedir, f))) if os.path.isdir(tracedir) else 0
+    if size > MAX_JUDGED_TRACE_BYTES:
+        return "unknown", f"trace not judged: {size} bytes, over the limit of {MAX_JUDGED_TRACE_BYTES}"
     try:
         t = trace_mod.load(tracedir)
     except Exception as e:  # noqa: BLE001  (a run killed while writing: judged unknown, not fatal)
@@ -991,7 +1021,7 @@ def run_checked(np: int, exe: str, args: List[str], pin, timeout: int = 20, mpi:
         if keep_as is not None and keep_mod.enabled():
             keep_mod.keep(d, keep_as[0], keep_as[1], notes={"replay.txt": note() + f"\n--- stdout\n{r.stdout}"})
         return Replay(r, res, valid, why, seen, misapplied_pins(r, res, mis),
-                      None if why.startswith("trace unreadable") else ended)
+                      None if why.startswith(("trace unreadable", "trace not judged")) else ended)
     finally:
         shutil.rmtree(d, ignore_errors=True)
 
