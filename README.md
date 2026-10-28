@@ -144,9 +144,11 @@ nothing in those runs reports it.
 **A third documented bug.** deal.II 9.3.0-rc1's `RemotePointEvaluation` takes each call's
 messages with a wildcard probe under one tag, and nothing separates two calls on one cached
 object, so a probe can take a message of the next call; upstream fixed it before 9.3.0 ("fix
-race condition if called multiple times"). Every one of 20 clean runs of
-deal.II's own test predicts it. Forced, all 1 440 replays finish with status 0
-and print wrong values, in the two calls the code predicts; the fix has no such alternative.
+race condition if called multiple times"). Every one of 19 clean runs of
+deal.II's own test predicts it (of 20 traced runs; in the other, the traced run itself
+took the next call's message). Forced, all 1 440 replays finish with status 0 and
+1 439 print wrong values, all 1 368 of those from clean runs among them, in
+the two calls the code predicts; the fix has no such alternative.
 Here testing finds the race too: 42 of 50 runs
 with random delays print wrong values, 0 of 50
 plain runs.

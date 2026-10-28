@@ -1068,6 +1068,16 @@ def dealii():
         num(f"n{prefix}SameAlts", sum(int(r.get("same_alternatives") or 0) for r in per_run.values()))
         num(f"n{prefix}OtherAlts", sum(int(r.get("other_alternatives") or 0) for r in per_run.values()))
         if version == "9.3.0-rc1":
+            # A clean run is one whose traced run printed the expected output: a traced run that
+            # already took the next call's message shows the race and predicts nothing new
+            clean = {k for k, r in per_run.items() if r.get("traced_expected") == "True"}
+            cross_clean = [r for r in cross if (r["np"], r["run"]) in clean]
+            num("nDealClean", len(clean))
+            num("nDealCleanExposed", len({(r["np"], r["run"]) for r in ok
+                                          if r.get("pin") and r.get("kind") == "cross"} & clean))
+            num("nDealCleanReplayed", len(cross_clean))
+            num("nDealCleanFinished", sum(r.get("replay") == "FINISHED" for r in cross_clean))
+            num("nDealCleanWrong", sum(r.get("differs") == "True" for r in cross_clean))
             num("nDealReplayed", len(cross))
             num("nDealMatched", sum(r.get("matched") == "True" for r in cross))
             num("nDealFinished", sum(r.get("replay") == "FINISHED" for r in cross))
@@ -3241,6 +3251,7 @@ PROPORTIONS = (
         ("nMGExposed", "nMGTraced", "NPB MG 2.4.1"),
         ("nMGFixedExposed", "nMGFixedTraced", "NPB MG 3.3.1, the fix"),
         ("nDealExposed", "nDealTraced", "deal.II 9.3.0-rc1"),
+        ("nDealCleanExposed", "nDealClean", "deal.II 9.3.0-rc1, clean runs only"),
         ("nDealFixedExposed", "nDealFixedTraced", "deal.II 9.3.0, the fix"))),
     ("Untraced runs, plain and with the replay library's random delays (stress testing)", (
         ("nHypreStressDelayHang", "nHypreStressDelayRuns", "HYPRE 2.10.1, runs with delays that hang"),

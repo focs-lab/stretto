@@ -1913,6 +1913,7 @@ Traced runs with a cross alternative (the race predicted from one run):
 | NPB MG 2.4.1 | 3 of 3 | [0.44, 1] | `nMGExposedCI` |
 | NPB MG 3.3.1, the fix | 0 of 3 | [0, 0.56] | `nMGFixedExposedCI` |
 | deal.II 9.3.0-rc1 | 20 of 20 | [0.84, 1] | `nDealExposedCI` |
+| deal.II 9.3.0-rc1, clean runs only | 19 of 19 | [0.83, 1] | `nDealCleanExposedCI` |
 | deal.II 9.3.0, the fix | 0 of 20 | [0, 0.16] | `nDealFixedExposedCI` |
 
 Untraced runs, plain and with the replay library's random delays (stress testing):

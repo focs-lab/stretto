@@ -273,9 +273,14 @@ def claims(n: dict) -> list:
           over=["nHypreFixedTraced"])
     claim(6, "stress testing never hits the HYPRE hang", ["nHypreStressRuns", "nHypreStressHang"],
           lambda r, h: r > 0 and h == 0, over=["nHypreStressRuns"])
-    claim(6, "deal.II 9.3.0-rc1: every cross alternative is replayed, finishes and prints wrong values",
-          ["nDealAlts", "nDealReplayed", "nDealFinished", "nDealWrong"], lambda a, r, f, w: a > 0 and a == r == f == w,
-          over=["nDealAlts"])
+    claim(6, "deal.II 9.3.0-rc1: every clean traced run predicts the race, and every cross alternative of a clean run "
+             "is replayed, finishes and prints wrong values",
+          ["nDealClean", "nDealCleanExposed", "nDealCleanReplayed", "nDealCleanFinished", "nDealCleanWrong"],
+          lambda c, e, r, f, w: c > 0 and c == e and r > 0 and r == f == w, over=["nDealClean"])
+    claim(6, "deal.II 9.3.0-rc1: every cross alternative is replayed and finishes, and all those of clean runs print "
+             "wrong values",
+          ["nDealAlts", "nDealReplayed", "nDealFinished", "nDealWrong", "nDealCleanReplayed"],
+          lambda a, r, f, w, cr: a > 0 and a == r == f and w >= cr, over=["nDealAlts"])
     claim(6, "NINJA hangs HYPRE 2.10.1 in the ParaSails setup in some runs, the fix in none",
           ["nNinjaHypreHang", "nNinjaHypreFixedRuns", "nNinjaHypreFixedHang"], lambda h, r, f: h > 0 and r > 0 and f == 0,
           over=["nNinjaHypreRuns", "nNinjaHypreFixedRuns"])
@@ -374,9 +379,10 @@ def claims(n: dict) -> list:
           over=["nMGTraced", "nMGDistinctPins"])
     claim(2, "on MBI, every labelled error Stretto finds is found by MUST 1.9.2 or by stress testing at the default limits",
           ["nMBIUnionStrettoNeither"], lambda n: n == 0, over=["nMBIUnionErrors", "nMBIUnionStretto"])
-    claim(2, "on MBI, Stretto's lead over stress testing at the default limits is not significant at the 5% level "
-             "(exact two-sided sign test)",
-          ["nMBISignStressStretto", "nMBISignStressOther", "MBISignStressP"], lambda s, o, p: s > o and p > 0.05,
+    claim(2, "on MBI, Stretto's lead over stress testing at the default limits is significant at the 5% level against "
+             "every repeated stress pass (exact two-sided sign test) and pooled over the repetitions (paired "
+             "permutation test)",
+          ["nRepsStressPasses", "nRepsStressPassSig", "RepsStressRateP"], lambda n, s, p: n > 0 and s == n and p < 0.05,
           over=["nMBIUnionErrors"])
     claim(2, "on MBI, Stretto finds significantly more labelled errors than MUST 1.9.2 under both scorings "
              "(exact two-sided sign test, 5%)",
