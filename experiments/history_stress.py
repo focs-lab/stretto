@@ -16,16 +16,20 @@ Settings:
            self transport's, at B plus the TCP header measured in experiments/results/b_impl.csv),
            and no delays.
 A run is a failure when it does not finish (TIMEOUT for a hang, MPI-ERROR:... or APP-ERROR:N,
-stretto.confirm.classify_rc) or when its output does not match --ok. Every run runs in a fresh
-directory; the output of a failure is kept under outputs/ next to the table (not committed).
---label names what the table's rows run (for example the test and its repetitions), so that
-several invocations, each with its own arguments, append to one table.
+stretto.confirm.classify_rc) or when its output is wrong: it does not match --ok, or the
+function judge(stdout, *ARG) of --judge FILE [ARG ...] does not return "ok" (its verdict is the
+says column, as in experiments/history_predict.py). Every run runs in a fresh directory, empty
+or, with --base DIR, a copy of DIR (for a program that writes into its directory); the output
+of a failure is kept under outputs/ next to the table (not committed). --label names what the
+table's rows run (for example the test and its repetitions), so that several invocations, each
+with its own arguments, append to one table.
 
 usage: history_stress.py --version V --label L --np N [N ...] --runs R --out CSV
                          [--settings plain delays eager] [--eager B] [--timeout S] [--jobs J]
-                         [--mpi openmpi] [--ok REGEX] -- <exe> [args ...]
+                         [--mpi openmpi] [--ok REGEX] [--judge FILE [ARG ...]] [--base DIR]
+                         -- <exe> [args ...]
 Appends to CSV (written with its header when new, refused when its header differs) one row per
-run: version, label, np, run, setting, result, ok, seconds, commit.
+run: version, label, np, run, setting, result, ok, says, seconds, commit.
 """
 from __future__ import annotations
 import argparse
@@ -35,6 +39,7 @@ import csv
 import os
 import random
 import re
+import runpy
 import shutil
 import subprocess
 import sys
@@ -50,7 +55,7 @@ from provenance import code_commit  # noqa: E402
 from b_impl import tcp, tcp_header  # noqa: E402
 
 DELAYS_MS = [0, 0, 0, 1, 5, 20]
-KEYS = ["version", "label", "np", "run", "setting", "result", "ok", "seconds", "commit"]
+KEYS = ["version", "label", "np", "run", "setting", "result", "ok", "says", "seconds", "commit"]
 
 
 def delays(np: int, i: int) -> dict:
@@ -71,6 +76,9 @@ def main() -> int:
     ap.add_argument("--jobs", type=int, default=1)
     ap.add_argument("--mpi", default="openmpi")
     ap.add_argument("--ok", default=None)
+    ap.add_argument("--judge", nargs="+", default=None, metavar=("FILE", "ARG"),
+                    help="a Python file defining judge(stdout, *ARG) -> 'ok' or what is wrong, and its arguments")
+    ap.add_argument("--base", default=None, help="run every run in a fresh copy of this directory")
     ap.add_argument("--out", required=True)
     ap.add_argument("cmd", nargs=argparse.REMAINDER)
     a = ap.parse_args()
@@ -79,6 +87,8 @@ def main() -> int:
         ap.error("no program given")
     exe, args = os.path.abspath(cmd[0]), cmd[1:]
     out = os.path.abspath(a.out)
+    judge = runpy.run_path(os.path.abspath(a.judge[0]))["judge"] if a.judge else None
+    base = os.path.abspath(a.base) if a.base else None
     eager = []
     if "eager" in a.settings:
         header = tcp_header()
@@ -90,6 +100,8 @@ def main() -> int:
     def run(np: int, i: int, setting: str) -> dict:
         w = tempfile.mkdtemp(prefix="history-stress-")
         try:
+            if base:
+                shutil.copytree(base, w, dirs_exist_ok=True, symlinks=True)
             if setting == "delays":
                 p = run_pinned(np, exe, args, None, a.timeout, a.mpi, extra_env=delays(np, i), cwd=w)
                 el = p.elapsed
@@ -102,7 +114,8 @@ def main() -> int:
         finally:
             shutil.rmtree(w, ignore_errors=True)
         res = classify_rc(p.returncode, p.stderr, el, a.timeout)
-        ok = bool(re.search(a.ok, p.stdout + p.stderr)) if a.ok else True
+        says = judge(p.stdout, *a.judge[1:]) if judge else "ok"
+        ok = (bool(re.search(a.ok, p.stdout + p.stderr)) if a.ok else True) and says == "ok"
         if res != "FINISHED" or not ok:
             d = os.path.join(os.path.dirname(out), "outputs")
             os.makedirs(d, exist_ok=True)
@@ -110,7 +123,7 @@ def main() -> int:
                 fh.write(f"{' '.join(p.args) if isinstance(p.args, list) else p.args}\nstatus {p.returncode}\n--- stdout\n"
                          f"{p.stdout[-20000:]}\n--- stderr\n{p.stderr[-20000:]}")
         return {"version": a.version, "label": a.label, "np": np, "run": i, "setting": setting, "result": res, "ok": ok,
-                "seconds": round(el, 1), "commit": commit}
+                "says": says, "seconds": round(el, 1), "commit": commit}
 
     jobs = [(np, i, s) for np in a.np for i in range(1, a.runs + 1) for s in a.settings]
     rows = []
