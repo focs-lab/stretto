@@ -69,26 +69,10 @@ case "$check" in
         value=$(sed -n 's/.*||X - Xtrue|| \/ ||X|| = *\([^ \t]*\).*/\1/p' <<< "$txt" | head -1)
         [ "$result" = FINISHED ] && wrong=$(python3 -c "print('$value' == '' or float('$value') > 1e-4)");;
     qe)
-        # the rows of ph.x's elph_prt table (spin, bands, mode: enk, enk+q, |g_sym|) that differ
-        # from the reference's (STRETTO_MUST_QE_REF, one process): eigenvalues by more than 5e-5,
-        # |g_sym| by more than 5e-3 relative; a missing row counts
+        # the rows of ph.x's elph_prt table that differ from the reference's (STRETTO_MUST_QE_REF,
+        # one process; experiments/elph_rows.py)
         if grep -q "JOB DONE" run.out 2>/dev/null; then
-            value=$(python3 - run.out "$STRETTO_MUST_QE_REF" <<'PY'
-import re, sys
-row = re.compile(r"^\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(-?\d+\.\d+)\s+(-?\d+\.\d+)\s+(-?\d+\.\d+)\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s*$")
-def table(path):
-    t = {}
-    for line in open(path, errors="replace"):
-        m = row.match(line)
-        if m:
-            t[tuple(map(int, m.group(1, 2, 3, 4)))] = (float(m[5]), float(m[6]), float(m[8]))
-    return t
-a, b = table(sys.argv[1]), table(sys.argv[2])
-bad = sum(1 for k in b if k not in a or abs(a[k][0] - b[k][0]) > 5e-5 or abs(a[k][1] - b[k][1]) > 5e-5
-          or abs(a[k][2] - b[k][2]) > 5e-3 * max(abs(b[k][2]), 1e-3))
-print(bad + sum(1 for k in a if k not in b) if b else "no-reference")
-PY
-)
+            value=$(python3 /w/experiments/elph_rows.py run.out "$STRETTO_MUST_QE_REF")
             # judged once ph.x printed JOB DONE, whether or not mustrun ended after it
             { [ "$value" = 0 ] && wrong=False || wrong=True; }
         fi;;
