@@ -1,0 +1,35 @@
+diff --git a/PHonon/PH/elphon.f90 b/PHonon/PH/elphon.f90
+index 953d1d770..0c3d1a43f 100644
+--- a/PHonon/PH/elphon.f90
++++ b/PHonon/PH/elphon.f90
+@@ -1495,22 +1495,24 @@ SUBROUTINE elph_prt()
+     ALLOCATE(el_ph_mat2(nbnd, nbnd, nspn, 3 * nat))
+     ALLOCATE(et2(nbnd, 2,  nspn))
+   ENDIF
++  ! The tags depend on the spin: with LSDA the two spins of the k point can be held by two
++  ! different pools, which send at the same time, and the receives below take any source.
+   DO ispn = 1, nspn
+     IF (found(ispn) .AND. (me_bgrp == root_bgrp) .AND. (.NOT. ionode)) THEN
+       CALL MPI_SEND(el_ph_mat(:, :, ik1(ispn), :), nbnd * nbnd * 3 * nat, MPI_DOUBLE_COMPLEX, &
+-                    root_image, 4 * nproc_image, intra_image_comm, ierr)
++                    root_image, 4 * nproc_image + ispn - 1, intra_image_comm, ierr)
+       CALL MPI_SEND(et(:, ikk(ispn)), nbnd, MPI_DOUBLE_PRECISION, root_image, &
+-                    6 * nproc_image, intra_image_comm, ierr)
++                    6 * nproc_image + ispn - 1, intra_image_comm, ierr)
+       CALL MPI_SEND(et(:, ikq(ispn)), nbnd, MPI_DOUBLE_PRECISION, root_image, &
+-                    6 * nproc_image, intra_image_comm, ierr)
++                    6 * nproc_image + ispn - 1, intra_image_comm, ierr)
+     ELSEIF (ionode) THEN
+       IF (.NOT. found(ispn)) THEN
+         CALL MPI_RECV(el_ph_mat2(:, :, ispn, :), nbnd * nbnd * 3 * nat, MPI_DOUBLE_COMPLEX, &
+-                      MPI_ANY_SOURCE, 4 * nproc_image, intra_image_comm, istatus, ierr )
++                      MPI_ANY_SOURCE, 4 * nproc_image + ispn - 1, intra_image_comm, istatus, ierr )
+         CALL MPI_RECV(et2(:, 1, ispn), nbnd, MPI_DOUBLE_PRECISION, MPI_ANY_SOURCE, &
+-                      6 * nproc_image, intra_image_comm, istatus, ierr )
++                      6 * nproc_image + ispn - 1, intra_image_comm, istatus, ierr )
+         CALL MPI_RECV(et2(:, 2, ispn), nbnd, MPI_DOUBLE_PRECISION, MPI_ANY_SOURCE, &
+-                      6 * nproc_image, intra_image_comm, istatus, ierr )
++                      6 * nproc_image + ispn - 1, intra_image_comm, istatus, ierr )
+       ELSE
+         el_ph_mat2(:, :, ispn, :) = el_ph_mat(:, :, ik1(ispn), :)
+         et2(:, 1, ispn) = et(:, ikk(ispn))
