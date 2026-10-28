@@ -29,16 +29,29 @@
 #            one call of createFromImports and once with --gtest_repeat=2 (two calls in one run),
 #            TIMEOUT seconds each (experiments/history_stress.py)
 #   fixed    predict and stress on the fix, 38170631
+#   ninja    NINJA (experiments/ninja/build.sh, Open MPI library) on the test at the commit with
+#            the bug: NINJA_RUNS runs per process count of STRESS_NPS in its random (10% of the
+#            sends by 50 ms), system- and application-centric modes, TIMEOUT seconds each, the
+#            test's verdict recorded as the mark "ok" (experiments/ninja/run.py). With NINJA's
+#            library loaded the test aborts at exit, after its verdict (ninja-check), so a
+#            learning run counts when the test passed (--learn-mark ok)
+#   ninja-fixed  the same on the fix
+#   ninja-check  CHECK_RUNS runs at both commits and each process count, plain and with NINJA's
+#            library loaded but no send delayed (random mode, a ratio of 1e-6%), as on deal.II
+#            (experiments/dealii/run.sh ninja-check)
 #   all      fetch build predict stress fixed
-# Writes experiments/results/cabana/{predict,stress}-{fbbcc37f,38170631}.csv.
-# usage: experiments/cabana/run.sh [fetch|build|predict|stress|fixed|all]
-#        NPS (3), STRESS_NPS ("3 4"), RUNS (15), STRESS_RUNS (40), TIMEOUT (30), JOBS (3),
-#        MAKE_JOBS (8), CABANA_DIR (third_party/apps/cabana)
+# Writes experiments/results/cabana/{predict,stress}-{fbbcc37f,38170631}.csv and
+# experiments/results/ninja/cabana{,-fix,-check}.csv.
+# usage: experiments/cabana/run.sh [fetch|build|predict|stress|fixed|ninja|ninja-fixed|ninja-check|all]
+#        NPS (3), STRESS_NPS ("3 4"), RUNS (15), STRESS_RUNS (40), NINJA_RUNS (40), TIMEOUT (30),
+#        JOBS (3), MAKE_JOBS (8), CABANA_DIR (third_party/apps/cabana), MPI_CC and MPI_CXX (the
+#        build's MPI wrappers, default Open MPI's: experiments/must/apps.sh builds with MPICH's)
 set -uo pipefail
 R="$(cd "$(dirname "$0")/../.." && pwd)"; cd "$R"
 D="${CABANA_DIR:-$R/third_party/apps/cabana}"
 OUT="$R/experiments/results/cabana"; mkdir -p "$OUT"
 NPS="${NPS:-3}"; STRESS_NPS="${STRESS_NPS:-3 4}"; RUNS="${RUNS:-15}"; STRESS_RUNS="${STRESS_RUNS:-40}"; TIMEOUT="${TIMEOUT:-30}"
+MPI_CC="${MPI_CC:-/usr/bin/mpicc.openmpi}"; MPI_CXX="${MPI_CXX:-/usr/bin/mpicxx.openmpi}"
 source "$R/experiments/harness.sh"
 export STRETTO_COMMIT="${STRETTO_COMMIT:-$(python3 "$R/experiments/provenance.py")}"
 # the container refuses process_vm_readv, the single-copy mechanism of Open MPI's shared-memory
@@ -88,7 +101,7 @@ step_build() {
         [ -x "$(exe "${v:0:8}")" ] && continue
         (CC=/usr/bin/gcc CXX=/usr/bin/g++ "$CMAKE" -S "$D/Cabana-$v" -B "$D/build-${v:0:8}" -DCMAKE_BUILD_TYPE=Release \
              -DCabana_ENABLE_TESTING=ON -DCabana_REQUIRE_MPI=ON -DCabana_ENABLE_EXAMPLES=OFF -DCabana_ENABLE_PERFORMANCE_TESTING=OFF \
-             -DMPI_C_COMPILER=/usr/bin/mpicc.openmpi -DMPI_CXX_COMPILER=/usr/bin/mpicxx.openmpi \
+             -DMPI_C_COMPILER="$MPI_CC" -DMPI_CXX_COMPILER="$MPI_CXX" \
              -DCMAKE_PREFIX_PATH="$D/kokkos;$D/gtest" > "$D/cabana-${v:0:8}.log" 2>&1 \
          && "$CMAKE" --build "$D/build-${v:0:8}" -j "$j" --target Cabana_Core_Test_CommunicationPlan_MPI_SERIAL \
              >> "$D/cabana-${v:0:8}.log" 2>&1) || { echo "build of Cabana ${v:0:8} failed ($D/cabana-${v:0:8}.log)" >&2; return 1; }
@@ -107,11 +120,42 @@ stress() {    # stress <commit>
     python3 experiments/history_stress.py "${s[@]}" --label Test10NoTopo -- "$(exe "$1")" "${TEST[@]}" \
         && python3 experiments/history_stress.py "${s[@]}" --label Test10NoTopo-repeat2 -- "$(exe "$1")" "${TEST[@]}" --gtest_repeat=2
 }
+ninja() {     # ninja <commit> <table>
+    need_file "$(exe "$1")" || return 1
+    local t="$R/experiments/results/ninja/$2.csv" np m
+    mkdir -p "$(dirname "$t")" && rm -f "$t"
+    for np in $STRESS_NPS; do
+        for m in random system app; do
+            local extra=(); [ $m = random ] && extra=(--rand-ratio 10 --rand-delay 50000)
+            python3 experiments/ninja/run.py runs --np "$np" --mode $m "${extra[@]}" --runs "${NINJA_RUNS:-40}" --timeout "$TIMEOUT" \
+                --mpi openmpi --label "Test10NoTopo-$1" --out "$t" --marks "ok=$OK" --learn-mark ok --keep "$R/experiments/results/ninja/logs" \
+                -- "$(exe "$1")" "${TEST[@]}"; [ $? != 3 ] || return 1
+        done
+    done
+}
+ninja_check() {
+    # does NINJA's library alone change the runs? CHECK_RUNS plain runs, and CHECK_RUNS with
+    # libninja-fixed.so loaded in random mode at a ratio of 1e-6% (NINJA refuses 0), which delays
+    # one send in 10^8 by a microsecond
+    local t="$R/experiments/results/ninja/cabana-check.csv" v np
+    rm -f "$t"
+    for v in "${BUG:0:8}" "${FIX:0:8}"; do
+        need_file "$(exe "$v")" || return 1
+        for np in $STRESS_NPS; do
+            local a=(--np "$np" --runs "${CHECK_RUNS:-5}" --timeout "$TIMEOUT" --mpi openmpi --out "$t" --marks "ok=$OK"
+                     --keep "$R/experiments/results/ninja/logs")
+            python3 experiments/ninja/run.py runs --mode plain --label "Test10NoTopo-$v" "${a[@]}" -- "$(exe "$v")" "${TEST[@]}" || return 1
+            python3 experiments/ninja/run.py runs --mode random --rand-ratio 0.000001 --rand-delay 1 \
+                --label "Test10NoTopo-$v libninja-fixed" "${a[@]}" -- "$(exe "$v")" "${TEST[@]}" || return 1
+        done
+    done
+}
 for step in "${@:-all}"; do
     case "$step" in
         fetch) step_fetch;; build) step_build;; predict) predict "${BUG:0:8}";; stress) stress "${BUG:0:8}";;
         fixed) predict "${FIX:0:8}" && stress "${FIX:0:8}";;
+        ninja) ninja "${BUG:0:8}" cabana;; ninja-fixed) ninja "${FIX:0:8}" cabana-fix;; ninja-check) ninja_check;;
         all) step_fetch && step_build && predict "${BUG:0:8}" && stress "${BUG:0:8}" && predict "${FIX:0:8}" && stress "${FIX:0:8}";;
-        *) echo "usage: $0 [fetch|build|predict|stress|fixed|all]" >&2; exit 2;;
+        *) echo "usage: $0 [fetch|build|predict|stress|fixed|ninja|ninja-fixed|ninja-check|all]" >&2; exit 2;;
     esac || exit 1
 done

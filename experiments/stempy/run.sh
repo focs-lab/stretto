@@ -37,16 +37,24 @@
 #            and receive delays from the replay library, TIMEOUT seconds each
 #            (experiments/history_stress.py)
 #   fixed    predict and stress on 3.3.6
+#   ninja    NINJA (experiments/ninja/build.sh, Open MPI library) on 3.3.5: NINJA_RUNS runs per
+#            process count in its random (10% of the sends by 50 ms), system- and
+#            application-centric modes, TIMEOUT seconds each, the harness's verdict recorded as
+#            the mark "ok" (experiments/ninja/run.py)
+#   ninja-fixed  the same on 3.3.6
 #   all      fetch build predict stress fixed
 # Writes experiments/results/stempy/{predict-<v>-np4,predict-<v>-np8,stress-<v>}.csv for v in
-# 3.3.5 and 3.3.6.
-# usage: experiments/stempy/run.sh [fetch|build|predict|stress|fixed|all]
-#        RUNS (15), STRESS_RUNS (40), TIMEOUT (30), JOBS (3), STEMPY_DIR (third_party/apps/stempy)
+# 3.3.5 and 3.3.6, and experiments/results/ninja/stempy[-fix].csv.
+# usage: experiments/stempy/run.sh [fetch|build|predict|stress|fixed|ninja|ninja-fixed|all]
+#        RUNS (15), STRESS_RUNS (40), NINJA_RUNS (40), TIMEOUT (30), JOBS (3), STEMPY_DIR
+#        (third_party/apps/stempy), MPI_CC and MPI_CXX (the build's MPI wrappers, default Open
+#        MPI's: experiments/must/apps.sh builds with MPICH's)
 set -uo pipefail
 R="$(cd "$(dirname "$0")/../.." && pwd)"; cd "$R"
 D="${STEMPY_DIR:-$R/third_party/apps/stempy}"
 OUT="$R/experiments/results/stempy"; mkdir -p "$OUT"
 RUNS="${RUNS:-15}"; STRESS_RUNS="${STRESS_RUNS:-40}"; TIMEOUT="${TIMEOUT:-30}"
+MPI_CC="${MPI_CC:-/usr/bin/mpicc.openmpi}"; MPI_CXX="${MPI_CXX:-/usr/bin/mpicxx.openmpi}"
 source "$R/experiments/harness.sh"
 export STRETTO_COMMIT="${STRETTO_COMMIT:-$(python3 "$R/experiments/provenance.py")}"
 # the container refuses process_vm_readv, the single-copy mechanism of Open MPI's shared-memory
@@ -82,7 +90,7 @@ step_build() {
         mkdir -p "$b/include" "$b/lib" "$b/obj" || return 1
         sed -e 's/^#undef \(HAVE_[A-Z_]*_H\)$/#define \1 1/' "$D/BigMPI-$BIGMPI/src/bigmpiconf.h.in" > "$b/obj/bigmpiconf.h"
         for f in sendrecv_x type_contiguous_x utils; do
-            /usr/bin/mpicc.openmpi -O2 -g -I"$b/obj" -I"$D/BigMPI-$BIGMPI/src" -c "$D/BigMPI-$BIGMPI/src/$f.c" -o "$b/obj/$f.o" \
+            "$MPI_CC" -O2 -g -I"$b/obj" -I"$D/BigMPI-$BIGMPI/src" -c "$D/BigMPI-$BIGMPI/src/$f.c" -o "$b/obj/$f.o" \
                 || { echo "build of BigMPI's $f.c failed" >&2; return 1; }
         done
         ar rcs "$b/lib/libbigmpi.a" "$b"/obj/*.o && cp "$D/BigMPI-$BIGMPI/src/bigmpi.h" "$b/include/" || return 1
@@ -92,7 +100,7 @@ step_build() {
         awk '/^void serializeEvents/{on=1} /^void gatherBlocks/{on=0} on' "$s/stempy/electron_mpi.cpp" > "$D/gather-$v.inc"
         grep -q '^void gatherEvents' "$D/gather-$v.inc" || { echo "gatherEvents not found in $v's electron_mpi.cpp" >&2; return 1; }
         mkdir -p "$D/include-$v" && cp "$D/gather-$v.inc" "$D/include-$v/gather.inc" || return 1
-        /usr/bin/mpicxx.openmpi -O2 -g -std=c++17 -I"$D/include-$v" -I"$s/stempy" -I"$s/thirdparty/Empirical/include" \
+        "$MPI_CXX" -O2 -g -std=c++17 -I"$D/include-$v" -I"$s/stempy" -I"$s/thirdparty/Empirical/include" \
             -I"$D/cereal-$CEREAL/include" -I"$b/include" experiments/stempy/harness.cpp -o "$(exe $v)" -L"$b/lib" -lbigmpi \
             || { echo "build of the harness for $v failed" >&2; return 1; }
     done
@@ -110,11 +118,25 @@ stress() {    # stress <version>
     python3 experiments/history_stress.py --version "$1" --label gatherEvents --np 4 8 --runs "$STRESS_RUNS" --timeout "$TIMEOUT" \
         --jobs "${JOBS:-3}" --ok "$OK" --out "$OUT/stress-$1.csv" -- "$(exe "$1")" "${ARGS[@]}"
 }
+ninja() {     # ninja <version> <table>
+    need_file "$(exe "$1")" || return 1
+    local t="$R/experiments/results/ninja/$2.csv" np m
+    mkdir -p "$(dirname "$t")" && rm -f "$t"
+    for np in 4 8; do
+        for m in random system app; do
+            local extra=(); [ $m = random ] && extra=(--rand-ratio 10 --rand-delay 50000)
+            python3 experiments/ninja/run.py runs --np $np --mode $m "${extra[@]}" --runs "${NINJA_RUNS:-40}" --timeout "$TIMEOUT" \
+                --mpi openmpi --label "gatherEvents-$1" --out "$t" --marks "ok=$OK" --value "(Failed to read)" --keep "$R/experiments/results/ninja/logs" \
+                -- "$(exe "$1")" "${ARGS[@]}"; [ $? != 3 ] || return 1
+        done
+    done
+}
 for step in "${@:-all}"; do
     case "$step" in
         fetch) step_fetch;; build) step_build;; predict) predict 3.3.5;; stress) stress 3.3.5;;
         fixed) predict 3.3.6 && stress 3.3.6;;
+        ninja) ninja 3.3.5 stempy;; ninja-fixed) ninja 3.3.6 stempy-fix;;
         all) step_fetch && step_build && predict 3.3.5 && stress 3.3.5 && predict 3.3.6 && stress 3.3.6;;
-        *) echo "usage: $0 [fetch|build|predict|stress|fixed|all]" >&2; exit 2;;
+        *) echo "usage: $0 [fetch|build|predict|stress|fixed|ninja|ninja-fixed|all]" >&2; exit 2;;
     esac || exit 1
 done
