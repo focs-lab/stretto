@@ -40,16 +40,22 @@
 #            horizon and with its control, TIMEOUT seconds each (experiments/history_predict.py)
 #   stress   STRESS_RUNS untraced runs of 9f7c819 per setting, plain and with random send and
 #            receive delays from the replay library, TIMEOUT seconds each, SLOW_TIMEOUT for NOS2
-#            and mhd3200b, whose delayed runs take up to a minute when they finish (about 7 700
-#            MPI calls per process on NOS2) (experiments/history_stress.py)
+#            and mhd3200b, whose delayed runs take up to three minutes when they finish (about
+#            7 700 MPI calls per process on NOS2) (experiments/history_stress.py)
 #   fixed    predict and stress on 9f7c819 with barrier.patch
-#   all      fetch build predict stress fixed
-# Writes experiments/results/superlu3d/predict-<version>-<mpi>-<matrix>-<grid>.csv and
-# stress-<version>-<mpi>.csv for version 9f7c819 and 9f7c819-barrier.
-# usage: experiments/superlu3d/run.sh [fetch|build|predict|stress|fixed|all]
-#        MPIS ("openmpi mpich"), SETTINGS (the five above), RUNS (10), SAMPLE (10), STRESS_RUNS
-#        (40), TIMEOUT (60), SLOW_TIMEOUT (300), JOBS (3), MAKE_JOBS (8), SLU_DIR
-#        (third_party/apps/superlu3d)
+#   tags     on a grid with two process rows a receive can also take the other tag of its own
+#            solve (a broadcast where it took a reduction), which the loop handles, but which
+#            the analysis at L1 reports as class 1b too, with the fix as without it; RUNS traced
+#            runs of the fix per setting of TAG_SETTINGS and a seeded sample of SAMPLE of those
+#            "tag" alternatives replayed with their controls show whether they are harmless
+#   all      fetch build predict stress fixed tags
+# Writes experiments/results/superlu3d/predict-<version>-<mpi>-<matrix>-<grid>.csv,
+# stress-<version>-<mpi>.csv for version 9f7c819 and 9f7c819-barrier, and
+# tags-9f7c819-barrier-<mpi>-<matrix>-<grid>.csv.
+# usage: experiments/superlu3d/run.sh [fetch|build|predict|stress|fixed|tags|all]
+#        MPIS ("openmpi mpich"), SETTINGS (the five above), TAG_SETTINGS (blk8x10:2x3x1), RUNS
+#        (10), SAMPLE (10), STRESS_RUNS (40), TIMEOUT (60), SLOW_TIMEOUT (300), JOBS (3),
+#        MAKE_JOBS (8), SLU_DIR (third_party/apps/superlu3d)
 set -uo pipefail
 R="$(cd "$(dirname "$0")/../.." && pwd)"; cd "$R"
 D="${SLU_DIR:-$R/third_party/apps/superlu3d}"
@@ -126,16 +132,16 @@ step_build() {
     done
 }
 grid() { local g=${1#*:}; IFS=x read -r gr gc gd <<< "$g"; }     # sets gr gc gd from matrix:RxCxD
-predict() {   # predict <version>
-    local mpi s m
+predict() {   # predict <version> [<kind replayed> <table prefix> <settings>]
+    local v=$1 kind=${2:-cross} pre=${3:-predict} settings=${4:-$SETTINGS} mpi s m
     for mpi in $MPIS; do
-        need_file "$(exe "$mpi" "$1")" || return 1
-        for s in $SETTINGS; do
+        need_file "$(exe "$mpi" "$v")" || return 1
+        for s in $settings; do
             m=${s%%:*}; grid "$s"
-            python3 experiments/history_predict.py --version "$1" --mpi "$mpi" --np $((gr * gc * gd)) --runs "$RUNS" --no-sp \
-                --classify experiments/superlu3d/classify.py --replay cross --sample "$SAMPLE" --timeout "$TIMEOUT" \
+            python3 experiments/history_predict.py --version "$v" --mpi "$mpi" --np $((gr * gc * gd)) --runs "$RUNS" --no-sp \
+                --classify experiments/superlu3d/classify.py --replay "$kind" --sample "$SAMPLE" --timeout "$TIMEOUT" \
                 --trace-timeout 120 --jobs "$JOBS" --judge experiments/superlu3d/judge.py \
-                --out "$OUT/predict-$1-$mpi-$m-${s#*:}.csv" -- "$(exe "$mpi" "$1")" -r "$gr" -c "$gc" -d "$gd" "$(matrix "$m")" || return 1
+                --out "$OUT/$pre-$v-$mpi-$m-${s#*:}.csv" -- "$(exe "$mpi" "$v")" -r "$gr" -c "$gc" -d "$gd" "$(matrix "$m")" || return 1
         done
     done
 }
@@ -157,7 +163,9 @@ for step in "${@:-all}"; do
     case "$step" in
         fetch) step_fetch;; build) step_build;; predict) predict "$BUG";; stress) stress "$BUG";;
         fixed) predict "$FIX" && stress "$FIX";;
-        all) step_fetch && step_build && predict "$BUG" && stress "$BUG" && predict "$FIX" && stress "$FIX";;
-        *) echo "usage: $0 [fetch|build|predict|stress|fixed|all]" >&2; exit 2;;
+        tags) predict "$FIX" tag tags "${TAG_SETTINGS:-blk8x10:2x3x1}";;
+        all) step_fetch && step_build && predict "$BUG" && stress "$BUG" && predict "$FIX" && stress "$FIX" \
+             && predict "$FIX" tag tags "${TAG_SETTINGS:-blk8x10:2x3x1}";;
+        *) echo "usage: $0 [fetch|build|predict|stress|fixed|tags|all]" >&2; exit 2;;
     esac || exit 1
 done
