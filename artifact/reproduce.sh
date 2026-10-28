@@ -37,6 +37,8 @@
 #            take 1.3 GB of disk, the runs about 10 hours)
 #   HISTBUGS 0: leave E5g, the four documented bugs of Cabana, stempy, MFEM 3.3.2 and LAMMPS, out
 #            of rq6 (their sources and builds take 1.6 GB of disk, the runs about 1.5 hours)
+#   NEWCASES 0: leave E5h, the two new bugs of SuperLU_DIST 9.3.1 and Quantum ESPRESSO, out of rq6
+#            (their sources and builds take 2.4 GB of disk, the runs about 5.5 hours)
 #   READS    0: leave E3b, the read bounds, out of rq1 and rq4: the maps (in the image of
 #            Dockerfile.firstread), the re-analysis and its replays (experiments/reads/run.sh),
 #            and E6 with read bounds (about 20 minutes on 8 processors)
@@ -165,6 +167,14 @@ histbugs() {
     [ "${HISTBUGS:-1}" = 0 ] && return
     once histbugs box histbugs bash -c "for c in lammps stempy mfem332 cabana; do JOBS=${JOBS:-3} experiments/\$c/run.sh all || exit 1; done"
 }
+# E5h of RQ6, two new bugs: SuperLU_DIST 9.3.1's 3D solve and Quantum ESPRESSO's elph_prt, each
+# fetched and built with the bug and with the proposed fix, predicted from traced runs with
+# replays and controls, and tested by untraced runs (experiments/RUNBOOK.md, "Two new bugs in
+# current code")
+newcases() {
+    [ "${NEWCASES:-1}" = 0 ] && return
+    once newcases box newcases bash -c "for c in qeelph superlu3d; do JOBS=${JOBS:-3} experiments/\$c/run.sh all || exit 1; done"
+}
 
 # E3b, the read bounds of RQ1 and RQ4 (experiments/reads/run.sh): the first-read maps of the
 # corpus run's MBI programs, in the image of Dockerfile.firstread (clang 18), then the corpus run
@@ -275,6 +285,7 @@ t_rq6() {
         && experiments/ninja/campaign.sh hypre && NPS=16 RAND_DELAYS=50000 experiments/ninja/campaign.sh mg"
     newbug
     histbugs
+    newcases
     amg
     nekbone
     hb
