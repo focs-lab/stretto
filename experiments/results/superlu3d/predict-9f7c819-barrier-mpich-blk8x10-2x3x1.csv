@@ -1,0 +1,11 @@
+version,np,run,traced,traced_ok,traced_says,traced_s,records,status,analyse_s,findings,kinds,kinds_B,role,cls,level,kind,pin,B,title,replay,matched,replay_ok,replay_says,run_valid,violation,verdict,strict,control,control_matched,control_ok,control_says,control_valid,control_violation,misapplied,seed,commit
+9f7c819-barrier,6,1,FINISHED,True,ok,4.5,3647,complete,0.3,1b/L1=62;1f/L1=28;2-buffering/observed=1;test-flip/L1=83,same=28;tag=62,same:any B:28;tag:any B:62,,,,,,,,,,,,,,,,,,,,,,,,bcec4e5
+9f7c819-barrier,6,2,FINISHED,True,ok,4.5,3659,complete,0.3,1b/L1=61;1f/L1=28;2-buffering/observed=1;test-flip/L1=91,same=28;tag=61,same:any B:28;tag:any B:61,,,,,,,,,,,,,,,,,,,,,,,,bcec4e5
+9f7c819-barrier,6,3,FINISHED,True,ok,4.5,3621,complete,0.3,1b/L1=61;1f/L1=27;2-buffering/observed=1;test-flip/L1=59,same=27;tag=61,same:any B:27;tag:any B:61,,,,,,,,,,,,,,,,,,,,,,,,bcec4e5
+9f7c819-barrier,6,4,FINISHED,True,ok,4.6,3608,complete,0.3,1b/L1=61;1f/L1=28;2-buffering/observed=1;test-flip/L1=50,same=28;tag=61,same:any B:28;tag:any B:61,,,,,,,,,,,,,,,,,,,,,,,,bcec4e5
+9f7c819-barrier,6,5,FINISHED,True,ok,4.5,3626,complete,0.3,1b/L1=62;1f/L1=30;2-buffering/observed=1;test-flip/L1=65,same=30;tag=62,same:any B:30;tag:any B:62,,,,,,,,,,,,,,,,,,,,,,,,bcec4e5
+9f7c819-barrier,6,6,FINISHED,True,ok,4.5,3633,complete,0.3,1b/L1=62;1f/L1=30;2-buffering/observed=1;test-flip/L1=68,same=30;tag=62,same:any B:30;tag:any B:62,,,,,,,,,,,,,,,,,,,,,,,,bcec4e5
+9f7c819-barrier,6,7,FINISHED,True,ok,4.5,3634,complete,0.3,1b/L1=60;1f/L1=29;2-buffering/observed=1;test-flip/L1=70,same=29;tag=60,same:any B:29;tag:any B:60,,,,,,,,,,,,,,,,,,,,,,,,bcec4e5
+9f7c819-barrier,6,8,FINISHED,True,ok,4.5,3655,complete,0.3,1b/L1=63;1f/L1=28;2-buffering/observed=1;test-flip/L1=87,same=28;tag=63,same:any B:28;tag:any B:63,,,,,,,,,,,,,,,,,,,,,,,,bcec4e5
+9f7c819-barrier,6,9,FINISHED,True,ok,4.5,3660,complete,0.3,1b/L1=62;1f/L1=31;2-buffering/observed=1;test-flip/L1=97,same=31;tag=62,same:any B:31;tag:any B:62,,,,,,,,,,,,,,,,,,,,,,,,bcec4e5
+9f7c819-barrier,6,10,FINISHED,True,ok,4.4,3675,complete,0.3,1b/L1=63;1f/L1=29;2-buffering/observed=1;test-flip/L1=107,same=29;tag=63,same:any B:29;tag:any B:63,,,,,,,,,,,,,,,,,,,,,,,,bcec4e5
