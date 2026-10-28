@@ -377,6 +377,30 @@ class TraceMatches(unittest.TestCase):
             self.assertEqual(judge_replay(d, "FINISHED", "STRETTO_PIN=0:0:1", seen), ("True", ""))
             self.assertEqual(seen, {("recv", 0, 0)})
 
+    def test_a_trace_over_the_limit_is_not_read(self):
+        """A replay that hung in a polling loop can write gigabytes: over the limit its trace is
+        not loaded, the verdict is unknown, no pin counts as taken from it, and the pins are
+        judged from the pin log alone."""
+        with tempfile.TemporaryDirectory() as d:
+            for rank, recs in {0: [recv(T.ANY, 0, 1, 0, widx=0)], 1: [send(0, 0)]}.items():
+                with open(os.path.join(d, f"rank-{rank}.jsonl"), "w") as fh:
+                    fh.write("".join(json.dumps(r) + "\n" for r in [{"op": "init", "np": 2}] + recs + [{"op": "finalize"}]))
+            size = sum(os.path.getsize(os.path.join(d, f)) for f in os.listdir(d))
+            old = C.MAX_JUDGED_TRACE_BYTES
+            try:
+                C.MAX_JUDGED_TRACE_BYTES = size - 1
+                seen, ended = set(), set()
+                valid, why = judge_replay(d, "TIMEOUT", "STRETTO_PIN=0:0:1", seen, [], ended)
+                self.assertEqual(valid, "unknown")
+                self.assertTrue(why.startswith("trace not judged"), why)
+                self.assertEqual((seen, ended), (set(), set()))
+                self.assertFalse(all_matched(["STRETTO_PIN=0:0:1"], "", None, seen))
+                self.assertTrue(all_matched(["STRETTO_PIN=0:0:1"], "[stretto-pin] rank 0: matched widx=0 src=1\n", None, seen))
+                C.MAX_JUDGED_TRACE_BYTES = size
+                self.assertEqual(judge_replay(d, "FINISHED", "STRETTO_PIN=0:0:1", seen), ("True", ""))
+            finally:
+                C.MAX_JUDGED_TRACE_BYTES = old
+
 
 def on_a_dup(tag=7, site_offset=0x1234):
     """Rank 0 receives with ANY_SOURCE and tag on a duplicate of MPI_COMM_WORLD (its local id 2),

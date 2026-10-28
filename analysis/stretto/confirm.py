@@ -759,6 +759,13 @@ def trace_misapplied(t, pins) -> List[str]:
     return out
 
 
+# The largest replay trace judge_replay reads, about two million records. A replay that hangs
+# in a polling loop of two alternating calls (an Iprobe and a Test, which the tracer's folding of
+# repeats does not cover) writes records until its timeout: gigabytes in 20 s on a driver of
+# deal.II's NBX algorithm, which took a worker past 24 GB to load (28 Oct 2026).
+MAX_JUDGED_TRACE_BYTES = 200 * 1024 * 1024
+
+
 def judge_replay(tracedir: str, result: str, pins=None, seen: Optional[set] = None,
                  misapplied: Optional[list] = None, ended: Optional[set] = None) -> Tuple[str, str]:
     """("True", "") if the trace a replay recorded in tracedir is a run of the program without
@@ -766,8 +773,14 @@ def judge_replay(tracedir: str, result: str, pins=None, seen: Optional[set] = No
     classify_rc), ("False", the violation), or ("unknown", why) when the trace cannot be read or
     its readings are too many. seen, if given, receives the pins the trace shows taken
     (trace_matches), misapplied the pins that fell on another operation (trace_misapplied),
-    ended the pinned receives still pending where their rank stopped (trace_ended)."""
+    ended the pinned receives still pending where their rank stopped (trace_ended). A trace of
+    more than MAX_JUDGED_TRACE_BYTES is not read: ("unknown", "trace not judged: ..."), and the
+    replay's pins are then judged from its pin log alone (all_matched on its stderr)."""
     from . import trace as trace_mod
+    size = sum(os.path.getsize(os.path.join(tracedir, f)) for f in os.listdir(tracedir)
+               if os.path.isfile(os.path.join(tracedir, f))) if os.path.isdir(tracedir) else 0
+    if size > MAX_JUDGED_TRACE_BYTES:
+        return "unknown", f"trace not judged: {size} bytes, over the limit of {MAX_JUDGED_TRACE_BYTES}"
     try:
         t = trace_mod.load(tracedir)
     except Exception as e:  # noqa: BLE001  (a run killed while writing: judged unknown, not fatal)
@@ -1008,7 +1021,7 @@ def run_checked(np: int, exe: str, args: List[str], pin, timeout: int = 20, mpi:
         if keep_as is not None and keep_mod.enabled():
             keep_mod.keep(d, keep_as[0], keep_as[1], notes={"replay.txt": note() + f"\n--- stdout\n{r.stdout}"})
         return Replay(r, res, valid, why, seen, misapplied_pins(r, res, mis),
-                      None if why.startswith("trace unreadable") else ended)
+                      None if why.startswith(("trace unreadable", "trace not judged")) else ended)
     finally:
         shutil.rmtree(d, ignore_errors=True)
 
