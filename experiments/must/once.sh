@@ -2,9 +2,11 @@
 # experiments/must/once.sh <np> <timeout> <check> <out dir> <program> [args]: one run under
 # mustrun, in a fresh directory, inside a MUST image (experiments/must/apps.sh); prints
 # result,mustrun_rc,seconds,errors,warnings,deadlock,value,wrong_result
+# (STRETTO_MUST_SETUP: a directory whose contents are copied into the run's directory first)
 np=$1 to=$2 check=$3 out=$4; shift 4
 export PATH=$STRETTO_MUST_DIR/bin:$PATH OMP_NUM_THREADS=1
 mkdir -p "$out"; w=$(mktemp -d); cd "$w"
+[ -n "${STRETTO_MUST_SETUP:-}" ] && cp -a "$STRETTO_MUST_SETUP/." "$w/"
 t0=$SECONDS
 /usr/bin/timeout -k 5 "$to" mustrun -np "$np" --must:mpiexec mpirun.mpich $STRETTO_MUST_ARGS --must:output json "$@" \
     < /dev/null > run.out 2> run.err
@@ -55,6 +57,40 @@ case "$check" in
                          END { if (n > m) d += n - m; print d + 0 }' normalized "$STRETTO_DEALII_EXPECTED")
             # judged only on a run that finished: a killed run leaves its file incomplete or empty
             [ "$result" = FINISHED ] && { [ "$value" = 0 ] && wrong=False || wrong=True; }
+        fi;;
+    match)
+        # the campaign's verdict on its output (STRETTO_MUST_OK, a Python regex): value, how many
+        # times the output has it (once per rank for Cabana's test, once for the others); judged
+        # on a finished run only
+        value=$(STRETTO_MUST_TEXT="$txt" python3 -c "import os, re; print(len(re.findall(os.environ['STRETTO_MUST_OK'], os.environ['STRETTO_MUST_TEXT'])))")
+        [ "$result" = FINISHED ] && { [ "$value" -gt 0 ] && wrong=False || wrong=True; };;
+    xerr)
+        # pddrive3d's ||X - Xtrue|| / ||X||; above 1e-4, or missing from a finished run, is wrong
+        value=$(sed -n 's/.*||X - Xtrue|| \/ ||X|| = *\([^ \t]*\).*/\1/p' <<< "$txt" | head -1)
+        [ "$result" = FINISHED ] && wrong=$(python3 -c "print('$value' == '' or float('$value') > 1e-4)");;
+    qe)
+        # the rows of ph.x's elph_prt table (spin, bands, mode: enk, enk+q, |g_sym|) that differ
+        # from the reference's (STRETTO_MUST_QE_REF, one process): eigenvalues by more than 5e-5,
+        # |g_sym| by more than 5e-3 relative; a missing row counts
+        if grep -q "JOB DONE" run.out 2>/dev/null; then
+            value=$(python3 - run.out "$STRETTO_MUST_QE_REF" <<'PY'
+import re, sys
+row = re.compile(r"^\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(-?\d+\.\d+)\s+(-?\d+\.\d+)\s+(-?\d+\.\d+)\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s*$")
+def table(path):
+    t = {}
+    for line in open(path, errors="replace"):
+        m = row.match(line)
+        if m:
+            t[tuple(map(int, m.group(1, 2, 3, 4)))] = (float(m[5]), float(m[6]), float(m[8]))
+    return t
+a, b = table(sys.argv[1]), table(sys.argv[2])
+bad = sum(1 for k in b if k not in a or abs(a[k][0] - b[k][0]) > 5e-5 or abs(a[k][1] - b[k][1]) > 5e-5
+          or abs(a[k][2] - b[k][2]) > 5e-3 * max(abs(b[k][2]), 1e-3))
+print(bad + sum(1 for k in a if k not in b) if b else "no-reference")
+PY
+)
+            # judged once ph.x printed JOB DONE, whether or not mustrun ended after it
+            { [ "$value" = 0 ] && wrong=False || wrong=True; }
         fi;;
 esac
 # residual and iterations: the bug is a hang; a printed value is the run's own (no reference)

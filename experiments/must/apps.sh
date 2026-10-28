@@ -34,17 +34,39 @@
 # reference, HYPRE's and PETSc's, whose bug is a hang, and for deal.II's output when the run did
 # not finish). The output of every run is kept under experiments/results/must/runs/.
 # Writes experiments/results/must/apps.csv (rows appended; a new table gets the header).
+#
+# CASES=hist: the same steps on the bugs of the projects' histories and the two found since, at
+# the configurations of their stress runs, into experiments/results/must/apps-hist.csv
+# (MUST_APPS_DIR default third_party/apps/must-hist):
+#   Cabana fbbcc37f, CommPlan.Test10NoTopo, 3 and 4 ranks (experiments/cabana/)
+#   stempy 3.3.5, the gatherEvents harness, 4 and 8 ranks (experiments/stempy/)
+#   MFEM 3.3.2, the two-mesh driver, 4 and 8 ranks (experiments/mfem332/)
+#   LAMMPS 3a2da51a, in.displace, 4 and 8 ranks (experiments/lammps/)
+#   SuperLU_DIST 9.3.1, pddrive3d on blk12x6 (grid 1x3x1) and blk8x10 (2x3x1), 3 and 6 ranks
+#   Quantum ESPRESSO 615e40cf, ph.x on the test-suite's Ni at X with electron_phonon='prt',
+#     3 ranks in 3 pools; Fortran, so with MUST_IMAGE=stretto-must:1.11.2-fortran,
+#     MUST_LABEL=1.11.2-fortran and MUST_ARGS="--must:distributed --must:language fortran"
+# The first four are fetched and built by their campaigns' own steps (MPI_CC and MPI_CXX set to
+# MPICH's wrappers), the last two by experiments/must/hist.sh (SLU_MATS: the verification's
+# matrices). Their checks: the campaign's own verdict on the output (match: the regex of its
+# stress runs; value "ok" or "not ok"), the x error of pddrive3d (xerr: above 1e-4 is wrong, as
+# in the verification), and the elph_prt table against the reference of one process (qe: value,
+# the rows whose eigenvalues or |g_sym| differ).
 # usage: experiments/must/apps.sh [fetch|build|run ...]
 #        RUNS (20), FIRST (1: the number of the first run, to add runs to a configuration),
 #        JOBS (1), CPUS (cpuset of every container), MEMORY (24g), CONFIGS (all),
-#        MUST_APPS_DIR (third_party/apps/must), TIMEOUT (per configuration)
+#        MUST_APPS_DIR (third_party/apps/must), TIMEOUT (per configuration), CASES (apps),
+#        PREFIX (stretto-honest: the containers' names), MAKE_JOBS (8), SLU_MATS
 set -uo pipefail
 R="$(cd "$(dirname "$0")/../.." && pwd)"; cd "$R"
-M="${MUST_APPS_DIR:-$R/third_party/apps/must}"; mkdir -p "$M"
+CASES="${CASES:-apps}"; PREFIX="${PREFIX:-stretto-honest}"
+case "$CASES" in apps) sub=must; TABLE_NAME=apps.csv;; hist) sub=must-hist; TABLE_NAME=apps-hist.csv;;
+    *) echo "CASES is apps or hist" >&2; exit 2;; esac
+M="${MUST_APPS_DIR:-$R/third_party/apps/$sub}"; mkdir -p "$M"
 case "$M" in "$R"/*) ;; *) echo "MUST_APPS_DIR must lie inside the repository (it is mounted with it)" >&2; exit 2;; esac
 MW="/w/${M#"$R"/}"                       # the same directory inside the containers
 OUT="$R/experiments/results/must"; mkdir -p "$OUT/runs"
-TABLE="$OUT/apps.csv"
+TABLE="$OUT/$TABLE_NAME"
 RUNS="${RUNS:-20}"; FIRST="${FIRST:-1}"; JOBS="${JOBS:-1}"; MEMORY="${MEMORY:-24g}"
 EXP_IMAGE="${EXP_IMAGE:-stretto-exp:24.04}"; BUILD_IMAGE="${BUILD_IMAGE:-stretto-must:1.11.2}"
 MUST_IMAGE="${MUST_IMAGE:-stretto-must:1.11.2}"; MUST_PREFIX="${MUST_PREFIX:-/MBB-builds/MUST1112}"
@@ -63,15 +85,58 @@ petsc-ex2-4|petsc|3.26.0|4|30|iterations|$MW/petsc/petsc-3.26.0/src/ksp/ksp/tuto
 petsc-ex2-8|petsc|3.26.0|8|30|iterations|$MW/petsc/petsc-3.26.0/src/ksp/ksp/tutorials/ex2 $PS
 npbmg-16|npbmg|2.4.1|16|120|mgnorm|$MW/npb-mg/NPB2.4.1/NPB2.4-MPI/bin/mg.S.16
 dealii-4|dealii|9.3.0-rc1|4|120|dealii|$MW/dealii/drivers-9.3.0-rc1/mapping_01"
+# CASES=hist, with the regexes of the stress runs' verdicts (experiments/<case>/run.sh, OK)
+CB="$MW/cabana/build-fbbcc37f/core/unit_test/Cabana_Core_Test_CommunicationPlan_MPI_SERIAL --gtest_filter=CommPlan.Test10NoTopo"
+LM="$MW/lammps/lammps-3a2da51a8210970a2382185f003fd512c12bada9/src/lmp_mpi -in /w/experiments/lammps/in.displace -log none"
+SLU="$MW/superlu/build/EXAMPLE/pddrive3d"
+HIST="cabana-3|cabana|fbbcc37f|3|60|match|$CB
+cabana-4|cabana|fbbcc37f|4|60|match|$CB
+stempy-4|stempy|3.3.5|4|60|match|$MW/stempy/harness-3.3.5 256 12 5
+stempy-8|stempy|3.3.5|8|60|match|$MW/stempy/harness-3.3.5 256 12 5
+mfem332-4|mfem332|3.3.2|4|60|match|$MW/mfem332/twomesh-3.3.2
+mfem332-8|mfem332|3.3.2|8|60|match|$MW/mfem332/twomesh-3.3.2
+lammps-4|lammps|3a2da51a|4|60|match|$LM
+lammps-8|lammps|3a2da51a|8|60|match|$LM
+cabana-fix-3|cabana|38170631|3|60|match|${CB/fbbcc37f/38170631}
+mfem332-fix-4|mfem332|3.4|4|60|match|$MW/mfem332/twomesh-3.4
+superlu-blk12x6-3|superlu_dist|9.3.1|3|60|xerr|$SLU -r 1 -c 3 -d 1 $MW/superlu/blk12x6.mtx
+superlu-blk8x10-6|superlu_dist|9.3.1|6|60|xerr|$SLU -r 2 -c 3 -d 1 $MW/superlu/blk8x10.mtx
+qe-3|qe|615e40cf|3|120|qe|$MW/qe/build/bin/ph.x -nk 3 -in ph.in"
+declare -A OK_RE=([cabana]='\[  PASSED  \] 1 test\.' [stempy]='gather ok' [mfem332]='(?s)mesh 1:[^\n]* ok.*mesh 2:[^\n]* ok'
+                  [lammps]='Total wall time')
+[ "$CASES" = hist ] && ALL="$HIST"
 
 step_fetch() {
+    [ "$CASES" = hist ] && { fetch_hist; return; }
     docker run --rm --name stretto-honest-fetch "${cpus[@]}" --memory "$MEMORY" --user "$(id -u):$(id -g)" -e HOME=/tmp \
         -e STRETTO_COMMIT -v "$R:/w" -w /w "$EXP_IMAGE" bash -c "
       HYPRE_DIR=$MW/hypre experiments/hypre/run.sh fetch && HYPRE3_DIR=$MW/hypre3 experiments/hypre3/run.sh fetch &&
       PETSC_SRC_DIR=$MW/petsc experiments/petsc/run.sh fetch && NPB_MG_DIR=$MW/npb-mg experiments/npbmg/run.sh fetch &&
       DEALII_DIR=$MW/dealii experiments/dealii/run.sh fetch"
 }
+fetch_hist() {
+    mkdir -p "$M/superlu" && cp "${SLU_MATS:?SLU_MATS names the directory of the verification matrices}"/blk12x6.mtx "$SLU_MATS"/blk8x10.mtx "$M/superlu/" \
+        || return 1
+    docker run --rm --name "$PREFIX-fetch" "${cpus[@]}" --memory "$MEMORY" --user "$(id -u):$(id -g)" -e HOME=/tmp \
+        -e STRETTO_COMMIT -v "$R:/w" -w /w "$EXP_IMAGE" bash -c "
+      CABANA_DIR=$MW/cabana experiments/cabana/run.sh fetch && STEMPY_DIR=$MW/stempy experiments/stempy/run.sh fetch &&
+      MFEM332_DIR=$MW/mfem332 experiments/mfem332/run.sh fetch && LAMMPS_DIR=$MW/lammps experiments/lammps/run.sh fetch &&
+      experiments/must/hist.sh fetch-superlu $MW/superlu && experiments/must/hist.sh fetch-qe $MW/qe"
+}
+build_hist() {
+    local j="${MAKE_JOBS:-8}" w="MPI_CC=/usr/bin/mpicc.mpich MPI_CXX=/usr/bin/mpicxx.mpich MAKE_JOBS=${MAKE_JOBS:-8}"
+    docker run --rm --name "$PREFIX-build" "${cpus[@]}" --memory "$MEMORY" --memory-swap "$MEMORY" \
+        --user "$(id -u):$(id -g)" -e HOME=/tmp -e STRETTO_COMMIT -v "$R:/w" -w /w "$BUILD_IMAGE" bash -c "
+      set -e
+      CABANA_DIR=$MW/cabana $w experiments/cabana/run.sh build
+      STEMPY_DIR=$MW/stempy $w experiments/stempy/run.sh build
+      MFEM332_DIR=$MW/mfem332 $w experiments/mfem332/run.sh build
+      LAMMPS_DIR=$MW/lammps $w experiments/lammps/run.sh build
+      MAKE_JOBS=$j experiments/must/hist.sh build-superlu $MW/superlu
+      MAKE_JOBS=$j experiments/must/hist.sh build-qe $MW/qe"
+}
 step_build() {
+    [ "$CASES" = hist ] && { build_hist; return; }
     # MPICH's wrappers call clang 14 (MPICH_CC, MPICH_CXX in the image); the Fortran of MG is gfortran's
     local j="${MAKE_JOBS:-8}"
     docker run --rm --name stretto-honest-build "${cpus[@]}" --memory "$MEMORY" --memory-swap "$MEMORY" \
@@ -87,10 +152,11 @@ step_build() {
 one_run() {   # one_run <name> <app> <version> <np> <timeout> <check> <i> <program and args>
     local name=$1 app=$2 ver=$3 np=$4 to=$5 check=$6 i=$7 cmd=$8
     local d="experiments/results/must/runs/$MUST_LABEL/$name/$i"; rm -rf "$R/$d"; mkdir -p "$R/$d"
-    local line
-    line=$(docker run --rm --name "stretto-honest-must-$MUST_LABEL-$name-$i" "${cpus[@]}" --memory "$MEMORY" \
+    local line setup=; [ "$check" = qe ] && setup="$MW/qe/run/k39"
+    line=$(docker run --rm --name "$PREFIX-must-$MUST_LABEL-$name-$i" "${cpus[@]}" --memory "$MEMORY" \
         --memory-swap "$MEMORY" --shm-size 4g --user "$(id -u):$(id -g)" -e HOME=/tmp -v "$R:/w" -w /w \
-        -e STRETTO_MUST_DIR="$MUST_PREFIX" -e STRETTO_MUST_ARGS="$MUST_ARGS" \
+        -e STRETTO_MUST_DIR="$MUST_PREFIX" -e STRETTO_MUST_ARGS="$MUST_ARGS" -e STRETTO_MUST_OK="${OK_RE[$app]:-}" \
+        -e STRETTO_MUST_SETUP="$setup" -e STRETTO_MUST_QE_REF="$MW/qe/run/ref-np1.out" \
         -e STRETTO_DEALII_NORMALIZE="$MW/dealii/dealii-9.3.0-rc1/cmake/scripts/normalize.pl" \
         -e STRETTO_DEALII_EXPECTED="$MW/dealii/dealii-9.3.0-rc1/tests/remote_point_evaluation/mapping_01.mpirun=4.output" \
         "$MUST_IMAGE" bash -c "/w/experiments/must/once.sh $np $to $check /w/$d $cmd" 2> "$R/$d/docker.err" | tail -1)
