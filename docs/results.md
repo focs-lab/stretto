@@ -7,7 +7,8 @@ E2, E6 and the E3 and E7 inputs come from `experiments/run_remaining.sh` on the 
 `experiments/hypre/campaign.sh`, the NPB MG and deal.II campaigns from `experiments/npbmg/run.sh` and
 `experiments/dealii/run.sh`, the HYPRE 3.2.0 and PETSc campaigns (E5f) from `experiments/hypre3/run.sh` and
 `experiments/petsc/run.sh`, the four bugs of projects' histories (E5g) from `experiments/cabana/`, `stempy/`,
-`mfem332/` and `lammps/run.sh`, Nekbone from `experiments/nekbone/run.sh` and the scale campaign (E11)
+`mfem332/` and `lammps/run.sh`, the two new bugs of E5h from `experiments/superlu3d/` and `qeelph/run.sh`,
+Nekbone from `experiments/nekbone/run.sh` and the scale campaign (E11)
 from `experiments/scale/run.sh` there. The MUST verdicts
 are carried over from MUST 1.9.2 runs under MPICH in MPI-BugBench's own container, with the same timeout
 per program, and those of MUST 1.11.2 from the image of `experiments/must/`; NINJA's runs come from
@@ -1205,6 +1206,141 @@ the corpora with the limit forced down).
 | 411c069b | in.displace | 8 | plain | 40 | 0 | 0 | - |
 | 411c069b | in.displace | 8 | delays | 40 | 0 | 0 | - |
 | 411c069b | in.displace | 8 | eager | 40 | 0 | 0 | - |
+
+
+## E5h: two new bugs in current code (SuperLU_DIST 9.3.1 3D solve, Quantum ESPRESSO PHonon elph_prt)
+
+Two bugs Stretto found in current code, each a case like those of E5g: the version with the bug, the
+proposed fix, and a driver of the project's own (an example program, a test-suite input). A run is *clean*
+when it exits with status 0 and its output is correct; each clean traced run is analysed, and its *cross*
+alternatives are replayed with the pins of their whole horizon and with their control
+(`experiments/history_predict.py`), under the tracer, which judges each a run of the program without its pins.
+
+### SuperLU_DIST 9f7c819 (= 9.3.1) `pdgstrs3d_newsolve`, the L-solve loop takes a U-solve message (hang or wrong x)
+
+`experiments/superlu3d/run.sh`: `EXAMPLE/pddrive3d` unmodified on the grids of `-r R -c C -d D`; traced runs analysed
+at L1, a seeded sample of each setting's cross alternatives (a receive of one solve's loop taking the other
+solve's message, `experiments/superlu3d/classify.py`) replayed with the pins of their whole horizon and with their
+control; a run is correct when the x error it prints is at most 1e-4 (`judge.py`). The fix, 9f7c819-barrier, is
+`barrier.patch` (the barrier at the end of the L-solve restored). g20 (400 rows, connected) is the contrast.
+Rows by code commit: bcec4e5 (1813), 2266720 (26).
+
+| version | MPI | matrix | grid | traced runs | clean | that predict it | cross alternatives per clean run | at any B | traced runs that failed | replayed | hung | wrong x | pins matched | runs of the program | controls correct | controls runs of the program |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 9f7c819 | openmpi | nos2 | 1x3x1 | 10 | 10 | 10 | 1 | 10 of 10 | 0 | 10 | 10 | 0 | 10 | 10 | 10 | 10 |
+| 9f7c819 | openmpi | mhd3200b | 1x3x1 | 10 | 10 | 10 | 1 | 10 of 10 | 0 | 10 | 10 | 0 | 10 | 10 | 10 | 10 |
+| 9f7c819 | openmpi | blk12x6 | 1x3x1 | 10 | 10 | 10 | 3–7 | 55 of 55 | 0 | 10 | 10 | 0 | 10 | 10 | 10 | 10 |
+| 9f7c819 | openmpi | blk8x10 | 2x3x1 | 10 | 8 | 8 | 21–23 | 176 of 176 | 2 (2 hung) | 10 | 6 | 4 | 10 | 10 | 7 | 10 |
+| 9f7c819 | openmpi | g20 | 1x3x1 | 10 | 10 | 0 | 0 | 0 of 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| 9f7c819 | mpich | nos2 | 1x3x1 | 10 | 10 | 10 | 1 | 10 of 10 | 0 | 10 | 10 | 0 | 10 | 10 | 10 | 10 |
+| 9f7c819 | mpich | mhd3200b | 1x3x1 | 10 | 10 | 10 | 1 | 10 of 10 | 0 | 10 | 10 | 0 | 10 | 10 | 10 | 10 |
+| 9f7c819 | mpich | blk12x6 | 1x3x1 | 10 | 10 | 10 | 5–7 | 58 of 58 | 0 | 10 | 10 | 0 | 10 | 10 | 10 | 10 |
+| 9f7c819 | mpich | blk8x10 | 2x3x1 | 10 | 10 | 10 | 27–30 | 284 of 284 | 0 | 10 | 10 | 0 | 10 | 10 | 10 | 10 |
+| 9f7c819 | mpich | g20 | 1x3x1 | 10 | 10 | 0 | 0 | 0 of 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| 9f7c819-barrier | openmpi | nos2 | 1x3x1 | 10 | 10 | 0 | 0 | 0 of 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| 9f7c819-barrier | openmpi | mhd3200b | 1x3x1 | 10 | 10 | 0 | 0 | 0 of 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| 9f7c819-barrier | openmpi | blk12x6 | 1x3x1 | 10 | 10 | 0 | 0 | 0 of 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| 9f7c819-barrier | openmpi | blk8x10 | 2x3x1 | 10 | 10 | 0 | 0 | 0 of 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| 9f7c819-barrier | openmpi | g20 | 1x3x1 | 10 | 10 | 0 | 0 | 0 of 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| 9f7c819-barrier | mpich | nos2 | 1x3x1 | 10 | 10 | 0 | 0 | 0 of 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| 9f7c819-barrier | mpich | mhd3200b | 1x3x1 | 10 | 10 | 0 | 0 | 0 of 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| 9f7c819-barrier | mpich | blk12x6 | 1x3x1 | 10 | 10 | 0 | 0 | 0 of 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| 9f7c819-barrier | mpich | blk8x10 | 2x3x1 | 10 | 10 | 0 | 0 | 0 of 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| 9f7c819-barrier | mpich | g20 | 1x3x1 | 10 | 10 | 0 | 0 | 0 of 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+
+A cross alternative's receive is at the L-solve loop (`pdgstrs3d.c:3903`) or the U-solve loop (`:5946`); the
+analysis reports it as class 1b (cross-purpose: a message of another tag than the one the receive took). In every
+replayed one the L-solve loop takes a U-solve message. A hang is a replay or run that did not finish within its
+timeout; a correct run takes 0.5 to 5 s.
+A control pins the recorded matching only over its alternative's horizon, and where the race also strikes
+beyond it a control can hang or return a wrong x too, as untraced runs of the same setting do; controls
+correct: blk8x10 at 2x3x1 with openmpi, 7 of 10.
+
+On the 2x3x1 grid the analysis also reports class 1b for a receive that would take the other tag of its own
+solve (a broadcast where it took a reduction, kind `tag`), in the fix as in 9f7c819; the loops handle both tags of
+their solve. `run.sh tags` replays a sample of them on the fix (blk8x10, both MPIs): 20 of 20 finish with
+the correct x, 20 with every pin matched and 20 judged runs of the program,
+and 20 controls finish correctly (1239 such alternatives in the traced runs of the tags step).
+
+Untraced runs, plain and with random send and receive delays of 0 to 20 ms per rank from the replay library;
+a failure is a run that hung or printed an x error above 1e-4. The timeout is 60 s, 300 s for NOS2 and mhd3200b,
+whose delayed runs take up to three minutes when they finish.
+
+| version | MPI | matrix and grid | setting | runs | failed | hung | wrong x | slowest finished run (s) |
+|---|---|---|---|---|---|---|---|---|
+| 9f7c819 | openmpi | nos2-1x3x1 | plain | 40 | 0 | 0 | 0 | 0.6 |
+| 9f7c819 | openmpi | nos2-1x3x1 | delays | 40 | 21 | 21 | 0 | 44.9 |
+| 9f7c819 | openmpi | mhd3200b-1x3x1 | plain | 40 | 0 | 0 | 0 | 0.7 |
+| 9f7c819 | openmpi | mhd3200b-1x3x1 | delays | 40 | 16 | 16 | 0 | 165.7 |
+| 9f7c819 | openmpi | blk12x6-1x3x1 | plain | 40 | 0 | 0 | 0 | 0.6 |
+| 9f7c819 | openmpi | blk12x6-1x3x1 | delays | 40 | 40 | 40 | 0 | - |
+| 9f7c819 | openmpi | blk8x10-2x3x1 | plain | 40 | 7 | 6 | 1 | 0.7 |
+| 9f7c819 | openmpi | blk8x10-2x3x1 | delays | 40 | 40 | 38 | 2 | 2.7 |
+| 9f7c819 | openmpi | g20-1x3x1 | plain | 40 | 0 | 0 | 0 | 0.6 |
+| 9f7c819 | openmpi | g20-1x3x1 | delays | 40 | 0 | 0 | 0 | 6.4 |
+| 9f7c819 | mpich | nos2-1x3x1 | plain | 40 | 0 | 0 | 0 | 4.5 |
+| 9f7c819 | mpich | nos2-1x3x1 | delays | 40 | 13 | 13 | 0 | 48.9 |
+| 9f7c819 | mpich | mhd3200b-1x3x1 | plain | 40 | 0 | 0 | 0 | 4.5 |
+| 9f7c819 | mpich | mhd3200b-1x3x1 | delays | 40 | 13 | 13 | 0 | 169.8 |
+| 9f7c819 | mpich | blk12x6-1x3x1 | plain | 40 | 0 | 0 | 0 | 4.5 |
+| 9f7c819 | mpich | blk12x6-1x3x1 | delays | 40 | 38 | 38 | 0 | 5.5 |
+| 9f7c819 | mpich | blk8x10-2x3x1 | plain | 40 | 0 | 0 | 0 | 4.5 |
+| 9f7c819 | mpich | blk8x10-2x3x1 | delays | 40 | 40 | 38 | 2 | 6.4 |
+| 9f7c819 | mpich | g20-1x3x1 | plain | 40 | 0 | 0 | 0 | 4.4 |
+| 9f7c819 | mpich | g20-1x3x1 | delays | 40 | 0 | 0 | 0 | 10.3 |
+| 9f7c819-barrier | openmpi | nos2-1x3x1 | plain | 40 | 0 | 0 | 0 | 0.6 |
+| 9f7c819-barrier | openmpi | nos2-1x3x1 | delays | 40 | 0 | 0 | 0 | 45.1 |
+| 9f7c819-barrier | openmpi | mhd3200b-1x3x1 | plain | 40 | 0 | 0 | 0 | 0.7 |
+| 9f7c819-barrier | openmpi | mhd3200b-1x3x1 | delays | 40 | 0 | 0 | 0 | 165.8 |
+| 9f7c819-barrier | openmpi | blk12x6-1x3x1 | plain | 40 | 0 | 0 | 0 | 0.6 |
+| 9f7c819-barrier | openmpi | blk12x6-1x3x1 | delays | 40 | 0 | 0 | 0 | 7.6 |
+| 9f7c819-barrier | openmpi | blk8x10-2x3x1 | plain | 40 | 0 | 0 | 0 | 0.7 |
+| 9f7c819-barrier | openmpi | blk8x10-2x3x1 | delays | 40 | 0 | 0 | 0 | 3.9 |
+| 9f7c819-barrier | openmpi | g20-1x3x1 | plain | 40 | 0 | 0 | 0 | 0.6 |
+| 9f7c819-barrier | openmpi | g20-1x3x1 | delays | 40 | 0 | 0 | 0 | 6.4 |
+| 9f7c819-barrier | mpich | nos2-1x3x1 | plain | 40 | 0 | 0 | 0 | 4.5 |
+| 9f7c819-barrier | mpich | nos2-1x3x1 | delays | 40 | 0 | 0 | 0 | 48.8 |
+| 9f7c819-barrier | mpich | mhd3200b-1x3x1 | plain | 40 | 0 | 0 | 0 | 4.5 |
+| 9f7c819-barrier | mpich | mhd3200b-1x3x1 | delays | 40 | 0 | 0 | 0 | 169.8 |
+| 9f7c819-barrier | mpich | blk12x6-1x3x1 | plain | 40 | 0 | 0 | 0 | 4.4 |
+| 9f7c819-barrier | mpich | blk12x6-1x3x1 | delays | 40 | 0 | 0 | 0 | 11.5 |
+| 9f7c819-barrier | mpich | blk8x10-2x3x1 | plain | 40 | 0 | 0 | 0 | 4.5 |
+| 9f7c819-barrier | mpich | blk8x10-2x3x1 | delays | 40 | 0 | 0 | 0 | 7.7 |
+| 9f7c819-barrier | mpich | g20-1x3x1 | plain | 40 | 0 | 0 | 0 | 4.4 |
+| 9f7c819-barrier | mpich | g20-1x3x1 | delays | 40 | 0 | 0 | 0 | 10.2 |
+
+### Quantum ESPRESSO 615e40c PHonon `elph_prt`, the receives of one spin take the other spin's messages (wrong table)
+
+`experiments/qeelph/run.sh`: ph.x of the test-suite's Ni case (LSDA) at X with `electron_phonon='prt'` and the k point
+k(39), 3 ranks with `-nk 3`, MPICH build; traced runs analysed at L1, every cross alternative (a receive of `elph_prt`
+taking the other pool's message, `experiments/qeelph/classify.py`) replayed with the pins of its whole horizon and
+with its control; a run is correct when its table matches that of the same version with one pool
+(`judge.py`: the eigenvalues as printed and `|g_sym|` to 5e-3). The fix, 615e40c-spintags, is `spin-tags.patch`.
+Rows by code commit: bcec4e5 (192).
+
+| version | traced runs | clean | that predict it | cross alternatives per clean run | at any B | traced runs with a wrong table | replayed | wrong table | how wrong | pins matched | runs of the program | controls finished, pins matched | controls correct | controls runs of the program | replay's table differs from its control's |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 615e40c | 10 | 6 | 6 | 3 | 6 of 18 | 4 (mixed:e=(k1,k2),g=2 / e=(q1,q2),g=1 3, mixed:e=(k1,k2),g=2 / e=(q2,q1),g=1 1) | 18 | 18 | mixed:e=(k2,k1),g=1 / e=(q1,q2),g=2 6, mixed:e=(k1,k2),g=1 / e=(q1,q2),g=2 6, g-swapped 3, mixed:e=(k1,k2),g=2 / e=(q1,q2),g=1 1, mixed:e=(k1,k2),g=2 / e=(q2,q1),g=1 1, mixed:e=(k2,k1),g=2 / e=(q2,q1),g=1 1 | 18 | 18 | 18 | 12 | 18 | 18 |
+| 615e40c-spintags | 10 | 10 | 0 | 0 | 0 of 0 | 0 (-) | 0 | 0 | - | 0 | 0 | 0 | 0 | 0 | 0 |
+
+A traced run whose own table is wrong is not clean and is not analysed. The analysis reports each cross
+alternative as class 1f (every message of one kind has the same size, so each receive fits the other spin's); an
+alternative of a later eigenvalue receive needs `el_ph_mat` (3 888 bytes) buffered, `B >= 3888`, which MPICH's
+eager limit of 650 633 bytes allows (E2). A control pins the recorded matching only over the alternative's horizon, which ends at the
+alternative's receive: the later receives of spin 1 (rank 0's wildcard receives 0 to 2, the only ones with
+alternatives) are free and race again, so a control of an alternative at the first or second can print a wrong
+table too. Of the controls of the alternatives at the third (`STRETTO_PIN=0:2:...`, whose horizon pins all
+three), 6 of 6 print the correct table.
+Each replay is also judged against its own control.
+
+Untraced runs, plain and with random send and receive delays of 0 to 20 ms per rank from the replay library.
+
+| version | setting | runs | failed | hung | wrong table | how wrong |
+|---|---|---|---|---|---|---|
+| 615e40c | plain | 40 | 14 | 0 | 14 | g-swapped 14 |
+| 615e40c | delays | 40 | 26 | 0 | 26 | spins-swapped 17, g-swapped 5, mixed:e=(k1,k2),g=2 / e=(q1,q2),g=1 3, mixed:e=(k2,k1),g=2 / e=(q2,q1),g=1 1 |
+| 615e40c-spintags | plain | 40 | 0 | 0 | 0 | - |
+| 615e40c-spintags | delays | 40 | 0 | 0 | 0 | - |
 
 
 ## E6: polynomial checker vs exhaustive explorer

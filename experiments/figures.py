@@ -212,6 +212,23 @@ plain and with random delays.
 | MFEM 3.3.2 `GroupTopology::Create`, a receive takes the next mesh's row (c52c6243b) | {t('nMfemGroupExposed')} of {t('nMfemGroupClean')} (L1) | {t('nMfemGroupCrossFail')} of {t('nMfemGroupCrossReplayed')} replays fail ({t('nMfemGroupFourCrossFail')} of {t('nMfemGroupFourCrossReplayed')} at 4 ranks) | {t('nMfemGroupCrossControlsOk')} of {t('nMfemGroupCrossReplayed')} correct ({t('nMfemGroupFourCrossControlsOk')} of {t('nMfemGroupFourCrossReplayed')}) | {t('nMfemGroupStressFail')} of {t('nMfemGroupStressRuns')} runs fail ({t('nMfemGroupStressPlainFail')} of {t('nMfemGroupStressPlainRuns')} plain) | no cross alternative in {t('nMfemGroupFixClean')} runs |
 | LAMMPS `Irregular::create_atom`, blocking count sends before the receives (411c069b) | {t('nLammpsExposed')} of {t('nLammpsClean')} (deadlock below {t('BLammps')} bytes) | {t('nLammpsBelowHang')} of {t('nLammpsBelowRuns')} runs hang just below the bound | {t('nLammpsAtFinish')} of {t('nLammpsAtRuns')} finish at it | {t('nLammpsStressPlainHang')} of {t('nLammpsStressPlainRuns')} plain and {t('nLammpsStressDelayHang')} of {t('nLammpsStressDelayRuns')} delayed runs hang; {t('nLammpsStressEagerHang')} of {t('nLammpsStressEagerRuns')} with the eager limit forced down | no finding in {t('nLammpsFixClean')} runs |
 """
+    newcases = ""
+    if v("nSluClean") and v("nQeElphClean"):
+        newcases = f"""
+**Two new bugs in current code.** SuperLU_DIST 9.3.1's default 3D solve receives with
+`MPI_ANY_SOURCE` and `MPI_ANY_TAG` in its L-solve and its U-solve loop, with the barrier between
+them commented out: on a reducible matrix the L-solve loop can take a U-solve message and drop
+it. Quantum ESPRESSO's `elph_prt` (PHonon, develop and 7.6) receives the two spins' data from
+any source with tags that do not depend on the spin, so with LSDA and three or more pools a
+spin's receives can take the other spin's messages. Neither is reported upstream yet; each case
+builds the code with the bug and with the proposed fix (`experiments/superlu3d/`,
+`experiments/qeelph/`).
+
+| bug | clean traced runs that predict it | forced, the predicted execution | controls | stress testing | the fix |
+|---|---:|---|---:|---:|---|
+| SuperLU_DIST 9f7c819 `pdgstrs3d_newsolve`, the L-solve takes a U-solve message ({t('nSluSettings')} reducible matrices, Open MPI and MPICH) | {t('nSluExposed')} of {t('nSluClean')} (L1); {t('nSluContrastExposed')} of {t('nSluContrastClean')} on the connected g20 | {t('nSluReplayHang')} of {t('nSluReplayed')} sampled replays hang, {t('nSluReplayWrong')} return a wrong x | {t('nSluControlsOk')} of {t('nSluReplayed')} correct | {t('nSluStressFail')} of {t('nSluStressRuns')} runs fail ({t('nSluStressPlainFail')} of {t('nSluStressPlainRuns')} plain) | no cross alternative in {t('nSluFixClean')} runs; {t('nSluFixStressFail')} of {t('nSluFixStressRuns')} runs fail |
+| Quantum ESPRESSO 615e40c `elph_prt`, one spin's receives take the other spin's data (Ni, LSDA, `-nk 3`) | {t('nQeElphExposed')} of {t('nQeElphClean')} (L1) | {t('nQeElphReplayWrong')} of {t('nQeElphReplayed')} replays print a wrong table, each other than its control's | {t('nQeElphControlsFinish')} of {t('nQeElphReplayed')} finish, {t('nQeElphControlsOk')} correct (a control pins only the horizon) | {t('nQeElphStressFail')} of {t('nQeElphStressRuns')} runs print a wrong table ({t('nQeElphStressPlainFail')} of {t('nQeElphStressPlainRuns')} plain) | no cross alternative in {t('nQeElphFixClean')} runs; {t('nQeElphFixStressFail')} of {t('nQeElphFixStressRuns')} runs wrong |
+"""
     reads = ""
     if v("nReadsProgs"):
         reads = f"""
@@ -304,7 +321,7 @@ diagnosing it took 291 jobs and 10,392 compute-node hours (the NINJA noise-injec
 PPoPP 2017); HYPRE's changelog for 2.11.0 places the fix in ParaSails.{ninja}
 
 <p align="center"><img src="docs/figures/hypre.svg" width="760" alt="HYPRE ParaSails results"></p>
-{newbug}{mg}{dealii}{history}
+{newbug}{mg}{dealii}{history}{newcases}
 **Soundness in practice.** Against an exhaustive explorer, {t('nEsixUnsound')} of
 {t('nEsixPairs')} judged alternatives are unsound. Replays on MBI: {t('nMBIReplayConfirmed')}
 confirmed, {t('nMBIReplayInconclusive')} inconclusive (the control itself hung),
