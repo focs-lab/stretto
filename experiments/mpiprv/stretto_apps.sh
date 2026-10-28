@@ -19,8 +19,23 @@
 #            translation unit; wacxx on tests/remote_point_evaluation/mapping_01.cc, against the
 #            installed headers, and a count of the monitor calls woven before its MPI calls
 #   mg       NPB MG 2.4.1 is Fortran; wac instruments C and C++ only (its --compile_language)
+# The bugs of the projects' histories and the two found since, from the sources of
+# experiments/must/apps.sh CASES=hist (HIST_APPS_DIR, default third_party/must/apps-hist): wacc
+# or wacxx on the translation unit that holds (or instantiates) the racing calls, with the
+# include paths of the application's own build and Open MPI's headers, and a count of the
+# monitor calls woven into it, as for deal.II:
+#   cabana   Cabana fbbcc37f: CommunicationPlan's Irecv(MPI_ANY_SOURCE), Send and Isend are
+#            templates of core/src/Cabana_CommunicationPlan.hpp, instantiated in the test's
+#            unit (tstCommunicationPlan_SERIAL.cpp, which CMake generates; Kokkos 4.1, C++17)
+#   stempy   stempy 3.3.5: gatherEvents, from electron_mpi.cpp, in experiments/stempy/harness.cpp
+#            (C++17, cereal, BigMPI)
+#   mfem332  MFEM 3.3.2: GroupTopology::Create in general/communication.cpp (C++11)
+#   lammps   LAMMPS 3a2da51a: Irregular::create_atom and create_data in src/irregular.cpp
+#   superlu  SuperLU_DIST 9.3.1: the 3D solve's receive loops in SRC/double/pdgstrs3d.c (C)
+#   qe       Quantum ESPRESSO 615e40cf: elph_prt in PHonon/PH/elphon.f90 is Fortran
 # Writes experiments/results/mpiprv/stretto-apps.csv; logs under experiments/mpiprv/work/apps/.
-# usage: experiments/mpiprv/prv.sh experiments/mpiprv/stretto_apps.sh [hypre|dealii|mg ...]
+# usage: experiments/mpiprv/prv.sh experiments/mpiprv/stretto_apps.sh
+#        [hypre|dealii|mg|cabana|stempy|mfem332|lammps|superlu|qe ...]
 set -uo pipefail
 R="$(cd "$(dirname "$0")/../.." && pwd)"; cd "$R"
 M="${MUST_APPS_DIR:-$R/third_party/apps/must}"
@@ -88,11 +103,98 @@ step_dealii() {
 step_mg() {
     row npbmg 2.4.1 "class S, 16 ranks" "-" "-" unsupported "NPB MG is Fortran; MPI-PRV's instrumenter (wac, wacc, wacxx) weaves C and C++ sources only"
 }
+H="${HIST_APPS_DIR:-$R/third_party/must/apps-hist}"
+weave() {    # weave <app> <version> <configurations> <wacc|wacxx> <source> <what> <flags...>: one unit, a row
+    local app=$1 ver=$2 cfg=$3 tool=$4 src=$5 what=$6; shift 6
+    local d="$W/$app" f; f=$(basename "$src")
+    mkdir -p "$d" && cp "$src" "$d/$f" || { row "$app" "$ver" "$cfg" "$tool on $f" "source missing: $src" unsupported "no source"; return; }
+    (cd "$d" && env aspect_ah="$W/aspect/MPIMonitorAspect.ah" aspect_lib="$W/aspect" MPI=1 \
+         "$tool" -O2 -I$OMPI/include "$@" -c "$f" -o "$d/${f%.*}.o" > "$d/$tool.log" 2>&1)
+    local rc=$? i n p
+    i=$(ls "$d/${f%.*}"_instrumentation.* 2>/dev/null | head -1)
+    n=$(woven "$i"); n=${n:-0}
+    # the events of point-to-point calls, the racing calls' kind: calls, not declarations
+    p=$(grep -E "__RVC_MPI_(Send|Recv|Isend|Irecv)\(" "$i" 2>/dev/null | grep -vc "void __RVC_MPI_")
+    local first; first=$(grep -m1 -i "error" "$d/$tool.log" | cut -c1-200 | tr '"' "'")
+    if [ -z "$i" ]; then
+        row "$app" "$ver" "$cfg" "$tool on $f" "status $rc; no instrumented unit; first error: ${first:--}" unsupported \
+            "the instrumenter does not process the unit that holds $what; the trace would hold no event of the racing calls"
+    elif [ "${p:-0}" -gt 0 ] && [ $rc = 0 ]; then
+        row "$app" "$ver" "$cfg" "$tool on $f" "status $rc; $n monitor calls woven, $p of point-to-point calls" supported ""
+    elif [ $rc = 0 ]; then
+        row "$app" "$ver" "$cfg" "$tool on $f" "status $rc; $n monitor calls woven, none of a point-to-point call" unsupported \
+            "the instrumenter weaves no event before the point-to-point calls of the unit that holds $what; the trace would hold no event of the racing calls"
+    else
+        row "$app" "$ver" "$cfg" "$tool on $f" "status $rc; $n monitor calls woven; first error: ${first:--}" unsupported \
+            "the instrumenter fails on the unit that holds $what; the trace would hold no event of the racing calls"
+    fi
+}
+step_cabana() {
+    local c="$H/cabana" s="$H/cabana/Cabana-fbbcc37f4f8d2326541eeb87f3c1879148552183"
+    weave cabana fbbcc37f "CommPlan.Test10NoTopo, 3 and 4 ranks" wacxx "$c/build-fbbcc37f/core/unit_test/SERIAL/tstCommunicationPlan_SERIAL.cpp" \
+        "CommunicationPlan's racing Irecv, Send and Isend (header templates)" -std=c++17 -DKOKKOS_DEPENDENCE \
+        -I"$s/cmake/test_harness" -I"$s/core/unit_test" -I"$s/core/src" -I"$c/build-fbbcc37f/core/src" \
+        -I"$c/build-fbbcc37f/core/unit_test/SERIAL" -I"$c/kokkos/include" -I"$c/gtest/include"
+}
+step_stempy() {
+    local s="$H/stempy"
+    weave stempy 3.3.5 "gatherEvents harness, 4 and 8 ranks" wacxx "$R/experiments/stempy/harness.cpp" \
+        "gatherEvents' size and map receives" -std=c++17 -I"$s/include-3.3.5" -I"$s/stempy-3.3.5/stempy" \
+        -I"$s/stempy-3.3.5/thirdparty/Empirical/include" -I"$s/cereal-02eace19a99ce3cd564ca4e379753d69af08c2c8/include" -I"$s/bigmpi/include"
+}
+step_mfem332() {
+    local s="$H/mfem332/mfem-3.3.2"
+    weave mfem332 3.3.2 "two-mesh driver, 4 and 8 ranks" wacxx "$s/general/communication.cpp" "GroupTopology::Create's receives" \
+        -std=c++11 -I"$s/general" -I"$s" -I"$H/mfem332/hypre-2.11.2/src/hypre/include"
+}
+step_lammps() {
+    local s="$H/lammps/lammps-3a2da51a8210970a2382185f003fd512c12bada9/src" d="$W/lammps"
+    weave lammps 3a2da51a "in.displace, 4 and 8 ranks" wacxx "$s/irregular.cpp" "Irregular::create_atom's sends and wildcard receives" \
+        -std=c++11 -I"$s"
+    tail -1 "$OUT" | grep -q "^lammps,.*,supported," || return 0
+    # the unit is instrumented: LAMMPS built with it (the other units have no point-to-point call
+    # of the bug and are compiled as by experiments/lammps/run.sh, with Open MPI's wrapper), the
+    # aspect library linked, in.displace run once on 4 ranks, and the trace analysed with each
+    # pattern of run.py's arm a (every event an MPI call: properties 1, 6, 7 and 9). The bug is
+    # a buffering hazard, which none of MPI-PRV's properties names (run.py: outside its scope)
+    local b="$d/build"
+    rm -rf "$b" && mkdir -p "$b" && cp -a "$s/." "$b/" && rm -rf "$b"/Obj_* "$b/lmp_mpi" || return 1
+    (cd "$b" && make -j"${MAKE_JOBS:-4}" mpi CC=mpicxx LINK=mpicxx CCFLAGS="-g -O2 -std=c++11" > "$d/make.log" 2>&1 \
+         && cp "$d/irregular.o" Obj_mpi/irregular.o \
+         && make mpi CC=mpicxx LINK=mpicxx CCFLAGS="-g -O2 -std=c++11" MPI_LIB="$W/aspect/libaspect.a" >> "$d/make.log" 2>&1) \
+        || { row lammps 3a2da51a "in.displace, 4 ranks" "LAMMPS built with the instrumented irregular.cpp" "build failed: $(tail -1 "$d/make.log" | tr '"' "'")" unsupported "the instrumented build does not link"; return 0; }
+    local r="$d/run"; rm -rf "$r" && mkdir -p "$r" && cd "$r" || return 1
+    /usr/bin/timeout -k 5 120 mpirun --allow-run-as-root -np 4 "$b/lmp_mpi" -in "$R/experiments/lammps/in.displace" -log none \
+        > run.log 2>&1 < /dev/null
+    local rc=$? ev=0 res=() n
+    [ -f output.txt ] && ev=$(grep -c "^event" output.txt)
+    for n in P1 P6 P7 P9; do
+        local allp pat out
+        read -r allp pat < <(python3 -c "import sys; sys.path.insert(0, '$R/experiments/mpiprv'); import run; print(*run.PATTERNS['$n'])")
+        printf 'parametric: 0\nallPattern : {%s}\nPattern : {%s}\n' "$allp" "$pat" > "$n.txt"
+        out=$([ -f output.txt ] && /usr/bin/timeout 600 MPI-PRV -trace output.txt -pattern "$n.txt" -np 4 2>&1)
+        echo "$out" > "$n.log"
+        case "$out" in *"Pattern Matched!"*) res+=("$n matched");; *"Pattern Not Matched!"*) res+=("$n none");; *) res+=("$n error");; esac
+    done
+    cd "$R"
+    row lammps 3a2da51a "in.displace, 4 ranks" "LAMMPS built with the instrumented irregular.cpp, run once, analysed" \
+        "run status $rc; $ev events in the trace; patterns of arm a: ${res[*]}" out-of-scope \
+        "instrumented and run; the bug is a buffering hazard (a send-send cycle that needs unbuffered standard sends), which none of MPI-PRV's properties names, and its analysis keeps every message match fixed"
+}
+step_superlu() {
+    local s="$H/superlu/superlu_dist"
+    weave superlu_dist 9.3.1 "pddrive3d, blk12x6 on 3 and blk8x10 on 6 ranks" wacc "$s/SRC/double/pdgstrs3d.c" \
+        "the 3D solve's wildcard receive loops" -I"$s/SRC/include" -I"$s/SRC/double" -I"$s/SRC/prec-independent" -I"$H/superlu/build/SRC/include"
+}
+step_qe() {
+    row qe 615e40cf "ph.x, Ni at X, 3 ranks in 3 pools" "-" "-" unsupported \
+        "elph_prt (PHonon/PH/elphon.f90) is Fortran; MPI-PRV's instrumenter (wac, wacc, wacxx) weaves C and C++ sources only"
+}
 aspect || { echo "the aspect library could not be built" >&2; exit 1; }
 steps=("$@"); [ $# -gt 0 ] || steps=(hypre dealii mg)
 for step in "${steps[@]}"; do
     case "$step" in
-        hypre|dealii|mg) "step_$step";;
-        *) echo "usage: $0 [hypre|dealii|mg ...]" >&2; exit 2;;
+        hypre|dealii|mg|cabana|stempy|mfem332|lammps|superlu|qe) "step_$step";;
+        *) echo "usage: $0 [hypre|dealii|mg|cabana|stempy|mfem332|lammps|superlu|qe ...]" >&2; exit 2;;
     esac
 done

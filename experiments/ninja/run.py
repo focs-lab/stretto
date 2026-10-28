@@ -18,7 +18,9 @@ reads them from the environment:
           later group of sends with the same tag can overtake an earlier one. It needs one
           system-centric learning run that finishes; that run is recorded as run 0 (retried up
           to three times if it does not finish), and every run starts from a fresh copy of its
-          files, since NINJA rewrites them at MPI_Finalize
+          files, since NINJA rewrites them at MPI_Finalize. With --learn-mark M a learning run
+          whose output reached the mark M counts as well, for a program that NINJA's library
+          makes fail after its work and after MPI_Finalize, where NINJA has written its files
   plain   no NINJA, the reference
 Every run gets its own working directory (NINJA's learning directory is relative to it).
 A run that is not a NINJA run stops the campaign with HARNESS-ERROR and exit status 3: the
@@ -29,11 +31,15 @@ selected program without its binary and a missing program end the run before any
 
 usage:
   run.py runs --np N --mode MODE --runs K --out CSV [--label L] [--timeout S] [--mpi mpich|openmpi]
-              [--marks name=regex,...] [--value REGEX] [--check CMD] [--line-buffered] [--keep DIR] -- exe [args]
+              [--marks name=regex,...] [--value REGEX] [--check CMD] [--line-buffered] [--keep DIR]
+              [--learn-mark NAME] [--setup DIR] -- exe [args]
       K runs of one program, one row each: label, np, mode, setting, run, result, seconds,
       reached (the last of --marks found in its output), value (the group of the last match of
       --value; with --check, the last line that the shell command CMD prints when run in the run's
-      working directory after the run, for a program that writes its result to a file), commit.
+      working directory after the run, for a program that writes its result to a file, or for
+      one whose output takes more than a regex to judge, which CMD finds there as run.out),
+      commit. --setup DIR copies DIR's contents into every run's working directory first (the
+      input files of a program that reads them from where it runs).
       Rows are appended to CSV, which must have these columns if it exists
       (experiments/ninja/campaign.sh starts each table afresh).
   run.py corpus <corpus csv> --mode MODE --out CSV [--runs 30] [--timeout 60] [--jobs J]
@@ -90,6 +96,8 @@ def ninja_lib(args) -> str:
 
 def run_once(np_: int, exe: str, argv: list, mode: str, wd: str, args) -> dict:
     """One run in working directory wd. mode 'learn' is the system-centric learning run."""
+    if getattr(args, "setup", None):
+        shutil.copytree(args.setup, wd, dirs_exist_ok=True)
     env_args = []
     if mode != "plain":
         env_args += ["-x", f"LD_PRELOAD={ninja_lib(args)}"]
@@ -119,6 +127,8 @@ def run_once(np_: int, exe: str, argv: list, mode: str, wd: str, args) -> dict:
         m = re.findall(args.value, text)
         out["value"] = m[-1] if m else ""
     if getattr(args, "check", None):
+        with open(os.path.join(wd, "run.out"), "w") as fh:
+            fh.write(text)
         c = subprocess.run(args.check, shell=True, cwd=wd, capture_output=True, text=True, errors="replace",
                            stdin=subprocess.DEVNULL)
         lines = c.stdout.strip().splitlines()
@@ -187,7 +197,7 @@ def cmd_runs(args) -> int:
                 wd = tempfile.mkdtemp(dir=tmp)
                 res = run_once(args.np, exe, args.argv, "learn", wd, args)
                 emit(0, res, "app")
-                if res["result"] == "FINISHED":
+                if res["result"] == "FINISHED" or (args.learn_mark and res["reached"] == args.learn_mark):
                     learning_files(wd, exe, args.np)
                     learned = os.path.join(wd, ".ninja")
                     break
@@ -283,6 +293,8 @@ def main() -> int:
     p.add_argument("--value", default="")
     p.add_argument("--check", default="")
     p.add_argument("--stop-at-first", action="store_true")
+    p.add_argument("--learn-mark", default="")
+    p.add_argument("--setup", default="")
     p.add_argument("exe")
     p.add_argument("argv", nargs="*")
     p = sub.choices["corpus"]

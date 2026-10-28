@@ -8,7 +8,8 @@
 #           the sources and flags of src/Makefile.am, with the system MPI C++ wrappers (no
 #           autotools in the image), and libninja-fixed.so, the same with two repairs (random
 #           noise, Fortran programs; below), and libninja-fixed-some.so, those two and a third
-#           (MPI_Testsome and MPI_Waitsome; below); and NINJA's replica of the HYPRE ParaSails race
+#           (MPI_Testsome and MPI_Waitsome; below), and libninja-fixed-any.so, the first two and
+#           another third (MPI_Testany and MPI_Waitany; below); and NINJA's replica of the HYPRE ParaSails race
 #           (test/ninja_test_hypre_parasails.c, MPICH), which as shipped exits unless it runs
 #           on 64 processes: a copy with that check removed runs on 4 and 8, where its
 #           destination lists keep the ranks below the communicator size
@@ -55,6 +56,17 @@ step_build() {
     sed -i -e '/^_EXTERN_C_ int MPI_Testsome(/,/^}/{s|^    int request_null_count;$|    int request_null_count = 0;|;s|if (arg_4 != MPI_STATUS_IGNORE) arg_4\[i\] = stat;|if (arg_4 != MPI_STATUS_IGNORE) arg_4[index] = stat;|}' \
         "$N/fixed-some-src/ninj.cpp"
     [ "$(diff "$N/fixed-src/ninj.cpp" "$N/fixed-some-src/ninj.cpp" | grep -c '^>')" = 2 ]
+    # libninja-fixed-any.so adds another third repair to libninja-fixed.so. NINJA's
+    # MPI_Testany, which its MPI_Waitany calls until it reports a completion, reports one when
+    # every request is null but leaves the index as it was, where the standard sets it to
+    # MPI_UNDEFINED. A program that calls MPI_Waitany until the index is MPI_UNDEFINED then
+    # never leaves its loop: MFEM's GroupTopology::Create (3.4) and GroupCommunicator spin in
+    # every run with NINJA loaded, noise or none (experiments/mfem332/run.sh ninja-check). The
+    # repair sets the index to MPI_UNDEFINED before the requests are tested, as the standard
+    # does for no completion and for only null requests.
+    rm -rf "$N/fixed-any-src" && cp -r "$N/fixed-src" "$N/fixed-any-src"
+    sed -i '/^_EXTERN_C_ int MPI_Testany(/,/^}/{s|^    \*arg_3 = 0;$|    *arg_3 = 0;\n    *arg_2 = MPI_UNDEFINED;|}' "$N/fixed-any-src/ninj.cpp"
+    [ "$(diff "$N/fixed-src/ninj.cpp" "$N/fixed-any-src/ninj.cpp" | grep -c '^>')" = 1 ]
     for mpi in mpich openmpi; do
         mkdir -p "$N/$mpi"
         (cd "$N/src/src" && /usr/bin/mpicxx.$mpi -O2 -g -fPIC -shared -std=c++0x -pthread -w -I. \
@@ -63,7 +75,9 @@ step_build() {
              -o "$N/$mpi/libninja-fixed.so" $SOURCES -lstdc++)
         (cd "$N/fixed-some-src" && /usr/bin/mpicxx.$mpi -O2 -g -fPIC -shared -std=c++0x -pthread -w -I. \
              -o "$N/$mpi/libninja-fixed-some.so" $SOURCES -lstdc++)
-        echo "built $N/$mpi/libninja.so, libninja-fixed.so and libninja-fixed-some.so"
+        (cd "$N/fixed-any-src" && /usr/bin/mpicxx.$mpi -O2 -g -fPIC -shared -std=c++0x -pthread -w -I. \
+             -o "$N/$mpi/libninja-fixed-any.so" $SOURCES -lstdc++)
+        echo "built $N/$mpi/libninja.so, libninja-fixed.so, libninja-fixed-some.so and libninja-fixed-any.so"
     done
     # the replica, with the 64-process check (main(), "comm_size != 64") turned off; and its
     # fixed variant, the same without ENABLE_HANG, whose stored-rows requests get their own tag

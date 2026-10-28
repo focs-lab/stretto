@@ -1,0 +1,61 @@
+label,np,mode,setting,run,result,seconds,reached,value,commit
+twomesh-3.3.2,4,plain,,1,MPI-ERROR:MPI_ERR_TRUNCATE,0.5,,,425e54b
+twomesh-3.3.2,4,plain,,2,FINISHED,0.5,ok,,425e54b
+twomesh-3.3.2,4,plain,,3,FINISHED,0.5,ok,,425e54b
+twomesh-3.3.2,4,plain,,4,FINISHED,0.5,ok,,425e54b
+twomesh-3.3.2,4,plain,,5,FINISHED,0.5,ok,,425e54b
+twomesh-3.3.2 libninja-fixed,4,random,ratio=1e-06% delay=1us,1,TIMEOUT,61.0,,,425e54b
+twomesh-3.3.2 libninja-fixed,4,random,ratio=1e-06% delay=1us,2,TIMEOUT,61.0,,,425e54b
+twomesh-3.3.2 libninja-fixed,4,random,ratio=1e-06% delay=1us,3,MPI-ERROR:MPI_ERR_TRUNCATE,0.5,,,425e54b
+twomesh-3.3.2 libninja-fixed,4,random,ratio=1e-06% delay=1us,4,MPI-ERROR:MPI_ERR_TRUNCATE,0.6,,,425e54b
+twomesh-3.3.2 libninja-fixed,4,random,ratio=1e-06% delay=1us,5,TIMEOUT,61.0,,,425e54b
+twomesh-3.3.2 libninja-fixed-any,4,random,ratio=1e-06% delay=1us,1,SIGNAL:6,0.6,mesh1,,425e54b
+twomesh-3.3.2 libninja-fixed-any,4,random,ratio=1e-06% delay=1us,2,SIGNAL:6,0.6,mesh1,,425e54b
+twomesh-3.3.2 libninja-fixed-any,4,random,ratio=1e-06% delay=1us,3,SIGNAL:6,0.6,mesh1,,425e54b
+twomesh-3.3.2 libninja-fixed-any,4,random,ratio=1e-06% delay=1us,4,SIGNAL:6,0.7,mesh1,,425e54b
+twomesh-3.3.2 libninja-fixed-any,4,random,ratio=1e-06% delay=1us,5,SIGNAL:6,0.6,mesh1,,425e54b
+twomesh-3.3.2,8,plain,,1,FINISHED,0.6,ok,,425e54b
+twomesh-3.3.2,8,plain,,2,FINISHED,0.6,ok,,425e54b
+twomesh-3.3.2,8,plain,,3,FINISHED,0.6,ok,,425e54b
+twomesh-3.3.2,8,plain,,4,APP-ERROR:1,0.6,,integer set not found,425e54b
+twomesh-3.3.2,8,plain,,5,FINISHED,0.6,ok,,425e54b
+twomesh-3.3.2 libninja-fixed,8,random,ratio=1e-06% delay=1us,1,APP-ERROR:1,0.6,,integer set not found,425e54b
+twomesh-3.3.2 libninja-fixed,8,random,ratio=1e-06% delay=1us,2,TIMEOUT,61.0,,,425e54b
+twomesh-3.3.2 libninja-fixed,8,random,ratio=1e-06% delay=1us,3,MPI-ERROR:MPI_ERR_TRUNCATE,0.6,,integer set not found,425e54b
+twomesh-3.3.2 libninja-fixed,8,random,ratio=1e-06% delay=1us,4,MPI-ERROR:MPI_ERR_TRUNCATE,0.6,,integer set not found,425e54b
+twomesh-3.3.2 libninja-fixed,8,random,ratio=1e-06% delay=1us,5,TIMEOUT,61.0,,,425e54b
+twomesh-3.3.2 libninja-fixed-any,8,random,ratio=1e-06% delay=1us,1,APP-ERROR:1,0.6,,integer set not found,425e54b
+twomesh-3.3.2 libninja-fixed-any,8,random,ratio=1e-06% delay=1us,2,SIGNAL:11,1.6,,,425e54b
+twomesh-3.3.2 libninja-fixed-any,8,random,ratio=1e-06% delay=1us,3,SIGNAL:11,1.6,,,425e54b
+twomesh-3.3.2 libninja-fixed-any,8,random,ratio=1e-06% delay=1us,4,APP-ERROR:1,0.6,,integer set not found,425e54b
+twomesh-3.3.2 libninja-fixed-any,8,random,ratio=1e-06% delay=1us,5,APP-ERROR:1,0.6,,integer set not found,425e54b
+twomesh-3.4,4,plain,,1,FINISHED,0.5,ok,,425e54b
+twomesh-3.4,4,plain,,2,FINISHED,0.5,ok,,425e54b
+twomesh-3.4,4,plain,,3,FINISHED,0.5,ok,,425e54b
+twomesh-3.4,4,plain,,4,FINISHED,0.5,ok,,425e54b
+twomesh-3.4,4,plain,,5,FINISHED,0.6,ok,,425e54b
+twomesh-3.4 libninja-fixed,4,random,ratio=1e-06% delay=1us,1,TIMEOUT,61.0,,,425e54b
+twomesh-3.4 libninja-fixed,4,random,ratio=1e-06% delay=1us,2,TIMEOUT,61.0,,,425e54b
+twomesh-3.4 libninja-fixed,4,random,ratio=1e-06% delay=1us,3,TIMEOUT,61.0,,,425e54b
+twomesh-3.4 libninja-fixed,4,random,ratio=1e-06% delay=1us,4,TIMEOUT,61.0,,,425e54b
+twomesh-3.4 libninja-fixed,4,random,ratio=1e-06% delay=1us,5,TIMEOUT,61.0,,,425e54b
+twomesh-3.4 libninja-fixed-any,4,random,ratio=1e-06% delay=1us,1,SIGNAL:6,0.6,mesh1,,425e54b
+twomesh-3.4 libninja-fixed-any,4,random,ratio=1e-06% delay=1us,2,SIGNAL:6,0.6,mesh1,,425e54b
+twomesh-3.4 libninja-fixed-any,4,random,ratio=1e-06% delay=1us,3,SIGNAL:6,0.6,mesh1,,425e54b
+twomesh-3.4 libninja-fixed-any,4,random,ratio=1e-06% delay=1us,4,SIGNAL:6,0.6,mesh1,,425e54b
+twomesh-3.4 libninja-fixed-any,4,random,ratio=1e-06% delay=1us,5,SIGNAL:6,1.6,mesh1,,425e54b
+twomesh-3.4,8,plain,,1,FINISHED,0.6,ok,,425e54b
+twomesh-3.4,8,plain,,2,FINISHED,0.6,ok,,425e54b
+twomesh-3.4,8,plain,,3,FINISHED,0.6,ok,,425e54b
+twomesh-3.4,8,plain,,4,FINISHED,0.6,ok,,425e54b
+twomesh-3.4,8,plain,,5,FINISHED,0.6,ok,,425e54b
+twomesh-3.4 libninja-fixed,8,random,ratio=1e-06% delay=1us,1,TIMEOUT,61.0,,,425e54b
+twomesh-3.4 libninja-fixed,8,random,ratio=1e-06% delay=1us,2,TIMEOUT,61.0,,,425e54b
+twomesh-3.4 libninja-fixed,8,random,ratio=1e-06% delay=1us,3,TIMEOUT,60.0,,,425e54b
+twomesh-3.4 libninja-fixed,8,random,ratio=1e-06% delay=1us,4,TIMEOUT,60.0,,,425e54b
+twomesh-3.4 libninja-fixed,8,random,ratio=1e-06% delay=1us,5,TIMEOUT,61.0,,,425e54b
+twomesh-3.4 libninja-fixed-any,8,random,ratio=1e-06% delay=1us,1,SIGNAL:6,1.8,,,425e54b
+twomesh-3.4 libninja-fixed-any,8,random,ratio=1e-06% delay=1us,2,SIGNAL:6,1.7,,,425e54b
+twomesh-3.4 libninja-fixed-any,8,random,ratio=1e-06% delay=1us,3,SIGNAL:6,1.8,,,425e54b
+twomesh-3.4 libninja-fixed-any,8,random,ratio=1e-06% delay=1us,4,SIGNAL:6,1.7,,,425e54b
+twomesh-3.4 libninja-fixed-any,8,random,ratio=1e-06% delay=1us,5,SIGNAL:6,1.7,,,425e54b

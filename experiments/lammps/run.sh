@@ -28,16 +28,24 @@
 #            forced down to 0 bytes as stress testing on the corpora does, TIMEOUT seconds each
 #            (experiments/history_stress.py)
 #   fixed    predict and stress on 411c069b
+#   ninja    NINJA (experiments/ninja/build.sh, Open MPI library) on 3a2da51a: NINJA_RUNS runs
+#            per process count of NPS in its random (10% of the sends by 50 ms), system- and
+#            application-centric modes, TIMEOUT seconds each, the run's end recorded as the mark
+#            "ok" (experiments/ninja/run.py)
+#   ninja-fixed  the same on 411c069b
 #   all      fetch build predict stress fixed
-# Writes experiments/results/lammps/{predict,stress}-{3a2da51a,411c069b}.csv.
-# usage: experiments/lammps/run.sh [fetch|build|predict|stress|fixed|all]
-#        NPS ("4 8"), RUNS (20), REPLAYS (10), STRESS_RUNS (40), TIMEOUT (30), JOBS (3),
-#        MAKE_JOBS (8), LAMMPS_DIR (third_party/apps/lammps)
+# Writes experiments/results/lammps/{predict,stress}-{3a2da51a,411c069b}.csv and
+# experiments/results/ninja/lammps[-fix].csv.
+# usage: experiments/lammps/run.sh [fetch|build|predict|stress|fixed|ninja|ninja-fixed|all]
+#        NPS ("4 8"), RUNS (20), REPLAYS (10), STRESS_RUNS (40), NINJA_RUNS (40), TIMEOUT (30),
+#        JOBS (3), MAKE_JOBS (8), LAMMPS_DIR (third_party/apps/lammps), MPI_CXX (the build's MPI
+#        wrapper, default Open MPI's: experiments/must/apps.sh builds with MPICH's)
 set -uo pipefail
 R="$(cd "$(dirname "$0")/../.." && pwd)"; cd "$R"
 D="${LAMMPS_DIR:-$R/third_party/apps/lammps}"
 OUT="$R/experiments/results/lammps"; mkdir -p "$OUT"
 NPS="${NPS:-4 8}"; RUNS="${RUNS:-20}"; REPLAYS="${REPLAYS:-10}"; STRESS_RUNS="${STRESS_RUNS:-40}"; TIMEOUT="${TIMEOUT:-30}"
+MPI_CXX="${MPI_CXX:-/usr/bin/mpicxx.openmpi}"
 source "$R/experiments/harness.sh"
 export STRETTO_COMMIT="${STRETTO_COMMIT:-$(python3 "$R/experiments/provenance.py")}"
 # the container refuses process_vm_readv, the single-copy mechanism of Open MPI's shared-memory
@@ -66,7 +74,7 @@ step_build() {
     local c
     for c in "$BUG" "$FIX"; do
         [ -x "$(exe "$c")" ] && continue
-        (cd "$D/lammps-$c/src" && make -j"${MAKE_JOBS:-8}" mpi CC=/usr/bin/mpicxx.openmpi LINK=/usr/bin/mpicxx.openmpi \
+        (cd "$D/lammps-$c/src" && make -j"${MAKE_JOBS:-8}" mpi CC="$MPI_CXX" LINK="$MPI_CXX" \
              CCFLAGS="-g -O2 -std=c++11" > "$D/make-${c:0:8}.log" 2>&1) || { echo "build of LAMMPS ${c:0:8} failed ($D/make-${c:0:8}.log)" >&2; return 1; }
     done
 }
@@ -82,11 +90,25 @@ stress() {    # stress <short commit>
         --jobs "${JOBS:-3}" --settings plain delays eager --eager 0 --ok "$OK" --out "$OUT/stress-$1.csv" \
         -- "$(exe "$(full "$1")")" "${INPUT[@]}"
 }
+ninja() {     # ninja <short commit> <table>
+    need_file "$(exe "$(full "$1")")" || return 1
+    local t="$R/experiments/results/ninja/$2.csv" np m
+    mkdir -p "$(dirname "$t")" && rm -f "$t"
+    for np in $NPS; do
+        for m in random system app; do
+            local extra=(); [ $m = random ] && extra=(--rand-ratio 10 --rand-delay 50000)
+            python3 experiments/ninja/run.py runs --np "$np" --mode $m "${extra[@]}" --runs "${NINJA_RUNS:-40}" --timeout "$TIMEOUT" \
+                --mpi openmpi --label "in.displace-$1" --out "$t" --marks "ok=$OK" --keep "$R/experiments/results/ninja/logs" \
+                -- "$(exe "$(full "$1")")" "${INPUT[@]}"; [ $? != 3 ] || return 1
+        done
+    done
+}
 for step in "${@:-all}"; do
     case "$step" in
         fetch) step_fetch;; build) step_build;; predict) predict "${BUG:0:8}";; stress) stress "${BUG:0:8}";;
         fixed) predict "${FIX:0:8}" && stress "${FIX:0:8}";;
+        ninja) ninja "${BUG:0:8}" lammps;; ninja-fixed) ninja "${FIX:0:8}" lammps-fix;;
         all) step_fetch && step_build && predict "${BUG:0:8}" && stress "${BUG:0:8}" && predict "${FIX:0:8}" && stress "${FIX:0:8}";;
-        *) echo "usage: $0 [fetch|build|predict|stress|fixed|all]" >&2; exit 2;;
+        *) echo "usage: $0 [fetch|build|predict|stress|fixed|ninja|ninja-fixed|all]" >&2; exit 2;;
     esac || exit 1
 done

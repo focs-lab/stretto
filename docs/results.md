@@ -1207,6 +1207,193 @@ the corpora with the limit forced down).
 | 411c069b | in.displace | 8 | eager | 40 | 0 | 0 | - |
 
 
+## E5h: the other tools on the bugs of E5g and two new ones (MUST, NINJA, MPI-PRV)
+
+The tools the paper compares with, on the bugs of E5g and the two found since: MUST 1.11.2 (20 runs per
+configuration under `mustrun`, MUST's image, MPICH; `experiments/must/apps.sh` with `CASES=hist`), NINJA
+(40 runs per process count and mode: random noise on 10% of the sends at 50 ms, system- and
+application-centric, the latter after one system-centric learning run; the case's `run.sh ninja`, and
+`experiments/ninja/campaign.sh superlu qe`), MPI-PRV (its own build route,
+`experiments/mpiprv/stretto_apps.sh`), and the cases' own runs with random delays (E5g). The fixes are
+the controls: a run counts for a tool only by the bug's own symptom, which no run of a fix shows.
+Every run but NINJA's on SuperLU_DIST (on apollo, 12 processors) ran on one machine, on 4 to 12 processors of
+one NUMA node. NINJA's rates depend on the machine: on apollo its runs of stempy showed the bug in 24
+of 240 runs, and its application-centric mode did not crash there.
+
+### MUST 1.11.2 (rows by code commit: a5dce1f (240), b0dbe2a (20))
+
+*Race*: MUST reports a deadlock or a type mismatch, the two of its checks a racing receive can trip. *Completed*:
+the program did its work (its verdict printed, on every rank for Cabana's test; the x error printed; ph.x's
+table judged), whether or not `mustrun` ended after it: in many runs it did not, until the harness's timeout
+(*no end*), as in E5's MUST runs of HYPRE and NPB MG.
+
+| configuration | version | ranks | runs | how they ended | race | completed | wrong result | no end | MUST's errors (runs) |
+|---|---|---|---|---|---|---|---|---|---|
+| cabana-3 | fbbcc37f | 3 | 20 | FINISHED 12, TIMEOUT 8 | 0 | 20 | 0 | 8 | - |
+| cabana-4 | fbbcc37f | 4 | 20 | FINISHED 11, TIMEOUT 9 | 0 | 20 | 0 | 9 | - |
+| stempy-4 | 3.3.5 | 4 | 20 | CRASHED 20 | 20 | 0 | 0 | 0 | MUST_ERROR_TYPEMATCH_MISMATCH(MPI_Recv) 20 |
+| stempy-8 | 3.3.5 | 8 | 20 | CRASHED 20 | 20 | 0 | 0 | 0 | MUST_ERROR_TYPEMATCH_MISMATCH(MPI_Recv) 18, MUST_ERROR_TYPEMATCH_MISMATCH(MPI_Send) 2 |
+| mfem332-4 | 3.3.2 | 4 | 20 | CRASHED 20 | 0 | 0 | 0 | 0 | no report |
+| mfem332-8 | 3.3.2 | 8 | 20 | CRASHED 20 | 0 | 0 | 0 | 0 | no report |
+| lammps-4 | 3a2da51a | 4 | 20 | CRASHED 20 | 20 | 0 | 0 | 0 | MUST_ERROR_DEADLOCK() 20 |
+| lammps-8 | 3a2da51a | 8 | 20 | CRASHED 17, TIMEOUT 3 | 17 | 0 | 0 | 0 | MUST_ERROR_DEADLOCK() 17 |
+| cabana-fix-3 | 38170631 | 3 | 20 | TIMEOUT 12, FINISHED 8 | 0 | 20 | 0 | 12 | - |
+| mfem332-fix-4 | 3.4 | 4 | 20 | CRASHED 20 | 0 | 0 | 0 | 0 | no report |
+| superlu-blk12x6-3 | 9.3.1 | 3 | 20 | FINISHED 18, TIMEOUT 2 | 0 | 20 | 0 | 2 | MUST_ERROR_OVERLAPPED_RECV(MPI_Irecv) 20 |
+| superlu-blk8x10-6 | 9.3.1 | 6 | 20 | CRASHED 17, TIMEOUT 2, FINISHED 1 | 4 | 8 | 0 | 0 | MUST_ERROR_DEADLOCK() 4 |
+| qe-3 | 615e40cf | 3 | 20 | TIMEOUT 20 | 0 | 20 | 16 | 20 | MUST_ERROR_COLLECTIVE_CALL_MISMATCH(MPI_Gatherv) 20, MUST_ERROR_DATATYPE_NULL(MPI_Gatherv) 20, MUST_ERROR_LEAK_COMM(MPI_Comm_split) 20 |
+
+What the reports say: on stempy, every type mismatch is gatherEvents' map receive (MPI_BYTE, in
+receivePartialMap) taking another worker's 8-byte size (MPI_UINT64_T, sendPartialMap): the race itself, struck in
+the run, after which the harness fails on cereal's "Failed to read". On LAMMPS, every deadlock report names the
+MPI_Send of Irregular::create_atom (irregular.cpp) on each rank: the send cycle, which MUST reports although the run
+did not hang (it treats a standard send as possibly synchronous). On SuperLU_DIST at 6 ranks, the deadlock reports
+have a rank in the U-solve's MPI_Recv (dlsum_bmod_inv_master) while the others have left the solve: the race's hang,
+struck in the run; at 3 ranks every run solves correctly, with MUST_ERROR_OVERLAPPED_RECV on three MPI_Irecv,
+unrelated to the race. On MFEM, 3.3.2 and the fix alike, every run ends in a segmentation fault inside MUST's own
+request handling (libMpiHandleShim's completeRequest, from MPI_Waitany or MPI_Test), and MUST's signal handler
+then throws ("Resource deadlock avoided") before the report is written: MUST cannot check this driver. On
+Cabana, MUST reports nothing, and the runs that do not end have every rank past its verdict. On QE, MUST's
+errors are of MPI_Gatherv (a null send type with a zero count, a collective mismatch on a one-process
+communicator) and a communicator leak, outside elph_prt; the tables of most runs show the race, whose two
+messages have the same type and size, which no check of MUST compares.
+
+### NINJA
+
+*Shows the bug*: the run ends with the bug's own symptom (Cabana, LAMMPS: a hang; stempy: cereal's
+"Failed to read"; MFEM: MPI_ERR_TRUNCATE, "integer set not found" or a wrong area; SuperLU_DIST: a hang or
+an x error above 1e-4; QE: an elph_prt table that differs from the reference). Run 0, application-centric
+mode's learning run, is not counted. Rows by code commit: b0dbe2a (1694), a5dce1f (486), 425e54b (484).
+
+| program | ranks | noise | runs | shows the bug | finished | other ends | learning run |
+|---|---|---|---|---|---|---|---|
+| Test10NoTopo-fbbcc37f | 3 | random, 10% of sends by 0.05 s | 40 | 9 | 0 | SIGNAL:6 31 | - |
+| Test10NoTopo-fbbcc37f | 3 | system-centric | 40 | 0 | 0 | SIGNAL:6 40 | - |
+| Test10NoTopo-fbbcc37f | 3 | application-centric | 40 | 0 | 0 | SIGNAL:11 40 | SIGNAL:6 |
+| Test10NoTopo-fbbcc37f | 4 | random, 10% of sends by 0.05 s | 40 | 16 | 0 | SIGNAL:6 24 | - |
+| Test10NoTopo-fbbcc37f | 4 | system-centric | 40 | 3 | 0 | SIGNAL:6 37 | - |
+| Test10NoTopo-fbbcc37f | 4 | application-centric | 40 | 0 | 0 | SIGNAL:11 40 | SIGNAL:6 |
+| Test10NoTopo-38170631 | 3 | random, 10% of sends by 0.05 s | 40 | 0 | 0 | SIGNAL:6 40 | - |
+| Test10NoTopo-38170631 | 3 | system-centric | 40 | 0 | 0 | SIGNAL:6 40 | - |
+| Test10NoTopo-38170631 | 3 | application-centric | 40 | 0 | 0 | SIGNAL:11 40 | SIGNAL:6 |
+| Test10NoTopo-38170631 | 4 | random, 10% of sends by 0.05 s | 40 | 0 | 0 | SIGNAL:6 40 | - |
+| Test10NoTopo-38170631 | 4 | system-centric | 40 | 0 | 0 | SIGNAL:6 40 | - |
+| Test10NoTopo-38170631 | 4 | application-centric | 40 | 0 | 0 | SIGNAL:11 40 | SIGNAL:6 |
+| gatherEvents-3.3.5 | 4 | random, 10% of sends by 0.05 s | 40 | 8 | 32 | - | - |
+| gatherEvents-3.3.5 | 4 | system-centric | 40 | 0 | 40 | - | - |
+| gatherEvents-3.3.5 | 4 | application-centric | 40 | 11 | 18 | SIGNAL:11 9, APP-ERROR:-11 1, TIMEOUT 1 | FINISHED |
+| gatherEvents-3.3.5 | 8 | random, 10% of sends by 0.05 s | 40 | 23 | 17 | - | - |
+| gatherEvents-3.3.5 | 8 | system-centric | 40 | 6 | 34 | - | - |
+| gatherEvents-3.3.5 | 8 | application-centric | 40 | 40 | 0 | - | FINISHED |
+| gatherEvents-3.3.6 | 4 | random, 10% of sends by 0.05 s | 40 | 0 | 40 | - | - |
+| gatherEvents-3.3.6 | 4 | system-centric | 40 | 0 | 40 | - | - |
+| gatherEvents-3.3.6 | 4 | application-centric | 40 | 0 | 26 | SIGNAL:11 13, APP-ERROR:-11 1 | FINISHED |
+| gatherEvents-3.3.6 | 8 | random, 10% of sends by 0.05 s | 40 | 0 | 40 | - | - |
+| gatherEvents-3.3.6 | 8 | system-centric | 40 | 0 | 40 | - | - |
+| gatherEvents-3.3.6 | 8 | application-centric | 40 | 0 | 0 | SIGNAL:11 36, APP-ERROR:-11 3, TIMEOUT 1 | FINISHED |
+| twomesh-3.3.2 | 4 | random, 10% of sends by 0.05 s | 40 | 10 | 0 | SIGNAL:6 30 | - |
+| twomesh-3.3.2 | 4 | system-centric | 40 | 9 | 0 | SIGNAL:6 31 | - |
+| twomesh-3.3.2 | 4 | application-centric | 40 | 0 | 0 | SIGNAL:11 40 | SIGNAL:6 |
+| twomesh-3.3.2 | 8 | random, 10% of sends by 0.05 s | 40 | 32 | 0 | SIGNAL:6 4, SIGNAL:11 3, APP-ERROR:15 1 | - |
+| twomesh-3.3.2 | 8 | system-centric | 40 | 31 | 0 | SIGNAL:6 9 | - |
+| twomesh-3.3.2 | 8 | application-centric | 40 | 0 | 0 | SIGNAL:11 40 | SIGNAL:6 |
+| twomesh-3.4 | 4 | random, 10% of sends by 0.05 s | 40 | 0 | 0 | SIGNAL:6 40 | - |
+| twomesh-3.4 | 4 | system-centric | 40 | 0 | 0 | SIGNAL:6 40 | - |
+| twomesh-3.4 | 4 | application-centric | 40 | 0 | 0 | SIGNAL:11 40 | SIGNAL:6 |
+| twomesh-3.4 | 8 | random, 10% of sends by 0.05 s | 40 | 0 | 0 | SIGNAL:6 34, SIGNAL:11 6 | - |
+| twomesh-3.4 | 8 | system-centric | 40 | 0 | 0 | SIGNAL:6 39, SIGNAL:11 1 | - |
+| twomesh-3.4 | 8 | application-centric | 40 | 0 | 0 | SIGNAL:11 40 | SIGNAL:6, SIGNAL:6, SIGNAL:6 |
+| in.displace-3a2da51a | 4 | random, 10% of sends by 0.05 s | 40 | 0 | 40 | - | - |
+| in.displace-3a2da51a | 4 | system-centric | 40 | 0 | 40 | - | - |
+| in.displace-3a2da51a | 4 | application-centric | 40 | 0 | 40 | - | FINISHED |
+| in.displace-3a2da51a | 8 | random, 10% of sends by 0.05 s | 40 | 0 | 40 | - | - |
+| in.displace-3a2da51a | 8 | system-centric | 40 | 0 | 40 | - | - |
+| in.displace-3a2da51a | 8 | application-centric | 40 | 0 | 40 | - | FINISHED |
+| in.displace-411c069b | 4 | random, 10% of sends by 0.05 s | 40 | 0 | 40 | - | - |
+| in.displace-411c069b | 4 | system-centric | 40 | 0 | 40 | - | - |
+| in.displace-411c069b | 4 | application-centric | 40 | 0 | 40 | - | FINISHED |
+| in.displace-411c069b | 8 | random, 10% of sends by 0.05 s | 40 | 0 | 40 | - | - |
+| in.displace-411c069b | 8 | system-centric | 40 | 0 | 40 | - | - |
+| in.displace-411c069b | 8 | application-centric | 40 | 0 | 40 | - | FINISHED |
+| pddrive3d-blk12x6-orig | 3 | random, 10% of sends by 0.05 s | 40 | 15 | 25 | - | - |
+| pddrive3d-blk12x6-orig | 3 | system-centric | 40 | 0 | 40 | - | - |
+| pddrive3d-blk12x6-orig | 3 | application-centric | 40 | 0 | 0 | SIGNAL:11 40 | FINISHED |
+| pddrive3d-blk8x10-orig | 6 | random, 10% of sends by 0.05 s | 40 | 0 | 40 | - | - |
+| pddrive3d-blk8x10-orig | 6 | system-centric | 40 | 0 | 40 | - | - |
+| pddrive3d-blk8x10-orig | 6 | application-centric | 40 | 0 | 0 | SIGNAL:11 40 | FINISHED |
+| pddrive3d-blk12x6-fix | 3 | random, 10% of sends by 0.05 s | 40 | 0 | 40 | - | - |
+| pddrive3d-blk12x6-fix | 3 | system-centric | 40 | 0 | 40 | - | - |
+| pddrive3d-blk12x6-fix | 3 | application-centric | 40 | 0 | 0 | SIGNAL:11 40 | FINISHED |
+| pddrive3d-blk8x10-fix | 6 | random, 10% of sends by 0.05 s | 40 | 0 | 40 | - | - |
+| pddrive3d-blk8x10-fix | 6 | system-centric | 40 | 0 | 40 | - | - |
+| pddrive3d-blk8x10-fix | 6 | application-centric | 40 | 0 | 0 | SIGNAL:11 40 | FINISHED |
+| ph.x-dev | 3 | random, 10% of sends by 0.05 s | 40 | 23 | 40 | - | - |
+| ph.x-dev | 3 | system-centric | 40 | 37 | 40 | - | - |
+| ph.x-dev | 3 | application-centric | 40 | 26 | 40 | - | FINISHED |
+| ph.x-fix | 3 | random, 10% of sends by 0.05 s | 40 | 0 | 40 | - | - |
+| ph.x-fix | 3 | system-centric | 40 | 0 | 40 | - | - |
+| ph.x-fix | 3 | application-centric | 40 | 0 | 40 | - | FINISHED |
+
+Cabana with NINJA's library loaded but no send delayed (random noise at a ratio of 1e-6%), against
+plain runs (`cabana-check.csv`; rows by code commit: 425e54b (40)):
+
+| program | ranks | noise | runs | how they ended | marks reached |
+|---|---|---|---|---|---|
+| Test10NoTopo-fbbcc37f | 3 | none (plain runs) | 5 | FINISHED 5 | ok 5 |
+| Test10NoTopo-fbbcc37f | 4 | none (plain runs) | 5 | FINISHED 5 | ok 5 |
+| Test10NoTopo-fbbcc37f libninja-fixed | 3 | random | 5 | SIGNAL:6 5 | ok 5 |
+| Test10NoTopo-fbbcc37f libninja-fixed | 4 | random | 5 | SIGNAL:6 5 | ok 5 |
+| Test10NoTopo-38170631 | 3 | none (plain runs) | 5 | FINISHED 5 | ok 5 |
+| Test10NoTopo-38170631 | 4 | none (plain runs) | 5 | FINISHED 5 | ok 5 |
+| Test10NoTopo-38170631 libninja-fixed | 3 | random | 5 | SIGNAL:6 5 | ok 5 |
+| Test10NoTopo-38170631 libninja-fixed | 4 | random | 5 | SIGNAL:6 5 | ok 5 |
+
+MFEM with NINJA's library loaded but no send delayed (random noise at a ratio of 1e-6%), against
+plain runs (`mfem332-check.csv`; rows by code commit: 425e54b (60)):
+
+| program | ranks | noise | runs | how they ended | marks reached |
+|---|---|---|---|---|---|
+| twomesh-3.3.2 | 4 | none (plain runs) | 5 | FINISHED 4, MPI-ERROR:MPI_ERR_TRUNCATE 1 | ok 4, - 1 |
+| twomesh-3.3.2 | 8 | none (plain runs) | 5 | FINISHED 4, APP-ERROR:1 1 | ok 4, - 1 |
+| twomesh-3.3.2 libninja-fixed | 4 | random | 5 | TIMEOUT 3, MPI-ERROR:MPI_ERR_TRUNCATE 2 | - 5 |
+| twomesh-3.3.2 libninja-fixed | 8 | random | 5 | TIMEOUT 2, MPI-ERROR:MPI_ERR_TRUNCATE 2, APP-ERROR:1 1 | - 5 |
+| twomesh-3.3.2 libninja-fixed-any | 4 | random | 5 | SIGNAL:6 5 | mesh1 5 |
+| twomesh-3.3.2 libninja-fixed-any | 8 | random | 5 | APP-ERROR:1 3, SIGNAL:11 2 | - 5 |
+| twomesh-3.4 | 4 | none (plain runs) | 5 | FINISHED 5 | ok 5 |
+| twomesh-3.4 | 8 | none (plain runs) | 5 | FINISHED 5 | ok 5 |
+| twomesh-3.4 libninja-fixed | 4 | random | 5 | TIMEOUT 5 | - 5 |
+| twomesh-3.4 libninja-fixed | 8 | random | 5 | TIMEOUT 5 | - 5 |
+| twomesh-3.4 libninja-fixed-any | 4 | random | 5 | SIGNAL:6 5 | mesh1 5 |
+| twomesh-3.4 libninja-fixed-any | 8 | random | 5 | SIGNAL:6 5 | - 5 |
+
+### MPI-PRV (rows by code commit: b0dbe2a (7))
+
+| application | version | configurations | step | result | outcome | reason |
+|---|---|---|---|---|---|---|
+| cabana | fbbcc37f | CommPlan.Test10NoTopo, 3 and 4 ranks | wacxx on tstCommunicationPlan_SERIAL.cpp | status 0; 0 monitor calls woven, none of a point-to-point call | unsupported | the instrumenter weaves no event before the point-to-point calls of the unit that holds CommunicationPlan's racing Irecv, Send and Isend (header templates); the trace would hold no event of the racing calls |
+| stempy | 3.3.5 | gatherEvents harness, 4 and 8 ranks | wacxx on harness.cpp | status 0; 1 monitor calls woven, none of a point-to-point call | unsupported | the instrumenter weaves no event before the point-to-point calls of the unit that holds gatherEvents' size and map receives; the trace would hold no event of the racing calls |
+| mfem332 | 3.3.2 | two-mesh driver, 4 and 8 ranks | wacxx on communication.cpp | status 255; 0 monitor calls woven; first error: clang-15: error: clang frontend command failed with exit code 139 (use -v to see invocation) | unsupported | the instrumenter fails on the unit that holds GroupTopology::Create's receives; the trace would hold no event of the racing calls |
+| lammps | 3a2da51a | in.displace, 4 and 8 ranks | wacxx on irregular.cpp | status 0; 10 monitor calls woven, 8 of point-to-point calls | supported | - |
+| lammps | 3a2da51a | in.displace, 4 ranks | LAMMPS built with the instrumented irregular.cpp, run once, analysed | run status 0; 52 events in the trace; patterns of arm a: P1 none P6 none P7 none P9 none | out-of-scope | instrumented and run; the bug is a buffering hazard (a send-send cycle that needs unbuffered standard sends), which none of MPI-PRV's properties names, and its analysis keeps every message match fixed |
+| superlu_dist | 9.3.1 | pddrive3d, blk12x6 on 3 and blk8x10 on 6 ranks | wacc on pdgstrs3d.c | status 255; 4 monitor calls woven; first error: clang-15: error: clang frontend command failed with exit code 139 (use -v to see invocation) | unsupported | the instrumenter fails on the unit that holds the 3D solve's wildcard receive loops; the trace would hold no event of the racing calls |
+| qe | 615e40cf | ph.x, Ni at X, 3 ranks in 3 pools | - | - | unsupported | elph_prt (PHonon/PH/elphon.f90) is Fortran; MPI-PRV's instrumenter (wac, wacc, wacxx) weaves C and C++ sources only |
+
+### Summary
+
+Stretto: clean traced runs that predict the bug (E5g). Random delays: untraced runs with the replay
+library's delays that fail (E5g). NINJA: runs that show the bug, every mode and process count, and its best
+setting. MUST: runs whose report names the race. SuperLU_DIST's and QE's Stretto and random-delay runs come
+from their verification, outside this tree.
+
+| bug | Stretto | random delays | NINJA, all | NINJA, best | MUST | MPI-PRV |
+|---|---|---|---|---|---|---|
+| Cabana fbbcc37f, `CommunicationPlan` (hang) | 15 of 15 | 67 of 160 | 28 of 240 | 16 of 40 (random, 10% of sends by 0.05 s, 4 ranks) | 0 of 40 | unsupported |
+| stempy 3.3.5, `gatherEvents` (cereal exception) | 30 of 30 | 43 of 80 | 88 of 240 | 40 of 40 (application-centric, 8 ranks) | 40 of 40 | unsupported |
+| MFEM 3.3.2, `GroupTopology::Create` (truncation, abort or wrong groups) | 21 of 24 | 48 of 80 | 82 of 240 | 32 of 40 (random, 10% of sends by 0.05 s, 8 ranks) | 0 of 40 | unsupported |
+| LAMMPS 3a2da51a, `Irregular::create_atom` (deadlock without buffering) | 40 of 40 | 0 of 80 | 0 of 240 | 0 of 40 (random, 10% of sends by 0.05 s, 4 ranks) | 37 of 40 | out-of-scope |
+| SuperLU_DIST 9.3.1, the 3D solve (hang or wrong solution) | - | - | 15 of 240 | 15 of 40 (random, 10% of sends by 0.05 s, 3 ranks) | 4 of 40 | unsupported |
+| Quantum ESPRESSO 615e40cf, `elph_prt` (the spins' values exchanged) | - | - | 86 of 120 | 37 of 40 (system-centric, 3 ranks) | 0 of 20 | unsupported |
+
 ## E6: polynomial checker vs exhaustive explorer
 
 The checker in L1 mode (the claim the report makes) against exhaustive exploration of the trace as a
@@ -1989,6 +2176,37 @@ NINJA (E10, E5f):
 | NPB MG 2.4.1, 16 processes, system-centric noise: runs whose residual changes | 0 of 20 | [0, 0.16] | `nNinjaMGSixteenSystemChangedCI` |
 | NPB MG 2.4.1, 16 processes, random noise: runs whose residual changes | 8 of 20 | [0.22, 0.61] | `nNinjaMGSixteenRandomChangedCI` |
 | NPB MG 2.4.1, 16 processes, no noise: runs whose residual changes | 0 of 20 | [0, 0.16] | `nNinjaMGSixteenPlainChangedCI` |
+
+MUST and NINJA on the bugs of projects' histories and the new ones (E5h):
+
+| | k of n | 95% interval | macro |
+|---|---|---|---|
+| MUST 1.11.2, Cabana: runs whose report names the race | 0 of 40 | [0, 0.088] | `nMustCabanaRaceCI` |
+| MUST 1.11.2, Cabana, the fix: runs whose report names the race | 0 of 20 | [0, 0.16] | `nMustCabanaFixRaceCI` |
+| MUST 1.11.2, Stempy: runs whose report names the race | 40 of 40 | [0.912, 1] | `nMustStempyRaceCI` |
+| MUST 1.11.2, MfemGroup: runs whose report names the race | 0 of 40 | [0, 0.088] | `nMustMfemGroupRaceCI` |
+| MUST 1.11.2, MfemGroup, the fix: runs whose report names the race | 0 of 20 | [0, 0.16] | `nMustMfemGroupFixRaceCI` |
+| MUST 1.11.2, Lammps: runs whose report names the race | 37 of 40 | [0.80, 0.974] | `nMustLammpsRaceCI` |
+| MUST 1.11.2, Superlu: runs whose report names the race | 4 of 40 | [0.040, 0.23] | `nMustSuperluRaceCI` |
+| MUST 1.11.2, Qe: runs whose report names the race | 0 of 20 | [0, 0.16] | `nMustQeRaceCI` |
+| NINJA, Cabana, every noise and process count: runs that show the bug | 28 of 240 | [0.082, 0.16] | `nNinjaCabanaRevealedCI` |
+| NINJA, Cabana, the fix, every noise and process count: runs that show the bug | 0 of 240 | [0, 0.016] | `nNinjaCabanaFixRevealedCI` |
+| NINJA, Cabana, its best setting (random, 10% of sends by 0.05 s, 4 ranks): runs that show the bug | 16 of 40 | [0.26, 0.55] | `nNinjaCabanaBestRevealedCI` |
+| NINJA, Stempy, every noise and process count: runs that show the bug | 88 of 240 | [0.31, 0.43] | `nNinjaStempyRevealedCI` |
+| NINJA, Stempy, the fix, every noise and process count: runs that show the bug | 0 of 240 | [0, 0.016] | `nNinjaStempyFixRevealedCI` |
+| NINJA, Stempy, its best setting (application-centric, 8 ranks): runs that show the bug | 40 of 40 | [0.912, 1] | `nNinjaStempyBestRevealedCI` |
+| NINJA, MfemGroup, every noise and process count: runs that show the bug | 82 of 240 | [0.28, 0.40] | `nNinjaMfemGroupRevealedCI` |
+| NINJA, MfemGroup, the fix, every noise and process count: runs that show the bug | 0 of 240 | [0, 0.016] | `nNinjaMfemGroupFixRevealedCI` |
+| NINJA, MfemGroup, its best setting (random, 10% of sends by 0.05 s, 8 ranks): runs that show the bug | 32 of 40 | [0.65, 0.90] | `nNinjaMfemGroupBestRevealedCI` |
+| NINJA, Lammps, every noise and process count: runs that show the bug | 0 of 240 | [0, 0.016] | `nNinjaLammpsRevealedCI` |
+| NINJA, Lammps, the fix, every noise and process count: runs that show the bug | 0 of 240 | [0, 0.016] | `nNinjaLammpsFixRevealedCI` |
+| NINJA, Lammps, its best setting (random, 10% of sends by 0.05 s, 4 ranks): runs that show the bug | 0 of 40 | [0, 0.088] | `nNinjaLammpsBestRevealedCI` |
+| NINJA, Superlu, every noise and process count: runs that show the bug | 15 of 240 | [0.038, 0.10] | `nNinjaSuperluRevealedCI` |
+| NINJA, Superlu, the fix, every noise and process count: runs that show the bug | 0 of 240 | [0, 0.016] | `nNinjaSuperluFixRevealedCI` |
+| NINJA, Superlu, its best setting (random, 10% of sends by 0.05 s, 3 ranks): runs that show the bug | 15 of 40 | [0.24, 0.53] | `nNinjaSuperluBestRevealedCI` |
+| NINJA, Qe, every noise and process count: runs that show the bug | 86 of 120 | [0.63, 0.79] | `nNinjaQeRevealedCI` |
+| NINJA, Qe, the fix, every noise and process count: runs that show the bug | 0 of 120 | [0, 0.031] | `nNinjaQeFixRevealedCI` |
+| NINJA, Qe, its best setting (system-centric, 3 ranks): runs that show the bug | 37 of 40 | [0.80, 0.974] | `nNinjaQeBestRevealedCI` |
 
 ### Distinct alternatives behind the replays
 

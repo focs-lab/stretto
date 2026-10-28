@@ -14,14 +14,19 @@
 #              60 s each, stopping at the first that does not finish, JOBS programs at a time
 #   mg         NPB MG 2.4.1 class S (NPB_MG_DIR as for experiments/npbmg/) at each NPS, RUNS
 #              runs per mode, plain runs among them, 120 s each, recording MG's residual norm
+#   superlu    SuperLU_DIST 9.3.1's 3D solve and its fix, from the builds of the verification
+#              (SLU_DIR, SLU_MATS), at 3 and 6 ranks, RUNS runs per mode, 60 s each
+#   qe         Quantum ESPRESSO's elph_prt and its fix, from the MPICH builds of the verification
+#              (QE_DIR, QE_REF), at 3 ranks in 3 pools, RUNS runs per mode, 120 s each
 # Modes: MODES (default random system app; mg adds plain). Random noise delays RAND_RATIO
 # percent of the sends by each of RAND_DELAYS microseconds in turn: 50 ms, the stress
-# baseline's largest delay, and 1.2 s, longer than the replica's pause.
-# Writes experiments/results/ninja/{calibrate,hypre,mbi,mg}.csv, each step its table afresh
+# baseline's largest delay, and 1.2 s, longer than the replica's pause (superlu and qe: 50 ms,
+# as the steps of the four historical bugs in their run.sh).
+# Writes experiments/results/ninja/{calibrate,hypre,mbi,mg,superlu,qe}.csv, each step its table afresh
 # (run.py appends, and a rerun appended to the last campaign would be counted with it;
 # NINJA_APPEND=1 keeps the table, to add for example a HYPRE version); the output of runs that
 # did not finish goes to experiments/results/ninja/logs/ (NINJA_OUT: another directory).
-# usage: experiments/ninja/campaign.sh [calibrate|hypre|mbi|mg ...]
+# usage: experiments/ninja/campaign.sh [calibrate|hypre|mbi|mg|superlu|qe ...]
 #        RUNS (40; calibrate and mg 20), JOBS (3), LOOPS (5), NPS (16 32), RAND_RATIO (10),
 #        RAND_DELAYS (50000 1200000)
 set -uo pipefail
@@ -82,6 +87,38 @@ step_mbi() {
     each "${MODES:-random system app}" -- corpus experiments/results/mbi/mbi.csv --runs 30 --timeout 60 --jobs "${JOBS:-3}" \
         --out "$OUT/mbi.csv" || return 1
 }
+step_superlu() {
+    # SuperLU_DIST 9.3.1's pddrive3d from the verification's builds (SLU_DIR: build-openmpi-orig,
+    # and build-openmpi-fix with the barrier between the L- and U-solve), blk12x6 on grid 1x3x1
+    # and blk8x10 on 2x3x1 (SLU_MATS), RUNS runs per mode, random noise at 50 ms only as on the
+    # four historical bugs, 60 s each; the value is the x error pddrive3d prints
+    fresh superlu
+    local RAND_DELAYS="${RAND_DELAYS:-50000}" v s m r c d
+    export OMPI_MCA_btl_vader_single_copy_mechanism=none
+    for v in orig fix; do
+        for s in blk12x6:1:3:1 blk8x10:2:3:1; do
+            IFS=: read -r m r c d <<< "$s"
+            each "${MODES:-random system app}" -- runs --np $((r * c * d)) --runs "${RUNS:-40}" --timeout 60 --mpi openmpi \
+                --label "pddrive3d-$m-$v" --out "$OUT/superlu.csv" --value '\|\|X - Xtrue\|\| / \|\|X\|\| = (\S+)' \
+                --keep "$OUT/logs" -- "${SLU_DIR:?}/build-openmpi-$v/EXAMPLE/pddrive3d" -r "$r" -c "$c" -d "$d" "${SLU_MATS:?}/$m.mtx" \
+                || return 1
+        done
+    done
+}
+step_qe() {
+    # Quantum ESPRESSO's ph.x from the verification's MPICH builds (QE_DIR: build-mpich-dev, and
+    # build-mpich-fix with a tag per spin), the Ni input at X with electron_phonon='prt' and the
+    # k point of the verification (QE_DIR/run/k39, copied into each run's directory), 3 ranks in
+    # 3 pools, RUNS runs per mode, random noise at 50 ms only, 120 s each; the value is the number
+    # of elph_prt rows that differ from the one-process reference QE_REF (experiments/elph_rows.py)
+    fresh qe
+    local RAND_DELAYS="${RAND_DELAYS:-50000}" v
+    for v in dev fix; do
+        each "${MODES:-random system app}" -- runs --np 3 --runs "${RUNS:-40}" --timeout 120 --mpi mpich --label "ph.x-$v" \
+            --out "$OUT/qe.csv" --setup "${QE_DIR:?}/run/k39" --check "python3 $R/experiments/elph_rows.py run.out ${QE_REF:?}" \
+            --keep "$OUT/logs" -- "$QE_DIR/build-mpich-$v/bin/ph.x" -nk 3 -in ph.in || return 1
+    done
+}
 step_mg() {
     fresh mg
     local np
@@ -92,7 +129,7 @@ step_mg() {
 }
 for step in "$@"; do
     case "$step" in
-        calibrate|hypre|mbi|mg) "step_$step" || exit 1;;
-        *) echo "usage: $0 [calibrate|hypre|mbi|mg ...]" >&2; exit 2;;
+        calibrate|hypre|mbi|mg|superlu|qe) "step_$step" || exit 1;;
+        *) echo "usage: $0 [calibrate|hypre|mbi|mg|superlu|qe ...]" >&2; exit 2;;
     esac
 done

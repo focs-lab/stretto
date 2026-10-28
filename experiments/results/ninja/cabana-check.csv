@@ -1,0 +1,41 @@
+label,np,mode,setting,run,result,seconds,reached,value,commit
+Test10NoTopo-fbbcc37f,3,plain,,1,FINISHED,0.5,ok,,425e54b
+Test10NoTopo-fbbcc37f,3,plain,,2,FINISHED,0.5,ok,,425e54b
+Test10NoTopo-fbbcc37f,3,plain,,3,FINISHED,0.5,ok,,425e54b
+Test10NoTopo-fbbcc37f,3,plain,,4,FINISHED,0.5,ok,,425e54b
+Test10NoTopo-fbbcc37f,3,plain,,5,FINISHED,0.5,ok,,425e54b
+Test10NoTopo-fbbcc37f libninja-fixed,3,random,ratio=1e-06% delay=1us,1,SIGNAL:6,0.7,ok,,425e54b
+Test10NoTopo-fbbcc37f libninja-fixed,3,random,ratio=1e-06% delay=1us,2,SIGNAL:6,1.6,ok,,425e54b
+Test10NoTopo-fbbcc37f libninja-fixed,3,random,ratio=1e-06% delay=1us,3,SIGNAL:6,1.6,ok,,425e54b
+Test10NoTopo-fbbcc37f libninja-fixed,3,random,ratio=1e-06% delay=1us,4,SIGNAL:6,0.6,ok,,425e54b
+Test10NoTopo-fbbcc37f libninja-fixed,3,random,ratio=1e-06% delay=1us,5,SIGNAL:6,1.6,ok,,425e54b
+Test10NoTopo-fbbcc37f,4,plain,,1,FINISHED,0.5,ok,,425e54b
+Test10NoTopo-fbbcc37f,4,plain,,2,FINISHED,0.5,ok,,425e54b
+Test10NoTopo-fbbcc37f,4,plain,,3,FINISHED,0.5,ok,,425e54b
+Test10NoTopo-fbbcc37f,4,plain,,4,FINISHED,0.5,ok,,425e54b
+Test10NoTopo-fbbcc37f,4,plain,,5,FINISHED,0.5,ok,,425e54b
+Test10NoTopo-fbbcc37f libninja-fixed,4,random,ratio=1e-06% delay=1us,1,SIGNAL:6,0.6,ok,,425e54b
+Test10NoTopo-fbbcc37f libninja-fixed,4,random,ratio=1e-06% delay=1us,2,SIGNAL:6,0.6,ok,,425e54b
+Test10NoTopo-fbbcc37f libninja-fixed,4,random,ratio=1e-06% delay=1us,3,SIGNAL:6,0.6,ok,,425e54b
+Test10NoTopo-fbbcc37f libninja-fixed,4,random,ratio=1e-06% delay=1us,4,SIGNAL:6,1.7,ok,,425e54b
+Test10NoTopo-fbbcc37f libninja-fixed,4,random,ratio=1e-06% delay=1us,5,SIGNAL:6,0.7,ok,,425e54b
+Test10NoTopo-38170631,3,plain,,1,FINISHED,0.5,ok,,425e54b
+Test10NoTopo-38170631,3,plain,,2,FINISHED,0.5,ok,,425e54b
+Test10NoTopo-38170631,3,plain,,3,FINISHED,0.5,ok,,425e54b
+Test10NoTopo-38170631,3,plain,,4,FINISHED,0.5,ok,,425e54b
+Test10NoTopo-38170631,3,plain,,5,FINISHED,0.5,ok,,425e54b
+Test10NoTopo-38170631 libninja-fixed,3,random,ratio=1e-06% delay=1us,1,SIGNAL:6,1.6,ok,,425e54b
+Test10NoTopo-38170631 libninja-fixed,3,random,ratio=1e-06% delay=1us,2,SIGNAL:6,0.7,ok,,425e54b
+Test10NoTopo-38170631 libninja-fixed,3,random,ratio=1e-06% delay=1us,3,SIGNAL:6,0.6,ok,,425e54b
+Test10NoTopo-38170631 libninja-fixed,3,random,ratio=1e-06% delay=1us,4,SIGNAL:6,0.6,ok,,425e54b
+Test10NoTopo-38170631 libninja-fixed,3,random,ratio=1e-06% delay=1us,5,SIGNAL:6,1.6,ok,,425e54b
+Test10NoTopo-38170631,4,plain,,1,FINISHED,0.5,ok,,425e54b
+Test10NoTopo-38170631,4,plain,,2,FINISHED,0.5,ok,,425e54b
+Test10NoTopo-38170631,4,plain,,3,FINISHED,0.5,ok,,425e54b
+Test10NoTopo-38170631,4,plain,,4,FINISHED,0.5,ok,,425e54b
+Test10NoTopo-38170631,4,plain,,5,FINISHED,0.5,ok,,425e54b
+Test10NoTopo-38170631 libninja-fixed,4,random,ratio=1e-06% delay=1us,1,SIGNAL:6,0.7,ok,,425e54b
+Test10NoTopo-38170631 libninja-fixed,4,random,ratio=1e-06% delay=1us,2,SIGNAL:6,0.7,ok,,425e54b
+Test10NoTopo-38170631 libninja-fixed,4,random,ratio=1e-06% delay=1us,3,SIGNAL:6,0.7,ok,,425e54b
+Test10NoTopo-38170631 libninja-fixed,4,random,ratio=1e-06% delay=1us,4,SIGNAL:6,0.6,ok,,425e54b
+Test10NoTopo-38170631 libninja-fixed,4,random,ratio=1e-06% delay=1us,5,SIGNAL:6,0.7,ok,,425e54b

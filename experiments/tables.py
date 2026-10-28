@@ -1657,6 +1657,227 @@ def lammps_history() -> list:
     return out + [""]
 
 
+HIST_TOOL_NP_WORD = {3: "Three", 4: "Four", 6: "Six", 8: "Eight"}
+HIST_TOOL_MODE = {"random": "Random", "system": "System", "app": "App"}
+HIST_TOOL_PROPS: list = []   # (count, out of, what) of section E5h, for the Wilson intervals
+
+
+def _float(v) -> float:
+    try:
+        return float(str(v).replace("D", "E"))
+    except ValueError:
+        return float("nan")
+
+
+# The bugs of E5h: (key, macro prefix, title, the NINJA tables of the version with the bug and of
+# its fix (or one table, its labels ending in the fix's name), the fix's label suffix, whether a
+# NINJA run shows the bug, the bug's ranks for MUST's check of a completed run). A NINJA run shows
+# the bug by the bug's own symptom, not by a failure of any kind: NINJA's library breaks some of
+# these programs by itself (the check tables), and the fixes are the control.
+HIST_TOOL_CASES = (
+    ("cabana", "Cabana", "Cabana fbbcc37f, `CommunicationPlan` (hang)", ("cabana", "cabana-fix"), None,
+     lambda r: r["result"] == "TIMEOUT"),
+    ("stempy", "Stempy", "stempy 3.3.5, `gatherEvents` (cereal exception)", ("stempy", "stempy-fix"), None,
+     lambda r: r.get("value") == "Failed to read"),
+    ("mfem332", "MfemGroup", "MFEM 3.3.2, `GroupTopology::Create` (truncation, abort or wrong groups)", ("mfem332", "mfem332-fix"), None,
+     lambda r: r["result"] == "MPI-ERROR:MPI_ERR_TRUNCATE" or r.get("value") in ("integer set not found", "WRONG")),
+    ("lammps", "Lammps", "LAMMPS 3a2da51a, `Irregular::create_atom` (deadlock without buffering)", ("lammps", "lammps-fix"), None,
+     lambda r: r["result"] == "TIMEOUT"),
+    ("superlu_dist", "Superlu", "SuperLU_DIST 9.3.1, the 3D solve (hang or wrong solution)", ("superlu",), "-fix",
+     lambda r: r["result"] == "TIMEOUT" or (r["result"] == "FINISHED" and not _float(r.get("value") or "nan") <= 1e-4)),
+    ("qe", "Qe", "Quantum ESPRESSO 615e40cf, `elph_prt` (the spins' values exchanged)", ("qe",), "-fix",
+     lambda r: r["result"] == "FINISHED" and (r.get("value") or "").isdigit() and int(r["value"]) > 0),
+)
+# MUST's report names the race when it reports a deadlock or a type mismatch: the hangs and the
+# messages of another kind that a racing receive takes; nothing else MUST checks is about which
+# send a receive matches
+MUST_RACE = re.compile(r"DEADLOCK|TYPEMATCH")
+
+
+# what the runs' outputs under experiments/results/must/runs/ show beyond the table (read 28 Oct)
+HIST_MUST_NOTES = [
+    "What the reports say: on stempy, every type mismatch is gatherEvents' map receive (MPI_BYTE, in",
+    "receivePartialMap) taking another worker's 8-byte size (MPI_UINT64_T, sendPartialMap): the race itself, struck in",
+    "the run, after which the harness fails on cereal's \"Failed to read\". On LAMMPS, every deadlock report names the",
+    "MPI_Send of Irregular::create_atom (irregular.cpp) on each rank: the send cycle, which MUST reports although the run",
+    "did not hang (it treats a standard send as possibly synchronous). On SuperLU_DIST at 6 ranks, the deadlock reports",
+    "have a rank in the U-solve's MPI_Recv (dlsum_bmod_inv_master) while the others have left the solve: the race's hang,",
+    "struck in the run; at 3 ranks every run solves correctly, with MUST_ERROR_OVERLAPPED_RECV on three MPI_Irecv,",
+    "unrelated to the race. On MFEM, 3.3.2 and the fix alike, every run ends in a segmentation fault inside MUST's own",
+    "request handling (libMpiHandleShim's completeRequest, from MPI_Waitany or MPI_Test), and MUST's signal handler",
+    "then throws (\"Resource deadlock avoided\") before the report is written: MUST cannot check this driver. On",
+    "Cabana, MUST reports nothing, and the runs that do not end have every rank past its verdict. On QE, MUST's",
+    "errors are of MPI_Gatherv (a null send type with a zero count, a collective mismatch on a one-process",
+    "communicator) and a communicator leak, outside elph_prt; the tables of most runs show the race, whose two",
+    "messages have the same type and size, which no check of MUST compares."]
+
+
+def _must_completed(r) -> bool:
+    """The program did its work under MUST (whether or not mustrun ended after it): the verdict
+    printed (on every rank for Cabana's test, whose ranks' lines can run into each other: a run
+    that finished with its verdict counts too), the x error printed, or ph.x's table judged."""
+    v = r.get("value") or ""
+    if r["result"] == "FINISHED" and r.get("wrong_result") == "False":
+        return True
+    if r["app"] == "cabana":
+        return v.isdigit() and int(v) >= int(r["np"])
+    if r["app"] in ("stempy", "mfem332", "lammps"):
+        return v.isdigit() and int(v) > 0
+    return v != ""
+
+
+def _must_wrong(r) -> bool:
+    """A completed run whose result is wrong: pddrive3d's x error above 1e-4, ph.x's table not
+    the reference's."""
+    v = r.get("value") or ""
+    if r["app"] == "superlu_dist":
+        return v != "" and not _float(v) <= 1e-4
+    if r["app"] == "qe":
+        return v.isdigit() and int(v) > 0
+    return False
+
+
+def hist_tools():
+    """E5h: MUST, NINJA, MPI-PRV and random delays on the bugs of E5g and the two new ones
+    (experiments/must/apps.sh CASES=hist, the ninja steps of experiments/<case>/run.sh and
+    experiments/ninja/campaign.sh superlu qe, experiments/mpiprv/stretto_apps.sh). Macros, with P the
+    case's prefix: nMust<P>{Runs,Race,Deadlock,Typematch,Completed,Wrong,NoEnd,Crashed} and the same
+    with Fix for a fix's control; nNinja<P>[Fix]{Runs,Revealed}, over every mode and process count,
+    nNinja<P><ranks><mode>{Runs,Revealed}, and nNinja<P>Best{Runs,Revealed} with Ninja<P>Best, the
+    setting that shows the bug most often; Prv<P>, MPI-PRV's outcome."""
+    must = rows(os.path.join(RES, "must", "apps-hist.csv"))
+    prv = {r["app"]: r for r in rows(os.path.join(RES, "mpiprv", "stretto-apps.csv"))}   # the last row of each app
+    nin = {}           # key -> (the runs of the version with the bug, the runs of the fix)
+    for key, _, _, tables, fixsuf, _ in HIST_TOOL_CASES:
+        t = [ninja_runs_rows(os.path.join(RES, "ninja", f"{x}.csv")) for x in tables]
+        nin[key] = (t[0], t[1]) if len(t) == 2 else ([r for r in t[0] if not r["label"].endswith(fixsuf)],
+                                                      [r for r in t[0] if r["label"].endswith(fixsuf)])
+    if not (must or any(b or f for b, f in nin.values())):
+        return "_no results_\n"
+    HIST_TOOL_PROPS.clear()
+    out = ["The tools the paper compares with, on the bugs of E5g and the two found since: MUST 1.11.2 (20 runs per",
+           "configuration under `mustrun`, MUST's image, MPICH; `experiments/must/apps.sh` with `CASES=hist`), NINJA",
+           "(40 runs per process count and mode: random noise on 10% of the sends at 50 ms, system- and",
+           "application-centric, the latter after one system-centric learning run; the case's `run.sh ninja`, and",
+           "`experiments/ninja/campaign.sh superlu qe`), MPI-PRV (its own build route,",
+           "`experiments/mpiprv/stretto_apps.sh`), and the cases' own runs with random delays (E5g). The fixes are",
+           "the controls: a run counts for a tool only by the bug's own symptom, which no run of a fix shows.",
+           "Every run but NINJA's on SuperLU_DIST (on apollo, 12 processors) ran on one machine, on 4 to 12 processors of",
+           "one NUMA node. NINJA's rates depend on the machine: on apollo its runs of stempy showed the bug in 24",
+           "of 240 runs, and its application-centric mode did not crash there.", ""]
+    # MUST, per configuration
+    out += [f"### MUST 1.11.2 (rows by code commit: {commits(must)})", "",
+            "*Race*: MUST reports a deadlock or a type mismatch, the two of its checks a racing receive can trip. *Completed*:",
+            "the program did its work (its verdict printed, on every rank for Cabana's test; the x error printed; ph.x's",
+            "table judged), whether or not `mustrun` ended after it: in many runs it did not, until the harness's timeout",
+            "(*no end*), as in E5's MUST runs of HYPRE and NPB MG.", "",
+            "| configuration | version | ranks | runs | how they ended | race | completed | wrong result | no end | MUST's errors (runs) |",
+            "|---|---|---|---|---|---|---|---|---|---|"]
+    for cfg in dict.fromkeys(r["config"] for r in must):
+        g = [r for r in must if r["config"] == cfg]
+        errs = collections.Counter(e.split("*")[0] for r in g for e in sorted(set((r.get("must_errors") or "").split(";"))) if e and e != "no-report")
+        out.append(f"| {cfg} | {g[0]['version']} | {g[0]['np']} | {len(g)} | {_tally(g, 'result')} "
+                   f"| {sum(1 for r in g if MUST_RACE.search(r.get('must_errors') or '') or r.get('must_deadlock') == 'True')} "
+                   f"| {sum(map(_must_completed, g))} | {sum(map(_must_wrong, g))} "
+                   f"| {sum(1 for r in g if _must_completed(r) and r['result'] == 'TIMEOUT')} "
+                   f"| {', '.join(f'{e} {n}' for e, n in errs.most_common()) or ('no report' if any(r.get('must_errors') == 'no-report' for r in g) else '-')} |")
+    out += ["", *HIST_MUST_NOTES]
+    for key, p, _, _, _, _ in HIST_TOOL_CASES:
+        for fix in (False, True):
+            g = [r for r in must if r["app"] == key and ("-fix-" in r["config"]) == fix]
+            if not g:
+                continue
+            s = f"nMust{p}{'Fix' if fix else ''}"
+            race = [r for r in g if MUST_RACE.search(r.get("must_errors") or "") or r.get("must_deadlock") == "True"]
+            num(s + "Runs", len(g))
+            num(s + "Race", len(race))
+            num(s + "Deadlock", sum(1 for r in g if "DEADLOCK" in (r.get("must_errors") or "") or r.get("must_deadlock") == "True"))
+            num(s + "Typematch", sum(1 for r in g if "TYPEMATCH" in (r.get("must_errors") or "")))
+            num(s + "Completed", sum(map(_must_completed, g)))
+            num(s + "Wrong", sum(map(_must_wrong, g)))
+            num(s + "NoEnd", sum(1 for r in g if _must_completed(r) and r["result"] == "TIMEOUT"))
+            num(s + "Crashed", sum(1 for r in g if r["result"] == "CRASHED" and r not in race))
+            HIST_TOOL_PROPS.append((s + "Race", s + "Runs", f"MUST 1.11.2, {p}{', the fix' if fix else ''}: runs whose report names the race"))
+    # NINJA, per program, process count and mode
+    out += ["", "### NINJA", "", "*Shows the bug*: the run ends with the bug's own symptom (Cabana, LAMMPS: a hang; stempy: cereal's",
+            "\"Failed to read\"; MFEM: MPI_ERR_TRUNCATE, \"integer set not found\" or a wrong area; SuperLU_DIST: a hang or",
+            "an x error above 1e-4; QE: an elph_prt table that differs from the reference). Run 0, application-centric",
+            "mode's learning run, is not counted. Rows by code commit: "
+            + commits([r for b, f in nin.values() for r in b + f]) + ".", "",
+            "| program | ranks | noise | runs | shows the bug | finished | other ends | learning run |", "|---|---|---|---|---|---|---|---|"]
+    for key, p, _, _, _, shows in HIST_TOOL_CASES:
+        if not any(nin[key]):
+            continue
+        best = None
+        for fix, sel in ((False, nin[key][0]), (True, nin[key][1])):
+            if not sel:
+                continue
+            runs = [r for r in sel if r["run"] != "0"]
+            s = f"nNinja{p}{'Fix' if fix else ''}"
+            num(s + "Runs", len(runs))
+            num(s + "Revealed", sum(map(shows, runs)))
+            HIST_TOOL_PROPS.append((s + "Revealed", s + "Runs", f"NINJA, {p}{', the fix' if fix else ''}, every noise and process count: runs that show the bug"))
+            groups = collections.OrderedDict()
+            for r in sel:
+                groups.setdefault((r["label"], int(r["np"]), r["mode"]), []).append(r)
+            for (label, np_, mode), g in sorted(groups.items(), key=lambda kv: (kv[0][0], kv[0][1], ["random", "system", "app"].index(kv[0][2]))):
+                learn = [r for r in g if r["run"] == "0"]
+                gr = [r for r in g if r["run"] != "0"]
+                hit = [r for r in gr if shows(r)]
+                other = collections.Counter(r["result"] for r in gr if not shows(r) and r["result"] != "FINISHED")
+                out.append(f"| {label} | {np_} | {_ninja_mode(g[0])} | {len(gr)} | {len(hit)} | {sum(r['result'] == 'FINISHED' for r in gr)} "
+                           f"| {', '.join(f'{k} {n}' for k, n in other.most_common()) or '-'} | {', '.join(r['result'] for r in learn) or '-'} |")
+                word = f"{s}{HIST_TOOL_NP_WORD.get(np_, np_)}{HIST_TOOL_MODE[mode]}"   # SuperLU_DIST: one matrix per count
+                num(word + "Runs", len(gr))
+                num(word + "Revealed", len(hit))
+                if not fix and gr and (best is None or len(hit) / len(gr) > best[0]):
+                    best = (len(hit) / len(gr), len(hit), len(gr), f"{_ninja_mode(g[0])}, {np_} ranks")
+        if best:
+            num(f"nNinja{p}BestRevealed", best[1])
+            num(f"nNinja{p}BestRuns", best[2])
+            num(f"Ninja{p}Best", best[3])
+            HIST_TOOL_PROPS.append((f"nNinja{p}BestRevealed", f"nNinja{p}BestRuns", f"NINJA, {p}, its best setting ({best[3]}): runs that show the bug"))
+    for t, what in (("cabana-check", "Cabana"), ("mfem332-check", "MFEM")):
+        ck = ninja_runs_rows(os.path.join(RES, "ninja", f"{t}.csv"))
+        if ck:
+            out += ["", f"{what} with NINJA's library loaded but no send delayed (random noise at a ratio of 1e-6%), against",
+                    f"plain runs (`{t}.csv`; rows by code commit: {commits(ck)}):", "",
+                    "| program | ranks | noise | runs | how they ended | marks reached |", "|---|---|---|---|---|---|"]
+            for label in dict.fromkeys(r["label"] for r in ck):
+                for np_ in sorted({int(r["np"]) for r in ck if r["label"] == label}):
+                    g = [r for r in ck if r["label"] == label and int(r["np"]) == np_]
+                    out.append(f"| {label} | {np_} | {_ninja_mode(g[0])} | {len(g)} | {_tally(g, 'result')} | {_tally(g, 'reached')} |")
+    # MPI-PRV
+    pr = [prv[k] for k, *_ in HIST_TOOL_CASES if k in prv]
+    allp = [r for r in rows(os.path.join(RES, "mpiprv", "stretto-apps.csv")) if r["app"] in {c[0] for c in HIST_TOOL_CASES}]
+    if pr:
+        out += ["", f"### MPI-PRV (rows by code commit: {commits(allp)})", "",
+                "| application | version | configurations | step | result | outcome | reason |", "|---|---|---|---|---|---|---|"]
+        for r in allp:
+            out.append(f"| {r['app']} | {r['version']} | {r['configurations']} | {r['step']} | {r['result']} | {r['outcome']} | {r['reason'] or '-'} |")
+        for key, p, *_ in HIST_TOOL_CASES:
+            if key in prv:
+                num(f"Prv{p}", prv[key]["outcome"])
+    # the summary, as the comparison's table reads it
+    stretto = {"Cabana": ("nCabanaExposed", "nCabanaClean"), "Stempy": ("nStempyExposed", "nStempyClean"),
+               "MfemGroup": ("nMfemGroupExposed", "nMfemGroupClean"), "Lammps": ("nLammpsExposed", "nLammpsClean")}
+    delays = {"Cabana": "Delay", "Stempy": "Delay", "MfemGroup": "Delay", "Lammps": "Delay"}
+    cell = lambda k, n: f"{NUM[k]} of {NUM[n]}" if k in NUM and n in NUM else "-"
+    out += ["", "### Summary", "", "Stretto: clean traced runs that predict the bug (E5g). Random delays: untraced runs with the replay",
+            "library's delays that fail (E5g). NINJA: runs that show the bug, every mode and process count, and its best",
+            "setting. MUST: runs whose report names the race. SuperLU_DIST's and QE's Stretto and random-delay runs come",
+            "from their verification, outside this tree.", "",
+            "| bug | Stretto | random delays | NINJA, all | NINJA, best | MUST | MPI-PRV |", "|---|---|---|---|---|---|---|"]
+    for key, p, title, *_ in HIST_TOOL_CASES:
+        st = stretto.get(p, (None, None))
+        out.append(f"| {title} | {cell(*st) if st[0] else '-'} | "
+                   f"{cell(f'n{p}Stress{delays[p]}Fail', f'n{p}Stress{delays[p]}Runs') if p in delays else '-'} | "
+                   f"{cell(f'nNinja{p}Revealed', f'nNinja{p}Runs')} | "
+                   f"{cell(f'nNinja{p}BestRevealed', f'nNinja{p}BestRuns')}{' (' + NUM[f'Ninja{p}Best'] + ')' if f'Ninja{p}Best' in NUM else ''} | "
+                   f"{cell(f'nMust{p}Race', f'nMust{p}Runs')} | {NUM.get(f'Prv{p}', '-')} |")
+    return "\n".join(out) + "\n"
+
+
 def app_sample(app="amg", prefix="AMG"):
     """A sample of an application's alternatives replayed with horizon pins and controls
     (replay_sample.py, experiments/<app>/run.sh sample)."""
@@ -3346,7 +3567,8 @@ def _intervals() -> list:
            "alternatives) as independent trials of one setting, as each starts the program afresh. The replays of one",
            "alternative are not independent trials (the distinct alternatives below), so the replay counts get none.",
            "Its macro is the count's with `CI` appended, and `CILo` and `CIHi` are its bounds alone."]
-    for title, props in PROPORTIONS + (("NINJA (E10, E5f)", _ninja_proportions()),):
+    for title, props in PROPORTIONS + (("NINJA (E10, E5f)", _ninja_proportions()),
+                                       ("MUST and NINJA on the bugs of projects' histories and the new ones (E5h)", tuple(HIST_TOOL_PROPS))):
         lines = []
         for k_name, n_name, what in props:
             k, n = _count(k_name), _count(n_name)
@@ -3694,6 +3916,7 @@ def main():
            "## E5e: a third documented bug (deal.II 9.3.0-rc1, a probe takes a message of the next call)", "", dealii(),
            "## E5f: a new bug in a current release (HYPRE 3.2.0 ParaSails, a probe takes the next level's request)", "", hypre_new(),
            "## E5g: four documented bugs from projects' histories (Cabana, stempy, MFEM 3.3.2, LAMMPS)", "", history(),
+           "## E5h: the other tools on the bugs of E5g and two new ones (MUST, NINJA, MPI-PRV)", "", hist_tools(),
            "## E6: polynomial checker vs exhaustive explorer", "", e6(),
            "## E7: the value skeleton on MBI (level L2)", "", e7(),
            "## E8: the buffer guard (local concurrency, class 3-local)", "", guard() + must_tsan_local(),
