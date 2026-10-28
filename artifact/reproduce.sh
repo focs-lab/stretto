@@ -35,8 +35,9 @@
 #            and 3.5 hours on four processors)
 #   NEWBUG   0: leave the HYPRE 3.2.0 and PETSc campaigns, the new bug, out of rq6 (their builds
 #            take 1.3 GB of disk, the runs about 10 hours)
-#   HISTBUGS 0: leave E5g, the four documented bugs of Cabana, stempy, MFEM 3.3.2 and LAMMPS, out
-#            of rq6 (their sources and builds take 1.6 GB of disk, the runs about 1.5 hours)
+#   HISTBUGS 0: leave E5g, the five documented bugs of Cabana, stempy, MFEM 3.3.2, deal.II's NBX
+#            and LAMMPS, out of rq6 (their sources and builds take 3.3 GB of disk, the runs about
+#            2.5 hours)
 #   READS    0: leave E3b, the read bounds, out of rq1 and rq4: the maps (in the image of
 #            Dockerfile.firstread), the re-analysis and its replays (experiments/reads/run.sh),
 #            and E6 with read bounds (about 20 minutes on 8 processors)
@@ -158,12 +159,15 @@ newbug() {
         && experiments/petsc/run.sh fetch build && $s experiments/petsc/run.sh parasails stress ninja scan"
 }
 
-# E5g of RQ6, four bugs from projects' histories: each case fetches and builds its version with
+# E5g of RQ6, five bugs from projects' histories: each case fetches and builds its version with
 # the bug and its fix, predicts from traced runs with replays and controls, and runs the
-# untraced baseline on both (experiments/RUNBOOK.md, "Documented bugs from projects' histories")
+# untraced baseline on both (experiments/RUNBOOK.md, "Documented bugs from projects' histories").
+# deal.II's NBX case runs its replays one traced run at a time with a 5 s timeout, the settings
+# of its committed tables: a replay that hangs in its polling loops writes a large trace
 histbugs() {
     [ "${HISTBUGS:-1}" = 0 ] && return
-    once histbugs box histbugs bash -c "for c in lammps stempy mfem332 cabana; do JOBS=${JOBS:-3} experiments/\$c/run.sh all || exit 1; done"
+    once histbugs box histbugs bash -c "for c in lammps stempy mfem332 cabana; do JOBS=${JOBS:-3} experiments/\$c/run.sh all || exit 1; done \
+        && TIMEOUT=5 JOBS=1 experiments/dealii8929/run.sh all"
 }
 
 # E3b, the read bounds of RQ1 and RQ4 (experiments/reads/run.sh): the first-read maps of the

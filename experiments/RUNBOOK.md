@@ -128,7 +128,7 @@ Variables the scripts read (all optional):
 | `STRETTO_MACHINE_LOCK`, `STRETTO_CPUS` | `scripts/heavy.sh` | the shared-host lock file and the processors a heavy job may use |
 | `IMAGE`, `CPUS`, `MEMORY`, `NAME`, `MACHINE`, `DETACH` | `experiments/container/run.sh` | container image, cpuset (`0-11,40-51`), memory (`24g`), name, the host name the summaries print (the host's), `0` to run in the foreground (detached) |
 | `DOCKER_ARGS` | `experiments/container/run.sh` | more `docker run` options; `--cap-add SYS_PTRACE` lets the MPI libraries use single-copy transfers (`experiments/guard/run.sh`) |
-| `CPUS`, `MEMORY`, `JOBS`, `NEKBONE`, `SCALE`, `MPIPRV`, `HISTBUGS` | `artifact/reproduce.sh` | as above, but `CPUS` defaults to every processor; `NEKBONE=0` leaves Nekbone out, `SCALE=0` the runs from 16 to 64 processes, `MPIPRV=0` MPI-PRV (E9), `HISTBUGS=0` the four bugs from projects' histories (E5g) |
+| `CPUS`, `MEMORY`, `JOBS`, `NEKBONE`, `SCALE`, `MPIPRV`, `HISTBUGS` | `artifact/reproduce.sh` | as above, but `CPUS` defaults to every processor; `NEKBONE=0` leaves Nekbone out, `SCALE=0` the runs from 16 to 64 processes, `MPIPRV=0` MPI-PRV (E9), `HISTBUGS=0` the five bugs from projects' histories (E5g) |
 | `PRV_IMAGE`, `CPUS`, `MEMORY`, `DOCKER_ARGS`; `REPS`, `TWIN_REPS`, `DELAY`, `MAXNP` | `experiments/mpiprv/prv.sh`; its scripts | MPI-PRV's image (the pinned digest), cpuset (every processor), memory (`16g`), more `docker run` options (`--cap-add SYS_PTRACE`); rounds of its RQ1 and runs per probe (5), runs of the twin probes (20), the Adept delay in ms (2500), the largest process count `apps.py` runs (24) |
 | `NPS`, `SAMPLE`, `TIMEOUT` | `experiments/scale/run.sh` | process counts (`16 32 64`), replays sampled per trace (10), seconds per replay (120) |
 | `BENCHMARKS`, `CLASSES`, `CSV` | `experiments/e4_overhead.sh` | which NPB rows to measure and which table to write |
@@ -284,18 +284,22 @@ minutes per trace of 9.3.0-rc1, 2 per trace of 9.3.0) and `RUNS=50 stress`, two 
 
 ## Documented bugs from projects' histories (E5g)
 
-Four bugs that their projects fixed and described, each a case with `run.sh
+Five bugs that their projects fixed and described, each a case with `run.sh
 [fetch|build|predict|stress|fixed|all]`: `experiments/cabana/` (CommunicationPlan's
 createFromImports, PR #835: a round-1 wildcard receive takes a round-2 id and the plan hangs; the
 in-tree test CommPlan.Test10NoTopo at 3 ranks), `experiments/stempy/` (gatherEvents in 3.3.5,
 issue #292: the map receive takes another worker's size and cereal throws; a harness around
 stempy's own gather code at 4 and 8 ranks), `experiments/mfem332/` (GroupTopology::Create in
 MFEM 3.3.2, c52c6243b: a receive takes a row of the next ParMesh's call; `twomesh.cpp`, two meshes
-back to back, at 4 and 8 ranks) and `experiments/lammps/` (Irregular::create_atom before 411c069b:
-blocking count sends before the wildcard receives, a deadlock without eager buffering;
-`in.displace` at 4 and 8 ranks). `fetch` downloads the version with the bug and its fix and
-every dependency (Kokkos 4.1.00, googletest 1.14.0 and CMake 3.28.3 for Cabana; cereal and BigMPI
-at pinned commits for stempy; HYPRE 2.11.2 and METIS 4.0.3 for MFEM) under
+back to back, at 4 and 8 ranks), `experiments/dealii8929/` (deal.II's ConsensusAlgorithm_NBX at
+master 2c1b27fbee49 of 21 Oct 2019, issue #8929: a slow rank's post-barrier Iprobe takes the next
+call's request; the fix is the merge f9ea339613b8 of PR #8997, a CollectiveMutex in `run()`;
+`nbx_calls.cc`, three NBX calls back to back, at 4 and 8 ranks) and `experiments/lammps/`
+(Irregular::create_atom before 411c069b: blocking count sends before the wildcard receives, a
+deadlock without eager buffering; `in.displace` at 4 and 8 ranks). `fetch` downloads the version
+with the bug and its fix and every dependency (Kokkos 4.1.00, googletest 1.14.0 and CMake 3.28.3
+for Cabana; cereal and BigMPI at pinned commits for stempy; HYPRE 2.11.2 and METIS 4.0.3 for
+MFEM; CMake 3.28.3 for deal.II, whose two commits come as GitHub's archives of them) under
 `third_party/apps/<case>/`, each archive checked by sha256 (`fetch_checked` in
 `experiments/harness.sh`); `build` builds with the Open MPI wrappers at `MAKE_JOBS` (8). Every
 case exports `OMPI_MCA_btl_vader_single_copy_mechanism=none`: the container refuses
@@ -313,7 +317,18 @@ time, and every run of one campaign runs in one directory. The classifiers:
 `experiments/stempy/classify.py` (cross: the receive would take a size where it took a map, or
 the reverse) and `experiments/mfem332/classify.py` (cross: the receive and the one that took the
 message in the run lie in different calls of Create, calls counted by the waits of Create's
-closing MPI_Waitall). Cabana's campaign classifies nothing: its deadlock is an L1+SP finding,
+closing MPI_Waitall) and `experiments/dealii8929/classify.py` (cross: a probe of NBX's request tag
+12 and the request it would see lie in different calls, a rank's call counted by its Ibarriers
+before its last request send; the cross alternatives are flag flips of the post-barrier Iprobe,
+replayed with `STRETTO_PIN_FLIP`). deal.II's case builds each commit in Release with MPI only at
+`MAKE_JOBS` (12), about 8 minutes, and links the driver against it. Its replays run with
+`TIMEOUT=5 JOBS=1`: a replay that hangs spins in two alternating polls, whose records the tracer
+does not fold, and wrote gigabytes in 20 s; `stretto.confirm.judge_replay` reads no replay trace
+over 200 MB. A normal run takes under a second. Its controls pin the recorded false of the flip
+once and nothing after the horizon, and under the replay library the race strikes on its own in
+some of them, mostly in other ranks' loops; such a replay is inconclusive, and the tables count
+a replay as confirmed only where its control printed the expected answers (campaign of 28 Oct,
+apollo node 0, 12 processors). Cabana's campaign classifies nothing: its deadlock is an L1+SP finding,
 which `stretto confirm` replays with the explorer's witness. MFEM's is analysed at L1 only (the
 explorer hits its state cap on these traces), and stempy's at 8 ranks too: on one 8-rank trace
 the explorer had not finished after 15 minutes (26 Oct, a-p13), while a 4-rank trace takes 0.2 s.
@@ -333,7 +348,12 @@ minutes for all four (1.6 GB under `third_party/apps/`); the campaigns took abou
 stempy, 3 for MFEM, 36 for LAMMPS (most of it the 30 s timeouts of the hanging reruns and the
 per-run `addr2line` that names the cycle's call sites) and 43 for Cabana (25 of them the
 prediction: a 3-rank trace's analysis takes about a minute, nearly all of it the explorer, and
-each of its 160 replays hangs until its 20 s timeout), 87 minutes in all. The scouting
+each of its 160 replays hangs until its 20 s timeout), 87 minutes in all. deal.II's NBX case ran
+on 28 Oct on apollo (`--cpuset-cpus 4-9,36-41 -m 24g`) at `RUNS=10` at 4 and 8, `STRESS_RUNS=40`,
+`TIMEOUT=5 JOBS=1`: fetch and build took 15 minutes (1.7 GB), the campaign 38 (1 360 replays,
+each with its control, under a second each). An earlier pass of its stress step at `JOBS=2`
+(16 ranks on 12 processors, not committed) failed 23 of 40 plain runs at 8 ranks, against 1 of
+40 at `JOBS=1`: oversubscription exposes this race. The scouting
 prototypes of the same day (commit dca7f96) differ in three ways: they confirmed or replayed at
 most three findings per trace, these every one (Cabana 160 confirmations instead of 28, stempy
 360 cross replays instead of 90, MFEM 120 instead of 42); they ran fewer runs in places (MFEM

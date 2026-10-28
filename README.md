@@ -155,7 +155,7 @@ plain runs.
 
 <p align="center"><img src="docs/figures/dealii.svg" width="760" alt="deal.II results"></p>
 
-**Four documented bugs from projects' histories.** Each was fixed and described by its project;
+**Five documented bugs from projects' histories.** Each was fixed and described by its project;
 each case builds the version with the bug and its fix and runs a driver that reaches the code
 (the project's own unit test or input where there is one). Stress testing is untraced runs,
 plain and with random delays.
@@ -165,6 +165,7 @@ plain and with random delays.
 | Cabana `createFromImports`, a round-1 wildcard receive takes a round-2 id (PR #835) | 15 of 15 (deadlock, L1+SP) | 160 of 160 replays hang | 160 of 160 finish | 71 of 320 runs hang (4 of 160 plain) | no finding in 15 runs |
 | stempy 3.3.5 `gatherEvents`, the map receive takes another worker's size (issue #292) | 30 of 30 (L1) | 360 of 360 replays fail, cereal throws | 360 of 360 correct | 43 of 160 runs fail (0 of 80 plain) | no alternative in 30 runs |
 | MFEM 3.3.2 `GroupTopology::Create`, a receive takes the next mesh's row (c52c6243b) | 21 of 24 (L1) | 117 of 120 replays fail (38 of 38 at 4 ranks) | 105 of 120 correct (38 of 38) | 85 of 160 runs fail (37 of 80 plain) | no cross alternative in 40 runs |
+| deal.II `ConsensusAlgorithm_NBX` (2019), a probe of one call takes the next call's request (issue #8929) | 20 of 20 (L1, a flag flip) | 1 360 of 1 360 replays print wrong answers | 914 of 1 360 correct; the others inconclusive | 2 of 160 runs fail (1 of 80 plain) | no cross alternative in 20 runs |
 | LAMMPS `Irregular::create_atom`, blocking count sends before the receives (411c069b) | 40 of 40 (deadlock below 4 bytes) | 20 of 20 runs hang just below the bound | 20 of 20 finish at it | 0 of 80 plain and 0 of 80 delayed runs hang; 80 of 80 with the eager limit forced down | no finding in 40 runs |
 
 **Soundness in practice.** Against an exhaustive explorer, 0 of

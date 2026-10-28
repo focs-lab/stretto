@@ -1451,7 +1451,9 @@ def hist_predict(prefix: str, rs: list, exposed, classified: bool, fixed: bool =
     ReplayFail, Matched, ControlsFinish, Confirmed, Strict; for a classified campaign CrossAlts,
     SameAlts and, of the replayed alternatives (role replay, kind cross), CrossReplayed,
     CrossFail (did not finish, or printed a wrong result), CrossTruncate, CrossMatched,
-    CrossValid, CrossControlsOk, CrossControlsValid."""
+    CrossValid, CrossControlsOk, CrossControlsValid, CrossConfirmed (failed with every required pin
+    matched while the control finished with correct output) and CrossInconclusive (the control
+    did not)."""
     p = prefix + ("Fix" if fixed else "")
     out = []
     for np_ in [None] + sorted({int(r["np"]) for r in rs}):
@@ -1489,6 +1491,8 @@ def hist_predict(prefix: str, rs: list, exposed, classified: bool, fixed: bool =
             num(f"n{s}CrossValid", sum(r.get("run_valid") == "True" for r in cross))
             num(f"n{s}CrossControlsOk", len(ctl_ok))
             num(f"n{s}CrossControlsValid", sum(r.get("control_valid") == "True" for r in cross))
+            num(f"n{s}CrossConfirmed", sum(r in ctl_ok and r in failed and r.get("matched") == "True" for r in cross))
+            num(f"n{s}CrossInconclusive", len(cross) - len(ctl_ok))
         if np_ is None:
             continue
         findings = collections.Counter()
@@ -1554,13 +1558,25 @@ HIST_NOTES = {
                 "race strikes after the horizon too, which alone is pinned: some controls fail and some replays leave a pin",
                 "unmatched, so the 8-rank replays are weaker evidence; most traced runs fail there as well."],
 }
-HIST_STRESS_HEAD = ["| version | driver | ranks | setting | runs | failed | hung | how the failures ended |", "|---|---|---|---|---|---|---|---|"]
+HIST_NOTES["dealii8929"] = [
+    "The cross alternatives are flag flips (probe-flip, L1): a failed `MPI_Iprobe(MPI_ANY_SOURCE, 12)` of one call's loop after",
+    "its `MPI_Ibarrier` that could return another rank's request of the next call. The driver, `experiments/dealii8929/nbx_calls.cc`,",
+    "calls `ConsensusAlgorithm_NBX` three times back to back. The replay forces the flip (`STRETTO_PIN_FLIP`, its poll named by the",
+    "rank's calls before it) and the recorded matching over the horizon. Every replay printed the wrong answer the alternative",
+    "predicts, for the predicted pair of ranks: the next call's request answered from the earlier call (checked on the kept",
+    "outputs of the campaign, not in the table). Its control forces the",
+    "recorded false once and pins nothing after the horizon, so under the replay library the race also strikes on its own,",
+    "mostly in other ranks' loops: a replay counts as confirmed only where its control printed the expected output, and the",
+    "others are inconclusive. Untraced runs rarely show the race. Campaign of 28 Oct 2026 (apollo, node 0, 12 processors):",
+    "`TIMEOUT=5 JOBS=1`.",
+]
+HIST_STRESS_HEAD =["| version | driver | ranks | setting | runs | failed | hung | how the failures ended |", "|---|---|---|---|---|---|---|---|"]
 
 
 def history():
-    """E5g: four documented bugs from the histories of Cabana, stempy, MFEM and LAMMPS, each
-    predicted from clean traced runs of the version with the bug and replayed, tested by
-    untraced runs, and the same on the fix (experiments/{cabana,stempy,mfem332,lammps}/run.sh;
+    """E5g: five documented bugs from the histories of Cabana, stempy, MFEM, deal.II and LAMMPS,
+    each predicted from clean traced runs of the version with the bug and replayed, tested by
+    untraced runs, and the same on the fix (experiments/{cabana,stempy,mfem332,dealii8929,lammps}/run.sh;
     experiments/history_predict.py, history_stress.py, lammps/predict.py)."""
     out = []
     cases = [
@@ -1570,6 +1586,8 @@ def history():
          "3.3.5", "3.3.6", ["predict-{v}-np4.csv", "predict-{v}-np8.csv"], lambda r: _counts(r.get("kinds")).get("cross", 0) > 0),
         ("mfem332", "MfemGroup", "MFEM 3.3.2 `GroupTopology::Create`, a receive takes the next mesh's group row (truncation or abort; c52c6243b)",
          "3.3.2", "3.4", ["predict-{v}.csv"], lambda r: _counts(r.get("kinds")).get("cross", 0) > 0),
+        ("dealii8929", "DealNbx", "deal.II `ConsensusAlgorithm_NBX` (October 2019), a probe of one call takes the next call's request (wrong answers; issue #8929)",
+         "2c1b27fb", "f9ea3396", ["predict-{v}.csv"], lambda r: _counts(r.get("kinds")).get("cross", 0) > 0),
     ]
     for d, prefix, title, bug, fix, tables, exposed in cases:
         pr = [r for t in tables for r in rows(os.path.join(RES, d, t.format(v=bug)))]
@@ -1583,6 +1601,13 @@ def history():
             (hist_predict(prefix, fx, exposed, classified, fixed=True) if fx else [])
         num(f"n{prefix}Ranks", "/".join(str(n) for n in sorted({int(r["np"]) for r in pr})))
         out += ["", *HIST_NOTES[d]]
+        if d == "dealii8929":
+            for np_ in sorted({int(r["np"]) for r in pr}):
+                cross = [r for r in pr if int(r["np"]) == np_ and r.get("role") == "replay" and r.get("kind") == "cross"]
+                ok = [r for r in cross if r.get("control") == "FINISHED" and r.get("control_ok") == "True"]
+                conf = [r for r in ok if r.get("matched") == "True" and (r.get("replay") != "FINISHED" or r.get("replay_ok") != "True")]
+                out.append(f"At {np_} ranks: {len(conf)} of {len(cross)} replays confirmed, {len(cross) - len(ok)} inconclusive "
+                           "(the control printed wrong answers).")
         if st or sf:
             out += ["", "Untraced runs, plain and with random send and receive delays of 0 to 20 ms per rank from the replay library.", ""]
             out += HIST_STRESS_HEAD + (hist_stress(prefix, st) if st else []) + (hist_stress(prefix, sf, fixed=True) if sf else [])
@@ -3664,8 +3689,8 @@ def main():
            "(the container of `experiments/container/`, 12 cores of one NUMA node); the HYPRE campaign from",
            "`experiments/hypre/campaign.sh`, the NPB MG and deal.II campaigns from `experiments/npbmg/run.sh` and",
            "`experiments/dealii/run.sh`, the HYPRE 3.2.0 and PETSc campaigns (E5f) from `experiments/hypre3/run.sh` and",
-           "`experiments/petsc/run.sh`, the four bugs of projects' histories (E5g) from `experiments/cabana/`, `stempy/`,",
-           "`mfem332/` and `lammps/run.sh`, Nekbone from `experiments/nekbone/run.sh` and the scale campaign (E11)",
+           "`experiments/petsc/run.sh`, the five bugs of projects' histories (E5g) from `experiments/cabana/`, `stempy/`,",
+           "`mfem332/`, `dealii8929/` and `lammps/run.sh`, Nekbone from `experiments/nekbone/run.sh` and the scale campaign (E11)",
            "from `experiments/scale/run.sh` there. The MUST verdicts",
            "are carried over from MUST 1.9.2 runs under MPICH in MPI-BugBench's own container, with the same timeout",
            "per program, and those of MUST 1.11.2 from the image of `experiments/must/`; NINJA's runs come from",
@@ -3693,7 +3718,7 @@ def main():
            "## E5d: a second documented bug (NPB MG 2.4.1, a message of another exchange)", "", npbmg() + pin_log(),
            "## E5e: a third documented bug (deal.II 9.3.0-rc1, a probe takes a message of the next call)", "", dealii(),
            "## E5f: a new bug in a current release (HYPRE 3.2.0 ParaSails, a probe takes the next level's request)", "", hypre_new(),
-           "## E5g: four documented bugs from projects' histories (Cabana, stempy, MFEM 3.3.2, LAMMPS)", "", history(),
+           "## E5g: five documented bugs from projects' histories (Cabana, stempy, MFEM 3.3.2, deal.II's NBX, LAMMPS)", "", history(),
            "## E6: polynomial checker vs exhaustive explorer", "", e6(),
            "## E7: the value skeleton on MBI (level L2)", "", e7(),
            "## E8: the buffer guard (local concurrency, class 3-local)", "", guard() + must_tsan_local(),
