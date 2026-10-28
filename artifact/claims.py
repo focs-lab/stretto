@@ -42,7 +42,7 @@ RQ_OF = [
     (3, r"^nEtwo|^B[a-z]+OMPI$"),
     (4, r"^n(MBI|MBB)(one|sp|obs)[A-Z]"),
     (5, r"^TraceOverhead|^LuAnalysis|^LuEvents|^AMGtime|^Nek(GB|Minutes|PerAlt|Records)|^nEfour|^n?Scale"),
-    (6, r"^nHypre|^BHypre|^nAMG|^nNek|^nDeal|^nPetsc|^BPetsc|^n(Cabana|Stempy|MfemGroup|Lammps)|^BLammps"),
+    (6, r"^nHypre|^BHypre|^nAMG|^nNek|^nDeal|^nPetsc|^BPetsc|^n(Cabana|Stempy|MfemGroup|Lammps)|^BLammps|^n(Slu|QeElph)"),
 ]
 # numbers the inputs fix: a difference there is unexpected; every other number is a time or a
 # count taken from recorded runs, which depends on their schedule
@@ -60,7 +60,9 @@ FIXED = re.compile(r"^n(MBI|MBB)(progs|notBuilt|correct|errors|race)$|^B[a-z]+OM
                    r"|^nValid(MBI|Reads|MG|Deal|Hypre|AMG|Nek)Replays$|^nValid(MBI|Reads)Committed$|^nValid(MG|Deal|Hypre)Traced$"
                    r"|^n(Cabana|Stempy|MfemGroup|Lammps)(Fix)?(Three|Four|Eight)?Traced$|^n(Cabana|Stempy|MfemGroup|Lammps)Ranks$"
                    r"|^n(Cabana|Stempy|MfemGroup|Lammps)(Fix)?Stress(Plain|Delay|Eager)?Runs$"
-                   r"|^nLammps(Fix)?(Three|Four|Eight)?(Default|Below|At)Runs$|^BLammps$")
+                   r"|^nLammps(Fix)?(Three|Four|Eight)?(Default|Below|At)Runs$|^BLammps$"
+                   r"|^nSlu(Fix|Contrast|Ompi|Mpich|Tags)?([A-Z][a-z]+)*Traced$|^nSluSettings$|^nSlu(Fix|Contrast)?Stress(Plain|Delay)?Runs$"
+                   r"|^nQeElph(Fix)?Traced$|^nQeElph(Fix)?Stress(Plain|Delay)?Runs$")
 
 
 def load(path: str) -> dict:
@@ -349,6 +351,42 @@ def claims(n: dict) -> list:
     claim(6, "LAMMPS 3a2da51a: no plain or delayed untraced run hangs",
           ["nLammpsStressPlainHang", "nLammpsStressDelayHang"], lambda p, d: p == 0 and d == 0,
           over=["nLammpsStressPlainRuns", "nLammpsStressDelayRuns"])
+    claim(6, "SuperLU_DIST 9f7c819: every clean traced run of a reducible matrix, on Open MPI and on MPICH, predicts that a "
+             "receive of one solve's loop takes the other solve's message, at every buffering threshold",
+          ["nSluClean", "nSluExposed", "nSluCrossAlts", "nSluCrossAnyB", "nSluOmpiClean", "nSluOmpiExposed", "nSluMpichClean",
+           "nSluMpichExposed"],
+          lambda c, e, a, b, oc, oe, mc, me: c == e and a == b and oc == oe and mc == me,
+          over=["nSluClean", "nSluOmpiClean", "nSluMpichClean"])
+    claim(6, "SuperLU_DIST 9f7c819: every sampled cross replay hangs or returns a wrong x with its pins matched",
+          ["nSluReplayed", "nSluReplayFail", "nSluMatched"], lambda r, f, m: r == f == m, over=["nSluReplayed"])
+    claim(6, "SuperLU_DIST 9f7c819, one process row: every sampled cross replay hangs, and every control finishes with the "
+             "correct x",
+          ["nSluOneRowReplayed", "nSluOneRowReplayHang", "nSluOneRowControlsOk"], lambda r, h, c: r == h == c,
+          over=["nSluOneRowReplayed"])
+    claim(6, "SuperLU_DIST 9f7c819: every cross replay and every control is a run of the program without its pins",
+          ["nSluReplayed", "nSluValid", "nSluControlsValid"], lambda r, v, c: r == v == c, over=["nSluReplayed"])
+    claim(6, "SuperLU_DIST 9f7c819: no clean traced run of the connected g20 has a cross alternative, and no untraced run of it fails",
+          ["nSluContrastExposed", "nSluContrastStressFail"], lambda e, f: e == 0 and f == 0,
+          over=["nSluContrastClean", "nSluContrastStressRuns"])
+    claim(6, "SuperLU_DIST with the barrier restored, the fix: no clean traced run has a cross alternative, and no untraced run fails",
+          ["nSluFixExposed", "nSluFixStressFail"], lambda e, f: e == 0 and f == 0, over=["nSluFixClean", "nSluFixStressRuns"])
+    claim(6, "SuperLU_DIST with the barrier restored: every replayed alternative taking the other tag of its own solve "
+             "finishes with the correct x, its pins matched, in a run of the program, and so does every control",
+          ["nSluTagsReplayed", "nSluTagsReplayOk", "nSluTagsMatched", "nSluTagsValid", "nSluTagsControlsOk"],
+          lambda r, o, m, v, c: r == o == m == v == c, over=["nSluTagsReplayed"])
+    claim(6, "Quantum ESPRESSO 615e40c: every clean traced run predicts that a receive of elph_prt takes the other pool's message",
+          ["nQeElphClean", "nQeElphExposed"], lambda c, e: c == e, over=["nQeElphClean"])
+    claim(6, "Quantum ESPRESSO 615e40c: every cross replay prints a wrong table, other than its control's, with its pins "
+             "matched in a run of the program, and every control finishes with its pins matched in a run of the program",
+          ["nQeElphReplayed", "nQeElphReplayWrong", "nQeElphDiffersFromControl", "nQeElphMatched", "nQeElphValid",
+           "nQeElphControlsFinish", "nQeElphControlsValid"],
+          lambda r, w, d, m, v, c, cv: r == w == d == m == v == c == cv, over=["nQeElphReplayed"])
+    claim(6, "Quantum ESPRESSO 615e40c: every control whose horizon pins all three receives of spin 1 prints the correct table",
+          ["nQeElphLastReplayed", "nQeElphLastControlsOk"], lambda r, c: r == c, over=["nQeElphLastReplayed"])
+    claim(6, "Quantum ESPRESSO with spin-dependent tags, the fix: no clean traced run has a cross alternative, and no untraced "
+             "run prints a wrong table or fails",
+          ["nQeElphFixExposed", "nQeElphFixStressFail"], lambda e, f: e == 0 and f == 0,
+          over=["nQeElphFixClean", "nQeElphFixStressRuns"])
     # existence claims: their tests are the counts themselves
     claim(6, "HYPRE 3.2.0: NINJA hangs ex5 and ex2 in some runs",
           ["nNinjaHypreNewHang", "nNinjaPetscRandomHang"], lambda a, b: a > 0 and b > 0, vacuous=True)
