@@ -1,0 +1,11 @@
+version,np,run,traced,traced_ok,traced_says,traced_s,records,status,analyse_s,findings,kinds,kinds_B,role,cls,level,kind,pin,B,title,replay,matched,replay_ok,replay_says,run_valid,violation,verdict,strict,control,control_matched,control_ok,control_says,control_valid,control_violation,misapplied,seed,commit
+9f7c819-barrier,3,1,FINISHED,True,ok,0.8,80139,complete,19.6,1f/L1=2190;2-buffering/observed=1;test-flip/L1=2454,same=2190,same:any B:2190,,,,,,,,,,,,,,,,,,,,,,,,bcec4e5
+9f7c819-barrier,3,2,FINISHED,True,ok,0.7,78953,complete,19.4,1f/L1=2310;2-buffering/observed=1;test-flip/L1=1268,same=2310,same:any B:2310,,,,,,,,,,,,,,,,,,,,,,,,bcec4e5
+9f7c819-barrier,3,3,FINISHED,True,ok,0.8,78955,complete,19.4,1f/L1=2222;2-buffering/observed=1;test-flip/L1=1270,same=2222,same:any B:2222,,,,,,,,,,,,,,,,,,,,,,,,bcec4e5
+9f7c819-barrier,3,4,FINISHED,True,ok,0.8,79610,complete,20.1,1f/L1=2253;2-buffering/observed=1;test-flip/L1=1925,same=2253,same:any B:2253,,,,,,,,,,,,,,,,,,,,,,,,bcec4e5
+9f7c819-barrier,3,5,FINISHED,True,ok,0.7,80928,complete,21.7,1f/L1=2185;2-buffering/observed=1;test-flip/L1=3243,same=2185,same:any B:2185,,,,,,,,,,,,,,,,,,,,,,,,bcec4e5
+9f7c819-barrier,3,6,FINISHED,True,ok,0.7,78934,complete,19.9,1f/L1=2113;2-buffering/observed=1;test-flip/L1=1249,same=2113,same:any B:2113,,,,,,,,,,,,,,,,,,,,,,,,bcec4e5
+9f7c819-barrier,3,7,FINISHED,True,ok,0.7,78987,complete,20.8,1f/L1=2439;2-buffering/observed=1;test-flip/L1=1300,same=2439,same:any B:2439,,,,,,,,,,,,,,,,,,,,,,,,bcec4e5
+9f7c819-barrier,3,8,FINISHED,True,ok,0.7,81019,complete,20.0,1f/L1=2173;2-buffering/observed=1;test-flip/L1=3334,same=2173,same:any B:2173,,,,,,,,,,,,,,,,,,,,,,,,bcec4e5
+9f7c819-barrier,3,9,FINISHED,True,ok,0.8,81082,complete,21.2,1f/L1=2150;2-buffering/observed=1;test-flip/L1=3397,same=2150,same:any B:2150,,,,,,,,,,,,,,,,,,,,,,,,bcec4e5
+9f7c819-barrier,3,10,FINISHED,True,ok,0.7,78923,complete,17.8,1f/L1=2225;2-buffering/observed=1;test-flip/L1=1238,same=2225,same:any B:2225,,,,,,,,,,,,,,,,,,,,,,,,bcec4e5

@@ -1684,7 +1684,7 @@ def lammps_history() -> list:
 
 HIST_TOOL_NP_WORD = {3: "Three", 4: "Four", 6: "Six", 8: "Eight"}
 HIST_TOOL_MODE = {"random": "Random", "system": "System", "app": "App"}
-HIST_TOOL_PROPS: list = []   # (count, out of, what) of section E5h, for the Wilson intervals
+HIST_TOOL_PROPS: list = []   # (count, out of, what) of section E5i, for the Wilson intervals
 
 
 def _float(v) -> float:
@@ -1694,7 +1694,7 @@ def _float(v) -> float:
         return float("nan")
 
 
-# The bugs of E5h: (key, macro prefix, title, the NINJA tables of the version with the bug and of
+# The bugs of E5i: (key, macro prefix, title, the NINJA tables of the version with the bug and of
 # its fix (or one table, its labels ending in the fix's name), the fix's label suffix, whether a
 # NINJA run shows the bug, the bug's ranks for MUST's check of a completed run). A NINJA run shows
 # the bug by the bug's own symptom, not by a failure of any kind: NINJA's library breaks some of
@@ -1885,22 +1885,283 @@ def hist_tools():
                 num(f"Prv{p}", prv[key]["outcome"])
     # the summary, as the comparison's table reads it
     stretto = {"Cabana": ("nCabanaExposed", "nCabanaClean"), "Stempy": ("nStempyExposed", "nStempyClean"),
-               "MfemGroup": ("nMfemGroupExposed", "nMfemGroupClean"), "Lammps": ("nLammpsExposed", "nLammpsClean")}
-    delays = {"Cabana": "Delay", "Stempy": "Delay", "MfemGroup": "Delay", "Lammps": "Delay"}
+               "MfemGroup": ("nMfemGroupExposed", "nMfemGroupClean"), "Lammps": ("nLammpsExposed", "nLammpsClean"),
+               "Superlu": ("nSluExposed", "nSluClean"), "Qe": ("nQeElphExposed", "nQeElphClean")}
+    delays = {"Cabana": "nCabanaStressDelay", "Stempy": "nStempyStressDelay", "MfemGroup": "nMfemGroupStressDelay",
+              "Lammps": "nLammpsStressDelay", "Superlu": "nSluStressDelay", "Qe": "nQeElphStressDelay"}
     cell = lambda k, n: f"{NUM[k]} of {NUM[n]}" if k in NUM and n in NUM else "-"
-    out += ["", "### Summary", "", "Stretto: clean traced runs that predict the bug (E5g). Random delays: untraced runs with the replay",
-            "library's delays that fail (E5g). NINJA: runs that show the bug, every mode and process count, and its best",
-            "setting. MUST: runs whose report names the race. SuperLU_DIST's and QE's Stretto and random-delay runs come",
-            "from their verification, outside this tree.", "",
+    out += ["", "### Summary", "", "Stretto: clean traced runs that predict the bug (E5g, E5h). Random delays: untraced runs with the",
+            "replay library's delays that fail (E5g, E5h). NINJA: runs that show the bug, every mode and process count, and its",
+            "best setting. MUST: runs whose report names the race.", "",
             "| bug | Stretto | random delays | NINJA, all | NINJA, best | MUST | MPI-PRV |", "|---|---|---|---|---|---|---|"]
     for key, p, title, *_ in HIST_TOOL_CASES:
         st = stretto.get(p, (None, None))
         out.append(f"| {title} | {cell(*st) if st[0] else '-'} | "
-                   f"{cell(f'n{p}Stress{delays[p]}Fail', f'n{p}Stress{delays[p]}Runs') if p in delays else '-'} | "
+                   f"{cell(delays[p] + 'Fail', delays[p] + 'Runs') if p in delays else '-'} | "
                    f"{cell(f'nNinja{p}Revealed', f'nNinja{p}Runs')} | "
                    f"{cell(f'nNinja{p}BestRevealed', f'nNinja{p}BestRuns')}{' (' + NUM[f'Ninja{p}Best'] + ')' if f'Ninja{p}Best' in NUM else ''} | "
                    f"{cell(f'nMust{p}Race', f'nMust{p}Runs')} | {NUM.get(f'Prv{p}', '-')} |")
     return "\n".join(out) + "\n"
+
+
+def _kinds_b(text: str) -> dict:
+    """'cross:any B:5;same:B >= 3888:2' -> {('cross', 'any B'): 5, ('same', 'B >= 3888'): 2}."""
+    out = {}
+    for x in (text or "").split(";"):
+        if x:
+            k, rest = x.split(":", 1)
+            b, n = rest.rsplit(":", 1)
+            out[(k, b)] = int(n)
+    return out
+
+
+def new_stats(rs: list) -> dict:
+    """The counts of a prediction table of experiments/history_predict.py whose replays are its
+    cross alternatives (--classify, --replay cross): traced runs, clean ones, the clean runs with
+    a cross alternative, the cross alternatives (all, and realisable at any buffering threshold),
+    the traced runs that failed by themselves, and of the cross replays: how many, how many did
+    not finish (hang) or finished with a wrong output (wrong), with every required pin matched,
+    judged runs of the program, and their controls that finished correctly, that finished with
+    every pin matched, and that were runs of the program; and the replays whose result or verdict
+    differs from their control's."""
+    runs = {(r.get("_table"), r["np"], r["run"]): r for r in rs}     # _table: rows of several tables together
+    clean = [r for r in runs.values() if _clean(r)]
+    rep = [r for r in rs if r.get("role") == "replay" and r.get("kind") == "cross"]
+    cross = [_counts(r.get("kinds")).get("cross", 0) for r in clean]
+    return {"Traced": len(runs), "Clean": len(clean), "Exposed": sum(1 for c in cross if c),
+            "CrossAlts": sum(cross), "CrossAnyB": sum(n for r in clean for (k, b), n in _kinds_b(r.get("kinds_B")).items()
+                                                    if k == "cross" and b == "any B"),
+            "CrossMin": min(cross, default=0), "CrossMax": max(cross, default=0),
+            "TracedFail": sum(1 for r in runs.values() if not _clean(r)),
+            "TracedHang": sum(1 for r in runs.values() if r.get("traced") == "TIMEOUT"),
+            "TracedWrong": sum(1 for r in runs.values() if r.get("traced") == "FINISHED" and r.get("traced_ok") != "True"),
+            "Replayed": len(rep),
+            "ReplayFail": sum(1 for r in rep if r.get("replay") != "FINISHED" or r.get("replay_ok") != "True"),
+            "ReplayHang": sum(1 for r in rep if r.get("replay") == "TIMEOUT"),
+            "ReplayWrong": sum(1 for r in rep if r.get("replay") == "FINISHED" and r.get("replay_ok") != "True"),
+            "Matched": sum(1 for r in rep if r.get("matched") == "True"),
+            "Valid": sum(1 for r in rep if r.get("run_valid") == "True"),
+            "ControlsOk": sum(1 for r in rep if r.get("control") == "FINISHED" and r.get("control_ok") == "True"),
+            "ControlsFinish": sum(1 for r in rep if r.get("control") == "FINISHED" and r.get("control_matched") == "True"),
+            "ControlsValid": sum(1 for r in rep if r.get("control_valid") == "True"),
+            "DiffersFromControl": sum(1 for r in rep if (r.get("replay"), r.get("replay_says")) != (r.get("control"), r.get("control_says")))}
+
+
+def new_stress_stats(rs: list) -> dict:
+    """Untraced runs (experiments/history_stress.py): how many, failed (did not finish or printed a
+    wrong output), hung, finished with a wrong output, and the longest finished run's seconds."""
+    fin = [float(r["seconds"]) for r in rs if r["result"] == "FINISHED"]
+    return {"Runs": len(rs), "Fail": sum(1 for r in rs if r["result"] != "FINISHED" or r["ok"] != "True"),
+            "Hang": sum(1 for r in rs if r["result"] == "TIMEOUT"),
+            "Wrong": sum(1 for r in rs if r["result"] == "FINISHED" and r["ok"] != "True"), "Slowest": max(fin, default=0.0)}
+
+
+def _range(lo: int, hi: int) -> str:
+    return f"{lo}" if lo == hi else f"{lo}–{hi}"
+
+
+def _says(rs: list, key: str) -> str:
+    """'g-swapped 5, spins-swapped 3': the judge's verdicts on the rows that were not ok."""
+    c = collections.Counter(re.sub(r"^wrong x .*", "wrong x", r.get(key) or "-").replace("|", " / ")
+                            for r in rs if (r.get(key) or "ok") != "ok")
+    return ", ".join(f"{k} {n}" for k, n in c.most_common()) or "-"
+
+
+SLU_MPI = {"openmpi": "Ompi", "mpich": "Mpich"}
+SLU_MATRIX = {"nos2": "Nos", "mhd3200b": "Mhd", "blk12x6": "BlkSix", "blk8x10": "BlkTen", "g20": "Gtwenty"}
+SLU_CONTRAST = {"g20"}
+
+
+def superlu3d() -> list:
+    """SuperLU_DIST 9f7c819's 3D solve (experiments/superlu3d/run.sh): predict-<v>-<mpi>-<matrix>.csv
+    and stress-<v>-<mpi>.csv for v in 9f7c819 and 9f7c819-barrier. Macros: nSlu<stat> over the
+    reducible matrices on both MPIs, nSlu<Ompi|Mpich><stat> per MPI and nSlu<Ompi|Mpich><Matrix>
+    <stat> per setting (new_stats), nSluSettings, nSluContrast<stat> (g20), nSluFix<stat> over
+    every setting of the fix, nSluOneRow<stat> over the reducible settings on one process row;
+    nSlu[Fix|Contrast]Stress[Plain|Delay]<Runs|Fail|Hang|Wrong>."""
+    d = os.path.join(RES, "superlu3d")
+    if not os.path.isdir(d):
+        return []
+    tables, grids = {}, {}
+    for f in sorted(os.listdir(d)):
+        m = re.fullmatch(r"predict-(9f7c819(?:-barrier)?)-(openmpi|mpich)-([a-z0-9]+)-(\d+x\d+x\d+)\.csv", f)
+        if m and m.group(3) in SLU_MATRIX:
+            tables[m.group(1, 2, 3)] = [{**r, "_table": f} for r in rows(os.path.join(d, f))]
+            grids[m.group(3)] = m.group(4)
+    stress_ = {(v, mpi): rows(os.path.join(d, f"stress-{v}-{mpi}.csv")) for v in ("9f7c819", "9f7c819-barrier") for mpi in SLU_MPI}
+    if not tables:
+        return []
+    order = lambda k: (k[0], list(SLU_MPI).index(k[1]), list(SLU_MATRIX).index(k[2]))   # noqa: E731
+    keys = sorted(tables, key=order)
+    tagfiles = [rows(os.path.join(d, f)) for f in sorted(os.listdir(d))
+                if re.fullmatch(r"tags-9f7c819-barrier-(openmpi|mpich)-[a-z0-9]+-\d+x\d+x\d+\.csv", f)]
+    tags = [r for t in tagfiles for r in t]
+    every = [r for t in tables.values() for r in t] + [r for t in stress_.values() for r in t] + tags
+    out = ["### SuperLU_DIST 9f7c819 (= 9.3.1) `pdgstrs3d_newsolve`, the L-solve loop takes a U-solve message (hang or wrong x)", "",
+           "`experiments/superlu3d/run.sh`: `EXAMPLE/pddrive3d` unmodified on the grids of `-r R -c C -d D`; traced runs analysed",
+           "at L1, a seeded sample of each setting's cross alternatives (a receive of one solve's loop taking the other",
+           "solve's message, `experiments/superlu3d/classify.py`) replayed with the pins of their whole horizon and with their",
+           "control; a run is correct when the x error it prints is at most 1e-4 (`judge.py`). The fix, 9f7c819-barrier, is",
+           "`barrier.patch` (the barrier at the end of the L-solve restored). g20 (400 rows, connected) is the contrast.",
+           f"Rows by code commit: {commits(every)}.", "",
+           "| version | MPI | matrix | grid | traced runs | clean | that predict it | cross alternatives per clean run | at any B "
+           "| traced runs that failed | replayed | hung | wrong x | pins matched | runs of the program | controls correct | controls runs of the program |",
+           "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
+    groups = collections.defaultdict(list)
+    for v, mpi, mat in keys:
+        rs = tables[(v, mpi, mat)]
+        s = new_stats(rs)
+        g = grids[mat]
+        how = [f"{s['TracedHang']} hung"] * bool(s["TracedHang"]) + [f"{s['TracedWrong']} wrong x"] * bool(s["TracedWrong"])
+        failed = f"{s['TracedFail']} ({', '.join(how)})" if how else str(s["TracedFail"])
+        out.append(f"| {v} | {mpi} | {mat} | {g} | {s['Traced']} | {s['Clean']} | {s['Exposed']} | {_range(s['CrossMin'], s['CrossMax'])} "
+                   f"| {s['CrossAnyB']} of {s['CrossAlts']} | {failed} | {s['Replayed']} | {s['ReplayHang']} | {s['ReplayWrong']} | {s['Matched']} "
+                   f"| {s['Valid']} | {s['ControlsOk']} | {s['ControlsValid']} |")
+        if v == "9f7c819":
+            num(f"nSlu{SLU_MPI[mpi]}{SLU_MATRIX[mat]}" + "Traced", s["Traced"])
+            for k in ("Clean", "Exposed", "CrossAlts", "Replayed", "ReplayHang", "ReplayWrong", "ControlsOk", "TracedFail"):
+                num(f"nSlu{SLU_MPI[mpi]}{SLU_MATRIX[mat]}{k}", s[k])
+            groups["Contrast" if mat in SLU_CONTRAST else ""] += rs
+            if mat not in SLU_CONTRAST:
+                groups[SLU_MPI[mpi]] += rs
+                if g.startswith("1x"):          # one process row: every message of a solve is a reduction
+                    groups["OneRow"] += rs
+        else:
+            groups["Fix"] += rs
+    for g, rs in groups.items():
+        for k, n in new_stats(rs).items():
+            if k not in ("CrossMin", "CrossMax"):
+                num(f"nSlu{g}{k}", n)
+    num("nSluSettings", len({mat for v, _, mat in keys if v == "9f7c819" and mat not in SLU_CONTRAST}))   # reducible matrices
+    weak = []
+    for v, mpi, mat in keys:
+        s = new_stats(tables[(v, mpi, mat)])
+        if s["ControlsOk"] < s["Replayed"]:
+            weak.append(f"{mat} at {grids[mat]} with {mpi}, {s['ControlsOk']} of {s['Replayed']}")
+    out += ["", "A cross alternative's receive is at the L-solve loop (`pdgstrs3d.c:3903`) or the U-solve loop (`:5946`); the",
+            "analysis reports it as class 1b (cross-purpose: a message of another tag than the one the receive took). In every",
+            "replayed one the L-solve loop takes a U-solve message. A hang is a replay or run that did not finish within its",
+            "timeout; a correct run takes 0.5 to 5 s."]
+    if weak:
+        out += ["A control pins the recorded matching only over its alternative's horizon, and where the race also strikes",
+                "beyond it a control can hang or return a wrong x too, as untraced runs of the same setting do; controls",
+                "correct: " + "; ".join(weak) + "."]
+    if tags:
+        trep = [r for r in tags if r.get("role") == "replay" and r.get("kind") == "tag"]
+        truns = [r for t in tagfiles for r in {(r["np"], r["run"]): r for r in t}.values()]   # each table's runs
+        talts = sum(_counts(r.get("kinds")).get("tag", 0) for r in truns if _clean(r))
+        tok = sum(1 for r in trep if r.get("replay") == "FINISHED" and r.get("replay_ok") == "True")
+        num("nSluTagsTraced", len(truns))
+        num("nSluTagsAlts", talts)
+        num("nSluTagsReplayed", len(trep))
+        num("nSluTagsReplayOk", tok)
+        num("nSluTagsMatched", sum(1 for r in trep if r.get("matched") == "True"))
+        num("nSluTagsValid", sum(1 for r in trep if r.get("run_valid") == "True"))
+        num("nSluTagsControlsOk", sum(1 for r in trep if r.get("control") == "FINISHED" and r.get("control_ok") == "True"))
+        out += ["", "On the 2x3x1 grid the analysis also reports class 1b for a receive that would take the other tag of its own",
+                "solve (a broadcast where it took a reduction, kind `tag`), in the fix as in 9f7c819; the loops handle both tags of",
+                f"their solve. `run.sh tags` replays a sample of them on the fix (blk8x10, both MPIs): {tok} of {len(trep)} finish with",
+                f"the correct x, {NUM['nSluTagsMatched']} with every pin matched and {NUM['nSluTagsValid']} judged runs of the program,",
+                f"and {NUM['nSluTagsControlsOk']} controls finish correctly ({talts} such alternatives in the traced runs of the tags step)."]
+    out += ["",
+            "Untraced runs, plain and with random send and receive delays of 0 to 20 ms per rank from the replay library;",
+            "a failure is a run that hung or printed an x error above 1e-4. The timeout is 60 s, 300 s for NOS2 and mhd3200b,",
+            "whose delayed runs take up to three minutes when they finish.", "",
+            "| version | MPI | matrix and grid | setting | runs | failed | hung | wrong x | slowest finished run (s) |",
+            "|---|---|---|---|---|---|---|---|---|"]
+    sgroups = collections.defaultdict(list)
+    for (v, mpi), rs in stress_.items():
+        for label in dict.fromkeys(r["label"] for r in rs):
+            for setting in ("plain", "delays"):
+                sel = [r for r in rs if r["label"] == label and r["setting"] == setting]
+                if not sel:
+                    continue
+                s = new_stress_stats(sel)
+                slowest = f"{s['Slowest']:.1f}" if any(r["result"] == "FINISHED" for r in sel) else "-"
+                out.append(f"| {v} | {mpi} | {label} | {setting} | {s['Runs']} | {s['Fail']} | {s['Hang']} | {s['Wrong']} | {slowest} |")
+                word = {"plain": "Plain", "delays": "Delay"}[setting]
+                g = "Fix" if v != "9f7c819" else ("Contrast" if label.split("-")[0] in SLU_CONTRAST else "")
+                sgroups[g + "Stress"] += sel
+                sgroups[g + "Stress" + word] += sel
+    for g, rs in sgroups.items():
+        for k, n in new_stress_stats(rs).items():
+            if k != "Slowest":
+                num(f"nSlu{g}{k}", n)
+    return out + [""]
+
+
+def qeelph() -> list:
+    """Quantum ESPRESSO 615e40c's elph_prt (experiments/qeelph/run.sh): predict-<v>.csv and
+    stress-<v>.csv for v in 615e40c and 615e40c-spintags. Macros nQeElph[Fix]<stat> (new_stats)
+    and nQeElph[Fix]Stress[Plain|Delay]<Runs|Fail|Hang|Wrong>."""
+    d = os.path.join(RES, "qeelph")
+    pr, fx, st, sf = (rows(os.path.join(d, f)) for f in
+                      ("predict-615e40c.csv", "predict-615e40c-spintags.csv", "stress-615e40c.csv", "stress-615e40c-spintags.csv"))
+    if not pr:
+        return []
+    out = ["### Quantum ESPRESSO 615e40c PHonon `elph_prt`, the receives of one spin take the other spin's messages (wrong table)", "",
+           "`experiments/qeelph/run.sh`: ph.x of the test-suite's Ni case (LSDA) at X with `electron_phonon='prt'` and the k point",
+           "k(39), 3 ranks with `-nk 3`, MPICH build; traced runs analysed at L1, every cross alternative (a receive of `elph_prt`",
+           "taking the other pool's message, `experiments/qeelph/classify.py`) replayed with the pins of its whole horizon and",
+           "with its control; a run is correct when its table matches that of the same version with one pool",
+           "(`judge.py`: the eigenvalues as printed and `|g_sym|` to 5e-3). The fix, 615e40c-spintags, is `spin-tags.patch`.",
+           f"Rows by code commit: {commits(pr + fx + st + sf)}.", "",
+           "| version | traced runs | clean | that predict it | cross alternatives per clean run | at any B | traced runs with a wrong table "
+           "| replayed | wrong table | how wrong | pins matched | runs of the program | controls finished, pins matched | controls correct "
+           "| controls runs of the program | replay's table differs from its control's |",
+           "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
+    for rs, p in ((pr, "QeElph"), (fx, "QeElphFix")):
+        if not rs:
+            continue
+        s = new_stats(rs)
+        for k, n in s.items():
+            if k not in ("CrossMin", "CrossMax"):
+                num(f"n{p}{k}", n)
+        rep = [r for r in rs if r.get("role") == "replay" and r.get("kind") == "cross"]
+        runs = {(r["np"], r["run"]): r for r in rs}
+        out.append(f"| {rs[0]['version']} | {s['Traced']} | {s['Clean']} | {s['Exposed']} | {_range(s['CrossMin'], s['CrossMax'])} "
+                   f"| {s['CrossAnyB']} of {s['CrossAlts']} | {s['TracedWrong']} ({_says(list(runs.values()), 'traced_says')}) "
+                   f"| {s['Replayed']} | {s['ReplayWrong']} | {_says(rep, 'replay_says')} | {s['Matched']} | {s['Valid']} "
+                   f"| {s['ControlsFinish']} | {s['ControlsOk']} | {s['ControlsValid']} | {s['DiffersFromControl']} |")
+    last = [r for r in pr if r.get("role") == "replay" and r.get("kind") == "cross" and r.get("pin", "").startswith("STRETTO_PIN=0:2:")]
+    last_ok = sum(1 for r in last if r.get("control") == "FINISHED" and r.get("control_ok") == "True")
+    num("nQeElphLastReplayed", len(last))
+    num("nQeElphLastControlsOk", last_ok)
+    out += ["", "A traced run whose own table is wrong is not clean and is not analysed. The analysis reports each cross",
+            "alternative as class 1f (every message of one kind has the same size, so each receive fits the other spin's); an",
+            "alternative of a later eigenvalue receive needs `el_ph_mat` (3 888 bytes) buffered, `B >= 3888`, which MPICH's",
+            f"eager limit of {NUM.get('BimplMPICH', '?').replace(chr(92) + ',', ' ')} bytes allows (E2). A control pins the recorded matching only over the alternative's horizon, which ends at the",
+            "alternative's receive: the later receives of spin 1 (rank 0's wildcard receives 0 to 2, the only ones with",
+            "alternatives) are free and race again, so a control of an alternative at the first or second can print a wrong",
+            "table too. Of the controls of the alternatives at the third (`STRETTO_PIN=0:2:...`, whose horizon pins all",
+            f"three), {last_ok} of {len(last)} print the correct table.",
+            "Each replay is also judged against its own control.", "",
+            "Untraced runs, plain and with random send and receive delays of 0 to 20 ms per rank from the replay library.", "",
+            "| version | setting | runs | failed | hung | wrong table | how wrong |", "|---|---|---|---|---|---|---|"]
+    for rs, p in ((st, "QeElph"), (sf, "QeElphFix")):
+        for setting, word in ((None, ""), ("plain", "Plain"), ("delays", "Delay")):
+            sel = [r for r in rs if setting is None or r["setting"] == setting]
+            if not sel:
+                continue
+            s = new_stress_stats(sel)
+            for k in ("Runs", "Fail", "Hang", "Wrong"):
+                num(f"n{p}Stress{word}{k}", s[k])
+            if setting:
+                out.append(f"| {sel[0]['version']} | {setting} | {s['Runs']} | {s['Fail']} | {s['Hang']} | {s['Wrong']} | {_says(sel, 'says')} |")
+    return out + [""]
+
+
+def new_bugs() -> str:
+    """E5h: two new bugs, in SuperLU_DIST's 3D solve and in Quantum ESPRESSO's elph_prt."""
+    out = superlu3d() + qeelph()
+    if not out:
+        return "_no results_\n"
+    return "\n".join(["Two bugs Stretto found in current code, each a case like those of E5g: the version with the bug, the",
+                      "proposed fix, and a driver of the project's own (an example program, a test-suite input). A run is *clean*",
+                      "when it exits with status 0 and its output is correct; each clean traced run is analysed, and its *cross*",
+                      "alternatives are replayed with the pins of their whole horizon and with their control",
+                      "(`experiments/history_predict.py`), under the tracer, which judges each a run of the program without its pins.",
+                      ""] + out) + "\n"
 
 
 def app_sample(app="amg", prefix="AMG"):
@@ -3593,7 +3854,7 @@ def _intervals() -> list:
            "alternative are not independent trials (the distinct alternatives below), so the replay counts get none.",
            "Its macro is the count's with `CI` appended, and `CILo` and `CIHi` are its bounds alone."]
     for title, props in PROPORTIONS + (("NINJA (E10, E5f)", _ninja_proportions()),
-                                       ("MUST and NINJA on the bugs of projects' histories and the new ones (E5h)", tuple(HIST_TOOL_PROPS))):
+                                       ("MUST and NINJA on the bugs of projects' histories and the new ones (E5i)", tuple(HIST_TOOL_PROPS))):
         lines = []
         for k_name, n_name, what in props:
             k, n = _count(k_name), _count(n_name)
@@ -3912,7 +4173,8 @@ def main():
            "`experiments/hypre/campaign.sh`, the NPB MG and deal.II campaigns from `experiments/npbmg/run.sh` and",
            "`experiments/dealii/run.sh`, the HYPRE 3.2.0 and PETSc campaigns (E5f) from `experiments/hypre3/run.sh` and",
            "`experiments/petsc/run.sh`, the five bugs of projects' histories (E5g) from `experiments/cabana/`, `stempy/`,",
-           "`mfem332/`, `dealii8929/` and `lammps/run.sh`, Nekbone from `experiments/nekbone/run.sh` and the scale campaign (E11)",
+           "`mfem332/`, `dealii8929/` and `lammps/run.sh`, the two new bugs of E5h from `experiments/superlu3d/` and",
+           "`qeelph/run.sh`, Nekbone from `experiments/nekbone/run.sh` and the scale campaign (E11)",
            "from `experiments/scale/run.sh` there. The MUST verdicts",
            "are carried over from MUST 1.9.2 runs under MPICH in MPI-BugBench's own container, with the same timeout",
            "per program, and those of MUST 1.11.2 from the image of `experiments/must/`; NINJA's runs come from",
@@ -3941,7 +4203,9 @@ def main():
            "## E5e: a third documented bug (deal.II 9.3.0-rc1, a probe takes a message of the next call)", "", dealii(),
            "## E5f: a new bug in a current release (HYPRE 3.2.0 ParaSails, a probe takes the next level's request)", "", hypre_new(),
            "## E5g: five documented bugs from projects' histories (Cabana, stempy, MFEM 3.3.2, deal.II's NBX, LAMMPS)", "", history(),
-           "## E5h: the other tools on four bugs of E5g and two new ones (MUST, NINJA, MPI-PRV)", "", hist_tools(),
+           *[y for x in [new_bugs()] if x != "_no results_\n" for y in
+             ("## E5h: two new bugs in current code (SuperLU_DIST 9.3.1 3D solve, Quantum ESPRESSO PHonon elph_prt)", "", x)],
+           "## E5i: the other tools on four bugs of E5g and the two of E5h (MUST, NINJA, MPI-PRV)", "", hist_tools(),
            "## E6: polynomial checker vs exhaustive explorer", "", e6(),
            "## E7: the value skeleton on MBI (level L2)", "", e7(),
            "## E8: the buffer guard (local concurrency, class 3-local)", "", guard() + must_tsan_local(),

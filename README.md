@@ -168,6 +168,20 @@ plain and with random delays.
 | deal.II `ConsensusAlgorithm_NBX` (2019), a probe of one call takes the next call's request (issue #8929) | 20 of 20 (L1, a flag flip) | 1 360 of 1 360 replays print wrong answers | 914 of 1 360 correct; the others inconclusive | 2 of 160 runs fail (1 of 80 plain) | no cross alternative in 20 runs |
 | LAMMPS `Irregular::create_atom`, blocking count sends before the receives (411c069b) | 40 of 40 (deadlock below 4 bytes) | 20 of 20 runs hang just below the bound | 20 of 20 finish at it | 0 of 80 plain and 0 of 80 delayed runs hang; 80 of 80 with the eager limit forced down | no finding in 40 runs |
 
+**Two new bugs in current code.** SuperLU_DIST 9.3.1's default 3D solve receives with
+`MPI_ANY_SOURCE` and `MPI_ANY_TAG` in its L-solve and its U-solve loop, with the barrier between
+them commented out: on a reducible matrix the L-solve loop can take a U-solve message and drop
+it. Quantum ESPRESSO's `elph_prt` (PHonon, develop and 7.6) receives the two spins' data from
+any source with tags that do not depend on the spin, so with LSDA and three or more pools a
+spin's receives can take the other spin's messages. Neither is reported upstream yet; each case
+builds the code with the bug and with the proposed fix (`experiments/superlu3d/`,
+`experiments/qeelph/`).
+
+| bug | clean traced runs that predict it | forced, the predicted execution | controls | stress testing | the fix |
+|---|---:|---|---:|---:|---|
+| SuperLU_DIST 9f7c819 `pdgstrs3d_newsolve`, the L-solve takes a U-solve message (4 reducible matrices, Open MPI and MPICH) | 78 of 78 (L1); 0 of 20 on the connected g20 | 76 of 80 sampled replays hang, 4 return a wrong x | 77 of 80 correct | 228 of 640 runs fail (7 of 320 plain) | no cross alternative in 100 runs; 0 of 800 runs fail |
+| Quantum ESPRESSO 615e40c `elph_prt`, one spin's receives take the other spin's data (Ni, LSDA, `-nk 3`) | 6 of 6 (L1) | 18 of 18 replays print a wrong table, each other than its control's | 18 of 18 finish, 12 correct (a control pins only the horizon) | 40 of 80 runs print a wrong table (14 of 40 plain) | no cross alternative in 10 runs; 0 of 80 runs wrong |
+
 **Soundness in practice.** Against an exhaustive explorer, 0 of
 824 judged alternatives are unsound. Replays on MBI: 60
 confirmed, 14 inconclusive (the control itself hung),

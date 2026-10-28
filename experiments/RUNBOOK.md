@@ -128,7 +128,7 @@ Variables the scripts read (all optional):
 | `STRETTO_MACHINE_LOCK`, `STRETTO_CPUS` | `scripts/heavy.sh` | the shared-host lock file and the processors a heavy job may use |
 | `IMAGE`, `CPUS`, `MEMORY`, `NAME`, `MACHINE`, `DETACH` | `experiments/container/run.sh` | container image, cpuset (`0-11,40-51`), memory (`24g`), name, the host name the summaries print (the host's), `0` to run in the foreground (detached) |
 | `DOCKER_ARGS` | `experiments/container/run.sh` | more `docker run` options; `--cap-add SYS_PTRACE` lets the MPI libraries use single-copy transfers (`experiments/guard/run.sh`) |
-| `CPUS`, `MEMORY`, `JOBS`, `NEKBONE`, `SCALE`, `MPIPRV`, `HISTBUGS` | `artifact/reproduce.sh` | as above, but `CPUS` defaults to every processor; `NEKBONE=0` leaves Nekbone out, `SCALE=0` the runs from 16 to 64 processes, `MPIPRV=0` MPI-PRV (E9), `HISTBUGS=0` the five bugs from projects' histories (E5g) |
+| `CPUS`, `MEMORY`, `JOBS`, `NEKBONE`, `SCALE`, `MPIPRV`, `HISTBUGS`, `NEWCASES` | `artifact/reproduce.sh` | as above, but `CPUS` defaults to every processor; `NEKBONE=0` leaves Nekbone out, `SCALE=0` the runs from 16 to 64 processes, `MPIPRV=0` MPI-PRV (E9), `HISTBUGS=0` the five bugs from projects' histories (E5g), `NEWCASES=0` the two new bugs (E5h) |
 | `PRV_IMAGE`, `CPUS`, `MEMORY`, `DOCKER_ARGS`; `REPS`, `TWIN_REPS`, `DELAY`, `MAXNP` | `experiments/mpiprv/prv.sh`; its scripts | MPI-PRV's image (the pinned digest), cpuset (every processor), memory (`16g`), more `docker run` options (`--cap-add SYS_PTRACE`); rounds of its RQ1 and runs per probe (5), runs of the twin probes (20), the Adept delay in ms (2500), the largest process count `apps.py` runs (24) |
 | `NPS`, `SAMPLE`, `TIMEOUT` | `experiments/scale/run.sh` | process counts (`16 32 64`), replays sampled per trace (10), seconds per replay (120) |
 | `BENCHMARKS`, `CLASSES`, `CSV` | `experiments/e4_overhead.sh` | which NPB rows to measure and which table to write |
@@ -361,6 +361,85 @@ most three findings per trace, these every one (Cabana 160 confirmations instead
 untraced LAMMPS runs); and their stress runs ran next to other campaigns, while the failure
 rates of stempy and MFEM depend on the load (stempy's plain runs failed 5 of 40 and 21 of 40
 there, none here).
+
+## Two new bugs in current code (E5h)
+
+Two bugs that Stretto found in current code and that a separate verification of 27 Oct
+reproduced, each a case like those of E5g with `run.sh [fetch|build|predict|stress|fixed|all]`
+(QE also `inputs`): `experiments/superlu3d/` (SuperLU_DIST master 9f7c819, the same commit as
+9.3.1: the L-solve and U-solve loops of the default 3D solve receive with `MPI_ANY_SOURCE` and
+`MPI_ANY_TAG` and the barrier between them is commented out, so on a reducible matrix the
+L-solve loop can take a U-solve message and the solve hangs or returns a wrong x; the driver is
+the unmodified `EXAMPLE/pddrive3d`; the fix `barrier.patch` restores the barrier) and
+`experiments/qeelph/` (Quantum ESPRESSO develop 615e40c, PHonon's `elph_prt`: with LSDA and three
+or more pools both spins of a k point are sent to the ionode at once, with tags that do not
+depend on the spin, and received from any source, so the printed electron-phonon table can have
+the spins exchanged or mixed; the driver is the test-suite's Ni case at X with
+`electron_phonon='prt'` and k(39), 3 ranks, `-nk 3`; the fix `spin-tags.patch` adds `ispn - 1` to
+the tags). Neither is reported upstream yet.
+
+`superlu3d/run.sh fetch` downloads SuperLU_DIST's archive at the commit, CMake 3.28.3 and NOS2
+and mhd3200b from NIST's Matrix Market (the SuiteSparse collection answers 403 since 16 Oct),
+checks every archive's and every matrix's sha256, and writes the block-diagonal matrices with
+`blkdiag.py` (`12 6`: six 12x12 grid operators, `8 10`: ten 8x8), checked by sha256 too; g20.rua
+comes with the source. `build` builds `pddrive3d` with and without the patch for Open MPI and
+MPICH (`MPIS`), with CMake's defaults but no ParMETIS (not in the image; the column ordering is
+then `MMD_AT_PLUS_A`), the internal BLAS and double precision only, `-O2 -g`; OpenMP stays on and
+every run has `OMP_NUM_THREADS=1`. The settings (`SETTINGS`) are NOS2, mhd3200b and the six
+12x12 blocks on the 1x3x1 grid, the ten 8x8 blocks on 2x3x1, and the connected g20 on 1x3x1 as
+the contrast. `predict` traces `RUNS` runs per setting and MPI, analyses each clean one at L1
+(the explorer is not needed: the alternatives are L1 findings), and replays a seeded sample of
+`SAMPLE` cross alternatives per setting (`history_predict.py --sample`; `classify.py`: a receive
+whose recorded message carries one solve's tag and whose alternative the other's) with their
+horizon pins and controls, `TIMEOUT` (60) seconds each; a traced run gets 120 seconds. A run is
+correct when the x error pddrive3d prints is at most 1e-4 (`judge.py`). `stress` runs
+`STRESS_RUNS` plain and delayed runs per setting, with a timeout of `SLOW_TIMEOUT` (300) seconds
+for NOS2 and mhd3200b, whose delayed runs take up to three minutes when they finish (NOS2 makes
+about 7 700 MPI calls per process), and `TIMEOUT` for the others.
+
+`qeelph/run.sh fetch` downloads QE's archive at the commit from GitLab, the three submodules its
+build needs (devicexlib, wannier90, libmbd) at the commits QE records in
+`external/submodule_commit_hash_records`, CMake and the test-suite's Ni pseudopotential, each
+checked by sha256, and unpacks the submodules into `external/` with an empty `.git` marker, since
+QE's CMake clones a submodule into a directory without one. `build` builds `pw.x` and `ph.x` with
+and without the patch with the MPICH wrappers (Open MPI's Fortran bindings call `PMPI_*`
+directly, below the tracer), no OpenMP, no ScaLAPACK, QE's internal FFTW, the system's
+reference BLAS and LAPACK and `-fno-lto`. `inputs` runs the scf of the test-suite's `ni.scf.in`
+(3 ranks, `-nk 3`) into `run/k39/`, writes `ph.in` from `ni.phX.in` and runs the reference: ph.x
+with one pool (`-nk 1`), where `elph_prt` sends nothing. `predict` and `stress` run every run in
+a fresh copy of `run/k39/` (`--base`: ph.x writes its outdir), replay every cross alternative
+(`classify.py`: a receive of `elph_prt` that would take another pool's message), and judge each
+table against the reference (`judge.py`, with `elphtab.py`: the eigenvalues as printed and
+`|g_sym|` to 5e-3, the gauge-invariant column).
+
+On the 2x3x1 grid the analysis also reports class 1b (cross-purpose) for a receive that would
+take the other tag of its own solve, with the fix as without it (about 60 per traced run of the
+fix on blk8x10). The loops handle both tags of their solve, so `superlu3d/run.sh tags` replays a
+seeded sample of `SAMPLE` of them per MPI on the fix (`TAG_SETTINGS`, blk8x10 at 2x3x1) with
+their controls, into `tags-9f7c819-barrier-<mpi>-<matrix>-<grid>.csv`; `all` ends with it.
+
+The campaign of 28 Oct ran `qeelph/run.sh` and then `superlu3d/run.sh`, every step at the
+defaults (`JOBS=3`), one after another in one container on a-p13 (`--cpuset-cpus 0-9,40-49 -m
+24g`). The archives were already on disk from a probe of the download addresses that morning, so
+`fetch` took seconds. QE: build 3 minutes (both trees, `-j8`), inputs 14 s, predict 3 minutes,
+stress 5, fixed 5, 17 minutes in all. SuperLU_DIST: build 45 s (four builds), predict 48 minutes,
+stress 3 hours 19 minutes (nearly all of it delayed runs hanging until their timeouts, 300 s on
+NOS2 and mhd3200b; mhd3200b's delayed runs that finished took up to 170 s), fixed 63 minutes,
+tags one minute (added after the others had run, at commit 2266720), 5 hours 12 minutes in all.
+Disk: 2.1 GB under `third_party/apps/qeelph/` (the archives 0.33 GB, wannier90's 0.23 GB of it,
+and two source trees and builds) and 0.34 GB under `third_party/apps/superlu3d/`.
+
+The verification of 27 Oct (its own scripts, outside the repository) differs in four ways. It
+analysed every finished traced run of QE, also those that had printed a wrong table themselves (4
+of 12), where these tables analyse only clean ones (6 of 10 here), and judged tables against the
+fix's table at the same pool layout by the gauge-dependent `|g|` column, where these use the
+one-pool table and `|g_sym|`; it also ran Open MPI builds untraced (plain and with the TCP eager
+limit forced down), which this case leaves out. Its delayed runs drew each run's delays from a
+seed of its own label, where `history_stress.py` draws them from the run's number and process
+count, so the delays of the two campaigns differ. Its controls all finished correctly; here 3 of
+the 10 on blk8x10 at 2x3x1 with Open MPI did not (2 hung, 1 wrong x), as untraced runs of that
+setting fail too (7 of 40 plain): a control pins only the alternative's horizon. And it stressed
+three reducible matrices, not mhd3200b, and did not replay the other-tag alternatives.
 
 ## Happens-before selection against the check (E8b)
 

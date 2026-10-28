@@ -1,0 +1,57 @@
+diff --git a/SRC/complex16/pzgstrs3d.c b/SRC/complex16/pzgstrs3d.c
+index efb8ec39..e821731c 100644
+--- a/SRC/complex16/pzgstrs3d.c
++++ b/SRC/complex16/pzgstrs3d.c
+@@ -4186,7 +4186,13 @@ if ( !(get_new3dsolvetreecomm() && get_acc_solve())){
+ 				// deallocate requests here
+ 			}
+ 		}
+-		// MPI_Barrier( grid->comm );
++		/* Every process must leave its L-solve receive loop before any process
++		   starts the U-solve. Both loops receive with MPI_ANY_SOURCE and
++		   MPI_ANY_TAG on grid->comm and count their messages, so without this
++		   barrier a slower process's L-solve loop can take an early BC_U or RD_U
++		   message, count it and drop it: the solve then hangs or returns a wrong
++		   solution. */
++		MPI_Barrier( grid->comm );
+ 
+ #if ( VAMPIR>=1 )
+ 		VT_traceoff();
+diff --git a/SRC/double/pdgstrs3d.c b/SRC/double/pdgstrs3d.c
+index 5f0d9ba3..e5b4613f 100755
+--- a/SRC/double/pdgstrs3d.c
++++ b/SRC/double/pdgstrs3d.c
+@@ -4177,7 +4177,13 @@ if ( !(get_new3dsolvetreecomm() && get_acc_solve())){
+ 				// deallocate requests here
+ 			}
+ 		}
+-		// MPI_Barrier( grid->comm );
++		/* Every process must leave its L-solve receive loop before any process
++		   starts the U-solve. Both loops receive with MPI_ANY_SOURCE and
++		   MPI_ANY_TAG on grid->comm and count their messages, so without this
++		   barrier a slower process's L-solve loop can take an early BC_U or RD_U
++		   message, count it and drop it: the solve then hangs or returns a wrong
++		   solution. */
++		MPI_Barrier( grid->comm );
+ 
+ #if ( VAMPIR>=1 )
+ 		VT_traceoff();
+diff --git a/SRC/single/psgstrs3d.c b/SRC/single/psgstrs3d.c
+index 96d72a29..57e6078f 100644
+--- a/SRC/single/psgstrs3d.c
++++ b/SRC/single/psgstrs3d.c
+@@ -4177,7 +4177,13 @@ if ( !(get_new3dsolvetreecomm() && get_acc_solve())){
+ 				// deallocate requests here
+ 			}
+ 		}
+-		// MPI_Barrier( grid->comm );
++		/* Every process must leave its L-solve receive loop before any process
++		   starts the U-solve. Both loops receive with MPI_ANY_SOURCE and
++		   MPI_ANY_TAG on grid->comm and count their messages, so without this
++		   barrier a slower process's L-solve loop can take an early BC_U or RD_U
++		   message, count it and drop it: the solve then hangs or returns a wrong
++		   solution. */
++		MPI_Barrier( grid->comm );
+ 
+ #if ( VAMPIR>=1 )
+ 		VT_traceoff();

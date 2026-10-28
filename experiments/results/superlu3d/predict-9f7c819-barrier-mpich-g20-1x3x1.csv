@@ -1,0 +1,11 @@
+version,np,run,traced,traced_ok,traced_says,traced_s,records,status,analyse_s,findings,kinds,kinds_B,role,cls,level,kind,pin,B,title,replay,matched,replay_ok,replay_says,run_valid,violation,verdict,strict,control,control_matched,control_ok,control_says,control_valid,control_violation,misapplied,seed,commit
+9f7c819-barrier,3,1,FINISHED,True,ok,4.4,2842,complete,0.3,1f/L1=105;2-buffering/observed=1;test-flip/L1=72,same=105,same:B >= 240:1;same:any B:104,,,,,,,,,,,,,,,,,,,,,,,,bcec4e5
+9f7c819-barrier,3,2,FINISHED,True,ok,4.4,2873,complete,0.3,1f/L1=99;2-buffering/observed=1;test-flip/L1=101,same=99,same:any B:99,,,,,,,,,,,,,,,,,,,,,,,,bcec4e5
+9f7c819-barrier,3,3,FINISHED,True,ok,4.4,2876,complete,0.3,1f/L1=99;2-buffering/observed=1;test-flip/L1=102,same=99,same:B >= 192:1;same:any B:98,,,,,,,,,,,,,,,,,,,,,,,,bcec4e5
+9f7c819-barrier,3,4,FINISHED,True,ok,4.4,2833,complete,0.3,1f/L1=105;2-buffering/observed=1;test-flip/L1=63,same=105,same:B >= 192:2;same:any B:103,,,,,,,,,,,,,,,,,,,,,,,,bcec4e5
+9f7c819-barrier,3,5,FINISHED,True,ok,4.4,2852,complete,0.3,1f/L1=101;2-buffering/observed=1;test-flip/L1=82,same=101,same:B >= 192:1;same:any B:100,,,,,,,,,,,,,,,,,,,,,,,,bcec4e5
+9f7c819-barrier,3,6,FINISHED,True,ok,4.4,2843,complete,0.3,1f/L1=108;2-buffering/observed=1;test-flip/L1=73,same=108,same:B >= 192:2;same:any B:106,,,,,,,,,,,,,,,,,,,,,,,,bcec4e5
+9f7c819-barrier,3,7,FINISHED,True,ok,4.4,2815,complete,0.3,1f/L1=107;2-buffering/observed=1;test-flip/L1=45,same=107,same:B >= 192:2;same:any B:105,,,,,,,,,,,,,,,,,,,,,,,,bcec4e5
+9f7c819-barrier,3,8,FINISHED,True,ok,4.4,2858,complete,0.3,1f/L1=101;2-buffering/observed=1;test-flip/L1=88,same=101,same:B >= 192:2;same:any B:99,,,,,,,,,,,,,,,,,,,,,,,,bcec4e5
+9f7c819-barrier,3,9,FINISHED,True,ok,4.4,2852,complete,0.3,1f/L1=105;2-buffering/observed=1;test-flip/L1=82,same=105,same:B >= 184:1;same:any B:104,,,,,,,,,,,,,,,,,,,,,,,,bcec4e5
+9f7c819-barrier,3,10,FINISHED,True,ok,4.4,2836,complete,0.3,1f/L1=103;2-buffering/observed=1;test-flip/L1=66,same=103,same:B >= 192:2;same:any B:101,,,,,,,,,,,,,,,,,,,,,,,,bcec4e5
