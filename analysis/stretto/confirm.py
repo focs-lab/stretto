@@ -138,7 +138,7 @@ Ident = Tuple[Optional[int], Optional[int], Optional[int]]     # (communicator, 
 class PinToken:
     kind: str                 # "recv" (STRETTO_PIN), "probe" (STRETTO_PIN_PROBE) or "flip" (STRETTO_PIN_FLIP)
     rank: int
-    idx: int                  # widx, pidx, or a flip's poll segment
+    idx: int                  # widx, pidx, or a flip's poll key (Trace.poll_key)
     src: int                  # the sender's world rank; -1 a flag 0, -2 a test's request (flips, replay/pin.h)
     tag: Optional[int]        # the tag an ANY_TAG operation takes, None if the pin names none
     ident: Optional[Ident]    # the traced operation's identity, None in a token without it
@@ -275,14 +275,14 @@ def _expected(pins) -> Dict[Tuple[str, int, int], Optional[Ident]]:
 
 
 _LINE = re.compile(r"\[stretto-pin\] rank (\d+): (matched widx|applied widx|applied probe pidx|applied unflip pidx"
-                   r"|applied flip seg|matched flip seg)=(\d+)\b([^\n]*)")
+                   r"|applied flip key|matched flip key)=(\d+)\b([^\n]*)")
 # what each line says, and the pin it shows taken: a receive pin when its receive completed, a
 # probe pin when the probe found its message or returned false as pinned (unflip), a flip pin
 # when the forced call returned true (matched flip) or false as pinned (applied flip ... flag=0)
 _WHAT = {"matched widx": "matched", "applied widx": "applied", "applied probe pidx": "probe",
-         "applied unflip pidx": "unflip", "applied flip seg": "flip-applied", "matched flip seg": "flip"}
+         "applied unflip pidx": "unflip", "applied flip key": "flip-applied", "matched flip key": "flip"}
 _LINE_ID = re.compile(r"\bid=(-?[0-9]+|x):(-?[0-9]+|x):([0-9a-f]+|x)")
-_MISAPPLIED = re.compile(r"\[stretto-pin\] rank \d+: (?:probe |flip )?pin (?:widx|pidx|seg)=\d+ misapplied[^\n]*")
+_MISAPPLIED = re.compile(r"\[stretto-pin\] rank \d+: (?:probe |flip )?pin (?:widx|pidx|key)=\d+ misapplied[^\n]*")
 
 
 def _lines(stderr: str):
@@ -404,9 +404,9 @@ def horizon_pins(t, f: Finding, B=None, infeasible_ok: bool = False, M=None, cha
 def required_matches(t, f: Finding, B=None, infeasible_ok: bool = False, M=None, changed=None) -> Optional[Set[Tuple[str, int, int]]]:
     """The pins of horizon_pins(t, f, B) whose match a replay must show: ("recv", rank, widx)
     for a pinned receive whose completion lies inside the horizon, ("probe", rank, pidx) for a
-    pinned probe, ("flip", rank, segment) for a flag flip's forced poll. A receive posted inside
-    the horizon but completed beyond it is pinned to steer the run, yet its wait may lie after
-    the predicted hang, where its match cannot be logged."""
+    pinned probe, ("flip", rank, key) for a flag flip's forced poll. A receive posted inside the
+    horizon but completed beyond it is pinned to steer the run, yet its wait may lie after the
+    predicted hang, where its match cannot be logged."""
     h = _horizon(t, f, B, infeasible_ok, M, changed)
     return None if h is None else h[2]
 
@@ -449,8 +449,8 @@ def _horizon(t, f: Finding, B=None, infeasible_ok: bool = False, M=None, changed
     required: Set[Tuple[str, int, int]] = set()
     # a flag flip changes a failed poll, which no probe pin names: its own pin (STRETTO_PIN_FLIP,
     # the message to return) forces it in the alternative, and the control pins the recorded
-    # false (control_pin); the alternative must show "matched flip seg", the forced call
-    # returning true
+    # false (control_pin); the alternative must show "matched flip key" for the pin's key, the
+    # forced call returning true
     flip = change[0] == "probe" and not t.probes[change[1]].flag
     if flip:
         ftoks = [k for k in pin_tokens(f.pin) if k.kind == "flip"] if f.pin else []

@@ -168,20 +168,22 @@ class HorizonPins(unittest.TestCase):
         from stretto.report import analyze
         t = mk({0: [failed_iprobe(1), recv(T.ANY, 1, 1, 1)], 1: [send(0, 1)]})
         (fl,) = analyze(t, with_sp=False).by_class("probe-flip")
-        self.assertEqual(fl.pin, "STRETTO_PIN_FLIP=0:0:1@0:1:x:0")
+        self.assertEqual(fl.pin, "STRETTO_PIN_FLIP=0:1:1@0:1:x:0")     # key 1: the poll follows init
         alt, ctl = horizon_pins(t, fl)
-        self.assertEqual(alt, ["STRETTO_PIN_FLIP=0:0:1@0:1:x:0"])     # rank 0 is cut after the probe: its receive is outside
-        self.assertEqual(ctl, ["STRETTO_PIN_FLIP=0:0:-1@0:1:x:0"])
+        self.assertEqual(alt, ["STRETTO_PIN_FLIP=0:1:1@0:1:x:0"])     # rank 0 is cut after the probe: its receive is outside
+        self.assertEqual(ctl, ["STRETTO_PIN_FLIP=0:1:-1@0:1:x:0"])
         req = required_matches(t, fl)
-        self.assertEqual(req, {("flip", 0, 0)})
-        self.assertTrue(all_matched(alt, "[stretto-pin] rank 0: applied flip seg=0 src=1 (world 1) tag=1 id=0:1:x\n"
-                                         "[stretto-pin] rank 0: matched flip seg=0 src=1 tag=1 id=0:1:x\n", req))
+        self.assertEqual(req, {("flip", 0, 1)})
+        self.assertTrue(all_matched(alt, "[stretto-pin] rank 0: applied flip key=1 src=1 (world 1) tag=1 id=0:1:x\n"
+                                         "[stretto-pin] rank 0: matched flip key=1 src=1 tag=1 id=0:1:x\n", req))
         # applied but never returned true: the flip did not happen
-        self.assertFalse(all_matched(alt, "[stretto-pin] rank 0: applied flip seg=0 src=1 (world 1) tag=1 id=0:1:x\n", req))
+        self.assertFalse(all_matched(alt, "[stretto-pin] rank 0: applied flip key=1 src=1 (world 1) tag=1 id=0:1:x\n", req))
         self.assertFalse(all_matched(alt, "", req))
-        self.assertFalse(all_matched(alt, "[stretto-pin] rank 0: matched flip seg=0 src=1 tag=1 id=0:7:x\n", req))
+        self.assertFalse(all_matched(alt, "[stretto-pin] rank 0: matched flip key=1 src=1 tag=1 id=0:7:x\n", req))
+        # a flip forced at another key is another poll's
+        self.assertFalse(all_matched(alt, "[stretto-pin] rank 0: matched flip key=2 src=1 tag=1 id=0:1:x\n", req))
         # the control's flip is the recorded false
-        self.assertTrue(all_matched(ctl, "[stretto-pin] rank 0: applied flip seg=0 flag=0 id=0:1:x\n"))
+        self.assertTrue(all_matched(ctl, "[stretto-pin] rank 0: applied flip key=1 flag=0 id=0:1:x\n"))
         self.assertFalse(all_matched(ctl, ""))
 
     def test_receive_alternative_has_no_flip_pin(self):

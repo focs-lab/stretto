@@ -237,7 +237,7 @@ static inline __attribute__((unused)) long my_tid(void) {
     return t_tid;
 }
 static void rb_emit_kind(rec_t *b, int failed_poll) {
-    stretto_pin_record(b->p, failed_poll);     /* both builds: the flip pins count poll segments */
+    stretto_pin_record(b->p, failed_poll);     /* both builds: the flip pins count the calls between failed polls */
 #ifndef STRETTO_PIN_ONLY
     pthread_mutex_lock(&g_mu);
     if (g_out) {
@@ -1568,14 +1568,14 @@ int MPI_Waitsome(int n, MPI_Request reqs[], int *outcount, int idx[], MPI_Status
 /* A test a flip pin forces (STRETTO_PIN_FLIP): 1, poll until its request is complete and return
    that, as a test that found it so; -1, return flag 0 without polling. */
 static int flip_test(MPI_Request *req, int *flag, MPI_Status *st, int query) {
-    int x = 0, y = 0, seg = -1;
-    int flip = stretto_pin_flip(1, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &x, &y, &seg);
+    int x = 0, y = 0, fkey = -1;
+    int flip = stretto_pin_flip(1, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &x, &y, &fkey);
     if (flip == 0) return -1;
     if (flip == -1) { *flag = 0; return MPI_SUCCESS; }
     int rc;
     do rc = query ? PMPI_Request_get_status(*req, flag, st) : PMPI_Test(req, flag, st);
     while (rc == MPI_SUCCESS && !*flag);
-    if (*flag) stretto_pin_flip_matched(seg, -1, -1);
+    if (*flag) stretto_pin_flip_matched(fkey, -1, -1);
     return rc;
 }
 int MPI_Test(MPI_Request *req, int *flag, MPI_Status *st) {
@@ -1687,13 +1687,13 @@ int MPI_Probe(int src, int tag, MPI_Comm comm, MPI_Status *st) {
    without polling; a probe pin with src -1 (pinned 2) returns flag 0 too. */
 int MPI_Iprobe(int src, int tag, MPI_Comm comm, int *flag, MPI_Status *st) {
     GUARD; MPI_Status mine; if (st == MPI_STATUS_IGNORE) st = &mine;
-    int osrc = src, otag = tag, pidx = -1, fsrc = src, ftag = tag, fseg = -1, rc = MPI_SUCCESS;
-    int flip = stretto_pin_flip(0, src, tag, comm, &fsrc, &ftag, &fseg);
+    int osrc = src, otag = tag, pidx = -1, fsrc = src, ftag = tag, fkey = -1, rc = MPI_SUCCESS;
+    int flip = stretto_pin_flip(0, src, tag, comm, &fsrc, &ftag, &fkey);
     int pinned = flip ? 0 : stretto_pin_probe(&src, &tag, comm, &pidx);
     if (flip) pidx = stretto_pin_probe_ordinal(osrc, otag);
     if (flip == 1) {
         rc = PMPI_Probe(fsrc, ftag, comm, st); *flag = rc == MPI_SUCCESS;
-        if (*flag) stretto_pin_flip_matched(fseg, st->MPI_SOURCE, st->MPI_TAG);
+        if (*flag) stretto_pin_flip_matched(fkey, st->MPI_SOURCE, st->MPI_TAG);
         pinned = 1; src = fsrc;
     } else if (flip == -1 || pinned == 2) *flag = 0;
     else rc = PMPI_Iprobe(src, tag, comm, flag, st);
@@ -1708,13 +1708,13 @@ int MPI_Mprobe(int src, int tag, MPI_Comm comm, MPI_Message *msg, MPI_Status *st
 }
 int MPI_Improbe(int src, int tag, MPI_Comm comm, int *flag, MPI_Message *msg, MPI_Status *st) {
     GUARD; MPI_Status mine; if (st == MPI_STATUS_IGNORE) st = &mine;
-    int osrc = src, otag = tag, pidx = -1, fsrc = src, ftag = tag, fseg = -1, rc = MPI_SUCCESS;
-    int flip = stretto_pin_flip(0, src, tag, comm, &fsrc, &ftag, &fseg);
+    int osrc = src, otag = tag, pidx = -1, fsrc = src, ftag = tag, fkey = -1, rc = MPI_SUCCESS;
+    int flip = stretto_pin_flip(0, src, tag, comm, &fsrc, &ftag, &fkey);
     int pinned = flip ? 0 : stretto_pin_probe(&src, &tag, comm, &pidx);
     if (flip) pidx = stretto_pin_probe_ordinal(osrc, otag);
     if (flip == 1) {
         rc = PMPI_Mprobe(fsrc, ftag, comm, msg, st); *flag = rc == MPI_SUCCESS;
-        if (*flag) stretto_pin_flip_matched(fseg, st->MPI_SOURCE, st->MPI_TAG);
+        if (*flag) stretto_pin_flip_matched(fkey, st->MPI_SOURCE, st->MPI_TAG);
         pinned = 1; src = fsrc;
     } else if (flip == -1 || pinned == 2) *flag = 0;
     else rc = PMPI_Improbe(src, tag, comm, flag, msg, st);

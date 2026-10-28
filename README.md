@@ -262,8 +262,9 @@ checksum only, and reads only on pages that lie wholly inside a point-to-point r
 `STRETTO_PIN="rank:idx:src[:tag],..."` pins the idx-th wildcard receive of a rank to a source;
 `STRETTO_PIN_PROBE` does the same for wildcard probes (source -1: an Iprobe that found a message
 returns false once), and `STRETTO_PIN=@file` reads a list too long for one environment string.
-`STRETTO_PIN_FLIP="rank:seg:src[:tag]@comm:tag:site:found"` forces a poll that failed in the trace,
-named by its poll segment, to wait for the message of src and return it (-2: a test waits for its
+`STRETTO_PIN_FLIP="rank:key:src[:tag]@comm:tag:site:found"` forces a poll that failed in the trace,
+named by its key (the rank's calls before it that are not failed polls), to wait for the message
+of src and return it (-2: a test waits for its
 request; -1, the control: returns false). `STRETTO_SEND_DELAY_MS="rank:ms,..."` and
 `STRETTO_RECV_DELAY_MS` add delays, which the stress-testing baseline uses. The pins `stretto
 confirm` writes also carry the traced operation's identity, `rank:idx:src[:tag]@comm:tag:site`

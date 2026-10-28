@@ -47,10 +47,38 @@ class C_PollSegments(unittest.TestCase):
         # records: 0 init, 1-2 polls, 3 send, 4 poll, 5 irecv, 6-7 polls, 8 wait, 9 recv
         self.assertEqual(segs, {1: 0, 2: 0, 4: 1, 6: 2, 7: 2})
 
+    def test_key_counts_the_calls_that_are_not_failed_polls(self):
+        t = mk({0: [failed_iprobe(1), failed_iprobe(2), send(1, 3), failed_iprobe(1), irecv(1, 4, 7), failed_test(7),
+                    failed_iprobe(1), wait((7, 1, 4)), recv(T.ANY, 1, 1, 1)],
+                1: [recv(0, 3, 0, 3), send(0, 4), send(0, 1)]})
+        keys = {idx: k for (rank, idx), k in t.poll_key.items() if rank == 0}
+        # records: 0 init, 1-2 polls, 3 send, 4 poll, 5 irecv, 6-7 polls: one key per segment
+        self.assertEqual(keys, {1: 1, 2: 1, 4: 2, 6: 3, 7: 3})
+
+    def test_key_does_not_depend_on_how_often_a_loop_failed(self):
+        """Two timings of one program: in the first, the loop before the send fails once; in
+        the second it finds its way out at once. The polls after the send and after the
+        receive are in other segments of the two runs, and have the same keys, which is what
+        lets a flip pin from one run name the same poll in the other (STRETTO_PIN_FLIP)."""
+        late = mk({0: [failed_iprobe(1), send(1, 3), failed_iprobe(1), failed_iprobe(2), recv(1, 4, 1, 4), failed_iprobe(5)],
+                   1: [recv(0, 3, 0, 3), send(0, 4)]})
+        early = mk({0: [send(1, 3), failed_iprobe(2), recv(1, 4, 1, 4), failed_iprobe(5)],
+                    1: [recv(0, 3, 0, 3), send(0, 4)]})
+
+        def by_tag(t, what):
+            return {t.ranks[0][idx].raw["tag"]: v for (rank, idx), v in what.items() if rank == 0}
+
+        self.assertEqual(by_tag(late, late.poll_seg), {1: 1, 2: 1, 5: 2})     # the tag-1 entry: its last record
+        self.assertEqual(by_tag(early, early.poll_seg), {2: 0, 5: 1})
+        k_late, k_early = by_tag(late, late.poll_key), by_tag(early, early.poll_key)
+        self.assertEqual((k_late[2], k_late[5]), (2, 3))
+        self.assertEqual((k_early[2], k_early[5]), (2, 3))
+
     def test_side_records_do_not_end_a_segment(self):
         t = mk({0: [failed_iprobe(1), {"op": "overflow", "what": "site table"}, failed_iprobe(1), recv(T.ANY, 1, 1, 1)],
                 1: [send(0, 1)]})
         self.assertEqual(sorted(set(v for (r, _), v in t.poll_seg.items() if r == 0)), [0])
+        self.assertEqual(sorted(set(v for (r, _), v in t.poll_key.items() if r == 0)), [1])     # nor count as calls
 
     def test_one_candidate_per_identity_and_segment(self):
         # Iprobe tag 1, Iprobe tag 2, Iprobe tag 1 again, all failed in one segment: the second
@@ -74,7 +102,7 @@ class C_ProbeFlip(unittest.TestCase):
         rep = analyze(t, with_sp=False)
         (fl,) = rep.by_class("probe-flip")
         self.assertEqual((fl.level, fl.probe, fl.send), ("L1", p.key, s.key))
-        self.assertEqual(fl.pin, "STRETTO_PIN_FLIP=0:0:1@0:1:x:0")   # rank 0, segment 0, source 1; comm 0, tag 1, no site, no probe found before
+        self.assertEqual(fl.pin, "STRETTO_PIN_FLIP=0:1:1@0:1:x:0")   # rank 0, key 1 (after init), source 1; comm 0, tag 1, no site, no probe found before
         self.assertFalse(rep.has_error())                          # a warning, as probe-alt is
 
     def test_message_causally_after_the_probe_is_no_candidate(self):
@@ -113,7 +141,7 @@ class C_ProbeFlip(unittest.TestCase):
         self.assertEqual(flips_of(t), [((0, 0), (1, 0))])
         rep = analyze(t, with_sp=False)
         (fl,) = rep.by_class("probe-flip")
-        self.assertEqual(fl.pin, "STRETTO_PIN_FLIP=0:0:1:2@0:-1:x:0")    # an ANY_TAG probe names the tag
+        self.assertEqual(fl.pin, "STRETTO_PIN_FLIP=0:1:1:2@0:-1:x:0")    # an ANY_TAG probe names the tag
 
     def test_specific_source_probe(self):
         t = mk({0: [iprobe(1, src=2), recv(T.ANY, 1, 1, 1), recv(2, 1, 2, 1)], 1: [send(0, 1)], 2: [send(0, 1)]})
@@ -157,7 +185,7 @@ class C_TestFlip(unittest.TestCase):
             f = fast.Observed(t, B).check_event(rec.rank, rec.idx, s, r)
             self.assertEqual((f.feasible, f.cut), (True, g.cut))
         (fl,) = analyze(t, with_sp=False).by_class("test-flip")
-        self.assertEqual((fl.event, fl.pin), ((0, 2), "STRETTO_PIN_FLIP=0:0:-2@x:x:x:0"))
+        self.assertEqual((fl.event, fl.pin), ((0, 2), "STRETTO_PIN_FLIP=0:2:-2@x:x:x:0"))   # key 2: init, the irecv
 
     def test_message_after_the_test_is_no_candidate(self):
         t = mk({0: [irecv(2, 1, 7), failed_test(7), send(2, 5), wait((7, 2, 1))], 2: [recv(0, 5, 0, 5), send(0, 1)]})

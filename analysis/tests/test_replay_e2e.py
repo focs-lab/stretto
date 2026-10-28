@@ -225,17 +225,40 @@ class FlipPins(unittest.TestCase):
         if not fl:
             self.skipTest("the first loop of this trace did not fail before rank 1's message")
         f = fl[0]
-        self.assertRegex(f.pin, r"^STRETTO_PIN_FLIP=0:0:2@0:11:[0-9a-fx]+:0$")    # no wildcard probe found a message before
+        key = t.poll_key[(0, t.probes[f.probe].idx)]
+        self.assertRegex(f.pin, rf"^STRETTO_PIN_FLIP=0:{key}:2@0:11:[0-9a-fx]+:0$")    # no wildcard probe found a message before
         rp = C.run_checked(3, exe, [], [f.pin], timeout=20)
         self.assertEqual(rp.result, "FINISHED", rp.proc.stderr[-2000:])
-        self.assertRegex(rp.proc.stderr, r"\[stretto-pin\] rank 0: matched flip seg=0 src=2 tag=11\b")
+        self.assertRegex(rp.proc.stderr, rf"\[stretto-pin\] rank 0: matched flip key={key} src=2 tag=11\b")
         self.assertTrue(C.all_matched([f.pin], rp.proc.stderr, None, rp.seen))
         ctl = C.control_pin(t, f.pin)
-        self.assertRegex(ctl, r"^STRETTO_PIN_FLIP=0:0:-1@")
+        self.assertRegex(ctl, rf"^STRETTO_PIN_FLIP=0:{key}:-1@")
         rc = C.run_checked(3, exe, [], [ctl], timeout=20)
         self.assertEqual(rc.result, "FINISHED")
-        self.assertRegex(rc.proc.stderr, r"\[stretto-pin\] rank 0: applied flip seg=0 flag=0\b")
+        self.assertRegex(rc.proc.stderr, rf"\[stretto-pin\] rank 0: applied flip key={key} flag=0\b")
         self.assertTrue(C.all_matched([ctl], rc.proc.stderr, None, rc.seen))
+
+    def test_a_flip_pin_names_its_poll_however_often_the_loop_failed_before(self):
+        """Idiom 11 with two flips: the first loop's failed Iprobe forced to return rank 1's
+        message, so that the replay's first loop never fails, and the second loop's failed
+        Iprobe forced to return rank 2's. The second poll is in the trace's second poll segment
+        and in the replay's first; its key, the rank's calls before it that are not failed
+        polls, is the same in both, and the library forces it there."""
+        exe, t, rep = self.analysed(11)
+        fl = {t.poll_seg.get((0, t.probes[f.probe].idx)): f for f in rep.by_class("probe-flip")
+              if f.send is not None and t.sends[f.send].rank == (1 if t.poll_seg.get((0, t.probes[f.probe].idx)) == 0 else 2)}
+        if set(fl) != {0, 1}:
+            self.skipTest("this trace lacks a failed poll in one of the two loops")
+        first, second = fl[0], fl[1]
+        k1, k2 = (t.poll_key[(0, t.probes[f.probe].idx)] for f in (first, second))
+        self.assertGreater(k2, k1)
+        spec = "STRETTO_PIN_FLIP=" + ",".join(f.pin.split("=", 1)[1] for f in (first, second))
+        rp = C.run_checked(3, exe, [], [spec], timeout=20)
+        self.assertEqual(rp.result, "FINISHED", rp.proc.stderr[-2000:])
+        self.assertRegex(rp.proc.stderr, rf"\[stretto-pin\] rank 0: matched flip key={k1} src=1 tag=11\b")
+        self.assertRegex(rp.proc.stderr, rf"\[stretto-pin\] rank 0: matched flip key={k2} src=2 tag=11\b")
+        self.assertNotIn("unused", rp.proc.stderr)
+        self.assertTrue(C.all_matched([spec], rp.proc.stderr, None, rp.seen))
 
     def test_a_flip_pin_after_another_probe_count_ends_the_run(self):
         """The same flip pin naming one wildcard probe found before the call, where the replay

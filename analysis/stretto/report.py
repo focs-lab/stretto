@@ -666,19 +666,20 @@ FLIP_LEVEL_NOTE = ("L1 only: the rank's calls after the other flag are not in th
 
 
 def flip_pin(t: Trace, rank: int, idx: int, src: int, tag: Optional[int], ident) -> Optional[str]:
-    """STRETTO_PIN_FLIP for the failed poll at record idx of rank: its poll segment, the source
-    (world rank; -2 completes a test's request) and tag it is to return, and the call's
-    identity (replay/pin.h): communicator, tag argument, call site, and the number of the rank's
-    wildcard probes that found a message before it, which the replay library compares with its
-    own count, so that a replay that diverged before the call ends instead of forcing another
-    iteration's call. None if the record is not a failed poll."""
-    seg = t.poll_seg.get((rank, idx))
-    if seg is None:
+    """STRETTO_PIN_FLIP for the failed poll at record idx of rank: its key (Trace.poll_key, the
+    rank's calls before it that are not failed polls), the source (world rank; -2 completes a
+    test's request) and tag it is to return, and the call's identity (replay/pin.h):
+    communicator, tag argument, call site, and the number of the rank's wildcard probes that
+    found a message before it, which the replay library compares with its own count, so that a
+    replay that diverged before the call ends instead of forcing another iteration's call. None
+    if the record is not a failed poll."""
+    key = t.poll_key.get((rank, idx))
+    if key is None:
         return None
     c, g, s = ident
     found = sum(1 for p in t.probes.values() if p.rank == rank and p.idx < idx and p.flag and p.wildcard and p.completed)
     ident_text = f"{'x' if c is None else c}:{'x' if g is None else g}:{'x' if s is None else format(s, 'x')}:{found}"
-    return f"STRETTO_PIN_FLIP={rank}:{seg}:{src}" + (f":{tag}" if tag is not None else "") + "@" + ident_text
+    return f"STRETTO_PIN_FLIP={rank}:{key}:{src}" + (f":{tag}" if tag is not None else "") + "@" + ident_text
 
 
 def flip_finding(t: Trace, p: Probe, s: Optional[Send], brange: str) -> Finding:
