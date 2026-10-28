@@ -1,0 +1,11 @@
+version,np,run,traced,traced_ok,traced_says,traced_s,records,status,analyse_s,findings,kinds,kinds_B,role,cls,level,kind,pin,B,title,replay,matched,replay_ok,replay_says,run_valid,violation,verdict,strict,control,control_matched,control_ok,control_says,control_valid,control_violation,misapplied,seed,commit
+615e40c-spintags,3,1,FINISHED,True,ok,10.1,30704,complete,0.7,,,,,,,,,,,,,,,,,,,,,,,,,,,bcec4e5
+615e40c-spintags,3,2,FINISHED,True,ok,10.2,30704,complete,0.7,,,,,,,,,,,,,,,,,,,,,,,,,,,bcec4e5
+615e40c-spintags,3,3,FINISHED,True,ok,10.7,30704,complete,0.7,,,,,,,,,,,,,,,,,,,,,,,,,,,bcec4e5
+615e40c-spintags,3,4,FINISHED,True,ok,12.2,30704,complete,0.7,,,,,,,,,,,,,,,,,,,,,,,,,,,bcec4e5
+615e40c-spintags,3,5,FINISHED,True,ok,10.0,30704,complete,0.7,,,,,,,,,,,,,,,,,,,,,,,,,,,bcec4e5
+615e40c-spintags,3,6,FINISHED,True,ok,12.1,30704,complete,0.7,,,,,,,,,,,,,,,,,,,,,,,,,,,bcec4e5
+615e40c-spintags,3,7,FINISHED,True,ok,10.0,30704,complete,0.7,,,,,,,,,,,,,,,,,,,,,,,,,,,bcec4e5
+615e40c-spintags,3,8,FINISHED,True,ok,11.1,30704,complete,0.7,,,,,,,,,,,,,,,,,,,,,,,,,,,bcec4e5
+615e40c-spintags,3,9,FINISHED,True,ok,11.1,30704,complete,0.6,,,,,,,,,,,,,,,,,,,,,,,,,,,bcec4e5
+615e40c-spintags,3,10,FINISHED,True,ok,9.6,30704,complete,0.6,,,,,,,,,,,,,,,,,,,,,,,,,,,bcec4e5
