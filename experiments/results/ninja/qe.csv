@@ -1,0 +1,243 @@
+label,np,mode,setting,run,result,seconds,reached,value,commit
+ph.x-dev,3,random,ratio=10% delay=50000us,1,FINISHED,39.7,,486,b0dbe2a
+ph.x-dev,3,random,ratio=10% delay=50000us,2,FINISHED,14.8,,0,b0dbe2a
+ph.x-dev,3,random,ratio=10% delay=50000us,3,FINISHED,46.1,,0,b0dbe2a
+ph.x-dev,3,random,ratio=10% delay=50000us,4,FINISHED,28.8,,0,b0dbe2a
+ph.x-dev,3,random,ratio=10% delay=50000us,5,FINISHED,13.5,,0,b0dbe2a
+ph.x-dev,3,random,ratio=10% delay=50000us,6,FINISHED,13.9,,472,b0dbe2a
+ph.x-dev,3,random,ratio=10% delay=50000us,7,FINISHED,13.8,,472,b0dbe2a
+ph.x-dev,3,random,ratio=10% delay=50000us,8,FINISHED,13.5,,472,b0dbe2a
+ph.x-dev,3,random,ratio=10% delay=50000us,9,FINISHED,14.3,,472,b0dbe2a
+ph.x-dev,3,random,ratio=10% delay=50000us,10,FINISHED,15.0,,0,b0dbe2a
+ph.x-dev,3,random,ratio=10% delay=50000us,11,FINISHED,14.7,,0,b0dbe2a
+ph.x-dev,3,random,ratio=10% delay=50000us,12,FINISHED,14.7,,0,b0dbe2a
+ph.x-dev,3,random,ratio=10% delay=50000us,13,FINISHED,14.8,,0,b0dbe2a
+ph.x-dev,3,random,ratio=10% delay=50000us,14,FINISHED,14.5,,0,b0dbe2a
+ph.x-dev,3,random,ratio=10% delay=50000us,15,FINISHED,20.1,,472,b0dbe2a
+ph.x-dev,3,random,ratio=10% delay=50000us,16,FINISHED,14.9,,472,b0dbe2a
+ph.x-dev,3,random,ratio=10% delay=50000us,17,FINISHED,15.2,,486,b0dbe2a
+ph.x-dev,3,random,ratio=10% delay=50000us,18,FINISHED,14.9,,472,b0dbe2a
+ph.x-dev,3,random,ratio=10% delay=50000us,19,FINISHED,14.8,,472,b0dbe2a
+ph.x-dev,3,random,ratio=10% delay=50000us,20,FINISHED,14.5,,0,b0dbe2a
+ph.x-dev,3,random,ratio=10% delay=50000us,21,FINISHED,14.6,,486,b0dbe2a
+ph.x-dev,3,random,ratio=10% delay=50000us,22,FINISHED,14.3,,472,b0dbe2a
+ph.x-dev,3,random,ratio=10% delay=50000us,23,FINISHED,14.2,,472,b0dbe2a
+ph.x-dev,3,random,ratio=10% delay=50000us,24,FINISHED,14.5,,486,b0dbe2a
+ph.x-dev,3,random,ratio=10% delay=50000us,25,FINISHED,14.6,,472,b0dbe2a
+ph.x-dev,3,random,ratio=10% delay=50000us,26,FINISHED,14.6,,0,b0dbe2a
+ph.x-dev,3,random,ratio=10% delay=50000us,27,FINISHED,14.9,,486,b0dbe2a
+ph.x-dev,3,random,ratio=10% delay=50000us,28,FINISHED,14.5,,486,b0dbe2a
+ph.x-dev,3,random,ratio=10% delay=50000us,29,FINISHED,14.3,,0,b0dbe2a
+ph.x-dev,3,random,ratio=10% delay=50000us,30,FINISHED,14.3,,472,b0dbe2a
+ph.x-dev,3,random,ratio=10% delay=50000us,31,FINISHED,14.3,,486,b0dbe2a
+ph.x-dev,3,random,ratio=10% delay=50000us,32,FINISHED,14.2,,472,b0dbe2a
+ph.x-dev,3,random,ratio=10% delay=50000us,33,FINISHED,14.9,,0,b0dbe2a
+ph.x-dev,3,random,ratio=10% delay=50000us,34,FINISHED,16.2,,472,b0dbe2a
+ph.x-dev,3,random,ratio=10% delay=50000us,35,FINISHED,14.8,,0,b0dbe2a
+ph.x-dev,3,random,ratio=10% delay=50000us,36,FINISHED,15.2,,472,b0dbe2a
+ph.x-dev,3,random,ratio=10% delay=50000us,37,FINISHED,14.4,,472,b0dbe2a
+ph.x-dev,3,random,ratio=10% delay=50000us,38,FINISHED,14.4,,0,b0dbe2a
+ph.x-dev,3,random,ratio=10% delay=50000us,39,FINISHED,14.8,,0,b0dbe2a
+ph.x-dev,3,random,ratio=10% delay=50000us,40,FINISHED,14.6,,0,b0dbe2a
+ph.x-dev,3,system,,1,FINISHED,14.2,,486,b0dbe2a
+ph.x-dev,3,system,,2,FINISHED,14.4,,486,b0dbe2a
+ph.x-dev,3,system,,3,FINISHED,14.2,,486,b0dbe2a
+ph.x-dev,3,system,,4,FINISHED,14.7,,486,b0dbe2a
+ph.x-dev,3,system,,5,FINISHED,14.4,,486,b0dbe2a
+ph.x-dev,3,system,,6,FINISHED,14.3,,486,b0dbe2a
+ph.x-dev,3,system,,7,FINISHED,14.7,,486,b0dbe2a
+ph.x-dev,3,system,,8,FINISHED,14.6,,486,b0dbe2a
+ph.x-dev,3,system,,9,FINISHED,14.7,,486,b0dbe2a
+ph.x-dev,3,system,,10,FINISHED,14.2,,486,b0dbe2a
+ph.x-dev,3,system,,11,FINISHED,14.0,,486,b0dbe2a
+ph.x-dev,3,system,,12,FINISHED,14.6,,486,b0dbe2a
+ph.x-dev,3,system,,13,FINISHED,14.2,,486,b0dbe2a
+ph.x-dev,3,system,,14,FINISHED,14.4,,486,b0dbe2a
+ph.x-dev,3,system,,15,FINISHED,14.6,,486,b0dbe2a
+ph.x-dev,3,system,,16,FINISHED,14.2,,486,b0dbe2a
+ph.x-dev,3,system,,17,FINISHED,14.9,,486,b0dbe2a
+ph.x-dev,3,system,,18,FINISHED,14.0,,486,b0dbe2a
+ph.x-dev,3,system,,19,FINISHED,14.5,,486,b0dbe2a
+ph.x-dev,3,system,,20,FINISHED,14.3,,486,b0dbe2a
+ph.x-dev,3,system,,21,FINISHED,14.6,,486,b0dbe2a
+ph.x-dev,3,system,,22,FINISHED,14.6,,486,b0dbe2a
+ph.x-dev,3,system,,23,FINISHED,14.3,,0,b0dbe2a
+ph.x-dev,3,system,,24,FINISHED,13.9,,486,b0dbe2a
+ph.x-dev,3,system,,25,FINISHED,14.0,,486,b0dbe2a
+ph.x-dev,3,system,,26,FINISHED,13.7,,486,b0dbe2a
+ph.x-dev,3,system,,27,FINISHED,14.0,,486,b0dbe2a
+ph.x-dev,3,system,,28,FINISHED,14.2,,486,b0dbe2a
+ph.x-dev,3,system,,29,FINISHED,13.8,,486,b0dbe2a
+ph.x-dev,3,system,,30,FINISHED,14.5,,0,b0dbe2a
+ph.x-dev,3,system,,31,FINISHED,14.7,,486,b0dbe2a
+ph.x-dev,3,system,,32,FINISHED,14.5,,486,b0dbe2a
+ph.x-dev,3,system,,33,FINISHED,14.2,,486,b0dbe2a
+ph.x-dev,3,system,,34,FINISHED,14.5,,486,b0dbe2a
+ph.x-dev,3,system,,35,FINISHED,14.1,,486,b0dbe2a
+ph.x-dev,3,system,,36,FINISHED,14.1,,486,b0dbe2a
+ph.x-dev,3,system,,37,FINISHED,14.2,,486,b0dbe2a
+ph.x-dev,3,system,,38,FINISHED,13.9,,486,b0dbe2a
+ph.x-dev,3,system,,39,FINISHED,14.7,,486,b0dbe2a
+ph.x-dev,3,system,,40,FINISHED,14.7,,0,b0dbe2a
+ph.x-dev,3,app,learning run (system-centric),0,FINISHED,14.6,,486,b0dbe2a
+ph.x-dev,3,app,,1,FINISHED,14.7,,472,b0dbe2a
+ph.x-dev,3,app,,2,FINISHED,14.6,,472,b0dbe2a
+ph.x-dev,3,app,,3,FINISHED,14.7,,472,b0dbe2a
+ph.x-dev,3,app,,4,FINISHED,14.9,,472,b0dbe2a
+ph.x-dev,3,app,,5,FINISHED,14.0,,0,b0dbe2a
+ph.x-dev,3,app,,6,FINISHED,13.5,,472,b0dbe2a
+ph.x-dev,3,app,,7,FINISHED,13.8,,472,b0dbe2a
+ph.x-dev,3,app,,8,FINISHED,13.3,,0,b0dbe2a
+ph.x-dev,3,app,,9,FINISHED,13.2,,486,b0dbe2a
+ph.x-dev,3,app,,10,FINISHED,13.2,,472,b0dbe2a
+ph.x-dev,3,app,,11,FINISHED,12.7,,0,b0dbe2a
+ph.x-dev,3,app,,12,FINISHED,13.1,,0,b0dbe2a
+ph.x-dev,3,app,,13,FINISHED,13.2,,472,b0dbe2a
+ph.x-dev,3,app,,14,FINISHED,13.5,,472,b0dbe2a
+ph.x-dev,3,app,,15,FINISHED,13.5,,472,b0dbe2a
+ph.x-dev,3,app,,16,FINISHED,13.8,,472,b0dbe2a
+ph.x-dev,3,app,,17,FINISHED,13.8,,472,b0dbe2a
+ph.x-dev,3,app,,18,FINISHED,13.7,,472,b0dbe2a
+ph.x-dev,3,app,,19,FINISHED,13.2,,472,b0dbe2a
+ph.x-dev,3,app,,20,FINISHED,13.7,,472,b0dbe2a
+ph.x-dev,3,app,,21,FINISHED,14.6,,0,b0dbe2a
+ph.x-dev,3,app,,22,FINISHED,14.6,,472,b0dbe2a
+ph.x-dev,3,app,,23,FINISHED,14.6,,472,b0dbe2a
+ph.x-dev,3,app,,24,FINISHED,14.5,,472,b0dbe2a
+ph.x-dev,3,app,,25,FINISHED,14.5,,0,b0dbe2a
+ph.x-dev,3,app,,26,FINISHED,14.6,,0,b0dbe2a
+ph.x-dev,3,app,,27,FINISHED,14.1,,0,b0dbe2a
+ph.x-dev,3,app,,28,FINISHED,14.5,,472,b0dbe2a
+ph.x-dev,3,app,,29,FINISHED,14.3,,0,b0dbe2a
+ph.x-dev,3,app,,30,FINISHED,13.7,,472,b0dbe2a
+ph.x-dev,3,app,,31,FINISHED,13.7,,472,b0dbe2a
+ph.x-dev,3,app,,32,FINISHED,13.7,,472,b0dbe2a
+ph.x-dev,3,app,,33,FINISHED,13.3,,0,b0dbe2a
+ph.x-dev,3,app,,34,FINISHED,13.7,,0,b0dbe2a
+ph.x-dev,3,app,,35,FINISHED,13.7,,486,b0dbe2a
+ph.x-dev,3,app,,36,FINISHED,12.6,,0,b0dbe2a
+ph.x-dev,3,app,,37,FINISHED,12.7,,0,b0dbe2a
+ph.x-dev,3,app,,38,FINISHED,12.8,,472,b0dbe2a
+ph.x-dev,3,app,,39,FINISHED,12.6,,0,b0dbe2a
+ph.x-dev,3,app,,40,FINISHED,12.7,,472,b0dbe2a
+ph.x-fix,3,random,ratio=10% delay=50000us,1,FINISHED,13.0,,0,b0dbe2a
+ph.x-fix,3,random,ratio=10% delay=50000us,2,FINISHED,12.7,,0,b0dbe2a
+ph.x-fix,3,random,ratio=10% delay=50000us,3,FINISHED,12.9,,0,b0dbe2a
+ph.x-fix,3,random,ratio=10% delay=50000us,4,FINISHED,12.6,,0,b0dbe2a
+ph.x-fix,3,random,ratio=10% delay=50000us,5,FINISHED,12.7,,0,b0dbe2a
+ph.x-fix,3,random,ratio=10% delay=50000us,6,FINISHED,12.2,,0,b0dbe2a
+ph.x-fix,3,random,ratio=10% delay=50000us,7,FINISHED,12.4,,0,b0dbe2a
+ph.x-fix,3,random,ratio=10% delay=50000us,8,FINISHED,12.7,,0,b0dbe2a
+ph.x-fix,3,random,ratio=10% delay=50000us,9,FINISHED,12.9,,0,b0dbe2a
+ph.x-fix,3,random,ratio=10% delay=50000us,10,FINISHED,17.3,,0,b0dbe2a
+ph.x-fix,3,random,ratio=10% delay=50000us,11,FINISHED,12.9,,0,b0dbe2a
+ph.x-fix,3,random,ratio=10% delay=50000us,12,FINISHED,13.0,,0,b0dbe2a
+ph.x-fix,3,random,ratio=10% delay=50000us,13,FINISHED,13.4,,0,b0dbe2a
+ph.x-fix,3,random,ratio=10% delay=50000us,14,FINISHED,13.3,,0,b0dbe2a
+ph.x-fix,3,random,ratio=10% delay=50000us,15,FINISHED,13.0,,0,b0dbe2a
+ph.x-fix,3,random,ratio=10% delay=50000us,16,FINISHED,12.9,,0,b0dbe2a
+ph.x-fix,3,random,ratio=10% delay=50000us,17,FINISHED,13.0,,0,b0dbe2a
+ph.x-fix,3,random,ratio=10% delay=50000us,18,FINISHED,13.2,,0,b0dbe2a
+ph.x-fix,3,random,ratio=10% delay=50000us,19,FINISHED,14.4,,0,b0dbe2a
+ph.x-fix,3,random,ratio=10% delay=50000us,20,FINISHED,13.9,,0,b0dbe2a
+ph.x-fix,3,random,ratio=10% delay=50000us,21,FINISHED,14.4,,0,b0dbe2a
+ph.x-fix,3,random,ratio=10% delay=50000us,22,FINISHED,14.3,,0,b0dbe2a
+ph.x-fix,3,random,ratio=10% delay=50000us,23,FINISHED,13.5,,0,b0dbe2a
+ph.x-fix,3,random,ratio=10% delay=50000us,24,FINISHED,13.5,,0,b0dbe2a
+ph.x-fix,3,random,ratio=10% delay=50000us,25,FINISHED,13.8,,0,b0dbe2a
+ph.x-fix,3,random,ratio=10% delay=50000us,26,FINISHED,13.5,,0,b0dbe2a
+ph.x-fix,3,random,ratio=10% delay=50000us,27,FINISHED,12.8,,0,b0dbe2a
+ph.x-fix,3,random,ratio=10% delay=50000us,28,FINISHED,12.8,,0,b0dbe2a
+ph.x-fix,3,random,ratio=10% delay=50000us,29,FINISHED,12.5,,0,b0dbe2a
+ph.x-fix,3,random,ratio=10% delay=50000us,30,FINISHED,14.2,,0,b0dbe2a
+ph.x-fix,3,random,ratio=10% delay=50000us,31,FINISHED,13.3,,0,b0dbe2a
+ph.x-fix,3,random,ratio=10% delay=50000us,32,FINISHED,13.6,,0,b0dbe2a
+ph.x-fix,3,random,ratio=10% delay=50000us,33,FINISHED,13.7,,0,b0dbe2a
+ph.x-fix,3,random,ratio=10% delay=50000us,34,FINISHED,13.9,,0,b0dbe2a
+ph.x-fix,3,random,ratio=10% delay=50000us,35,FINISHED,13.8,,0,b0dbe2a
+ph.x-fix,3,random,ratio=10% delay=50000us,36,FINISHED,13.6,,0,b0dbe2a
+ph.x-fix,3,random,ratio=10% delay=50000us,37,FINISHED,13.7,,0,b0dbe2a
+ph.x-fix,3,random,ratio=10% delay=50000us,38,FINISHED,13.6,,0,b0dbe2a
+ph.x-fix,3,random,ratio=10% delay=50000us,39,FINISHED,14.0,,0,b0dbe2a
+ph.x-fix,3,random,ratio=10% delay=50000us,40,FINISHED,14.2,,0,b0dbe2a
+ph.x-fix,3,system,,1,FINISHED,14.0,,0,b0dbe2a
+ph.x-fix,3,system,,2,FINISHED,13.8,,0,b0dbe2a
+ph.x-fix,3,system,,3,FINISHED,13.5,,0,b0dbe2a
+ph.x-fix,3,system,,4,FINISHED,13.8,,0,b0dbe2a
+ph.x-fix,3,system,,5,FINISHED,13.4,,0,b0dbe2a
+ph.x-fix,3,system,,6,FINISHED,13.9,,0,b0dbe2a
+ph.x-fix,3,system,,7,FINISHED,13.5,,0,b0dbe2a
+ph.x-fix,3,system,,8,FINISHED,13.3,,0,b0dbe2a
+ph.x-fix,3,system,,9,FINISHED,13.9,,0,b0dbe2a
+ph.x-fix,3,system,,10,FINISHED,13.5,,0,b0dbe2a
+ph.x-fix,3,system,,11,FINISHED,13.8,,0,b0dbe2a
+ph.x-fix,3,system,,12,FINISHED,13.5,,0,b0dbe2a
+ph.x-fix,3,system,,13,FINISHED,13.6,,0,b0dbe2a
+ph.x-fix,3,system,,14,FINISHED,14.0,,0,b0dbe2a
+ph.x-fix,3,system,,15,FINISHED,13.6,,0,b0dbe2a
+ph.x-fix,3,system,,16,FINISHED,13.8,,0,b0dbe2a
+ph.x-fix,3,system,,17,FINISHED,14.1,,0,b0dbe2a
+ph.x-fix,3,system,,18,FINISHED,13.6,,0,b0dbe2a
+ph.x-fix,3,system,,19,FINISHED,13.9,,0,b0dbe2a
+ph.x-fix,3,system,,20,FINISHED,13.4,,0,b0dbe2a
+ph.x-fix,3,system,,21,FINISHED,13.9,,0,b0dbe2a
+ph.x-fix,3,system,,22,FINISHED,13.9,,0,b0dbe2a
+ph.x-fix,3,system,,23,FINISHED,13.7,,0,b0dbe2a
+ph.x-fix,3,system,,24,FINISHED,14.3,,0,b0dbe2a
+ph.x-fix,3,system,,25,FINISHED,14.1,,0,b0dbe2a
+ph.x-fix,3,system,,26,FINISHED,13.7,,0,b0dbe2a
+ph.x-fix,3,system,,27,FINISHED,14.1,,0,b0dbe2a
+ph.x-fix,3,system,,28,FINISHED,14.1,,0,b0dbe2a
+ph.x-fix,3,system,,29,FINISHED,14.0,,0,b0dbe2a
+ph.x-fix,3,system,,30,FINISHED,14.0,,0,b0dbe2a
+ph.x-fix,3,system,,31,FINISHED,14.5,,0,b0dbe2a
+ph.x-fix,3,system,,32,FINISHED,14.5,,0,b0dbe2a
+ph.x-fix,3,system,,33,FINISHED,14.3,,0,b0dbe2a
+ph.x-fix,3,system,,34,FINISHED,14.5,,0,b0dbe2a
+ph.x-fix,3,system,,35,FINISHED,14.5,,0,b0dbe2a
+ph.x-fix,3,system,,36,FINISHED,14.5,,0,b0dbe2a
+ph.x-fix,3,system,,37,FINISHED,14.4,,0,b0dbe2a
+ph.x-fix,3,system,,38,FINISHED,14.1,,0,b0dbe2a
+ph.x-fix,3,system,,39,FINISHED,13.6,,0,b0dbe2a
+ph.x-fix,3,system,,40,FINISHED,13.9,,0,b0dbe2a
+ph.x-fix,3,app,learning run (system-centric),0,FINISHED,13.8,,0,b0dbe2a
+ph.x-fix,3,app,,1,FINISHED,14.1,,0,b0dbe2a
+ph.x-fix,3,app,,2,FINISHED,13.7,,0,b0dbe2a
+ph.x-fix,3,app,,3,FINISHED,13.7,,0,b0dbe2a
+ph.x-fix,3,app,,4,FINISHED,14.5,,0,b0dbe2a
+ph.x-fix,3,app,,5,FINISHED,14.2,,0,b0dbe2a
+ph.x-fix,3,app,,6,FINISHED,13.8,,0,b0dbe2a
+ph.x-fix,3,app,,7,FINISHED,13.5,,0,b0dbe2a
+ph.x-fix,3,app,,8,FINISHED,14.0,,0,b0dbe2a
+ph.x-fix,3,app,,9,FINISHED,14.0,,0,b0dbe2a
+ph.x-fix,3,app,,10,FINISHED,14.1,,0,b0dbe2a
+ph.x-fix,3,app,,11,FINISHED,13.9,,0,b0dbe2a
+ph.x-fix,3,app,,12,FINISHED,14.4,,0,b0dbe2a
+ph.x-fix,3,app,,13,FINISHED,14.6,,0,b0dbe2a
+ph.x-fix,3,app,,14,FINISHED,14.1,,0,b0dbe2a
+ph.x-fix,3,app,,15,FINISHED,14.4,,0,b0dbe2a
+ph.x-fix,3,app,,16,FINISHED,14.4,,0,b0dbe2a
+ph.x-fix,3,app,,17,FINISHED,14.5,,0,b0dbe2a
+ph.x-fix,3,app,,18,FINISHED,13.9,,0,b0dbe2a
+ph.x-fix,3,app,,19,FINISHED,13.7,,0,b0dbe2a
+ph.x-fix,3,app,,20,FINISHED,14.0,,0,b0dbe2a
+ph.x-fix,3,app,,21,FINISHED,14.2,,0,b0dbe2a
+ph.x-fix,3,app,,22,FINISHED,13.7,,0,b0dbe2a
+ph.x-fix,3,app,,23,FINISHED,13.4,,0,b0dbe2a
+ph.x-fix,3,app,,24,FINISHED,13.8,,0,b0dbe2a
+ph.x-fix,3,app,,25,FINISHED,13.8,,0,b0dbe2a
+ph.x-fix,3,app,,26,FINISHED,13.9,,0,b0dbe2a
+ph.x-fix,3,app,,27,FINISHED,13.7,,0,b0dbe2a
+ph.x-fix,3,app,,28,FINISHED,14.0,,0,b0dbe2a
+ph.x-fix,3,app,,29,FINISHED,13.5,,0,b0dbe2a
+ph.x-fix,3,app,,30,FINISHED,14.0,,0,b0dbe2a
+ph.x-fix,3,app,,31,FINISHED,13.4,,0,b0dbe2a
+ph.x-fix,3,app,,32,FINISHED,13.4,,0,b0dbe2a
+ph.x-fix,3,app,,33,FINISHED,14.0,,0,b0dbe2a
+ph.x-fix,3,app,,34,FINISHED,13.2,,0,b0dbe2a
+ph.x-fix,3,app,,35,FINISHED,13.8,,0,b0dbe2a
+ph.x-fix,3,app,,36,FINISHED,13.8,,0,b0dbe2a
+ph.x-fix,3,app,,37,FINISHED,13.9,,0,b0dbe2a
+ph.x-fix,3,app,,38,FINISHED,13.8,,0,b0dbe2a
+ph.x-fix,3,app,,39,FINISHED,13.8,,0,b0dbe2a
+ph.x-fix,3,app,,40,FINISHED,13.3,,0,b0dbe2a

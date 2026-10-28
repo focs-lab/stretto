@@ -1,0 +1,245 @@
+label,np,mode,setting,run,result,seconds,reached,value,commit
+twomesh-3.4,4,random,ratio=10% delay=50000us,1,SIGNAL:6,0.8,mesh1,,a5dce1f
+twomesh-3.4,4,random,ratio=10% delay=50000us,2,SIGNAL:6,0.8,mesh1,,a5dce1f
+twomesh-3.4,4,random,ratio=10% delay=50000us,3,SIGNAL:6,1.7,mesh1,,a5dce1f
+twomesh-3.4,4,random,ratio=10% delay=50000us,4,SIGNAL:6,0.8,mesh1,,a5dce1f
+twomesh-3.4,4,random,ratio=10% delay=50000us,5,SIGNAL:6,0.7,mesh1,,a5dce1f
+twomesh-3.4,4,random,ratio=10% delay=50000us,6,SIGNAL:6,0.8,mesh1,,a5dce1f
+twomesh-3.4,4,random,ratio=10% delay=50000us,7,SIGNAL:6,0.7,mesh1,,a5dce1f
+twomesh-3.4,4,random,ratio=10% delay=50000us,8,SIGNAL:6,0.6,mesh1,,a5dce1f
+twomesh-3.4,4,random,ratio=10% delay=50000us,9,SIGNAL:6,0.8,mesh1,,a5dce1f
+twomesh-3.4,4,random,ratio=10% delay=50000us,10,SIGNAL:6,0.8,mesh1,,a5dce1f
+twomesh-3.4,4,random,ratio=10% delay=50000us,11,SIGNAL:6,1.7,mesh1,,a5dce1f
+twomesh-3.4,4,random,ratio=10% delay=50000us,12,SIGNAL:6,0.7,mesh1,,a5dce1f
+twomesh-3.4,4,random,ratio=10% delay=50000us,13,SIGNAL:6,0.9,mesh1,,a5dce1f
+twomesh-3.4,4,random,ratio=10% delay=50000us,14,SIGNAL:6,0.8,mesh1,,a5dce1f
+twomesh-3.4,4,random,ratio=10% delay=50000us,15,SIGNAL:6,1.7,mesh1,,a5dce1f
+twomesh-3.4,4,random,ratio=10% delay=50000us,16,SIGNAL:6,0.8,mesh1,,a5dce1f
+twomesh-3.4,4,random,ratio=10% delay=50000us,17,SIGNAL:6,0.8,mesh1,,a5dce1f
+twomesh-3.4,4,random,ratio=10% delay=50000us,18,SIGNAL:6,0.7,mesh1,,a5dce1f
+twomesh-3.4,4,random,ratio=10% delay=50000us,19,SIGNAL:6,0.8,mesh1,,a5dce1f
+twomesh-3.4,4,random,ratio=10% delay=50000us,20,SIGNAL:6,0.8,mesh1,,a5dce1f
+twomesh-3.4,4,random,ratio=10% delay=50000us,21,SIGNAL:6,0.8,mesh1,,a5dce1f
+twomesh-3.4,4,random,ratio=10% delay=50000us,22,SIGNAL:6,0.8,mesh1,,a5dce1f
+twomesh-3.4,4,random,ratio=10% delay=50000us,23,SIGNAL:6,0.8,mesh1,,a5dce1f
+twomesh-3.4,4,random,ratio=10% delay=50000us,24,SIGNAL:6,1.9,mesh1,,a5dce1f
+twomesh-3.4,4,random,ratio=10% delay=50000us,25,SIGNAL:6,1.0,mesh1,,a5dce1f
+twomesh-3.4,4,random,ratio=10% delay=50000us,26,SIGNAL:6,1.1,mesh1,,a5dce1f
+twomesh-3.4,4,random,ratio=10% delay=50000us,27,SIGNAL:6,0.9,mesh1,,a5dce1f
+twomesh-3.4,4,random,ratio=10% delay=50000us,28,SIGNAL:6,1.3,mesh1,,a5dce1f
+twomesh-3.4,4,random,ratio=10% delay=50000us,29,SIGNAL:6,1.0,mesh1,,a5dce1f
+twomesh-3.4,4,random,ratio=10% delay=50000us,30,SIGNAL:6,2.0,mesh1,,a5dce1f
+twomesh-3.4,4,random,ratio=10% delay=50000us,31,SIGNAL:6,1.1,mesh1,,a5dce1f
+twomesh-3.4,4,random,ratio=10% delay=50000us,32,SIGNAL:6,0.8,mesh1,,a5dce1f
+twomesh-3.4,4,random,ratio=10% delay=50000us,33,SIGNAL:6,1.9,mesh1,,a5dce1f
+twomesh-3.4,4,random,ratio=10% delay=50000us,34,SIGNAL:6,0.9,mesh1,,a5dce1f
+twomesh-3.4,4,random,ratio=10% delay=50000us,35,SIGNAL:6,0.9,mesh1,,a5dce1f
+twomesh-3.4,4,random,ratio=10% delay=50000us,36,SIGNAL:6,0.8,mesh1,,a5dce1f
+twomesh-3.4,4,random,ratio=10% delay=50000us,37,SIGNAL:6,0.8,mesh1,,a5dce1f
+twomesh-3.4,4,random,ratio=10% delay=50000us,38,SIGNAL:6,0.9,mesh1,,a5dce1f
+twomesh-3.4,4,random,ratio=10% delay=50000us,39,SIGNAL:6,1.8,mesh1,,a5dce1f
+twomesh-3.4,4,random,ratio=10% delay=50000us,40,SIGNAL:6,1.9,mesh1,,a5dce1f
+twomesh-3.4,4,system,,1,SIGNAL:6,0.6,mesh1,,a5dce1f
+twomesh-3.4,4,system,,2,SIGNAL:6,0.7,mesh1,,a5dce1f
+twomesh-3.4,4,system,,3,SIGNAL:6,0.6,mesh1,,a5dce1f
+twomesh-3.4,4,system,,4,SIGNAL:6,0.7,mesh1,,a5dce1f
+twomesh-3.4,4,system,,5,SIGNAL:6,0.6,mesh1,,a5dce1f
+twomesh-3.4,4,system,,6,SIGNAL:6,1.6,mesh1,,a5dce1f
+twomesh-3.4,4,system,,7,SIGNAL:6,0.7,mesh1,,a5dce1f
+twomesh-3.4,4,system,,8,SIGNAL:6,0.6,mesh1,,a5dce1f
+twomesh-3.4,4,system,,9,SIGNAL:6,1.6,mesh1,,a5dce1f
+twomesh-3.4,4,system,,10,SIGNAL:6,0.7,mesh1,,a5dce1f
+twomesh-3.4,4,system,,11,SIGNAL:6,0.7,mesh1,,a5dce1f
+twomesh-3.4,4,system,,12,SIGNAL:6,0.7,mesh1,,a5dce1f
+twomesh-3.4,4,system,,13,SIGNAL:6,0.6,mesh1,,a5dce1f
+twomesh-3.4,4,system,,14,SIGNAL:6,0.6,mesh1,,a5dce1f
+twomesh-3.4,4,system,,15,SIGNAL:6,0.7,mesh1,,a5dce1f
+twomesh-3.4,4,system,,16,SIGNAL:6,0.6,mesh1,,a5dce1f
+twomesh-3.4,4,system,,17,SIGNAL:6,0.6,mesh1,,a5dce1f
+twomesh-3.4,4,system,,18,SIGNAL:6,0.6,mesh1,,a5dce1f
+twomesh-3.4,4,system,,19,SIGNAL:6,0.6,mesh1,,a5dce1f
+twomesh-3.4,4,system,,20,SIGNAL:6,0.6,mesh1,,a5dce1f
+twomesh-3.4,4,system,,21,SIGNAL:6,1.6,mesh1,,a5dce1f
+twomesh-3.4,4,system,,22,SIGNAL:6,0.7,mesh1,,a5dce1f
+twomesh-3.4,4,system,,23,SIGNAL:6,1.6,mesh1,,a5dce1f
+twomesh-3.4,4,system,,24,SIGNAL:6,1.6,mesh1,,a5dce1f
+twomesh-3.4,4,system,,25,SIGNAL:6,2.6,mesh1,,a5dce1f
+twomesh-3.4,4,system,,26,SIGNAL:6,0.6,mesh1,,a5dce1f
+twomesh-3.4,4,system,,27,SIGNAL:6,0.6,mesh1,,a5dce1f
+twomesh-3.4,4,system,,28,SIGNAL:6,0.6,mesh1,,a5dce1f
+twomesh-3.4,4,system,,29,SIGNAL:6,0.6,mesh1,,a5dce1f
+twomesh-3.4,4,system,,30,SIGNAL:6,0.6,mesh1,,a5dce1f
+twomesh-3.4,4,system,,31,SIGNAL:6,0.7,mesh1,,a5dce1f
+twomesh-3.4,4,system,,32,SIGNAL:6,0.6,mesh1,,a5dce1f
+twomesh-3.4,4,system,,33,SIGNAL:6,0.6,mesh1,,a5dce1f
+twomesh-3.4,4,system,,34,SIGNAL:6,1.6,mesh1,,a5dce1f
+twomesh-3.4,4,system,,35,SIGNAL:6,0.6,mesh1,,a5dce1f
+twomesh-3.4,4,system,,36,SIGNAL:6,0.6,mesh1,,a5dce1f
+twomesh-3.4,4,system,,37,SIGNAL:6,1.6,mesh1,,a5dce1f
+twomesh-3.4,4,system,,38,SIGNAL:6,1.7,mesh1,,a5dce1f
+twomesh-3.4,4,system,,39,SIGNAL:6,0.7,mesh1,,a5dce1f
+twomesh-3.4,4,system,,40,SIGNAL:6,0.6,mesh1,,a5dce1f
+twomesh-3.4,4,app,learning run (system-centric),0,SIGNAL:6,0.6,mesh1,,a5dce1f
+twomesh-3.4,4,app,,1,SIGNAL:11,0.6,,,a5dce1f
+twomesh-3.4,4,app,,2,SIGNAL:11,0.6,,,a5dce1f
+twomesh-3.4,4,app,,3,SIGNAL:11,1.6,,,a5dce1f
+twomesh-3.4,4,app,,4,SIGNAL:11,0.6,,,a5dce1f
+twomesh-3.4,4,app,,5,SIGNAL:11,0.7,,,a5dce1f
+twomesh-3.4,4,app,,6,SIGNAL:11,1.8,,,a5dce1f
+twomesh-3.4,4,app,,7,SIGNAL:11,0.7,,,a5dce1f
+twomesh-3.4,4,app,,8,SIGNAL:11,0.7,,,a5dce1f
+twomesh-3.4,4,app,,9,SIGNAL:11,0.7,,,a5dce1f
+twomesh-3.4,4,app,,10,SIGNAL:11,0.8,,,a5dce1f
+twomesh-3.4,4,app,,11,SIGNAL:11,0.7,,,a5dce1f
+twomesh-3.4,4,app,,12,SIGNAL:11,1.7,,,a5dce1f
+twomesh-3.4,4,app,,13,SIGNAL:11,1.8,,,a5dce1f
+twomesh-3.4,4,app,,14,SIGNAL:11,0.6,,,a5dce1f
+twomesh-3.4,4,app,,15,SIGNAL:11,0.7,,,a5dce1f
+twomesh-3.4,4,app,,16,SIGNAL:11,0.8,,,a5dce1f
+twomesh-3.4,4,app,,17,SIGNAL:11,1.7,,,a5dce1f
+twomesh-3.4,4,app,,18,SIGNAL:11,0.7,,,a5dce1f
+twomesh-3.4,4,app,,19,SIGNAL:11,0.7,,,a5dce1f
+twomesh-3.4,4,app,,20,SIGNAL:11,1.8,,,a5dce1f
+twomesh-3.4,4,app,,21,SIGNAL:11,0.7,,,a5dce1f
+twomesh-3.4,4,app,,22,SIGNAL:11,0.8,,,a5dce1f
+twomesh-3.4,4,app,,23,SIGNAL:11,0.6,,,a5dce1f
+twomesh-3.4,4,app,,24,SIGNAL:11,0.6,,,a5dce1f
+twomesh-3.4,4,app,,25,SIGNAL:11,0.8,,,a5dce1f
+twomesh-3.4,4,app,,26,SIGNAL:11,0.8,,,a5dce1f
+twomesh-3.4,4,app,,27,SIGNAL:11,0.8,,,a5dce1f
+twomesh-3.4,4,app,,28,SIGNAL:11,0.7,,,a5dce1f
+twomesh-3.4,4,app,,29,SIGNAL:11,0.7,,,a5dce1f
+twomesh-3.4,4,app,,30,SIGNAL:11,0.7,,,a5dce1f
+twomesh-3.4,4,app,,31,SIGNAL:11,0.8,,,a5dce1f
+twomesh-3.4,4,app,,32,SIGNAL:11,0.8,,,a5dce1f
+twomesh-3.4,4,app,,33,SIGNAL:11,0.8,,,a5dce1f
+twomesh-3.4,4,app,,34,SIGNAL:11,0.7,,,a5dce1f
+twomesh-3.4,4,app,,35,SIGNAL:11,1.8,,,a5dce1f
+twomesh-3.4,4,app,,36,SIGNAL:11,0.5,,,a5dce1f
+twomesh-3.4,4,app,,37,SIGNAL:11,0.6,,,a5dce1f
+twomesh-3.4,4,app,,38,SIGNAL:11,0.6,,,a5dce1f
+twomesh-3.4,4,app,,39,SIGNAL:11,0.6,,,a5dce1f
+twomesh-3.4,4,app,,40,SIGNAL:11,0.6,,,a5dce1f
+twomesh-3.4,8,random,ratio=10% delay=50000us,1,SIGNAL:6,1.9,mesh1,,a5dce1f
+twomesh-3.4,8,random,ratio=10% delay=50000us,2,SIGNAL:6,2.1,,,a5dce1f
+twomesh-3.4,8,random,ratio=10% delay=50000us,3,SIGNAL:6,2.0,mesh1,,a5dce1f
+twomesh-3.4,8,random,ratio=10% delay=50000us,4,SIGNAL:6,2.2,,,a5dce1f
+twomesh-3.4,8,random,ratio=10% delay=50000us,5,SIGNAL:6,2.3,,,a5dce1f
+twomesh-3.4,8,random,ratio=10% delay=50000us,6,SIGNAL:11,1.8,,,a5dce1f
+twomesh-3.4,8,random,ratio=10% delay=50000us,7,SIGNAL:6,1.9,,,a5dce1f
+twomesh-3.4,8,random,ratio=10% delay=50000us,8,SIGNAL:11,1.7,,,a5dce1f
+twomesh-3.4,8,random,ratio=10% delay=50000us,9,SIGNAL:6,2.3,mesh1,,a5dce1f
+twomesh-3.4,8,random,ratio=10% delay=50000us,10,SIGNAL:6,2.2,mesh1,,a5dce1f
+twomesh-3.4,8,random,ratio=10% delay=50000us,11,SIGNAL:6,2.2,,,a5dce1f
+twomesh-3.4,8,random,ratio=10% delay=50000us,12,SIGNAL:6,2.1,,,a5dce1f
+twomesh-3.4,8,random,ratio=10% delay=50000us,13,SIGNAL:6,2.0,,,a5dce1f
+twomesh-3.4,8,random,ratio=10% delay=50000us,14,SIGNAL:6,2.0,mesh1,,a5dce1f
+twomesh-3.4,8,random,ratio=10% delay=50000us,15,SIGNAL:6,2.1,,,a5dce1f
+twomesh-3.4,8,random,ratio=10% delay=50000us,16,SIGNAL:6,1.9,,,a5dce1f
+twomesh-3.4,8,random,ratio=10% delay=50000us,17,SIGNAL:6,2.0,,,a5dce1f
+twomesh-3.4,8,random,ratio=10% delay=50000us,18,SIGNAL:6,1.9,,,a5dce1f
+twomesh-3.4,8,random,ratio=10% delay=50000us,19,SIGNAL:6,1.9,,,a5dce1f
+twomesh-3.4,8,random,ratio=10% delay=50000us,20,SIGNAL:6,2.1,mesh1,,a5dce1f
+twomesh-3.4,8,random,ratio=10% delay=50000us,21,SIGNAL:6,2.0,,,a5dce1f
+twomesh-3.4,8,random,ratio=10% delay=50000us,22,SIGNAL:6,2.1,mesh1,,a5dce1f
+twomesh-3.4,8,random,ratio=10% delay=50000us,23,SIGNAL:6,1.9,,,a5dce1f
+twomesh-3.4,8,random,ratio=10% delay=50000us,24,SIGNAL:6,2.0,,,a5dce1f
+twomesh-3.4,8,random,ratio=10% delay=50000us,25,SIGNAL:6,2.0,,,a5dce1f
+twomesh-3.4,8,random,ratio=10% delay=50000us,26,SIGNAL:6,2.2,mesh1,,a5dce1f
+twomesh-3.4,8,random,ratio=10% delay=50000us,27,SIGNAL:11,1.7,,,a5dce1f
+twomesh-3.4,8,random,ratio=10% delay=50000us,28,SIGNAL:6,2.0,,,a5dce1f
+twomesh-3.4,8,random,ratio=10% delay=50000us,29,SIGNAL:6,1.9,,,a5dce1f
+twomesh-3.4,8,random,ratio=10% delay=50000us,30,SIGNAL:6,2.0,mesh1,,a5dce1f
+twomesh-3.4,8,random,ratio=10% delay=50000us,31,SIGNAL:6,1.9,,,a5dce1f
+twomesh-3.4,8,random,ratio=10% delay=50000us,32,SIGNAL:6,1.9,,,a5dce1f
+twomesh-3.4,8,random,ratio=10% delay=50000us,33,SIGNAL:11,1.8,,,a5dce1f
+twomesh-3.4,8,random,ratio=10% delay=50000us,34,SIGNAL:6,2.1,,,a5dce1f
+twomesh-3.4,8,random,ratio=10% delay=50000us,35,SIGNAL:6,1.9,,,a5dce1f
+twomesh-3.4,8,random,ratio=10% delay=50000us,36,SIGNAL:6,2.1,,,a5dce1f
+twomesh-3.4,8,random,ratio=10% delay=50000us,37,SIGNAL:6,2.3,mesh1,,a5dce1f
+twomesh-3.4,8,random,ratio=10% delay=50000us,38,SIGNAL:11,1.8,,,a5dce1f
+twomesh-3.4,8,random,ratio=10% delay=50000us,39,SIGNAL:11,1.8,,,a5dce1f
+twomesh-3.4,8,random,ratio=10% delay=50000us,40,SIGNAL:6,2.0,,,a5dce1f
+twomesh-3.4,8,system,,1,SIGNAL:6,1.8,,,a5dce1f
+twomesh-3.4,8,system,,2,SIGNAL:6,1.8,,,a5dce1f
+twomesh-3.4,8,system,,3,SIGNAL:6,1.7,,,a5dce1f
+twomesh-3.4,8,system,,4,SIGNAL:6,1.7,,,a5dce1f
+twomesh-3.4,8,system,,5,SIGNAL:6,1.8,,,a5dce1f
+twomesh-3.4,8,system,,6,SIGNAL:6,1.8,,,a5dce1f
+twomesh-3.4,8,system,,7,SIGNAL:6,1.8,,,a5dce1f
+twomesh-3.4,8,system,,8,SIGNAL:6,1.7,,,a5dce1f
+twomesh-3.4,8,system,,9,SIGNAL:6,1.8,,,a5dce1f
+twomesh-3.4,8,system,,10,SIGNAL:6,1.7,mesh1,,a5dce1f
+twomesh-3.4,8,system,,11,SIGNAL:6,1.8,,,a5dce1f
+twomesh-3.4,8,system,,12,SIGNAL:6,1.8,,,a5dce1f
+twomesh-3.4,8,system,,13,SIGNAL:6,1.8,,,a5dce1f
+twomesh-3.4,8,system,,14,SIGNAL:6,1.7,mesh1,,a5dce1f
+twomesh-3.4,8,system,,15,SIGNAL:6,1.6,mesh1,,a5dce1f
+twomesh-3.4,8,system,,16,SIGNAL:6,1.6,,,a5dce1f
+twomesh-3.4,8,system,,17,SIGNAL:6,1.8,,,a5dce1f
+twomesh-3.4,8,system,,18,SIGNAL:6,1.7,,,a5dce1f
+twomesh-3.4,8,system,,19,SIGNAL:6,1.8,,,a5dce1f
+twomesh-3.4,8,system,,20,SIGNAL:6,1.9,,,a5dce1f
+twomesh-3.4,8,system,,21,SIGNAL:6,1.8,,,a5dce1f
+twomesh-3.4,8,system,,22,SIGNAL:11,1.9,,,a5dce1f
+twomesh-3.4,8,system,,23,SIGNAL:6,1.6,mesh1,,a5dce1f
+twomesh-3.4,8,system,,24,SIGNAL:6,1.6,mesh1,,a5dce1f
+twomesh-3.4,8,system,,25,SIGNAL:6,1.6,,,a5dce1f
+twomesh-3.4,8,system,,26,SIGNAL:6,1.7,,,a5dce1f
+twomesh-3.4,8,system,,27,SIGNAL:6,1.7,,,a5dce1f
+twomesh-3.4,8,system,,28,SIGNAL:6,1.7,mesh1,,a5dce1f
+twomesh-3.4,8,system,,29,SIGNAL:6,1.8,,,a5dce1f
+twomesh-3.4,8,system,,30,SIGNAL:6,1.8,,,a5dce1f
+twomesh-3.4,8,system,,31,SIGNAL:6,1.7,,,a5dce1f
+twomesh-3.4,8,system,,32,SIGNAL:6,1.8,mesh1,,a5dce1f
+twomesh-3.4,8,system,,33,SIGNAL:6,1.7,,,a5dce1f
+twomesh-3.4,8,system,,34,SIGNAL:6,1.7,,,a5dce1f
+twomesh-3.4,8,system,,35,SIGNAL:6,1.8,,,a5dce1f
+twomesh-3.4,8,system,,36,SIGNAL:6,1.7,,,a5dce1f
+twomesh-3.4,8,system,,37,SIGNAL:6,1.7,,,a5dce1f
+twomesh-3.4,8,system,,38,SIGNAL:6,1.7,,,a5dce1f
+twomesh-3.4,8,system,,39,SIGNAL:6,1.8,,,a5dce1f
+twomesh-3.4,8,system,,40,SIGNAL:6,1.7,,,a5dce1f
+twomesh-3.4,8,app,learning run (system-centric),0,SIGNAL:6,1.8,,,a5dce1f
+twomesh-3.4,8,app,learning run (system-centric),0,SIGNAL:6,1.8,,,a5dce1f
+twomesh-3.4,8,app,learning run (system-centric),0,SIGNAL:6,1.8,mesh1,,a5dce1f
+twomesh-3.4,8,app,,1,SIGNAL:11,0.8,,,a5dce1f
+twomesh-3.4,8,app,,2,SIGNAL:11,0.9,,,a5dce1f
+twomesh-3.4,8,app,,3,SIGNAL:11,0.7,,,a5dce1f
+twomesh-3.4,8,app,,4,SIGNAL:11,0.7,,,a5dce1f
+twomesh-3.4,8,app,,5,SIGNAL:11,0.7,,,a5dce1f
+twomesh-3.4,8,app,,6,SIGNAL:11,0.7,,,a5dce1f
+twomesh-3.4,8,app,,7,SIGNAL:11,0.7,,,a5dce1f
+twomesh-3.4,8,app,,8,SIGNAL:11,0.8,,,a5dce1f
+twomesh-3.4,8,app,,9,SIGNAL:11,0.8,,,a5dce1f
+twomesh-3.4,8,app,,10,SIGNAL:11,0.7,,,a5dce1f
+twomesh-3.4,8,app,,11,SIGNAL:11,0.6,,,a5dce1f
+twomesh-3.4,8,app,,12,SIGNAL:11,0.8,,,a5dce1f
+twomesh-3.4,8,app,,13,SIGNAL:11,0.7,,,a5dce1f
+twomesh-3.4,8,app,,14,SIGNAL:11,0.7,,,a5dce1f
+twomesh-3.4,8,app,,15,SIGNAL:11,0.7,,,a5dce1f
+twomesh-3.4,8,app,,16,SIGNAL:11,0.6,,,a5dce1f
+twomesh-3.4,8,app,,17,SIGNAL:11,0.7,,,a5dce1f
+twomesh-3.4,8,app,,18,SIGNAL:11,0.7,,,a5dce1f
+twomesh-3.4,8,app,,19,SIGNAL:11,0.8,,,a5dce1f
+twomesh-3.4,8,app,,20,SIGNAL:11,0.8,,,a5dce1f
+twomesh-3.4,8,app,,21,SIGNAL:11,0.7,,,a5dce1f
+twomesh-3.4,8,app,,22,SIGNAL:11,0.7,,,a5dce1f
+twomesh-3.4,8,app,,23,SIGNAL:11,0.7,,,a5dce1f
+twomesh-3.4,8,app,,24,SIGNAL:11,0.8,,,a5dce1f
+twomesh-3.4,8,app,,25,SIGNAL:11,0.8,,,a5dce1f
+twomesh-3.4,8,app,,26,SIGNAL:11,0.7,,,a5dce1f
+twomesh-3.4,8,app,,27,SIGNAL:11,0.8,,,a5dce1f
+twomesh-3.4,8,app,,28,SIGNAL:11,0.8,,,a5dce1f
+twomesh-3.4,8,app,,29,SIGNAL:11,0.9,,,a5dce1f
+twomesh-3.4,8,app,,30,SIGNAL:11,0.7,,,a5dce1f
+twomesh-3.4,8,app,,31,SIGNAL:11,0.9,,,a5dce1f
+twomesh-3.4,8,app,,32,SIGNAL:11,0.6,,,a5dce1f
+twomesh-3.4,8,app,,33,SIGNAL:11,0.7,,,a5dce1f
+twomesh-3.4,8,app,,34,SIGNAL:11,0.8,,,a5dce1f
+twomesh-3.4,8,app,,35,SIGNAL:11,0.8,,,a5dce1f
+twomesh-3.4,8,app,,36,SIGNAL:11,0.7,,,a5dce1f
+twomesh-3.4,8,app,,37,SIGNAL:11,0.7,,,a5dce1f
+twomesh-3.4,8,app,,38,SIGNAL:11,0.8,,,a5dce1f
+twomesh-3.4,8,app,,39,SIGNAL:11,0.8,,,a5dce1f
+twomesh-3.4,8,app,,40,SIGNAL:11,0.8,,,a5dce1f
