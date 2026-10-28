@@ -36,7 +36,7 @@ NUMBERS = os.path.join(ROOT, "experiments", "generated", "numbers.tex")
 RQ_OF = [
     (1, r"^nEsix|^nMBIReplay|^nAMGsample|^nNeksample|^nPin|^nReadsEsix|^nReadsReplay|^nValid"),
     (4, r"^nReads"),
-    (6, r"^n?Ninja(Hypre|Replica|MG|Petsc)"),
+    (6, r"^n?Ninja(Hypre|Replica|MG|Petsc|Cabana|Stempy|MfemGroup|Lammps|Superlu|Qe)|^nMust|^Prv(Cabana|Stempy|MfemGroup|Lammps|Superlu|Qe)"),
     (2, r"^n?NinjaMBI|^nMBIMUST|^nTsanLC|^(MBI|MBB)fone|^n(MBI|MBB)(tp|fn|fp|progs|notBuilt|correct|errors|race|Stress|Clean|OnlyStretto|LC)|^n?Guard|^n?Reps"
         r"|^n?PRV|^n?(MBI|MBB)(Union|Sign)"),
     (3, r"^nEtwo|^B[a-z]+OMPI$"),
@@ -50,7 +50,8 @@ FIXED = re.compile(r"^n(MBI|MBB)(progs|notBuilt|correct|errors|race)$|^B[a-z]+OM
                    r"|^n(MBI|MBB)Stress(Runs|Progs)$|^n(MBI|MBB)StressEager(Runs|Bytes|Err)$|^nHypre(Fixed)?(Traced|(Four|Eight)(Local)?Runs)$|^nHypreStressRuns$"
                    r"|^nMBBLC$|^nGuardLC(OMPI|MPICH)built$|^nGuardCases$|^nGuardAppRuns$"
                    r"|^nReps(Runs|Progs|Errors)$|^nDeal(Fixed)?Traced$|^nDealRanks$|^nDealStress(Plain|Delay)?Runs$"
-                   r"|^nNinja(Hypre|Replica|MG|Petsc)[A-Za-z]*Runs$|^nNinjaMBIerrors$|^nTsanLC$"
+                   r"|^nNinja(Hypre|Replica|MG|Petsc|Cabana|Stempy|MfemGroup|Lammps|Superlu|Qe)(Fix)?[A-Za-z]*Runs$|^nNinjaMBIerrors$|^nTsanLC$"
+                   r"|^nMust[A-Za-z]*Runs$"
                    r"|^n(HypreNew(Fix|All)?|Petsc)(Two|One)?Traced$|^n(HypreNew|Petsc)(Four|Eight)Runs$"
                    r"|^nHypreNew(Fix|All)?Stress(Two(Delay)?)?Runs$|^nPetscStressTwo(Delay)?Runs$"
                    r"|^B(HypreNewReply|PetscReply|PetscCross)$"
@@ -349,6 +350,15 @@ def claims(n: dict) -> list:
     claim(6, "LAMMPS 3a2da51a: no plain or delayed untraced run hangs",
           ["nLammpsStressPlainHang", "nLammpsStressDelayHang"], lambda p, d: p == 0 and d == 0,
           over=["nLammpsStressPlainRuns", "nLammpsStressDelayRuns"])
+    # E5h: the other tools on those bugs and the two new ones. A NINJA run counts by the bug's own
+    # symptom, which the fixes must never show; MUST's controls on the fixes report no race
+    for p, what in (("Cabana", "Cabana 38170631"), ("Stempy", "stempy 3.3.6"), ("MfemGroup", "MFEM 3.4"), ("Lammps", "LAMMPS 411c069b"),
+                    ("Superlu", "SuperLU_DIST 9.3.1 with the barrier"), ("Qe", "QE with a tag per spin")):
+        claim(6, f"{what}, the fix: no NINJA run shows the bug's symptom",
+              [f"nNinja{p}FixRuns", f"nNinja{p}FixRevealed"], lambda r, s: s == 0, over=[f"nNinja{p}FixRuns"])
+    for p, what in (("Cabana", "Cabana 38170631"), ("MfemGroup", "MFEM 3.4")):
+        claim(6, f"{what}, the fix: MUST's report names no race in any run",
+              [f"nMust{p}FixRuns", f"nMust{p}FixRace"], lambda r, s: s == 0, over=[f"nMust{p}FixRuns"])
     # existence claims: their tests are the counts themselves
     claim(6, "HYPRE 3.2.0: NINJA hangs ex5 and ex2 in some runs",
           ["nNinjaHypreNewHang", "nNinjaPetscRandomHang"], lambda a, b: a > 0 and b > 0, vacuous=True)
