@@ -37,7 +37,10 @@
 #            system- and application-centric modes, TIMEOUT seconds each, the driver's verdict
 #            recorded as the mark "ok" (experiments/ninja/run.py). The runs load
 #            libninja-fixed-any.so (NINJA_LIBRARY): with libninja-fixed.so NINJA's MPI_Waitany
-#            never reports the end of MFEM's request lists and both versions spin (ninja-check)
+#            never reports the end of MFEM's request lists and both versions spin (ninja-check).
+#            With that library loaded the driver aborts in the C library's heap checks, most
+#            runs after the first mesh's report, so a learning run counts once that report is right
+#            (--learn-mark mesh1)
 #   ninja-fixed  the same on 3.4
 #   ninja-check  CHECK_RUNS runs of each version at each process count, plain and with each of
 #            libninja-fixed.so and libninja-fixed-any.so loaded but no send delayed (random mode,
@@ -126,7 +129,7 @@ ninja() {     # ninja <version> <table>
             local extra=(); [ $m = random ] && extra=(--rand-ratio 10 --rand-delay 50000)
             NINJA_LIBRARY="${NINJA_LIBRARY:-libninja-fixed-any.so}" python3 experiments/ninja/run.py runs --np "$np" --mode $m \
                 "${extra[@]}" --runs "${NINJA_RUNS:-40}" --timeout "$TIMEOUT" --mpi openmpi --label "twomesh-$1" --out "$t" \
-                "${NINJA_MARKS[@]}" --keep "$R/experiments/results/ninja/logs" -- "$(exe "$1")"; [ $? != 3 ] || return 1
+                "${NINJA_MARKS[@]}" --learn-mark mesh1 --keep "$R/experiments/results/ninja/logs" -- "$(exe "$1")"; [ $? != 3 ] || return 1
         done
     done
 }
