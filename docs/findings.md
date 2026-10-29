@@ -77,3 +77,11 @@ may match the next call's Issend. Against it: IndexMap runs the exchange on a co
 own, and every other caller creates a communicator right after it, which synchronises in both
 MPIs although the standard does not require it. Unverified; the cancelled listener also needs the
 fix for cancelled receives above.
+
+Thread-level candidates for the multithreaded extension (read only; design on branch
+`threads`, docs/threads.md): Uintah + hypre (a code comment in KokkosScheduler.cc documents
+crashes from hypre's `Iprobe` taking a Uintah message on the shared communicator, and the
+reverse hazard it leaves); Legion/Realm's MPI network in interop mode (wildcard `Irecv` with tag 1
+on `MPI_COMM_WORLD`); DLA-Future and SLATE (tags reused by concurrent tasks); HDF5 Subfiling (a
+fixed wrong-worker race, 27bb358, as a known bug). By reading, not a race: Realm's
+`generate_payload_tag` (am_mpi.cc:225) uses the attribute key `MPI_TAG_UB` as the tag bound.
