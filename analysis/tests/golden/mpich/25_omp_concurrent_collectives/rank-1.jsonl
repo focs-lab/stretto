@@ -1,0 +1,12 @@
+{"r":1,"seq":0,"op":"init","np":3,"thread":3,"version":3,"issue":1}
+{"r":1,"seq":1,"op":"comm","name":"world","parent":0,"id":0,"ranks":[0,1,2],"gord":0}
+{"r":1,"seq":2,"op":"comm","name":"self","parent":0,"id":1,"ranks":[1],"gord":0}
+{"r":1,"seq":3,"op":"site","id":0,"obj":"/w/idioms/25_omp_concurrent_collectives/bin/mpich/main","addr":94755630630251,"base":94755630624768}
+{"r":1,"seq":4,"op":"chain","id":1,"name":"0/0.1","parent":0,"kind":"omp"}
+{"r":1,"seq":5,"tid":1,"after":[[0,2,1,0]],"op":"begin","call":"coll","name":"bcast","comm":0,"root":0,"count":1,"tsize":4,"tsig":"MPI_INT","site":0}
+{"r":1,"seq":6,"tid":1,"op":"coll","name":"bcast","comm":0,"root":0,"count":1,"tsize":4,"tsig":"MPI_INT","site":0}
+{"r":1,"seq":7,"op":"site","id":1,"obj":"/w/idioms/25_omp_concurrent_collectives/bin/mpich/main","addr":94755630630213,"base":94755630624768}
+{"r":1,"seq":8,"tid":1,"op":"begin","call":"coll","name":"bcast","comm":0,"root":0,"count":1,"tsize":4,"tsig":"MPI_INT","site":1}
+{"r":1,"seq":9,"tid":1,"op":"coll","name":"bcast","comm":0,"root":0,"count":1,"tsize":4,"tsig":"MPI_INT","site":1}
+{"r":1,"seq":10,"op":"site","id":2,"obj":"/w/idioms/25_omp_concurrent_collectives/bin/mpich/main","addr":94755630630083,"base":94755630624768}
+{"r":1,"seq":11,"after":[[1,9,4,3]],"op":"finalize","site":2}

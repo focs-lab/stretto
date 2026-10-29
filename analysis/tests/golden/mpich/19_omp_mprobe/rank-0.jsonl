@@ -1,0 +1,14 @@
+{"r":0,"seq":0,"op":"init","np":3,"thread":3,"version":3,"issue":1}
+{"r":0,"seq":1,"op":"comm","name":"world","parent":0,"id":0,"ranks":[0,1,2],"gord":0}
+{"r":0,"seq":2,"op":"comm","name":"self","parent":0,"id":1,"ranks":[0],"gord":0}
+{"r":0,"seq":3,"op":"site","id":0,"obj":"/w/idioms/19_omp_mprobe/bin/mpich/main","addr":94587187516871,"base":94587187511296}
+{"r":0,"seq":4,"op":"begin","call":"probe","kind":"mprobe","src":-1,"anysrc":1,"tag":0,"comm":0,"site":0}
+{"r":0,"seq":5,"op":"probe","kind":"mprobe","src":-1,"anysrc":1,"tag":0,"comm":0,"flag":1,"pidx":0,"msrc":1,"mtag":0,"mbytes":8,"iseq":0,"site":0}
+{"r":0,"seq":6,"op":"site","id":1,"obj":"/w/idioms/19_omp_mprobe/bin/mpich/main","addr":94587187516946,"base":94587187511296}
+{"r":0,"seq":7,"op":"recv","src":1,"tag":0,"comm":0,"mrecv":1,"count":2,"tsize":4,"tsig":"MPI_INT","msrc":1,"mtag":0,"mcount":2,"site":1}
+{"r":0,"seq":8,"op":"chain","id":1,"name":"0/0.1","parent":0,"kind":"omp"}
+{"r":0,"seq":9,"tid":1,"after":[[0,2,1,0]],"op":"begin","call":"probe","kind":"mprobe","src":-1,"anysrc":1,"tag":0,"comm":0,"site":0}
+{"r":0,"seq":10,"tid":1,"op":"probe","kind":"mprobe","src":-1,"anysrc":1,"tag":0,"comm":0,"flag":1,"pidx":1,"msrc":2,"mtag":0,"mbytes":400,"iseq":1,"site":0}
+{"r":0,"seq":11,"tid":1,"op":"recv","src":2,"tag":0,"comm":0,"mrecv":1,"count":100,"tsize":4,"tsig":"MPI_INT","msrc":2,"mtag":0,"mcount":100,"site":1}
+{"r":0,"seq":12,"op":"site","id":2,"obj":"/w/idioms/19_omp_mprobe/bin/mpich/main","addr":94587187516765,"base":94587187511296}
+{"r":0,"seq":13,"after":[[1,11,1,2]],"op":"finalize","site":2}

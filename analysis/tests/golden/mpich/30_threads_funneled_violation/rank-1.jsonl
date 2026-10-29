@@ -1,0 +1,8 @@
+{"r":1,"seq":0,"op":"init","np":3,"thread":1,"version":3}
+{"r":1,"seq":1,"op":"comm","name":"world","parent":0,"id":0,"ranks":[0,1,2],"gord":0}
+{"r":1,"seq":2,"op":"comm","name":"self","parent":0,"id":1,"ranks":[1],"gord":0}
+{"r":1,"seq":3,"op":"site","id":0,"obj":"/w/idioms/30_threads_funneled_violation/bin/mpich/main","addr":94250099025067,"base":94250099019776}
+{"r":1,"seq":4,"op":"begin","call":"recv","src":0,"tag":0,"comm":0,"count":1,"tsize":4,"tsig":"MPI_INT","site":0}
+{"r":1,"seq":5,"op":"recv","src":0,"tag":0,"comm":0,"count":1,"tsize":4,"tsig":"MPI_INT","msrc":0,"mtag":0,"mcount":1,"site":0}
+{"r":1,"seq":6,"op":"site","id":1,"obj":"/w/idioms/30_threads_funneled_violation/bin/mpich/main","addr":94250099025076,"base":94250099019776}
+{"r":1,"seq":7,"op":"finalize","site":1}

@@ -1,0 +1,11 @@
+{"r":1,"seq":0,"op":"init","np":3,"thread":3,"version":3,"issue":1}
+{"r":1,"seq":1,"op":"comm","name":"world","parent":0,"id":0,"ranks":[0,1,2],"gord":0}
+{"r":1,"seq":2,"op":"comm","name":"self","parent":0,"id":1,"ranks":[1],"gord":0}
+{"r":1,"seq":3,"op":"site","id":0,"obj":"/w/idioms/23_threads_probe_recv_critical/bin/mpich/main","addr":94323631683248,"base":94323631677440}
+{"r":1,"seq":4,"op":"begin","call":"send","mode":"std","dst":0,"tag":0,"comm":0,"count":2,"tsize":4,"tsig":"MPI_INT","site":0}
+{"r":1,"seq":5,"op":"send","mode":"std","dst":0,"tag":0,"comm":0,"count":2,"tsize":4,"tsig":"MPI_INT","iseq":0,"site":0}
+{"r":1,"seq":6,"op":"site","id":1,"obj":"/w/idioms/23_threads_probe_recv_critical/bin/mpich/main","addr":94323631683290,"base":94323631677440}
+{"r":1,"seq":7,"op":"begin","call":"send","mode":"std","dst":0,"tag":0,"comm":0,"count":100,"tsize":4,"tsig":"MPI_INT","site":1}
+{"r":1,"seq":8,"op":"send","mode":"std","dst":0,"tag":0,"comm":0,"count":100,"tsize":4,"tsig":"MPI_INT","iseq":1,"site":1}
+{"r":1,"seq":9,"op":"site","id":2,"obj":"/w/idioms/23_threads_probe_recv_critical/bin/mpich/main","addr":94323631683295,"base":94323631677440}
+{"r":1,"seq":10,"op":"finalize","site":2}

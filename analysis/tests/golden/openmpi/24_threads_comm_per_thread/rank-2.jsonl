@@ -1,0 +1,9 @@
+{"r":2,"seq":0,"op":"init","np":3,"thread":3,"version":3,"issue":1}
+{"r":2,"seq":1,"op":"comm","name":"world","parent":0,"id":0,"ranks":[0,1,2],"gord":0}
+{"r":2,"seq":2,"op":"comm","name":"self","parent":0,"id":1,"ranks":[2],"gord":0}
+{"r":2,"seq":3,"op":"comm","name":"dup","parent":0,"id":2,"ranks":[0,1,2],"gord":1}
+{"r":2,"seq":4,"op":"comm","name":"dup","parent":0,"id":3,"ranks":[0,1,2],"gord":2}
+{"r":2,"seq":5,"op":"comm","name":"free","parent":-1,"id":2}
+{"r":2,"seq":6,"op":"comm","name":"free","parent":-1,"id":3}
+{"r":2,"seq":7,"op":"site","id":0,"obj":"/w/idioms/24_threads_comm_per_thread/bin/openmpi/main","addr":94413717522043,"base":94413717516288}
+{"r":2,"seq":8,"op":"finalize","site":0}

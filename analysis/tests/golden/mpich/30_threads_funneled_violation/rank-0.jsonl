@@ -1,0 +1,9 @@
+{"r":0,"seq":0,"op":"init","np":3,"thread":1,"version":3}
+{"r":0,"seq":1,"op":"comm","name":"world","parent":0,"id":0,"ranks":[0,1,2],"gord":0}
+{"r":0,"seq":2,"op":"comm","name":"self","parent":0,"id":1,"ranks":[0],"gord":0}
+{"r":0,"seq":3,"op":"site","id":0,"obj":"/w/idioms/30_threads_funneled_violation/bin/mpich/main","addr":93909409280950,"base":93909409275904}
+{"r":0,"seq":4,"op":"chain","id":1,"name":"0.0","parent":0,"kind":"pthread"}
+{"r":0,"seq":5,"tid":1,"after":[[0,2,1,0]],"op":"begin","call":"send","mode":"std","dst":1,"tag":0,"comm":0,"count":1,"tsize":4,"tsig":"MPI_INT","site":0}
+{"r":0,"seq":6,"tid":1,"op":"send","mode":"std","dst":1,"tag":0,"comm":0,"count":1,"tsize":4,"tsig":"MPI_INT","site":0}
+{"r":0,"seq":7,"op":"site","id":1,"obj":"/w/idioms/30_threads_funneled_violation/bin/mpich/main","addr":93909409281204,"base":93909409275904}
+{"r":0,"seq":8,"after":[[1,6,1,2]],"op":"finalize","site":1}

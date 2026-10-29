@@ -104,7 +104,8 @@ class ReadBoundsInTheHorizon(unittest.TestCase):
                   mk({0: [recv(T.ANY, 1, 1, 1, widx=0), recv(T.ANY, 1, 1, 1, widx=1), recv(2, 1, 2, 1)],
                       1: [send(0, 1), send(0, 1)], 2: [send(0, 1)]})]
         golden = os.path.join(os.path.dirname(os.path.abspath(__file__)), "golden", "openmpi")
-        traces += [T.load(d) for d in sorted(glob.glob(os.path.join(golden, "*")))]
+        # the indexed closure (stretto.fast) is for traces whose ranks have one chain each
+        traces += [t for t in (T.load(d) for d in sorted(glob.glob(os.path.join(golden, "*")))) if not t.multi]
         b = NeverReads()
         n = 0
         for t in traces:

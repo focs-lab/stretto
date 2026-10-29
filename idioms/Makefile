@@ -8,9 +8,10 @@ BINS := $(foreach d,$(IDIOMS),$(d)/bin/$(MPI)/main)
 
 all: $(BINS)
 
+# An idiom with a file "flags" (threads: -pthread or -fopenmp) is compiled with its contents.
 %/bin/$(MPI)/main: %/main.c
 	@mkdir -p $(dir $@)
-	$(MPICC) $(CFLAGS) -o $@ $< -lm
+	$(MPICC) $(CFLAGS) $(shell cat $*/flags 2>/dev/null) -o $@ $< -lm
 
 clean:
 	rm -rf */bin

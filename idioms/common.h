@@ -17,4 +17,21 @@ static inline void idiom_require_np(int np, int want, int rank) {
         MPI_Abort(MPI_COMM_WORLD, 1);
     }
 }
+
+/* The thread idioms (15 on): at least `want` ranks (the extra ones only finalize), and the
+   thread level asked for, or the run is pointless. */
+static inline void idiom_require_min_np(int np, int want, int rank) {
+    if (np < want) {
+        if (rank == 0) fprintf(stderr, "this idiom needs at least %d ranks\n", want);
+        MPI_Abort(MPI_COMM_WORLD, 1);
+    }
+}
+static inline void idiom_init_thread(int *argc, char ***argv, int level) {
+    int provided;
+    MPI_Init_thread(argc, argv, level, &provided);
+    if (provided < level) {
+        fprintf(stderr, "this idiom needs thread level %d, the library gives %d\n", level, provided);
+        MPI_Abort(MPI_COMM_WORLD, 1);
+    }
+}
 #endif

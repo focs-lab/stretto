@@ -1,0 +1,16 @@
+{"r":0,"seq":0,"op":"init","np":3,"thread":3,"version":3,"issue":1}
+{"r":0,"seq":1,"op":"comm","name":"world","parent":0,"id":0,"ranks":[0,1,2],"gord":0}
+{"r":0,"seq":2,"op":"comm","name":"self","parent":0,"id":1,"ranks":[0],"gord":0}
+{"r":0,"seq":3,"op":"site","id":0,"obj":"/w/idioms/17_threads_probe_steal_hang/bin/mpich/main","addr":94914161562625,"base":94914161557504}
+{"r":0,"seq":4,"op":"chain","id":1,"name":"0.0","parent":0,"kind":"pthread"}
+{"r":0,"seq":5,"tid":1,"after":[[0,2,1,0]],"op":"begin","call":"probe","kind":"probe","src":-1,"anysrc":1,"tag":0,"comm":0,"site":0}
+{"r":0,"seq":6,"tid":1,"op":"probe","kind":"probe","src":-1,"anysrc":1,"tag":0,"comm":0,"flag":1,"pidx":0,"msrc":1,"mtag":0,"mbytes":4,"iseq":0,"site":0}
+{"r":0,"seq":7,"op":"site","id":1,"obj":"/w/idioms/17_threads_probe_steal_hang/bin/mpich/main","addr":94914161562670,"base":94914161557504}
+{"r":0,"seq":8,"tid":1,"op":"begin","call":"recv","src":1,"tag":0,"comm":0,"count":1,"tsize":4,"tsig":"MPI_INT","site":1}
+{"r":0,"seq":9,"tid":1,"op":"recv","src":1,"tag":0,"comm":0,"count":1,"tsize":4,"tsig":"MPI_INT","msrc":1,"mtag":0,"mcount":1,"iseq":1,"site":1}
+{"r":0,"seq":10,"op":"site","id":2,"obj":"/w/idioms/17_threads_probe_steal_hang/bin/mpich/main","addr":94914161562787,"base":94914161557504}
+{"r":0,"seq":11,"op":"chain","id":2,"name":"0.1","parent":0,"kind":"pthread"}
+{"r":0,"seq":12,"tid":2,"after":[[0,2,2,0]],"op":"begin","call":"recv","src":-1,"anysrc":1,"tag":0,"comm":0,"count":1,"tsize":4,"tsig":"MPI_INT","widx":0,"site":2}
+{"r":0,"seq":13,"tid":2,"op":"recv","src":-1,"anysrc":1,"tag":0,"comm":0,"count":1,"tsize":4,"tsig":"MPI_INT","widx":0,"msrc":2,"mtag":0,"mcount":1,"iseq":2,"site":2}
+{"r":0,"seq":14,"op":"site","id":3,"obj":"/w/idioms/17_threads_probe_steal_hang/bin/mpich/main","addr":94914161563113,"base":94914161557504}
+{"r":0,"seq":15,"after":[[1,9,1,3],[2,13,1,4]],"op":"finalize","site":3}
