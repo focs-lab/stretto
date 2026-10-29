@@ -8,7 +8,8 @@
 #           the sources and flags of src/Makefile.am, with the system MPI C++ wrappers (no
 #           autotools in the image), and libninja-fixed.so, the same with two repairs (random
 #           noise, Fortran programs; below), and libninja-fixed-some.so, those two and a third
-#           (MPI_Testsome and MPI_Waitsome; below), and libninja-fixed-any.so, the first two and
+#           (MPI_Testsome and MPI_Waitsome; below), and libninja-fixed-some-testall.so, those three
+#           and a fourth (MPI_Testall and MPI_Waitall; below), and libninja-fixed-any.so, the first two and
 #           another third (MPI_Testany and MPI_Waitany; below); and NINJA's replica of the HYPRE ParaSails race
 #           (test/ninja_test_hypre_parasails.c, MPICH), which as shipped exits unless it runs
 #           on 64 processes: a copy with that check removed runs on 4 and 8, where its
@@ -67,6 +68,19 @@ step_build() {
     rm -rf "$N/fixed-any-src" && cp -r "$N/fixed-src" "$N/fixed-any-src"
     sed -i '/^_EXTERN_C_ int MPI_Testany(/,/^}/{s|^    \*arg_3 = 0;$|    *arg_3 = 0;\n    *arg_2 = MPI_UNDEFINED;|}' "$N/fixed-any-src/ninj.cpp"
     [ "$(diff "$N/fixed-src/ninj.cpp" "$N/fixed-any-src/ninj.cpp" | grep -c '^>')" = 1 ]
+    # libninja-fixed-some-testall.so adds a fourth repair to libninja-fixed-some.so. NINJA's
+    # MPI_Testall, which its MPI_Waitall calls until every request completes, copies the
+    # requests into a buffer allocated at MPI_Init with one entry per process of MPI_COMM_WORLD
+    # (request_buffer), with no check of the count: a wait for more requests than there are
+    # processes writes past the end of the buffer into the heap. deal.II 9.3.0-rc1's test waits
+    # for more (experiments/dealii/run.sh ninja-check) and aborts in a "double free or
+    # corruption" of the C library, noise or none, once the statuses of MPI_Waitsome are
+    # repaired. The repair grows the buffer to the count before the copy. The library of the
+    # other campaigns, libninja-fixed.so, has the buffer as shipped.
+    rm -rf "$N/fixed-some-testall-src" && cp -r "$N/fixed-some-src" "$N/fixed-some-testall-src"
+    sed -i '/^_EXTERN_C_ int MPI_Testall(/,/^}/{s|^    int is_started = nin_is_all_started(arg_0, arg_1);$|&\n    if (arg_0 > request_buffer_length) {\n      request_buffer_length = arg_0;\n      request_buffer = (MPI_Request*)realloc(request_buffer, sizeof(MPI_Request) * request_buffer_length);\n    }|}' \
+        "$N/fixed-some-testall-src/ninj.cpp"
+    [ "$(diff "$N/fixed-some-src/ninj.cpp" "$N/fixed-some-testall-src/ninj.cpp" | grep -c '^>')" = 4 ]
     for mpi in mpich openmpi; do
         mkdir -p "$N/$mpi"
         (cd "$N/src/src" && /usr/bin/mpicxx.$mpi -O2 -g -fPIC -shared -std=c++0x -pthread -w -I. \
@@ -75,9 +89,11 @@ step_build() {
              -o "$N/$mpi/libninja-fixed.so" $SOURCES -lstdc++)
         (cd "$N/fixed-some-src" && /usr/bin/mpicxx.$mpi -O2 -g -fPIC -shared -std=c++0x -pthread -w -I. \
              -o "$N/$mpi/libninja-fixed-some.so" $SOURCES -lstdc++)
+        (cd "$N/fixed-some-testall-src" && /usr/bin/mpicxx.$mpi -O2 -g -fPIC -shared -std=c++0x -pthread -w -I. \
+             -o "$N/$mpi/libninja-fixed-some-testall.so" $SOURCES -lstdc++)
         (cd "$N/fixed-any-src" && /usr/bin/mpicxx.$mpi -O2 -g -fPIC -shared -std=c++0x -pthread -w -I. \
              -o "$N/$mpi/libninja-fixed-any.so" $SOURCES -lstdc++)
-        echo "built $N/$mpi/libninja.so, libninja-fixed.so, libninja-fixed-some.so and libninja-fixed-any.so"
+        echo "built $N/$mpi/libninja.so, libninja-fixed.so, libninja-fixed-some.so, libninja-fixed-some-testall.so and libninja-fixed-any.so"
     done
     # the replica, with the 64-process check (main(), "comm_size != 64") turned off; and its
     # fixed variant, the same without ENABLE_HANG, whose stored-rows requests get their own tag

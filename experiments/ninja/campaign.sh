@@ -12,7 +12,8 @@
 #              completed; solved: the residual was printed)
 #   mbi        the MBI programs of the stress baseline, up to 30 runs per program and mode,
 #              60 s each, stopping at the first that does not finish, JOBS programs at a time
-#   mg         NPB MG 2.4.1 class S (NPB_MG_DIR as for experiments/npbmg/) at each NPS, RUNS
+#   mg         NPB MG 2.4.1 class S (NPB_MG_DIR as for experiments/npbmg/), and with MG_VERSIONS
+#              the fix 3.3.1 too (MG_VERSIONS="2.4.1 3.3.1"), at each NPS, RUNS
 #              runs per mode, plain runs among them, 120 s each, recording MG's residual norm
 #   superlu    SuperLU_DIST 9.3.1's 3D solve and its fix, from the builds of the verification
 #              (SLU_DIR, SLU_MATS), at 3 and 6 ranks, RUNS runs per mode, 60 s each
@@ -27,7 +28,7 @@
 # NINJA_APPEND=1 keeps the table, to add for example a HYPRE version); the output of runs that
 # did not finish goes to experiments/results/ninja/logs/ (NINJA_OUT: another directory).
 # usage: experiments/ninja/campaign.sh [calibrate|hypre|mbi|mg|superlu|qe ...]
-#        RUNS (40; calibrate and mg 20), JOBS (3), LOOPS (5), NPS (16 32), RAND_RATIO (10),
+#        RUNS (40; calibrate and mg 20), JOBS (3), LOOPS (5), NPS (16 32), MG_VERSIONS (2.4.1), RAND_RATIO (10),
 #        RAND_DELAYS (50000 1200000)
 set -uo pipefail
 R="$(cd "$(dirname "$0")/../.." && pwd)"; cd "$R"
@@ -35,7 +36,7 @@ OUT="${NINJA_OUT:-experiments/results/ninja}"; mkdir -p "$OUT"
 export STRETTO_COMMIT="${STRETTO_COMMIT:-$(python3 "$R/experiments/provenance.py")}"
 RUN="python3 experiments/ninja/run.py"
 H="${HYPRE_DIR:-$R/third_party/apps/hypre}"
-MG="${NPB_MG_DIR:-$R/third_party/apps/npb-mg}/NPB2.4.1/NPB2.4-MPI/bin"
+MG="${NPB_MG_DIR:-$R/third_party/apps/npb-mg}"
 NINJA="${NINJA_DIR:-$R/third_party/ninja}"
 
 fresh() {  # fresh <table>: start a step's table afresh unless NINJA_APPEND=1
@@ -121,10 +122,12 @@ step_qe() {
 }
 step_mg() {
     fresh mg
-    local np
-    for np in ${NPS:-16 32}; do
-        each "${MODES:-plain random system app}" -- runs --np $np --runs "${RUNS:-20}" --timeout 120 --label mg-2.4.1-S \
-            --out "$OUT/mg.csv" --value "L2 Norm is\s+(\S+)" --keep "$OUT/logs" -- "$MG/mg.S.$np" || return 1
+    local np v
+    for v in ${MG_VERSIONS:-2.4.1}; do
+        for np in ${NPS:-16 32}; do
+            each "${MODES:-plain random system app}" -- runs --np $np --runs "${RUNS:-20}" --timeout 120 --label "mg-$v-S" \
+                --out "$OUT/mg.csv" --value "L2 Norm is\s+(\S+)" --keep "$OUT/logs" -- "$MG/NPB$v/NPB${v%.*}-MPI/bin/mg.S.$np" || return 1
+        done
     done
 }
 for step in "$@"; do
