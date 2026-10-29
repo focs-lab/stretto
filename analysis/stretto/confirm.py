@@ -134,6 +134,7 @@ def classify_rc(rc: int, stderr: str, elapsed: Optional[float] = None, timeout: 
 # differently in a replay, and the pidx then names a probe of the other loop.
 
 PIN_MISAPPLIED = 86      # the exit code the replay library ends a run with (replay/pin.h STRETTO_PIN_MISAPPLIED)
+GATE_TIMEOUT = 87        # and the one of an order gate that did not open in time (STRETTO_PIN_GATE_TIMEOUT)
 
 Ident = Tuple[Optional[int], Optional[int], Optional[int]]     # (communicator, tag, site); None: unchecked
 
@@ -150,6 +151,17 @@ class PinToken:
     # probes of its envelope that found a message (envelope_ordinal), which the replay library
     # pins by; of a flip pin, the number of those found before the poll
     n: Optional[int] = None
+    # a chain pin (STRETTO_PIN_CHAIN, kind "crecv"): the chain's logical name, idx being the
+    # receive's ordinal on it, and what follows '=': the message the receive must take and the
+    # happens-before it must have ("sproc:schain:sidx|chain:n;..."), for the harness alone
+    chain: Optional[str] = None
+    want: Optional[str] = None
+
+    @property
+    def key(self) -> tuple:
+        """The pin as the report lines and the replay's trace show it taken: (kind, rank, idx),
+        or ("crecv", rank, chain, idx) for a chain pin."""
+        return ("crecv", self.rank, self.chain, self.idx) if self.kind == "crecv" else (self.kind, self.rank, self.idx)
 
 
 def _parse_ident(text: str) -> Ident:
@@ -172,17 +184,31 @@ def _ident_text(ident: Ident, n: Optional[int] = None) -> str:
 
 
 def _pin_kind(name: str) -> str:
-    return {"STRETTO_PIN_PROBE": "probe", "STRETTO_PIN_FLIP": "flip"}.get(name, "recv")
+    return {"STRETTO_PIN_PROBE": "probe", "STRETTO_PIN_FLIP": "flip", "STRETTO_PIN_CHAIN": "crecv",
+            "STRETTO_PIN_ORDER": "order"}.get(name, "recv")
 
 
 def pin_tokens(pins) -> List[PinToken]:
-    """The tokens of "STRETTO_PIN=..." and "STRETTO_PIN_PROBE=..." assignments (one, a list, or
-    None), in both formats."""
+    """The tokens of "STRETTO_PIN=...", "STRETTO_PIN_PROBE=...", "STRETTO_PIN_FLIP=..." and
+    "STRETTO_PIN_CHAIN=..." assignments (one, a list, or None), in both formats. The order
+    gates (STRETTO_PIN_ORDER) pin no operation and give no token."""
     out = []
     for a in ([pins] if isinstance(pins, str) else (pins or [])):
         name, _, spec = a.partition("=")
         kind = _pin_kind(name)
+        if kind == "order":
+            continue
         for tok in re.split(r"[,\s]+", spec):
+            if kind == "crecv":
+                main, _, want = tok.partition("=")
+                head, at, ident = main.partition("@")
+                parts = head.split(":")
+                if len(parts) < 4:
+                    continue
+                out.append(PinToken(kind, int(parts[0]), int(parts[2]), int(parts[3]),
+                                    int(parts[4]) if len(parts) > 4 else None, _parse_ident(ident) if at else None,
+                                    None, parts[1], want or None))
+                continue
             head, at, ident = tok.partition("@")
             parts = head.split(":")
             if len(parts) < 3:
@@ -211,15 +237,22 @@ def pin_name(pin: Optional[str]) -> str:
 def _local_comms(t) -> Dict[Tuple[int, int], int]:
     """(rank, global communicator id) -> the communicator's local id on that rank, its creation
     ordinal there (the "comm" field of the records, which the replay library sees), from the
-    communicator records the loader keeps; the loader's own mapping run backwards. Cached on t."""
+    communicator records the loader keeps; the loader's own mapping run backwards. The records
+    of a rank whose threads the loader split into chains are taken together, in the rank's file
+    order. Cached on t."""
     cache = t.__dict__.get("_stretto_local_comms")
     if cache is not None:
         return cache
     from . import trace as trace_mod
-    folded = {rank: [rec.raw for rec in recs if rec.op == "comm" and rec.raw is not None] for rank, recs in t.ranks.items()}
+    by_proc: Dict[int, list] = {}
+    for rank, recs in t.ranks.items():
+        proc = t.proc.get(rank, rank)
+        by_proc.setdefault(proc, []).extend((t.fpos.get((rank, rec.idx), rec.idx), rec.raw) for rec in recs
+                                            if rec.op == "comm" and rec.raw is not None)
+    folded = {proc: [raw for _, raw in sorted(v, key=lambda e: e[0])] for proc, v in by_proc.items()}
     scratch = trace_mod.Trace()
-    scratch.ranks = {rank: [] for rank in t.ranks}
-    all_ranks = list(range(t.np)) if t.np else sorted(t.ranks)
+    scratch.ranks = {proc: [] for proc in folded}
+    all_ranks = list(range(t.np)) if t.np else sorted(folded)
     try:
         mapping = trace_mod._comm_ids(scratch, folded, all_ranks)
     except (TypeError, AttributeError):       # the loader's mapping changed shape: communicators unchecked
@@ -235,11 +268,23 @@ def _local_comms(t) -> Dict[Tuple[int, int], int]:
     return cache
 
 
+def _site_of(t, x) -> Optional[Tuple[str, int]]:
+    """The call site of operation x: Trace.site_of, whose site records are the process's when x
+    is on a chain of a split rank."""
+    proc = getattr(x, "proc", x.rank)
+    if proc == x.rank:
+        return t.site_of(x.rank, x.idx)
+    ids = t._site_ids.get(x.rank)
+    sid = ids[x.idx] if ids is not None and x.idx < len(ids) else -1
+    s = t.sites.get((proc, sid)) if sid >= 0 else None
+    return None if s is None else (s.get("obj", "?"), s.get("addr", 0) - s.get("base", 0))
+
+
 def identity(t, x) -> Ident:
     """The identity of receive or probe x of trace t: its communicator's local id on its rank,
     its tag argument (ANY_TAG is -1) and its call site's offset, None where the trace lacks it."""
-    site = t.site_of(x.rank, x.idx)
-    return _local_comms(t).get((x.rank, x.comm)), x.tag, (site[1] if site else None)
+    site = _site_of(t, x)
+    return _local_comms(t).get((getattr(x, "proc", x.rank), x.comm)), x.tag, (site[1] if site else None)
 
 
 def _envelopes(t) -> Dict:
@@ -250,12 +295,13 @@ def _envelopes(t) -> Dict:
     cache = t.__dict__.get("_stretto_envelopes")
     if cache is None:
         of, at, count = {}, {}, Counter()
-        for q in sorted((q for q in t.probes.values() if q.pidx is not None), key=lambda q: (q.rank, q.idx)):
+        for q in sorted((q for q in t.probes.values() if q.pidx is not None),
+                        key=lambda q: (q.proc, t.fpos.get((q.rank, q.idx), q.idx))):
             raw = t.ranks[q.rank][q.idx].raw if q.idx < len(t.ranks.get(q.rank, ())) else None
             local = raw.get("comm") if raw is not None else None
             if local is None:
                 continue
-            env = (q.rank, local, q.tag)
+            env = (q.proc, local, q.tag)
             of[q.key] = (env, count[env])
             at[env + (count[env],)] = q
             count[env] += 1
@@ -291,7 +337,7 @@ def pin_token(t, x, src: int, tag: Optional[int] = None) -> str:
     """The pin of receive or probe x of trace t to world rank src (and to tag, for an ANY_TAG
     operation), with x's identity."""
     idx = x.pidx if hasattr(x, "pidx") else x.widx
-    return f"{x.rank}:{idx}:{src}" + (f":{tag}" if x.tag == ANY and tag is not None else "") + "@" + ident_text(t, x)
+    return f"{x.proc}:{idx}:{src}" + (f":{tag}" if x.tag == ANY and tag is not None else "") + "@" + ident_text(t, x)
 
 
 def _op_at(t, kind: str, rank: int, idx: int):
@@ -300,8 +346,8 @@ def _op_at(t, kind: str, rank: int, idx: int):
     horizon pin tens of thousands of them."""
     ix = t.__dict__.get("_stretto_ordinals")
     if ix is None:
-        ix = {("recv", r.rank, r.widx): r for r in t.recvs.values() if r.widx is not None}
-        ix.update({("probe", q.rank, q.pidx): q for q in t.probes.values() if q.pidx is not None})
+        ix = {("recv", r.proc, r.widx): r for r in t.recvs.values() if r.widx is not None}
+        ix.update({("probe", q.proc, q.pidx): q for q in t.probes.values() if q.pidx is not None})
         t.__dict__["_stretto_ordinals"] = ix
     return ix.get((kind, rank, idx))
 
@@ -312,6 +358,8 @@ def _op_of(t, k: PinToken):
     ordinal."""
     if k.kind == "probe" and k.n is not None and k.ident is not None and k.ident[0] is not None and k.ident[1] is not None:
         return probe_at_envelope(t, k.rank, k.ident[0], k.ident[1], k.n)
+    if k.kind == "crecv":
+        return _chain_ops(t)[1].get((k.rank, k.chain, "r", k.idx))
     return _op_at(t, k.kind, k.rank, k.idx)
 
 
@@ -341,8 +389,8 @@ def _agrees(expected: Optional[Ident], seen: Optional[Ident]) -> bool:
     return all(e is None or e == s for e, s in zip(expected, seen))
 
 
-def _expected(pins) -> Dict[Tuple[str, int, int], Optional[Ident]]:
-    return {(k.kind, k.rank, k.idx): k.ident for k in pin_tokens(pins)}
+def _expected(pins) -> Dict[tuple, Optional[Ident]]:
+    return {k.key: k.ident for k in pin_tokens(pins)}
 
 
 _LINE = re.compile(r"\[stretto-pin\] rank (\d+): (matched widx|applied widx|applied probe pidx|applied unflip pidx"
@@ -353,52 +401,69 @@ _LINE = re.compile(r"\[stretto-pin\] rank (\d+): (matched widx|applied widx|appl
 _WHAT = {"matched widx": "matched", "applied widx": "applied", "applied probe pidx": "probe",
          "applied unflip pidx": "unflip", "applied flip key": "flip-applied", "matched flip key": "flip"}
 _LINE_ID = re.compile(r"\bid=(-?[0-9]+|x):(-?[0-9]+|x):([0-9a-f]+|x)")
-_MISAPPLIED = re.compile(r"\[stretto-pin\] rank \d+: (?:probe |flip )?pin (?:widx|pidx|key)=\d+ misapplied[^\n]*")
+_MISAPPLIED = re.compile(r"\[stretto-pin\] rank \d+: (?:probe |flip )?pin (?:widx|pidx|key)=\d+ misapplied[^\n]*"
+                         r"|\[stretto-pin\] rank \d+ chain \S+: (?:pin ridx=\d+ misapplied|gate timed out)[^\n]*")
+# a chain pin's lines (replay/pin.h, STRETTO_PIN_CHAIN): applied when its receive is posted,
+# matched when it completes; which message it took only the replay's own trace says
+_CLINE = re.compile(r"\[stretto-pin\] rank (\d+) chain (\S+): (matched|applied) ridx=(\d+)\b([^\n]*)")
 
 
 def _lines(stderr: str):
     """(what, rank, idx, identity or None) of every pin report line: what is "matched",
-    "applied" (a receive) or "probe" (a probe that found its message). Read once per run: a
-    horizon can pin tens of thousands of receives, and a search of the whole output per pin is
-    quadratic."""
+    "applied" (a receive) or "probe" (a probe that found its message); a chain pin's lines are
+    "cmatched" and "capplied", with (rank, chain) as rank. Read once per run: a horizon can pin
+    tens of thousands of receives, and a search of the whole output per pin is quadratic."""
     for m in _LINE.finditer(stderr):
         i = _LINE_ID.search(m.group(4))
         what = _WHAT[m.group(2)]
         if what == "flip-applied" and " flag=0" in m.group(4):
             what = "flip"          # the control's flip: the call returned false as pinned
         yield what, int(m.group(1)), int(m.group(3)), _parse_ident(":".join(i.groups())) if i else None
+    if "chain" in stderr:
+        for m in _CLINE.finditer(stderr):
+            i = _LINE_ID.search(m.group(5))
+            yield "c" + m.group(3), (int(m.group(1)), m.group(2)), int(m.group(4)), _parse_ident(":".join(i.groups())) if i else None
 
 
-def _line_key(what: str, rank: int, idx: int) -> Tuple[str, int, int]:
+def _line_key(what: str, rank, idx: int) -> tuple:
     """The pin a report line is about."""
+    if what in ("cmatched", "capplied"):
+        return ("crecv", rank[0], rank[1], idx)
     return ({"flip": "flip", "flip-applied": "flip"}.get(what) or ("probe" if what in ("probe", "unflip") else "recv"), rank, idx)
 
 
 def pins_misapplied(stderr: str) -> List[str]:
-    """The replay library's reports of a pin that fell on an operation of another identity."""
+    """The replay library's reports of a pin that fell on an operation of another identity, and
+    of an order gate that never opened (the replay diverged before it)."""
     return [m.group(0) for m in _MISAPPLIED.finditer(stderr)]
 
 
 def pins_applied(pin: str, stderr: str) -> bool:
     """Did the replay library report every pin of the spec as applied, on an operation of the
     pin's identity? It prints '[stretto-pin] rank R: applied widx=W ... id=C:G:X' (or
-    'applied probe pidx=P ...', printed when the probe found its message) for each."""
+    'applied probe pidx=P ...', printed when the probe found its message, or 'rank R chain C:
+    applied ridx=K ...') for each. Order gates apply no pin: always true."""
+    if _pin_kind(pin.partition("=")[0]) == "order":
+        return True
     want = _expected(pin)
     seen = {}
     for what, rank, idx, ident in _lines(stderr):
-        if what != "matched":
+        if what not in ("matched", "cmatched"):
             seen[_line_key(what, rank, idx)] = ident
     return bool(want) and all(k in seen and _agrees(e, seen[k]) for k, e in want.items())
 
 
-def _reported(stderr: str, pins=None) -> Set[Tuple[str, int, int]]:
+def _reported(stderr: str, pins=None) -> Set[tuple]:
     """The pins a replay reported as taken: ("recv", rank, widx) for each 'matched widx=W',
     ("probe", rank, pidx) for each 'applied probe pidx=P', on an operation whose identity fits
-    the pin of pins that names it (a line without an identity fits no pin that has one)."""
+    the pin of pins that names it (a line without an identity fits no pin that has one). A chain
+    pin is taken only when the replay's own trace shows its receive taking the predicted
+    message (trace_matches): its report line names the source, which two messages of one
+    channel share."""
     want = _expected(pins) if pins else {}
     out = set()
     for what, rank, idx, ident in _lines(stderr):
-        if what in ("applied", "flip-applied"):
+        if what in ("applied", "flip-applied", "capplied", "cmatched"):
             continue
         key = _line_key(what, rank, idx)
         if _agrees(want.get(key), ident):
@@ -406,9 +471,13 @@ def _reported(stderr: str, pins=None) -> Set[Tuple[str, int, int]]:
     return out
 
 
-def _taken(pin: str, reported: Set[Tuple[str, int, int]]) -> bool:
+def _taken(pin: str, reported: Set[tuple]) -> bool:
     name, _, spec = pin.partition("=")
     kind = _pin_kind(name)
+    if kind == "order":
+        return True
+    if kind == "crecv":
+        return all(k.key in reported for k in pin_tokens(pin))
     for tok in spec.split(","):
         parts = tok.split(":")
         if len(parts) < 3 or (kind, int(parts[0]), int(parts[1])) not in reported:
@@ -443,12 +512,296 @@ def control_pin(t, pin: str) -> Optional[str]:
         if x is None:
             continue
         if k.kind == "probe":
-            src = t.sends[x.seen].rank if x.seen is not None else None
+            src = t.sends[x.seen].proc if x.seen is not None else None
         else:
             src = x.msrc
         if src is not None:
             toks.append(pin_token(t, x, src))
     return f"{name}={','.join(toks)}" if toks else None
+
+
+# ------------------------------------------------------------------ several threads
+#
+# docs/threads.md, sections 4 and 11. In a process whose threads call MPI the rank's ordinals of
+# its wildcard operations (widx, pidx) are taken in the order the threads happen to reach them,
+# which a replay does not reproduce. A trace with several chains is therefore replayed with chain
+# pins (STRETTO_PIN_CHAIN): every receive of the horizon, wildcard or not, is named by its
+# chain's logical name and its ordinal among the chain's receives, pinned to the sender's process
+# where it is a wildcard, and carries the message it must take (the sender's process, chain and
+# send ordinal) and the happens-before it has in the trace (per other chain of its process, how
+# many of that chain's operations precede it). Order gates (STRETTO_PIN_ORDER) realise the
+# physical order the alternative needs (section 3.2): for every pair of concurrent operations of
+# one process in the horizon that could take or report one message (two receives or probes with
+# overlapping envelopes, two sends to one process on one communicator), the later one in a
+# topological order of the alternative's constraint graph waits until the earlier one is
+# posted. Only the pairs the alternative orders otherwise than the run are gated; the control
+# gates them in the run's issue order. Only the tracer applies
+# chain pins and gates (it names the chains); the replay's own trace then says which message
+# each receive took (P-T4: the tracer's issue order) and whether its synchronisation order is
+# the trace's (sync_divergence), without which the chains' ordinals need not name the same
+# work: a pool of threads may hand a request to another thread in the replay.
+
+def chain_label(t, ch) -> str:
+    """The logical name of chain ch, as the tracer names it ("0" for the thread that initialised
+    MPI, "c.k" for the k-th thread chain c created, "c/p.j" for thread j of chain c's p-th
+    parallel region); "0" for a rank that has one chain."""
+    return t.chain_name.get(ch, "0")
+
+
+def _chain_ops(t):
+    """(of, at, pos) for trace t: of[(kind, key)] = (process, chain name, ordinal) of every
+    receive ("r", Mrecv/Imrecv left out), send ("s") and probe that found a message ("p"), the
+    ordinals the replay library counts (replay/pin.h); at the reverse map, keyed (process, chain
+    name, kind, ordinal); pos[chain] the sorted record indexes of the chain's operations of the
+    three kinds. Cached on t."""
+    cache = t.__dict__.get("_stretto_chain_ops")
+    if cache is not None:
+        return cache
+    probes: Dict[int, list] = {}
+    for q in t.probes.values():
+        if q.flag and q.completed:
+            probes.setdefault(q.rank, []).append(q)
+    of, at, pos = {}, {}, {}
+    for ch in t.ranks:
+        proc, name = t.proc.get(ch, ch), chain_label(t, ch)
+        lists = {"r": sorted((r for r in t.recvs_of(ch) if not r.mrecv), key=lambda r: r.idx),
+                 "s": sorted(t.sends_of(ch), key=lambda s: s.idx),
+                 "p": sorted(probes.get(ch, ()), key=lambda q: q.idx)}
+        idxs = []
+        for kind, lst in lists.items():
+            for k, x in enumerate(lst):
+                of[(kind, x.key)] = (proc, name, k)
+                at[(proc, name, kind, k)] = x
+                idxs.append(x.idx)
+        pos[ch] = sorted(idxs)
+    cache = t.__dict__["_stretto_chain_ops"] = (of, at, pos)
+    return cache
+
+
+def _hb_text(t, x) -> str:
+    """The happens-before of operation x of trace t on the other chains of its process: per
+    chain, by name, how many of its receives, sends and probes that found a message precede x,
+    as "name:n;..." ("" for a process of one chain)."""
+    proc = t.proc.get(x.rank, x.rank)
+    if not t.multi or proc not in t.chains or t.hb is None:
+        return ""
+    from bisect import bisect_right
+    pos = _chain_ops(t)[2]
+    parts = []
+    for c in t.chains[proc]:
+        if c != x.rank:
+            parts.append(f"{chain_label(t, c)}:{bisect_right(pos.get(c, []), t.hb.last_before(x.rank, x.idx, c))}")
+    return ";".join(sorted(parts))
+
+
+def chain_pin_token(t, r, s) -> str:
+    """The chain pin of receive r of trace t to send s: "rank:chain:ridx:src[:tag]@identity=
+    sproc:schain:sidx|happens-before" (replay/pin.h; the part after '=' is the harness's)."""
+    of = _chain_ops(t)[0]
+    proc, name, k = of[("r", r.key)]
+    sp, sn, sk = of[("s", s.key)]
+    src = s.proc if r.src == ANY else r.src
+    tag = f":{s.tag}" if r.tag == ANY else ""
+    return f"{proc}:{name}:{k}:{src}{tag}@{ident_text(t, r)}={sp}:{sn}:{sk}|{_hb_text(t, r)}"
+
+
+def _topo_positions(t, g) -> Dict:
+    """A topological order of constraint graph g as node -> position: Kahn's algorithm, taking
+    among the nodes that are free the one earliest in its rank's file, so that operations whose
+    order the alternative leaves free keep the run's."""
+    import heapq
+    indeg = {n: 0 for n in g.nodes}
+    for a, outs in g.succ.items():
+        if a in indeg:
+            for b in outs:
+                if b in indeg:
+                    indeg[b] += 1
+    kinds = {"i": 0, "m": 1, "c": 2}
+
+    def prio(n):
+        if n[0] < 0:
+            return (-1, 0)
+        return (t.fpos.get((n[0], n[1]), n[1]), kinds.get(n[2], 3))
+
+    heap = [(prio(n), i, n) for i, n in enumerate(g.nodes) if indeg[n] == 0]
+    heapq.heapify(heap)
+    order = {n: i for i, n in enumerate(g.nodes)}
+    pos: Dict = {}
+    while heap:
+        _, _, n = heapq.heappop(heap)
+        if n in pos:
+            continue
+        pos[n] = len(pos)
+        for b in g.succ.get(n, ()):
+            if b in indeg:
+                indeg[b] -= 1
+                if indeg[b] == 0:
+                    heapq.heappush(heap, (prio(b), order[b], b))
+    return pos
+
+
+def _conflict(k1: str, a, k2: str, b) -> bool:
+    """Could operations a and b of one process (kinds "r", "s", "p") take or report one
+    message, so that their order decides a match?"""
+    if (k1 == "s") != (k2 == "s"):
+        return False
+    if k1 == "s":
+        return a.dst == b.dst and a.comm == b.comm
+    return a.comm == b.comm and (a.src == ANY or b.src == ANY or a.src == b.src) \
+        and (a.tag == ANY or b.tag == ANY or a.tag == b.tag)
+
+
+GATE_SCAN = 64     # per operation and other chain, how far back the latest conflicting operation is looked for
+
+
+def order_gates(t, cut, position, keep=frozenset()) -> List[str]:
+    """The order gates of trace t over the horizon cut (STRETTO_PIN_ORDER tokens): for every
+    operation x of a process of several chains and every other chain, the latest operation y of
+    that chain before x in position's order that conflicts with x (_conflict), when the two are
+    concurrent: y before x. position(kind, op) gives the order; keep names receives kept although
+    the cut is at them (the changed receive of a steal). An operation beyond the horizon waits
+    in the same way for the operations of the horizon, and nothing waits for it: the replay must
+    not let a receive the horizon leaves out take a message of the horizon (the receive a steal
+    leaves without its message), and what the program does beyond the horizon the trace does not
+    say."""
+    from .chains import concurrent
+    of = _chain_ops(t)[0]
+    out = []
+    for proc, chs in sorted(t.chains.items()):
+        if len(chs) < 2:
+            continue
+        evs = []
+        for ch in chs:
+            evs += [("r", r) for r in t.recvs_of(ch) if not r.mrecv]
+            evs += [("s", s) for s in t.sends_of(ch)]
+        evs += [("p", q) for q in t.probes.values() if q.rank in chs and q.flag and q.completed]
+        evs.sort(key=lambda e: position(*e))
+        seen: Dict[int, list] = {ch: [] for ch in chs}
+        done: Set[tuple] = set()
+        for kind, x in evs:
+            inside = x.idx < cut[x.rank] or x.key in keep
+            for c in chs:
+                if c == x.rank:
+                    continue
+                for k2, y in reversed(seen[c][-GATE_SCAN:]):
+                    if _conflict(kind, x, k2, y):
+                        if concurrent(t, y.rank, y.idx, x.rank, x.idx) and (inside or (x.rank, k2, y.key) not in done):
+                            done.add((x.rank, k2, y.key))
+                            out.append(f"{proc}:{of[(k2, y.key)][1]}#{k2}#{of[(k2, y.key)][2]}<"
+                                       f"{of[(kind, x.key)][1]}#{kind}#{of[(kind, x.key)][2]}")
+                        break
+            if inside:
+                seen[x.rank].append((kind, x))
+    return out
+
+
+def _probe_pinnable(t) -> Set[int]:
+    """The processes whose wildcard probes the rank ordinal (pidx) names in a replay too: those
+    of one chain, or whose wildcard probes that found a message are all on one chain."""
+    on: Dict[int, set] = {}
+    for q in t.probes.values():
+        if q.pidx is not None:
+            on.setdefault(q.proc, set()).add(q.rank)
+    return {p for p, chs in on.items() if len(chs) == 1}
+
+
+def _chain_specs(t, M, chk, keep, B, probe_alt):
+    """horizon_pins for a trace of several threads (the section's comment): (alternative,
+    control, required) over the horizon of check verdict chk, M the alternative matching."""
+    from .chains import physical_key
+    from .feasible import without
+    from .matching import build_graph
+    cut = chk.cut
+    of = _chain_ops(t)[0]
+    Md = without(M, chk.deprived)
+    pos = _topo_positions(t, build_graph(t, Md, cut, B, (), False, probe_alt, chk.issued))
+    far = 1 << 60
+
+    def alt_pos(kind, x):
+        n = (x.rank, x.idx, "c") if kind == "p" else x.issue_node()
+        return (pos.get(n, far), physical_key(t, x))
+
+    def ctl_pos(kind, x):
+        return physical_key(t, x)
+
+    # only the pairs the alternative orders otherwise than the run are gated, in its order in the
+    # replay and in the run's in the control; the rest are left free in both (section 4: "other pairs
+    # are left free"). A gate on a pair both orders agree on adds nothing to the alternative and
+    # fails where the program shares out its work among threads differently in each run: a pool
+    # whose threads take other requests posts other numbers of operations
+    ga, gc = order_gates(t, cut, alt_pos, keep), order_gates(t, cut, ctl_pos, keep)
+    alt_gates = [g for g in ga if g not in set(gc)]
+    ctl_gates = [g for g in gc if g not in set(ga)]
+    pinnable = _probe_pinnable(t)
+    required: Set[tuple] = set()
+
+    def specs(alternative: bool) -> List[str]:
+        rtok, ptok = [], []
+        for r in sorted(t.recvs.values(), key=lambda r: (r.proc, chain_label(t, r.rank), r.idx)):
+            if r.mrecv or not (r.idx < cut[r.rank] or r.key in keep) or (alternative and r.key in chk.deprived):
+                continue
+            sk = Md.get(r.key) if alternative else t.observed.get(r.key)
+            if sk is None:
+                continue
+            rtok.append(chain_pin_token(t, r, t.sends[sk]))
+            if alternative and r.completed and _cidx(r) < cut[r.rank]:
+                required.add(("crecv",) + of[("r", r.key)])
+        for q in sorted(t.probes.values(), key=lambda q: (q.proc, q.idx)):
+            if q.pidx is None or not q.flag or q.idx >= cut[q.rank] or q.proc not in pinnable or q.seen is None:
+                continue
+            m = t.sends[q.seen]
+            ptok.append(pin_token(t, q, m.proc, m.tag))
+            if alternative:
+                required.add(("probe", q.proc, q.pidx))
+        gates = alt_gates if alternative else ctl_gates
+        out = []
+        if rtok:
+            out.append("STRETTO_PIN_CHAIN=" + ",".join(rtok))
+        if ptok:
+            out.append("STRETTO_PIN_PROBE=" + ",".join(ptok))
+        if gates:
+            out.append("STRETTO_PIN_ORDER=" + ",".join(gates))
+        return out
+
+    return specs(True), specs(False), required
+
+
+def sync_divergence(t, pins) -> List[str]:
+    """The chain pins whose receive, in a replay's own trace t, has another happens-before on
+    the other chains of its process than in the traced run (the part of the token after '|'):
+    the replay synchronised its threads in another order, and a chain's ordinals may then name
+    another piece of work (a pool of threads that hands a request to another thread)."""
+    out = []
+    at = _chain_ops(t)[1]
+    for k in pin_tokens(pins):
+        if k.kind != "crecv" or not k.want or "|" not in k.want:
+            continue
+        want = k.want.split("|", 1)[1]
+        r = at.get((k.rank, k.chain, "r", k.idx))
+        if r is None:
+            continue
+        have = dict(p.split(":") for p in _hb_text(t, r).split(";") if p)
+        diff = [f"{c} {have.get(c, '0')} (trace {n})" for c, n in (p.split(":") for p in want.split(";") if p) if have.get(c, "0") != n]
+        if diff:
+            out.append(f"rank {k.rank} chain {k.chain} ridx={k.idx}: operations of other threads before it: " + ", ".join(diff))
+    return out
+
+
+def _swap_of(t, f: Finding):
+    """(M, changed) of a concurrent swap finding (report: "concurrent swap" in its details, or
+    the second receive's 1a "(concurrent swap with ...)"): f.recv takes f.send and the receive
+    that took f.send in the run takes f.recv's message; None for another finding."""
+    if not t.multi or f.recv is None or f.send is None:
+        return None
+    if not (any(d.startswith("concurrent swap") for d in f.detail) or "(concurrent swap with" in f.title):
+        return None
+    victim = next((rk for rk, sk in t.observed.items() if sk == f.send and rk != f.recv), None)
+    mine = t.observed.get(f.recv)
+    if victim is None or mine is None:
+        return None
+    M = dict(t.observed)
+    M[f.recv], M[victim] = f.send, mine
+    return M, {f.recv, victim}
 
 
 def horizon_pins(t, f: Finding, B=None, infeasible_ok: bool = False, M=None, changed=None) -> Optional[Tuple[List[str], List[str]]]:
@@ -484,12 +837,15 @@ def required_matches(t, f: Finding, B=None, infeasible_ok: bool = False, M=None,
 
 def changed_pin(t, f: Finding) -> Optional[Tuple[str, int, int]]:
     """The changed operation's pin as all_matched reports it: ("recv", rank, widx) or ("probe",
-    rank, pidx); None if it has no ordinal."""
+    rank, pidx), ("crecv", rank, chain, ridx) in a trace of several threads; None if it has no
+    ordinal."""
     if f.probe is not None:
         q = t.probes[f.probe]
         return None if q.pidx is None else ("probe", q.rank, q.pidx)
     if f.recv is not None:
         r = t.recvs[f.recv]
+        if t.multi:
+            return ("crecv",) + _chain_ops(t)[0][("r", r.key)]
         return None if r.widx is None else ("recv", r.rank, r.widx)
     return None
 
@@ -533,6 +889,8 @@ def _horizon(t, f: Finding, B=None, infeasible_ok: bool = False, M=None, changed
         chk = check(t, M, set(), B, "L1", **wait_kw(rec, None, r_j, s_j))
         change = ("event", f.event, None)
     elif f.recv is not None and f.send is not None and f.level in ("L1", "L1+SP"):
+        if M is None and _swap_of(t, f) is not None:
+            M, changed = _swap_of(t, f)          # a concurrent swap: both receives change
         if M is None:
             M = dict(t.observed)
             victim = next((rk for rk, sk in t.observed.items() if sk == f.send and rk != f.recv), None)
@@ -546,6 +904,9 @@ def _horizon(t, f: Finding, B=None, infeasible_ok: bool = False, M=None, changed
     if chk.cut is None or not (chk.feasible or infeasible_ok):
         return None
     cut = chk.cut
+    if t.multi:
+        # several threads: chain pins and order gates (the section above); receive alternatives only
+        return _chain_specs(t, M, chk, {change[1]}, B, None) if change[0] == "recv" else None
     required: Set[Tuple[str, int, int]] = set()
     # a flag flip changes a failed poll, which no probe pin names: its own pin (STRETTO_PIN_FLIP,
     # the message to return, or for a test its request's completion) forces it in the
@@ -571,7 +932,7 @@ def _horizon(t, f: Finding, B=None, infeasible_ok: bool = False, M=None, changed
             if sk is None:
                 continue
             m = t.sends[sk]
-            rtok.append(pin_token(t, r, m.rank, m.tag))
+            rtok.append(pin_token(t, r, m.proc, m.tag))
             if alternative and r.completed and _cidx(r) < cut[r.rank]:
                 required.add(("recv", r.rank, r.widx))
         for q in sorted(t.probes.values(), key=lambda q: (q.rank, q.idx)):
@@ -587,7 +948,7 @@ def _horizon(t, f: Finding, B=None, infeasible_ok: bool = False, M=None, changed
             if sk is None:
                 continue
             m = t.sends[sk]
-            ptok.append(pin_token(t, q, m.rank, m.tag))
+            ptok.append(pin_token(t, q, m.proc, m.tag))
             if alternative:
                 required.add(("probe", q.rank, q.pidx))
         out = []
@@ -611,7 +972,7 @@ def parse_pins(pins) -> Tuple[Dict[Tuple[int, int], Tuple[int, Optional[int]]], 
     recv: Dict[Tuple[int, int], Tuple[int, Optional[int]]] = {}
     probe: Dict[Tuple[int, int], Tuple[int, Optional[int]]] = {}
     for k in pin_tokens(pins):
-        if k.kind == "flip" or k.src < 0:
+        if k.kind in ("flip", "crecv") or k.src < 0:
             # a flip forces a poll's result without changing its envelope, and a probe pinned to
             # flag 0 leaves its ordinal to the next probe that finds a message, unpinned
             continue
@@ -806,6 +1167,10 @@ def unpinned_violation(t, finished: bool = True, hung: bool = False, pins=None, 
         if why is None and build_graph(t, t.observed, None, None).find_cycle():
             why = "constraint cycle over the run's own matches"
         return why
+    if t.multi:
+        # which message a pending receive of one of several threads may have taken needs the
+        # readings per process in issue order, which _rematch does not make
+        return "undetermined: a replay of several threads that left receives pending or hung is not judged"
     pinned = {r.key: rpins.get((r.rank, r.widx)) for r in pend if r.widx is not None}
     env = {r.key: _envelope(r, pinned.get(r.key)) for r in pend}
     queues, events = _queues(t)
@@ -856,10 +1221,21 @@ def trace_matches(t, pins) -> Set[Tuple[str, int, int]]:
     toks = {(k.kind, k.rank, k.idx): k for k in tokens}
     out: Set[Tuple[str, int, int]] = set()
     for r in t.recvs.values():
-        k = toks.get(("recv", r.rank, r.widx)) if r.widx is not None else None
+        k = toks.get(("recv", r.proc, r.widx)) if r.widx is not None else None
         if k and r.completed and r.msrc == k.src and (k.tag is None or r.mtag == k.tag) and _agrees(k.ident, identity(t, r)):
-            out.add(("recv", r.rank, r.widx))
+            out.add(("recv", r.proc, r.widx))
+    of, at, _ = _chain_ops(t) if any(k.kind == "crecv" for k in tokens) else ({}, {}, {})
     for k in tokens:
+        if k.kind == "crecv":
+            # the receive of the chain at the ordinal took the message the token names (the
+            # sender's process, chain and send ordinal), as the replay's issue order reconstructs it
+            r = at.get((k.rank, k.chain, "r", k.idx))
+            sk = t.observed.get(r.key) if r is not None and r.completed else None
+            got = of.get(("s", sk)) if sk is not None else None
+            if got is not None and k.want and ":".join(map(str, got)) == k.want.split("|", 1)[0] \
+                    and _agrees(k.ident, identity(t, r)):
+                out.add(k.key)
+            continue
         if k.kind != "probe":
             continue
         q = _op_of(t, k)
@@ -877,7 +1253,8 @@ def trace_misapplied(t, pins) -> List[str]:
             continue
         x = _op_of(t, k)
         if x is not None and not _agrees(k.ident, identity(t, x)):
-            out.append(f"rank {k.rank} {'pidx' if k.kind == 'probe' else 'widx'}={k.idx}: the replay's operation has "
+            what = {"probe": "pidx", "crecv": f"chain {k.chain} ridx"}.get(k.kind, "widx")
+            out.append(f"rank {k.rank} {what}={k.idx}: the replay's operation has "
                        f"id={_ident_text(identity(t, x))}, the pin's id={_ident_text(k.ident)}")
     return out
 
@@ -890,13 +1267,15 @@ MAX_JUDGED_TRACE_BYTES = 200 * 1024 * 1024
 
 
 def judge_replay(tracedir: str, result: str, pins=None, seen: Optional[set] = None,
-                 misapplied: Optional[list] = None, ended: Optional[set] = None) -> Tuple[str, str]:
+                 misapplied: Optional[list] = None, ended: Optional[set] = None,
+                 diverged: Optional[list] = None) -> Tuple[str, str]:
     """("True", "") if the trace a replay recorded in tracedir is a run of the program without
     its pins up to where the run ended (unpinned_violation; result is the replay's
     classify_rc), ("False", the violation), or ("unknown", why) when the trace cannot be read or
     its readings are too many. seen, if given, receives the pins the trace shows taken
     (trace_matches), misapplied the pins that fell on another operation (trace_misapplied),
-    ended the pinned receives still pending where their rank stopped (trace_ended). A trace of
+    ended the pinned receives still pending where their rank stopped (trace_ended), diverged
+    the chain pins whose synchronisation differs from the trace's (sync_divergence). A trace of
     more than MAX_JUDGED_TRACE_BYTES is not read: ("unknown", "trace not judged: ..."), and the
     replay's pins are then judged from its pin log alone (all_matched on its stderr)."""
     from . import trace as trace_mod
@@ -914,6 +1293,8 @@ def judge_replay(tracedir: str, result: str, pins=None, seen: Optional[set] = No
         misapplied += trace_misapplied(t, pins)
     if ended is not None:
         ended |= trace_ended(t, pins)
+    if diverged is not None:
+        diverged += sync_divergence(t, pins)
     why = unpinned_violation(t, finished=result == "FINISHED", hung=result == "TIMEOUT", pins=pins)
     if why is None:
         return "True", ""
@@ -958,24 +1339,38 @@ def expected_outcomes(f: Finding) -> set:
     return set()   # 1b, 1f, probe-alt, waitany-order: any outcome is consistent (info only)
 
 
-def _applied(stderr: str, pins) -> Set[Tuple[str, int, int]]:
+def _applied(stderr: str, pins) -> Set[tuple]:
     """("recv", rank, widx) of every receive pin the replay library reported applied, on an
-    operation of the pin's identity."""
+    operation of the pin's identity; ("crecv", rank, chain, ridx) of every such chain pin."""
     want = _expected(pins)
-    return {("recv", rank, idx) for what, rank, idx, ident in _lines(stderr)
-            if what == "applied" and _agrees(want.get(("recv", rank, idx)), ident)}
+    out = set()
+    for what, rank, idx, ident in _lines(stderr):
+        if what in ("applied", "capplied"):
+            key = _line_key(what, rank, idx)
+            if _agrees(want.get(key), ident):
+                out.add(key)
+    return out
 
 
-def trace_ended(t, pins) -> Set[Tuple[str, int, int]]:
+def trace_ended(t, pins) -> Set[tuple]:
     """("recv", rank, widx) of every pinned receive that, in the replay's own trace t, was still
     pending when its rank stopped without MPI_Finalize: posted with its pin (on an operation of
-    the pin's identity), never completed. A run that MPI ends with an error inside a receive
-    (MPI_ERR_TRUNCATE under MPI_ERRORS_ARE_FATAL) leaves its pinned receive so."""
-    toks = {(k.rank, k.idx): k for k in pin_tokens(pins) if k.kind == "recv"}
+    the pin's identity), never completed; ("crecv", rank, chain, ridx) of such a chain pin's
+    receive. A run that MPI ends with an error inside a receive (MPI_ERR_TRUNCATE under
+    MPI_ERRORS_ARE_FATAL) leaves its pinned receive so."""
+    tokens = pin_tokens(pins)
+    toks = {(k.rank, k.idx): k for k in tokens if k.kind == "recv"}
     stopped = set(t.truncated)
-    return {("recv", r.rank, r.widx) for r in t.recvs.values()
-            if r.widx is not None and (r.rank, r.widx) in toks and r.rank in stopped and not r.completed
-            and _agrees(toks[(r.rank, r.widx)].ident, identity(t, r))}
+    out = {("recv", r.proc, r.widx) for r in t.recvs.values()
+           if r.widx is not None and (r.proc, r.widx) in toks and r.proc in stopped and not r.completed
+           and _agrees(toks[(r.proc, r.widx)].ident, identity(t, r))}
+    if any(k.kind == "crecv" for k in tokens):
+        at = _chain_ops(t)[1]
+        for k in tokens:
+            r = at.get((k.rank, k.chain, "r", k.idx)) if k.kind == "crecv" else None
+            if r is not None and r.proc in stopped and not r.completed and _agrees(k.ident, identity(t, r)):
+                out.add(k.key)
+    return out
 
 
 def truncation_shown(changed: Optional[Tuple[str, int, int]], pins, stderr: str,
@@ -990,7 +1385,7 @@ def truncation_shown(changed: Optional[Tuple[str, int, int]], pins, stderr: str,
     matched later. changed, the changed receive of an L1 finding, is the one that truncates, and
     must not have matched: a match there took a message that fits, not the alternative's."""
     shown = ended if ended is not None else _applied(stderr, pins)
-    need = set(required) if required is not None else {(k.kind, k.rank, k.idx) for k in pin_tokens(pins)}
+    need = set(required) if required is not None else {k.key for k in pin_tokens(pins)}
     if changed is not None:
         if changed not in shown or changed in matched:
             return False
@@ -1091,15 +1486,20 @@ class Replay:
     misapplied: List[str] = field(default_factory=list)   # pins on another operation (misapplied_pins)
     ended: Optional[Set[Tuple[str, int, int]]] = None      # pinned receives pending where their rank stopped
                                                            # (trace_ended); None when no trace was recorded
+    diverged: List[str] = field(default_factory=list)      # chain pins whose synchronisation differs from the
+                                                           # trace's (sync_divergence)
 
 
 def misapplied_pins(r: subprocess.CompletedProcess, result: str, from_trace: List[str] = ()) -> List[str]:
     """Why the run's pins fell on other operations than the traced ones: the replay library's
     report lines, the replay's own trace (trace_misapplied), or, when the lines were lost, the
-    exit code the library ends such a run with."""
+    exit code the library ends such a run with; an order gate that timed out (the replay
+    diverged before the operation it waits for) is reported with them."""
     out = pins_misapplied(r.stderr if r is not None else "") + list(from_trace)
     if not out and result == f"APP-ERROR:{PIN_MISAPPLIED}":
         out.append(f"the run ended with the exit code of a misapplied pin ({PIN_MISAPPLIED})")
+    if not out and result == f"APP-ERROR:{GATE_TIMEOUT}":
+        out.append(f"the run ended with the exit code of an order gate that timed out ({GATE_TIMEOUT})")
     return out
 
 
@@ -1115,6 +1515,9 @@ def run_checked(np: int, exe: str, args: List[str], pin, timeout: int = 20, mpi:
     the replay's trace with KEEP_TRACES set (stretto.keep), whatever its verdict, with the same
     note and the run's stdout in replay.txt."""
     tracer = tracer_lib(mpi)
+    if any(a.startswith("STRETTO_PIN_ORDER=") for a in ([pin] if isinstance(pin, str) else (pin or []))):
+        # a gate gives up before the run's own timeout, so that a closed one is told from a hang
+        extra_env = {"STRETTO_GATE_TIMEOUT_MS": str(int(timeout * 800)), **(extra_env or {})}
     if not os.path.exists(tracer):
         r = run_pinned(np, exe, args, pin, timeout, mpi, mpirun_args, extra_env, cwd)
         res = classify_rc(r.returncode, r.stderr, r.elapsed, timeout)
@@ -1127,7 +1530,8 @@ def run_checked(np: int, exe: str, args: List[str], pin, timeout: int = 20, mpi:
         seen: Set[Tuple[str, int, int]] = set()
         mis: List[str] = []
         ended: Set[Tuple[str, int, int]] = set()
-        valid, why = judge_replay(d, res, pin, seen, mis, ended)
+        diverged: List[str] = []
+        valid, why = judge_replay(d, res, pin, seen, mis, ended, diverged)
 
         def note() -> str:
             return (f"exe: {exe} {' '.join(args)}\nnp: {np}\nresult: {res}\nvalid: {valid}\nwhy: {why}\npins:\n"
@@ -1144,7 +1548,7 @@ def run_checked(np: int, exe: str, args: List[str], pin, timeout: int = 20, mpi:
         if keep_as is not None and keep_mod.enabled():
             keep_mod.keep(d, keep_as[0], keep_as[1], notes={"replay.txt": note() + f"\n--- stdout\n{r.stdout}"})
         return Replay(r, res, valid, why, seen, misapplied_pins(r, res, mis),
-                      None if why.startswith(("trace unreadable", "trace not judged")) else ended)
+                      None if why.startswith(("trace unreadable", "trace not judged")) else ended, diverged)
     finally:
         shutil.rmtree(d, ignore_errors=True)
 
@@ -1231,6 +1635,12 @@ def confirm(rep: Report, np: int, exe: str, args: List[str] = (), timeout: int =
         # a pin on another operation than the traced one: the replay diverged before it, and its
         # outcome says nothing about the alternative, whichever it is
         mis = rp.misapplied + ctl.misapplied
+        # several threads: a replay or control that synchronised its threads otherwise than the
+        # trace (sync_divergence), or a control that did not take its pinned messages, follows
+        # another run than the one the pins name
+        mis += rp.diverged + ctl.diverged
+        if t is not None and t.multi and ctl.proc is not None and not all_matched(ctl_pins, ctl.proc.stderr, None, ctl.seen):
+            mis.append("the control did not take every pinned message")
         if not want:
             verdict = "n/a"
         elif mis:

@@ -665,5 +665,85 @@ class PinFile(unittest.TestCase):
         self.assertTrue(all_matched([pin], out, {("recv", 0, i) for i in range(0, n, 7)}))
 
 
+
+GOLDEN = os.path.join(os.path.dirname(os.path.abspath(__file__)), "golden")
+
+
+class ChainPins(unittest.TestCase):
+    """Several threads (docs/threads.md, section 11): a receive is pinned by its chain and its
+    ordinal there, carries the message it must take and its happens-before, and the alternative's
+    physical order is forced by order gates; the control gates the same pairs in the run's
+    order. The goldens of the thread idioms, as the tracer wrote them."""
+
+    def load(self, name):
+        d = os.path.join(GOLDEN, "openmpi", name)
+        if not os.path.isdir(d):
+            self.skipTest(f"no golden {d}")
+        t = T.load(d)
+        return t, analyze(t, with_sp=False)
+
+    def test_a_concurrent_swap_is_gated_against_the_runs_order(self):
+        t, rep = self.load("15_threads_two_receivers")
+        f = next(f for f in rep.findings if f.level == "L1" and any(d.startswith("concurrent swap") for d in f.detail))
+        alt, ctl = horizon_pins(t, f)
+        a = dict(x.split("=", 1) for x in alt)
+        c = dict(x.split("=", 1) for x in ctl)
+        self.assertEqual(sorted(a), ["STRETTO_PIN_CHAIN", "STRETTO_PIN_ORDER"])
+        self.assertNotIn("STRETTO_PIN", a)          # the process ordinals depend on the threads' interleaving
+        # the two receives' order is the other one in the alternative than in the control
+        ga, gc = a["STRETTO_PIN_ORDER"].split(","), c["STRETTO_PIN_ORDER"].split(",")
+        self.assertEqual(len(ga), 1)
+        x, y = ga[0].split(":", 1)[1].split("<")
+        self.assertEqual(gc, [f"0:{y}<{x}"])
+        toks = C.pin_tokens(alt)
+        self.assertEqual({k.kind for k in toks}, {"crecv"})
+        self.assertEqual({(k.rank, k.chain, k.idx) for k in toks}, {(0, "0.0", 0), (0, "0.1", 0)})
+        # each takes the other's message in the alternative, its own in the control
+        want = {k.chain: k.want.split("|")[0] for k in toks}
+        have = {k.chain: k.want.split("|")[0] for k in C.pin_tokens(ctl)}
+        self.assertEqual(want, {"0.0": have["0.1"], "0.1": have["0.0"]})
+        self.assertEqual(required_matches(t, f), {k.key for k in toks})
+        # the control is the run itself: its trace shows every pin taken, and no other order
+        self.assertEqual(trace_matches(t, ctl), {k.key for k in C.pin_tokens(ctl)})
+        self.assertEqual(trace_matches(t, alt), set())
+        self.assertEqual(C.sync_divergence(t, ctl), [])
+        self.assertEqual(changed_pin(t, f)[0], "crecv")
+
+    def test_the_sender_side_gates_two_sending_threads(self):
+        t, rep = self.load("20_threads_two_senders")
+        f = next(f for f in rep.findings if f.level == "L1" and f.recv is not None)
+        alt, ctl = horizon_pins(t, f)
+        a = dict(x.split("=", 1) for x in alt)
+        self.assertRegex(a["STRETTO_PIN_ORDER"], r"^0:0\.\d#s#0<0\.\d#s#0$")
+        k, = C.pin_tokens([x for x in alt if x.startswith("STRETTO_PIN_CHAIN=")])
+        self.assertEqual((k.rank, k.chain, k.idx), (1, "0", 0))      # rank 1 has one chain
+        self.assertEqual(k.src, 0)                                    # a receive from rank 0: nothing substituted
+
+    def test_a_probe_split_waits_for_the_probe(self):
+        t, rep = self.load("16_threads_probe_steal_truncate")
+        f = next(f for f in rep.findings if f.cls == "1a" and f.level == "L1")
+        alt, _ = horizon_pins(t, f)
+        gates = dict(x.split("=", 1) for x in alt)["STRETTO_PIN_ORDER"].split(",")
+        # the stealing thread's receive after the probe, the probing thread's receive after it
+        self.assertEqual(len(gates), 2)
+        self.assertTrue(any("#p#0<" in g and g.endswith("#r#0") for g in gates))
+
+    def test_report_lines_of_chain_pins(self):
+        pin = "STRETTO_PIN_CHAIN=0:0.1:0:1@0:0:1431=1:0:0|0.0:0;0:0"
+        applied = "[stretto-pin] rank 0 chain 0.1: applied ridx=0 src=1 (world 1) tag=0 id=0:0:1431\n"
+        self.assertTrue(pins_applied(pin, applied))
+        self.assertFalse(pins_applied(pin, applied.replace("1431", "1432")))
+        self.assertTrue(pins_applied("STRETTO_PIN_ORDER=0:0.0#r#0<0.1#r#0", ""))
+        # a matched line names the source, which two messages of one channel share: only the
+        # replay's trace says which one the receive took
+        matched = applied + "[stretto-pin] rank 0 chain 0.1: matched ridx=0 src=1 id=0:0:1431\n"
+        self.assertFalse(all_matched([pin], matched))
+        self.assertTrue(all_matched([pin], matched, None, {("crecv", 0, "0.1", 0)}))
+        self.assertEqual(C.pins_misapplied("[stretto-pin] rank 0 chain 0.1: gate timed out: r#0 waits for r#0 of chain 0.0, "
+                                           "which has posted 0\n"),
+                         ["[stretto-pin] rank 0 chain 0.1: gate timed out: r#0 waits for r#0 of chain 0.0, which has posted 0"])
+        self.assertEqual(parse_pins([pin]), ({}, {}))
+
+
 if __name__ == "__main__":
     unittest.main()

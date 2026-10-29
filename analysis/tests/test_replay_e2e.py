@@ -407,5 +407,53 @@ class CancelOutcome(unittest.TestCase):
             self.assertEqual(report.analyze(t, with_sp=False).status(), "complete")
 
 
+class Threads(unittest.TestCase):
+    """Several threads (docs/threads.md, section 11): the alternatives of the thread idioms are
+    forced by chain pins and order gates under the tracer, every required pin is taken as the
+    replay's own trace shows it, and the control, gated in the run's order, finishes without the
+    consequence. Two replays each: the threads' interleaving the gates leave free varies."""
+
+    def run_alt(self, n, pick, np=3):
+        from stretto import report, trace
+        exe, tdir = idiom(self, n)
+        t = trace.load(tdir)
+        rep = report.analyze(t, with_sp=False)
+        f = next(f for f in rep.findings if pick(f))
+        alt, ctl, required = C._horizon(t, f)
+        out = []
+        for _ in range(2):
+            ra = C.run_checked(np, exe, [], alt, 60)
+            rc = C.run_checked(np, exe, [], ctl, 60)
+            self.assertEqual(ra.misapplied + ra.diverged + rc.misapplied + rc.diverged, [])
+            self.assertEqual(rc.result, "FINISHED", rc.proc.stderr[-800:])
+            self.assertTrue(C.all_matched(ctl, rc.proc.stderr, None, rc.seen), rc.proc.stderr[-800:])
+            out.append((ra, rc, required, alt))
+        return out
+
+    def test_two_receivers_swap_their_headers(self):
+        for ra, rc, required, alt in self.run_alt(15, lambda f: f.level == "L1" and any(d.startswith("concurrent swap") for d in f.detail)):
+            self.assertEqual(ra.result, "FINISHED")
+            self.assertTrue(C.all_matched(alt, ra.proc.stderr, required, ra.seen), ra.proc.stderr[-800:])
+            self.assertIn("wrong header", ra.proc.stdout)
+            self.assertNotIn("wrong header", rc.proc.stdout)
+
+    def test_two_senders_arrive_in_the_other_order(self):
+        for ra, rc, required, alt in self.run_alt(20, lambda f: f.level == "L1" and f.recv is not None):
+            self.assertTrue(C.all_matched(alt, ra.proc.stderr, required, ra.seen), ra.proc.stderr[-800:])
+            self.assertIn("wrong order", ra.proc.stdout)
+            self.assertNotIn("wrong order", rc.proc.stdout)
+
+    def test_the_probe_split_truncates_and_hangs(self):
+        from stretto import report, trace
+        for n, cls in ((16, "1a"), (17, "1d")):
+            exe, tdir = idiom(self, n)
+            t = trace.load(tdir)
+            res = [c for c in C.confirm(report.analyze(t, with_sp=False), 3, exe, timeout=30, t=t) if c.finding.cls == cls]
+            self.assertTrue(res, n)
+            for c in res:
+                self.assertEqual(c.verdict, "confirmed", (n, c))
+                self.assertEqual(c.control, "FINISHED")
+
+
 if __name__ == "__main__":
     unittest.main()
