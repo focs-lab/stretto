@@ -1,0 +1,13 @@
+--- swift_t/lb/code/src/server.c	2026-10-26 05:09:19.547310568 +0000
++++ swift_t-fix/lb/code/src/server.c	2026-10-29 07:16:46.750729212 +0000
+@@ -374,6 +374,10 @@
+ {
+   int new_message;
+   IPROBE(source, MPI_ANY_TAG, &new_message, req_status);
++  // ADLB_TAG_SYNC_SUB belongs to a sync whose request is in a sync receive
++  // buffer: the sync handler receives it from its source, nothing else may
++  if (new_message && req_status->MPI_TAG == ADLB_TAG_SYNC_SUB)
++    return ADLB_NOTHING;
+   return new_message ? ADLB_SUCCESS : ADLB_NOTHING;
+ }
+ 

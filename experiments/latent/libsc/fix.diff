@@ -1,0 +1,55 @@
+--- libsc/src/sc_notify.c	2026-10-26 05:08:53.147311677 +0000
++++ libsc-fix/src/sc_notify.c	2026-10-29 07:14:57.764588511 +0000
+@@ -1474,6 +1474,7 @@
+                         sc_notify_t * notify)
+ {
+   int                 mpisize, mpirank;
++  int                 mpiret;
+   int                 depth, prod;
+   int                 num_receivers, num_senders;
+   int                 ntop, nint, nbot;
+@@ -1558,6 +1559,8 @@
+ 
+   /* the recursive algorithm works in-place */
+   sc_notify_recursive_nary (nary, 0, 0, prod, array);
++  mpiret = sc_MPI_Barrier (nary->mpicomm);
++  SC_CHECK_MPI (mpiret);
+ 
+   /* convert internal format to output variables */
+   if (array->elem_count > 0) {
+@@ -1997,6 +2000,8 @@
+       SC_CHECK_MPI (mpiret);
+     }
+   }
++  mpiret = MPI_Barrier (comm);
++  SC_CHECK_MPI (mpiret);
+   SC_FREE (sendreqs);
+ 
+   sc_notify_payload_cleanup (senders, recv_buf, in_payload, out_payload,
+@@ -2084,7 +2089,7 @@
+     MPI_Status          status;
+ 
+     mpiret =
+-      MPI_Iprobe (MPI_ANY_SOURCE, SC_TAG_NOTIFY_NBX, comm, &flag, &status);
++      MPI_Iprobe (MPI_ANY_SOURCE, SC_TAG_NOTIFY_NBXV, comm, &flag, &status);
+     SC_CHECK_MPI (mpiret);
+     if (flag) {
+       int                *r;
+@@ -2103,7 +2108,7 @@
+       *off = (int) recv_buf->elem_count;
+ 
+       mpiret =
+-        MPI_Recv (rc, msg_size * count, MPI_BYTE, j, SC_TAG_NOTIFY_NBX, comm,
++        MPI_Recv (rc, msg_size * count, MPI_BYTE, j, SC_TAG_NOTIFY_NBXV, comm,
+                   MPI_STATUS_IGNORE);
+       SC_CHECK_MPI (mpiret);
+     }
+@@ -2124,6 +2129,8 @@
+       SC_CHECK_MPI (mpiret);
+     }
+   }
++  mpiret = MPI_Barrier (comm);
++  SC_CHECK_MPI (mpiret);
+   SC_FREE (sendreqs);
+ 
+   if (!out_payload) {
