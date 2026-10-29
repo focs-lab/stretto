@@ -163,6 +163,113 @@ def matching_order_ok(t: Trace, M, kept_recv, ranks: Optional[Set[int]] = None,
     return None
 
 
+class OrderFilter:
+    """The matching-order obligations of the changed receives of a single-change alternative,
+    judged without its horizon (matching_order_ok judges every receive of the horizon). A
+    changed receive lies in the horizon whenever its witness does (feasible.check rejects the
+    alternative before matching order otherwise), and each obligation below only grows when
+    rule 6 deprives receives of their message: a send whose receive is deprived has none,
+    and a deprived competitor is a receive without a message posted before. So an alternative
+    that violates one is rejected by the generic check at every threshold (with this reason
+    or an earlier one), and the filter costs a few lookups per alternative instead of a
+    closure and a graph."""
+
+    def __init__(self, t: Trace):
+        self.t = t
+        self.sender_of: Dict[Key, Key] = {sk: rk for rk, sk in t.observed.items()}
+        self.order = {rk: i for i, rk in enumerate(t.observed)}     # the generic check's order of the pairs
+        # receives without a message in the run, per (chain, comm, source or ANY, tag or ANY), by index
+        self.unmatched: Dict[Tuple[int, int, int, int], List[Recv]] = {}
+        for r in sorted(t.recvs.values(), key=lambda r: r.idx):
+            if r.key not in t.observed and not r.cancelled and not r.mrecv:
+                self.unmatched.setdefault((r.rank, r.comm, r.src, r.tag), []).append(r)
+
+    def violation(self, alt) -> Optional[str]:
+        """The reason the generic check gives for the first changed receive, in the order in
+        which it judges them, that breaks an obligation; None if none does."""
+        t, M = self.t, alt.M
+        changed = dict(getattr(M, "changed", {}))
+        removed = set(getattr(M, "removed", ()))
+        receiver = {sk: rk for rk, sk in changed.items()}
+
+        def receiver_of(sk: Key) -> Optional[Key]:
+            if sk in receiver:
+                return receiver[sk]
+            rk = self.sender_of.get(sk)
+            return None if rk is None or rk in changed or rk in removed else rk
+
+        def first_unmatched_before(x, s: Send) -> bool:
+            for c in t.chains_of(x.proc):
+                for src in (s.proc, ANY):
+                    for tag in (s.tag, ANY):
+                        key = (c, x.comm, src, tag)
+                        u = next((u for u in self.unmatched.get(key, ()) if u.key not in changed), None)
+                        if u is not None and before(t, u, x):
+                            return True
+            for uk in removed:
+                u = t.recvs[uk]
+                if not u.cancelled and not u.mrecv and u.proc == x.proc and u.accepts(s) and u.comm == x.comm \
+                        and before(t, u, x):
+                    return True
+            return False
+
+        order = self.order
+        for rk in sorted(changed, key=lambda k: order.get(k, len(order))):
+            r, s = t.recvs[rk], t.sends[changed[rk]]
+            for s2 in t.earlier_sends(r, s):
+                r2k = receiver_of(s2.key)
+                if r2k is None or before(t, r, t.recvs[r2k]):
+                    return f"non-overtaking: {s2} would reach {r} before {s}"
+            if first_unmatched_before(r, s):
+                return f"receiver order: an earlier receive of rank {r.proc} accepts {s} and has no message in this matching"
+            for r2 in t.earlier_competitors(r, s):
+                if r2.key in removed or (r2.key not in changed and r2.key not in t.observed):
+                    continue
+                s2 = t.sends[M[r2.key]]
+                if same_channel(s2, s) and send_before(t, s, s2):
+                    return f"receiver order: earlier {r2} would take {s} before {s2}"
+        # the orientation edges (thread_edges): y, posted before r on r's chain in r's envelope
+        # class, takes a message of s's channel that a concurrent thread issued after s. The
+        # pair of r orders s before y's message (y is matched later), the pair of y orders y's
+        # message before s (r is posted later): a cycle of two issue nodes. Without y's
+        # message in the horizon, y is a receive left pending before r, and rule 6 or the
+        # receiver order removes r. Rejected at every threshold
+        for rk in sorted(changed, key=lambda k: order.get(k, len(order))):
+            r, s = t.recvs[rk], t.sends[changed[rk]]
+            if s.proc not in t.chains:
+                continue
+            y = _latest(t, (r.rank, r.comm, r.src, r.tag), r.idx - 1)
+            if y is None or not y.completed or y.key in removed or (y.key not in changed and y.key not in t.observed):
+                continue
+            sy = t.sends[M[y.key]]
+            if same_channel(sy, s) and sy.rank != s.rank and physical_key(t, s) < physical_key(t, sy) \
+                    and not send_before(t, s, sy) and not send_before(t, sy, s):
+                return f"constraint cycle: {y}, posted before {r} on its thread, takes {sy}, which a concurrent thread issued after {s}"
+        return None
+
+    def probe_violation(self, p, s: Send) -> Optional[str]:
+        """The same for a probe that reports s instead of what it saw, against the observed
+        matching (feasible.check with probe_alt): an earlier message of s's channel that no
+        receive before the probe takes, a receive before it that accepts s and has no message,
+        or s taken by a receive posted before it. Rule 6 only removes messages from receives,
+        so each holds whatever the horizon."""
+        t = self.t
+        for s2 in t.earlier_sends(p, s):
+            r2k = self.sender_of.get(s2.key)
+            if r2k is None or before(t, p, t.recvs[r2k]):
+                return f"probe order: {s2} would be reported by {p} before {s}"
+        for c in t.chains_of(p.proc):
+            for src in (s.proc, ANY):
+                for tag in (s.tag, ANY):
+                    u = next(iter(self.unmatched.get((c, p.comm, src, tag), ())), None)
+                    if u is not None and before(t, u, p):
+                        return f"receiver order: earlier {u} accepts {s} and has no message in this matching"
+        rk = self.sender_of.get(s.key)
+        if rk is not None and t.recvs[rk].proc == p.proc and before(t, t.recvs[rk], p) and not t.recvs[rk].mrecv:
+            return f"probe order: {t.recvs[rk]}, posted before {p}, takes {s}"
+        return None
+
+
 # ------------------------------------------------------------------- graph edges
 
 def _recvs_in_window(t: Trace, x, s: Send, chain: int) -> Iterable[Recv]:

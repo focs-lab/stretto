@@ -1175,7 +1175,16 @@ def _profiles_generic(t: Trace, alts, probes, waits, reads=None) -> _Profiles:
                    real=feasible_profile(t, t.observed, set(), mode="SP", full=False))
     bps = breakpoints(t) + [None]
     B0 = bps[observed_floor(bps, pr.real)]
+    # several chains: the matching-order and orientation obligations of the changed receives,
+    # which hold whatever the horizon, reject most alternatives of a thread pool without a
+    # closure or a graph (threads.OrderFilter); the generic check would reject them too
+    order = threads.OrderFilter(t) if t.multi else None
     for a in alts:
+        why = order.violation(a) if order is not None else None
+        if why:
+            pr.alt.append({B: False for B in bps})
+            pr.alt_reason.append(why)
+            continue
         full = not (a.kind == "steal" and t.recvs[a.recv].blocking)
         prof = feasible_profile(t, a.M, a.changed, mode="L1", full=full, floor=B0)
         if reads is not None and reads.extends(t, a.changed, a.M):
@@ -1184,6 +1193,11 @@ def _profiles_generic(t: Trace, alts, probes, waits, reads=None) -> _Profiles:
         pr.alt.append(prof)
         pr.alt_reason.append(check(t, a.M, a.changed, None, "L1").reason)
     for p, s in probes:
+        why = order.probe_violation(p, s) if order is not None else None
+        if why:
+            pr.probe.append({B: False for B in bps})
+            pr.probe_reason.append(why)
+            continue
         kw = probe_kw(p, s)
         pr.probe.append(feasible_profile(t, t.observed, set(), mode="L1", full=False, floor=B0, **kw))
         pr.probe_reason.append(check(t, t.observed, set(), None, "L1", **kw).reason)

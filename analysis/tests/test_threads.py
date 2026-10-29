@@ -285,8 +285,8 @@ def thread_traces():
 class C_Scale(unittest.TestCase):
     """What lets the L1 check finish on the 1 024-iteration mt_* traces (docs/threads.md,
     section 10) must not change a verdict: the orientation edges reduced up to reachability, by
-    a walk or by bisection, against the edges written out in full; the clocks of the observed
-    happens-before against the graph's search."""
+    a walk or by bisection, against the edges written out in full; the order filter against the
+    generic check; the clocks of the observed happens-before against the graph's search."""
 
     @classmethod
     def setUpClass(cls):
@@ -319,6 +319,23 @@ class C_Scale(unittest.TestCase):
                 self.assertEqual(full, fast, name)
         finally:
             TH.FULL_ORIENTATION, TH.FAST_WINDOWS = False, True
+
+    def test_order_filter_rejects_only_what_the_check_rejects(self):
+        from stretto.feasible import breakpoints
+        from stretto.report import probe_kw
+        n = 0
+        for name, t in self.traces:
+            f = TH.OrderFilter(t)
+            for a in candidates_full(t)[0]:
+                if f.violation(a):
+                    n += 1
+                    for B in breakpoints(t) + [None]:
+                        self.assertFalse(check(t, a.M, a.changed, B, "L1").feasible, (name, a.describe(t), B))
+            for p, s in probe_candidates(t):
+                if f.probe_violation(p, s):
+                    n += 1
+                    self.assertFalse(check(t, t.observed, set(), None, "L1", **probe_kw(p, s)).feasible, (name, str(p)))
+        self.assertGreater(n, 0)
 
     def test_observed_clocks(self):
         from stretto.matching import build_graph
