@@ -65,7 +65,9 @@ with the hunt notes, outside this repository.
 - A trace whose receives are cancelled at shutdown and never completed (ADLB) is reported
   degraded and predicts nothing; the hunt stripped the trailing cancel records. Fixed 29 Oct:
   the tracer records the cancel's outcome at a free and at `MPI_Finalize`, and a receive whose
-  cancel succeeded is modelled, posted until its cancel (docs/model.md, cancellation).
+  cancel succeeded is modelled, posted until its cancel (docs/model.md, cancellation). Swift/T
+  traces, unfiltered: 8 of 8 complete, 20 syncsub alternatives each, 8 of 8 replays abort the
+  server, their controls correct.
 - A flag flip cannot be pinned when one rank has two wildcard-probe sites with different tags
   under one call-site identity: the pin library counts the rank's wildcard probes together, the
   two tags interleave differently in the replay, and the pin lands on the other probe (VTK 9.7
@@ -101,9 +103,12 @@ server): read only.
 VTK 9.7 c5d8bc83 `vtkPLagrangianParticleTracker` (Filters/ParallelFlowPaths, :434-545): rank 0
 decides global termination from statuses it drains with `Iprobe(ANY_SOURCE, 622)`; a status
 still in flight after a particle hand-over could let it terminate while a particle is live. The
-shipped test `TestPLagrangianParticleTracker` (2 ranks) predicts the flip, but no replay could
-force it (the pin defect above). Unconfirmed; the test may be too small to lose a particle (a
-guess).
+shipped test `TestPLagrangianParticleTracker` (2 ranks) predicts the stale read (status-unflip,
+4 per trace). With the envelope pins of 29 Oct, 40 of 40 replays of it (10 traces) applied their
+pins and finished with the regression image exact (ImageError 0), and so did their controls:
+in this test the stale status is harmless. At 3 or 4 ranks the test's image differs from its
+baseline even without the tracer (ImageError 124 and 72), so no larger shipped setting has an
+oracle. Not confirmed; inconclusive beyond the 2-rank test.
 
 dolfinx a7b1840 `nbx_consensus_rounds` (MPI.cpp:182-290), two readings that disagree: an
 `Irecv(ANY_SOURCE)` listener still posted when the call ends, and cancelled after its Ibarrier,
