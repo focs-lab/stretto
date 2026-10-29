@@ -1706,6 +1706,8 @@ HIST_TOOL_CASES = (
      lambda r: r.get("value") == "Failed to read"),
     ("mfem332", "MfemGroup", "MFEM 3.3.2, `GroupTopology::Create` (truncation, abort or wrong groups)", ("mfem332", "mfem332-fix"), None,
      lambda r: r["result"] == "MPI-ERROR:MPI_ERR_TRUNCATE" or r.get("value") in ("integer set not found", "WRONG")),
+    ("dealii8929", "DealNbx", "deal.II 2c1b27fb, `ConsensusAlgorithm_NBX` (wrong answers)", ("dealii8929", "dealii8929-fix"), None,
+     lambda r: ((r.get("value") or "").isdigit() and int(r["value"]) > 0) or r.get("reached") == "wrong"),
     ("lammps", "Lammps", "LAMMPS 3a2da51a, `Irregular::create_atom` (deadlock without buffering)", ("lammps", "lammps-fix"), None,
      lambda r: r["result"] == "TIMEOUT"),
     ("superlu_dist", "Superlu", "SuperLU_DIST 9.3.1, the 3D solve (hang or wrong solution)", ("superlu",), "-fix",
@@ -1735,12 +1737,20 @@ HIST_MUST_NOTES = [
     "errors are of MPI_Gatherv (a null send type with a zero count, a collective mismatch on a one-process",
     "communicator) and a communicator leak, outside elph_prt; the tables of most runs show the race, whose two",
     "messages have the same type and size, which no check of MUST compares."]
+# the same for deal.II's NBX driver (read 29 Oct)
+HIST_MUST_NOTES += [
+    "On deal.II's NBX driver, 2c1b27fb and the fix alike, MUST reports no error, only two warnings on every rank in",
+    "ConsensusAlgorithm_NBX's clean_up_and_end_communication (an MPI_Wait on MPI_REQUEST_NULL, an MPI_Waitall of null",
+    "requests; the fix has another MPI_Wait on a null request, in MPI_InitFinalize's destructor). The run with a wrong",
+    "result is the race struck under MUST (rank 0 answered rank 5's request of call 2 from call 1), with the same",
+    "report as every other run: the request it took has the type and size of the one it expected."]
 
 
 def _must_completed(r) -> bool:
     """The program did its work under MUST (whether or not mustrun ended after it): the verdict
     printed (on every rank for Cabana's test, whose ranks' lines can run into each other: a run
-    that finished with its verdict counts too), the x error printed, or ph.x's table judged."""
+    that finished with its verdict counts too), the x error printed, ph.x's table judged, or the NBX
+    driver's count of wrong answers printed."""
     v = r.get("value") or ""
     if r["result"] == "FINISHED" and r.get("wrong_result") == "False":
         return True
@@ -1753,11 +1763,13 @@ def _must_completed(r) -> bool:
 
 def _must_wrong(r) -> bool:
     """A completed run whose result is wrong: pddrive3d's x error above 1e-4, ph.x's table not
-    the reference's."""
+    the reference's, a wrong answer that the NBX driver counted."""
     v = r.get("value") or ""
     if r["app"] == "superlu_dist":
         return v != "" and not _float(v) <= 1e-4
     if r["app"] == "qe":
+        return v.isdigit() and int(v) > 0
+    if r["app"] == "dealii8929":
         return v.isdigit() and int(v) > 0
     return False
 
@@ -1794,8 +1806,8 @@ def hist_tools():
     out += [f"### MUST 1.11.2 (rows by code commit: {commits(must)})", "",
             "*Race*: MUST reports a deadlock or a type mismatch, the two of its checks a racing receive can trip. *Completed*:",
             "the program did its work (its verdict printed, on every rank for Cabana's test; the x error printed; ph.x's",
-            "table judged), whether or not `mustrun` ended after it: in many runs it did not, until the harness's timeout",
-            "(*no end*), as in E5's MUST runs of HYPRE and NPB MG.", "",
+            "table judged; the NBX driver's count of wrong answers printed), whether or not `mustrun` ended after it: in",
+            "many runs it did not, until the harness's timeout (*no end*), as in E5's MUST runs of HYPRE and NPB MG.", "",
             "| configuration | version | ranks | runs | how they ended | race | completed | wrong result | no end | MUST's errors (runs) |",
             "|---|---|---|---|---|---|---|---|---|---|"]
     for cfg in dict.fromkeys(r["config"] for r in must):
@@ -1826,8 +1838,9 @@ def hist_tools():
     # NINJA, per program, process count and mode
     out += ["", "### NINJA", "", "*Shows the bug*: the run ends with the bug's own symptom (Cabana, LAMMPS: a hang; stempy: cereal's",
             "\"Failed to read\"; MFEM: MPI_ERR_TRUNCATE, \"integer set not found\" or a wrong area; SuperLU_DIST: a hang or",
-            "an x error above 1e-4; QE: an elph_prt table that differs from the reference). Run 0, application-centric",
-            "mode's learning run, is not counted. Rows by code commit: "
+            "an x error above 1e-4; deal.II's NBX: a wrong answer, printed by a rank or in rank 0's count; QE: an elph_prt",
+            "table that differs from the reference). Run 0, application-centric mode's learning run, is not counted. Rows",
+            "by code commit: "
             + commits([r for b, f in nin.values() for r in b + f]) + ".", "",
             "| program | ranks | noise | runs | shows the bug | finished | other ends | learning run |", "|---|---|---|---|---|---|---|---|"]
     for key, p, _, _, _, shows in HIST_TOOL_CASES:
@@ -1862,7 +1875,7 @@ def hist_tools():
             num(f"nNinja{p}BestRuns", best[2])
             num(f"Ninja{p}Best", best[3])
             HIST_TOOL_PROPS.append((f"nNinja{p}BestRevealed", f"nNinja{p}BestRuns", f"NINJA, {p}, its best setting ({best[3]}): runs that show the bug"))
-    for t, what in (("cabana-check", "Cabana"), ("mfem332-check", "MFEM")):
+    for t, what in (("cabana-check", "Cabana"), ("mfem332-check", "MFEM"), ("dealii8929-check", "deal.II's NBX driver")):
         ck = ninja_runs_rows(os.path.join(RES, "ninja", f"{t}.csv"))
         if ck:
             out += ["", f"{what} with NINJA's library loaded but no send delayed (random noise at a ratio of 1e-6%), against",
@@ -1872,6 +1885,18 @@ def hist_tools():
                 for np_ in sorted({int(r["np"]) for r in ck if r["label"] == label}):
                     g = [r for r in ck if r["label"] == label and int(r["np"]) == np_]
                     out.append(f"| {label} | {np_} | {_ninja_mode(g[0])} | {len(g)} | {_tally(g, 'result')} | {_tally(g, 'reached')} |")
+            if t == "dealii8929-check":
+                # the race strikes in untraced runs too, at a rate that depends on the machine: the
+                # plain runs here against those of E5g, which ran on apollo
+                shows = next(c[5] for c in HIST_TOOL_CASES if c[0] == "dealii8929")
+                pl = [r for r in ck if r["mode"] == "plain" and r["label"] == "nbx_calls-2c1b27fb"]
+                num("nNinjaDealNbxCheckPlainRuns", len(pl))
+                num("nNinjaDealNbxCheckPlainRevealed", sum(map(shows, pl)))
+                per = "; ".join(f"{sum(shows(r) for r in pl if int(r['np']) == n)} of {sum(int(r['np']) == n for r in pl)} at {n} ranks"
+                                for n in sorted({int(r["np"]) for r in pl}))
+                if pl and "nDealNbxStressPlainRuns" in NUM:
+                    out += ["", f"Plain runs of 2c1b27fb that printed wrong answers on this machine: {per}.",
+                            f"E5g's untraced runs ran on apollo, where {NUM['nDealNbxStressPlainFail']} of {NUM['nDealNbxStressPlainRuns']} plain runs did."]
     # MPI-PRV
     pr = [prv[k] for k, *_ in HIST_TOOL_CASES if k in prv]
     allp = [r for r in rows(os.path.join(RES, "mpiprv", "stretto-apps.csv")) if r["app"] in {c[0] for c in HIST_TOOL_CASES}]
@@ -1885,15 +1910,20 @@ def hist_tools():
                 num(f"Prv{p}", prv[key]["outcome"])
     # the summary, as the comparison's table reads it
     stretto = {"Cabana": ("nCabanaExposed", "nCabanaClean"), "Stempy": ("nStempyExposed", "nStempyClean"),
-               "MfemGroup": ("nMfemGroupExposed", "nMfemGroupClean"), "Lammps": ("nLammpsExposed", "nLammpsClean"),
-               "Superlu": ("nSluExposed", "nSluClean"), "Qe": ("nQeElphExposed", "nQeElphClean")}
+               "MfemGroup": ("nMfemGroupExposed", "nMfemGroupClean"), "DealNbx": ("nDealNbxExposed", "nDealNbxClean"),
+               "Lammps": ("nLammpsExposed", "nLammpsClean"), "Superlu": ("nSluExposed", "nSluClean"), "Qe": ("nQeElphExposed", "nQeElphClean")}
     delays = {"Cabana": "nCabanaStressDelay", "Stempy": "nStempyStressDelay", "MfemGroup": "nMfemGroupStressDelay",
-              "Lammps": "nLammpsStressDelay", "Superlu": "nSluStressDelay", "Qe": "nQeElphStressDelay"}
+              "DealNbx": "nDealNbxStressDelay", "Lammps": "nLammpsStressDelay", "Superlu": "nSluStressDelay", "Qe": "nQeElphStressDelay"}
     cell = lambda k, n: f"{NUM[k]} of {NUM[n]}" if k in NUM and n in NUM else "-"
     out += ["", "### Summary", "", "Stretto: clean traced runs that predict the bug (E5g, E5h). Random delays: untraced runs with the",
             "replay library's delays that fail (E5g, E5h). NINJA: runs that show the bug, every mode and process count, and its",
-            "best setting. MUST: runs whose report names the race.", "",
-            "| bug | Stretto | random delays | NINJA, all | NINJA, best | MUST | MPI-PRV |", "|---|---|---|---|---|---|---|"]
+            "best setting. MUST: runs whose report names the race."]
+    if "nNinjaDealNbxCheckPlainRuns" in NUM and "nDealNbxStressPlainRuns" in NUM:
+        out += [f"deal.II's Stretto and random-delay cells come from apollo, where {NUM['nDealNbxStressPlainFail']} of "
+                f"{NUM['nDealNbxStressPlainRuns']} plain runs printed wrong answers; on the",
+                f"machine of the other tools' runs {NUM['nNinjaDealNbxCheckPlainRevealed']} of {NUM['nNinjaDealNbxCheckPlainRuns']} "
+                "did (the check of NINJA above)."]
+    out += ["", "| bug | Stretto | random delays | NINJA, all | NINJA, best | MUST | MPI-PRV |", "|---|---|---|---|---|---|---|"]
     for key, p, title, *_ in HIST_TOOL_CASES:
         st = stretto.get(p, (None, None))
         out.append(f"| {title} | {cell(*st) if st[0] else '-'} | "
@@ -4205,7 +4235,7 @@ def main():
            "## E5g: five documented bugs from projects' histories (Cabana, stempy, MFEM 3.3.2, deal.II's NBX, LAMMPS)", "", history(),
            *[y for x in [new_bugs()] if x != "_no results_\n" for y in
              ("## E5h: two new bugs in current code (SuperLU_DIST 9.3.1 3D solve, Quantum ESPRESSO PHonon elph_prt)", "", x)],
-           "## E5i: the other tools on four bugs of E5g and the two of E5h (MUST, NINJA, MPI-PRV)", "", hist_tools(),
+           "## E5i: the other tools on the five bugs of E5g and the two of E5h (MUST, NINJA, MPI-PRV)", "", hist_tools(),
            "## E6: polynomial checker vs exhaustive explorer", "", e6(),
            "## E7: the value skeleton on MBI (level L2)", "", e7(),
            "## E8: the buffer guard (local concurrency, class 3-local)", "", guard() + must_tsan_local(),

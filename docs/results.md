@@ -1380,7 +1380,7 @@ Untraced runs, plain and with random send and receive delays of 0 to 20 ms per r
 | 615e40c-spintags | delays | 40 | 0 | 0 | 0 | - |
 
 
-## E5i: the other tools on four bugs of E5g and the two of E5h (MUST, NINJA, MPI-PRV)
+## E5i: the other tools on the five bugs of E5g and the two of E5h (MUST, NINJA, MPI-PRV)
 
 The tools the paper compares with, on the bugs of E5g and the two found since: MUST 1.11.2 (20 runs per
 configuration under `mustrun`, MUST's image, MPICH; `experiments/must/apps.sh` with `CASES=hist`), NINJA
@@ -1393,12 +1393,12 @@ Every run but NINJA's on SuperLU_DIST (on apollo, 12 processors) ran on one mach
 one NUMA node. NINJA's rates depend on the machine: on apollo its runs of stempy showed the bug in 24
 of 240 runs, and its application-centric mode did not crash there.
 
-### MUST 1.11.2 (rows by code commit: a5dce1f (240), b0dbe2a (20))
+### MUST 1.11.2 (rows by code commit: a5dce1f (240), aba43a7 (80), b0dbe2a (20))
 
 *Race*: MUST reports a deadlock or a type mismatch, the two of its checks a racing receive can trip. *Completed*:
 the program did its work (its verdict printed, on every rank for Cabana's test; the x error printed; ph.x's
-table judged), whether or not `mustrun` ended after it: in many runs it did not, until the harness's timeout
-(*no end*), as in E5's MUST runs of HYPRE and NPB MG.
+table judged; the NBX driver's count of wrong answers printed), whether or not `mustrun` ended after it: in
+many runs it did not, until the harness's timeout (*no end*), as in E5's MUST runs of HYPRE and NPB MG.
 
 | configuration | version | ranks | runs | how they ended | race | completed | wrong result | no end | MUST's errors (runs) |
 |---|---|---|---|---|---|---|---|---|---|
@@ -1415,6 +1415,10 @@ table judged), whether or not `mustrun` ended after it: in many runs it did not,
 | superlu-blk12x6-3 | 9.3.1 | 3 | 20 | FINISHED 18, TIMEOUT 2 | 0 | 20 | 0 | 2 | MUST_ERROR_OVERLAPPED_RECV(MPI_Irecv) 20 |
 | superlu-blk8x10-6 | 9.3.1 | 6 | 20 | CRASHED 17, TIMEOUT 2, FINISHED 1 | 4 | 8 | 0 | 0 | MUST_ERROR_DEADLOCK() 4 |
 | qe-3 | 615e40cf | 3 | 20 | TIMEOUT 20 | 0 | 20 | 16 | 20 | MUST_ERROR_COLLECTIVE_CALL_MISMATCH(MPI_Gatherv) 20, MUST_ERROR_DATATYPE_NULL(MPI_Gatherv) 20, MUST_ERROR_LEAK_COMM(MPI_Comm_split) 20 |
+| dealii8929-4 | 2c1b27fb | 4 | 20 | TIMEOUT 11, FINISHED 9 | 0 | 20 | 0 | 11 | - |
+| dealii8929-8 | 2c1b27fb | 8 | 20 | TIMEOUT 20 | 0 | 20 | 1 | 20 | - |
+| dealii8929-fix-4 | f9ea3396 | 4 | 20 | TIMEOUT 13, FINISHED 7 | 0 | 20 | 0 | 13 | - |
+| dealii8929-fix-8 | f9ea3396 | 8 | 20 | TIMEOUT 19, FINISHED 1 | 0 | 20 | 0 | 19 | - |
 
 What the reports say: on stempy, every type mismatch is gatherEvents' map receive (MPI_BYTE, in
 receivePartialMap) taking another worker's 8-byte size (MPI_UINT64_T, sendPartialMap): the race itself, struck in
@@ -1430,13 +1434,19 @@ Cabana, MUST reports nothing, and the runs that do not end have every rank past 
 errors are of MPI_Gatherv (a null send type with a zero count, a collective mismatch on a one-process
 communicator) and a communicator leak, outside elph_prt; the tables of most runs show the race, whose two
 messages have the same type and size, which no check of MUST compares.
+On deal.II's NBX driver, 2c1b27fb and the fix alike, MUST reports no error, only two warnings on every rank in
+ConsensusAlgorithm_NBX's clean_up_and_end_communication (an MPI_Wait on MPI_REQUEST_NULL, an MPI_Waitall of null
+requests; the fix has another MPI_Wait on a null request, in MPI_InitFinalize's destructor). The run with a wrong
+result is the race struck under MUST (rank 0 answered rank 5's request of call 2 from call 1), with the same
+report as every other run: the request it took has the type and size of the one it expected.
 
 ### NINJA
 
 *Shows the bug*: the run ends with the bug's own symptom (Cabana, LAMMPS: a hang; stempy: cereal's
 "Failed to read"; MFEM: MPI_ERR_TRUNCATE, "integer set not found" or a wrong area; SuperLU_DIST: a hang or
-an x error above 1e-4; QE: an elph_prt table that differs from the reference). Run 0, application-centric
-mode's learning run, is not counted. Rows by code commit: b0dbe2a (1694), a5dce1f (486), 425e54b (484).
+an x error above 1e-4; deal.II's NBX: a wrong answer, printed by a rank or in rank 0's count; QE: an elph_prt
+table that differs from the reference). Run 0, application-centric mode's learning run, is not counted. Rows
+by code commit: b0dbe2a (1694), a5dce1f (486), 425e54b (484), aba43a7 (484).
 
 | program | ranks | noise | runs | shows the bug | finished | other ends | learning run |
 |---|---|---|---|---|---|---|---|
@@ -1476,6 +1486,18 @@ mode's learning run, is not counted. Rows by code commit: b0dbe2a (1694), a5dce1
 | twomesh-3.4 | 8 | random, 10% of sends by 0.05 s | 40 | 0 | 0 | SIGNAL:6 34, SIGNAL:11 6 | - |
 | twomesh-3.4 | 8 | system-centric | 40 | 0 | 0 | SIGNAL:6 39, SIGNAL:11 1 | - |
 | twomesh-3.4 | 8 | application-centric | 40 | 0 | 0 | SIGNAL:11 40 | SIGNAL:6, SIGNAL:6, SIGNAL:6 |
+| nbx_calls-2c1b27fb | 4 | random, 10% of sends by 0.05 s | 40 | 0 | 40 | - | - |
+| nbx_calls-2c1b27fb | 4 | system-centric | 40 | 0 | 40 | - | - |
+| nbx_calls-2c1b27fb | 4 | application-centric | 40 | 0 | 40 | - | FINISHED |
+| nbx_calls-2c1b27fb | 8 | random, 10% of sends by 0.05 s | 40 | 11 | 40 | - | - |
+| nbx_calls-2c1b27fb | 8 | system-centric | 40 | 12 | 40 | - | - |
+| nbx_calls-2c1b27fb | 8 | application-centric | 40 | 13 | 40 | - | FINISHED |
+| nbx_calls-f9ea3396 | 4 | random, 10% of sends by 0.05 s | 40 | 0 | 40 | - | - |
+| nbx_calls-f9ea3396 | 4 | system-centric | 40 | 0 | 40 | - | - |
+| nbx_calls-f9ea3396 | 4 | application-centric | 40 | 0 | 40 | - | FINISHED |
+| nbx_calls-f9ea3396 | 8 | random, 10% of sends by 0.05 s | 40 | 0 | 40 | - | - |
+| nbx_calls-f9ea3396 | 8 | system-centric | 40 | 0 | 40 | - | - |
+| nbx_calls-f9ea3396 | 8 | application-centric | 40 | 0 | 40 | - | FINISHED |
 | in.displace-3a2da51a | 4 | random, 10% of sends by 0.05 s | 40 | 0 | 40 | - | - |
 | in.displace-3a2da51a | 4 | system-centric | 40 | 0 | 40 | - | - |
 | in.displace-3a2da51a | 4 | application-centric | 40 | 0 | 40 | - | FINISHED |
@@ -1539,7 +1561,24 @@ plain runs (`mfem332-check.csv`; rows by code commit: 425e54b (60)):
 | twomesh-3.4 libninja-fixed-any | 4 | random | 5 | SIGNAL:6 5 | mesh1 5 |
 | twomesh-3.4 libninja-fixed-any | 8 | random | 5 | SIGNAL:6 5 | - 5 |
 
-### MPI-PRV (rows by code commit: b0dbe2a (7))
+deal.II's NBX driver with NINJA's library loaded but no send delayed (random noise at a ratio of 1e-6%), against
+plain runs (`dealii8929-check.csv`; rows by code commit: aba43a7 (320)):
+
+| program | ranks | noise | runs | how they ended | marks reached |
+|---|---|---|---|---|---|
+| nbx_calls-2c1b27fb | 4 | none (plain runs) | 40 | FINISHED 40 | ok 39, wrong 1 |
+| nbx_calls-2c1b27fb | 8 | none (plain runs) | 40 | FINISHED 40 | ok 32, wrong 8 |
+| nbx_calls-2c1b27fb libninja-fixed | 4 | random | 40 | FINISHED 40 | ok 40 |
+| nbx_calls-2c1b27fb libninja-fixed | 8 | random | 40 | FINISHED 40 | ok 34, wrong 6 |
+| nbx_calls-f9ea3396 | 4 | none (plain runs) | 40 | FINISHED 40 | ok 40 |
+| nbx_calls-f9ea3396 | 8 | none (plain runs) | 40 | FINISHED 40 | ok 40 |
+| nbx_calls-f9ea3396 libninja-fixed | 4 | random | 40 | FINISHED 40 | ok 40 |
+| nbx_calls-f9ea3396 libninja-fixed | 8 | random | 40 | FINISHED 40 | ok 40 |
+
+Plain runs of 2c1b27fb that printed wrong answers on this machine: 1 of 40 at 4 ranks; 8 of 40 at 8 ranks.
+E5g's untraced runs ran on apollo, where 1 of 80 plain runs did.
+
+### MPI-PRV (rows by code commit: b0dbe2a (7), aba43a7 (1))
 
 | application | version | configurations | step | result | outcome | reason |
 |---|---|---|---|---|---|---|
@@ -1550,18 +1589,22 @@ plain runs (`mfem332-check.csv`; rows by code commit: 425e54b (60)):
 | lammps | 3a2da51a | in.displace, 4 ranks | LAMMPS built with the instrumented irregular.cpp, run once, analysed | run status 0; 52 events in the trace; patterns of arm a: P1 none P6 none P7 none P9 none | out-of-scope | instrumented and run; the bug is a buffering hazard (a send-send cycle that needs unbuffered standard sends), which none of MPI-PRV's properties names, and its analysis keeps every message match fixed |
 | superlu_dist | 9.3.1 | pddrive3d, blk12x6 on 3 and blk8x10 on 6 ranks | wacc on pdgstrs3d.c | status 255; 4 monitor calls woven; first error: clang-15: error: clang frontend command failed with exit code 139 (use -v to see invocation) | unsupported | the instrumenter fails on the unit that holds the 3D solve's wildcard receive loops; the trace would hold no event of the racing calls |
 | qe | 615e40cf | ph.x, Ni at X, 3 ranks in 3 pools | - | - | unsupported | elph_prt (PHonon/PH/elphon.f90) is Fortran; MPI-PRV's instrumenter (wac, wacc, wacxx) weaves C and C++ sources only |
+| dealii8929 | 2c1b27fb | nbx_calls 3, 4 and 8 ranks | wacxx on mpi.cc | status 255; 25 monitor calls woven; first error: mpi.cc:89:57: error: reference to local variable 'rank' declared in enclosing function 'dealii::Utilities::MPI::this_mpi_process' | unsupported | the instrumenter fails on the unit that holds ConsensusAlgorithm_NBX::run's request Isends, wildcard Iprobe and Recv; the trace would hold no event of the racing calls |
 
 ### Summary
 
 Stretto: clean traced runs that predict the bug (E5g, E5h). Random delays: untraced runs with the
 replay library's delays that fail (E5g, E5h). NINJA: runs that show the bug, every mode and process count, and its
 best setting. MUST: runs whose report names the race.
+deal.II's Stretto and random-delay cells come from apollo, where 1 of 80 plain runs printed wrong answers; on the
+machine of the other tools' runs 9 of 80 did (the check of NINJA above).
 
 | bug | Stretto | random delays | NINJA, all | NINJA, best | MUST | MPI-PRV |
 |---|---|---|---|---|---|---|
 | Cabana fbbcc37f, `CommunicationPlan` (hang) | 15 of 15 | 67 of 160 | 28 of 240 | 16 of 40 (random, 10% of sends by 0.05 s, 4 ranks) | 0 of 40 | unsupported |
 | stempy 3.3.5, `gatherEvents` (cereal exception) | 30 of 30 | 43 of 80 | 88 of 240 | 40 of 40 (application-centric, 8 ranks) | 40 of 40 | unsupported |
 | MFEM 3.3.2, `GroupTopology::Create` (truncation, abort or wrong groups) | 21 of 24 | 48 of 80 | 82 of 240 | 32 of 40 (random, 10% of sends by 0.05 s, 8 ranks) | 0 of 40 | unsupported |
+| deal.II 2c1b27fb, `ConsensusAlgorithm_NBX` (wrong answers) | 20 of 20 | 1 of 80 | 36 of 240 | 13 of 40 (application-centric, 8 ranks) | 0 of 40 | unsupported |
 | LAMMPS 3a2da51a, `Irregular::create_atom` (deadlock without buffering) | 40 of 40 | 0 of 80 | 0 of 240 | 0 of 40 (random, 10% of sends by 0.05 s, 4 ranks) | 37 of 40 | out-of-scope |
 | SuperLU_DIST 9.3.1, the 3D solve (hang or wrong solution) | 78 of 78 | 221 of 320 | 15 of 240 | 15 of 40 (random, 10% of sends by 0.05 s, 3 ranks) | 4 of 40 | unsupported |
 | Quantum ESPRESSO 615e40cf, `elph_prt` (the spins' values exchanged) | 6 of 6 | 26 of 40 | 86 of 120 | 37 of 40 (system-centric, 3 ranks) | 0 of 20 | unsupported |
@@ -2358,6 +2401,8 @@ MUST and NINJA on the bugs of projects' histories and the new ones (E5i):
 | MUST 1.11.2, Stempy: runs whose report names the race | 40 of 40 | [0.912, 1] | `nMustStempyRaceCI` |
 | MUST 1.11.2, MfemGroup: runs whose report names the race | 0 of 40 | [0, 0.088] | `nMustMfemGroupRaceCI` |
 | MUST 1.11.2, MfemGroup, the fix: runs whose report names the race | 0 of 20 | [0, 0.16] | `nMustMfemGroupFixRaceCI` |
+| MUST 1.11.2, DealNbx: runs whose report names the race | 0 of 40 | [0, 0.088] | `nMustDealNbxRaceCI` |
+| MUST 1.11.2, DealNbx, the fix: runs whose report names the race | 0 of 40 | [0, 0.088] | `nMustDealNbxFixRaceCI` |
 | MUST 1.11.2, Lammps: runs whose report names the race | 37 of 40 | [0.80, 0.974] | `nMustLammpsRaceCI` |
 | MUST 1.11.2, Superlu: runs whose report names the race | 4 of 40 | [0.040, 0.23] | `nMustSuperluRaceCI` |
 | MUST 1.11.2, Qe: runs whose report names the race | 0 of 20 | [0, 0.16] | `nMustQeRaceCI` |
@@ -2370,6 +2415,9 @@ MUST and NINJA on the bugs of projects' histories and the new ones (E5i):
 | NINJA, MfemGroup, every noise and process count: runs that show the bug | 82 of 240 | [0.28, 0.40] | `nNinjaMfemGroupRevealedCI` |
 | NINJA, MfemGroup, the fix, every noise and process count: runs that show the bug | 0 of 240 | [0, 0.016] | `nNinjaMfemGroupFixRevealedCI` |
 | NINJA, MfemGroup, its best setting (random, 10% of sends by 0.05 s, 8 ranks): runs that show the bug | 32 of 40 | [0.65, 0.90] | `nNinjaMfemGroupBestRevealedCI` |
+| NINJA, DealNbx, every noise and process count: runs that show the bug | 36 of 240 | [0.11, 0.20] | `nNinjaDealNbxRevealedCI` |
+| NINJA, DealNbx, the fix, every noise and process count: runs that show the bug | 0 of 240 | [0, 0.016] | `nNinjaDealNbxFixRevealedCI` |
+| NINJA, DealNbx, its best setting (application-centric, 8 ranks): runs that show the bug | 13 of 40 | [0.20, 0.48] | `nNinjaDealNbxBestRevealedCI` |
 | NINJA, Lammps, every noise and process count: runs that show the bug | 0 of 240 | [0, 0.016] | `nNinjaLammpsRevealedCI` |
 | NINJA, Lammps, the fix, every noise and process count: runs that show the bug | 0 of 240 | [0, 0.016] | `nNinjaLammpsFixRevealedCI` |
 | NINJA, Lammps, its best setting (random, 10% of sends by 0.05 s, 4 ranks): runs that show the bug | 0 of 40 | [0, 0.088] | `nNinjaLammpsBestRevealedCI` |
