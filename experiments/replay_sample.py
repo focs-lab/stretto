@@ -26,8 +26,13 @@ With KEEP_TRACES set, each replay's and control's trace is kept (stretto.keep) u
 table's campaign (amg/replay_sample, valid/nekbone, scale/samples/amg-64) or --keep-campaign,
 as <k>-<class>-<pin>-replay and -control, k the row of the sample.
 
+--threads replays a program of several threads (stretto.confirm, chain pins and order gates):
+OMP_NUM_THREADS is left alone, and the rows gain the columns of THREAD_KEYS. --repeat replays each
+alternative and its control K times, since the interleaving the gates leave free varies.
+
 usage: replay_sample.py --out CSV [--sample N] [--seed K] [--timeout S] [--mpi openmpi|mpich]
-                        [--from-csv CSV] [--flips] <trace dir> <np> <exe> [args ...]
+                        [--from-csv CSV] [--flips] [--threads] [--repeat K] [--only REGEX] [--grep REGEX]
+                        [--fresh-cwd DIR] <trace dir> <np> <exe> [args ...]
 The options come first: everything after <exe> is the program's own command line, which may
 start with a dash, and the replays run it from the current directory, as the traced run was.
 """
@@ -38,6 +43,7 @@ import gc
 import os
 import random
 import re
+import shutil
 import sys
 from typing import Optional
 
@@ -51,6 +57,9 @@ from provenance import code_commit  # noqa: E402
 
 KEYS = ["finding", "cls", "pin", "site", "pins", "replay", "matched", "run_valid", "violation", "control", "control_matched",
         "control_valid", "control_violation", "commit"]
+# --threads: the repetitions, the pins and gates that did not apply, the synchronisation of the
+# replay against the trace's (stretto.confirm.sync_divergence) and the lines --grep matches
+THREAD_KEYS = ["repeat", "misapplied", "diverged", "control_misapplied", "control_diverged", "hits", "control_hits"]
 
 _PROBE = re.compile(r"^(?:i?m?probe)\((\d+), (\d+)\) .*? could observe send\((\d+), (\d+)\)")
 _RECV = re.compile(r"^recv\((\d+), (\d+)\) .*? <- send\((\d+), (\d+)\)")
@@ -102,6 +111,16 @@ def main() -> int:
     ap.add_argument("--from-csv", help="replay the alternatives of this earlier sample (its finding column) instead")
     ap.add_argument("--flips", action="store_true",
                     help="sample the flips without a message too (probe-unflip, test-flip; a probe-flip is sampled anyway)")
+    ap.add_argument("--threads", action="store_true",
+                    help="a program of several threads: leave OMP_NUM_THREADS alone, and add the columns of the chain pins "
+                         "(sync divergence, the output pattern)")
+    ap.add_argument("--repeat", type=int, default=1, help="replay each alternative and its control this many times")
+    ap.add_argument("--only", default=None, help="sample only the alternatives whose title matches this regular expression")
+    ap.add_argument("--grep", default=None,
+                    help="count the lines of each run's output (stdout and stderr) that match this regular expression")
+    ap.add_argument("--fresh-cwd", default=None,
+                    help="run every replay and control in this directory, emptied before each run (a program whose "
+                         "output files change its next run, as HDF5's do)")
     ap.add_argument("--out", required=True)
     ap.add_argument("--keep-campaign", default=None,
                     help="with KEEP_TRACES set, keep the replays' traces under this campaign (stretto.keep; default: the table's)")
@@ -121,6 +140,8 @@ def main() -> int:
         pool = [f for f in rep.findings if f.level == "L1" and f.send is not None and (f.probe is not None or f.recv is not None)]
         if args.flips:
             pool += [f for f in rep.findings if f.level == "L1" and f.cls in ("probe-unflip", "test-flip")]
+        if args.only:
+            pool = [f for f in pool if re.search(args.only, f.title)]
         rng = random.Random(args.seed)
         sample = rng.sample(pool, min(args.sample, len(pool)))
         pool = len(pool)
@@ -130,36 +151,57 @@ def main() -> int:
     del t
     gc.collect()
     rows = []
-    env = {"OMP_NUM_THREADS": "1"}           # one thread per rank, as in the traced run
+    # one thread per rank, as in the traced run; a program of several threads keeps its own setting
+    env = {} if args.threads else {"OMP_NUM_THREADS": "1"}
+    pattern = re.compile(args.grep) if args.grep else None
+
+    def hits(r) -> int:
+        return sum(1 for ln in (r.proc.stdout + r.proc.stderr).splitlines() if pattern.search(ln)) if pattern else 0
+
+    def fresh():
+        """The directory of the next run, emptied, or None: the current one."""
+        if not args.fresh_cwd:
+            return None
+        shutil.rmtree(args.fresh_cwd, ignore_errors=True)
+        os.makedirs(args.fresh_cwd)
+        return args.fresh_cwd
+
     for k, (f, hp, required) in enumerate(planned, 1):
         row = {"finding": f.title[:160], "cls": f.cls, "pin": f.pin, "site": f.site, "commit": code_commit()}
         if hp is None:
             rows.append({**row, "replay": "no horizon"})
             continue
         alt, ctl = hp
-        name = f"{k:02d}-{f.cls}-{pin_name(f.pin)}"
-        ra = run_checked(args.np, args.exe, args.args, alt, args.timeout, mpi=args.mpi, extra_env=env,
-                         keep_as=(campaign, name + "-replay"))
-        rc = run_checked(args.np, args.exe, args.args, ctl, args.timeout, mpi=args.mpi, extra_env=env,
-                         keep_as=(campaign, name + "-control"))
-        rows.append({**row, "pins": sum(x.count(",") + 1 for x in alt),
-                     "replay": ra.result, "matched": all_matched(alt, ra.proc.stderr, required, ra.seen),
-                     "run_valid": ra.valid, "violation": ra.why[:300],
-                     "control": rc.result, "control_matched": all_matched(ctl, rc.proc.stderr, None, rc.seen),
-                     "control_valid": rc.valid, "control_violation": rc.why[:300]})
-        print(f"[{k}/{len(planned)}] {rows[-1]['replay']} matched={rows[-1]['matched']} valid={ra.valid} control={rows[-1]['control']} "
-              f"valid={rc.valid} {f.title[:90]}" + (f"\n    {ra.why[:200]}" if ra.why else "") + (f"\n    control: {rc.why[:200]}" if rc.why else ""),
-              flush=True)
-        write(args.out, rows)       # a long sample keeps what it has
-    write(args.out, rows)
+        for rep_k in range(1, args.repeat + 1):
+            name = f"{k:02d}-{f.cls}-{pin_name(f.pin)}" + (f"-{rep_k}" if args.repeat > 1 else "")
+            ra = run_checked(args.np, args.exe, args.args, alt, args.timeout, mpi=args.mpi, extra_env=env, cwd=fresh(),
+                             keep_as=(campaign, name + "-replay"))
+            rc = run_checked(args.np, args.exe, args.args, ctl, args.timeout, mpi=args.mpi, extra_env=env, cwd=fresh(),
+                             keep_as=(campaign, name + "-control"))
+            rows.append({**row, "pins": sum(x.count(",") + 1 for x in alt),
+                         "replay": ra.result, "matched": all_matched(alt, ra.proc.stderr, required, ra.seen),
+                         "run_valid": ra.valid, "violation": ra.why[:300],
+                         "control": rc.result, "control_matched": all_matched(ctl, rc.proc.stderr, None, rc.seen),
+                         "control_valid": rc.valid, "control_violation": rc.why[:300],
+                         "repeat": rep_k, "misapplied": "; ".join(ra.misapplied)[:300],
+                         "diverged": "; ".join(ra.diverged)[:300], "control_misapplied": "; ".join(rc.misapplied)[:300],
+                         "control_diverged": "; ".join(rc.diverged)[:300], "hits": hits(ra), "control_hits": hits(rc)})
+            r = rows[-1]
+            print(f"[{k}/{len(planned)}{f'.{rep_k}' if args.repeat > 1 else ''}] {r['replay']} matched={r['matched']} valid={ra.valid} "
+                  f"control={r['control']} valid={rc.valid} {f.title[:90]}"
+                  + (f" hits={r['hits']}/{r['control_hits']} diverged={bool(ra.diverged)}/{bool(rc.diverged)}" if args.threads else "")
+                  + (f"\n    {ra.why[:200]}" if ra.why else "") + (f"\n    control: {rc.why[:200]}" if rc.why else ""),
+                  flush=True)
+            write(args.out, rows, args.threads)       # a long sample keeps what it has
+    write(args.out, rows, args.threads)
     print(f"alternatives {pool}, sampled {len(planned)}; wrote {args.out}")
     return 0
 
 
-def write(path: str, rows: list) -> None:
+def write(path: str, rows: list, threads: bool = False) -> None:
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     with open(path, "w", newline="") as fh:
-        w = csv.DictWriter(fh, fieldnames=KEYS, extrasaction="ignore", lineterminator="\n")
+        w = csv.DictWriter(fh, fieldnames=KEYS + (THREAD_KEYS if threads else []), extrasaction="ignore", lineterminator="\n")
         w.writeheader()
         w.writerows(rows)
 
