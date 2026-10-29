@@ -1609,6 +1609,170 @@ machine of the other tools' runs 9 of 80 did (the check of NINJA above).
 | SuperLU_DIST 9.3.1, the 3D solve (hang or wrong solution) | 78 of 78 | 221 of 320 | 15 of 240 | 15 of 40 (random, 10% of sends by 0.05 s, 3 ranks) | 4 of 40 | unsupported |
 | Quantum ESPRESSO 615e40cf, `elph_prt` (the spins' values exchanged) | 6 of 6 | 26 of 40 | 86 of 120 | 37 of 40 (system-centric, 3 ranks) | 0 of 20 | unsupported |
 
+## E5j: the other tools on the bugs of E5c to E5f (MUST, NINJA, MPI-PRV)
+
+The tools of E5i on the bugs of E5c to E5f, at the process counts of their traced campaigns: MUST 1.11.2 (20 runs
+per configuration under `mustrun`, MUST's image, MPICH; `experiments/must/apps.sh`, NPB MG under the build with
+Fortran), NINJA (40 runs per process count and mode; HYPRE's from E10 and E5f, NPB MG's and deal.II's from the
+campaigns below), and MPI-PRV (`experiments/mpiprv/stretto_apps.sh`). The fixes are the controls: HYPRE 2.11.0,
+HYPRE 3.2.0 with E5f's fix, NPB MG 3.3.1 and deal.II 9.3.0; PETSc's `ex2` has none. A run counts for a tool
+only by the bug's own symptom.
+
+### MUST (rows by code commit: 8ec4e74-dirty (271), 27d1532 (160))
+
+*Race*: MUST reports a deadlock or a type mismatch. *Completed*: the program did its work (the residual, the
+iteration count or MG's norm printed; deal.II's output judged in a run that finished, or equal to the expected
+one), whether or not `mustrun` ended after it (*no end*: the harness's timeout came after it). Rows of
+MUST 1.9.2 (MPI-BugBench's image) are shown for what it did; the cells are 1.11.2's.
+
+| configuration | version | ranks | MUST | runs | how they ended | race | completed | wrong result | no end | MUST's errors (runs) |
+|---|---|---|---|---|---|---|---|---|---|---|
+| hypre-4 | 2.10.1 | 4 | 1.11.2 | 20 | FINISHED 18, TIMEOUT 2 | 0 | 20 | 0 | 2 | - |
+| hypre-4 | 2.10.1 | 4 | 1.9.2 | 20 | CRASHED 20 | 0 | 0 | 0 | 0 | no report |
+| hypre-8 | 2.10.1 | 8 | 1.11.2 | 20 | FINISHED 20 | 0 | 20 | 0 | 0 | - |
+| hypre-8 | 2.10.1 | 8 | 1.9.2 | 20 | CRASHED 20 | 0 | 0 | 0 | 0 | no report |
+| hypre-fix-4 | 2.11.0 | 4 | 1.11.2 | 20 | TIMEOUT 19, FINISHED 1 | 0 | 20 | 0 | 19 | - |
+| hypre-fix-8 | 2.11.0 | 8 | 1.11.2 | 20 | TIMEOUT 19, FINISHED 1 | 0 | 20 | 0 | 19 | - |
+| hypre3-ex5-4 | 3.2.0 | 4 | 1.11.2 | 20 | FINISHED 20 | 0 | 20 | 0 | 0 | - |
+| hypre3-ex5-4 | 3.2.0 | 4 | 1.9.2 | 20 | CRASHED 20 | 0 | 0 | 0 | 0 | no report |
+| hypre3-ex5-8 | 3.2.0 | 8 | 1.11.2 | 20 | FINISHED 20 | 0 | 20 | 0 | 0 | - |
+| hypre3-ex5-8 | 3.2.0 | 8 | 1.9.2 | 20 | CRASHED 20 | 0 | 0 | 0 | 0 | no report |
+| hypre3-ex5-fix-4 | 3.2.0-fix | 4 | 1.11.2 | 20 | TIMEOUT 16, FINISHED 4 | 0 | 20 | 0 | 16 | no report |
+| hypre3-ex5-fix-8 | 3.2.0-fix | 8 | 1.11.2 | 20 | TIMEOUT 20 | 0 | 13 | 0 | 13 | no report |
+| petsc-ex2-4 | 3.26.0 | 4 | 1.11.2 | 20 | FINISHED 20 | 0 | 20 | 0 | 0 | MUST_ERROR_LEAK_COMM(MPI_Comm_dup) 20, MUST_ERROR_REQUEST_NOT_KNOWN(MPI_Request_free) 20, MUST_ERROR_REQUEST_NOT_KNOWN_ARRAY(MPI_Startall) 20, MUST_ERROR_REQUEST_NOT_KNOWN_ARRAY(MPI_Waitall) 20 |
+| petsc-ex2-4 | 3.26.0 | 4 | 1.9.2 | 8 | TIMEOUT 8 | 0 | 0 | 0 | 0 | no report |
+| petsc-ex2-8 | 3.26.0 | 8 | 1.11.2 | 20 | FINISHED 20 | 0 | 20 | 0 | 0 | MUST_ERROR_LEAK_COMM(MPI_Comm_dup) 20, MUST_ERROR_REQUEST_NOT_KNOWN(MPI_Request_free) 20, MUST_ERROR_REQUEST_NOT_KNOWN_ARRAY(MPI_Startall) 20, MUST_ERROR_REQUEST_NOT_KNOWN_ARRAY(MPI_Waitall) 20 |
+| npbmg-16 | 2.4.1 | 16 | 1.11.2 | 3 | TIMEOUT 3 | 0 | 3 | 0 | 3 | MUST_ERROR_DATATYPE_UNKNOWN(MPI_Allreduce) 3, MUST_ERROR_DATATYPE_UNKNOWN(MPI_Bcast) 3, MUST_ERROR_DATATYPE_UNKNOWN(MPI_Irecv) 3, MUST_ERROR_DATATYPE_UNKNOWN(MPI_Reduce) 3, MUST_ERROR_DATATYPE_UNKNOWN(MPI_Send) 3 |
+| npbmg-16 | 2.4.1 | 16 | 1.11.2-fortran | 20 | TIMEOUT 18, FINISHED 2 | 0 | 20 | 0 | 18 | - |
+| npbmg-32 | 2.4.1 | 32 | 1.11.2-fortran | 20 | TIMEOUT 19, CRASHED 1 | 1 | 20 | 1 | 19 | MUST_ERROR_DEADLOCK() 1 |
+| npbmg-fix-16 | 3.3.1 | 16 | 1.11.2-fortran | 20 | TIMEOUT 19, CRASHED 1 | 1 | 19 | 0 | 19 | MUST_ERROR_DEADLOCK() 1 |
+| npbmg-fix-32 | 3.3.1 | 32 | 1.11.2-fortran | 20 | TIMEOUT 18, CRASHED 2 | 2 | 18 | 0 | 18 | MUST_ERROR_DEADLOCK() 2 |
+| dealii-4 | 9.3.0-rc1 | 4 | 1.11.2 | 20 | FINISHED 19, TIMEOUT 1 | 0 | 19 | 0 | 0 | - |
+| dealii-4 | 9.3.0-rc1 | 4 | 1.9.2 | 20 | TIMEOUT 20 | 0 | 0 | 0 | 0 | no report |
+| dealii-fix-4 | 9.3.0 | 4 | 1.11.2 | 20 | FINISHED 20 | 0 | 20 | 0 | 0 | - |
+
+What the reports say: on HYPRE 2.10.1 and 3.2.0 and on deal.II 9.3.0-rc1, MUST 1.11.2 reports no error, only
+warnings of zero counts (MUST_WARNING_INTEGER_ZERO) and, on deal.II, of waits on null requests; no deadlock and no
+type mismatch, and every run that completed printed a residual or the expected output: the race did not strike
+under MUST, and the racing messages have the expected type and size. On PETSc's `ex2` its errors (a communicator
+leak at MPI_Comm_dup, unknown requests at MPI_Request_free, MPI_Startall and MPI_Waitall) are in PETSc's own
+persistent requests, in every run, and none is about the race. On NPB MG the build without Fortran reports
+MUST_ERROR_DATATYPE_UNKNOWN on every call and does not end (three runs, not counted); the build with Fortran
+reports nothing, and most runs print the norm, which is right, and then do not end, as MUST's Fortran build does
+at the end of any Fortran program. One run of 2.4.1 at 32 ranks printed a norm other than the reference's (the
+race struck under MUST), and MUST wrote no report in it, its output file empty. Four runs end in a deadlock report
+and MUST's abort, one of 2.4.1 at 32 ranks and three of the fix 3.3.1 (one at 16 ranks, two at 32): a cycle of two
+ranks' MPI_Send in give3, or of one rank's MPI_Send in give3 and another's MPI_Wait in take3, which needs the
+sends to be unbuffered, as MUST takes them. No wildcard receive is part of it, and the fix, which names the source
+of every receive, reports it as often: the rule above counts it as the race, but it is not this race.
+MUST 1.9.2 crashes in its own layer on HYPRE and hangs on deal.II and PETSc.
+The versions with the bugs ran on 23 Oct on 12 processors; the fixes, and NPB MG 2.4.1 at 32 ranks, ran on 29 Oct
+on 4 of the same machine, where `mustrun` did not end within the timeout in most runs after the program had
+printed its result. The two configurations in which few runs got that far, `hypre3-ex5-fix-8` and `dealii-fix-4`,
+ran again on 8, and `npbmg-32` ran again on 4 because the machine's disk was full during its first runs; the
+table has the later runs (the first campaign of `npbmg-32` had one run with a wrong norm and no report too).
+
+### NINJA
+
+*Shows the bug*: HYPRE, a hang in the ParaSails setup (killed before the setup's times or levels
+were printed); PETSc's `ex2`, a hang; NPB MG, a residual norm other than that of the plain runs of its version and
+process count; deal.II, a run that finished with an output other than the expected one. Run 0, application-centric
+mode's learning run, is not counted. The campaigns of NPB MG and deal.II (29 Oct) ran their runs one at a time on
+4 processors of one machine, beside builds or runs of the other tools on 4 others. Rows by code commit: 415a6ed (1371), 27d1532 (726).
+
+| program | ranks | noise | runs | shows the bug | finished | other ends | learning run |
+|---|---|---|---|---|---|---|---|
+| hypre-2.10.1 | 4 | random, 10% of sends by 1.2 s | 40 | 4 | 36 | - | - |
+| hypre-2.10.1 | 4 | random, 10% of sends by 0.05 s | 40 | 5 | 35 | - | - |
+| hypre-2.10.1 | 4 | system-centric | 40 | 0 | 40 | - | - |
+| hypre-2.10.1 | 4 | application-centric | 40 | 0 | 40 | - | FINISHED |
+| hypre-2.10.1 | 8 | random, 10% of sends by 1.2 s | 40 | 9 | 31 | - | - |
+| hypre-2.10.1 | 8 | random, 10% of sends by 0.05 s | 40 | 12 | 28 | - | - |
+| hypre-2.10.1 | 8 | system-centric | 40 | 1 | 39 | - | - |
+| hypre-2.10.1 | 8 | application-centric | 40 | 25 | 15 | - | FINISHED |
+| hypre-2.11.0 | 4 | random, 10% of sends by 1.2 s | 40 | 0 | 40 | - | - |
+| hypre-2.11.0 | 4 | random, 10% of sends by 0.05 s | 40 | 0 | 40 | - | - |
+| hypre-2.11.0 | 4 | system-centric | 40 | 0 | 40 | - | - |
+| hypre-2.11.0 | 4 | application-centric | 40 | 0 | 40 | - | FINISHED |
+| hypre-2.11.0 | 8 | random, 10% of sends by 1.2 s | 40 | 0 | 40 | - | - |
+| hypre-2.11.0 | 8 | random, 10% of sends by 0.05 s | 40 | 0 | 40 | - | - |
+| hypre-2.11.0 | 8 | system-centric | 40 | 0 | 40 | - | - |
+| hypre-2.11.0 | 8 | application-centric | 40 | 0 | 40 | - | FINISHED |
+| ex5_levels-3.2.0-2 | 4 | random, 10% of sends by 0.05 s | 40 | 9 | 31 | - | - |
+| ex5_levels-3.2.0-2 | 4 | system-centric | 40 | 4 | 36 | - | - |
+| ex5_levels-3.2.0-2 | 4 | application-centric | 40 | 10 | 30 | - | TIMEOUT, FINISHED |
+| ex5_levels-3.2.0-2 | 8 | random, 10% of sends by 0.05 s | 40 | 12 | 28 | - | - |
+| ex5_levels-3.2.0-2 | 8 | system-centric | 40 | 1 | 39 | - | - |
+| ex5_levels-3.2.0-2 | 8 | application-centric | 40 | 19 | 21 | - | FINISHED |
+| ex5_levels-3.2.0-fix-2 | 4 | random, 10% of sends by 0.05 s | 40 | 0 | 40 | - | - |
+| ex5_levels-3.2.0-fix-2 | 4 | system-centric | 40 | 0 | 40 | - | - |
+| ex5_levels-3.2.0-fix-2 | 4 | application-centric | 40 | 0 | 40 | - | FINISHED |
+| ex5_levels-3.2.0-fix-2 | 8 | random, 10% of sends by 0.05 s | 40 | 0 | 40 | - | - |
+| ex5_levels-3.2.0-fix-2 | 8 | system-centric | 40 | 0 | 40 | - | - |
+| ex5_levels-3.2.0-fix-2 | 8 | application-centric | 40 | 0 | 40 | - | FINISHED |
+| ex2-parasails2-dense | 4 | random, 10% of sends by 0.05 s | 40 | 7 | 33 | - | - |
+| ex2-parasails2-dense | 4 | system-centric | 40 | 2 | 38 | - | - |
+| ex2-parasails2-dense | 4 | application-centric | 40 | 0 | 0 | APP-ERROR:59 40 | FINISHED |
+| ex2-parasails2-dense | 8 | random, 10% of sends by 0.05 s | 40 | 14 | 26 | - | - |
+| ex2-parasails2-dense | 8 | system-centric | 40 | 0 | 40 | - | - |
+| ex2-parasails2-dense | 8 | application-centric | 40 | 0 | 0 | APP-ERROR:59 40 | FINISHED |
+| mg-2.4.1-S | 16 | random, 10% of sends by 0.05 s | 40 | 17 | 40 | - | - |
+| mg-2.4.1-S | 16 | system-centric | 40 | 0 | 40 | - | - |
+| mg-2.4.1-S | 16 | application-centric | 40 | 21 | 40 | - | FINISHED |
+| mg-2.4.1-S | 32 | random, 10% of sends by 0.05 s | 40 | 19 | 40 | - | - |
+| mg-2.4.1-S | 32 | system-centric | 40 | 5 | 40 | - | - |
+| mg-2.4.1-S | 32 | application-centric | 40 | 16 | 40 | - | FINISHED |
+| mg-3.3.1-S | 16 | random, 10% of sends by 0.05 s | 40 | 0 | 40 | - | - |
+| mg-3.3.1-S | 16 | system-centric | 40 | 0 | 40 | - | - |
+| mg-3.3.1-S | 16 | application-centric | 40 | 0 | 40 | - | FINISHED |
+| mg-3.3.1-S | 32 | random, 10% of sends by 0.05 s | 40 | 0 | 40 | - | - |
+| mg-3.3.1-S | 32 | system-centric | 40 | 0 | 40 | - | - |
+| mg-3.3.1-S | 32 | application-centric | 40 | 0 | 40 | - | FINISHED |
+| mapping_01-9.3.0-rc1 | 4 | random, 10% of sends by 0.05 s | 40 | 40 | 40 | - | - |
+| mapping_01-9.3.0-rc1 | 4 | system-centric | 40 | 8 | 40 | - | - |
+| mapping_01-9.3.0-rc1 | 4 | application-centric | 40 | 40 | 40 | - | FINISHED |
+| mapping_01-9.3.0 | 4 | random, 10% of sends by 0.05 s | 40 | 0 | 40 | - | - |
+| mapping_01-9.3.0 | 4 | system-centric | 40 | 0 | 40 | - | - |
+| mapping_01-9.3.0 | 4 | application-centric | 40 | 0 | 40 | - | FINISHED |
+
+deal.II 9.3.0-rc1 under `libninja-fixed.so` and `libninja-fixed-some.so` (`ninja.csv`, `ninja-fixed-some.csv`; rows by
+code commit: 8ec4e74-dirty (160)): 160 runs, SIGNAL:6 147, SIGNAL:11 13; no run finished. The library of the runs above,
+`libninja-fixed-some-testall.so`, also grows the request buffer of NINJA's MPI_Testall, which the test overflows
+(`experiments/ninja/build.sh`).
+
+deal.II 9.3.0-rc1 with each build of NINJA's library loaded but no send delayed (random noise at a ratio of
+1e-6%), against plain runs (`ninja-check.csv`; rows by code commit: 27d1532 (20)):
+
+| program | ranks | noise | runs | how they ended | lines that differ (runs) |
+|---|---|---|---|---|---|
+| mapping_01-9.3.0-rc1 | 4 | none (plain runs) | 5 | FINISHED 5 | 0 5 |
+| mapping_01-9.3.0-rc1 libninja-fixed | 4 | random | 5 | SIGNAL:6 5 | 207 5 |
+| mapping_01-9.3.0-rc1 libninja-fixed-some | 4 | random | 5 | SIGNAL:6 5 | 156 5 |
+| mapping_01-9.3.0-rc1 libninja-fixed-some-testall | 4 | random | 5 | FINISHED 5 | 0 5 |
+
+### MPI-PRV (rows by code commit: 8ec4e74-dirty (4))
+
+| application | version | configurations | step | result | outcome | reason |
+|---|---|---|---|---|---|---|
+| hypre | 2.10.1 | ij -solver 8 -pout 0, 4 and 8 ranks | make -k of src/utilities with CC=wacc | failed objects: mpistubs.o; 'not find rankid' 1 time(s), clang crashed (status 139) 1 time(s) | unsupported | the instrumenter fails on utilities/mpistubs.c, the file of the hypre_MPI_* wrappers through which HYPRE's solvers, ParaSails included, make every MPI call; without it the trace holds no MPI event of HYPRE |
+| hypre | 3.2.0 | ex5_levels and PETSc ex2 (two-level ParaSails), 4 and 8 ranks | make -k of src/utilities with CC=wacc | failed objects: mpistubs.o; 'not find rankid' 1 time(s), clang crashed (status 139) 1 time(s) | unsupported | the instrumenter fails on utilities/mpistubs.c, the file of the hypre_MPI_* wrappers through which HYPRE's solvers, ParaSails included, make every MPI call; without it the trace holds no MPI event of HYPRE |
+| npbmg | 2.4.1 | class S, 16 ranks | - | - | unsupported | NPB MG is Fortran; MPI-PRV's instrumenter (wac, wacc, wacxx) weaves C and C++ sources only |
+| dealii | 9.3.0-rc1 | mapping_01, 4 ranks | wacxx on mapping_01.cc | status 0; 10 racing MPI calls of RemotePointEvaluation in the instrumented unit, 0 monitor calls woven | unsupported | the instrumenter weaves no event into the translation unit that instantiates RemotePointEvaluation (its MPI calls are header templates); the trace would hold no event of the racing calls |
+
+### Summary
+
+Stretto: clean traced runs that predict the bug (E5c to E5f). Random delays: untraced runs with
+the replay library's delays that fail. NINJA: runs that show the bug, every mode and process count, and its best
+setting. MUST: runs whose report names the race.
+
+| bug | Stretto | random delays | NINJA, all | NINJA, best | MUST | MPI-PRV |
+|---|---|---|---|---|---|---|
+| HYPRE 2.10.1, ParaSails (hang) | 38 of 40 | 0 of 40 | 56 of 320 | 25 of 40 (application-centric, 8 ranks) | 0 of 40 | unsupported |
+| HYPRE 3.2.0 `ex5`, ParaSails at two levels (hang) | 20 of 20 | 0 of 80 | 55 of 240 | 19 of 40 (application-centric, 8 ranks) | 0 of 40 | unsupported |
+| HYPRE 3.2.0 through PETSc 3.26.0 `ex2` (hang) | 20 of 20 | 0 of 80 | 23 of 240 | 14 of 40 (random, 10% of sends by 0.05 s, 8 ranks) | 0 of 40 | unsupported |
+| NPB MG 2.4.1 (residual changed) | 3 of 3 | 6 of 80 | 78 of 240 | 21 of 40 (application-centric, 16 ranks) | 1 of 40 (the fix: 3 of 40) | unsupported |
+| deal.II 9.3.0-rc1, `RemotePointEvaluation` (wrong values) | 19 of 19 | 42 of 50 | 88 of 120 | 40 of 40 (random, 10% of sends by 0.05 s, 4 ranks) | 0 of 20 | unsupported |
+
 ## E6: polynomial checker vs exhaustive explorer
 
 The checker in L1 mode (the claim the report makes) against exhaustive exploration of the trace as a
@@ -2223,18 +2387,30 @@ does not count them.
 | system-centric | 65 | 53 | 1 | 14 | 0 | 0 / 0 | 0.90 | 0.90 | 12 of 23 | 0 of 12 |
 | application-centric | 65 | 53 | 1 | 16 | 4 | 2 / 3 | 0.87 | 0.87 | 12 of 23 | 0 of 12 |
 
-### NPB MG 2.4.1
+### NPB MG 2.4.1 and the fix 3.3.1
 
 MG class S as in E5d, 120 s per run; a run *changes the result* when its residual norm differs
-from the plain runs' (every plain run printed the same), and fails the relative check of later versions when it is
-more than 1e-8 off the reference. Rows by code commit: 415a6ed (81).
+from the plain runs' of its version and process count (each printed one norm), and fails the relative check of later
+versions when it is more than 1e-8 off the reference. Rows by code commit: 27d1532 (644).
 
-| ranks | noise | runs | finished | result changed | fails the relative check |
-|---|---|---|---|---|---|
-| 16 | none (plain runs) | 20 | 20 | 0 | 0 |
-| 16 | random, 10% of sends by 0.05 s | 20 | 20 | 8 | 8 |
-| 16 | system-centric | 20 | 20 | 0 | 0 |
-| 16 | application-centric | 20 | 20 | 8 | 8 |
+| version | ranks | noise | runs | finished | result changed | fails the relative check |
+|---|---|---|---|---|---|---|
+| 2.4.1 | 16 | none (plain runs) | 40 | 40 | 0 | 0 |
+| 2.4.1 | 16 | random, 10% of sends by 0.05 s | 40 | 40 | 17 | 17 |
+| 2.4.1 | 16 | system-centric | 40 | 40 | 0 | 0 |
+| 2.4.1 | 16 | application-centric | 40 | 40 | 21 | 21 |
+| 2.4.1 | 32 | none (plain runs) | 40 | 40 | 0 | 0 |
+| 2.4.1 | 32 | random, 10% of sends by 0.05 s | 40 | 40 | 19 | 19 |
+| 2.4.1 | 32 | system-centric | 40 | 40 | 5 | 5 |
+| 2.4.1 | 32 | application-centric | 40 | 40 | 16 | 16 |
+| 3.3.1 | 16 | none (plain runs) | 40 | 40 | 0 | 0 |
+| 3.3.1 | 16 | random, 10% of sends by 0.05 s | 40 | 40 | 0 | 0 |
+| 3.3.1 | 16 | system-centric | 40 | 40 | 0 | 0 |
+| 3.3.1 | 16 | application-centric | 40 | 40 | 0 | 0 |
+| 3.3.1 | 32 | none (plain runs) | 40 | 40 | 0 | 0 |
+| 3.3.1 | 32 | random, 10% of sends by 0.05 s | 40 | 40 | 0 | 0 |
+| 3.3.1 | 32 | system-centric | 40 | 40 | 0 | 0 |
+| 3.3.1 | 32 | application-centric | 40 | 40 | 0 | 0 |
 
 ## E11: scale (16 to 64 processes)
 
@@ -2387,10 +2563,22 @@ NINJA (E10, E5f):
 | PETSc 3.26.0 `ex2`, application-centric noise, both process counts: runs that hang | 0 of 80 | [0, 0.046] | `nNinjaPetscAppHangCI` |
 | PETSc 3.26.0 `ex2`, system-centric noise, both process counts: runs that hang | 2 of 80 | [0.0069, 0.087] | `nNinjaPetscSystemHangCI` |
 | PETSc 3.26.0 `ex2`, random noise, both process counts: runs that hang | 21 of 80 | [0.18, 0.37] | `nNinjaPetscRandomHangCI` |
-| NPB MG 2.4.1, 16 processes, application-centric noise: runs whose residual changes | 8 of 20 | [0.22, 0.61] | `nNinjaMGSixteenAppChangedCI` |
-| NPB MG 2.4.1, 16 processes, system-centric noise: runs whose residual changes | 0 of 20 | [0, 0.16] | `nNinjaMGSixteenSystemChangedCI` |
-| NPB MG 2.4.1, 16 processes, random noise: runs whose residual changes | 8 of 20 | [0.22, 0.61] | `nNinjaMGSixteenRandomChangedCI` |
-| NPB MG 2.4.1, 16 processes, no noise: runs whose residual changes | 0 of 20 | [0, 0.16] | `nNinjaMGSixteenPlainChangedCI` |
+| NPB MG 2.4.1, 16 processes, application-centric noise: runs whose residual changes | 21 of 40 | [0.37, 0.67] | `nNinjaMGSixteenAppChangedCI` |
+| NPB MG 2.4.1, 16 processes, system-centric noise: runs whose residual changes | 0 of 40 | [0, 0.088] | `nNinjaMGSixteenSystemChangedCI` |
+| NPB MG 2.4.1, 16 processes, random noise: runs whose residual changes | 17 of 40 | [0.29, 0.58] | `nNinjaMGSixteenRandomChangedCI` |
+| NPB MG 2.4.1, 16 processes, no noise: runs whose residual changes | 0 of 40 | [0, 0.088] | `nNinjaMGSixteenPlainChangedCI` |
+| NPB MG 2.4.1, 32 processes, application-centric noise: runs whose residual changes | 16 of 40 | [0.26, 0.55] | `nNinjaMGThirtyTwoAppChangedCI` |
+| NPB MG 2.4.1, 32 processes, system-centric noise: runs whose residual changes | 5 of 40 | [0.055, 0.26] | `nNinjaMGThirtyTwoSystemChangedCI` |
+| NPB MG 2.4.1, 32 processes, random noise: runs whose residual changes | 19 of 40 | [0.33, 0.63] | `nNinjaMGThirtyTwoRandomChangedCI` |
+| NPB MG 2.4.1, 32 processes, no noise: runs whose residual changes | 0 of 40 | [0, 0.088] | `nNinjaMGThirtyTwoPlainChangedCI` |
+| NPB MG 3.3.1, the fix, 16 processes, application-centric noise: runs whose residual changes | 0 of 40 | [0, 0.088] | `nNinjaMGFixSixteenAppChangedCI` |
+| NPB MG 3.3.1, the fix, 16 processes, system-centric noise: runs whose residual changes | 0 of 40 | [0, 0.088] | `nNinjaMGFixSixteenSystemChangedCI` |
+| NPB MG 3.3.1, the fix, 16 processes, random noise: runs whose residual changes | 0 of 40 | [0, 0.088] | `nNinjaMGFixSixteenRandomChangedCI` |
+| NPB MG 3.3.1, the fix, 16 processes, no noise: runs whose residual changes | 0 of 40 | [0, 0.088] | `nNinjaMGFixSixteenPlainChangedCI` |
+| NPB MG 3.3.1, the fix, 32 processes, application-centric noise: runs whose residual changes | 0 of 40 | [0, 0.088] | `nNinjaMGFixThirtyTwoAppChangedCI` |
+| NPB MG 3.3.1, the fix, 32 processes, system-centric noise: runs whose residual changes | 0 of 40 | [0, 0.088] | `nNinjaMGFixThirtyTwoSystemChangedCI` |
+| NPB MG 3.3.1, the fix, 32 processes, random noise: runs whose residual changes | 0 of 40 | [0, 0.088] | `nNinjaMGFixThirtyTwoRandomChangedCI` |
+| NPB MG 3.3.1, the fix, 32 processes, no noise: runs whose residual changes | 0 of 40 | [0, 0.088] | `nNinjaMGFixThirtyTwoPlainChangedCI` |
 
 MUST and NINJA on the bugs of projects' histories and the new ones (E5i):
 
@@ -2427,6 +2615,34 @@ MUST and NINJA on the bugs of projects' histories and the new ones (E5i):
 | NINJA, Qe, every noise and process count: runs that show the bug | 86 of 120 | [0.63, 0.79] | `nNinjaQeRevealedCI` |
 | NINJA, Qe, the fix, every noise and process count: runs that show the bug | 0 of 120 | [0, 0.031] | `nNinjaQeFixRevealedCI` |
 | NINJA, Qe, its best setting (system-centric, 3 ranks): runs that show the bug | 37 of 40 | [0.80, 0.974] | `nNinjaQeBestRevealedCI` |
+
+MUST and NINJA on the bugs of E5c to E5f (E5j):
+
+| | k of n | 95% interval | macro |
+|---|---|---|---|
+| MUST 1.11.2, Hypre: runs whose report names the race | 0 of 40 | [0, 0.088] | `nMustHypreRaceCI` |
+| MUST 1.11.2, Hypre, the fix: runs whose report names the race | 0 of 40 | [0, 0.088] | `nMustHypreFixRaceCI` |
+| MUST 1.11.2, HypreNew: runs whose report names the race | 0 of 40 | [0, 0.088] | `nMustHypreNewRaceCI` |
+| MUST 1.11.2, HypreNew, the fix: runs whose report names the race | 0 of 40 | [0, 0.088] | `nMustHypreNewFixRaceCI` |
+| MUST 1.11.2, Petsc: runs whose report names the race | 0 of 40 | [0, 0.088] | `nMustPetscRaceCI` |
+| MUST 1.11.2-fortran, MG: runs whose report names the race | 1 of 40 | [0.0044, 0.13] | `nMustMGRaceCI` |
+| MUST 1.11.2-fortran, MG, the fix: runs whose report names the race | 3 of 40 | [0.026, 0.20] | `nMustMGFixRaceCI` |
+| MUST 1.11.2, Deal: runs whose report names the race | 0 of 20 | [0, 0.16] | `nMustDealRaceCI` |
+| MUST 1.11.2, Deal, the fix: runs whose report names the race | 0 of 20 | [0, 0.16] | `nMustDealFixRaceCI` |
+| NINJA, Hypre, every noise and process count: runs that show the bug | 56 of 320 | [0.14, 0.22] | `nNinjaHypreRevealedCI` |
+| NINJA, Hypre, the fix, every noise and process count: runs that show the bug | 0 of 320 | [0, 0.012] | `nNinjaHypreFixRevealedCI` |
+| NINJA, Hypre, its best setting (application-centric, 8 ranks): runs that show the bug | 25 of 40 | [0.47, 0.76] | `nNinjaHypreBestRevealedCI` |
+| NINJA, HypreNew, every noise and process count: runs that show the bug | 55 of 240 | [0.18, 0.29] | `nNinjaHypreNewRevealedCI` |
+| NINJA, HypreNew, the fix, every noise and process count: runs that show the bug | 0 of 240 | [0, 0.016] | `nNinjaHypreNewFixRevealedCI` |
+| NINJA, HypreNew, its best setting (application-centric, 8 ranks): runs that show the bug | 19 of 40 | [0.33, 0.63] | `nNinjaHypreNewBestRevealedCI` |
+| NINJA, Petsc, every noise and process count: runs that show the bug | 23 of 240 | [0.065, 0.14] | `nNinjaPetscRevealedCI` |
+| NINJA, Petsc, its best setting (random, 10% of sends by 0.05 s, 8 ranks): runs that show the bug | 14 of 40 | [0.22, 0.50] | `nNinjaPetscBestRevealedCI` |
+| NINJA, MG, every noise and process count: runs that show the bug | 78 of 240 | [0.27, 0.39] | `nNinjaMGRevealedCI` |
+| NINJA, MG, the fix, every noise and process count: runs that show the bug | 0 of 240 | [0, 0.016] | `nNinjaMGFixRevealedCI` |
+| NINJA, MG, its best setting (application-centric, 16 ranks): runs that show the bug | 21 of 40 | [0.37, 0.67] | `nNinjaMGBestRevealedCI` |
+| NINJA, Deal, every noise and process count: runs that show the bug | 88 of 120 | [0.65, 0.80] | `nNinjaDealRevealedCI` |
+| NINJA, Deal, the fix, every noise and process count: runs that show the bug | 0 of 120 | [0, 0.031] | `nNinjaDealFixRevealedCI` |
+| NINJA, Deal, its best setting (random, 10% of sends by 0.05 s, 4 ranks): runs that show the bug | 40 of 40 | [0.912, 1] | `nNinjaDealBestRevealedCI` |
 
 ### Distinct alternatives behind the replays
 

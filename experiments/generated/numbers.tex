@@ -54,7 +54,9 @@
 \newcommand{\NekPerAlt}{0.11\xspace}
 \newcommand{\NekRecords}{10.3\xspace}
 \newcommand{\NinjaCabanaBest}{random, 10\% of sends by 0.05 s, 4 ranks\xspace}
+\newcommand{\NinjaDealBest}{random, 10\% of sends by 0.05 s, 4 ranks\xspace}
 \newcommand{\NinjaDealNbxBest}{application-centric, 8 ranks\xspace}
+\newcommand{\NinjaHypreBest}{application-centric, 8 ranks\xspace}
 \newcommand{\NinjaHypreEightAppRate}{0.62\xspace}
 \newcommand{\NinjaHypreEightRandomLongRate}{0.23\xspace}
 \newcommand{\NinjaHypreEightRandomShortRate}{0.30\xspace}
@@ -71,6 +73,7 @@
 \newcommand{\NinjaHypreFourRandomLongRate}{0.10\xspace}
 \newcommand{\NinjaHypreFourRandomShortRate}{0.12\xspace}
 \newcommand{\NinjaHypreFourSystemRate}{0.00\xspace}
+\newcommand{\NinjaHypreNewBest}{application-centric, 8 ranks\xspace}
 \newcommand{\NinjaHypreNewEightAppRate}{0.47\xspace}
 \newcommand{\NinjaHypreNewEightRandomRate}{0.30\xspace}
 \newcommand{\NinjaHypreNewEightSystemRate}{0.03\xspace}
@@ -90,8 +93,10 @@
 \newcommand{\NinjaMBIRandomfoneNoCrash}{0.90\xspace}
 \newcommand{\NinjaMBISystemfone}{0.90\xspace}
 \newcommand{\NinjaMBISystemfoneNoCrash}{0.90\xspace}
+\newcommand{\NinjaMGBest}{application-centric, 16 ranks\xspace}
 \newcommand{\NinjaMfemGroupBest}{random, 10\% of sends by 0.05 s, 8 ranks\xspace}
 \newcommand{\NinjaPetscAppStatus}{59\xspace}
+\newcommand{\NinjaPetscBest}{random, 10\% of sends by 0.05 s, 8 ranks\xspace}
 \newcommand{\NinjaPetscEightAppRate}{0.00\xspace}
 \newcommand{\NinjaPetscEightRandomRate}{0.35\xspace}
 \newcommand{\NinjaPetscEightSystemRate}{0.00\xspace}
@@ -132,9 +137,14 @@
 \newcommand{\PRVfoneStretto}{0.60\xspace}
 \newcommand{\PRVfoneStrettoLC}{0.89\xspace}
 \newcommand{\PrvCabana}{unsupported\xspace}
+\newcommand{\PrvDeal}{unsupported\xspace}
 \newcommand{\PrvDealNbx}{unsupported\xspace}
+\newcommand{\PrvHypre}{unsupported\xspace}
+\newcommand{\PrvHypreNew}{unsupported\xspace}
 \newcommand{\PrvLammps}{out-of-scope\xspace}
+\newcommand{\PrvMG}{unsupported\xspace}
 \newcommand{\PrvMfemGroup}{unsupported\xspace}
+\newcommand{\PrvPetsc}{unsupported\xspace}
 \newcommand{\PrvQe}{unsupported\xspace}
 \newcommand{\PrvStempy}{unsupported\xspace}
 \newcommand{\PrvSuperlu}{unsupported\xspace}
@@ -1202,6 +1212,20 @@
 \newcommand{\nMustCabanaRuns}{40\xspace}
 \newcommand{\nMustCabanaTypematch}{0\xspace}
 \newcommand{\nMustCabanaWrong}{0\xspace}
+\newcommand{\nMustDealCompleted}{19\xspace}
+\newcommand{\nMustDealCrashed}{0\xspace}
+\newcommand{\nMustDealDeadlock}{0\xspace}
+\newcommand{\nMustDealFixCompleted}{20\xspace}
+\newcommand{\nMustDealFixCrashed}{0\xspace}
+\newcommand{\nMustDealFixDeadlock}{0\xspace}
+\newcommand{\nMustDealFixNoEnd}{0\xspace}
+\newcommand{\nMustDealFixRace}{0\xspace}
+\newcommand{\nMustDealFixRaceCI}{[0, 0.16]\xspace}
+\newcommand{\nMustDealFixRaceCIHi}{0.16\xspace}
+\newcommand{\nMustDealFixRaceCILo}{0\xspace}
+\newcommand{\nMustDealFixRuns}{20\xspace}
+\newcommand{\nMustDealFixTypematch}{0\xspace}
+\newcommand{\nMustDealFixWrong}{0\xspace}
 \newcommand{\nMustDealNbxCompleted}{40\xspace}
 \newcommand{\nMustDealNbxCrashed}{0\xspace}
 \newcommand{\nMustDealNbxDeadlock}{0\xspace}
@@ -1224,6 +1248,58 @@
 \newcommand{\nMustDealNbxRuns}{40\xspace}
 \newcommand{\nMustDealNbxTypematch}{0\xspace}
 \newcommand{\nMustDealNbxWrong}{1\xspace}
+\newcommand{\nMustDealNoEnd}{0\xspace}
+\newcommand{\nMustDealRace}{0\xspace}
+\newcommand{\nMustDealRaceCI}{[0, 0.16]\xspace}
+\newcommand{\nMustDealRaceCIHi}{0.16\xspace}
+\newcommand{\nMustDealRaceCILo}{0\xspace}
+\newcommand{\nMustDealRuns}{20\xspace}
+\newcommand{\nMustDealTypematch}{0\xspace}
+\newcommand{\nMustDealWrong}{0\xspace}
+\newcommand{\nMustHypreCompleted}{40\xspace}
+\newcommand{\nMustHypreCrashed}{0\xspace}
+\newcommand{\nMustHypreDeadlock}{0\xspace}
+\newcommand{\nMustHypreFixCompleted}{40\xspace}
+\newcommand{\nMustHypreFixCrashed}{0\xspace}
+\newcommand{\nMustHypreFixDeadlock}{0\xspace}
+\newcommand{\nMustHypreFixNoEnd}{38\xspace}
+\newcommand{\nMustHypreFixRace}{0\xspace}
+\newcommand{\nMustHypreFixRaceCI}{[0, 0.088]\xspace}
+\newcommand{\nMustHypreFixRaceCIHi}{0.088\xspace}
+\newcommand{\nMustHypreFixRaceCILo}{0\xspace}
+\newcommand{\nMustHypreFixRuns}{40\xspace}
+\newcommand{\nMustHypreFixTypematch}{0\xspace}
+\newcommand{\nMustHypreFixWrong}{0\xspace}
+\newcommand{\nMustHypreNewCompleted}{40\xspace}
+\newcommand{\nMustHypreNewCrashed}{0\xspace}
+\newcommand{\nMustHypreNewDeadlock}{0\xspace}
+\newcommand{\nMustHypreNewFixCompleted}{33\xspace}
+\newcommand{\nMustHypreNewFixCrashed}{0\xspace}
+\newcommand{\nMustHypreNewFixDeadlock}{0\xspace}
+\newcommand{\nMustHypreNewFixNoEnd}{29\xspace}
+\newcommand{\nMustHypreNewFixRace}{0\xspace}
+\newcommand{\nMustHypreNewFixRaceCI}{[0, 0.088]\xspace}
+\newcommand{\nMustHypreNewFixRaceCIHi}{0.088\xspace}
+\newcommand{\nMustHypreNewFixRaceCILo}{0\xspace}
+\newcommand{\nMustHypreNewFixRuns}{40\xspace}
+\newcommand{\nMustHypreNewFixTypematch}{0\xspace}
+\newcommand{\nMustHypreNewFixWrong}{0\xspace}
+\newcommand{\nMustHypreNewNoEnd}{0\xspace}
+\newcommand{\nMustHypreNewRace}{0\xspace}
+\newcommand{\nMustHypreNewRaceCI}{[0, 0.088]\xspace}
+\newcommand{\nMustHypreNewRaceCIHi}{0.088\xspace}
+\newcommand{\nMustHypreNewRaceCILo}{0\xspace}
+\newcommand{\nMustHypreNewRuns}{40\xspace}
+\newcommand{\nMustHypreNewTypematch}{0\xspace}
+\newcommand{\nMustHypreNewWrong}{0\xspace}
+\newcommand{\nMustHypreNoEnd}{2\xspace}
+\newcommand{\nMustHypreRace}{0\xspace}
+\newcommand{\nMustHypreRaceCI}{[0, 0.088]\xspace}
+\newcommand{\nMustHypreRaceCIHi}{0.088\xspace}
+\newcommand{\nMustHypreRaceCILo}{0\xspace}
+\newcommand{\nMustHypreRuns}{40\xspace}
+\newcommand{\nMustHypreTypematch}{0\xspace}
+\newcommand{\nMustHypreWrong}{0\xspace}
 \newcommand{\nMustLammpsCompleted}{0\xspace}
 \newcommand{\nMustLammpsCrashed}{0\xspace}
 \newcommand{\nMustLammpsDeadlock}{37\xspace}
@@ -1235,6 +1311,28 @@
 \newcommand{\nMustLammpsRuns}{40\xspace}
 \newcommand{\nMustLammpsTypematch}{0\xspace}
 \newcommand{\nMustLammpsWrong}{0\xspace}
+\newcommand{\nMustMGCompleted}{40\xspace}
+\newcommand{\nMustMGCrashed}{0\xspace}
+\newcommand{\nMustMGDeadlock}{1\xspace}
+\newcommand{\nMustMGFixCompleted}{37\xspace}
+\newcommand{\nMustMGFixCrashed}{0\xspace}
+\newcommand{\nMustMGFixDeadlock}{3\xspace}
+\newcommand{\nMustMGFixNoEnd}{37\xspace}
+\newcommand{\nMustMGFixRace}{3\xspace}
+\newcommand{\nMustMGFixRaceCI}{[0.026, 0.20]\xspace}
+\newcommand{\nMustMGFixRaceCIHi}{0.20\xspace}
+\newcommand{\nMustMGFixRaceCILo}{0.026\xspace}
+\newcommand{\nMustMGFixRuns}{40\xspace}
+\newcommand{\nMustMGFixTypematch}{0\xspace}
+\newcommand{\nMustMGFixWrong}{0\xspace}
+\newcommand{\nMustMGNoEnd}{37\xspace}
+\newcommand{\nMustMGRace}{1\xspace}
+\newcommand{\nMustMGRaceCI}{[0.0044, 0.13]\xspace}
+\newcommand{\nMustMGRaceCIHi}{0.13\xspace}
+\newcommand{\nMustMGRaceCILo}{0.0044\xspace}
+\newcommand{\nMustMGRuns}{40\xspace}
+\newcommand{\nMustMGTypematch}{0\xspace}
+\newcommand{\nMustMGWrong}{1\xspace}
 \newcommand{\nMustMfemGroupCompleted}{0\xspace}
 \newcommand{\nMustMfemGroupCrashed}{40\xspace}
 \newcommand{\nMustMfemGroupDeadlock}{0\xspace}
@@ -1257,6 +1355,17 @@
 \newcommand{\nMustMfemGroupRuns}{40\xspace}
 \newcommand{\nMustMfemGroupTypematch}{0\xspace}
 \newcommand{\nMustMfemGroupWrong}{0\xspace}
+\newcommand{\nMustPetscCompleted}{40\xspace}
+\newcommand{\nMustPetscCrashed}{0\xspace}
+\newcommand{\nMustPetscDeadlock}{0\xspace}
+\newcommand{\nMustPetscNoEnd}{0\xspace}
+\newcommand{\nMustPetscRace}{0\xspace}
+\newcommand{\nMustPetscRaceCI}{[0, 0.088]\xspace}
+\newcommand{\nMustPetscRaceCIHi}{0.088\xspace}
+\newcommand{\nMustPetscRaceCILo}{0\xspace}
+\newcommand{\nMustPetscRuns}{40\xspace}
+\newcommand{\nMustPetscTypematch}{0\xspace}
+\newcommand{\nMustPetscWrong}{0\xspace}
 \newcommand{\nMustQeCompleted}{20\xspace}
 \newcommand{\nMustQeCrashed}{0\xspace}
 \newcommand{\nMustQeDeadlock}{0\xspace}
@@ -1340,6 +1449,30 @@
 \newcommand{\nNinjaCabanaThreeRandomRuns}{40\xspace}
 \newcommand{\nNinjaCabanaThreeSystemRevealed}{0\xspace}
 \newcommand{\nNinjaCabanaThreeSystemRuns}{40\xspace}
+\newcommand{\nNinjaDealBestRevealed}{40\xspace}
+\newcommand{\nNinjaDealBestRevealedCI}{[0.912, 1]\xspace}
+\newcommand{\nNinjaDealBestRevealedCIHi}{1\xspace}
+\newcommand{\nNinjaDealBestRevealedCILo}{0.912\xspace}
+\newcommand{\nNinjaDealBestRuns}{40\xspace}
+\newcommand{\nNinjaDealEarlierFinished}{0\xspace}
+\newcommand{\nNinjaDealEarlierRuns}{160\xspace}
+\newcommand{\nNinjaDealFixFourAppRevealed}{0\xspace}
+\newcommand{\nNinjaDealFixFourAppRuns}{40\xspace}
+\newcommand{\nNinjaDealFixFourRandomRevealed}{0\xspace}
+\newcommand{\nNinjaDealFixFourRandomRuns}{40\xspace}
+\newcommand{\nNinjaDealFixFourSystemRevealed}{0\xspace}
+\newcommand{\nNinjaDealFixFourSystemRuns}{40\xspace}
+\newcommand{\nNinjaDealFixRevealed}{0\xspace}
+\newcommand{\nNinjaDealFixRevealedCI}{[0, 0.031]\xspace}
+\newcommand{\nNinjaDealFixRevealedCIHi}{0.031\xspace}
+\newcommand{\nNinjaDealFixRevealedCILo}{0\xspace}
+\newcommand{\nNinjaDealFixRuns}{120\xspace}
+\newcommand{\nNinjaDealFourAppRevealed}{40\xspace}
+\newcommand{\nNinjaDealFourAppRuns}{40\xspace}
+\newcommand{\nNinjaDealFourRandomRevealed}{40\xspace}
+\newcommand{\nNinjaDealFourRandomRuns}{40\xspace}
+\newcommand{\nNinjaDealFourSystemRevealed}{8\xspace}
+\newcommand{\nNinjaDealFourSystemRuns}{40\xspace}
 \newcommand{\nNinjaDealNbxBestRevealed}{13\xspace}
 \newcommand{\nNinjaDealNbxBestRevealedCI}{[0.20, 0.48]\xspace}
 \newcommand{\nNinjaDealNbxBestRevealedCIHi}{0.48\xspace}
@@ -1381,6 +1514,16 @@
 \newcommand{\nNinjaDealNbxRevealedCIHi}{0.20\xspace}
 \newcommand{\nNinjaDealNbxRevealedCILo}{0.11\xspace}
 \newcommand{\nNinjaDealNbxRuns}{240\xspace}
+\newcommand{\nNinjaDealRevealed}{88\xspace}
+\newcommand{\nNinjaDealRevealedCI}{[0.65, 0.80]\xspace}
+\newcommand{\nNinjaDealRevealedCIHi}{0.80\xspace}
+\newcommand{\nNinjaDealRevealedCILo}{0.65\xspace}
+\newcommand{\nNinjaDealRuns}{120\xspace}
+\newcommand{\nNinjaHypreBestRevealed}{25\xspace}
+\newcommand{\nNinjaHypreBestRevealedCI}{[0.47, 0.76]\xspace}
+\newcommand{\nNinjaHypreBestRevealedCIHi}{0.76\xspace}
+\newcommand{\nNinjaHypreBestRevealedCILo}{0.47\xspace}
+\newcommand{\nNinjaHypreBestRuns}{40\xspace}
 \newcommand{\nNinjaHypreEightAppFirst}{4\xspace}
 \newcommand{\nNinjaHypreEightAppHang}{25\xspace}
 \newcommand{\nNinjaHypreEightAppHangSetup}{25\xspace}
@@ -1409,6 +1552,11 @@
 \newcommand{\nNinjaHypreEightSystemHangSetupCIHi}{0.13\xspace}
 \newcommand{\nNinjaHypreEightSystemHangSetupCILo}{0.0044\xspace}
 \newcommand{\nNinjaHypreEightSystemRuns}{40\xspace}
+\newcommand{\nNinjaHypreFixRevealed}{0\xspace}
+\newcommand{\nNinjaHypreFixRevealedCI}{[0, 0.012]\xspace}
+\newcommand{\nNinjaHypreFixRevealedCIHi}{0.012\xspace}
+\newcommand{\nNinjaHypreFixRevealedCILo}{0\xspace}
+\newcommand{\nNinjaHypreFixRuns}{320\xspace}
 \newcommand{\nNinjaHypreFixedEightAppFirst}{--\xspace}
 \newcommand{\nNinjaHypreFixedEightAppHang}{0\xspace}
 \newcommand{\nNinjaHypreFixedEightAppHangSetup}{0\xspace}
@@ -1502,6 +1650,11 @@
 \newcommand{\nNinjaHypreHangCI}{[0.14, 0.22]\xspace}
 \newcommand{\nNinjaHypreHangCIHi}{0.22\xspace}
 \newcommand{\nNinjaHypreHangCILo}{0.14\xspace}
+\newcommand{\nNinjaHypreNewBestRevealed}{19\xspace}
+\newcommand{\nNinjaHypreNewBestRevealedCI}{[0.33, 0.63]\xspace}
+\newcommand{\nNinjaHypreNewBestRevealedCIHi}{0.63\xspace}
+\newcommand{\nNinjaHypreNewBestRevealedCILo}{0.33\xspace}
+\newcommand{\nNinjaHypreNewBestRuns}{40\xspace}
 \newcommand{\nNinjaHypreNewEightAppFirst}{2\xspace}
 \newcommand{\nNinjaHypreNewEightAppHang}{19\xspace}
 \newcommand{\nNinjaHypreNewEightAppHangSetup}{19\xspace}
@@ -1570,6 +1723,10 @@
 \newcommand{\nNinjaHypreNewFixHangSetupCI}{[0, 0.016]\xspace}
 \newcommand{\nNinjaHypreNewFixHangSetupCIHi}{0.016\xspace}
 \newcommand{\nNinjaHypreNewFixHangSetupCILo}{0\xspace}
+\newcommand{\nNinjaHypreNewFixRevealed}{0\xspace}
+\newcommand{\nNinjaHypreNewFixRevealedCI}{[0, 0.016]\xspace}
+\newcommand{\nNinjaHypreNewFixRevealedCIHi}{0.016\xspace}
+\newcommand{\nNinjaHypreNewFixRevealedCILo}{0\xspace}
 \newcommand{\nNinjaHypreNewFixRuns}{240\xspace}
 \newcommand{\nNinjaHypreNewFourAppFirst}{1\xspace}
 \newcommand{\nNinjaHypreNewFourAppHang}{10\xspace}
@@ -1597,7 +1754,15 @@
 \newcommand{\nNinjaHypreNewHangSetupCI}{[0.18, 0.29]\xspace}
 \newcommand{\nNinjaHypreNewHangSetupCIHi}{0.29\xspace}
 \newcommand{\nNinjaHypreNewHangSetupCILo}{0.18\xspace}
+\newcommand{\nNinjaHypreNewRevealed}{55\xspace}
+\newcommand{\nNinjaHypreNewRevealedCI}{[0.18, 0.29]\xspace}
+\newcommand{\nNinjaHypreNewRevealedCIHi}{0.29\xspace}
+\newcommand{\nNinjaHypreNewRevealedCILo}{0.18\xspace}
 \newcommand{\nNinjaHypreNewRuns}{240\xspace}
+\newcommand{\nNinjaHypreRevealed}{56\xspace}
+\newcommand{\nNinjaHypreRevealedCI}{[0.14, 0.22]\xspace}
+\newcommand{\nNinjaHypreRevealedCIHi}{0.22\xspace}
+\newcommand{\nNinjaHypreRevealedCILo}{0.14\xspace}
 \newcommand{\nNinjaHypreRuns}{320\xspace}
 \newcommand{\nNinjaLammpsBestRevealed}{0\xspace}
 \newcommand{\nNinjaLammpsBestRevealedCI}{[0, 0.088]\xspace}
@@ -1658,30 +1823,117 @@
 \newcommand{\nNinjaMBISystemPredMissed}{12\xspace}
 \newcommand{\nNinjaMBISystemStressMissedFound}{0\xspace}
 \newcommand{\nNinjaMBIerrors}{65\xspace}
-\newcommand{\nNinjaMGSixteenAppChanged}{8\xspace}
-\newcommand{\nNinjaMGSixteenAppChangedCI}{[0.22, 0.61]\xspace}
-\newcommand{\nNinjaMGSixteenAppChangedCIHi}{0.61\xspace}
-\newcommand{\nNinjaMGSixteenAppChangedCILo}{0.22\xspace}
-\newcommand{\nNinjaMGSixteenAppFailRel}{8\xspace}
-\newcommand{\nNinjaMGSixteenAppRuns}{20\xspace}
+\newcommand{\nNinjaMGBestRevealed}{21\xspace}
+\newcommand{\nNinjaMGBestRevealedCI}{[0.37, 0.67]\xspace}
+\newcommand{\nNinjaMGBestRevealedCIHi}{0.67\xspace}
+\newcommand{\nNinjaMGBestRevealedCILo}{0.37\xspace}
+\newcommand{\nNinjaMGBestRuns}{40\xspace}
+\newcommand{\nNinjaMGFixRevealed}{0\xspace}
+\newcommand{\nNinjaMGFixRevealedCI}{[0, 0.016]\xspace}
+\newcommand{\nNinjaMGFixRevealedCIHi}{0.016\xspace}
+\newcommand{\nNinjaMGFixRevealedCILo}{0\xspace}
+\newcommand{\nNinjaMGFixRuns}{240\xspace}
+\newcommand{\nNinjaMGFixSixteenAppChanged}{0\xspace}
+\newcommand{\nNinjaMGFixSixteenAppChangedCI}{[0, 0.088]\xspace}
+\newcommand{\nNinjaMGFixSixteenAppChangedCIHi}{0.088\xspace}
+\newcommand{\nNinjaMGFixSixteenAppChangedCILo}{0\xspace}
+\newcommand{\nNinjaMGFixSixteenAppFailRel}{0\xspace}
+\newcommand{\nNinjaMGFixSixteenAppRuns}{40\xspace}
+\newcommand{\nNinjaMGFixSixteenPlainChanged}{0\xspace}
+\newcommand{\nNinjaMGFixSixteenPlainChangedCI}{[0, 0.088]\xspace}
+\newcommand{\nNinjaMGFixSixteenPlainChangedCIHi}{0.088\xspace}
+\newcommand{\nNinjaMGFixSixteenPlainChangedCILo}{0\xspace}
+\newcommand{\nNinjaMGFixSixteenPlainFailRel}{0\xspace}
+\newcommand{\nNinjaMGFixSixteenPlainRuns}{40\xspace}
+\newcommand{\nNinjaMGFixSixteenRandomChanged}{0\xspace}
+\newcommand{\nNinjaMGFixSixteenRandomChangedCI}{[0, 0.088]\xspace}
+\newcommand{\nNinjaMGFixSixteenRandomChangedCIHi}{0.088\xspace}
+\newcommand{\nNinjaMGFixSixteenRandomChangedCILo}{0\xspace}
+\newcommand{\nNinjaMGFixSixteenRandomFailRel}{0\xspace}
+\newcommand{\nNinjaMGFixSixteenRandomRuns}{40\xspace}
+\newcommand{\nNinjaMGFixSixteenSystemChanged}{0\xspace}
+\newcommand{\nNinjaMGFixSixteenSystemChangedCI}{[0, 0.088]\xspace}
+\newcommand{\nNinjaMGFixSixteenSystemChangedCIHi}{0.088\xspace}
+\newcommand{\nNinjaMGFixSixteenSystemChangedCILo}{0\xspace}
+\newcommand{\nNinjaMGFixSixteenSystemFailRel}{0\xspace}
+\newcommand{\nNinjaMGFixSixteenSystemRuns}{40\xspace}
+\newcommand{\nNinjaMGFixThirtyTwoAppChanged}{0\xspace}
+\newcommand{\nNinjaMGFixThirtyTwoAppChangedCI}{[0, 0.088]\xspace}
+\newcommand{\nNinjaMGFixThirtyTwoAppChangedCIHi}{0.088\xspace}
+\newcommand{\nNinjaMGFixThirtyTwoAppChangedCILo}{0\xspace}
+\newcommand{\nNinjaMGFixThirtyTwoAppFailRel}{0\xspace}
+\newcommand{\nNinjaMGFixThirtyTwoAppRuns}{40\xspace}
+\newcommand{\nNinjaMGFixThirtyTwoPlainChanged}{0\xspace}
+\newcommand{\nNinjaMGFixThirtyTwoPlainChangedCI}{[0, 0.088]\xspace}
+\newcommand{\nNinjaMGFixThirtyTwoPlainChangedCIHi}{0.088\xspace}
+\newcommand{\nNinjaMGFixThirtyTwoPlainChangedCILo}{0\xspace}
+\newcommand{\nNinjaMGFixThirtyTwoPlainFailRel}{0\xspace}
+\newcommand{\nNinjaMGFixThirtyTwoPlainRuns}{40\xspace}
+\newcommand{\nNinjaMGFixThirtyTwoRandomChanged}{0\xspace}
+\newcommand{\nNinjaMGFixThirtyTwoRandomChangedCI}{[0, 0.088]\xspace}
+\newcommand{\nNinjaMGFixThirtyTwoRandomChangedCIHi}{0.088\xspace}
+\newcommand{\nNinjaMGFixThirtyTwoRandomChangedCILo}{0\xspace}
+\newcommand{\nNinjaMGFixThirtyTwoRandomFailRel}{0\xspace}
+\newcommand{\nNinjaMGFixThirtyTwoRandomRuns}{40\xspace}
+\newcommand{\nNinjaMGFixThirtyTwoSystemChanged}{0\xspace}
+\newcommand{\nNinjaMGFixThirtyTwoSystemChangedCI}{[0, 0.088]\xspace}
+\newcommand{\nNinjaMGFixThirtyTwoSystemChangedCIHi}{0.088\xspace}
+\newcommand{\nNinjaMGFixThirtyTwoSystemChangedCILo}{0\xspace}
+\newcommand{\nNinjaMGFixThirtyTwoSystemFailRel}{0\xspace}
+\newcommand{\nNinjaMGFixThirtyTwoSystemRuns}{40\xspace}
+\newcommand{\nNinjaMGRevealed}{78\xspace}
+\newcommand{\nNinjaMGRevealedCI}{[0.27, 0.39]\xspace}
+\newcommand{\nNinjaMGRevealedCIHi}{0.39\xspace}
+\newcommand{\nNinjaMGRevealedCILo}{0.27\xspace}
+\newcommand{\nNinjaMGRuns}{240\xspace}
+\newcommand{\nNinjaMGSixteenAppChanged}{21\xspace}
+\newcommand{\nNinjaMGSixteenAppChangedCI}{[0.37, 0.67]\xspace}
+\newcommand{\nNinjaMGSixteenAppChangedCIHi}{0.67\xspace}
+\newcommand{\nNinjaMGSixteenAppChangedCILo}{0.37\xspace}
+\newcommand{\nNinjaMGSixteenAppFailRel}{21\xspace}
+\newcommand{\nNinjaMGSixteenAppRuns}{40\xspace}
 \newcommand{\nNinjaMGSixteenPlainChanged}{0\xspace}
-\newcommand{\nNinjaMGSixteenPlainChangedCI}{[0, 0.16]\xspace}
-\newcommand{\nNinjaMGSixteenPlainChangedCIHi}{0.16\xspace}
+\newcommand{\nNinjaMGSixteenPlainChangedCI}{[0, 0.088]\xspace}
+\newcommand{\nNinjaMGSixteenPlainChangedCIHi}{0.088\xspace}
 \newcommand{\nNinjaMGSixteenPlainChangedCILo}{0\xspace}
 \newcommand{\nNinjaMGSixteenPlainFailRel}{0\xspace}
-\newcommand{\nNinjaMGSixteenPlainRuns}{20\xspace}
-\newcommand{\nNinjaMGSixteenRandomChanged}{8\xspace}
-\newcommand{\nNinjaMGSixteenRandomChangedCI}{[0.22, 0.61]\xspace}
-\newcommand{\nNinjaMGSixteenRandomChangedCIHi}{0.61\xspace}
-\newcommand{\nNinjaMGSixteenRandomChangedCILo}{0.22\xspace}
-\newcommand{\nNinjaMGSixteenRandomFailRel}{8\xspace}
-\newcommand{\nNinjaMGSixteenRandomRuns}{20\xspace}
+\newcommand{\nNinjaMGSixteenPlainRuns}{40\xspace}
+\newcommand{\nNinjaMGSixteenRandomChanged}{17\xspace}
+\newcommand{\nNinjaMGSixteenRandomChangedCI}{[0.29, 0.58]\xspace}
+\newcommand{\nNinjaMGSixteenRandomChangedCIHi}{0.58\xspace}
+\newcommand{\nNinjaMGSixteenRandomChangedCILo}{0.29\xspace}
+\newcommand{\nNinjaMGSixteenRandomFailRel}{17\xspace}
+\newcommand{\nNinjaMGSixteenRandomRuns}{40\xspace}
 \newcommand{\nNinjaMGSixteenSystemChanged}{0\xspace}
-\newcommand{\nNinjaMGSixteenSystemChangedCI}{[0, 0.16]\xspace}
-\newcommand{\nNinjaMGSixteenSystemChangedCIHi}{0.16\xspace}
+\newcommand{\nNinjaMGSixteenSystemChangedCI}{[0, 0.088]\xspace}
+\newcommand{\nNinjaMGSixteenSystemChangedCIHi}{0.088\xspace}
 \newcommand{\nNinjaMGSixteenSystemChangedCILo}{0\xspace}
 \newcommand{\nNinjaMGSixteenSystemFailRel}{0\xspace}
-\newcommand{\nNinjaMGSixteenSystemRuns}{20\xspace}
+\newcommand{\nNinjaMGSixteenSystemRuns}{40\xspace}
+\newcommand{\nNinjaMGThirtyTwoAppChanged}{16\xspace}
+\newcommand{\nNinjaMGThirtyTwoAppChangedCI}{[0.26, 0.55]\xspace}
+\newcommand{\nNinjaMGThirtyTwoAppChangedCIHi}{0.55\xspace}
+\newcommand{\nNinjaMGThirtyTwoAppChangedCILo}{0.26\xspace}
+\newcommand{\nNinjaMGThirtyTwoAppFailRel}{16\xspace}
+\newcommand{\nNinjaMGThirtyTwoAppRuns}{40\xspace}
+\newcommand{\nNinjaMGThirtyTwoPlainChanged}{0\xspace}
+\newcommand{\nNinjaMGThirtyTwoPlainChangedCI}{[0, 0.088]\xspace}
+\newcommand{\nNinjaMGThirtyTwoPlainChangedCIHi}{0.088\xspace}
+\newcommand{\nNinjaMGThirtyTwoPlainChangedCILo}{0\xspace}
+\newcommand{\nNinjaMGThirtyTwoPlainFailRel}{0\xspace}
+\newcommand{\nNinjaMGThirtyTwoPlainRuns}{40\xspace}
+\newcommand{\nNinjaMGThirtyTwoRandomChanged}{19\xspace}
+\newcommand{\nNinjaMGThirtyTwoRandomChangedCI}{[0.33, 0.63]\xspace}
+\newcommand{\nNinjaMGThirtyTwoRandomChangedCIHi}{0.63\xspace}
+\newcommand{\nNinjaMGThirtyTwoRandomChangedCILo}{0.33\xspace}
+\newcommand{\nNinjaMGThirtyTwoRandomFailRel}{19\xspace}
+\newcommand{\nNinjaMGThirtyTwoRandomRuns}{40\xspace}
+\newcommand{\nNinjaMGThirtyTwoSystemChanged}{5\xspace}
+\newcommand{\nNinjaMGThirtyTwoSystemChangedCI}{[0.055, 0.26]\xspace}
+\newcommand{\nNinjaMGThirtyTwoSystemChangedCIHi}{0.26\xspace}
+\newcommand{\nNinjaMGThirtyTwoSystemChangedCILo}{0.055\xspace}
+\newcommand{\nNinjaMGThirtyTwoSystemFailRel}{5\xspace}
+\newcommand{\nNinjaMGThirtyTwoSystemRuns}{40\xspace}
 \newcommand{\nNinjaMfemGroupBestRevealed}{32\xspace}
 \newcommand{\nNinjaMfemGroupBestRevealedCI}{[0.65, 0.90]\xspace}
 \newcommand{\nNinjaMfemGroupBestRevealedCIHi}{0.90\xspace}
@@ -1727,6 +1979,11 @@
 \newcommand{\nNinjaPetscAppHangCIHi}{0.046\xspace}
 \newcommand{\nNinjaPetscAppHangCILo}{0\xspace}
 \newcommand{\nNinjaPetscAppRuns}{80\xspace}
+\newcommand{\nNinjaPetscBestRevealed}{14\xspace}
+\newcommand{\nNinjaPetscBestRevealedCI}{[0.22, 0.50]\xspace}
+\newcommand{\nNinjaPetscBestRevealedCIHi}{0.50\xspace}
+\newcommand{\nNinjaPetscBestRevealedCILo}{0.22\xspace}
+\newcommand{\nNinjaPetscBestRuns}{40\xspace}
 \newcommand{\nNinjaPetscEightAppFirst}{--\xspace}
 \newcommand{\nNinjaPetscEightAppHang}{0\xspace}
 \newcommand{\nNinjaPetscEightAppHangCI}{[0, 0.088]\xspace}
@@ -1768,6 +2025,11 @@
 \newcommand{\nNinjaPetscRandomHangCIHi}{0.37\xspace}
 \newcommand{\nNinjaPetscRandomHangCILo}{0.18\xspace}
 \newcommand{\nNinjaPetscRandomRuns}{80\xspace}
+\newcommand{\nNinjaPetscRevealed}{23\xspace}
+\newcommand{\nNinjaPetscRevealedCI}{[0.065, 0.14]\xspace}
+\newcommand{\nNinjaPetscRevealedCIHi}{0.14\xspace}
+\newcommand{\nNinjaPetscRevealedCILo}{0.065\xspace}
+\newcommand{\nNinjaPetscRuns}{240\xspace}
 \newcommand{\nNinjaPetscSystemHang}{2\xspace}
 \newcommand{\nNinjaPetscSystemHangCI}{[0.0069, 0.087]\xspace}
 \newcommand{\nNinjaPetscSystemHangCIHi}{0.087\xspace}
