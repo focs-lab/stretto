@@ -1,0 +1,195 @@
+diff --git a/src/CCA/Components/Solvers/HypreSolver.cc b/src/CCA/Components/Solvers/HypreSolver.cc
+index 6deb226..58b469c 100644
+--- a/src/CCA/Components/Solvers/HypreSolver.cc
++++ b/src/CCA/Components/Solvers/HypreSolver.cc
+@@ -123,6 +123,7 @@ namespace Uintah {
+                  ,       Task::WhichDW    which_guess_dw_in
+                  , const HypreParams    * params_in
+                  ,       bool             isFirstSolve_in
++                 ,       MPI_Comm         comm_in
+                  )
+       : m_level(level_in)
+       , m_matlset(matlset_in)
+@@ -136,6 +137,7 @@ namespace Uintah {
+       , m_which_guess_dw(which_guess_dw_in)
+       , m_params(params_in)
+       , m_isFirstSolve(isFirstSolve_in)
++      , m_comm(comm_in)
+     {
+       // Time Step
+       m_timeStepLabel      = VarLabel::create(timeStep_name, timeStep_vartype::getTypeDescription() );
+@@ -240,7 +242,7 @@ namespace Uintah {
+       }
+ 
+       if (timeStep == 1 || recompute || do_setup ) {
+-        HYPRE_StructVectorCreate( pg->getComm(), grid, HQ );
++        HYPRE_StructVectorCreate( m_comm, grid, HQ );
+         HYPRE_StructVectorInitialize( *HQ );
+       }
+ 
+@@ -432,7 +434,7 @@ namespace Uintah {
+         // Setup grid
+         HYPRE_StructGrid grid;
+         if (timeStep == 1 || do_setup || recompute) {
+-          HYPRE_StructGridCreate(pg->getComm(), 3, &grid);
++          HYPRE_StructGridCreate(m_comm, 3, &grid);
+ 
+           if(m_superpatch) { //if m_superpatch is set then pass patch(0).lo and patch(n-1).hi to HYPRE_StructGridSetExtents. Then hypre will treat the rank's subdomain as one giant superpatch
+ 
+@@ -543,7 +545,7 @@ namespace Uintah {
+         }
+ 
+         if (timeStep == 1 || recompute || do_setup) {
+-          HYPRE_StructMatrixCreate( pg->getComm(), grid, stencil, HA );
++          HYPRE_StructMatrixCreate( m_comm, grid, stencil, HA );
+           HYPRE_StructMatrixSetSymmetric( *HA, m_params->getSymmetric() );
+           int ghost[] = {1,1,1,1,1,1};
+           HYPRE_StructMatrixSetNumGhost( *HA, ghost );
+@@ -682,7 +684,7 @@ namespace Uintah {
+ 
+           if (timeStep == 1 || recompute || do_setup) {
+ 
+-            HYPRE_StructSMGCreate         (pg->getComm(), solver);
++            HYPRE_StructSMGCreate         (m_comm, solver);
+             HYPRE_StructSMGSetMemoryUse   (*solver,  0);
+             HYPRE_StructSMGSetMaxIter     (*solver,  m_params->maxiterations);
+             HYPRE_StructSMGSetTol         (*solver,  m_params->tolerance);
+@@ -712,7 +714,7 @@ namespace Uintah {
+ 
+           if ( timeStep == 1 || recompute || do_setup ) {
+ 
+-            HYPRE_StructPFMGCreate        ( pg->getComm(), solver );
++            HYPRE_StructPFMGCreate        ( m_comm, solver );
+             HYPRE_StructPFMGSetMaxIter    (*solver,   m_params->maxiterations);
+             HYPRE_StructPFMGSetTol        (*solver,   m_params->tolerance);
+             HYPRE_StructPFMGSetRelChange  (*solver,   0);
+@@ -746,7 +748,7 @@ namespace Uintah {
+ 
+           if ( timeStep == 1 || recompute || do_setup ) {
+ 
+-            HYPRE_StructSparseMSGCreate      (pg->getComm(), solver);
++            HYPRE_StructSparseMSGCreate      (m_comm, solver);
+             HYPRE_StructSparseMSGSetMaxIter  (*solver, m_params->maxiterations);
+             HYPRE_StructSparseMSGSetJump     (*solver, m_params->jump);
+             HYPRE_StructSparseMSGSetTol      (*solver, m_params->tolerance);
+@@ -781,7 +783,7 @@ namespace Uintah {
+           }
+ 
+           if (timeStep == 1 || recompute || do_setup) {
+-            HYPRE_StructPCGCreate(pg->getComm(),solver);
++            HYPRE_StructPCGCreate(m_comm,solver);
+ 
+             HYPRE_PtrToStructSolverFcn precond;
+             HYPRE_PtrToStructSolverFcn precond_setup;
+@@ -818,7 +820,7 @@ namespace Uintah {
+           }
+ 
+           if ( timeStep == 1 || recompute || do_setup ) {
+-            HYPRE_StructHybridCreate(pg->getComm(), solver);
++            HYPRE_StructHybridCreate(m_comm, solver);
+ 
+             HYPRE_PtrToStructSolverFcn precond;
+             HYPRE_PtrToStructSolverFcn precond_setup;
+@@ -856,7 +858,7 @@ namespace Uintah {
+           }
+ 
+           if (timeStep == 1 || recompute || do_setup ) {
+-            HYPRE_StructGMRESCreate(pg->getComm(),solver);
++            HYPRE_StructGMRESCreate(m_comm,solver);
+ 
+             HYPRE_PtrToStructSolverFcn precond;
+             HYPRE_PtrToStructSolverFcn precond_setup;
+@@ -957,7 +959,7 @@ namespace Uintah {
+ 
+         hypre_EndTiming (m_tHypreAll);
+ 
+-        hypre_PrintTiming   ("Hypre Timings:", pg->getComm());
++        hypre_PrintTiming   ("Hypre Timings:", m_comm);
+         hypre_FinalizeTiming( m_tMatVecSetup );
+         hypre_FinalizeTiming( m_tSolveOnly );
+         hypre_FinalizeTiming( m_tCopySolution );
+@@ -1021,7 +1023,7 @@ namespace Uintah {
+       //__________________________________
+       // use symmetric SMG as preconditioner
+       case smg: {
+-        HYPRE_StructSMGCreate         (pg->getComm(),    &precond_solver);
++        HYPRE_StructSMGCreate         (m_comm,    &precond_solver);
+         HYPRE_StructSMGSetMemoryUse   (precond_solver,   0);
+         HYPRE_StructSMGSetMaxIter     (precond_solver,   m_params->precond_maxiters);
+         HYPRE_StructSMGSetTol         (precond_solver,   m_params->precond_tolerance);
+@@ -1038,7 +1040,7 @@ namespace Uintah {
+       //__________________________________
+       // use symmetric PFMG as preconditioner
+       case pfmg: {
+-        HYPRE_StructPFMGCreate        (pg->getComm(),    &precond_solver);
++        HYPRE_StructPFMGCreate        (m_comm,    &precond_solver);
+         HYPRE_StructPFMGSetMaxIter    (precond_solver,   m_params->precond_maxiters);
+         HYPRE_StructPFMGSetTol        (precond_solver,   m_params->precond_tolerance);
+         HYPRE_StructPFMGSetZeroGuess  (precond_solver);
+@@ -1069,7 +1071,7 @@ namespace Uintah {
+       //__________________________________
+       //  use symmetric SparseMSG as preconditioner
+       case sparsemsg: {
+-        HYPRE_StructSparseMSGCreate       (pg->getComm(),   &precond_solver);
++        HYPRE_StructSparseMSGCreate       (m_comm,   &precond_solver);
+         HYPRE_StructSparseMSGSetMaxIter   (precond_solver,  m_params->precond_maxiters);
+         HYPRE_StructSparseMSGSetJump      (precond_solver,  m_params->jump);
+         HYPRE_StructSparseMSGSetTol       (precond_solver,  m_params->precond_tolerance);
+@@ -1089,7 +1091,7 @@ namespace Uintah {
+       //__________________________________
+       //  use two-step Jacobi as preconditioner
+       case jacobi: {
+-        HYPRE_StructJacobiCreate      (pg->getComm(),    &precond_solver);
++        HYPRE_StructJacobiCreate      (m_comm,    &precond_solver);
+         HYPRE_StructJacobiSetMaxIter  (precond_solver,   m_params->precond_maxiters);
+         HYPRE_StructJacobiSetTol      (precond_solver,   m_params->precond_tolerance);
+         HYPRE_StructJacobiSetZeroGuess(precond_solver);
+@@ -1164,6 +1166,7 @@ namespace Uintah {
+     Task::WhichDW      m_which_guess_dw;
+     const HypreParams* m_params;
+     bool               m_isFirstSolve;
++    MPI_Comm           m_comm;  // HypreSolver2::m_hypre_comm
+ 
+     mutable double *   m_buff {nullptr};
+     mutable size_t     m_buff_size {0};
+@@ -1210,6 +1213,17 @@ namespace Uintah {
+                                             SoleVariable<hypre_solver_structP>::getTypeDescription());
+ 
+     m_params = scinew HypreParams();
++
++    // hypre communicates on a duplicate of the world communicator. Under the
++    // multithreaded schedulers the hypre task runs on one thread while another
++    // task calls MPI collectives on the world communicator on another thread,
++    // for instance the MPI_Allreduce of ApplicationCommon::reduceSystemVars.
++    // On one communicator, such concurrent collectives can match each other
++    // across ranks. The duplicate is made here, on the main thread, before any
++    // task runs.
++    if (Uintah::MPI::Comm_dup(myworld->getComm(), &m_hypre_comm) != MPI_SUCCESS) {
++      SCI_THROW(InternalError("HypreSolver2: MPI_Comm_dup failed", __FILE__, __LINE__));
++    }
+   }
+ 
+   //---------------------------------------------------------------------------------------------
+@@ -1416,7 +1430,7 @@ namespace Uintah {
+                                                    ,       functor         TaskDependencies
+                                                    )
+   {
+-    HypreStencil7<GridVarType>* that = scinew HypreStencil7<GridVarType>(level.get_rep(), matls, A_label, which_A_dw, x_label, modifies_X, b_label, which_b_dw, guess_label, which_guess_dw, m_params, isFirstSolve);
++    HypreStencil7<GridVarType>* that = scinew HypreStencil7<GridVarType>(level.get_rep(), matls, A_label, which_A_dw, x_label, modifies_X, b_label, which_b_dw, guess_label, which_guess_dw, m_params, isFirstSolve, m_hypre_comm);
+     Handle<HypreStencil7<GridVarType> > handle = that;
+ 
+     create_portable_tasks(TaskDependencies, that,
+diff --git a/src/CCA/Components/Solvers/HypreSolver.h b/src/CCA/Components/Solvers/HypreSolver.h
+index 153e153..205d3e3 100644
+--- a/src/CCA/Components/Solvers/HypreSolver.h
++++ b/src/CCA/Components/Solvers/HypreSolver.h
+@@ -330,6 +330,9 @@ namespace Uintah {
+     const VarLabel * m_hypre_solver_label = nullptr;
+ 
+     HypreParams * m_params = nullptr;
++
++    // hypre's own duplicate of the world communicator, made in the constructor
++    MPI_Comm m_hypre_comm = MPI_COMM_NULL;
+   };
+ }
+ 

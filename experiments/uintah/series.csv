@@ -1,0 +1,641 @@
+mpi,build,np,args,run,rc,outcome,seconds,provided,iterations
+openmpi,plain,4,-nthreads 2,1,15,truncate,.55532,3,
+openmpi,fix,4,-nthreads 2,1,0,pass,.88649,3,1
+openmpi,plain,4,-nthreads 4,1,15,truncate,.55230,3,
+openmpi,fix,4,-nthreads 4,1,0,pass,1.2213,3,1
+openmpi,plain,2,-nthreads 2,1,0,pass,.58106,3,1
+openmpi,fix,2,-nthreads 2,1,0,pass,.57207,3,1
+openmpi,plain,4,mpi-scheduler,1,0,pass,.59085,0,1
+openmpi,fix,4,mpi-scheduler,1,0,pass,.62532,0,1
+openmpi,plain,4,-nthreads 2,2,0,pass,.61253,3,1
+openmpi,fix,4,-nthreads 2,2,0,pass,.61877,3,1
+openmpi,plain,4,-nthreads 4,2,15,truncate,.55609,3,
+openmpi,fix,4,-nthreads 4,2,0,pass,.94488,3,1
+openmpi,plain,2,-nthreads 2,2,0,pass,.55759,3,1
+openmpi,fix,2,-nthreads 2,2,0,pass,.57103,3,1
+openmpi,plain,4,mpi-scheduler,2,0,pass,.56070,0,1
+openmpi,fix,4,mpi-scheduler,2,0,pass,.60839,0,1
+openmpi,plain,4,-nthreads 2,3,15,truncate,.52134,3,1
+openmpi,fix,4,-nthreads 2,3,0,pass,.60362,3,1
+openmpi,plain,4,-nthreads 4,3,15,truncate,.52051,3,
+openmpi,fix,4,-nthreads 4,3,0,pass,.86080,3,1
+openmpi,plain,2,-nthreads 2,3,0,pass,.54283,3,1
+openmpi,fix,2,-nthreads 2,3,0,pass,.57778,3,1
+openmpi,plain,4,mpi-scheduler,3,0,pass,.60846,0,1
+openmpi,fix,4,mpi-scheduler,3,0,pass,.59496,0,1
+openmpi,plain,4,-nthreads 2,4,15,truncate,.50235,3,
+openmpi,fix,4,-nthreads 2,4,0,pass,.71163,3,1
+openmpi,plain,4,-nthreads 4,4,15,truncate,.53147,3,
+openmpi,fix,4,-nthreads 4,4,0,pass,.91359,3,1
+openmpi,plain,2,-nthreads 2,4,0,pass,.57271,3,1
+openmpi,fix,2,-nthreads 2,4,0,pass,.56915,3,1
+openmpi,plain,4,mpi-scheduler,4,0,pass,.64720,0,1
+openmpi,fix,4,mpi-scheduler,4,0,pass,.63543,0,1
+openmpi,plain,4,-nthreads 2,5,0,pass,.78024,3,1
+openmpi,fix,4,-nthreads 2,5,0,pass,.56760,3,1
+openmpi,plain,4,-nthreads 4,5,15,truncate,.56400,3,
+openmpi,fix,4,-nthreads 4,5,0,pass,.78916,3,1
+openmpi,plain,2,-nthreads 2,5,0,pass,.54613,3,1
+openmpi,fix,2,-nthreads 2,5,0,pass,.58619,3,1
+openmpi,plain,4,mpi-scheduler,5,0,pass,.60663,0,1
+openmpi,fix,4,mpi-scheduler,5,0,pass,.61156,0,1
+openmpi,plain,4,-nthreads 2,6,15,truncate,.57253,3,1
+openmpi,fix,4,-nthreads 2,6,0,pass,.60456,3,1
+openmpi,plain,4,-nthreads 4,6,124,hang,31.012,3,8
+openmpi,fix,4,-nthreads 4,6,0,pass,.77962,3,1
+openmpi,plain,2,-nthreads 2,6,0,pass,.59374,3,1
+openmpi,fix,2,-nthreads 2,6,0,pass,.59540,3,1
+openmpi,plain,4,mpi-scheduler,6,0,pass,.62413,0,1
+openmpi,fix,4,mpi-scheduler,6,0,pass,.60510,0,1
+openmpi,plain,4,-nthreads 2,7,15,truncate,.62208,3,1
+openmpi,fix,4,-nthreads 2,7,0,pass,.83033,3,1
+openmpi,plain,4,-nthreads 4,7,15,truncate,.56827,3,
+openmpi,fix,4,-nthreads 4,7,0,pass,.87188,3,1
+openmpi,plain,2,-nthreads 2,7,0,pass,.56017,3,1
+openmpi,fix,2,-nthreads 2,7,0,pass,.61876,3,1
+openmpi,plain,4,mpi-scheduler,7,0,pass,.84210,0,1
+openmpi,fix,4,mpi-scheduler,7,0,pass,.62896,0,1
+openmpi,plain,4,-nthreads 2,8,15,truncate,.65199,3,
+openmpi,fix,4,-nthreads 2,8,0,pass,1.1776,3,1
+openmpi,plain,4,-nthreads 4,8,15,truncate,.52822,3,
+openmpi,fix,4,-nthreads 4,8,0,pass,.92540,3,1
+openmpi,plain,2,-nthreads 2,8,0,pass,.56612,3,1
+openmpi,fix,2,-nthreads 2,8,0,pass,.62385,3,1
+openmpi,plain,4,mpi-scheduler,8,0,pass,.63020,0,1
+openmpi,fix,4,mpi-scheduler,8,0,pass,.63627,0,1
+openmpi,plain,4,-nthreads 2,9,15,truncate,.54988,3,
+openmpi,fix,4,-nthreads 2,9,0,pass,.90629,3,1
+openmpi,plain,4,-nthreads 4,9,15,truncate,.55265,3,
+openmpi,fix,4,-nthreads 4,9,0,pass,1.7632,3,1
+openmpi,plain,2,-nthreads 2,9,0,pass,.57733,3,1
+openmpi,fix,2,-nthreads 2,9,0,pass,.62512,3,1
+openmpi,plain,4,mpi-scheduler,9,0,pass,.59574,0,1
+openmpi,fix,4,mpi-scheduler,9,0,pass,.60097,0,1
+openmpi,plain,4,-nthreads 2,10,15,truncate,.53212,3,
+openmpi,fix,4,-nthreads 2,10,0,pass,.63512,3,1
+openmpi,plain,4,-nthreads 4,10,15,fail,.59139,3,
+openmpi,fix,4,-nthreads 4,10,0,pass,.83607,3,1
+openmpi,plain,2,-nthreads 2,10,15,truncate,.51571,3,
+openmpi,fix,2,-nthreads 2,10,0,pass,.63126,3,1
+openmpi,plain,4,mpi-scheduler,10,0,pass,.62595,0,1
+openmpi,fix,4,mpi-scheduler,10,0,pass,.61955,0,1
+openmpi,plain,4,-nthreads 2,11,15,truncate,.55798,3,
+openmpi,fix,4,-nthreads 2,11,0,pass,.76174,3,1
+openmpi,plain,4,-nthreads 4,11,15,truncate,.54660,3,
+openmpi,fix,4,-nthreads 4,11,0,pass,.87823,3,1
+openmpi,plain,2,-nthreads 2,11,0,pass,.57159,3,1
+openmpi,fix,2,-nthreads 2,11,0,pass,.56706,3,1
+openmpi,plain,4,mpi-scheduler,11,0,pass,.60720,0,1
+openmpi,fix,4,mpi-scheduler,11,0,pass,.63922,0,1
+openmpi,plain,4,-nthreads 2,12,0,pass,.76319,3,1
+openmpi,fix,4,-nthreads 2,12,0,pass,.95371,3,1
+openmpi,plain,4,-nthreads 4,12,15,truncate,.53406,3,
+openmpi,fix,4,-nthreads 4,12,0,pass,1.1264,3,1
+openmpi,plain,2,-nthreads 2,12,0,pass,.57163,3,1
+openmpi,fix,2,-nthreads 2,12,0,pass,.63948,3,1
+openmpi,plain,4,mpi-scheduler,12,0,pass,.61910,0,1
+openmpi,fix,4,mpi-scheduler,12,0,pass,.62220,0,1
+openmpi,plain,4,-nthreads 2,13,15,truncate,.58600,3,
+openmpi,fix,4,-nthreads 2,13,0,pass,1.8540,3,1
+openmpi,plain,4,-nthreads 4,13,15,truncate,.82271,3,1
+openmpi,fix,4,-nthreads 4,13,0,pass,1.0090,3,1
+openmpi,plain,2,-nthreads 2,13,0,pass,.58281,3,1
+openmpi,fix,2,-nthreads 2,13,0,pass,.61863,3,1
+openmpi,plain,4,mpi-scheduler,13,0,pass,.64302,0,1
+openmpi,fix,4,mpi-scheduler,13,0,pass,.59331,0,1
+openmpi,plain,4,-nthreads 2,14,15,truncate,.56609,3,
+openmpi,fix,4,-nthreads 2,14,0,pass,.64796,3,1
+openmpi,plain,4,-nthreads 4,14,15,fail,.55290,3,
+openmpi,fix,4,-nthreads 4,14,0,pass,2.1523,3,1
+openmpi,plain,2,-nthreads 2,14,0,pass,.86292,3,1
+openmpi,fix,2,-nthreads 2,14,0,pass,.59237,3,1
+openmpi,plain,4,mpi-scheduler,14,0,pass,.61506,0,1
+openmpi,fix,4,mpi-scheduler,14,0,pass,.61871,0,1
+openmpi,plain,4,-nthreads 2,15,15,truncate,.55826,3,
+openmpi,fix,4,-nthreads 2,15,0,pass,.98927,3,1
+openmpi,plain,4,-nthreads 4,15,15,truncate,.55237,3,
+openmpi,fix,4,-nthreads 4,15,0,pass,.79537,3,1
+openmpi,plain,2,-nthreads 2,15,0,pass,.57122,3,1
+openmpi,fix,2,-nthreads 2,15,0,pass,.59128,3,1
+openmpi,plain,4,mpi-scheduler,15,0,pass,.60556,0,1
+openmpi,fix,4,mpi-scheduler,15,0,pass,.68325,0,1
+openmpi,plain,4,-nthreads 2,16,15,truncate,.54922,3,
+openmpi,fix,4,-nthreads 2,16,0,pass,1.1147,3,1
+openmpi,plain,4,-nthreads 4,16,15,truncate,.57897,3,
+openmpi,fix,4,-nthreads 4,16,0,pass,1.3444,3,1
+openmpi,plain,2,-nthreads 2,16,0,pass,.58582,3,1
+openmpi,fix,2,-nthreads 2,16,0,pass,.59356,3,1
+openmpi,plain,4,mpi-scheduler,16,0,pass,.63715,0,1
+openmpi,fix,4,mpi-scheduler,16,0,pass,.62860,0,1
+openmpi,plain,4,-nthreads 2,17,15,truncate,.54777,3,
+openmpi,fix,4,-nthreads 2,17,0,pass,.58779,3,1
+openmpi,plain,4,-nthreads 4,17,15,truncate,.55230,3,
+openmpi,fix,4,-nthreads 4,17,0,pass,1.2176,3,1
+openmpi,plain,2,-nthreads 2,17,0,pass,.57129,3,1
+openmpi,fix,2,-nthreads 2,17,0,pass,.55901,3,1
+openmpi,plain,4,mpi-scheduler,17,0,pass,.61054,0,1
+openmpi,fix,4,mpi-scheduler,17,0,pass,.62561,0,1
+openmpi,plain,4,-nthreads 2,18,15,truncate,.54126,3,
+openmpi,fix,4,-nthreads 2,18,0,pass,.58668,3,1
+openmpi,plain,4,-nthreads 4,18,15,truncate,.50172,3,
+openmpi,fix,4,-nthreads 4,18,0,pass,.78281,3,1
+openmpi,plain,2,-nthreads 2,18,0,pass,.56356,3,1
+openmpi,fix,2,-nthreads 2,18,0,pass,.55876,3,1
+openmpi,plain,4,mpi-scheduler,18,0,pass,.61219,0,1
+openmpi,fix,4,mpi-scheduler,18,0,pass,.60952,0,1
+openmpi,plain,4,-nthreads 2,19,15,truncate,.52382,3,1
+openmpi,fix,4,-nthreads 2,19,0,pass,.57538,3,1
+openmpi,plain,4,-nthreads 4,19,15,truncate,.68298,3,
+openmpi,fix,4,-nthreads 4,19,0,pass,.80697,3,1
+openmpi,plain,2,-nthreads 2,19,0,pass,.54439,3,1
+openmpi,fix,2,-nthreads 2,19,0,pass,.57495,3,1
+openmpi,plain,4,mpi-scheduler,19,0,pass,.58266,0,1
+openmpi,fix,4,mpi-scheduler,19,0,pass,.61893,0,1
+openmpi,plain,4,-nthreads 2,20,0,pass,.59278,3,1
+openmpi,fix,4,-nthreads 2,20,0,pass,.59293,3,1
+openmpi,plain,4,-nthreads 4,20,15,truncate,.62483,3,
+openmpi,fix,4,-nthreads 4,20,0,pass,.99180,3,1
+openmpi,plain,2,-nthreads 2,20,0,pass,.55441,3,1
+openmpi,fix,2,-nthreads 2,20,0,pass,.58285,3,1
+openmpi,plain,4,mpi-scheduler,20,0,pass,.60215,0,1
+openmpi,fix,4,mpi-scheduler,20,0,pass,.64259,0,1
+openmpi,plain,4,-nthreads 2,21,0,pass,.59002,3,1
+openmpi,fix,4,-nthreads 2,21,0,pass,.60724,3,1
+openmpi,plain,4,-nthreads 4,21,124,hang,30.013,3,8
+openmpi,fix,4,-nthreads 4,21,0,pass,1.4254,3,1
+openmpi,plain,2,-nthreads 2,21,0,pass,.56191,3,1
+openmpi,fix,2,-nthreads 2,21,0,pass,.58395,3,1
+openmpi,plain,4,mpi-scheduler,21,0,pass,.60212,0,1
+openmpi,fix,4,mpi-scheduler,21,0,pass,.58157,0,1
+openmpi,plain,4,-nthreads 2,22,15,truncate,.52458,3,1
+openmpi,fix,4,-nthreads 2,22,0,pass,.61604,3,1
+openmpi,plain,4,-nthreads 4,22,15,truncate,.54721,3,
+openmpi,fix,4,-nthreads 4,22,0,pass,.83163,3,1
+openmpi,plain,2,-nthreads 2,22,0,pass,.53115,3,1
+openmpi,fix,2,-nthreads 2,22,0,pass,.58163,3,1
+openmpi,plain,4,mpi-scheduler,22,0,pass,.63042,0,1
+openmpi,fix,4,mpi-scheduler,22,0,pass,.61782,0,1
+openmpi,plain,4,-nthreads 2,23,0,pass,.61235,3,1
+openmpi,fix,4,-nthreads 2,23,0,pass,.58807,3,1
+openmpi,plain,4,-nthreads 4,23,15,truncate,.54787,3,
+openmpi,fix,4,-nthreads 4,23,0,pass,.87917,3,1
+openmpi,plain,2,-nthreads 2,23,0,pass,.56818,3,1
+openmpi,fix,2,-nthreads 2,23,0,pass,.57923,3,1
+openmpi,plain,4,mpi-scheduler,23,0,pass,.61625,0,1
+openmpi,fix,4,mpi-scheduler,23,0,pass,.61849,0,1
+openmpi,plain,4,-nthreads 2,24,15,truncate,.53371,3,
+openmpi,fix,4,-nthreads 2,24,0,pass,.58582,3,1
+openmpi,plain,4,-nthreads 4,24,124,hang,31.011,3,8
+openmpi,fix,4,-nthreads 4,24,0,pass,.92047,3,1
+openmpi,plain,2,-nthreads 2,24,0,pass,.54621,3,1
+openmpi,fix,2,-nthreads 2,24,0,pass,.57330,3,1
+openmpi,plain,4,mpi-scheduler,24,0,pass,.58309,0,1
+openmpi,fix,4,mpi-scheduler,24,0,pass,.62650,0,1
+openmpi,plain,4,-nthreads 2,25,0,pass,.63808,3,1
+openmpi,fix,4,-nthreads 2,25,0,pass,.62474,3,1
+openmpi,plain,4,-nthreads 4,25,15,truncate,.55197,3,
+openmpi,fix,4,-nthreads 4,25,0,pass,1.0809,3,1
+openmpi,plain,2,-nthreads 2,25,0,pass,.57095,3,1
+openmpi,fix,2,-nthreads 2,25,0,pass,.57375,3,1
+openmpi,plain,4,mpi-scheduler,25,0,pass,.59092,0,1
+openmpi,fix,4,mpi-scheduler,25,0,pass,.56490,0,1
+openmpi,plain,4,-nthreads 2,26,15,truncate,.52723,3,
+openmpi,fix,4,-nthreads 2,26,0,pass,.61437,3,1
+openmpi,plain,4,-nthreads 4,26,15,truncate,.54858,3,
+openmpi,fix,4,-nthreads 4,26,0,pass,.92754,3,1
+openmpi,plain,2,-nthreads 2,26,0,pass,.57400,3,1
+openmpi,fix,2,-nthreads 2,26,0,pass,.56225,3,1
+openmpi,plain,4,mpi-scheduler,26,0,pass,.60880,0,1
+openmpi,fix,4,mpi-scheduler,26,0,pass,.56805,0,1
+openmpi,plain,4,-nthreads 2,27,15,truncate,.56049,3,1
+openmpi,fix,4,-nthreads 2,27,0,pass,.74918,3,1
+openmpi,plain,4,-nthreads 4,27,15,truncate,.52687,3,
+openmpi,fix,4,-nthreads 4,27,0,pass,.82103,3,1
+openmpi,plain,2,-nthreads 2,27,0,pass,.56449,3,1
+openmpi,fix,2,-nthreads 2,27,0,pass,.57859,3,1
+openmpi,plain,4,mpi-scheduler,27,0,pass,.63616,0,1
+openmpi,fix,4,mpi-scheduler,27,0,pass,.63002,0,1
+openmpi,plain,4,-nthreads 2,28,15,truncate,.54112,3,
+openmpi,fix,4,-nthreads 2,28,0,pass,.61317,3,1
+openmpi,plain,4,-nthreads 4,28,15,truncate,.55368,3,
+openmpi,fix,4,-nthreads 4,28,0,pass,1.5332,3,1
+openmpi,plain,2,-nthreads 2,28,0,pass,.54175,3,1
+openmpi,fix,2,-nthreads 2,28,0,pass,.58055,3,1
+openmpi,plain,4,mpi-scheduler,28,0,pass,.61395,0,1
+openmpi,fix,4,mpi-scheduler,28,0,pass,.62791,0,1
+openmpi,plain,4,-nthreads 2,29,15,truncate,.55142,3,
+openmpi,fix,4,-nthreads 2,29,0,pass,.61644,3,1
+openmpi,plain,4,-nthreads 4,29,15,truncate,.55819,3,
+openmpi,fix,4,-nthreads 4,29,0,pass,1.0003,3,1
+openmpi,plain,2,-nthreads 2,29,0,pass,.56202,3,1
+openmpi,fix,2,-nthreads 2,29,0,pass,.58268,3,1
+openmpi,plain,4,mpi-scheduler,29,0,pass,.57140,0,1
+openmpi,fix,4,mpi-scheduler,29,0,pass,.57959,0,1
+openmpi,plain,4,-nthreads 2,30,15,truncate,.55581,3,1
+openmpi,fix,4,-nthreads 2,30,0,pass,.61206,3,1
+openmpi,plain,4,-nthreads 4,30,15,truncate,.57064,3,1
+openmpi,fix,4,-nthreads 4,30,0,pass,.97555,3,1
+openmpi,plain,2,-nthreads 2,30,0,pass,.56055,3,1
+openmpi,fix,2,-nthreads 2,30,0,pass,.57838,3,1
+openmpi,plain,4,mpi-scheduler,30,0,pass,.59472,0,1
+openmpi,fix,4,mpi-scheduler,30,0,pass,.64482,0,1
+openmpi,plain,4,-nthreads 2,31,0,pass,.61307,3,1
+openmpi,fix,4,-nthreads 2,31,0,pass,.57232,3,1
+openmpi,plain,4,-nthreads 4,31,15,truncate,.51481,3,
+openmpi,fix,4,-nthreads 4,31,0,pass,.96551,3,1
+openmpi,plain,2,-nthreads 2,31,0,pass,.54537,3,1
+openmpi,fix,2,-nthreads 2,31,0,pass,.55943,3,1
+openmpi,plain,4,mpi-scheduler,31,0,pass,.60529,0,1
+openmpi,fix,4,mpi-scheduler,31,0,pass,.64309,0,1
+openmpi,plain,4,-nthreads 2,32,0,pass,.59187,3,1
+openmpi,fix,4,-nthreads 2,32,0,pass,.59028,3,1
+openmpi,plain,4,-nthreads 4,32,15,truncate,.54652,3,
+openmpi,fix,4,-nthreads 4,32,0,pass,.78151,3,1
+openmpi,plain,2,-nthreads 2,32,0,pass,.56969,3,1
+openmpi,fix,2,-nthreads 2,32,0,pass,.57366,3,1
+openmpi,plain,4,mpi-scheduler,32,0,pass,.57652,0,1
+openmpi,fix,4,mpi-scheduler,32,0,pass,.62417,0,1
+openmpi,plain,4,-nthreads 2,33,0,pass,.60756,3,1
+openmpi,fix,4,-nthreads 2,33,0,pass,.60074,3,1
+openmpi,plain,4,-nthreads 4,33,15,truncate,.53056,3,
+openmpi,fix,4,-nthreads 4,33,0,pass,.79172,3,1
+openmpi,plain,2,-nthreads 2,33,0,pass,.56397,3,1
+openmpi,fix,2,-nthreads 2,33,0,pass,.55490,3,1
+openmpi,plain,4,mpi-scheduler,33,0,pass,.61477,0,1
+openmpi,fix,4,mpi-scheduler,33,0,pass,.62522,0,1
+openmpi,plain,4,-nthreads 2,34,0,pass,.58505,3,1
+openmpi,fix,4,-nthreads 2,34,0,pass,.58020,3,1
+openmpi,plain,4,-nthreads 4,34,15,truncate,.53347,3,
+openmpi,fix,4,-nthreads 4,34,0,pass,.88178,3,1
+openmpi,plain,2,-nthreads 2,34,0,pass,.56701,3,1
+openmpi,fix,2,-nthreads 2,34,0,pass,.54527,3,1
+openmpi,plain,4,mpi-scheduler,34,0,pass,.63912,0,1
+openmpi,fix,4,mpi-scheduler,34,0,pass,.65110,0,1
+openmpi,plain,4,-nthreads 2,35,0,pass,.60646,3,1
+openmpi,fix,4,-nthreads 2,35,0,pass,.58939,3,1
+openmpi,plain,4,-nthreads 4,35,15,truncate,.52081,3,
+openmpi,fix,4,-nthreads 4,35,0,pass,.86074,3,1
+openmpi,plain,2,-nthreads 2,35,0,pass,.54530,3,1
+openmpi,fix,2,-nthreads 2,35,0,pass,.56504,3,1
+openmpi,plain,4,mpi-scheduler,35,0,pass,.59109,0,1
+openmpi,fix,4,mpi-scheduler,35,0,pass,.61533,0,1
+openmpi,plain,4,-nthreads 2,36,0,pass,.62179,3,1
+openmpi,fix,4,-nthreads 2,36,0,pass,.58693,3,1
+openmpi,plain,4,-nthreads 4,36,15,truncate,.63468,3,1
+openmpi,fix,4,-nthreads 4,36,0,pass,.88566,3,1
+openmpi,plain,2,-nthreads 2,36,0,pass,.56547,3,1
+openmpi,fix,2,-nthreads 2,36,0,pass,.57852,3,1
+openmpi,plain,4,mpi-scheduler,36,0,pass,.61066,0,1
+openmpi,fix,4,mpi-scheduler,36,0,pass,.61417,0,1
+openmpi,plain,4,-nthreads 2,37,15,truncate,.52235,3,1
+openmpi,fix,4,-nthreads 2,37,0,pass,.60960,3,1
+openmpi,plain,4,-nthreads 4,37,15,truncate,.52217,3,
+openmpi,fix,4,-nthreads 4,37,0,pass,.91462,3,1
+openmpi,plain,2,-nthreads 2,37,0,pass,.56411,3,1
+openmpi,fix,2,-nthreads 2,37,0,pass,.57110,3,1
+openmpi,plain,4,mpi-scheduler,37,0,pass,.60895,0,1
+openmpi,fix,4,mpi-scheduler,37,0,pass,.62228,0,1
+openmpi,plain,4,-nthreads 2,38,15,truncate,.53685,3,1
+openmpi,fix,4,-nthreads 2,38,0,pass,.59738,3,1
+openmpi,plain,4,-nthreads 4,38,15,truncate,.53595,3,
+openmpi,fix,4,-nthreads 4,38,0,pass,1.1282,3,1
+openmpi,plain,2,-nthreads 2,38,0,pass,.55284,3,1
+openmpi,fix,2,-nthreads 2,38,0,pass,.57448,3,1
+openmpi,plain,4,mpi-scheduler,38,0,pass,.59507,0,1
+openmpi,fix,4,mpi-scheduler,38,0,pass,.64277,0,1
+openmpi,plain,4,-nthreads 2,39,15,truncate,.52848,3,1
+openmpi,fix,4,-nthreads 2,39,0,pass,.57612,3,1
+openmpi,plain,4,-nthreads 4,39,15,truncate,.62783,3,1
+openmpi,fix,4,-nthreads 4,39,0,pass,.80445,3,1
+openmpi,plain,2,-nthreads 2,39,0,pass,.55280,3,1
+openmpi,fix,2,-nthreads 2,39,0,pass,.56908,3,1
+openmpi,plain,4,mpi-scheduler,39,0,pass,.61531,0,1
+openmpi,fix,4,mpi-scheduler,39,0,pass,.65202,0,1
+openmpi,plain,4,-nthreads 2,40,0,pass,.62803,3,1
+openmpi,fix,4,-nthreads 2,40,0,pass,.59093,3,1
+openmpi,plain,4,-nthreads 4,40,15,truncate,.64931,3,1
+openmpi,fix,4,-nthreads 4,40,0,pass,.80336,3,1
+openmpi,plain,2,-nthreads 2,40,0,pass,.54507,3,1
+openmpi,fix,2,-nthreads 2,40,0,pass,.56651,3,1
+openmpi,plain,4,mpi-scheduler,40,0,pass,1.7720,0,1
+openmpi,fix,4,mpi-scheduler,40,0,pass,.56355,0,1
+mpich,plain,4,-nthreads 2,1,0,pass,4.5034,3,1
+mpich,fix,4,-nthreads 2,1,0,pass,4.5040,3,1
+mpich,plain,4,-nthreads 4,1,142,truncate,5.4748,3,
+mpich,fix,4,-nthreads 4,1,0,pass,4.6148,3,1
+mpich,plain,2,-nthreads 2,1,0,pass,4.4024,3,1
+mpich,fix,2,-nthreads 2,1,0,pass,4.4306,3,1
+mpich,plain,4,mpi-scheduler,1,0,pass,4.5255,0,1
+mpich,fix,4,mpi-scheduler,1,0,pass,4.5004,0,1
+mpich,plain,4,-nthreads 2,2,142,truncate,5.4190,3,1
+mpich,fix,4,-nthreads 2,2,0,pass,4.4745,3,1
+mpich,plain,4,-nthreads 4,2,142,truncate,5.4762,3,
+mpich,fix,4,-nthreads 4,2,0,pass,4.7642,3,1
+mpich,plain,2,-nthreads 2,2,0,pass,4.4427,3,1
+mpich,fix,2,-nthreads 2,2,0,pass,4.4535,3,1
+mpich,plain,4,mpi-scheduler,2,0,pass,4.4950,0,1
+mpich,fix,4,mpi-scheduler,2,0,pass,4.5167,0,1
+mpich,plain,4,-nthreads 2,3,142,truncate,5.4463,3,
+mpich,fix,4,-nthreads 2,3,0,pass,4.4955,3,1
+mpich,plain,4,-nthreads 4,3,143,truncate,5.4634,3,
+mpich,fix,4,-nthreads 4,3,0,pass,4.6813,3,1
+mpich,plain,2,-nthreads 2,3,0,pass,4.4353,3,1
+mpich,fix,2,-nthreads 2,3,0,pass,4.4568,3,1
+mpich,plain,4,mpi-scheduler,3,0,pass,4.4898,0,1
+mpich,fix,4,mpi-scheduler,3,0,pass,4.4814,0,1
+mpich,plain,4,-nthreads 2,4,143,truncate,5.4751,3,1
+mpich,fix,4,-nthreads 2,4,0,pass,4.4505,3,1
+mpich,plain,4,-nthreads 4,4,142,truncate,5.4599,3,
+mpich,fix,4,-nthreads 4,4,0,pass,4.7414,3,1
+mpich,plain,2,-nthreads 2,4,0,pass,4.4306,3,1
+mpich,fix,2,-nthreads 2,4,0,pass,4.4462,3,1
+mpich,plain,4,mpi-scheduler,4,0,pass,4.4854,0,1
+mpich,fix,4,mpi-scheduler,4,0,pass,4.4918,0,1
+mpich,plain,4,-nthreads 2,5,143,truncate,5.4763,3,1
+mpich,fix,4,-nthreads 2,5,0,pass,4.5021,3,1
+mpich,plain,4,-nthreads 4,5,143,truncate,4.5188,3,
+mpich,fix,4,-nthreads 4,5,0,pass,4.9079,3,1
+mpich,plain,2,-nthreads 2,5,0,pass,4.4333,3,1
+mpich,fix,2,-nthreads 2,5,0,pass,4.4584,3,1
+mpich,plain,4,mpi-scheduler,5,0,pass,4.5034,0,1
+mpich,fix,4,mpi-scheduler,5,0,pass,4.4768,0,1
+mpich,plain,4,-nthreads 2,6,142,truncate,5.4836,3,1
+mpich,fix,4,-nthreads 2,6,0,pass,4.4977,3,1
+mpich,plain,4,-nthreads 4,6,142,truncate,5.5527,3,1
+mpich,fix,4,-nthreads 4,6,0,pass,4.6745,3,1
+mpich,plain,2,-nthreads 2,6,0,pass,4.4326,3,1
+mpich,fix,2,-nthreads 2,6,0,pass,4.4446,3,1
+mpich,plain,4,mpi-scheduler,6,0,pass,4.4938,0,1
+mpich,fix,4,mpi-scheduler,6,0,pass,4.4982,0,1
+mpich,plain,4,-nthreads 2,7,142,truncate,5.4901,3,1
+mpich,fix,4,-nthreads 2,7,0,pass,4.4806,3,1
+mpich,plain,4,-nthreads 4,7,143,truncate,5.4640,3,
+mpich,fix,4,-nthreads 4,7,0,pass,4.8717,3,1
+mpich,plain,2,-nthreads 2,7,0,pass,4.4441,3,1
+mpich,fix,2,-nthreads 2,7,0,pass,4.4524,3,1
+mpich,plain,4,mpi-scheduler,7,0,pass,4.4751,0,1
+mpich,fix,4,mpi-scheduler,7,0,pass,4.5086,0,1
+mpich,plain,4,-nthreads 2,8,142,truncate,5.4492,3,
+mpich,fix,4,-nthreads 2,8,0,pass,4.4866,3,1
+mpich,plain,4,-nthreads 4,8,142,truncate,5.4656,3,
+mpich,fix,4,-nthreads 4,8,0,pass,4.9483,3,1
+mpich,plain,2,-nthreads 2,8,0,pass,4.4273,3,1
+mpich,fix,2,-nthreads 2,8,0,pass,4.4466,3,1
+mpich,plain,4,mpi-scheduler,8,0,pass,4.5058,0,1
+mpich,fix,4,mpi-scheduler,8,0,pass,4.4553,0,1
+mpich,plain,4,-nthreads 2,9,0,pass,4.5072,3,1
+mpich,fix,4,-nthreads 2,9,0,pass,4.4982,3,1
+mpich,plain,4,-nthreads 4,9,142,truncate,5.4462,3,
+mpich,fix,4,-nthreads 4,9,0,pass,4.6919,3,1
+mpich,plain,2,-nthreads 2,9,0,pass,4.4375,3,1
+mpich,fix,2,-nthreads 2,9,0,pass,4.4282,3,1
+mpich,plain,4,mpi-scheduler,9,0,pass,4.4789,0,1
+mpich,fix,4,mpi-scheduler,9,0,pass,4.4791,0,1
+mpich,plain,4,-nthreads 2,10,142,truncate,5.4716,3,
+mpich,fix,4,-nthreads 2,10,0,pass,4.4924,3,1
+mpich,plain,4,-nthreads 4,10,143,truncate,5.4662,3,
+mpich,fix,4,-nthreads 4,10,0,pass,4.6941,3,1
+mpich,plain,2,-nthreads 2,10,0,pass,4.4316,3,1
+mpich,fix,2,-nthreads 2,10,0,pass,4.4221,3,1
+mpich,plain,4,mpi-scheduler,10,0,pass,4.4456,0,1
+mpich,fix,4,mpi-scheduler,10,0,pass,4.4668,0,1
+mpich,plain,4,-nthreads 2,11,142,truncate,5.4579,3,
+mpich,fix,4,-nthreads 2,11,0,pass,4.4881,3,1
+mpich,plain,4,-nthreads 4,11,142,truncate,5.4163,3,
+mpich,fix,4,-nthreads 4,11,0,pass,4.7142,3,1
+mpich,plain,2,-nthreads 2,11,0,pass,4.4118,3,1
+mpich,fix,2,-nthreads 2,11,0,pass,4.4489,3,1
+mpich,plain,4,mpi-scheduler,11,0,pass,4.5018,0,1
+mpich,fix,4,mpi-scheduler,11,0,pass,4.5461,0,1
+mpich,plain,4,-nthreads 2,12,143,truncate,5.5420,3,
+mpich,fix,4,-nthreads 2,12,0,pass,4.7821,3,1
+mpich,plain,4,-nthreads 4,12,143,truncate,5.4870,3,
+mpich,fix,4,-nthreads 4,12,0,pass,4.7404,3,1
+mpich,plain,2,-nthreads 2,12,142,truncate,5.4125,3,
+mpich,fix,2,-nthreads 2,12,0,pass,4.4661,3,1
+mpich,plain,4,mpi-scheduler,12,0,pass,4.5513,0,1
+mpich,fix,4,mpi-scheduler,12,0,pass,4.4828,0,1
+mpich,plain,4,-nthreads 2,13,142,truncate,5.4948,3,
+mpich,fix,4,-nthreads 2,13,0,pass,4.5532,3,1
+mpich,plain,4,-nthreads 4,13,142,truncate,5.5145,3,
+mpich,fix,4,-nthreads 4,13,0,pass,4.7619,3,1
+mpich,plain,2,-nthreads 2,13,142,truncate,5.4245,3,
+mpich,fix,2,-nthreads 2,13,0,pass,4.4627,3,1
+mpich,plain,4,mpi-scheduler,13,0,pass,4.5211,0,1
+mpich,fix,4,mpi-scheduler,13,0,pass,4.5357,0,1
+mpich,plain,4,-nthreads 2,14,142,truncate,4.5718,3,
+mpich,fix,4,-nthreads 2,14,0,pass,4.6271,3,1
+mpich,plain,4,-nthreads 4,14,142,truncate,5.5146,3,
+mpich,fix,4,-nthreads 4,14,0,pass,4.7940,3,1
+mpich,plain,2,-nthreads 2,14,0,pass,4.4456,3,1
+mpich,fix,2,-nthreads 2,14,0,pass,4.4289,3,1
+mpich,plain,4,mpi-scheduler,14,0,pass,4.5303,0,1
+mpich,fix,4,mpi-scheduler,14,0,pass,4.5534,0,1
+mpich,plain,4,-nthreads 2,15,143,truncate,5.4898,3,
+mpich,fix,4,-nthreads 2,15,0,pass,4.9826,3,1
+mpich,plain,4,-nthreads 4,15,142,truncate,5.4563,3,
+mpich,fix,4,-nthreads 4,15,0,pass,4.9370,3,1
+mpich,plain,2,-nthreads 2,15,0,pass,4.4216,3,1
+mpich,fix,2,-nthreads 2,15,0,pass,4.4783,3,1
+mpich,plain,4,mpi-scheduler,15,0,pass,4.5346,0,1
+mpich,fix,4,mpi-scheduler,15,0,pass,4.5009,0,1
+mpich,plain,4,-nthreads 2,16,142,truncate,5.4347,3,
+mpich,fix,4,-nthreads 2,16,0,pass,4.6118,3,1
+mpich,plain,4,-nthreads 4,16,143,truncate,5.4919,3,
+mpich,fix,4,-nthreads 4,16,0,pass,4.8398,3,1
+mpich,plain,2,-nthreads 2,16,0,pass,4.4801,3,1
+mpich,fix,2,-nthreads 2,16,0,pass,4.5011,3,1
+mpich,plain,4,mpi-scheduler,16,0,pass,4.5039,0,1
+mpich,fix,4,mpi-scheduler,16,0,pass,4.6023,0,1
+mpich,plain,4,-nthreads 2,17,142,truncate,5.4688,3,1
+mpich,fix,4,-nthreads 2,17,0,pass,4.5466,3,1
+mpich,plain,4,-nthreads 4,17,143,truncate,5.5100,3,
+mpich,fix,4,-nthreads 4,17,0,pass,4.7534,3,1
+mpich,plain,2,-nthreads 2,17,0,pass,4.4848,3,1
+mpich,fix,2,-nthreads 2,17,0,pass,4.5081,3,1
+mpich,plain,4,mpi-scheduler,17,0,pass,4.5161,0,1
+mpich,fix,4,mpi-scheduler,17,0,pass,4.5303,0,1
+mpich,plain,4,-nthreads 2,18,143,truncate,5.5056,3,
+mpich,fix,4,-nthreads 2,18,0,pass,4.5633,3,1
+mpich,plain,4,-nthreads 4,18,143,truncate,5.5022,3,
+mpich,fix,4,-nthreads 4,18,0,pass,4.8243,3,1
+mpich,plain,2,-nthreads 2,18,142,truncate,5.3747,3,
+mpich,fix,2,-nthreads 2,18,0,pass,4.4122,3,1
+mpich,plain,4,mpi-scheduler,18,0,pass,4.4579,0,1
+mpich,fix,4,mpi-scheduler,18,0,pass,4.4576,0,1
+mpich,plain,4,-nthreads 2,19,124,hang,31.013,3,1
+mpich,fix,4,-nthreads 2,19,0,pass,4.7889,3,1
+mpich,plain,4,-nthreads 4,19,142,truncate,5.4799,3,
+mpich,fix,4,-nthreads 4,19,0,pass,5.2017,3,1
+mpich,plain,2,-nthreads 2,19,142,truncate,5.4175,3,
+mpich,fix,2,-nthreads 2,19,0,pass,4.4925,3,1
+mpich,plain,4,mpi-scheduler,19,0,pass,4.5324,0,1
+mpich,fix,4,mpi-scheduler,19,0,pass,4.5268,0,1
+mpich,plain,4,-nthreads 2,20,143,truncate,5.4779,3,
+mpich,fix,4,-nthreads 2,20,0,pass,4.5559,3,1
+mpich,plain,4,-nthreads 4,20,142,truncate,5.5014,3,
+mpich,fix,4,-nthreads 4,20,0,pass,4.7105,3,1
+mpich,plain,2,-nthreads 2,20,0,pass,4.4318,3,1
+mpich,fix,2,-nthreads 2,20,0,pass,4.5017,3,1
+mpich,plain,4,mpi-scheduler,20,0,pass,4.4928,0,1
+mpich,fix,4,mpi-scheduler,20,0,pass,6.1228,0,1
+mpich,plain,4,-nthreads 2,21,0,pass,4.4531,3,1
+mpich,fix,4,-nthreads 2,21,0,pass,4.5005,3,1
+mpich,plain,4,-nthreads 4,21,142,truncate,5.4901,3,
+mpich,fix,4,-nthreads 4,21,0,pass,5.0318,3,1
+mpich,plain,2,-nthreads 2,21,0,pass,4.4771,3,1
+mpich,fix,2,-nthreads 2,21,0,pass,4.4551,3,1
+mpich,plain,4,mpi-scheduler,21,0,pass,4.4975,0,1
+mpich,fix,4,mpi-scheduler,21,0,pass,4.5234,0,1
+mpich,plain,4,-nthreads 2,22,142,truncate,5.4955,3,1
+mpich,fix,4,-nthreads 2,22,0,pass,4.4689,3,1
+mpich,plain,4,-nthreads 4,22,142,truncate,5.4493,3,
+mpich,fix,4,-nthreads 4,22,0,pass,4.8687,3,1
+mpich,plain,2,-nthreads 2,22,0,pass,4.4113,3,1
+mpich,fix,2,-nthreads 2,22,0,pass,4.4605,3,1
+mpich,plain,4,mpi-scheduler,22,0,pass,4.4829,0,1
+mpich,fix,4,mpi-scheduler,22,0,pass,4.5465,0,1
+mpich,plain,4,-nthreads 2,23,142,truncate,5.4542,3,
+mpich,fix,4,-nthreads 2,23,0,pass,4.4935,3,1
+mpich,plain,4,-nthreads 4,23,142,truncate,5.4548,3,
+mpich,fix,4,-nthreads 4,23,0,pass,4.6615,3,1
+mpich,plain,2,-nthreads 2,23,0,pass,4.4355,3,1
+mpich,fix,2,-nthreads 2,23,0,pass,4.4573,3,1
+mpich,plain,4,mpi-scheduler,23,0,pass,4.4703,0,1
+mpich,fix,4,mpi-scheduler,23,0,pass,4.4331,0,1
+mpich,plain,4,-nthreads 2,24,143,truncate,5.4706,3,
+mpich,fix,4,-nthreads 2,24,0,pass,4.4683,3,1
+mpich,plain,4,-nthreads 4,24,142,truncate,5.4539,3,
+mpich,fix,4,-nthreads 4,24,0,pass,4.7848,3,1
+mpich,plain,2,-nthreads 2,24,0,pass,4.4714,3,1
+mpich,fix,2,-nthreads 2,24,0,pass,4.6325,3,1
+mpich,plain,4,mpi-scheduler,24,0,pass,4.5066,0,1
+mpich,fix,4,mpi-scheduler,24,0,pass,4.4442,0,1
+mpich,plain,4,-nthreads 2,25,143,truncate,5.4244,3,
+mpich,fix,4,-nthreads 2,25,0,pass,4.4673,3,1
+mpich,plain,4,-nthreads 4,25,142,truncate,5.4348,3,
+mpich,fix,4,-nthreads 4,25,0,pass,4.7334,3,1
+mpich,plain,2,-nthreads 2,25,0,pass,4.4420,3,1
+mpich,fix,2,-nthreads 2,25,0,pass,4.4464,3,1
+mpich,plain,4,mpi-scheduler,25,0,pass,4.4932,0,1
+mpich,fix,4,mpi-scheduler,25,0,pass,4.5100,0,1
+mpich,plain,4,-nthreads 2,26,142,truncate,5.4520,3,
+mpich,fix,4,-nthreads 2,26,0,pass,4.5063,3,1
+mpich,plain,4,-nthreads 4,26,142,truncate,5.4437,3,
+mpich,fix,4,-nthreads 4,26,0,pass,4.6637,3,1
+mpich,plain,2,-nthreads 2,26,0,pass,4.4320,3,1
+mpich,fix,2,-nthreads 2,26,0,pass,4.4514,3,1
+mpich,plain,4,mpi-scheduler,26,0,pass,4.4580,0,1
+mpich,fix,4,mpi-scheduler,26,0,pass,4.5085,0,1
+mpich,plain,4,-nthreads 2,27,142,truncate,5.4530,3,
+mpich,fix,4,-nthreads 2,27,0,pass,4.4758,3,1
+mpich,plain,4,-nthreads 4,27,142,truncate,5.4708,3,
+mpich,fix,4,-nthreads 4,27,0,pass,4.7906,3,1
+mpich,plain,2,-nthreads 2,27,0,pass,4.4316,3,1
+mpich,fix,2,-nthreads 2,27,0,pass,4.5025,3,1
+mpich,plain,4,mpi-scheduler,27,0,pass,4.4475,0,1
+mpich,fix,4,mpi-scheduler,27,0,pass,4.4529,0,1
+mpich,plain,4,-nthreads 2,28,0,pass,4.4729,3,1
+mpich,fix,4,-nthreads 2,28,0,pass,4.5051,3,1
+mpich,plain,4,-nthreads 4,28,142,truncate,5.4611,3,
+mpich,fix,4,-nthreads 4,28,0,pass,4.8436,3,1
+mpich,plain,2,-nthreads 2,28,0,pass,4.4204,3,1
+mpich,fix,2,-nthreads 2,28,0,pass,4.4382,3,1
+mpich,plain,4,mpi-scheduler,28,0,pass,4.4608,0,1
+mpich,fix,4,mpi-scheduler,28,0,pass,4.6726,0,1
+mpich,plain,4,-nthreads 2,29,142,truncate,5.4920,3,1
+mpich,fix,4,-nthreads 2,29,0,pass,4.4845,3,1
+mpich,plain,4,-nthreads 4,29,142,truncate,5.4214,3,
+mpich,fix,4,-nthreads 4,29,0,pass,4.6434,3,1
+mpich,plain,2,-nthreads 2,29,0,pass,4.4429,3,1
+mpich,fix,2,-nthreads 2,29,0,pass,4.4562,3,1
+mpich,plain,4,mpi-scheduler,29,0,pass,4.5021,0,1
+mpich,fix,4,mpi-scheduler,29,0,pass,4.5081,0,1
+mpich,plain,4,-nthreads 2,30,0,pass,4.5021,3,1
+mpich,fix,4,-nthreads 2,30,0,pass,4.4777,3,1
+mpich,plain,4,-nthreads 4,30,142,truncate,5.4516,3,
+mpich,fix,4,-nthreads 4,30,0,pass,4.9772,3,1
+mpich,plain,2,-nthreads 2,30,0,pass,4.4326,3,1
+mpich,fix,2,-nthreads 2,30,0,pass,4.4394,3,1
+mpich,plain,4,mpi-scheduler,30,0,pass,4.4597,0,1
+mpich,fix,4,mpi-scheduler,30,0,pass,4.4804,0,1
+mpich,plain,4,-nthreads 2,31,142,truncate,5.4325,3,
+mpich,fix,4,-nthreads 2,31,0,pass,4.4706,3,1
+mpich,plain,4,-nthreads 4,31,142,truncate,5.4857,3,
+mpich,fix,4,-nthreads 4,31,0,pass,4.8816,3,1
+mpich,plain,2,-nthreads 2,31,0,pass,4.4268,3,1
+mpich,fix,2,-nthreads 2,31,0,pass,4.4211,3,1
+mpich,plain,4,mpi-scheduler,31,0,pass,4.5145,0,1
+mpich,fix,4,mpi-scheduler,31,0,pass,4.4799,0,1
+mpich,plain,4,-nthreads 2,32,0,pass,4.4506,3,1
+mpich,fix,4,-nthreads 2,32,0,pass,4.4665,3,1
+mpich,plain,4,-nthreads 4,32,142,truncate,5.4477,3,
+mpich,fix,4,-nthreads 4,32,0,pass,4.6670,3,1
+mpich,plain,2,-nthreads 2,32,142,truncate,5.4235,3,1
+mpich,fix,2,-nthreads 2,32,0,pass,4.4278,3,1
+mpich,plain,4,mpi-scheduler,32,0,pass,4.5083,0,1
+mpich,fix,4,mpi-scheduler,32,0,pass,4.4885,0,1
+mpich,plain,4,-nthreads 2,33,142,truncate,5.4534,3,
+mpich,fix,4,-nthreads 2,33,0,pass,4.4858,3,1
+mpich,plain,4,-nthreads 4,33,143,truncate,5.4602,3,
+mpich,fix,4,-nthreads 4,33,0,pass,4.8834,3,1
+mpich,plain,2,-nthreads 2,33,0,pass,4.4384,3,1
+mpich,fix,2,-nthreads 2,33,0,pass,4.4383,3,1
+mpich,plain,4,mpi-scheduler,33,0,pass,4.4642,0,1
+mpich,fix,4,mpi-scheduler,33,0,pass,4.4981,0,1
+mpich,plain,4,-nthreads 2,34,142,truncate,5.4580,3,
+mpich,fix,4,-nthreads 2,34,0,pass,4.4496,3,1
+mpich,plain,4,-nthreads 4,34,143,truncate,5.4562,3,
+mpich,fix,4,-nthreads 4,34,0,pass,4.8185,3,1
+mpich,plain,2,-nthreads 2,34,0,pass,4.4089,3,1
+mpich,fix,2,-nthreads 2,34,0,pass,4.4398,3,1
+mpich,plain,4,mpi-scheduler,34,0,pass,4.5078,0,1
+mpich,fix,4,mpi-scheduler,34,0,pass,4.4625,0,1
+mpich,plain,4,-nthreads 2,35,0,pass,4.5068,3,1
+mpich,fix,4,-nthreads 2,35,0,pass,4.4719,3,1
+mpich,plain,4,-nthreads 4,35,142,truncate,5.4852,3,
+mpich,fix,4,-nthreads 4,35,0,pass,4.6594,3,1
+mpich,plain,2,-nthreads 2,35,0,pass,4.4078,3,1
+mpich,fix,2,-nthreads 2,35,0,pass,4.4272,3,1
+mpich,plain,4,mpi-scheduler,35,0,pass,4.4649,0,1
+mpich,fix,4,mpi-scheduler,35,0,pass,4.5226,0,1
+mpich,plain,4,-nthreads 2,36,142,truncate,5.4282,3,
+mpich,fix,4,-nthreads 2,36,0,pass,4.4607,3,1
+mpich,plain,4,-nthreads 4,36,142,truncate,4.5172,3,
+mpich,fix,4,-nthreads 4,36,0,pass,4.7549,3,1
+mpich,plain,2,-nthreads 2,36,0,pass,4.4280,3,1
+mpich,fix,2,-nthreads 2,36,0,pass,4.4279,3,1
+mpich,plain,4,mpi-scheduler,36,0,pass,4.5110,0,1
+mpich,fix,4,mpi-scheduler,36,0,pass,4.4824,0,1
+mpich,plain,4,-nthreads 2,37,143,truncate,5.4613,3,
+mpich,fix,4,-nthreads 2,37,0,pass,4.5020,3,1
+mpich,plain,4,-nthreads 4,37,143,truncate,5.4646,3,
+mpich,fix,4,-nthreads 4,37,0,pass,4.6133,3,1
+mpich,plain,2,-nthreads 2,37,0,pass,4.4316,3,1
+mpich,fix,2,-nthreads 2,37,0,pass,4.4171,3,1
+mpich,plain,4,mpi-scheduler,37,0,pass,4.4872,0,1
+mpich,fix,4,mpi-scheduler,37,0,pass,4.4957,0,1
+mpich,plain,4,-nthreads 2,38,142,truncate,5.4672,3,1
+mpich,fix,4,-nthreads 2,38,0,pass,4.4896,3,1
+mpich,plain,4,-nthreads 4,38,142,truncate,5.4530,3,
+mpich,fix,4,-nthreads 4,38,0,pass,4.8522,3,1
+mpich,plain,2,-nthreads 2,38,0,pass,4.4297,3,1
+mpich,fix,2,-nthreads 2,38,0,pass,4.4380,3,1
+mpich,plain,4,mpi-scheduler,38,0,pass,4.4900,0,1
+mpich,fix,4,mpi-scheduler,38,0,pass,4.5061,0,1
+mpich,plain,4,-nthreads 2,39,142,truncate,5.4445,3,
+mpich,fix,4,-nthreads 2,39,0,pass,4.4415,3,1
+mpich,plain,4,-nthreads 4,39,142,truncate,5.4382,3,
+mpich,fix,4,-nthreads 4,39,0,pass,4.5981,3,1
+mpich,plain,2,-nthreads 2,39,0,pass,4.4348,3,1
+mpich,fix,2,-nthreads 2,39,0,pass,4.4244,3,1
+mpich,plain,4,mpi-scheduler,39,0,pass,4.5282,0,1
+mpich,fix,4,mpi-scheduler,39,0,pass,4.4418,0,1
+mpich,plain,4,-nthreads 2,40,142,truncate,5.4484,3,
+mpich,fix,4,-nthreads 2,40,0,pass,4.4646,3,1
+mpich,plain,4,-nthreads 4,40,142,truncate,5.4595,3,
+mpich,fix,4,-nthreads 4,40,0,pass,4.8991,3,1
+mpich,plain,2,-nthreads 2,40,0,pass,4.4266,3,1
+mpich,fix,2,-nthreads 2,40,0,pass,4.4362,3,1
+mpich,plain,4,mpi-scheduler,40,0,pass,4.5221,0,1
+mpich,fix,4,mpi-scheduler,40,0,pass,4.4657,0,1
