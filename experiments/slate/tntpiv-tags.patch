@@ -1,0 +1,27 @@
+getrf_tntpiv: keep the pivot-to-the-left tags apart from the right columns
+
+The tasks that swap rows in the columns to the right of the panel use
+tag j + A_mt for column j (j <= A_nt - 1), and the task that swaps rows in
+the columns to the left uses 2 * A_mt + j for column j (j <= k - 1). When
+A_nt > A_mt (a wide matrix) the ranges overlap: column j < A_mt on the
+left and column j + A_mt on the right share a tag, their owners are the
+same ranks whenever the process grid has a column count dividing A_mt,
+and nothing orders the two tasks (the left one depends on column[0] and
+column[k-1], the right ones on column[k+1+lookahead] and column[A_nt-1]).
+Their messages then match each other's receives, which swaps rows between
+the two columns. Starting the left tags at A_mt + A_nt keeps the three
+ranges [0, A_mt), [A_mt, A_mt + A_nt) and [A_mt + A_nt, ...) disjoint.
+
+--- a/src/getrf_tntpiv.cc
++++ b/src/getrf_tntpiv.cc
+@@ -344,7 +344,9 @@
+                                  depend(inout:column[k-1])
+                 {
+                     // swap rows in A(k:mt-1, 0:k-1)
+-                    int tag = A_mt * 2; // permuteRows uses tag:tag+k-1 as tags
++                    // permuteRows uses tag:tag+k-1 as tags; the columns to the
++                    // right use A_mt+1 .. A_mt+A_nt-1, so start beyond them
++                    int tag = A_mt + A_nt;
+                     if (A.origin() == Target::Devices && target == Target::Devices) {
+                         internal::permuteRows<Target::Devices>(
+                             Direction::Forward, A.sub(k, A_mt-1, 0, k-1), pivots.at(k),
