@@ -75,8 +75,15 @@ with the hunt notes, outside this repository.
   a probe pin names its envelope's ordinal, a flip pin counts its envelope's probes.
 - `horizon_pins` returned no pins for unflips and test flips, so the hunts replayed them with a
   pin of their own. Fixed 29 Oct (`replay_sample.py --flips` samples them too).
-- Analysis time: a SuperLU_DIST ABglobal trace of 7 403 events took 1 072 s. Under study.
-- Alternatives that need two changed matches are not predicted (HDF5 ph5diff 1.8.9). Under study.
+- Analysis time: a SuperLU_DIST ABglobal trace of 7 403 events took 1 072 s, 95% of it in the
+  generic check of 431 steals at nonblocking receives at each of 57 breakpoints. Fixed 29 Oct:
+  such profiles share their closures and graph searches between thresholds
+  (`feasible.check_profile`); 24 s, the same report in 3 033 comparisons (NPB MG at 32 processes,
+  under load, 2 203 s to 823 s).
+- Alternatives that need two changed matches are not predicted (HDF5 ph5diff 1.8.9). Assessed 29
+  Oct, not pursued: the ph5diff hang needs a flip and then a probe on the same rank beyond its
+  horizon, which no two-change search over the trace's calls can express, and no other known
+  case needs two changes.
 - Treating every collective as a barrier changes no finding (0 of 115 MBI, 0 of 396 MBB): the
   minimal synchronisation of collectives is not an advantage on these corpora.
 - Several threads (milestone A, [threads.md](threads.md) §9): the L1 check did not finish on

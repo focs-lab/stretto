@@ -923,6 +923,20 @@ vector clocks at joins only, one graph per threshold, profiles as intervals):
 
 The unit tests cover the same properties on the closures themselves (`closure_orders_agree`).
 
+The change of 29 Oct 2026 (profiles judged at every breakpoint share their closures and graph
+searches between thresholds, `feasible.check_profile`) was compared with its parent, 747afe3,
+in the experiment image on 16 processors, 14 analyses at a time, every mode: the corpus traces
+of the frozen rerun (`experiments/results/{mbi,mbb}/*/trace`, 503), the golden traces (48) and
+idioms 1 to 32 traced with both MPI implementations (64), 615 traces; the 84 traces of several
+threads of milestone B (CorrBench 38, MPICH's `mt_*` at 16 iterations 7, golden 39); 112
+application traces (E8's five; SuperLU_DIST and Quantum ESPRESSO traces of the new-bug screen
+and of their verification, 49; the historical cases' traces, Cabana, LAMMPS, libMesh, MFEM,
+stempy and HDF5 ph5diff, 58); and `--synthetic <dir>:100` with `--no-sp`. All 3 033
+comparisons were equal. The SuperLU_DIST ABglobal trace that prompted it (7 403 records, 6
+ranks, 2x3 grid) took 1 582 s before and 24 s after (text report; 1 072 s before alone), 1 164 s
+and 41 s with `--full-profile`; NPB MG at 16 and 32 processes 630 and 2 203 s before, 172 and
+823 s after (times under that load).
+
 ## Shared-host protocol on the development host
 
 Jobs that may exceed 20 GiB or use 8 sustained cores run one at a time through

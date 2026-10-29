@@ -2630,5 +2630,223 @@ class C_Abort(unittest.TestCase):
         self.assertEqual(len(rep.by_class("2-blocked")), 1)
 
 
+def irecv_sizes_trace(rng=None, senders: int = 3, per: int = 12, cancels: bool = False, threads: bool = False):
+    """Rank 0 receives the messages of the other ranks with Irecv(ANY_SOURCE), waited for later,
+    and then answers each sender, which receives the answer: the shape of SuperLU_DIST's
+    triangular solves, whose trace of 29 Oct 2026 took 1072 s to analyse, nearly all of it in
+    the generic check of steals at nonblocking receives at each of 57 breakpoints
+    (feasible.check_profile). Without rng, every message has a size of its own (4 to 4 * senders
+    * per bytes, a breakpoint each), the Irecvs are all posted first and waited for in order,
+    and the messages arrive round robin. With rng, sizes repeat, some sends are synchronous or
+    buffered, rank 0 also receives with blocking Recv(ANY_SOURCE), posts its Irecvs in groups
+    and waits for each group in an order of its own, and the messages arrive in a random
+    interleaving of the senders' queues; each receive, in posting order, takes the next arrival
+    (the records of an execution, as random_probe_records draws them).
+
+    With cancels, rank 0 also posts Irecv(ANY_SOURCE)s that it cancels successfully, at once or a
+    few calls later (receives withdrawn by a cancel, Trace.withdrawn; the records are then not
+    always those of an execution, which the checks need not care about). With threads, rank 0's
+    calls come from two threads, an Irecv and its wait from the same one, in a version-3 trace
+    (test_threads.mkt), so that the trace has several chains (Trace.multi)."""
+    queues = {s: [] for s in range(1, senders + 1)}
+    for s in queues:
+        for j in range(per):
+            count = rng.randint(1, 24) if rng else (s - 1) * per + j + 1
+            mode = rng.choice(["std"] * 6 + ["ssend", "bsend"]) if rng else "std"
+            queues[s].append((count, mode))
+    order = [s for j in range(per) for s in queues]          # the sender of each arrival
+    if rng:
+        left, order = {s: per for s in queues}, []
+        while any(left.values()):
+            s = rng.choice([x for x in queues if left[x]])
+            left[s] -= 1
+            order.append(s)
+    recs = {0: []}
+    req, group, withdrawn, tid = 0, [], [], {}
+
+    def thread_of(q=None):
+        if not threads:
+            return 0
+        if q is None or q not in tid:
+            k = rng.randrange(2) if rng else 0
+            if q is not None:
+                tid[q] = k
+            return k
+        return tid[q]
+
+    def emit(rec, q=None):
+        recs[0].append((thread_of(q), rec))
+
+    def cancel_due(force=False):
+        for w in list(withdrawn):
+            w[1] -= 1
+            if force or w[1] < 0:
+                emit({"op": "cancel", "req": w[0]}, w[0])
+                emit({"op": "wait", "kind": "wait", "reqs": [w[0]],
+                      "done": [{"req": w[0], "msrc": None, "mtag": None, "mcount": None, "cancelled": 1}]}, w[0])
+                withdrawn.remove(w)
+
+    for s in order:
+        if cancels and rng.random() < 0.2:
+            emit(irecv(T.ANY, 1, req, count=64), req)
+            withdrawn.append([req, rng.choice([0, 0, 1, 2])])
+            req += 1
+        if rng and rng.random() < 0.25:
+            emit(recv(T.ANY, 1, s, 1, count=64))
+        else:
+            emit(irecv(T.ANY, 1, req, count=64), req)
+            group.append((req, s, 1))
+            req += 1
+        cancel_due()
+        if rng and group and rng.random() < 0.3:
+            rng.shuffle(group)
+            for d in group:
+                emit(wait(d), d[0])
+            group = []
+    for d in group:
+        emit(wait(d), d[0])
+    cancel_due(force=True)
+    for s in queues:
+        emit(send(s, 2), -1 - s)
+        recs[s] = [(0, x) for x in [send(0, 1, count=c, mode=m) for c, m in queues[s]] + [recv(0, 2, 0, 2)]]
+    if threads:
+        from test_threads import mkt, th
+        return mkt({r: [th(k, x) for k, x in xs] for r, xs in recs.items()})
+    return mk({r: [x for _, x in xs] for r, xs in recs.items()})
+
+
+class C_CheckProfile(unittest.TestCase):
+    """feasible.check_profile, the generic check at every threshold with the closure and the
+    graph search shared between thresholds, against check() at each one (on traces with
+    receives withdrawn by a cancel and on traces of several threads too), and its cost on the
+    shape that made it necessary."""
+
+    def same(self, got, want, what):
+        self.assertEqual((got.feasible, got.reason, got.cut, got.hangs, got.issued, got.deprived),
+                         (want.feasible, want.reason, want.cut, want.hangs, want.issued, want.deprived), what)
+        if got.cycle is not None:
+            self.assertEqual(got.cycle, want.cycle, what)
+
+    def items(self, t):
+        """(M, changed, mode, kw) of every check the report makes on t: the observed run in both
+        modes, every alternative, probe alternative, flag flip and completion-order alternative."""
+        hb = fast.Observed(t, None).reaches
+        out = [(t.observed, set(), "SP", {"strong_only": True}), (t.observed, set(), "SP", {})]
+        out += [(a.M, a.changed, "L1", {}) for a in candidates_full(t, hb)[0]]
+        out += [(t.observed, set(), "L1", probe_kw(p, s)) for p, s in probe_items(t, hb)]
+        out += [(t.observed, set(), "L1", wait_kw(*w)) for w in wait_items(t, hb)]
+        return out
+
+    def test_equals_check_at_every_threshold(self):
+        from stretto.feasible import check_profile
+        rng = __import__("random").Random(20261029)
+        traces = [irecv_sizes_trace(rng, rng.choice([2, 3, 4]), rng.randint(3, 7)) for _ in range(30)]
+        traces += [random_probe_trace(rng, rng.choice([3, 4, 5]), rounds=2, shapes=True, polls=True) for _ in range(15)]
+        traces += list(e6_traces(10, 5000))
+        # receives withdrawn by a successful cancel (their cancel edges and the pending rule of
+        # feasible.check), and traces of several threads (chains: happens-before order, rule 8)
+        traces += [irecv_sizes_trace(rng, rng.choice([2, 3]), rng.randint(3, 6), cancels=True) for _ in range(15)]
+        traces += [irecv_sizes_trace(rng, rng.choice([2, 3]), rng.randint(3, 6), threads=True) for _ in range(15)]
+        here = os.path.join(os.path.dirname(os.path.abspath(__file__)), "golden")
+        goldens = [T.load(os.path.join(here, mpi, d)) for mpi in ("openmpi", "mpich")
+                   for d in sorted(os.listdir(os.path.join(here, mpi)))]
+        traces += goldens
+        self.assertGreater(sum(1 for t in traces if t.withdrawn()), 10)
+        self.assertGreater(sum(1 for t in traces if t.multi), 20)
+        from collections import Counter
+        from unittest import mock
+        import stretto.feasible as F
+        n, shapes, closures = 0, Counter(), [0]
+        real_horizon = F._horizon
+
+        def horizon(*a, **k):
+            closures[0] += 1
+            return real_horizon(*a, **k)
+
+        for i, t in enumerate(traces):
+            bps = breakpoints(t) + [None]
+            for M, changed, mode, kw in self.items(t):
+                for floor in (0, len(bps) // 2):
+                    closures[0] = 0
+                    with mock.patch.object(F, "_horizon", horizon):
+                        got = check_profile(t, M, changed, bps[floor:], mode, **kw)
+                    shapes["several runs of thresholds"] += closures[0] > 1
+                    self.assertEqual(list(got), list(dict.fromkeys(bps[floor:])))
+                    for B in got:
+                        with self.subTest(trace=i, B=B):
+                            self.same(got[B], check(t, M, changed, B, mode, **kw), f"trace {i} {mode} {changed} {kw} B={B}")
+                    if not got[None].feasible and got[None].reason == "constraint cycle":
+                        self.assertIsNotNone(got[None].cycle)
+                    n += 1
+                    vs = [got[B].feasible for B in got]
+                    shapes["verdict changes with B"] += vs != vs[:1] * len(vs)
+                    shapes["cyclic below, acyclic above"] += any(
+                        not got[B].feasible and got[B].reason == "constraint cycle" for B in got) and vs[-1]
+                    for kind, on in (("withdrawn", bool(t.withdrawn())), ("threads", t.multi)):
+                        shapes[f"{kind}: profiles"] += on
+                        shapes[f"{kind}: feasible somewhere"] += on and any(vs)
+                        shapes[f"{kind}: verdict changes with B"] += on and vs != vs[:1] * len(vs)
+        # on 29 Oct 2026, with the cancel and thread models: 7 686 profiles, 6 157 with several
+        # runs, 1 893 whose verdict changes with B, 304 cyclic at a threshold and acyclic at
+        # infinity; 622 on traces with withdrawn receives (260 feasible at some B, 16 changing
+        # with B), 1 636 on traces of several threads (782, 139)
+        self.assertGreater(n, 5000)
+        for what, least in (("several runs of thresholds", 1000), ("verdict changes with B", 500),
+                            ("cyclic below, acyclic above", 100), ("withdrawn: profiles", 300),
+                            ("withdrawn: feasible somewhere", 100), ("withdrawn: verdict changes with B", 5),
+                            ("threads: profiles", 1000), ("threads: feasible somewhere", 400),
+                            ("threads: verdict changes with B", 50)):
+            self.assertGreater(shapes[what], least, (what, dict(shapes)))
+
+    def test_cost_on_many_thresholds(self):
+        """The analysis of irecv_sizes_trace() judges each swap and each steal at a nonblocking
+        receive over its 38 thresholds with a few closures and graph searches, and reports
+        what it reports with a generic check at each threshold."""
+        import stretto.feasible as F
+        import stretto.report as R
+        from unittest import mock
+        t = irecv_sizes_trace()
+        bps = breakpoints(t) + [None]
+        alts = [a for a in candidates_full(t)[0] if not t.recvs[a.recv].blocking]
+        self.assertGreaterEqual(len(bps), 37)
+        self.assertGreaterEqual(len(alts), 60)
+        calls = {"profiles": 0, "closures": 0, "graphs": 0}
+        inside = [False]
+        real_profile, real_cut, real_graph = R.check_profile, F.compute_cut, F.build_graph
+
+        def profile(*a, **k):
+            calls["profiles"] += 1
+            inside[0] = True
+            try:
+                return real_profile(*a, **k)
+            finally:
+                inside[0] = False
+
+        def counted(name, f):
+            def g(*a, **k):
+                calls[name] += inside[0]
+                return f(*a, **k)
+            return g
+
+        with mock.patch.object(R, "check_profile", profile), mock.patch.object(F, "compute_cut", counted("closures", real_cut)), \
+                mock.patch.object(F, "build_graph", counted("graphs", real_graph)):
+            rep = analyze(t, with_sp=False)
+        # one closure and one graph search per threshold would be len(alts) * len(bps) of each
+        # (29 184); on 29 Oct 2026 it took 1 993 closures (an alternative's horizon changes
+        # where its observed message, left without a receive, stops blocking) and 1 432 searches
+        self.assertEqual(calls["profiles"], len(alts))
+        self.assertLessEqual(calls["closures"], 3 * len(alts))
+        self.assertLessEqual(calls["graphs"], 2 * len(alts))
+        self.assertGreater(len(rep.findings), 100)
+
+        def per_threshold(t, M, changed, Bs, mode="L1", **kw):
+            return {B: check(t, M, changed, B, mode, **kw) for B in Bs}
+
+        with mock.patch.object(R, "check_profile", per_threshold):
+            ref = analyze(t, with_sp=False)
+        self.assertEqual(R.format_report(t, rep), R.format_report(t, ref))
+        self.assertEqual(R.to_json(t, rep), R.to_json(t, ref))
+
+
 if __name__ == "__main__":
     unittest.main()

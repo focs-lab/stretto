@@ -158,7 +158,16 @@ the match nodes of its order edges. Reachability in the observed graph over the 
 over-approximates reachability in the alternative's graph minus the new match, so the test
 is sound (it may reject an alternative the generic check accepts). Steals at nonblocking
 receives, whose match has later receives of the rank as successors, and swaps go to the
-generic check. Collectives enter the graph
+generic check, at every breakpoint, since T2 does not cover them. Since 29 Oct 2026 that
+profile shares its work between thresholds (`feasible.check_profile`): B enters the generic
+check only through `send_blocks`, in rule 3 of the closure and in the rendezvous edges of the
+graph, so the closure, which records the sends whose blocking it asks about, takes the same
+steps at every threshold at which each of them blocks as it does at the first, and over such a
+run of thresholds the graph keeps its nodes and only loses rendezvous edges as B grows. A run
+is judged with one closure and one graph search at its least threshold, and, if that graph is
+cyclic, at its greatest and by bisection between. The verdicts are those of a check at each
+threshold (`C_CheckProfile`); on a SuperLU_DIST trace of 7 403 records with 431 steals at
+nonblocking receives over 57 breakpoints, the analysis went from 1 072 s to 24 s. Collectives enter the graph
 through hub nodes, 2P edges each. Preparation is O(n log n) per trace and O((n + m) P) per
 threshold. The fast check is a separate algorithm, and nothing proves it equal to the generic
 check, for which the theorems are proved; what supports it is a comparison of the two. The
@@ -505,8 +514,10 @@ issue at most once and rule 6 costs one bisection (`horizon.compute_cut`), match
 O(T) lookups per pair (`matching.matching_order_ok`), and the constraint graph has
 O(n + |M'|·T) edges (a match node and at most four receiver-side and T sender-side order edges
 per pair, P edges per collective through its hub), searched for a cycle in linear time;
-(iii) a steal's profile over the breakpoints takes O(log k) checks from B0 on (T2), a swap's
-k + 2 (T2 does not cover it).
+(iii) a steal's profile over the breakpoints takes O(log k) checks from B0 on (T2); the profile
+of a swap or of a steal at a nonblocking receive, which T2 does not cover, takes at most k + 2
+closures and graph searches: one closure and O(log k) searches per run of thresholds over which
+the sends the closure asks about keep their blocking (`feasible.check_profile`, §2, cost).
 The check is thus quasi-linear per alternative for any number of changed receives; what grows
 with the number of changed receives is the number of alternatives, and the choice of which
 receives to change is the problem that is NP-complete in general (MOPPER's), which this work

@@ -86,7 +86,7 @@ def compute_cut(t: Trace, M: Dict[Key, Key], changed: Set[Key], B: Optional[int]
                 changed_probes: Set[Key] = frozenset(), hangs: Optional[Dict[int, str]] = None,
                 changed_events: Set[Tuple[int, int]] = frozenset(),
                 issued: Optional[Dict[int, int]] = None, probe_alt: Optional[Dict[Key, Key]] = None,
-                bounds=None, deprived: Optional[Set[Key]] = None) -> Dict[int, int]:
+                bounds=None, deprived: Optional[Set[Key]] = None, sensitive: Optional[List] = None) -> Dict[int, int]:
     """The horizon closure as a worklist: every rule is evaluated once at the start and then
     only where an input of its condition changed, which happens when a record loses its
     issue (each record does so at most once, since cuts only decrease) or a receive is
@@ -105,7 +105,12 @@ def compute_cut(t: Trace, M: Dict[Key, Key], changed: Set[Key], B: Optional[int]
     probe_alt maps a changed probe to the send it reports instead of the observed one.
     bounds (stretto.reads): rule 1 cuts the rank of a changed receive at the receive's read
     bound instead of right after its completion (H1', docs/firstread.md); probes and events
-    keep rule H1."""
+    keep rule H1.
+
+    sensitive, if given, receives every send whose blocking at B (matching.send_blocks) the
+    closure asks about. B enters the closure there only (rule 3), so the closure takes the
+    same steps at every threshold at which each of those sends blocks as it does at B
+    (feasible.check_profile)."""
     cut: Dict[int, int] = {rank: len(recs) for rank, recs in t.ranks.items()}
     if issued is None:
         issued = {}
@@ -282,8 +287,11 @@ def compute_cut(t: Trace, M: Dict[Key, Key], changed: Set[Key], B: Optional[int]
         rule6(x)
 
     def rule3(s, rk) -> None:            # a rendezvous send with no posted receive does not complete
-        if s.completed and send_blocks(s, B) and kept(s.rank, _cidx(s)) and (rk is None or rk in deprived or not kept(rk[0], t.recvs[rk].idx)):
-            lower(s.rank, _cidx(s), lambda: f"{s} never completes: rendezvous with no posted receive", _cidx(s) == s.idx)
+        if s.completed and kept(s.rank, _cidx(s)) and (rk is None or rk in deprived or not kept(rk[0], t.recvs[rk].idx)):
+            if sensitive is not None:
+                sensitive.append(s)
+            if send_blocks(s, B):
+                lower(s.rank, _cidx(s), lambda: f"{s} never completes: rendezvous with no posted receive", _cidx(s) == s.idx)
 
     def rule7(s, rk) -> None:            # a ready send needs its receive posted
         issued_now = kept(s.rank, s.idx) or issued.get(s.rank) == s.idx

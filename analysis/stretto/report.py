@@ -8,7 +8,7 @@ from typing import Dict, List, Optional, Set, Tuple
 
 from . import dsl, explore
 from . import fast
-from .feasible import Verdict, breakpoints, check, feasible_profile, observed_feasible_at, profile_summary, without
+from .feasible import Verdict, breakpoints, check, check_profile, feasible_profile, observed_feasible_at, profile_summary, without
 from .matching import (candidates_full, flip_candidates, match_node, observed_hb, observed_ready_errors,
                        probe_candidates, test_flip_candidates)
 from .trace import ANY, Key, Probe, Recv, Send, Trace
@@ -436,7 +436,7 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
                     v = check(t, alt.M, alt.changed, B, "L1", bounds=reads)
                     rule1 = reads.rule1(t, alt.changed, alt.M)
                 if v is None or not v.feasible:
-                    v, rule1 = check(t, alt.M, alt.changed, B, "L1"), None
+                    v, rule1 = pr.alt_verdicts.get(i, {}).get(B) or check(t, alt.M, alt.changed, B, "L1"), None
                 if v.feasible:
                     D = (threads.contained_deadlock if t.multi else contained_deadlock)(t, without(alt.M, v.deprived), alt.changed, v.cut, v.issued, B, rule1)
                     if D and any(x.rank not in D or v.cut[x.rank] > _cidx(x) for x in errs):
@@ -972,6 +972,9 @@ class _Profiles:
     # profiles start (a probe's report or a collective of unknown shape can raise B0 above
     # the threshold below which the run certainly deadlocks)
     real: Mapping = field(default_factory=dict)
+    # by alternative index, the generic check's verdict at each threshold of a profile judged
+    # by feasible.check_profile, that is check(t, alt.M, alt.changed, B, "L1") (cycles aside)
+    alt_verdicts: Dict[int, Dict[Optional[int], Verdict]] = field(default_factory=dict)
 
 
 def bisect_profile(bps: List[Optional[int]], pos: Dict[Optional[int], int], verdict, value, floor: int = 0,
@@ -1096,7 +1099,25 @@ def _profiles_fast(t: Trace, alts, probes, waits, full: bool = False, reads=None
     pr.real = profile(lambda B: at(B).observed_verdict(strong=False), lambda v: v.ok, "the observed run over every edge")[0]
     floor = observed_floor(bps, pr.real)
     for i, a in enumerate(alts):
-        def alt_h1(B, a=a):
+        if a.kind != "steal" or not t.recvs[a.recv].blocking:
+            # the fast check leaves a swap and a steal at a nonblocking receive to the generic
+            # one at every threshold (Observed.check_alternative returns None before looking
+            # at B), and T2 does not cover them, so they are judged at every breakpoint from
+            # the floor on: check_profile shares the closure and the graph search between
+            # thresholds (a SuperLU_DIST trace of 7403 records with 431 such steals over 57
+            # breakpoints took 1072 s to analyse before 29 Oct 2026, 95% of it in 25 475 of
+            # these checks). Its verdicts serve the contained-deadlock search below as well.
+            generic: Dict[Optional[int], Verdict] = pr.alt_verdicts.setdefault(i, {})
+
+            def alt_h1(B, a=a, generic=generic):
+                if not generic:
+                    generic.update(check_profile(t, a.M, a.changed, bps[floor:], "L1"))
+                v = generic.get(B)
+                return v if v is not None else check(t, a.M, a.changed, B, "L1")
+        else:
+            alt_h1 = None
+
+        def alt_h1_fast(B, a=a):
             fv = at(B).check_alternative(a)
             if fv is None:
                 return check(t, a.M, a.changed, B, "L1")   # a swap, a nonblocking receive, a cyclic observed graph
@@ -1111,7 +1132,7 @@ def _profiles_fast(t: Trace, alts, probes, waits, full: bool = False, reads=None
 
         ext = reads is not None and reads.extends(t, a.changed, a.M)
 
-        def alt_at(B, a=a, h1=alt_h1, ext=ext):
+        def alt_at(B, a=a, h1=alt_h1 or alt_h1_fast, ext=ext):
             v = h1(B)
             if ext and not v.feasible:
                 g = check(t, a.M, a.changed, B, "L1", bounds=reads)     # rule H1'

@@ -46,6 +46,45 @@ def check(t: Trace, M: Dict[Key, Key], changed, B: Optional[int], mode: str = "L
     keep their message of M inside the horizon (the receive a Waitany alternative or a test
     flip completes), which rule 6 may deprive of it. The matching judged is M without the
     receives rule 6 deprived (Verdict.deprived)."""
+    h = _horizon(t, M, changed, B, mode, changed_probes, probe_alt, changed_events, must_issue, bounds, must_match)
+    return h if isinstance(h, Verdict) else h.judge(B, extra_edges, strong_only)
+
+
+class _Horizon:
+    """What check() has established before the constraint graph: the kept prefix of the
+    alternative at a threshold, which passed every check on it but acyclicity."""
+    __slots__ = ("t", "M", "cut", "hangs", "issued", "deprived", "hang_text", "probe_alt")
+
+    def __init__(self, t, M, cut, hangs, issued, deprived, hang_text, probe_alt):
+        self.t, self.M, self.cut, self.hangs, self.issued = t, M, cut, hangs, issued
+        self.deprived, self.hang_text, self.probe_alt = deprived, hang_text, probe_alt
+
+    def graph(self, B: Optional[int], extra_edges: Iterable = (), strong_only: bool = False):
+        return build_graph(self.t, self.M, self.cut, B, extra_edges, strong_only, self.probe_alt, self.issued)
+
+    def verdict(self, cyc, cyclic: bool = False) -> Verdict:
+        """check()'s verdict on this horizon, given the cycle of its graph (None: acyclic, unless
+        cyclic says that the graph has a cycle that was not searched for); each verdict has its
+        own copies of the horizon's dictionaries."""
+        cut, hangs, issued, deprived = dict(self.cut), dict(self.hangs), dict(self.issued), set(self.deprived)
+        if cyc or cyclic:
+            return Verdict(False, "constraint cycle", cut, cyc or None, hangs, issued, deprived)
+        return Verdict(True, self.hang_text or "ok", cut, None, hangs, issued, deprived)
+
+    def judge(self, B: Optional[int], extra_edges: Iterable = (), strong_only: bool = False) -> Verdict:
+        cyc = self.graph(B, extra_edges, strong_only).find_cycle()
+        if cyc:
+            return Verdict(False, "constraint cycle", self.cut, cyc, self.hangs, self.issued, self.deprived)
+        return Verdict(True, self.hang_text or "ok", self.cut, None, self.hangs, self.issued, self.deprived)
+
+
+def _horizon(t: Trace, M: Dict[Key, Key], changed, B: Optional[int], mode: str = "L1",
+             changed_probes: Set[Key] = frozenset(), probe_alt: Optional[Dict[Key, Key]] = None,
+             changed_events: Set[Tuple[int, int]] = frozenset(), must_issue: Iterable[Key] = (), bounds=None,
+             must_match: Iterable[Key] = (), sensitive: Optional[List] = None):
+    """check() up to the constraint graph: the Verdict if the alternative fails before it,
+    else its _Horizon. sensitive, if given, receives the sends whose blocking at B the
+    horizon closure asked about (horizon.compute_cut)."""
     seen = {}
     for rk, sk in M.items():
         if rk not in t.recvs or sk not in t.sends:
@@ -59,7 +98,7 @@ def check(t: Trace, M: Dict[Key, Key], changed, B: Optional[int], mode: str = "L
     issued: Dict[int, int] = {}
     deprived: Set[Key] = set()
     cut = compute_cut(t, M, set(changed), B, mode, changed_probes, hangs, changed_events, issued, probe_alt, bounds,
-                      deprived)
+                      deprived, sensitive)
     M = without(M, deprived)
     # SP mode only: the continuation is fixed, so a cut operation is one its rank never completes.
     # The matching may still be realisable (the run then deadlocks): feasible says the former,
@@ -117,11 +156,79 @@ def check(t: Trace, M: Dict[Key, Key], changed, B: Optional[int], mode: str = "L
     why = matching_order_ok(t, M, kept_recv, ranks, kept_probe, probe_alt, cancel_kept=lambda rank, idx: idx < cut[rank])
     if why:
         return Verdict(False, why, cut)
-    g = build_graph(t, M, cut, B, extra_edges, strong_only, probe_alt, issued)
-    cyc = g.find_cycle()
-    if cyc:
-        return Verdict(False, "constraint cycle", cut, cyc, hangs, issued, deprived)
-    return Verdict(True, hang_text or "ok", cut, None, hangs, issued, deprived)
+    return _Horizon(t, M, cut, hangs, issued, deprived, hang_text, probe_alt)
+
+
+def check_profile(t: Trace, M: Dict[Key, Key], changed, Bs: List[Optional[int]], mode: str = "L1",
+                  **kw) -> Dict[Optional[int], Verdict]:
+    """check(t, M, changed, B, mode, **kw) at every threshold of Bs (ascending, None, infinity,
+    last), with the work shared between thresholds: for an alternative judged at every
+    breakpoint (one that theorem T2 does not cover), one closure and one graph search per run
+    of thresholds instead of one each. B enters check() in two places only: rule 3 of the
+    horizon (a rendezvous send without a posted receive does not complete) and the
+    rendezvous edges match -> complete(send) of the graph, both through
+    matching.send_blocks; the rules and edges of several threads (docs/threads.md) and of
+    receives withdrawn by a cancel do not mention it. compute_cut reports the sends whose blocking it asks about. At
+    every threshold at which each of them blocks as it does at B, the closure takes the same
+    steps and reaches the same horizon, and the checks on the horizon before the graph give
+    the same answers. Over such a run of thresholds the graph keeps its nodes and loses
+    rendezvous edges as B grows, so a cycle at one threshold is a cycle at every smaller one:
+    the run is judged at its least threshold, and if that graph is cyclic, at its greatest,
+    and bisected between. The verdicts are check()'s, except that one at a cyclic threshold
+    whose graph was not searched has no cycle (Verdict.cycle None); the profiles read only
+    Verdict.feasible and, at B = None, Verdict.reason, and None is searched whenever it is
+    cyclic."""
+    hkw = {k: kw[k] for k in ("changed_probes", "probe_alt", "changed_events", "must_issue", "bounds", "must_match")
+           if k in kw}
+    gkw = {k: kw[k] for k in ("extra_edges", "strong_only") if k in kw}
+    if set(kw) - set(hkw) - set(gkw):
+        raise TypeError(f"check_profile: unknown arguments {sorted(set(kw) - set(hkw) - set(gkw))}")
+    order = list(dict.fromkeys(Bs))
+    out: Dict[Optional[int], Verdict] = {}
+    i = 0
+    while i < len(order):
+        B = order[i]
+        sensitive: List = []
+        h = _horizon(t, M, changed, B, mode, sensitive=sensitive, **hkw)
+        # the run of thresholds from B on at which every send asked about blocks as at B: below
+        # the least size above B of those that can block at all (send_blocks: s.bytes > B)
+        above = [s.bytes for s in sensitive if not s.rendezvous_always and not s.never_blocks
+                 and B is not None and s.bytes > B]
+        hi = min(above) if above else None
+        j = i + 1
+        while j < len(order) and order[j] is not None and (hi is None or order[j] < hi):
+            j += 1
+        if j < len(order) and order[j] is None and hi is None:
+            j += 1                                   # nothing asked about blocks at B: inf too
+        run = order[i:j]
+        if isinstance(h, Verdict):
+            for x in run:
+                out[x] = Verdict(h.feasible, h.reason, dict(h.cut) if h.cut is not None else None)
+        else:
+            cyc = {}
+
+            def cyclic(k: int) -> bool:
+                if k not in cyc:
+                    cyc[k] = h.graph(run[k], **gkw).find_cycle()
+                return bool(cyc[k])
+
+            first = 0                                # the least acyclic threshold of the run
+            if cyclic(0):
+                if cyclic(len(run) - 1):
+                    first = len(run)
+                else:
+                    a, b = 1, len(run) - 1           # cyclic at a - 1, acyclic at b
+                    while a < b:
+                        m = (a + b) // 2
+                        if cyclic(m):
+                            a = m + 1
+                        else:
+                            b = m
+                    first = b
+            for k, x in enumerate(run):
+                out[x] = h.verdict(None) if k >= first else h.verdict(cyc.get(k) or [], cyclic=True)
+        i = j
+    return out
 
 
 def observed_feasible_at(t: Trace, B: Optional[int], strong_only: bool = True) -> Verdict:
