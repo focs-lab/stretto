@@ -30,11 +30,12 @@ never failed on one node (0 of 80 and 0 of 160).
 
 ## Latent bugs: real, but reached only by a driver over the public API
 
-No shipped caller reaches them, so they count apart from the bugs above.
+No shipped caller reaches them, so they count apart from the bugs above. Drivers, fixes, scripts
+and compact result tables: [experiments/latent](../experiments/latent/README.md).
 
-| Bug | Evidence (driver written for the hunt) | Why no shipped caller hits it |
+| Bug | Evidence (driver written for the hunt; `experiments/latent`) | Why no shipped caller hits it |
 |---|---|---|
-| OpenFOAM ESI develop 68a81857c, `Pstream::exchange(Map)`: NBX with a constant default tag; two calls in a row mix their messages | 39 of 39 clean traces predict it; 429 of 434 replays print wrong data; plain and delayed stress 1 of 320; `nbx.tuning=1` removes it | the only in-tree caller (Test-parallel-chunks, with `nbx.min=2`) checks nothing; snappyHexMesh tutorials traced with `pbufs.tuning=1` have no cross-call alternative. The 2024 issue 3238 was the same class at call sites |
+| OpenFOAM ESI develop 68a81857c, `Pstream::exchange(Map)`: NBX with a constant default tag; two calls in a row mix their messages | 39 of 39 clean traces predict it; 434 of 434 replays print wrong data, 429 of them with a correct control; plain and delayed stress 1 of 320; `nbx.tuning=1` removes it | the only in-tree caller (Test-parallel-chunks, with `nbx.min=2`) checks nothing; snappyHexMesh tutorials traced with `pbufs.tuning=1` have no cross-call alternative. The 2024 issue 3238 was the same class at call sites |
 | libsc 6928417 `sc_notify_payload_nbx`: fixed tag, nothing orders calls | 22 of 22 clean traces predict it; 372 of 372 replays wrong; plain stress 22-24 of 40 wrong; a barrier removes it | NBX is opt-in; the default type PEX is safe |
 | libsc `sc_notify_recursive_nary`: per-level tags reused by the next call | 20 of 20 clean traces; 80 of 80 replays wrong, then abort or SEGV | opt-in; p4est callers put a collective between calls |
 | libsc `sc_notify_payloadv_nbx`: sends tag NBXV, probes tag NBX | deterministic hang, 20 of 20 (not a race; found by reading) | opt-in, `sorted=0` only |
@@ -60,7 +61,8 @@ repository.
   flips since 27 Oct 2026. Flips were not forced in replays and were named by a timing-dependent
   segment: fixed 28 Oct (d582a71, 14b6221).
 - A trace whose receives are cancelled at shutdown and never completed (ADLB) is reported
-  degraded and predicts nothing; the hunt stripped the trailing cancel records. Open.
+  degraded and predicts nothing; the hunt stripped the trailing cancel records
+  (`experiments/latent/swiftt/strip_cancel.py`). Open.
 - Analysis time: a SuperLU_DIST ABglobal trace of 7 403 events took 1 072 s. Under study.
 - Alternatives that need two changed matches are not predicted (HDF5 ph5diff 1.8.9). Under study.
 - Treating every collective as a barrier changes no finding (0 of 115 MBI, 0 of 396 MBB): the
