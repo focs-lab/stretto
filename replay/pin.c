@@ -33,6 +33,7 @@ struct pin {
        probe pin its ordinal among them, which selects it, for a flip pin a check */
     int nprobe, has_nprobe;
     int used;
+    char chain[160];   /* STRETTO_PIN_CHAIN: the chain whose idx-th receive the pin names */
 };
 static struct pin *g_pins = NULL, *g_ppins = NULL, *g_fpins = NULL;
 static int g_npins = 0, g_nppins = 0, g_nfpins = 0;
@@ -198,6 +199,7 @@ static void split_envelope_pins(void) {
     if (g_nepins > 1) qsort(g_epins, g_nepins, sizeof *g_epins, by_envelope);
 }
 
+static void chains_init(int rank);
 HIDDEN void stretto_pin_init(int rank) {
     /* ld.so ignores a preloaded library it cannot open, and the run then goes on unpinned and
        undelayed, as a plain run. Rank 0 therefore announces the library, which the harness
@@ -208,6 +210,7 @@ HIDDEN void stretto_pin_init(int rank) {
     const char *what = "replay library";
 #else
     int announce = getenv("STRETTO_PIN") || getenv("STRETTO_PIN_PROBE") || getenv("STRETTO_PIN_FLIP") || getenv("STRETTO_SEND_DELAY_MS")
+                   || getenv("STRETTO_PIN_CHAIN") || getenv("STRETTO_PIN_ORDER")
                    || getenv("STRETTO_RECV_DELAY_MS") || getenv("STRETTO_DELAY_AT");
     const char *what = "tracer";
 #endif
@@ -223,6 +226,7 @@ HIDDEN void stretto_pin_init(int rank) {
     split_envelope_pins();
     g_calls = 0;
     g_nfpins = parse_pins("STRETTO_PIN_FLIP", rank, &g_fpins);
+    chains_init(rank);
     g_send_delay_ms = parse_rank_ms(getenv("STRETTO_SEND_DELAY_MS"), rank);
     g_recv_delay_ms = parse_rank_ms(getenv("STRETTO_RECV_DELAY_MS"), rank);
     const char *at = getenv("STRETTO_DELAY_AT");
@@ -292,9 +296,20 @@ static void misapplied(const char *what, int idx, const struct pin *p) {
     PMPI_Abort(MPI_COMM_WORLD, STRETTO_PIN_MISAPPLIED);
 }
 
+static int chain_pin_recv(int *src, int *tag, MPI_Comm comm, int cord);
+static __thread int t_cord = -1;      /* the chain ordinal of the thread's receive being posted */
+
+static int wild_pin_recv(int *src, int *tag, MPI_Comm comm, int *widx);
 HIDDEN int stretto_pin_recv(int *src, int *tag, MPI_Comm comm, int *widx) {
     *widx = -1;
-    if (*src != MPI_ANY_SOURCE && *tag != MPI_ANY_TAG) return 0;
+    int cord = t_cord;
+    t_cord = -1;
+    int h = *src == MPI_ANY_SOURCE || *tag == MPI_ANY_TAG ? wild_pin_recv(src, tag, comm, widx) : 0;
+    if (!h && cord >= 0) h = chain_pin_recv(src, tag, comm, cord);
+    return h;
+}
+
+static int wild_pin_recv(int *src, int *tag, MPI_Comm comm, int *widx) {
     pthread_mutex_lock(&g_pmu);
     int idx = g_nwild++;
     pthread_mutex_unlock(&g_pmu);
@@ -315,12 +330,15 @@ HIDDEN int stretto_pin_recv(int *src, int *tag, MPI_Comm comm, int *widx) {
     if (*tag == MPI_ANY_TAG && p->tag != MPI_ANY_TAG) *tag = p->tag;
     fprintf(stderr, "[stretto-pin] rank %d: applied widx=%d src=%d (world %d) tag=%d%s\n", g_rank, idx, *src, p->src, *tag,
             seen_ident(p, id, sizeof id));
-    return 1;
+    return idx + 1;
 }
 
+static void chain_pin_matched(int i, int comm_src);
 /* A pinned receive completed: it can only have matched the pinned source, so this line is
    the evidence that the forced match happened ("applied" only says the argument was set). */
-HIDDEN void stretto_pin_matched(int widx, int comm_src) {
+HIDDEN void stretto_pin_matched(int h, int comm_src) {
+    if (h < 0) { chain_pin_matched(-h - 1, comm_src); return; }
+    int widx = h - 1;
     char id[96] = "";
     struct pin *p = find_pin(g_pins, g_npins, widx);
     fprintf(stderr, "[stretto-pin] rank %d: matched widx=%d src=%d%s\n", g_rank, widx, comm_src,
@@ -499,7 +517,9 @@ HIDDEN void stretto_pin_flip_matched(int key, int src, int tag) {
 }
 
 
+static void chains_finalize(void);
 HIDDEN void stretto_pin_finalize(void) {
+    chains_finalize();
     for (int i = 0; i < g_npins; i++)
         if (g_pins[i].idx >= g_nwild)
             fprintf(stderr, "[stretto-pin] rank %d: pin widx=%d unused: the run posted %d wildcard receive(s)\n", g_rank, g_pins[i].idx, g_nwild);
@@ -529,4 +549,229 @@ HIDDEN void stretto_pin_before_send(void) {
 HIDDEN void stretto_pin_before_recv(void) {
     pthread_mutex_lock(&g_pmu); int k = g_nrecv++; pthread_mutex_unlock(&g_pmu);
     msleep(g_recv_delay_ms); delay_at(0, k);
+}
+
+/* ---- several threads (STRETTO_PIN_CHAIN, STRETTO_PIN_ORDER; docs/threads.md, sections 4 and 11).
+   A chain is named by the tracer (stretto_chain_name); each chain counts its receives and sends
+   as they are posted and its probes as they find a message, and the gates of an operation wait
+   for the operations of other chains named before it. The counters live per chain name, not per
+   thread: an OpenMP thread runs another chain in each parallel region. */
+const char *stretto_chain_name(void);   /* tracer/mpitrace.c; NULL in the replay library alone */
+
+#define CHAIN_NAME 160
+struct gate { char wchain[CHAIN_NAME]; int wkind, word; char pchain[CHAIN_NAME]; int pkind, pord; int reached; };
+struct cstate { char name[CHAIN_NAME]; int next[3], posted[3]; };
+static struct pin *g_cpins = NULL;             /* this rank's chain pins, by (chain, idx) */
+static int g_ncpins = 0;
+static struct gate *g_gates = NULL;            /* this rank's gates, by (waiting chain, kind, ordinal) */
+static int g_ngates = 0;
+static struct cstate *g_cs = NULL;
+static int g_ncs = 0, g_capcs = 0;
+static int g_chains_on = 0;
+static long g_gate_ms = 10000;
+static pthread_mutex_t g_gmu = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t g_gcv = PTHREAD_COND_INITIALIZER;
+static const char KIND[3] = {'r', 's', 'p'};
+
+static int by_chain_idx(const void *a, const void *b) {
+    const struct pin *x = a, *y = b;
+    int c = strcmp(x->chain, y->chain);
+    return c ? c : (x->idx < y->idx ? -1 : x->idx > y->idx);
+}
+static int gate_cmp(const char *c1, int k1, int o1, const char *c2, int k2, int o2) {
+    int c = strcmp(c1, c2);
+    return c ? c : k1 != k2 ? (k1 < k2 ? -1 : 1) : o1 != o2 ? (o1 < o2 ? -1 : 1) : 0;
+}
+static int by_waiter(const void *a, const void *b) {
+    const struct gate *x = a, *y = b;
+    return gate_cmp(x->wchain, x->wkind, x->word, y->wchain, y->wkind, y->word);
+}
+static int kind_of(char c) { return c == 'r' ? 0 : c == 's' ? 1 : c == 'p' ? 2 : -1; }
+
+static void bad_token(const char *name, const char *tok) {
+    fprintf(stderr, "[stretto-pin] rank %d: %s: token '%s' does not parse\n", g_rank, name, tok);
+    PMPI_Abort(MPI_COMM_WORLD, 3);
+}
+
+static void chains_init(int rank) {
+    char *spec = pin_spec("STRETTO_PIN_CHAIN", rank), *save = NULL;
+    int cap = 0;
+    g_ncpins = 0;
+    for (char *tok = spec ? strtok_r(spec, ", \n", &save) : NULL; tok; tok = strtok_r(NULL, ", \n", &save)) {
+        struct pin p;
+        memset(&p, 0, sizeof p);
+        char *eq = strchr(tok, '=');
+        if (eq) *eq = '\0';                       /* the harness's part: the message to be taken */
+        char *at = strchr(tok, '@');
+        if (at) *at = '\0';
+        int r, k = sscanf(tok, "%d:%159[^:]:%d:%d:%d", &r, p.chain, &p.idx, &p.src, &p.tag);
+        if (k < 4) bad_token("STRETTO_PIN_CHAIN", tok);
+        if (r != rank) continue;
+        if (k < 5) p.tag = MPI_ANY_TAG;
+        if (at) parse_ident(at + 1, &p);
+        if (g_ncpins == cap) { cap = cap ? 2 * cap : 16; g_cpins = realloc(g_cpins, sizeof *g_cpins * cap); }
+        g_cpins[g_ncpins++] = p;
+    }
+    free(spec);
+    if (g_ncpins > 1) qsort(g_cpins, g_ncpins, sizeof *g_cpins, by_chain_idx);
+    spec = pin_spec("STRETTO_PIN_ORDER", rank); save = NULL; cap = 0;
+    g_ngates = 0;
+    for (char *tok = spec ? strtok_r(spec, ", \n", &save) : NULL; tok; tok = strtok_r(NULL, ", \n", &save)) {
+        struct gate g;
+        char pk, wk;
+        int r;
+        memset(&g, 0, sizeof g);
+        if (sscanf(tok, "%d:%159[^#]#%c#%d<%159[^#]#%c#%d", &r, g.pchain, &pk, &g.pord, g.wchain, &wk, &g.word) != 7
+            || (g.pkind = kind_of(pk)) < 0 || (g.wkind = kind_of(wk)) < 0)
+            bad_token("STRETTO_PIN_ORDER", tok);
+        if (r != rank) continue;
+        if (g_ngates == cap) { cap = cap ? 2 * cap : 16; g_gates = realloc(g_gates, sizeof *g_gates * cap); }
+        g_gates[g_ngates++] = g;
+    }
+    free(spec);
+    if (g_ngates > 1) qsort(g_gates, g_ngates, sizeof *g_gates, by_waiter);
+    const char *ms = getenv("STRETTO_GATE_TIMEOUT_MS");
+    if (ms) g_gate_ms = atol(ms);
+    g_chains_on = g_ncpins > 0 || g_ngates > 0 || getenv("STRETTO_PIN_CHAIN") || getenv("STRETTO_PIN_ORDER");
+    if (g_chains_on && !stretto_chain_name()) {
+        fprintf(stderr, "[stretto-pin] rank %d: STRETTO_PIN_CHAIN and STRETTO_PIN_ORDER need the tracer's chain names: "
+                "preload libstretto-trace.so, not the replay library\n", rank);
+        PMPI_Abort(MPI_COMM_WORLD, 3);
+    }
+    if (g_ncpins || g_ngates)
+        fprintf(stderr, "[stretto-pin] rank %d: %d chain pin(s), %d gate(s) active\n", rank, g_ncpins, g_ngates);
+}
+
+/* The state of a chain, created at its first use (caller holds g_gmu). */
+static struct cstate *chain_state(const char *name) {
+    for (int i = 0; i < g_ncs; i++)
+        if (strcmp(g_cs[i].name, name) == 0) return &g_cs[i];
+    if (g_ncs == g_capcs) { g_capcs = g_capcs ? 2 * g_capcs : 16; g_cs = realloc(g_cs, sizeof *g_cs * g_capcs); }
+    struct cstate *c = &g_cs[g_ncs++];
+    memset(c, 0, sizeof *c);
+    snprintf(c->name, sizeof c->name, "%s", name);
+    return c;
+}
+
+HIDDEN int stretto_pin_gate(int kind, int skip) {
+    if (!g_chains_on || skip) return -1;
+    const char *name = stretto_chain_name();
+    if (!name) return -1;
+    pthread_mutex_lock(&g_gmu);
+    struct cstate *c = chain_state(name);
+    int ord = kind == STRETTO_OP_PROBE ? c->posted[kind] : c->next[kind]++;
+    /* the gates of (name, kind, ord): contiguous in g_gates */
+    int lo = 0, hi = g_ngates;
+    while (lo < hi) {
+        int mid = (lo + hi) / 2;
+        if (gate_cmp(g_gates[mid].wchain, g_gates[mid].wkind, g_gates[mid].word, name, kind, ord) < 0) lo = mid + 1; else hi = mid;
+    }
+    struct timespec until;
+    clock_gettime(CLOCK_REALTIME, &until);
+    until.tv_sec += g_gate_ms / 1000;
+    until.tv_nsec += (g_gate_ms % 1000) * 1000000L;
+    if (until.tv_nsec >= 1000000000L) { until.tv_sec++; until.tv_nsec -= 1000000000L; }
+    for (int i = lo; i < g_ngates && gate_cmp(g_gates[i].wchain, g_gates[i].wkind, g_gates[i].word, name, kind, ord) == 0; i++) {
+        struct gate *g = &g_gates[i];
+        g->reached = 1;
+        for (;;) {
+            struct cstate *p = chain_state(g->pchain);
+            c = chain_state(name);               /* chain_state may move the table */
+            if (p->posted[g->pkind] > g->pord) break;
+            if (pthread_cond_timedwait(&g_gcv, &g_gmu, &until) != 0) {
+                p = chain_state(g->pchain);
+                if (p->posted[g->pkind] > g->pord) break;
+                fprintf(stderr, "[stretto-pin] rank %d chain %s: gate timed out: %c#%d waits for %c#%d of chain %s, which has posted %d\n",
+                        g_rank, name, KIND[kind], ord, KIND[g->pkind], g->pord, g->pchain, p->posted[g->pkind]);
+                fflush(stderr);
+                pthread_mutex_unlock(&g_gmu);
+                PMPI_Abort(MPI_COMM_WORLD, STRETTO_PIN_GATE_TIMEOUT);
+            }
+        }
+    }
+    pthread_mutex_unlock(&g_gmu);
+    if (kind == STRETTO_OP_RECV) t_cord = ord;
+    return ord;
+}
+
+HIDDEN void stretto_pin_posted(int kind, int ord) {
+    if (!g_chains_on || ord < 0) return;
+    const char *name = stretto_chain_name();
+    if (!name) return;
+    pthread_mutex_lock(&g_gmu);
+    struct cstate *c = chain_state(name);
+    if (c->posted[kind] < ord + 1) c->posted[kind] = ord + 1;
+    pthread_cond_broadcast(&g_gcv);
+    pthread_mutex_unlock(&g_gmu);
+}
+
+HIDDEN void stretto_pin_use_ord(int ord) { t_cord = ord; }
+
+static int find_cpin(const char *name, int idx) {
+    int lo = 0, hi = g_ncpins;
+    while (lo < hi) {
+        int mid = (lo + hi) / 2, c = strcmp(g_cpins[mid].chain, name);
+        if (c < 0 || (c == 0 && g_cpins[mid].idx < idx)) lo = mid + 1; else hi = mid;
+    }
+    return lo < g_ncpins && strcmp(g_cpins[lo].chain, name) == 0 && g_cpins[lo].idx == idx ? lo : -1;
+}
+
+/* A chain pin on the receive of ordinal cord of the calling thread's chain: its identity is
+   checked, an ANY_SOURCE (ANY_TAG) receive takes the pinned source (tag). Returns the handle
+   -(i + 1) of pin i, 0 if none. */
+static int chain_pin_recv(int *src, int *tag, MPI_Comm comm, int cord) {
+    const char *name = stretto_chain_name();
+    int i = name ? find_cpin(name, cord) : -1;
+    if (i < 0) return 0;
+    struct pin *p = &g_cpins[i];
+    char id[96];
+    current_ident(comm, *tag, p);
+    if (!ident_holds(p)) {
+        char seen[96], want[96], c[16] = "x", t[16] = "x", s[24] = "x";
+        if (p->has_comm) snprintf(c, sizeof c, "%d", p->comm);
+        if (p->has_otag) snprintf(t, sizeof t, "%d", p->otag);
+        if (p->has_site) snprintf(s, sizeof s, "%lx", p->site);
+        snprintf(want, sizeof want, "%s:%s:%s", c, t, s);
+        fprintf(stderr, "[stretto-pin] rank %d chain %s: pin ridx=%d misapplied: the run's operation has%s, the trace's id=%s\n",
+                g_rank, name, cord, seen_ident(p, seen, sizeof seen), want);
+        fflush(stderr);
+        PMPI_Abort(MPI_COMM_WORLD, STRETTO_PIN_MISAPPLIED);
+    }
+    if (*src == MPI_ANY_SOURCE) {
+        int cr = to_comm_rank(comm, p->src);
+        if (cr == MPI_UNDEFINED) {
+            fprintf(stderr, "[stretto-pin] rank %d chain %s: pin ridx=%d names world rank %d, not a member of the communicator: not applied\n",
+                    g_rank, name, cord, p->src);
+            return 0;
+        }
+        *src = cr;
+    }
+    if (*tag == MPI_ANY_TAG && p->tag != MPI_ANY_TAG) *tag = p->tag;
+    p->used = 1;
+    fprintf(stderr, "[stretto-pin] rank %d chain %s: applied ridx=%d src=%d (world %d) tag=%d%s\n", g_rank, name, cord, *src, p->src,
+            *tag, seen_ident(p, id, sizeof id));
+    return -(i + 1);
+}
+
+static void chain_pin_matched(int i, int comm_src) {
+    if (i < 0 || i >= g_ncpins) return;
+    char id[96];
+    struct pin *p = &g_cpins[i];
+    fprintf(stderr, "[stretto-pin] rank %d chain %s: matched ridx=%d src=%d%s\n", g_rank, p->chain, p->idx, comm_src,
+            seen_ident(p, id, sizeof id));
+}
+
+static void chains_finalize(void) {
+    for (int i = 0; i < g_ncpins; i++)
+        if (!g_cpins[i].used) {
+            pthread_mutex_lock(&g_gmu);
+            int n = chain_state(g_cpins[i].chain)->next[STRETTO_OP_RECV];
+            pthread_mutex_unlock(&g_gmu);
+            fprintf(stderr, "[stretto-pin] rank %d chain %s: pin ridx=%d unused: the chain posted %d receive(s)\n", g_rank,
+                    g_cpins[i].chain, g_cpins[i].idx, n);
+        }
+    for (int i = 0; i < g_ngates; i++)
+        if (!g_gates[i].reached)
+            fprintf(stderr, "[stretto-pin] rank %d chain %s: gate %c#%d<%c#%d unused: the operation was not reached\n", g_rank,
+                    g_gates[i].wchain, KIND[g_gates[i].pkind], g_gates[i].pord, KIND[g_gates[i].wkind], g_gates[i].word);
 }

@@ -68,27 +68,80 @@
    diverged from the trace before it: pinning that operation would only look like the
    alternative. The library then reports "[stretto-pin] rank R: pin widx=W misapplied: ..."
    (or "probe pin pidx=P misapplied") and ends the run with MPI_Abort and the code
-   STRETTO_PIN_MISAPPLIED. A token that does not parse ends the run as well. */
+   STRETTO_PIN_MISAPPLIED. A token that does not parse ends the run as well.
+
+   Several threads (docs/threads.md, sections 4 and 11). In a process whose threads call MPI
+   the rank's ordinals (widx, pidx) depend on how the threads interleave, so a replay names an
+   operation by its chain (the tracer's logical thread name: "0" for the thread that initialised
+   MPI, "c.k" for the k-th thread chain c created, "c/p.j" for thread j of the p-th parallel
+   region chain c entered) and its ordinal among the chain's operations of its kind: receives
+   (every receive but those of MPI_PROC_NULL and Mrecv/Imrecv, counted at posting), sends
+   (every send but those to MPI_PROC_NULL) and probes that found a message (but those of
+   MPI_PROC_NULL). These names and ordinals need the tracer's thread support: the replay
+   library alone ends a run that sets either variable below.
+   STRETTO_PIN_CHAIN="rank:chain:ridx:src[:tag][@comm:otag[:site]][=what],..."
+                                           the ridx-th receive of the chain: an ANY_SOURCE
+                                           receive takes src (a world rank), an ANY_TAG one tag;
+                                           a receive with both given is only checked (its
+                                           identity, after '@', as for STRETTO_PIN) and its
+                                           completion reported. What follows '=' is the
+                                           harness's (the message the receive must take) and is
+                                           ignored here. Reported as "[stretto-pin] rank R chain
+                                           C: applied ridx=K ...", "... matched ridx=K src=S
+                                           id=...", "... pin ridx=K misapplied: ...".
+   STRETTO_PIN_ORDER="rank:A#k#n<B#k#n,..."  order gates: chain B's n-th operation of kind k
+                                           (r a receive, s a send, p a probe) waits, before it
+                                           is posted, until chain A's n-th operation of its kind
+                                           has been posted (a probe: has returned a message).
+                                           Under MPI_THREAD_MULTIPLE the tracer posts every
+                                           point-to-point operation as its nonblocking form
+                                           under the issue lock, so "posted" is the return of
+                                           that call. A gate still closed after
+                                           STRETTO_GATE_TIMEOUT_MS (default 10000) ends the run
+                                           with STRETTO_PIN_GATE_TIMEOUT, naming the gate: the
+                                           replay diverged, or the order needs synchronisation
+                                           the trace does not record. */
 #ifndef STRETTO_PIN_H
 #define STRETTO_PIN_H
 #include <mpi.h>
 #define STRETTO_PIN_MISAPPLIED 86
+#define STRETTO_PIN_GATE_TIMEOUT 87
+/* the kinds of operation a chain counts (STRETTO_PIN_ORDER's r, s, p) */
+#define STRETTO_OP_RECV 0
+#define STRETTO_OP_SEND 1
+#define STRETTO_OP_PROBE 2
 /* At MPI_Init. Rank 0 prints "[stretto-pin] rank 0: loaded (replay library|tracer)" (the
    tracer only when a pin or delay variable is set): the harness requires the line, since ld.so
    ignores a preloaded library it cannot open and the run would read as a plain one. */
 void stretto_pin_init(int rank);
 /* Counts the wildcard receive (writes its ordinal to *widx, -1 if not a wildcard) and
-   returns 1 if src/tag were substituted. The pin names the sender's world rank; it is
-   translated into comm (the remote group of an intercommunicator). Every applied pin is
-   reported on stderr as "[stretto-pin] rank R: applied widx=W ... id=C:G:X", with the
-   operation's identity; a pin that names a rank outside the communicator is reported and
-   not applied, and one on an operation of another identity ends the run (above). */
+   returns a nonzero handle if a pin applies (src/tag substituted, or a chain pin checked): the
+   widx plus 1 for a pin of STRETTO_PIN, a negative number for one of STRETTO_PIN_CHAIN, whose
+   chain ordinal the last stretto_pin_gate(STRETTO_OP_RECV, ...) of the thread gave. The pin
+   names the sender's world rank; it is translated into comm (the remote group of an
+   intercommunicator). Every applied pin is reported on stderr as "[stretto-pin] rank R:
+   applied widx=W ... id=C:G:X", with the operation's identity; a pin that names a rank outside
+   the communicator is reported and not applied, and one on an operation of another identity
+   ends the run (above). */
 int  stretto_pin_recv(int *src, int *tag, MPI_Comm comm, int *widx);
-/* A pinned receive completed (the call or the completion call returned it): reported on
-   stderr as "[stretto-pin] rank R: matched widx=W src=S id=C:G:X", S the source in the
-   receive's communicator and id the receive's identity. Only this line shows that the forced
-   match happened. */
-void stretto_pin_matched(int widx, int comm_src);
+/* A pinned receive completed (the call or the completion call returned it), h the handle
+   stretto_pin_recv returned: reported on stderr as "[stretto-pin] rank R: matched widx=W src=S
+   id=C:G:X" (or "rank R chain C: matched ridx=K ..."), S the source in the receive's
+   communicator and id the receive's identity. Only this line shows that the forced match
+   happened. */
+void stretto_pin_matched(int h, int comm_src);
+/* Several threads: before an operation of kind (STRETTO_OP_*) is posted. skip: an operation
+   the chains do not count (MPI_PROC_NULL). Returns the operation's ordinal on the calling
+   thread's chain (for a probe, the ordinal its next message would have), -1 if neither
+   STRETTO_PIN_CHAIN nor STRETTO_PIN_ORDER is set, after waiting for the operation's gates.
+   Called outside the issue lock. */
+int  stretto_pin_gate(int kind, int skip);
+/* The operation of kind with chain ordinal ord (stretto_pin_gate's) has been posted (a probe:
+   has found a message): the gates that wait for it open. */
+void stretto_pin_posted(int kind, int ord);
+/* The receive ordinal the next stretto_pin_recv of this thread applies chain pins to, for a
+   call that gates several receives before posting them (MPI_Startall). */
+void stretto_pin_use_ord(int ord);
 /* Peek; the ordinal counts successful probes only. Returns 1 if src/tag were substituted, 2 if
    the probe is to return flag 0 without polling (a pin with src -1, applied once and reported
    as "[stretto-pin] rank R: applied unflip pidx=P id=C:G:X"). */

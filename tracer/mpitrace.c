@@ -213,7 +213,7 @@ static void *xrealloc(void *p, size_t n) {
     return q;
 }
 
-typedef struct { MPI_Request req; int id; int kind; MPI_Datatype dt; int persistent; int active; int cancel_req; int pin1; MPI_Request *slot; } reqent; /* kind: 0 send, 1 recv, 2 coll, 3 idup, 4 partitioned (guard only); pin1: 1 + the widx of a pinned receive, 0 if none; slot: where the program received the handle */
+typedef struct { MPI_Request req; int id; int kind; MPI_Datatype dt; int persistent; int active; int cancel_req; int pin1; MPI_Request *slot; } reqent; /* kind: 0 send, 1 recv, 2 coll, 3 idup, 4 partitioned (guard only); pin1: the handle stretto_pin_recv gave a pinned receive (replay/pin.h), 0 if none; slot: where the program received the handle */
 static reqent *g_reqs = NULL;
 static int g_nreqs = 0, g_capreqs = 0, g_next_req = 0;
 
@@ -392,6 +392,15 @@ static void rb_emit_kind(rec_t *b, int failed_poll) {
     free(b->p);
 }
 static void rb_emit(rec_t *b) { rb_emit_kind(b, 0); }
+/* The logical name of the calling thread's chain, for the replay's chain pins and gates
+   (replay/pin.h): the tracer's, NULL in the replay library, which does not follow threads. */
+__attribute__((visibility("hidden"))) const char *stretto_chain_name(void) {
+#ifndef STRETTO_PIN_ONLY
+    return cur_chain()->name;
+#else
+    return NULL;
+#endif
+}
 #define REC(b, op) rec_t b; rb_init(&b); b.site = __builtin_return_address(0); rb_printf(&b, "\"op\":\"%s\"", op)
 
 /* ----------------------------------------------------------- buffer guard
@@ -1269,8 +1278,8 @@ static reqent *req_find_locked(MPI_Request r, MPI_Request *slot) {
     return oldest;
 }
 /* A pinned nonblocking receive reports its match when the completion call returns it. */
-static void req_set_pin(MPI_Request *slot, int widx) {
-    pthread_mutex_lock(&g_mu); reqent *e = req_find_locked(*slot, slot); if (e) e->pin1 = widx + 1; pthread_mutex_unlock(&g_mu);
+static void req_set_pin(MPI_Request *slot, int h) {   /* h: the pin handle of stretto_pin_recv, 0 none */
+    pthread_mutex_lock(&g_mu); reqent *e = req_find_locked(*slot, slot); if (e) e->pin1 = h; pthread_mutex_unlock(&g_mu);
 }
 static int req_id(MPI_Request r, MPI_Request *slot) {
     pthread_mutex_lock(&g_mu); reqent *e = req_find_locked(r, slot); int id = e ? e->id : -1; pthread_mutex_unlock(&g_mu); return id;
@@ -1430,13 +1439,15 @@ static void send_fields(rec_t *b, const char *mode, int count, MPI_Datatype dt, 
 #define BLOCKING_SEND(NAME, INAME, MODE) \
 int NAME(const void *buf, int count, MPI_Datatype dt, int dst, int tag, MPI_Comm comm) { \
     GUARD; stretto_pin_before_send(); \
+    int sord_ = stretto_pin_gate(STRETTO_OP_SEND, dst == MPI_PROC_NULL); \
     if (dst != MPI_PROC_NULL) GUARD_BUF(-1, #NAME, buf, count, dt, 0, 0); \
     { REC(b, "begin"); rb_printf(&b, ",\"call\":\"send\""); send_fields(&b, MODE, count, dt, dst, tag, comm); rb_emit(&b); } \
     long iseq = -1; int rc; \
     if (g_issue) { \
         MPI_Request r_; iss_lock(); iseq = iss_next(); rc = P##INAME(buf, count, dt, dst, tag, comm, &r_); iss_unlock(); \
+        stretto_pin_posted(STRETTO_OP_SEND, sord_); \
         if (rc == MPI_SUCCESS) rc = PMPI_Wait(&r_, MPI_STATUS_IGNORE); \
-    } else rc = P##NAME(buf, count, dt, dst, tag, comm); \
+    } else { stretto_pin_posted(STRETTO_OP_SEND, sord_); rc = P##NAME(buf, count, dt, dst, tag, comm); } \
     { REC(b, "send"); send_fields(&b, MODE, count, dt, dst, tag, comm); rb_iseq(&b, iseq); rb_send_data(&b, dst, buf, count, dt); rb_emit(&b); } \
     return rc; }
 BLOCKING_SEND(MPI_Send,  MPI_Isend,  "std")
@@ -1446,7 +1457,9 @@ BLOCKING_SEND(MPI_Rsend, MPI_Irsend, "rsend")
 #define NONBLOCKING_SEND(NAME, MODE) \
 int NAME(const void *buf, int count, MPI_Datatype dt, int dst, int tag, MPI_Comm comm, MPI_Request *req) { \
     GUARD; stretto_pin_before_send(); \
+    int sord_ = stretto_pin_gate(STRETTO_OP_SEND, dst == MPI_PROC_NULL); \
     iss_lock(); long iseq = iss_next(); int rc = P##NAME(buf, count, dt, dst, tag, comm, req); iss_unlock(); \
+    stretto_pin_posted(STRETTO_OP_SEND, sord_); \
     int id = rc == MPI_SUCCESS ? req_add(req, 0, dt, 0) : -1; \
     REC(b, "send"); send_fields(&b, MODE, count, dt, dst, tag, comm); if (id >= 0) rb_printf(&b, ",\"req\":%d", id); \
     rb_iseq(&b, iseq); rb_send_data(&b, dst, buf, count, dt); rb_emit(&b); \
@@ -1569,12 +1582,14 @@ static inline __attribute__((always_inline)) void start_one(MPI_Request *rp, voi
         int src = copy.peer, tag = copy.tag, widx = -1;
         stretto_pin_before_recv();
         int pinned = stretto_pin_recv(&src, &tag, copy.comm, &widx);
-        if (pinned) {
+        if (pinned < 0 && src == copy.peer && tag == copy.tag) req_set_pin(rp, pinned);   /* a chain pin that only checks */
+        else if (!pinned) req_set_pin(rp, 0);
+        else {
             MPI_Request shadow;
             if (PMPI_Recv_init(copy.buf, copy.count, copy.dt, src, tag, copy.comm, &shadow) == MPI_SUCCESS) {
                 pthread_mutex_lock(&g_mu);
                 if (g_nreqs == g_capreqs) { g_capreqs = g_capreqs ? g_capreqs * 2 : 64; g_reqs = xrealloc(g_reqs, sizeof *g_reqs * g_capreqs); }
-                g_reqs[g_nreqs++] = (reqent){shadow, id, 1, copy.dt, 1, 1, 0, widx + 1, rp};
+                g_reqs[g_nreqs++] = (reqent){shadow, id, 1, copy.dt, 1, 1, 0, pinned, rp};
                 pthread_mutex_unlock(&g_mu);
                 shadow_add(shadow, r);
                 *rp = shadow;
@@ -1588,10 +1603,30 @@ static inline __attribute__((always_inline)) void start_one(MPI_Request *rp, voi
         if (id >= 0 && copy.peer != MPI_PROC_NULL) guard_buffers(id, "MPI_Start", &gb, 1, ra);
     }
 }
-int MPI_Start(MPI_Request *req) { GUARD; iss_lock(); start_one(req, _g.ra, iss_next()); int rc = PMPI_Start(req); iss_unlock(); return rc; }
+/* The gates of a persistent point-to-point start, before the issue lock: its chain ordinal,
+   and in *kind STRETTO_OP_RECV or _SEND (-1 for another request). */
+static int start_gate(MPI_Request r, int *kind) {
+    pthread_mutex_lock(&g_mu); pinfo *pi = pers_find(r);
+    int k = pi ? (strcmp(pi->mode, "irecv") == 0 ? STRETTO_OP_RECV : STRETTO_OP_SEND) : -1, null = pi && pi->peer == MPI_PROC_NULL;
+    pthread_mutex_unlock(&g_mu);
+    *kind = k;
+    return k < 0 ? -1 : stretto_pin_gate(k, null);
+}
+int MPI_Start(MPI_Request *req) {
+    GUARD; int k, o = start_gate(*req, &k);
+    iss_lock(); stretto_pin_use_ord(k == STRETTO_OP_RECV ? o : -1); start_one(req, _g.ra, iss_next()); int rc = PMPI_Start(req); iss_unlock();
+    if (k >= 0) stretto_pin_posted(k, o);
+    return rc; }
 int MPI_Startall(int n, MPI_Request reqs[]) {
-    GUARD; iss_lock(); for (int i = 0; i < n; i++) start_one(&reqs[i], _g.ra, iss_next());
-    int rc = PMPI_Startall(n, reqs); iss_unlock(); return rc; }
+    GUARD;
+    int *ks = n > 0 ? malloc(sizeof(int) * 2 * n) : NULL, *os = ks ? ks + n : NULL;
+    for (int i = 0; i < n && ks; i++) os[i] = start_gate(reqs[i], &ks[i]);
+    iss_lock();
+    for (int i = 0; i < n; i++) { stretto_pin_use_ord(ks && ks[i] == STRETTO_OP_RECV ? os[i] : -1); start_one(&reqs[i], _g.ra, iss_next()); }
+    int rc = PMPI_Startall(n, reqs); iss_unlock();
+    for (int i = 0; i < n && ks; i++) if (ks[i] >= 0) stretto_pin_posted(ks[i], os[i]);
+    free(ks);
+    return rc; }
 
 /* -------------------------------------------------------------- receives */
 static void status_fields(rec_t *b, MPI_Status *st, MPI_Datatype dt, int ok) {
@@ -1613,6 +1648,7 @@ int MPI_Recv(void *buf, int count, MPI_Datatype dt, int src, int tag, MPI_Comm c
     GUARD; stretto_pin_before_recv();
     if (src != MPI_PROC_NULL) GUARD_BUF(-1, "MPI_Recv", buf, count, dt, 1, 0);
     int osrc = src, otag = tag, widx = -1;
+    int rord_ = stretto_pin_gate(STRETTO_OP_RECV, src == MPI_PROC_NULL);
     int pinned = stretto_pin_recv(&src, &tag, comm, &widx);
     { REC(b, "begin"); rb_printf(&b, ",\"call\":\"recv\""); recv_args(&b, osrc, otag, comm, count, dt, widx); rb_emit(&b); }
     MPI_Status mine;
@@ -1620,9 +1656,10 @@ int MPI_Recv(void *buf, int count, MPI_Datatype dt, int src, int tag, MPI_Comm c
     long iseq = -1; int rc;
     if (g_issue) {
         MPI_Request r_; iss_lock(); iseq = iss_next(); rc = PMPI_Irecv(buf, count, dt, src, tag, comm, &r_); iss_unlock();
+        stretto_pin_posted(STRETTO_OP_RECV, rord_);
         if (rc == MPI_SUCCESS) rc = PMPI_Wait(&r_, st);
-    } else rc = PMPI_Recv(buf, count, dt, src, tag, comm, st);
-    if (pinned && rc == MPI_SUCCESS) stretto_pin_matched(widx, st->MPI_SOURCE);
+    } else { stretto_pin_posted(STRETTO_OP_RECV, rord_); rc = PMPI_Recv(buf, count, dt, src, tag, comm, st); }
+    if (pinned && rc == MPI_SUCCESS) stretto_pin_matched(pinned, st->MPI_SOURCE);
     REC(b, "recv"); recv_args(&b, osrc, otag, comm, count, dt, widx);
     status_fields(&b, st, dt, rc == MPI_SUCCESS);
     if (pinned) rb_printf(&b, ",\"pinned\":{\"src\":%d,\"tag\":%d}", src, tag);
@@ -1633,10 +1670,12 @@ int MPI_Recv(void *buf, int count, MPI_Datatype dt, int src, int tag, MPI_Comm c
 int MPI_Irecv(void *buf, int count, MPI_Datatype dt, int src, int tag, MPI_Comm comm, MPI_Request *req) {
     GUARD; stretto_pin_before_recv();
     int osrc = src, otag = tag, widx = -1;
+    int rord_ = stretto_pin_gate(STRETTO_OP_RECV, src == MPI_PROC_NULL);
     int pinned = stretto_pin_recv(&src, &tag, comm, &widx);
     iss_lock(); long iseq = iss_next(); int rc = PMPI_Irecv(buf, count, dt, src, tag, comm, req); iss_unlock();
+    stretto_pin_posted(STRETTO_OP_RECV, rord_);
     int id = rc == MPI_SUCCESS ? req_add(req, 1, dt, 0) : -1;
-    if (pinned && id >= 0) req_set_pin(req, widx);
+    if (pinned && id >= 0) req_set_pin(req, pinned);
     REC(b, "irecv"); recv_args(&b, osrc, otag, comm, count, dt, widx); if (id >= 0) rb_printf(&b, ",\"req\":%d", id);
     if (pinned) rb_printf(&b, ",\"pinned\":{\"src\":%d,\"tag\":%d}", src, tag);
     rb_iseq(&b, iseq);
@@ -1656,7 +1695,7 @@ static inline __attribute__((always_inline)) int sendrecv_common(const void *sbu
     return pinned;
 }
 static inline __attribute__((always_inline)) void sendrecv_finish(int rcount, MPI_Datatype rdt, int osrc, int otag, int src, int rtag, MPI_Comm comm, MPI_Status *st, int rc, int widx, int pinned, int reqid, long riseq) {
-    if (pinned && rc == MPI_SUCCESS) stretto_pin_matched(widx, st->MPI_SOURCE);
+    if (pinned && rc == MPI_SUCCESS) stretto_pin_matched(pinned, st->MPI_SOURCE);
     { REC(b, "recv"); recv_args(&b, osrc, otag, comm, rcount, rdt, widx); status_fields(&b, st, rdt, rc == MPI_SUCCESS);
       if (pinned) rb_printf(&b, ",\"pinned\":{\"src\":%d,\"tag\":%d}", src, rtag);
       rb_iseq(&b, riseq);
@@ -1675,6 +1714,7 @@ int MPI_Sendrecv(const void *sbuf, int scount, MPI_Datatype sdt, int dst, int st
     int osrc = src, otag = rtag, widx = -1, reqid, rc;
     long siseq = -1, riseq = -1;
     MPI_Status mine; if (st == MPI_STATUS_IGNORE) st = &mine;
+    int sord_ = stretto_pin_gate(STRETTO_OP_SEND, dst == MPI_PROC_NULL), rord_ = stretto_pin_gate(STRETTO_OP_RECV, src == MPI_PROC_NULL);
     if (g_issue) {
         /* both postings under one hold of the issue lock, then one wait */
         iss_lock(); siseq = iss_next(); riseq = iss_next();
@@ -1683,6 +1723,7 @@ int MPI_Sendrecv(const void *sbuf, int scount, MPI_Datatype sdt, int dst, int st
         rc = PMPI_Isend(sbuf, scount, sdt, dst, stag, comm, &rq[0]);
         if (rc == MPI_SUCCESS) rc = PMPI_Irecv(rbuf, rcount, rdt, src, rtag, comm, &rq[1]);
         iss_unlock();
+        stretto_pin_posted(STRETTO_OP_SEND, sord_); stretto_pin_posted(STRETTO_OP_RECV, rord_);
         if (rc == MPI_SUCCESS) {
             MPI_Status sts[2];
             rc = PMPI_Waitall(2, rq, sts);
@@ -1693,6 +1734,7 @@ int MPI_Sendrecv(const void *sbuf, int scount, MPI_Datatype sdt, int dst, int st
         return rc;
     }
     int pinned = sendrecv_common(sbuf, scount, sdt, dst, stag, rcount, rdt, &src, &rtag, comm, &widx, &reqid, -1);
+    stretto_pin_posted(STRETTO_OP_SEND, sord_); stretto_pin_posted(STRETTO_OP_RECV, rord_);
     rc = PMPI_Sendrecv(sbuf, scount, sdt, dst, stag, rbuf, rcount, rdt, src, rtag, comm, st);
     sendrecv_finish(rcount, rdt, osrc, otag, src, rtag, comm, st, rc, widx, pinned, reqid, -1);
     return rc;
@@ -1702,8 +1744,10 @@ int MPI_Sendrecv_replace(void *buf, int count, MPI_Datatype dt, int dst, int sta
     if (dst != MPI_PROC_NULL || src != MPI_PROC_NULL) GUARD_BUF(-1, "MPI_Sendrecv_replace", buf, count, dt, src != MPI_PROC_NULL, 0);
     unordered("Sendrecv_replace");
     int osrc = src, otag = rtag, widx = -1, reqid;
+    int sord_ = stretto_pin_gate(STRETTO_OP_SEND, dst == MPI_PROC_NULL), rord_ = stretto_pin_gate(STRETTO_OP_RECV, src == MPI_PROC_NULL);
     int pinned = sendrecv_common(buf, count, dt, dst, stag, count, dt, &src, &rtag, comm, &widx, &reqid, -1);
     MPI_Status mine; if (st == MPI_STATUS_IGNORE) st = &mine;
+    stretto_pin_posted(STRETTO_OP_SEND, sord_); stretto_pin_posted(STRETTO_OP_RECV, rord_);
     int rc = PMPI_Sendrecv_replace(buf, count, dt, dst, stag, src, rtag, comm, st);
     sendrecv_finish(count, dt, osrc, otag, src, rtag, comm, st, rc, widx, pinned, reqid, -1);
     return rc;
@@ -1733,7 +1777,7 @@ static void done_entry(rec_t *b, int first, MPI_Request before, MPI_Request *slo
     if (kind == 1) status_fields(b, st, dt, ok);
     if (kind == 1 && pin1 && ok && st) {
         int cancelled = 0; PMPI_Test_cancelled(st, &cancelled);
-        if (!cancelled) stretto_pin_matched(pin1 - 1, st->MPI_SOURCE);
+        if (!cancelled) stretto_pin_matched(pin1, st->MPI_SOURCE);
     }
     else if (kind == 0 && cancel_req) {          /* a send that was cancelled: did the cancel succeed? */
         int cancelled = 0; if (ok && st) PMPI_Test_cancelled(st, &cancelled);
@@ -1882,7 +1926,7 @@ static inline __attribute__((always_inline)) int free_cancelled_recv(MPI_Request
     REC(b, "reqfree"); rb_printf(&b, ",\"req\":%d", id);
     if (rc == MPI_SUCCESS && !cancelled) {
         status_fields(&b, &st, dt, 1);
-        if (pin1) stretto_pin_matched(pin1 - 1, st.MPI_SOURCE);
+        if (pin1) stretto_pin_matched(pin1, st.MPI_SOURCE);
     }
     if (rc == MPI_SUCCESS) rb_printf(&b, ",\"cancelled\":%d", cancelled);
     rb_emit(&b);
@@ -1940,7 +1984,7 @@ static int msg_take(MPI_Message m, int *comm, int *src, int *tag) {
     pthread_mutex_unlock(&g_mu);
     return found;
 }
-static inline __attribute__((always_inline)) void probe_rec(const char *kind, int src, int tag, MPI_Comm comm, int flag, MPI_Status *st, int rc, int pidx, int pinned, int psrc, long iseq) {
+static inline __attribute__((always_inline)) void probe_rec(const char *kind, int src, int tag, MPI_Comm comm, int flag, MPI_Status *st, int rc, int pidx, int pinned, int psrc, long iseq, int pord) {
     REC(b, "probe");
     rb_printf(&b, ",\"kind\":\"%s\"", kind); rb_src(&b, src); rb_tag(&b, tag); rb_printf(&b, ",\"comm\":%d,\"flag\":%d", comm_id(comm), flag);
     if (flag && pidx >= 0) rb_printf(&b, ",\"pidx\":%d", pidx);
@@ -1948,6 +1992,7 @@ static inline __attribute__((always_inline)) void probe_rec(const char *kind, in
     if (flag && rc == MPI_SUCCESS && st) { int cnt = -1; PMPI_Get_count(st, MPI_BYTE, &cnt); rb_printf(&b, ",\"msrc\":%d,\"mtag\":%d,\"mbytes\":%d", st->MPI_SOURCE, st->MPI_TAG, cnt); }
     if (flag) rb_iseq(&b, iseq);
     if (flag) stretto_pin_probe_commit(pidx, comm, tag, rc == MPI_SUCCESS && st ? st->MPI_SOURCE : -1, rc == MPI_SUCCESS && st ? st->MPI_TAG : -1);
+    if (flag && rc == MPI_SUCCESS) stretto_pin_posted(STRETTO_OP_PROBE, pord);
     rb_emit_kind(&b, !flag);
 }
 /* Under the issue lock a blocking probe is a loop of nonblocking ones, each under the lock, so
@@ -1965,11 +2010,12 @@ static int issued_probe(int src, int tag, MPI_Comm comm, MPI_Message *msg, MPI_S
 }
 int MPI_Probe(int src, int tag, MPI_Comm comm, MPI_Status *st) {
     GUARD; MPI_Status mine; if (st == MPI_STATUS_IGNORE) st = &mine;
+    int pord = stretto_pin_gate(STRETTO_OP_PROBE, src == MPI_PROC_NULL);
     int osrc = src, otag = tag, pidx = -1; int pinned = stretto_pin_probe(&src, &tag, comm, &pidx);
     { REC(b, "begin"); rb_printf(&b, ",\"call\":\"probe\",\"kind\":\"probe\""); rb_src(&b, osrc); rb_tag(&b, otag); rb_printf(&b, ",\"comm\":%d", comm_id(comm)); rb_emit(&b); }
     long iseq = -1;
     int rc = g_issue ? issued_probe(src, tag, comm, NULL, st, &iseq) : PMPI_Probe(src, tag, comm, st);
-    probe_rec("probe", osrc, otag, comm, 1, st, rc, pidx, pinned, src, iseq); return rc;
+    probe_rec("probe", osrc, otag, comm, 1, st, rc, pidx, pinned, src, iseq, pord); return rc;
 }
 /* A flip pin (STRETTO_PIN_FLIP) forces this Iprobe or Improbe: flip 1 waits for the message of
    fsrc and ftag and returns it (the blocking probe of the same envelope), flip -1 returns flag 0
@@ -1977,6 +2023,7 @@ int MPI_Probe(int src, int tag, MPI_Comm comm, MPI_Status *st) {
 int MPI_Iprobe(int src, int tag, MPI_Comm comm, int *flag, MPI_Status *st) {
     GUARD; MPI_Status mine; if (st == MPI_STATUS_IGNORE) st = &mine;
     int osrc = src, otag = tag, pidx = -1, fsrc = src, ftag = tag, fkey = -1, rc = MPI_SUCCESS;
+    int pord = stretto_pin_gate(STRETTO_OP_PROBE, src == MPI_PROC_NULL);
     long iseq = -1;
     int flip = stretto_pin_flip(0, src, tag, comm, &fsrc, &ftag, &fkey);
     int pinned = flip ? 0 : stretto_pin_probe(&src, &tag, comm, &pidx);
@@ -1987,20 +2034,22 @@ int MPI_Iprobe(int src, int tag, MPI_Comm comm, int *flag, MPI_Status *st) {
         pinned = 1; src = fsrc;
     } else if (flip == -1 || pinned == 2) *flag = 0;
     else { iss_lock(); rc = PMPI_Iprobe(src, tag, comm, flag, st); if (rc == MPI_SUCCESS && *flag) iseq = iss_next(); iss_unlock(); }
-    probe_rec("iprobe", osrc, otag, comm, *flag, st, rc, pidx, pinned, src, iseq); return rc;
+    probe_rec("iprobe", osrc, otag, comm, *flag, st, rc, pidx, pinned, src, iseq, pord); return rc;
 }
 int MPI_Mprobe(int src, int tag, MPI_Comm comm, MPI_Message *msg, MPI_Status *st) {
     GUARD; MPI_Status mine; if (st == MPI_STATUS_IGNORE) st = &mine;
+    int pord = stretto_pin_gate(STRETTO_OP_PROBE, src == MPI_PROC_NULL);
     int osrc = src, otag = tag, pidx = -1; int pinned = stretto_pin_probe(&src, &tag, comm, &pidx);
     { REC(b, "begin"); rb_printf(&b, ",\"call\":\"probe\",\"kind\":\"mprobe\""); rb_src(&b, osrc); rb_tag(&b, otag); rb_printf(&b, ",\"comm\":%d", comm_id(comm)); rb_emit(&b); }
     long iseq = -1;
     int rc = g_issue ? issued_probe(src, tag, comm, msg, st, &iseq) : PMPI_Mprobe(src, tag, comm, msg, st);
     if (rc == MPI_SUCCESS) msg_add(*msg, comm, st);
-    probe_rec("mprobe", osrc, otag, comm, 1, st, rc, pidx, pinned, src, iseq); return rc;
+    probe_rec("mprobe", osrc, otag, comm, 1, st, rc, pidx, pinned, src, iseq, pord); return rc;
 }
 int MPI_Improbe(int src, int tag, MPI_Comm comm, int *flag, MPI_Message *msg, MPI_Status *st) {
     GUARD; MPI_Status mine; if (st == MPI_STATUS_IGNORE) st = &mine;
     int osrc = src, otag = tag, pidx = -1, fsrc = src, ftag = tag, fkey = -1, rc = MPI_SUCCESS;
+    int pord = stretto_pin_gate(STRETTO_OP_PROBE, src == MPI_PROC_NULL);
     long iseq = -1;
     int flip = stretto_pin_flip(0, src, tag, comm, &fsrc, &ftag, &fkey);
     int pinned = flip ? 0 : stretto_pin_probe(&src, &tag, comm, &pidx);
@@ -2012,7 +2061,7 @@ int MPI_Improbe(int src, int tag, MPI_Comm comm, int *flag, MPI_Message *msg, MP
     } else if (flip == -1 || pinned == 2) *flag = 0;
     else { iss_lock(); rc = PMPI_Improbe(src, tag, comm, flag, msg, st); if (rc == MPI_SUCCESS && *flag) iseq = iss_next(); iss_unlock(); }
     if (rc == MPI_SUCCESS && *flag) msg_add(*msg, comm, st);
-    probe_rec("improbe", osrc, otag, comm, *flag, st, rc, pidx, pinned, src, iseq); return rc;
+    probe_rec("improbe", osrc, otag, comm, *flag, st, rc, pidx, pinned, src, iseq, pord); return rc;
 }
 /* Mrecv/Imrecv consume the probed message: recorded as a receive whose source/tag are the
    message's (known from the probe's status), so the loader matches it by FIFO. */
