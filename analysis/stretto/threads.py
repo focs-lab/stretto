@@ -645,14 +645,14 @@ def _thread_edges_reduced(t: Trace, M, node_set, mnode: Dict[Key, tuple], probe_
         (None unless it never decreases), the receive and match node of each, where the runs
         of linked receives start, and per receiving chain the positions of its receives and
         their indexes (None for a chain whose indexes decrease)."""
-        v = views.get(key, False)
+        v = views.get(("s",) + key, False)     # recv_view caches its own classes in views too
         if v is not False:
             return v
         lst = t._send_tag[key]
         n = kept_len(lst)
         ph = [phys(s2) for s2 in lst[:n]]
         if any(ph[i] > ph[i + 1] for i in range(n - 1)):
-            views[key] = None
+            views[("s",) + key] = None
             return None
         rks = [recv_of.get(s2.key) for s2 in lst[:n]]
         ms = [mnode.get(x) if x is not None else None for x in rks]
@@ -671,7 +671,7 @@ def _thread_edges_reduced(t: Trace, M, node_set, mnode: Dict[Key, tuple], probe_
             e[1].append(t.recvs[x].idx)
         chains = {d: (e if all(e[1][i] < e[1][i + 1] for i in range(len(e[1]) - 1)) else None) for d, e in by.items()}
         nom = [i for i in range(n) if ms[i] is None]
-        v = views[key] = (n, ph, rks, ms, starts, chains, nom, exc)
+        v = views[("s",) + key] = (n, ph, rks, ms, starts, chains, nom, exc)
         return v
 
     def send_fast(red: _Reduced, r, s: Send, ps, c: int, m) -> bool:
