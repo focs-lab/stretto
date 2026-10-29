@@ -40,6 +40,8 @@ from bisect import bisect_left
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
+from .chains import HB, THREAD_SIDE, split
+
 ANY = -1
 WORLD = 0
 
@@ -81,6 +83,13 @@ class Send:
     cancelled: bool = False          # a cancel record named its request: the message is withdrawn
     reserved_idx: Optional[int] = None   # idx of the Mprobe/Improbe at dst that removed it from the queue
     data: Optional[str] = None       # the packed message in hexadecimal, if the tracer recorded it (STRETTO_PAYLOAD)
+    proc: Optional[int] = None       # the process (world rank); rank is the chain (docs/threads.md)
+    iseq: Optional[int] = None       # the order in which MPI saw the send, when the tracer numbered it
+    reserved_fn: Optional[object] = None   # several chains: can a receive still take it after its Mprobe
+
+    def __post_init__(self):
+        if self.proc is None:
+            self.proc = self.rank
 
     @property
     def bytes(self) -> int:
@@ -90,7 +99,8 @@ class Send:
         """Can r take s: s accepted, not cancelled, and not already removed from the queue by
         a matched probe that precedes r on r's rank."""
         return (r.accepts(self) and not self.cancelled
-                and (self.reserved_idx is None or self.reserved_idx >= r.idx))
+                and (self.reserved_idx is None
+                     or (self.reserved_idx >= r.idx if self.reserved_fn is None else self.reserved_fn(r))))
 
     @property
     def rendezvous_always(self) -> bool:
@@ -138,6 +148,12 @@ class Recv:
     cancelled: bool = False
     mrecv: bool = False              # Mrecv/Imrecv: takes the message its Mprobe removed from the queue
     freed: bool = False              # MPI_Request_free'd while pending: completes unobserved
+    proc: Optional[int] = None       # the process (world rank); rank is the chain (docs/threads.md)
+    iseq: Optional[int] = None       # the order in which MPI saw the posting, when the tracer numbered it
+
+    def __post_init__(self):
+        if self.proc is None:
+            self.proc = self.rank
 
     @property
     def capacity(self) -> int:
@@ -148,8 +164,8 @@ class Recv:
         return self.src == ANY or self.tag == ANY
 
     def accepts(self, s: "Send") -> bool:
-        return (s.dst == self.rank and s.comm == self.comm
-                and (self.src == ANY or self.src == s.rank)
+        return (s.dst == self.proc and s.comm == self.comm
+                and (self.src == ANY or self.src == s.proc)
                 and (self.tag == ANY or self.tag == s.tag))
 
     def issue_node(self):
@@ -182,14 +198,20 @@ class Probe:
     completed: bool = True
     seen: Optional[Key] = None   # the send it observed, per FIFO reconstruction
     pidx: Optional[int] = None   # wildcard probe ordinal (replay pin)
+    proc: Optional[int] = None   # the process (world rank); rank is the chain (docs/threads.md)
+    iseq: Optional[int] = None   # the order in which MPI saw it, when the tracer numbered the postings
+
+    def __post_init__(self):
+        if self.proc is None:
+            self.proc = self.rank
 
     @property
     def wildcard(self) -> bool:
         return self.src == ANY or self.tag == ANY
 
     def accepts(self, s: Send) -> bool:
-        return (s.dst == self.rank and s.comm == self.comm
-                and (self.src == ANY or self.src == s.rank)
+        return (s.dst == self.proc and s.comm == self.comm
+                and (self.src == ANY or self.src == s.proc)
                 and (self.tag == ANY or self.tag == s.tag))
 
     def issue_node(self):
@@ -217,6 +239,11 @@ class Coll:
     completed: bool = True
     din: Optional[str] = None    # what this rank contributed, packed, in hexadecimal (STRETTO_PAYLOAD)
     dout: Optional[str] = None   # what it received
+    proc: Optional[int] = None   # the process (world rank), the member; rank is the chain (docs/threads.md)
+
+    def __post_init__(self):
+        if self.proc is None:
+            self.proc = self.rank
 
     def issue_node(self):
         return (self.rank, self.idx, "i")
@@ -255,6 +282,24 @@ class Trace:
     guard: Dict[int, int] = field(default_factory=dict)  # rank -> 1 guard on, 0 asked for but off (absent: not asked for)
     sites: Dict[Tuple[int, int], dict] = field(default_factory=dict)    # (rank, site id) -> the tracer's site record
     _site_ids: Dict[int, "array"] = field(default_factory=dict, repr=False)   # rank -> site id per record, -1 if none
+    # several threads (docs/threads.md, stretto.chains): a rank whose records come from several
+    # chains is split into one sequence per chain, whose id takes the rank's place in ranks and
+    # in every record's rank; proc maps a chain to its rank, chains a split rank to its chains
+    # (main first), hb is their happens-before (chains.HB)
+    multi: bool = False
+    proc: Dict[int, int] = field(default_factory=dict)
+    chains: Dict[int, List[int]] = field(default_factory=dict)
+    chain_name: Dict[int, str] = field(default_factory=dict)
+    chain_info: Dict[Tuple[int, int], dict] = field(default_factory=dict)
+    hb: object = None
+    fpos: Dict[Tuple[int, int], int] = field(default_factory=dict)   # (chain, idx) -> place in its rank's file
+    issue_order: bool = False        # the tracer numbered the postings (MPI_THREAD_MULTIPLE)
+    thread_limits: List[Tuple[str, str]] = field(default_factory=list)   # (reason, detail): what chains cannot be analysed
+    thread_overlap: List[int] = field(default_factory=list)   # ranks on which two threads were inside MPI at once
+
+    def chains_of(self, rank: int) -> List[int]:
+        """The chains of a rank (the rank itself when it has one)."""
+        return self.chains.get(rank, [rank])
 
     def site_of(self, rank: int, idx: int) -> Optional[Tuple[str, int]]:
         """The call site of record idx of rank as (object path, offset in the object), the
@@ -308,12 +353,16 @@ class Trace:
         k = (r.key, s.key, type(r) is Recv)
         out = self._competitors.get(k)
         if out is None:
-            out = self._competitors[k] = tuple(self._earlier_competitors(r, s))
+            if self.multi and r.proc in self.chains:
+                from .threads import earlier_competitors
+                out = self._competitors[k] = tuple(earlier_competitors(self, r, s))
+            else:
+                out = self._competitors[k] = tuple(self._earlier_competitors(r, s))
         return out
 
     def _earlier_competitors(self, r, s: Send) -> List[Recv]:
         out = []
-        for src in (s.rank, ANY):
+        for src in (s.proc, ANY):
             for tag in (s.tag, ANY):
                 key = (r.rank, r.comm, src, tag)
                 idx = self._recv_class_idx.get(key)
@@ -331,7 +380,11 @@ class Trace:
         k = (r.key, s.key, type(r) is Recv)
         out = self._earlier.get(k)
         if out is None:
-            out = self._earlier[k] = tuple(self._earlier_sends(r, s))
+            if self.multi and s.proc in self.chains:
+                from .threads import earlier_sends
+                out = self._earlier[k] = tuple(earlier_sends(self, r, s))
+            else:
+                out = self._earlier[k] = tuple(self._earlier_sends(r, s))
         return out
 
     def _earlier_sends(self, r, s: Send) -> List[Send]:
@@ -414,7 +467,13 @@ class Trace:
         self._queues = {}
         for s in sorted(self.sends.values(), key=lambda s: s.idx):
             self._sends_of.setdefault(s.rank, []).append(s)
-            self._queues.setdefault((s.rank, s.dst, s.comm), []).append(s)
+            self._queues.setdefault((s.proc, s.dst, s.comm), []).append(s)
+        if self.multi:
+            # a split rank's queue in the order MPI saw its sends (its chains' sends interleave)
+            from .chains import physical_key
+            for q, lst in self._queues.items():
+                if q[0] in self.chains:
+                    lst.sort(key=lambda s: physical_key(self, s))
         self._sources_to = {}
         for src, dst, comm in sorted(self._queues):
             self._sources_to.setdefault((dst, comm), []).append(src)
@@ -532,7 +591,7 @@ def _fold_begins(raw: List[dict]) -> List[dict]:
     last: Dict[Optional[int], dict] = {}
     for i in range(len(raw) - 1, -1, -1):
         following[i] = last.get(raw[i].get("tid"))
-        if raw[i].get("op") not in SIDE_RECORDS:
+        if raw[i].get("op") not in SIDE_RECORDS and raw[i].get("op") not in THREAD_SIDE:
             last[raw[i].get("tid")] = raw[i]
     out = []
     for i, r in enumerate(raw):
@@ -541,6 +600,9 @@ def _fold_begins(raw: List[dict]) -> List[dict]:
             continue
         nxt = following[i]
         if nxt is not None and nxt.get("op") == r.get("call") and nxt.get("op") != "begin":
+            if "after" in r:
+                # the begin's happens-before predecessors are the call's (stretto.chains)
+                nxt["after"] = list(r["after"]) + list(nxt.get("after", ()))
             continue
         b = dict(r)
         b["op"] = "blocked"
@@ -555,15 +617,16 @@ def _build(t: Trace, raw_ranks: Dict[int, List[dict]]) -> None:
             if r.get("op") == "site":
                 t.sites[(rank, r.get("id"))] = r
     folded = {rank: _fold_begins([r for r in recs if r.get("op") != "site"]) for rank, recs in raw_ranks.items()}
+    # one sequence of records per rank, or per chain of a rank whose threads the tracer followed
+    # (stretto.chains); proc_recs keeps each rank's records in file order
+    proc_recs = split(t, folded, lambda ch, i, r: Rec(ch, i, r["op"], r))
+    if t.multi:
+
+        for rank, recs in proc_recs.items():
+            if rank in t.chains:
+                for k, rec in enumerate(recs):
+                    t.fpos[(rec.rank, rec.idx)] = k
     for rank, recs in folded.items():
-        t.ranks[rank] = [Rec(rank, i, r["op"], r) for i, r in enumerate(recs)]
-        # under MPI_THREAD_MULTIPLE every record names its thread (a site table overflow aside);
-        # below it (since 22 Oct 2026) those of a thread other than the initialising one do, and
-        # a record without a thread is the initialising thread's
-        tids = {r.get("tid") for r in recs if r["op"] != "overflow"}
-        if max((r.get("thread", 0) for r in recs if r["op"] == "init"), default=0) >= 3:
-            tids.discard(None)
-        t.threads[rank] = len(tids) or 1
         for r in recs:
             if r["op"] == "init":
                 t.np = max(t.np, r.get("np", 0))
@@ -582,7 +645,7 @@ def _build(t: Trace, raw_ranks: Dict[int, List[dict]]) -> None:
                     t.incomplete.append(("tracer-overflow", f"the tracer's {what} overflowed on rank {rank}, so later records lack fields"))
             elif r["op"] == "unmodelled":
                 t.unmodelled.append((rank, r.get("call", "?")))
-        t.guards.extend(rec for rec in t.ranks[rank] if rec.op == "guard")
+        t.guards.extend(rec for rec in proc_recs[rank] if rec.op == "guard")
         if not any(r["op"] == "finalize" for r in recs):
             t.truncated.append(rank)
     if t.np:
@@ -622,8 +685,10 @@ def _build(t: Trace, raw_ranks: Dict[int, List[dict]]) -> None:
 
     # pass 1: operations
     legacy_null: Dict[str, List[int]] = {}      # MAY_BE_NULL creations in a version-1 trace, by name: ranks
-    for rank, recs in t.ranks.items():
-        nsend = nrecv = nprobe = 0
+    for rank, recs in proc_recs.items():
+        nsend: Dict[int, int] = {}            # per chain (the rank itself when it has one)
+        nrecv: Dict[int, int] = {}
+        nprobe: Dict[int, int] = {}
         coll_ord: Dict[int, int] = {}
         pending_req: Dict[int, object] = {}
         cancelled_ops: List[object] = []       # the operations a cancel record names
@@ -639,10 +704,11 @@ def _build(t: Trace, raw_ranks: Dict[int, List[dict]]) -> None:
                 mode = raw.get("mode", "std")
                 nb = mode in ("isend", "issend", "ibsend", "irsend")
                 comm = gid(rank, raw["comm"])
-                s = Send((rank, nsend), rank, rec.idx, world(rank, raw["comm"], raw["dst"]), raw["tag"], comm,
+                ch = rec.rank
+                s = Send((ch, nsend.get(ch, 0)), ch, rec.idx, world(rank, raw["comm"], raw["dst"]), raw["tag"], comm,
                          raw["count"], raw["tsize"], not nb, mode, raw.get("req"), tsig=raw.get("tsig"),
-                         data=raw.get("data"))
-                nsend += 1
+                         data=raw.get("data"), proc=rank, iseq=raw.get("iseq"))
+                nsend[ch] = nsend.get(ch, 0) + 1
                 if blocked:
                     s.completed = False
                 t.sends[s.key] = s
@@ -655,10 +721,12 @@ def _build(t: Trace, raw_ranks: Dict[int, List[dict]]) -> None:
                     continue
                 nb = call == "irecv"
                 comm = gid(rank, raw["comm"])
-                r = Recv((rank, nrecv), rank, rec.idx, world(rank, raw["comm"], src_of(raw)), tag_of(raw), comm,
+                ch = rec.rank
+                r = Recv((ch, nrecv.get(ch, 0)), ch, rec.idx, world(rank, raw["comm"], src_of(raw)), tag_of(raw), comm,
                          raw["count"], raw["tsize"], not nb, raw.get("req"),
-                         widx=raw.get("widx"), tsig=raw.get("tsig"), mrecv=bool(raw.get("mrecv")))
-                nrecv += 1
+                         widx=raw.get("widx"), tsig=raw.get("tsig"), mrecv=bool(raw.get("mrecv")),
+                         proc=rank, iseq=raw.get("iseq"))
+                nrecv[ch] = nrecv.get(ch, 0) + 1
                 if blocked:
                     r.completed = False
                 elif not nb:
@@ -681,7 +749,7 @@ def _build(t: Trace, raw_ranks: Dict[int, List[dict]]) -> None:
                     if not blocked and raw.get("flag"):
                         for q in raw.get("reqs", []):
                             if q is not None and q >= 0 and q in pending_req:
-                                status_at.setdefault(q, {**raw, "idx": rec.idx})
+                                status_at.setdefault(q, {**raw, "idx": rec.idx, "chain": rec.rank})
                     continue
                 if raw.get("kind") in ("waitany", "testany", "waitsome", "testsome"):
                     t.waitany.append(rec)
@@ -695,6 +763,10 @@ def _build(t: Trace, raw_ranks: Dict[int, List[dict]]) -> None:
                     if obj is None:
                         continue
                     st = status_at.pop(q, None)
+                    if (st["chain"] if st is not None else rec.rank) != obj.rank:
+                        # a request completed by a thread other than the one that started it
+                        t.thread_limits.append(("threads-handoff", f"rank {rank}: a request of chain {obj.rank} "
+                                                f"completed by chain {st['chain'] if st is not None else rec.rank}"))
                     obj.complete_idx = rec.idx if st is None else st["idx"]
                     obj.completed = True
                     if isinstance(obj, Send) and "cancelled" in d:
@@ -722,10 +794,12 @@ def _build(t: Trace, raw_ranks: Dict[int, List[dict]]) -> None:
                 if raw.get("procnull"):
                     continue                   # a probe of MPI_PROC_NULL returns at once and observes nothing
                 comm = gid(rank, raw["comm"])
-                p = Probe((rank, nprobe), rank, rec.idx, world(rank, raw["comm"], src_of(raw)), tag_of(raw), comm,
+                ch = rec.rank
+                p = Probe((ch, nprobe.get(ch, 0)), ch, rec.idx, world(rank, raw["comm"], src_of(raw)), tag_of(raw), comm,
                           raw.get("kind", "probe"), bool(raw.get("flag", 1)),
-                          world(rank, raw["comm"], raw.get("msrc")), raw.get("mtag"), pidx=raw.get("pidx"))
-                nprobe += 1
+                          world(rank, raw["comm"], raw.get("msrc")), raw.get("mtag"), pidx=raw.get("pidx"),
+                          proc=rank, iseq=raw.get("iseq"))
+                nprobe[ch] = nprobe.get(ch, 0) + 1
                 if blocked:
                     p.completed = False
                 t.probes[p.key] = p
@@ -735,7 +809,8 @@ def _build(t: Trace, raw_ranks: Dict[int, List[dict]]) -> None:
                 coll_ord[comm] = k + 1
                 root = raw.get("root")
                 root = None if root is None or root < 0 else world(rank, raw["comm"], root)
-                c = Coll(rank, rec.idx, raw["name"], comm, k, root, raw.get("req"), din=raw.get("din"), dout=raw.get("dout"))
+                c = Coll(rec.rank, rec.idx, raw["name"], comm, k, root, raw.get("req"), din=raw.get("din"), dout=raw.get("dout"),
+                         proc=rank)
                 if blocked:
                     c.completed = False
                 elif c.req is not None:
@@ -769,7 +844,7 @@ def _build(t: Trace, raw_ranks: Dict[int, List[dict]]) -> None:
                 # an MPI_Comm_idup (since 22 Oct 2026 recorded at its call, with its request) is a
                 # nonblocking collective; in older traces only its completion is recorded, and the
                 # collective is placed there, after its real issue, which constrains more
-                c = Coll(rank, rec.idx, "comm_" + name, over, k, None, req if name == "idup" else None)
+                c = Coll(rec.rank, rec.idx, "comm_" + name, over, k, None, req if name == "idup" else None, proc=rank)
                 if c.req is not None:
                     c.completed = False
                     pending_req[c.req] = c
@@ -886,7 +961,7 @@ def _comm_ids(t: Trace, folded: Dict[int, List[dict]], all_ranks: List[int]) -> 
     t.comm_ranks[WORLD] = list(all_ranks)
     t.comm_members[WORLD] = list(all_ranks)
     mapping: Dict[Tuple[int, int], int] = {}
-    for rank in t.ranks:
+    for rank in folded:
         mapping[(rank, 0)] = WORLD
         self_key = ((rank,), 0)
         if self_key not in keys:
@@ -927,15 +1002,27 @@ def _reconstruct_observed(t: Trace) -> None:
     receives posted before them. A send whose cancellation succeeded never reached its
     destination, so it is in no queue. Linear: one pointer per queue."""
     queues: Dict[Tuple[int, int, int, int], List[Send]] = {}
-    for s in sorted(t.sends.values(), key=lambda s: (s.rank, s.idx)):
+    if t.multi:
+        # several chains (stretto.chains): a rank's sends and receives in the order MPI saw them
+        from .chains import physical_key
+        order = lambda x: (x.proc, physical_key(t, x))
+        ranks = sorted({x for x in t.proc.values()})
+        events_of = lambda rank: sorted([r for ch in t.chains_of(rank) for r in t.recvs_of(ch)]
+                                        + [p for p in t.probes.values() if p.proc == rank], key=order)
+    else:
+        order = lambda s: (s.rank, s.idx)
+        ranks = sorted(t.ranks)
+        events_of = lambda rank: sorted(list(t.recvs_of(rank)) + [p for p in t.probes.values() if p.rank == rank],
+                                        key=lambda x: x.idx)
+    for s in sorted(t.sends.values(), key=order):
         if not s.cancelled:
-            queues.setdefault((s.rank, s.dst, s.comm, s.tag), []).append(s)
+            queues.setdefault((s.proc, s.dst, s.comm, s.tag), []).append(s)
     ptr: Dict[Tuple[int, int, int, int], int] = {}
     sendless: List[str] = []
-    for rank in sorted(t.ranks):
-        events = sorted(list(t.recvs_of(rank)) + [p for p in t.probes.values() if p.rank == rank],
-                        key=lambda x: x.idx)
+    for rank in ranks:
+        events = events_of(rank)
         reserved: Dict[Tuple[int, int, int, int], List[Send]] = {}   # removed by Mprobe, awaiting Mrecv
+        mine: Dict[tuple, List[Send]] = {}                           # the same per chain (several threads)
         for e in events:
             if isinstance(e, Probe):
                 if not e.flag or e.msrc is None:
@@ -947,12 +1034,22 @@ def _reconstruct_observed(t: Trace) -> None:
                     e.seen = q[i].key
                     if e.kind in ("mprobe", "improbe"):   # consuming: the message leaves the queue here
                         q[i].reserved_idx = e.idx
+                        if t.multi and rank in t.chains:
+                            # gone for the receives the Mprobe precedes
+                            q[i].reserved_fn = lambda r, p=e: not t.hb.before(p.rank, p.idx, r.rank, r.idx)
                         reserved.setdefault(key, []).append(q[i])
+                        if t.multi:
+                            mine.setdefault((e.rank, key), []).append(q[i])   # its thread receives it
                         ptr[key] = i + 1
                 continue
             if not e.completed or e.msrc is None:
                 continue
             key = (e.msrc, rank, e.comm, e.mtag)
+            if e.mrecv and t.multi and mine.get((e.rank, key)):
+                s = mine[(e.rank, key)].pop(0)
+                reserved[key].remove(s)
+                t.observed[e.key] = s.key
+                continue
             if e.mrecv and reserved.get(key):
                 t.observed[e.key] = reserved[key].pop(0).key
                 continue
@@ -971,3 +1068,13 @@ def _reconstruct_observed(t: Trace) -> None:
                              f"{len(sendless)} receive(s) took a message that no send in the trace matches "
                              f"(first: {sendless[0]}): a sender that was not traced, such as a Fortran library "
                              "under Open MPI, or a rank without a trace file"))
+    if t.multi:
+        # the reconstruction of a split rank rests on the order of the postings (premise P-T4 of
+        # docs/threads.md): a pair whose sizes disagree shows that it does not hold
+        for rk, sk in t.observed.items():
+            r, s = t.recvs[rk], t.sends[sk]
+            if r.proc in t.chains or s.proc in t.chains:
+                if r.mcount is not None and r.tsize and s.tsize and r.mcount * r.tsize != s.bytes:
+                    t.incomplete.append(("reconstruction", f"{r} took {r.mcount * r.tsize} B but its reconstructed "
+                                         f"message {s} has {s.bytes} B: the observed matching of the threads is not known"))
+                    break

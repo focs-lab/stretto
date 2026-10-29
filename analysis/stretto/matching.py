@@ -125,7 +125,7 @@ def send_blocks(s: Send, B: Optional[int]) -> bool:
 def build_graph(t: Trace, M: Dict[Key, Key], cut: Optional[Dict[int, int]], B: Optional[int],
                 extra_edges: Iterable[Tuple[Node, Node]] = (), strong_only: bool = False,
                 probe_alt: Optional[Dict[Key, Key]] = None, issued: Optional[Dict[int, int]] = None,
-                ready: Optional[Collection[Key]] = None) -> Graph:
+                ready: Optional[Collection[Key]] = None, thread_orient: bool = True) -> Graph:
     """Constraint graph over the kept prefix (idx < cut[rank]; cut=None keeps all).
     B=None means infinite buffering. strong_only drops edges whose necessity is not
     guaranteed by the standard (collectives of unknown shape, probe observations): use it
@@ -245,20 +245,20 @@ def build_graph(t: Trace, M: Dict[Key, Key], cut: Optional[Dict[int, int]], B: O
                     g.add(h, c.complete_node())
         elif shape == "root-out":
             for a in kept_c:
-                if a.root is not None and a.rank == a.root:
+                if a.root is not None and a.proc == a.root:
                     for b in kept_c:
                         if a is not b and b.complete_node() in node_set:
                             g.add(a.issue_node(), b.complete_node())
         elif shape == "root-in":
             for b in kept_c:
-                if b.root is not None and b.rank == b.root and b.complete_node() in node_set:
+                if b.root is not None and b.proc == b.root and b.complete_node() in node_set:
                     for a in kept_c:
                         if a is not b:
                             g.add(a.issue_node(), b.complete_node())
         elif shape == "prefix":
             # chained hubs: issue(a_i) -> H_i -> H_{i+1} -> ... and H_i -> complete(a_{i+1}),
             # so that a_i precedes the completion of every later member
-            order = sorted(kept_c, key=lambda c: pos.get(c.rank, 0))
+            order = sorted(kept_c, key=lambda c: pos.get(c.proc, 0))
             for i, c in enumerate(order):
                 h = hub(comm, k, i)
                 nodes.append(h)
@@ -267,6 +267,13 @@ def build_graph(t: Trace, M: Dict[Key, Key], cut: Optional[Dict[int, int]], B: O
                     g.add(h, hub(comm, k, i + 1))
                     if order[i + 1].complete_node() in node_set:
                         g.add(h, order[i + 1].complete_node())
+    if t.multi:
+        # several chains (stretto.threads): synchronisation, and an orientation per concurrent
+        # pair whose order decides a match (left out for the observed happens-before)
+        from .threads import thread_edges
+        for a, b in thread_edges(t, M, node_set, mnode, probe_alt, thread_orient):
+            if both(a, b):
+                g.add(a, b)
     for a, b in extra_edges:
         if both(a, b):
             g.add(a, b)
@@ -276,7 +283,7 @@ def build_graph(t: Trace, M: Dict[Key, Key], cut: Optional[Dict[int, int]], B: O
 def observed_hb(t: Trace, B: Optional[int] = None):
     """Predicate hb(a, b) over nodes: a happens-before b in every execution that has the
     observed matching (program order, delivery, collectives, rendezvous if B given)."""
-    return build_graph(t, t.observed, cut=None, B=B).reaches
+    return build_graph(t, t.observed, cut=None, B=B, thread_orient=False).reaches
 
 
 def observed_ready_errors(t: Trace) -> Tuple[List[Tuple[Recv, Send]], List[Send]]:
@@ -414,6 +421,9 @@ def candidates_full(t: Trace, hb=None) -> Tuple[List[Alternative], List[Tuple[st
     follow the receive's completion in the observed run, by a path the alternative keeps
     (_follows), are pruned and listed. hb is observed_hb(t), passed in when the caller
     already has it."""
+    if t.multi:
+        from .threads import candidates as threads_candidates
+        return threads_candidates(t)
     hb = hb or observed_hb(t)
     sender_of: Dict[Key, Key] = {sk: rk for rk, sk in t.observed.items()}
     out: List[Alternative] = []
@@ -507,6 +517,9 @@ def probe_candidates(t: Trace, hb=None) -> List[Tuple[Probe, Send]]:
     """Other sends a wildcard probe could have observed: per source, only the earliest
     send the probe accepts that is not consumed by a receive posted before the probe
     (non-overtaking), and not causally after the probe."""
+    if t.multi:
+        from .threads import probe_candidates as threads_probes
+        return threads_probes(t)
     hb = hb or observed_hb(t)
     out = []
     consumed = _ConsumedBefore(t)
@@ -572,6 +585,8 @@ def flip_candidates(t: Trace, hb=None) -> List[Tuple[Probe, Optional[Send]]]:
     (_canonical_polls). A true probe returning false needs no message: a false flag
     is always a possible result, the model guaranteeing no progress, so every Iprobe or
     Improbe that saw a message is a candidate."""
+    if t.multi:
+        return []                    # not for several chains yet (docs/threads.md)
     hb = hb or observed_hb(t)
     out: List[Tuple[Probe, Optional[Send]]] = []
     failed = [(p, p.rank, p.idx, (p.kind, p.src, p.tag, p.comm)) for p in sorted(t.probes.values(), key=lambda p: p.key)
@@ -615,6 +630,8 @@ def test_flip_candidates(t: Trace, hb=None) -> List[Tuple[object, Recv, Send]]:
     found r complete, had r been matched to s before it (docs/model.md §3, flag flips). s must
     not causally follow the call's completion in the observed run. Calls on several requests
     (Testall, Testany, Testsome) are not flipped. Taken once per request and poll key."""
+    if t.multi:
+        return []                    # not for several chains yet (docs/threads.md)
     hb = hb or observed_hb(t)
     cands = []
     for rank, recs in t.ranks.items():
@@ -650,6 +667,9 @@ def matching_order_ok(t: Trace, M: Dict[Key, Key], kept_recv, ranks: Optional[Se
     tag, the latest earlier receive of each envelope class for its class, since the pairs of
     the rank are all checked and each obligation chains through them (Trace.earlier_sends,
     Trace.earlier_competitors); an unmatched receive is found by the earliest one per class."""
+    if t.multi:
+        from .threads import matching_order_ok as threads_order
+        return threads_order(t, M, kept_recv, ranks, kept_probe, probe_alt)
     post_idx: Dict[Key, int] = {rk: t.recvs[rk].idx for rk in M}
     matched_send: Dict[Key, Key] = {sk: rk for rk, sk in M.items()}
     # the earliest receive without a message in M, per (rank, comm, source or ANY, tag or ANY)
@@ -723,5 +743,8 @@ def affected_ranks(t: Trace, M: Dict[Key, Key], changed) -> Set[int]:
         if M.get(rk) != sk:
             out.add(t.recvs[rk].rank)
             out.add(t.sends[sk].rank)
+    if t.multi:
+        # a split rank's obligations involve all its chains (stretto.threads)
+        out = {c for x in out for c in t.chains_of(t.proc.get(x, x))}
     return out
 

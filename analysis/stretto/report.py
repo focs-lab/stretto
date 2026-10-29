@@ -14,12 +14,14 @@ from .matching import (candidates_full, flip_candidates, match_node, observed_hb
 from .trace import ANY, Key, Probe, Recv, Send, Trace
 from . import types
 from .deadlock import contained_deadlock
+from . import threads
 from .reads import _cidx, erroneous, witness_respects
 
 
 # classes that make a program's verdict ERROR (the warnings 1b, 1f, probe-alt, the flag flips and
 # waitany-order do not); experiments/mbi/score.py uses the same set
-ERROR_CLASSES = frozenset({"1a", "1c", "1d", "2-buffering", "2-collective", "2-blocked", "2-ready", "3-local", "abort"})
+ERROR_CLASSES = frozenset({"1a", "1c", "1d", "2-buffering", "2-collective", "2-blocked", "2-ready", "3-local", "abort",
+                           "2-thread-collective", "2-thread-wait", "2-thread-finalize", "2-thread-level"})
 
 
 @dataclass
@@ -125,8 +127,8 @@ def classify(r: Recv, s: Send, s_obs: Optional[Send]) -> Tuple[str, str]:
         return "1a", f"type signature mismatch: send {s.count} x {s.tsig} vs receive {r.count} x {r.tsig}"
     if s_obs is not None and r.tag == ANY and s.tag != s_obs.tag:
         return "1b", f"cross-purpose: tag {s.tag} instead of observed tag {s_obs.tag} (another logical channel)"
-    if s_obs is not None and s.rank != s_obs.rank:
-        return "1f", f"same shape as the observed message but from rank {s.rank} instead of {s_obs.rank}"
+    if s_obs is not None and s.proc != s_obs.proc:
+        return "1f", f"same shape as the observed message but from rank {s.proc} instead of {s_obs.proc}"
     return "1f", "same shape as the observed message"
 
 
@@ -235,7 +237,10 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
 
     # ---- family 2: observed collective ordering
     untraced = 0
-    for cs in t.coll_sets():
+    # with MPI calls inside OpenMP tasks the order of a rank's collectives is not known (its tasks are
+    # not chains of their own): no collective-ordering finding from it
+    tasks = t.multi and any(reason == "threads-tasks" for reason, _ in t.thread_limits)
+    for cs in (t.coll_sets() if not tasks else []):
         names = sorted({c.name for c in cs})
         members = t.comm_members.get(cs[0].comm, [])
         if len(names) > 1:
@@ -254,7 +259,22 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
     # ---- a rank whose records come from several threads (MPI_THREAD_MULTIPLE, SERIALIZED, or a
     # misused FUNNELED): its call order depends on the threads' scheduling, not only on its
     # results, so its program order is not total and no alternative can be certified from it
-    multi = [rank for rank, n in t.threads.items() if n > 1]
+    # A trace whose tracer followed the threads (stretto.chains) splits such a rank into chains
+    # ordered by happens-before, and is analysed (stretto.threads, docs/threads.md)
+    multi = [rank for rank, n in t.threads.items() if n > 1 and rank not in t.chains]
+    if t.multi and not multi:
+        rep.notes.append(threads.chain_note(t))
+        for cls, title, detail in threads.observed_findings(t, tasks=bool(tasks)):
+            rep.findings.append(Finding("2", cls, "observed", title, detail))
+        if t.thread_limits:
+            for reason, detail in t.thread_limits:
+                rep.degrade(reason, detail)
+            rep.notes.append("several threads: " + "; ".join(sorted({d for _, d in t.thread_limits}))
+                             + "; alternatives are not predicted (observed findings only)")
+            return rep
+        rep.notes.append("several threads: alternatives are judged by the generic check without the single-path "
+                         "explorer, read bounds or flag flips, and without replay pins (docs/threads.md)")
+        generic, with_sp, reads, twin, changes = True, False, None, None, 1
     if multi:
         if t.thread_level >= 3:
             rep.notes.append(f"MPI_THREAD_MULTIPLE with several calling threads on ranks {multi}: per-rank program order is not total, alternatives are not predicted (observed findings only)")
@@ -374,7 +394,10 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
             details.append("thresholds at which the observed run is not realisable are left out: B in "
                            + ",".join(_fmt_B(B) for B in ordered) + " (see the notes)")
         if alt.kind == "swap":
-            details.append(f"swap variant: {t.recvs[alt.stolen_from]} then takes {s_obs}; certified at L1 only up to the first changed receive")
+            if t.multi and t.recvs[alt.stolen_from].rank != r.rank:
+                details.append(f"concurrent swap: {t.recvs[alt.stolen_from]}, on another thread, takes {s_obs}; both are certified at L1")
+            else:
+                details.append(f"swap variant: {t.recvs[alt.stolen_from]} then takes {s_obs}; certified at L1 only up to the first changed receive")
         elif alt.stolen_from is not None:
             details.append(f"steal variant: {t.recvs[alt.stolen_from]} is left without {s}")
         ext = reads is not None and reads.extends(t, alt.changed, alt.M)
@@ -385,6 +408,15 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
         f = Finding("1", cls, "L1", alt.describe(t), details, B=brange, recv=alt.recv, send=alt.send,
                     pin=pin_spec(r, s), error=("truncate" if why.startswith("count mismatch") else "type") if cls == "1a" else "")
         rep.findings.append(f)
+        if t.multi and alt.kind == "swap" and t.recvs[alt.stolen_from].rank != r.rank:
+            # a concurrent swap changes two receives that are both judged: the other one may err
+            r2, s2 = t.recvs[alt.stolen_from], t.sends[alt.M[alt.stolen_from]]
+            cls2, why2 = classify(r2, s2, t.observed_send(r2))
+            if cls2 == "1a":
+                rep.findings.append(Finding("1", "1a", "L1", f"{r2} <- {s2} (concurrent swap with {r} <- {s})",
+                                            [why2, f"L1: {r2} and {r} are on threads that no synchronisation orders"],
+                                            B=brange, recv=r2.key, send=s2.key,
+                                            error="truncate" if why2.startswith("count mismatch") else "type"))
         # a deadlock contained in the horizon (theorem T7): possible only when a changed rank
         # stops before rule 1 cuts it, i.e. at a nonblocking changed receive, or inside the
         # window that read bounds keep after a changed receive (rule H1'). A changed receive
@@ -392,7 +424,7 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
         # and the deadlock holds only if its rank stops before completing it: the call that
         # completes it returns the error, where the program aborts or may branch
         errs = [t.recvs[k] for k in alt.changed if alt.M.get(k) in t.sends and erroneous(t.recvs[k], t.sends[alt.M[k]])]
-        if any(not t.recvs[k].blocking for k in alt.changed) or ext:
+        if any(not t.recvs[k].blocking for k in alt.changed) or ext or t.multi:
             held = []
             windowed = False
             for B in dict.fromkeys([minB, None] if at_inf else [minB]):
@@ -403,7 +435,7 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
                 if v is None or not v.feasible:
                     v, rule1 = check(t, alt.M, alt.changed, B, "L1"), None
                 if v.feasible:
-                    D = contained_deadlock(t, without(alt.M, v.deprived), alt.changed, v.cut, v.issued, B, rule1)
+                    D = (threads.contained_deadlock if t.multi else contained_deadlock)(t, without(alt.M, v.deprived), alt.changed, v.cut, v.issued, B, rule1)
                     if D and any(x.rank not in D or v.cut[x.rank] > _cidx(x) for x in errs):
                         D = None
                     if D:
@@ -651,6 +683,9 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
             f.site = t.site_label(*f.event)
         elif x is not None:
             f.site = t.site_label(x.rank, x.idx)
+    if t.multi:
+        for f in rep.findings:
+            f.pin = None                 # no replay of several threads yet (docs/threads.md, section 4)
     return rep
 
 

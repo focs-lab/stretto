@@ -71,9 +71,9 @@ def check(t: Trace, M: Dict[Key, Key], changed, B: Optional[int], mode: str = "L
         s, p = t.sends[sk], t.probes[pk]
         if s.idx >= cut[s.rank] and issued.get(s.rank) != s.idx:
             return Verdict(False, "the message the probe would observe is never issued within the horizon", cut)
-        for x in t.recvs_of(p.rank):
-            if x.idx >= p.idx:
-                break
+        earlier = (x for x in t.recvs_of(p.rank) if x.idx < p.idx) if not t.multi else \
+            (x for c in t.chains_of(p.proc) for x in t.recvs_of(c) if t.hb.before(x.rank, x.idx, p.rank, p.idx))
+        for x in earlier:
             if x.key not in M and not x.cancelled and not x.mrecv and x.accepts(s):
                 return Verdict(False, f"receiver order: earlier {x} accepts {s} and has no message in this matching", cut)
     for sk in must_issue:

@@ -1,0 +1,245 @@
+"""Several threads calling MPI (docs/threads.md): ranks split into chains ordered by recorded
+happens-before, the alternatives thread scheduling produces, rule 8 of the horizon, the observed
+thread findings, and that a trace whose ranks have one chain is analysed as before. Traces are
+built in memory from raw records in the tracer's format (version 3), as in test_checker."""
+import os
+import sys
+import unittest
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from stretto import threads as TH, trace as T
+from stretto.feasible import check
+from stretto.horizon import compute_cut
+from stretto.matching import candidates_full, probe_candidates
+from stretto.report import analyze, format_report
+from test_checker import coll, mk, recv, send, wait
+
+
+def th(tid, rec, label=None, after=()):
+    """A record of chain tid, with a label other records' after can name."""
+    d = dict(rec)
+    if tid:
+        d["tid"] = tid
+    if label is not None:
+        d["id"] = label
+    if after:
+        d["after"] = list(after)
+    return d
+
+
+def probe(src, tag, msrc, mtag, kind="probe"):
+    d = {"op": "probe", "kind": kind, "src": 0 if src == T.ANY else src, "tag": 0 if tag == T.ANY else tag,
+         "comm": 0, "flag": 1, "msrc": msrc, "mtag": mtag}
+    if src == T.ANY:
+        d["anysrc"] = 1
+    if tag == T.ANY:
+        d["anytag"] = 1
+    return d
+
+
+def mkt(ranks, level=3, issue=True, np=None):
+    """A version-3 trace with the tracer's thread support: each rank's records in file order
+    (which is also the order of the postings, iseq, when issue); after names labels."""
+    t = T.Trace()
+    np = np or len(ranks)
+    raw, labels = {}, {}
+    for rank, recs in ranks.items():
+        out = [{"op": "init", "np": np, "version": 3, "thread": level, **({"issue": 1} if issue else {})}]
+        out += [dict(r) for r in recs] + [{"op": "finalize"}]
+        iseq = 0
+        for q, r in enumerate(out):
+            r["seq"] = q
+            if "id" in r:
+                labels[(rank, r.pop("id"))] = [r.get("tid", 0), q]
+            if issue and (r["op"] in ("send", "recv", "irecv") or (r["op"] == "probe" and r.get("flag", 1))):
+                r["iseq"] = iseq
+                iseq += 1
+        raw[rank] = out
+    for rank, out in raw.items():
+        for r in out:
+            if "after" in r:
+                r["after"] = [labels[(rank, x)] if isinstance(x, str) else labels[(rank, x[0])] + list(x[1:])
+                              for x in r["after"]]
+    T._build(t, raw)
+    return t
+
+
+def alts_of(t):
+    alts, _ = candidates_full(t)
+    return {(a.kind, a.recv, a.send) for a in alts}, alts
+
+
+def accepted(t, alt, B=None):
+    return check(t, alt.M, alt.changed, B, "L1").feasible
+
+
+class C_SingleChain(unittest.TestCase):
+    def test_version_3_without_threads_reports_as_before(self):
+        """A trace of one thread per rank in format version 3 is the trace it was."""
+        recs = {0: [send(1, 1), send(1, 2)], 1: [recv(T.ANY, T.ANY, 0, 1), recv(T.ANY, T.ANY, 0, 2)]}
+        old = mk({r: [dict(x) for x in v] for r, v in recs.items()}, version=2)
+        new = mkt({r: [dict(x) for x in v] for r, v in recs.items()})
+        self.assertFalse(new.multi)
+        self.assertEqual(sorted(new.ranks), sorted(old.ranks))
+        self.assertEqual(old.observed, new.observed)
+        self.assertEqual(format_report(old, analyze(old, with_sp=False)), format_report(new, analyze(new, with_sp=False)))
+
+
+class C_Chains(unittest.TestCase):
+    def two_receivers(self, ordered=False):
+        """Rank 0 sends two messages with one tag; rank 1's two threads receive one each."""
+        return mkt({0: [send(1, 0), send(1, 0)],
+                    1: [th(0, recv(0, 0, 0, 0), "a"),
+                        th(1, recv(0, 0, 0, 0), after=["a"] if ordered else ())]})
+
+    def test_split(self):
+        t = self.two_receivers()
+        self.assertTrue(t.multi)
+        self.assertEqual(len(t.chains[1]), 2)
+        b = t.chains[1][1]
+        self.assertEqual(t.proc[b], 1)
+        self.assertEqual(str(b), "1.1")
+        rb = t.recvs[(b, 0)]
+        self.assertEqual(rb.proc, 1)
+        self.assertTrue(TH.concurrent(t, t.recvs[(1, 0)], rb))
+
+    def test_after_orders_the_chains(self):
+        t = self.two_receivers(ordered=True)
+        b = t.chains[1][1]
+        self.assertTrue(TH.before(t, t.recvs[(1, 0)], t.recvs[(b, 0)]))
+        self.assertFalse(TH.concurrent(t, t.recvs[(1, 0)], t.recvs[(b, 0)]))
+
+    def test_concurrent_receivers_swap(self):
+        t = self.two_receivers()
+        kinds, alts = alts_of(t)
+        swaps = [a for a in alts if a.kind == "swap"]
+        self.assertEqual(len(swaps), 1, kinds)
+        self.assertTrue(accepted(t, swaps[0]))
+        self.assertTrue(accepted(t, swaps[0], B=0))
+
+    def test_ordered_receivers_do_not_race(self):
+        t = self.two_receivers(ordered=True)
+        _, alts = alts_of(t)
+        self.assertEqual([a for a in alts if accepted(t, a)], [])
+
+    def test_two_sender_threads(self):
+        """Rank 0's two threads send to rank 1, which receives twice from rank 0."""
+        t = mkt({0: [th(0, send(1, 0)), th(1, send(1, 0))],
+                 1: [recv(0, 0, 0, 0), recv(0, 0, 0, 0)]})
+        _, alts = alts_of(t)
+        ok = [a for a in alts if accepted(t, a)]
+        self.assertTrue(any(a.recv == (1, 0) and a.send[0] != 0 for a in ok), [a.describe(t) for a in alts])
+
+    def test_ordered_senders(self):
+        t = mkt({0: [th(0, send(1, 0), "s"), th(1, send(1, 0), after=["s"])],
+                 1: [recv(0, 0, 0, 0), recv(0, 0, 0, 0)]})
+        _, alts = alts_of(t)
+        self.assertEqual([a for a in alts if accepted(t, a)], [])
+
+    def test_probe_split_truncates(self):
+        """Thread A probes a message of rank 0 and receives it with the probed size; thread B's
+        receive takes it first in the alternative, and A's receive gets the longer one."""
+        t = mkt({0: [send(1, 0, count=2), send(1, 0, count=100)],
+                 1: [th(0, probe(T.ANY, 0, 0, 0)), th(0, recv(0, 0, 0, 0, count=2)),
+                     th(1, recv(T.ANY, 0, 0, 0, count=100))]})
+        rep = analyze(t, with_sp=False)
+        self.assertIn("1a", {f.cls for f in rep.findings}, format_report(t, rep))
+
+    def test_probe_split_hangs(self):
+        """As above, but rank 0 sends one message; thread B's receive accepts any source and took
+        rank 2's in the run. Taking rank 0's leaves A's receive with nothing: a contained deadlock."""
+        t = mkt({0: [send(1, 0)],
+                 1: [th(0, probe(0, 0, 0, 0)), th(0, recv(0, 0, 0, 0), "ra"),
+                     th(1, recv(T.ANY, 0, 2, 0), "rb")],
+                 2: [send(1, 0)]})
+        rep = analyze(t, with_sp=False)
+        self.assertIn("1d", {f.cls for f in rep.findings}, format_report(t, rep))
+
+    def test_mprobe_does_not_split(self):
+        t = mkt({0: [send(1, 0)],
+                 1: [th(0, probe(0, 0, 0, 0, kind="mprobe")), th(0, dict(recv(0, 0, 0, 0), mrecv=1)),
+                     th(1, recv(T.ANY, 0, 2, 0))],
+                 2: [send(1, 0)]})
+        rep = analyze(t, with_sp=False)
+        self.assertNotIn("1d", {f.cls for f in rep.findings}, format_report(t, rep))
+        self.assertNotIn("1a", {f.cls for f in rep.findings}, format_report(t, rep))
+
+    def test_probe_alternative_across_chains(self):
+        """Both threads probe rank 0's messages: one could report the other's message."""
+        t = mkt({0: [th(0, send(1, 0)), th(1, send(1, 1))],
+                 1: [th(0, probe(0, T.ANY, 0, 0)), th(0, recv(0, 0, 0, 0)),
+                     th(1, probe(0, T.ANY, 0, 1)), th(1, recv(0, 1, 0, 1))]})
+        alts = probe_candidates(t)
+        self.assertTrue(alts)
+
+
+class C_Rule8(unittest.TestCase):
+    def test_a_release_after_a_changed_receive_is_not_in_the_horizon(self):
+        """Chain A takes a message, then releases a lock that chain B acquires before sending.
+        When A's receive changes, B's send depends on A's unknown continuation."""
+        t = mkt({0: [th(0, recv(T.ANY, 0, 2, 0), "ra"), th(1, send(3, 5), after=["ra"])],
+                 1: [send(0, 0)], 2: [send(0, 0)], 3: [recv(0, 5, 0, 5)]})
+        r = t.recvs[(0, 0)]
+        s1 = next(s for s in t.sends.values() if s.proc == 1)
+        M = dict(t.observed)
+        M[r.key] = s1.key
+        cut = compute_cut(t, M, {r.key}, None)
+        b = t.chains[0][1]
+        self.assertEqual(cut[b], 0)               # B waits for A before its send
+
+
+    @staticmethod
+    def gap_trace(ordinals: bool):
+        """The main thread creates A and B, then joins A and B, with no MPI call between: the
+        four synchronisation points share one gap of its records. A and B each receive one of
+        rank 1's two messages."""
+        k = (lambda *v: v) if ordinals else (lambda *v: ())
+        return mkt({0: [th(0, send(2, 9), "m"),
+                        th(1, recv(1, 0, 1, 0), "ra", after=[("m",) + k(1, 0)]),
+                        th(2, recv(1, 0, 1, 0), "rb", after=[("m",) + k(2, 0)]),
+                        th(0, send(2, 8),
+                           after=[("ra",) + k(1, 3), ("rb",) + k(1, 4)])],
+                    1: [send(0, 0), send(0, 0)], 2: [recv(0, 9, 0, 9), recv(0, 8, 0, 8)]})
+
+    def test_creations_before_a_blocked_join_are_reached(self):
+        t = C_Rule8.gap_trace(True)
+        swaps = [a for a in candidates_full(t)[0] if a.kind == "swap"]
+        self.assertEqual(len(swaps), 1)
+        self.assertTrue(accepted(t, swaps[0]))
+
+    def test_without_ordinals_the_gap_is_conservative(self):
+        """Without the ordinals the second creation cannot be placed before the first join: the
+        thread it creates is left out, and the swap's witness with it."""
+        t = C_Rule8.gap_trace(False)
+        swaps = [a for a in candidates_full(t)[0] if a.kind == "swap"]
+        self.assertEqual(len(swaps), 1)
+        self.assertFalse(accepted(t, swaps[0]))
+
+class C_Observed(unittest.TestCase):
+    def test_concurrent_collectives(self):
+        t = mkt({0: [th(0, coll("bcast", 0)), th(1, coll("allreduce"))],
+                 1: [coll("bcast", 0), coll("allreduce")]})
+        rep = analyze(t, with_sp=False)
+        self.assertIn("2-thread-collective", {f.cls for f in rep.findings}, format_report(t, rep))
+
+    def test_ordered_collectives(self):
+        t = mkt({0: [th(0, coll("bcast", 0), "b"), th(1, coll("allreduce"), after=["b"])],
+                 1: [coll("bcast", 0), coll("allreduce")]})
+        rep = analyze(t, with_sp=False)
+        self.assertNotIn("2-thread-collective", {f.cls for f in rep.findings}, format_report(t, rep))
+
+    def test_finalize_before_a_thread_ends(self):
+        t = mkt({0: [th(1, send(1, 0))], 1: [recv(0, 0, 0, 0)]})
+        rep = analyze(t, with_sp=False)
+        self.assertIn("2-thread-finalize", {f.cls for f in rep.findings}, format_report(t, rep))
+
+    def test_funneled_violation(self):
+        t = mkt({0: [th(1, send(1, 0), "s")], 1: [recv(0, 0, 0, 0)]}, level=1, issue=False)
+        rep = analyze(t, with_sp=False)
+        self.assertIn("2-thread-level", {f.cls for f in rep.findings}, format_report(t, rep))
+
+
+if __name__ == "__main__":
+    unittest.main()

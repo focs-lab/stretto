@@ -42,9 +42,15 @@ from __future__ import annotations
 from typing import Dict, List, Optional, Set, Tuple
 
 from .matching import coll_shape, send_blocks
-from bisect import bisect_right
+from bisect import bisect_left, bisect_right
 
 from .trace import ANY, Key, Recv, Trace
+
+
+class Cut(dict):
+    """A horizon of a trace with several chains: the cuts, and dead, per chain the index k at
+    which it does not reach the synchronisation points between its records k-1 and k."""
+    dead: Dict[int, int]
 
 
 def coll_can_complete(c, issued: Set[int], need: Set[int], pos: Dict[int, int]) -> bool:
@@ -57,10 +63,10 @@ def coll_can_complete(c, issued: Set[int], need: Set[int], pos: Dict[int, int]) 
     if shape == "all":
         return issued >= need
     if shape == "root-out":
-        return c.rank == c.root or c.root in issued
+        return c.proc == c.root or c.root in issued
     if shape == "root-in":
-        return c.rank != c.root or issued >= need
-    return all(r in issued for r in need if pos.get(r, 0) < pos.get(c.rank, 0))   # prefix
+        return c.proc != c.root or issued >= need
+    return all(r in issued for r in need if pos.get(r, 0) < pos.get(c.proc, 0))   # prefix
 
 def _cidx(x) -> int:
     return x.complete_idx if x.complete_idx is not None else x.idx
@@ -106,12 +112,44 @@ def compute_cut(t: Trace, M: Dict[Key, Key], changed: Set[Key], B: Optional[int]
     if deprived is None:
         deprived = set()
     work: List[Tuple[int, int, int, bool]] = []     # (rank, lo, hi, issue kept at lo)
+    # several chains (docs/threads.md, rule 8): dead[c] = k when chain c does not reach the
+    # synchronisation points between its records k-1 and k (rule 1: its continuation is not
+    # known; rule 8: it waits there for a predecessor that is not reached)
+    dead: Dict[int, int] = {}
+    # for a gap dead by rule 8: the synchronisation points the chain waits for there, as
+    # (chain, record); None when nothing in the gap is known to be reached (rule 1)
+    blockers: Dict[int, Optional[List[Tuple[int, int, Optional[int]]]]] = {}   # (chain, record, ordinal of the acquire)
+    sync_out = t.hb.out if t.multi and t.hb is not None else {}
+    sync_ptr = {a: len(v) for a, v in sync_out.items()}
+    if sync_out:
+        # rule 6 deprives the nonblocking receives of a chain one from the other, recursively: a
+        # thread that posts thousands of them before its wait goes deeper than the default limit
+        import sys
+        sys.setrecursionlimit(max(sys.getrecursionlimit(), 4 * len(t.recvs) + 1000))
+    fired: Set[Tuple[int, int, int, int]] = set()
 
-    def lower(rank: int, idx: int, why=None, issue_kept: bool = False) -> None:
+    def lower(rank: int, idx: int, why=None, issue_kept: bool = False, gap_dead: bool = False,
+              blocker: Optional[Tuple[int, int, Optional[int]]] = None) -> None:
         """Cut rank at idx; issue_kept keeps the issue of the record at idx (a blocking send
         that never completes). States are ordered (idx, issue removed) < (idx, issue kept) <
-        (idx + 1, ...), so a rule that removes the issue at the current cut still applies."""
+        (idx + 1, ...), so a rule that removes the issue at the current cut still applies.
+        gap_dead: the chain does not reach all the synchronisation points before record idx;
+        blocker: the one it waits for there (rule 8), None: its continuation is unknown (rule 1)."""
         old = cut[rank]
+        if gap_dead and sync_out and idx <= old:
+            if dead.get(rank) != idx or idx < old:
+                dead[rank] = idx
+                blockers[rank] = None if blocker is None else [blocker]
+                if idx == old:
+                    work.append((rank, idx, idx, False))      # rule 8 looks at the gap again
+            elif blockers.get(rank) is not None:
+                if blocker is None:
+                    blockers[rank] = None
+                elif blocker not in blockers[rank]:
+                    blockers[rank].append(blocker)
+                else:
+                    return
+                work.append((rank, idx, idx, False))
         old_issued = issued.get(rank) == old
         if idx == old and old_issued and not issue_kept:
             issued.pop(rank, None)
@@ -142,7 +180,7 @@ def compute_cut(t: Trace, M: Dict[Key, Key], changed: Set[Key], B: Optional[int]
     comp: Dict[Tuple[int, int, int, int], List[Tuple[int, Optional[Key]]]] = {}
     for rk, sk in M.items():
         x, m = t.recvs[rk], t.sends[sk]
-        for src in (ANY, m.rank):
+        for src in (ANY, m.proc):
             for tag in (ANY, m.tag):
                 comp.setdefault((x.rank, x.comm, src, tag), []).append((x.idx, rk))
     probes_seeing: Dict[Key, List] = {}
@@ -150,7 +188,7 @@ def compute_cut(t: Trace, M: Dict[Key, Key], changed: Set[Key], B: Optional[int]
         sk = probe_alt.get(p.key, p.seen)
         if p.completed and (p.flag or p.key in probe_alt) and sk is not None:
             m = t.sends[sk]
-            for src in (ANY, m.rank):
+            for src in (ANY, m.proc):
                 for tag in (ANY, m.tag):
                     comp.setdefault((p.rank, p.comm, src, tag), []).append((p.idx, None))
         if p.key not in changed_probes and p.completed and p.flag and p.seen is not None:
@@ -170,21 +208,65 @@ def compute_cut(t: Trace, M: Dict[Key, Key], changed: Set[Key], B: Optional[int]
     def rule6(r: Recv) -> None:          # a pending receive deprives later receives and probes
         if not (r.completed or r.key in deprived) or not kept(r.rank, r.idx):
             return
-        key = (r.rank, r.comm, r.src, r.tag)
-        lst = comp.get(key)
-        if not lst:
-            return
-        j = bisect_right(comp_idx[key], r.idx)
-        while j < len(lst) and lst[j][0] < cut[r.rank]:
-            idx, rk = lst[j]
-            j += 1
-            if rk is not None and rk in deprived:
-                continue                 # takes no message any more
-            if rk is not None and not t.recvs[rk].blocking:
-                deprive(t.recvs[rk], r)  # stays posted without its message; the next one is looked at too
+        # the later receives and probes of its rank: on its own chain, and on the other chains
+        # of a split rank those it precedes (docs/threads.md, rule 6 over happens-before)
+        for c in (t.chains_of(r.proc) if t.multi else (r.rank,)):
+            key = (c, r.comm, r.src, r.tag)
+            lst = comp.get(key)
+            if not lst:
                 continue
-            lower(r.rank, idx, lambda idx=idx: f"the receive or probe at {r.rank}#{idx} is deprived: {r}, posted before it and still pending, takes the message")
+            if c == r.rank:
+                j = bisect_right(comp_idx[key], r.idx)
+            else:
+                j = bisect_left(comp_idx[key], t.hb.first_after(r.rank, r.idx, c, len(t.ranks[c])))
+            while j < len(lst) and lst[j][0] < cut[c]:
+                idx, rk = lst[j]
+                j += 1
+                if rk is not None and rk in deprived:
+                    continue                 # takes no message any more
+                if rk is not None and not t.recvs[rk].blocking:
+                    deprive(t.recvs[rk], r)  # stays posted without its message; the next one is looked at too
+                    continue
+                lower(c, idx, lambda idx=idx, c=c: f"the receive or probe at {c}#{idx} is deprived: {r}, posted before it and still pending, takes the message")
+                break
+
+    def rule8(a: int) -> None:           # a synchronisation point not reached releases nothing
+        out = sync_out.get(a)
+        if not out:
             return
+
+        def fire(ia: int, b: int, ib: int) -> None:
+            fired.add((a, ia, b, ib))
+            if ib <= cut[b]:
+                lower(b, ib, lambda a=a, ia=ia, b=b, ib=ib: f"chain {b} waits before its record #{ib} for chain {a}, "
+                      f"which does not get past its record #{ia}", gap_dead=True, blocker=(a, ia, t.hb.kinfo.get((a, ia, b, ib), (None, None))[1]))
+
+        k = sync_ptr[a]
+        while k > 0 and out[k - 1][0] + 1 > cut[a]:
+            k -= 1                           # after the cut: not reached
+            fire(*out[k])
+        sync_ptr[a] = k
+        if dead.get(a) != cut[a]:
+            return                           # the gap at the cut is reached: so are the earlier ones
+        j = k
+        while j > 0 and out[j - 1][0] + 1 == cut[a]:
+            j -= 1
+            ia, b, ib = out[j]
+            if (a, ia, b, ib) in fired or reached_in_dead_gap(a, ia, b, ib):
+                continue
+            fire(ia, b, ib)
+
+    def reached_in_dead_gap(a: int, ia: int, b: int, ib: int) -> bool:
+        """Chain a waits in the gap at its cut; does it get to the synchronisation point there
+        that precedes record ib of chain b? Yes if that record precedes every point a waits
+        for: had a waited first, the run would have needed the point before itself."""
+        bl = blockers.get(a)
+        if not bl:
+            return False
+        k_rel = t.hb.kinfo.get((a, ia, b, ib), (None, None))[0]
+        if k_rel is not None and all(k is not None for _, _, k in bl):
+            return k_rel < min(k for _, _, k in bl)      # the tracer numbered the calls: released before
+        return all((b == x and ib <= ix) or t.hb.last_before(x, ix, b) >= ib for x, ix, _ in bl)
 
     def deprive(x: Recv, by: Recv) -> None:
         """Rule 6 at a nonblocking receive x whose M' message the pending receive by accepts:
@@ -209,8 +291,8 @@ def compute_cut(t: Trace, M: Dict[Key, Key], changed: Set[Key], B: Optional[int]
             lower(s.rank, s.idx, lambda: f"{s} is a ready send whose receive is never posted")
 
     def rule4(cs) -> None:               # a collective completes when its shape's members issue it
-        need = set(t.comm_members.get(cs[0].comm, [c.rank for c in cs]))
-        have = {c.rank for c in cs if kept(c.rank, c.idx)}
+        need = set(t.comm_members.get(cs[0].comm, [c.proc for c in cs]))
+        have = {c.proc for c in cs if kept(c.rank, c.idx)}
         if have >= need:
             return
         pos = {r: i for i, r in enumerate(t.comm_ranks.get(cs[0].comm, []))}
@@ -221,12 +303,12 @@ def compute_cut(t: Trace, M: Dict[Key, Key], changed: Set[Key], B: Optional[int]
     if mode == "L1":
         for rk in changed:
             r = t.recvs[rk]
-            lower(r.rank, bounds.recv(t, r, M.get(rk)) if bounds is not None else _cidx(r) + 1)
+            lower(r.rank, bounds.recv(t, r, M.get(rk)) if bounds is not None else _cidx(r) + 1, gap_dead=True)
         for pk in changed_probes:
             p = t.probes[pk]
-            lower(p.rank, p.idx + 1)
+            lower(p.rank, p.idx + 1, gap_dead=True)
         for rank, idx in changed_events:
-            lower(rank, idx + 1)
+            lower(rank, idx + 1, gap_dead=True)
     for r in t.recvs.values():
         if r.key not in M:
             rule2(r)
@@ -240,6 +322,8 @@ def compute_cut(t: Trace, M: Dict[Key, Key], changed: Set[Key], B: Optional[int]
         rule4(cs)
     while work:
         rank, lo, hi, kept_issue = work.pop()
+        if sync_out:
+            rule8(rank)
         for idx in range(lo, hi):
             s = send_at.get((rank, idx))
             if s is not None:
@@ -263,6 +347,10 @@ def compute_cut(t: Trace, M: Dict[Key, Key], changed: Set[Key], B: Optional[int]
             if c is not None:
                 rule4(sets[(c.comm, c.ordinal)])
     _posted_only(t, cut, deprived)
+    if sync_out:
+        cut = Cut(cut)
+        cut.dead = dict(dead)            # which chains do not reach the gap at their cut (rule 1, rule 8)
+        cut.blockers = {c: (list(v) if v is not None else None) for c, v in blockers.items()}
     return cut
 
 

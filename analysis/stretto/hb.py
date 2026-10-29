@@ -271,6 +271,8 @@ class Decision:
 
 def declines(t: Trace) -> Optional[str]:
     """Why report.analyze predicts nothing for t (observed findings only), None if it does."""
+    if t.multi:
+        return "several threads (chains): the comparison with happens-before does not cover them yet"
     multi = [rank for rank, n in t.threads.items() if n > 1]
     if multi:
         return "MPI_THREAD_MULTIPLE with several calling threads" if t.thread_level >= 3 else "several threads calling MPI"
