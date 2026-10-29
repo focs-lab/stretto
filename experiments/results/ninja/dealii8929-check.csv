@@ -1,0 +1,321 @@
+label,np,mode,setting,run,result,seconds,reached,value,commit
+nbx_calls-2c1b27fb,4,plain,,1,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb,4,plain,,2,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb,4,plain,,3,FINISHED,0.5,ok,0,aba43a7
+nbx_calls-2c1b27fb,4,plain,,4,FINISHED,0.5,ok,0,aba43a7
+nbx_calls-2c1b27fb,4,plain,,5,FINISHED,0.5,ok,0,aba43a7
+nbx_calls-2c1b27fb,4,plain,,6,FINISHED,0.5,ok,0,aba43a7
+nbx_calls-2c1b27fb,4,plain,,7,FINISHED,0.5,ok,0,aba43a7
+nbx_calls-2c1b27fb,4,plain,,8,FINISHED,0.5,ok,0,aba43a7
+nbx_calls-2c1b27fb,4,plain,,9,FINISHED,0.5,ok,0,aba43a7
+nbx_calls-2c1b27fb,4,plain,,10,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb,4,plain,,11,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb,4,plain,,12,FINISHED,0.5,ok,0,aba43a7
+nbx_calls-2c1b27fb,4,plain,,13,FINISHED,0.5,ok,0,aba43a7
+nbx_calls-2c1b27fb,4,plain,,14,FINISHED,0.5,ok,0,aba43a7
+nbx_calls-2c1b27fb,4,plain,,15,FINISHED,0.5,ok,0,aba43a7
+nbx_calls-2c1b27fb,4,plain,,16,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb,4,plain,,17,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb,4,plain,,18,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb,4,plain,,19,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb,4,plain,,20,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb,4,plain,,21,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb,4,plain,,22,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb,4,plain,,23,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb,4,plain,,24,FINISHED,0.5,ok,0,aba43a7
+nbx_calls-2c1b27fb,4,plain,,25,FINISHED,0.5,ok,0,aba43a7
+nbx_calls-2c1b27fb,4,plain,,26,FINISHED,0.5,ok,0,aba43a7
+nbx_calls-2c1b27fb,4,plain,,27,FINISHED,0.5,ok,0,aba43a7
+nbx_calls-2c1b27fb,4,plain,,28,FINISHED,0.5,ok,0,aba43a7
+nbx_calls-2c1b27fb,4,plain,,29,FINISHED,0.5,ok,0,aba43a7
+nbx_calls-2c1b27fb,4,plain,,30,FINISHED,0.5,ok,0,aba43a7
+nbx_calls-2c1b27fb,4,plain,,31,FINISHED,0.5,ok,0,aba43a7
+nbx_calls-2c1b27fb,4,plain,,32,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb,4,plain,,33,FINISHED,0.5,ok,0,aba43a7
+nbx_calls-2c1b27fb,4,plain,,34,FINISHED,0.5,ok,0,aba43a7
+nbx_calls-2c1b27fb,4,plain,,35,FINISHED,0.6,wrong,1,aba43a7
+nbx_calls-2c1b27fb,4,plain,,36,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb,4,plain,,37,FINISHED,0.5,ok,0,aba43a7
+nbx_calls-2c1b27fb,4,plain,,38,FINISHED,0.5,ok,0,aba43a7
+nbx_calls-2c1b27fb,4,plain,,39,FINISHED,0.5,ok,0,aba43a7
+nbx_calls-2c1b27fb,4,plain,,40,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,4,random,ratio=1e-06% delay=1us,1,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,4,random,ratio=1e-06% delay=1us,2,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,4,random,ratio=1e-06% delay=1us,3,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,4,random,ratio=1e-06% delay=1us,4,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,4,random,ratio=1e-06% delay=1us,5,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,4,random,ratio=1e-06% delay=1us,6,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,4,random,ratio=1e-06% delay=1us,7,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,4,random,ratio=1e-06% delay=1us,8,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,4,random,ratio=1e-06% delay=1us,9,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,4,random,ratio=1e-06% delay=1us,10,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,4,random,ratio=1e-06% delay=1us,11,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,4,random,ratio=1e-06% delay=1us,12,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,4,random,ratio=1e-06% delay=1us,13,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,4,random,ratio=1e-06% delay=1us,14,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,4,random,ratio=1e-06% delay=1us,15,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,4,random,ratio=1e-06% delay=1us,16,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,4,random,ratio=1e-06% delay=1us,17,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,4,random,ratio=1e-06% delay=1us,18,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,4,random,ratio=1e-06% delay=1us,19,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,4,random,ratio=1e-06% delay=1us,20,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,4,random,ratio=1e-06% delay=1us,21,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,4,random,ratio=1e-06% delay=1us,22,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,4,random,ratio=1e-06% delay=1us,23,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,4,random,ratio=1e-06% delay=1us,24,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,4,random,ratio=1e-06% delay=1us,25,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,4,random,ratio=1e-06% delay=1us,26,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,4,random,ratio=1e-06% delay=1us,27,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,4,random,ratio=1e-06% delay=1us,28,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,4,random,ratio=1e-06% delay=1us,29,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,4,random,ratio=1e-06% delay=1us,30,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,4,random,ratio=1e-06% delay=1us,31,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,4,random,ratio=1e-06% delay=1us,32,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,4,random,ratio=1e-06% delay=1us,33,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,4,random,ratio=1e-06% delay=1us,34,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,4,random,ratio=1e-06% delay=1us,35,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,4,random,ratio=1e-06% delay=1us,36,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,4,random,ratio=1e-06% delay=1us,37,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,4,random,ratio=1e-06% delay=1us,38,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,4,random,ratio=1e-06% delay=1us,39,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,4,random,ratio=1e-06% delay=1us,40,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb,8,plain,,1,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb,8,plain,,2,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb,8,plain,,3,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb,8,plain,,4,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb,8,plain,,5,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb,8,plain,,6,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb,8,plain,,7,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb,8,plain,,8,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb,8,plain,,9,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb,8,plain,,10,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb,8,plain,,11,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb,8,plain,,12,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb,8,plain,,13,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb,8,plain,,14,FINISHED,0.6,wrong,7,aba43a7
+nbx_calls-2c1b27fb,8,plain,,15,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb,8,plain,,16,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb,8,plain,,17,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb,8,plain,,18,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb,8,plain,,19,FINISHED,0.6,wrong,3,aba43a7
+nbx_calls-2c1b27fb,8,plain,,20,FINISHED,0.6,wrong,8,aba43a7
+nbx_calls-2c1b27fb,8,plain,,21,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb,8,plain,,22,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb,8,plain,,23,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb,8,plain,,24,FINISHED,0.6,wrong,1,aba43a7
+nbx_calls-2c1b27fb,8,plain,,25,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb,8,plain,,26,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb,8,plain,,27,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb,8,plain,,28,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb,8,plain,,29,FINISHED,0.6,wrong,13,aba43a7
+nbx_calls-2c1b27fb,8,plain,,30,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb,8,plain,,31,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb,8,plain,,32,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb,8,plain,,33,FINISHED,0.6,wrong,6,aba43a7
+nbx_calls-2c1b27fb,8,plain,,34,FINISHED,0.6,wrong,8,aba43a7
+nbx_calls-2c1b27fb,8,plain,,35,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb,8,plain,,36,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb,8,plain,,37,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb,8,plain,,38,FINISHED,0.6,wrong,6,aba43a7
+nbx_calls-2c1b27fb,8,plain,,39,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb,8,plain,,40,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,8,random,ratio=1e-06% delay=1us,1,FINISHED,0.8,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,8,random,ratio=1e-06% delay=1us,2,FINISHED,0.8,wrong,9,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,8,random,ratio=1e-06% delay=1us,3,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,8,random,ratio=1e-06% delay=1us,4,FINISHED,0.7,wrong,12,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,8,random,ratio=1e-06% delay=1us,5,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,8,random,ratio=1e-06% delay=1us,6,FINISHED,0.8,wrong,17,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,8,random,ratio=1e-06% delay=1us,7,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,8,random,ratio=1e-06% delay=1us,8,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,8,random,ratio=1e-06% delay=1us,9,FINISHED,0.7,wrong,1,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,8,random,ratio=1e-06% delay=1us,10,FINISHED,0.8,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,8,random,ratio=1e-06% delay=1us,11,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,8,random,ratio=1e-06% delay=1us,12,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,8,random,ratio=1e-06% delay=1us,13,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,8,random,ratio=1e-06% delay=1us,14,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,8,random,ratio=1e-06% delay=1us,15,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,8,random,ratio=1e-06% delay=1us,16,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,8,random,ratio=1e-06% delay=1us,17,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,8,random,ratio=1e-06% delay=1us,18,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,8,random,ratio=1e-06% delay=1us,19,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,8,random,ratio=1e-06% delay=1us,20,FINISHED,0.8,wrong,6,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,8,random,ratio=1e-06% delay=1us,21,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,8,random,ratio=1e-06% delay=1us,22,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,8,random,ratio=1e-06% delay=1us,23,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,8,random,ratio=1e-06% delay=1us,24,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,8,random,ratio=1e-06% delay=1us,25,FINISHED,0.8,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,8,random,ratio=1e-06% delay=1us,26,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,8,random,ratio=1e-06% delay=1us,27,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,8,random,ratio=1e-06% delay=1us,28,FINISHED,0.7,wrong,12,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,8,random,ratio=1e-06% delay=1us,29,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,8,random,ratio=1e-06% delay=1us,30,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,8,random,ratio=1e-06% delay=1us,31,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,8,random,ratio=1e-06% delay=1us,32,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,8,random,ratio=1e-06% delay=1us,33,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,8,random,ratio=1e-06% delay=1us,34,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,8,random,ratio=1e-06% delay=1us,35,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,8,random,ratio=1e-06% delay=1us,36,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,8,random,ratio=1e-06% delay=1us,37,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,8,random,ratio=1e-06% delay=1us,38,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,8,random,ratio=1e-06% delay=1us,39,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-2c1b27fb libninja-fixed,8,random,ratio=1e-06% delay=1us,40,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-f9ea3396,4,plain,,1,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396,4,plain,,2,FINISHED,0.5,ok,0,aba43a7
+nbx_calls-f9ea3396,4,plain,,3,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396,4,plain,,4,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396,4,plain,,5,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396,4,plain,,6,FINISHED,0.5,ok,0,aba43a7
+nbx_calls-f9ea3396,4,plain,,7,FINISHED,0.5,ok,0,aba43a7
+nbx_calls-f9ea3396,4,plain,,8,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396,4,plain,,9,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396,4,plain,,10,FINISHED,0.5,ok,0,aba43a7
+nbx_calls-f9ea3396,4,plain,,11,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396,4,plain,,12,FINISHED,0.5,ok,0,aba43a7
+nbx_calls-f9ea3396,4,plain,,13,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396,4,plain,,14,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396,4,plain,,15,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396,4,plain,,16,FINISHED,0.5,ok,0,aba43a7
+nbx_calls-f9ea3396,4,plain,,17,FINISHED,0.5,ok,0,aba43a7
+nbx_calls-f9ea3396,4,plain,,18,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396,4,plain,,19,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396,4,plain,,20,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396,4,plain,,21,FINISHED,0.5,ok,0,aba43a7
+nbx_calls-f9ea3396,4,plain,,22,FINISHED,0.5,ok,0,aba43a7
+nbx_calls-f9ea3396,4,plain,,23,FINISHED,0.5,ok,0,aba43a7
+nbx_calls-f9ea3396,4,plain,,24,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396,4,plain,,25,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396,4,plain,,26,FINISHED,0.5,ok,0,aba43a7
+nbx_calls-f9ea3396,4,plain,,27,FINISHED,0.5,ok,0,aba43a7
+nbx_calls-f9ea3396,4,plain,,28,FINISHED,0.5,ok,0,aba43a7
+nbx_calls-f9ea3396,4,plain,,29,FINISHED,0.5,ok,0,aba43a7
+nbx_calls-f9ea3396,4,plain,,30,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396,4,plain,,31,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396,4,plain,,32,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396,4,plain,,33,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396,4,plain,,34,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396,4,plain,,35,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396,4,plain,,36,FINISHED,0.5,ok,0,aba43a7
+nbx_calls-f9ea3396,4,plain,,37,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396,4,plain,,38,FINISHED,0.5,ok,0,aba43a7
+nbx_calls-f9ea3396,4,plain,,39,FINISHED,0.5,ok,0,aba43a7
+nbx_calls-f9ea3396,4,plain,,40,FINISHED,0.5,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,4,random,ratio=1e-06% delay=1us,1,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,4,random,ratio=1e-06% delay=1us,2,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,4,random,ratio=1e-06% delay=1us,3,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,4,random,ratio=1e-06% delay=1us,4,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,4,random,ratio=1e-06% delay=1us,5,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,4,random,ratio=1e-06% delay=1us,6,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,4,random,ratio=1e-06% delay=1us,7,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,4,random,ratio=1e-06% delay=1us,8,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,4,random,ratio=1e-06% delay=1us,9,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,4,random,ratio=1e-06% delay=1us,10,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,4,random,ratio=1e-06% delay=1us,11,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,4,random,ratio=1e-06% delay=1us,12,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,4,random,ratio=1e-06% delay=1us,13,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,4,random,ratio=1e-06% delay=1us,14,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,4,random,ratio=1e-06% delay=1us,15,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,4,random,ratio=1e-06% delay=1us,16,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,4,random,ratio=1e-06% delay=1us,17,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,4,random,ratio=1e-06% delay=1us,18,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,4,random,ratio=1e-06% delay=1us,19,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,4,random,ratio=1e-06% delay=1us,20,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,4,random,ratio=1e-06% delay=1us,21,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,4,random,ratio=1e-06% delay=1us,22,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,4,random,ratio=1e-06% delay=1us,23,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,4,random,ratio=1e-06% delay=1us,24,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,4,random,ratio=1e-06% delay=1us,25,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,4,random,ratio=1e-06% delay=1us,26,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,4,random,ratio=1e-06% delay=1us,27,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,4,random,ratio=1e-06% delay=1us,28,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,4,random,ratio=1e-06% delay=1us,29,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,4,random,ratio=1e-06% delay=1us,30,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,4,random,ratio=1e-06% delay=1us,31,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,4,random,ratio=1e-06% delay=1us,32,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,4,random,ratio=1e-06% delay=1us,33,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,4,random,ratio=1e-06% delay=1us,34,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,4,random,ratio=1e-06% delay=1us,35,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,4,random,ratio=1e-06% delay=1us,36,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,4,random,ratio=1e-06% delay=1us,37,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,4,random,ratio=1e-06% delay=1us,38,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,4,random,ratio=1e-06% delay=1us,39,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,4,random,ratio=1e-06% delay=1us,40,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396,8,plain,,1,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396,8,plain,,2,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396,8,plain,,3,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396,8,plain,,4,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396,8,plain,,5,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396,8,plain,,6,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396,8,plain,,7,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396,8,plain,,8,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396,8,plain,,9,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396,8,plain,,10,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396,8,plain,,11,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396,8,plain,,12,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396,8,plain,,13,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396,8,plain,,14,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396,8,plain,,15,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396,8,plain,,16,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396,8,plain,,17,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396,8,plain,,18,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396,8,plain,,19,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396,8,plain,,20,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396,8,plain,,21,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396,8,plain,,22,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396,8,plain,,23,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396,8,plain,,24,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396,8,plain,,25,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396,8,plain,,26,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396,8,plain,,27,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396,8,plain,,28,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396,8,plain,,29,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396,8,plain,,30,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396,8,plain,,31,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396,8,plain,,32,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396,8,plain,,33,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396,8,plain,,34,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396,8,plain,,35,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396,8,plain,,36,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396,8,plain,,37,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396,8,plain,,38,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396,8,plain,,39,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396,8,plain,,40,FINISHED,0.6,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,8,random,ratio=1e-06% delay=1us,1,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,8,random,ratio=1e-06% delay=1us,2,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,8,random,ratio=1e-06% delay=1us,3,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,8,random,ratio=1e-06% delay=1us,4,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,8,random,ratio=1e-06% delay=1us,5,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,8,random,ratio=1e-06% delay=1us,6,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,8,random,ratio=1e-06% delay=1us,7,FINISHED,0.8,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,8,random,ratio=1e-06% delay=1us,8,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,8,random,ratio=1e-06% delay=1us,9,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,8,random,ratio=1e-06% delay=1us,10,FINISHED,0.8,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,8,random,ratio=1e-06% delay=1us,11,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,8,random,ratio=1e-06% delay=1us,12,FINISHED,0.8,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,8,random,ratio=1e-06% delay=1us,13,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,8,random,ratio=1e-06% delay=1us,14,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,8,random,ratio=1e-06% delay=1us,15,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,8,random,ratio=1e-06% delay=1us,16,FINISHED,0.8,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,8,random,ratio=1e-06% delay=1us,17,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,8,random,ratio=1e-06% delay=1us,18,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,8,random,ratio=1e-06% delay=1us,19,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,8,random,ratio=1e-06% delay=1us,20,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,8,random,ratio=1e-06% delay=1us,21,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,8,random,ratio=1e-06% delay=1us,22,FINISHED,0.8,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,8,random,ratio=1e-06% delay=1us,23,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,8,random,ratio=1e-06% delay=1us,24,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,8,random,ratio=1e-06% delay=1us,25,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,8,random,ratio=1e-06% delay=1us,26,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,8,random,ratio=1e-06% delay=1us,27,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,8,random,ratio=1e-06% delay=1us,28,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,8,random,ratio=1e-06% delay=1us,29,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,8,random,ratio=1e-06% delay=1us,30,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,8,random,ratio=1e-06% delay=1us,31,FINISHED,0.8,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,8,random,ratio=1e-06% delay=1us,32,FINISHED,0.8,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,8,random,ratio=1e-06% delay=1us,33,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,8,random,ratio=1e-06% delay=1us,34,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,8,random,ratio=1e-06% delay=1us,35,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,8,random,ratio=1e-06% delay=1us,36,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,8,random,ratio=1e-06% delay=1us,37,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,8,random,ratio=1e-06% delay=1us,38,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,8,random,ratio=1e-06% delay=1us,39,FINISHED,0.7,ok,0,aba43a7
+nbx_calls-f9ea3396 libninja-fixed,8,random,ratio=1e-06% delay=1us,40,FINISHED,0.7,ok,0,aba43a7
