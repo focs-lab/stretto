@@ -102,6 +102,17 @@ with the hunt notes, outside this repository.
   Gating every concurrent pair instead of the reordered ones timed out on the same pools; fixed
   30 Oct. The reduced orientation edges shared one cache between receive and send views and ended
   the analysis of a Uintah trace; fixed 30 Oct (84 multithreaded reports unchanged).
+- MPI inside OpenMP tasks (SLATE, 30 Oct): every trace with messages is degraded
+  `threads-tasks`, and with it the observed thread classes are skipped, so the traces of runs
+  in which SLATE's tag race happened report nothing. Operations of one envelope pending at once
+  on two threads, each posted and completed within one call, are concurrent without any
+  happens-before; `experiments/slate/overlap.py` finds them in every such trace. Open. The
+  tracer aborts traced SLATE `gelqf` (2 of 2 runs) and `geqrf` (1 of 2) with `MPI_ERR_TYPE` in
+  its own `MPI_Get_count` (`status_fields`, mpitrace.c:1638); untraced both pass. That the
+  receive's datatype, freed by SLATE after posting (allowed), is the cause is a guess: a
+  single-threaded reproducer does not fail. Open. SLATE's task threads appear as untracked
+  chains named `u` (libgomp runs deferred tasks after the outlined function returned; by
+  reading). Open.
 
 ## Multithreaded benchmarks (L1 only)
 
@@ -141,6 +152,27 @@ of the same conflict (fefdd7d) was reverted in Jan 2022; no issue mentions it. L
 receive alternative and probe alternatives between hypre messages only. Report drafted, not
 sent. Evidence: [experiments/uintah](../experiments/uintah/README.md) (`series.csv`).
 
+**SLATE 878439b (master on 30 Oct; the code is that of releases 2024.05.31 to 2025.05.28),
+`getrf` with `MethodLU::CALU` on a wide matrix**, a real bug, found by reading the tag ranges of
+unordered tasks: the pivot-to-the-left task swaps rows of column j with tag `2 A_mt + j`
+(getrf_tntpiv.cc:347), the trailing updates of column j with `j + A_mt` (lines 250, 294, 320),
+so for n > m left column j and right column j + A_mt share a tag, and their task dependences
+(lines 289-291, 342-344) leave them concurrent. Untraced, 4 ranks of 4 threads, 1000x2000, nb
+100, residual `||PA - LU||` 0.33 to 6.5 instead of 6e-17: 2x2 grid 40 of 40 wrong, 4x1 28 of 40
+(Open MPI), 20 of 20 and 20 of 20 (MPICH); with the left tags started at `A_mt + A_nt` (one
+line) 0 wrong in every cell; square, one thread, 900x2000 on 2x2 (q does not divide A_mt) 0
+wrong. Traced, also
+`MPI_ERR_TRUNCATE` (3 of 19 runs). Stretto degrades every SLATE trace (`threads-tasks`); same-
+envelope `permuteRows` exchanges pending on two threads at once, 16 to 33 per plain trace and 0
+per patched one, located it in the traces. The tester checks `getrf` only on square matrices.
+Shown safe by reading: partial-pivoting `getrf` (tag = column, chained by `column[j]`),
+`potrf`, `gemmA`/`gemmC`/`herk` (chained broadcasts), `geqrf` and `ttmqr` (disjoint column
+ranges), `getrf_nopiv` (shared tags, but row and column process sets meet in one rank), `he2hb`,
+the pivot `MPI_Bcast`s in chained panel tasks; 39 tester routines (square 800, 2x2, 4 threads)
+pass untraced, with no such overlap in their traces. Report drafted, not sent. Evidence:
+[experiments/slate](../experiments/slate/README.md) (`series.csv`, `series-mpich.csv`).
+DLA-Future not built (below).
+
 ## Not yet traced
 
 PFLOTRAN (perturbation inversion, needs three or more process groups) and SPECFEM3D (HDF5 I/O
@@ -166,7 +198,8 @@ analysable since the fix for cancelled receives above.
 Thread-level candidates for the multithreaded extension (read only; [threads.md](threads.md)): Uintah + hypre (a code comment in KokkosScheduler.cc documents
 crashes from hypre's `Iprobe` taking a Uintah message on the shared communicator, and the
 reverse hazard it leaves); Legion/Realm's MPI network in interop mode (wildcard `Irecv` with tag 1
-on `MPI_COMM_WORLD`); DLA-Future and SLATE (tags reused by concurrent tasks). For Uintah a build of
+on `MPI_COMM_WORLD`); DLA-Future (tags reused by concurrent tasks; not built: it needs pika,
+whose build was not attempted; SLATE, above, yielded first). For Uintah a build of
 Core, Schedulers, Solvers and Examples with hypre (driver `Examples/solvertest1.ups`, `sus
 -nthreads`) built in 6 minutes with 2 jobs on 30 Oct (above, [experiments/uintah](../experiments/uintah/README.md)). By reading, not a race: Realm's
 `generate_payload_tag` (am_mpi.cc:225) uses the attribute key `MPI_TAG_UB` as the tag bound.
