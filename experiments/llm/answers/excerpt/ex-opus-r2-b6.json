@@ -1,0 +1,42 @@
+{
+  "10a10b": {
+    "verdict": "no-race",
+    "confidence": 0.8,
+    "location": null,
+    "consequence": "none",
+    "conditions": "6 ranks, widths 3 2 2: prod = 6 = size, no wrap-around peers; barrier closes each call",
+    "reasoning": "Each recursion level uses its own tag (SC_TAG_NOTIFY_NARY + level), and every peer in a group is sent a message, empty ones included. With 6 ranks and widths 3 2 2, depth is 2 and prod is 6. Level 1 has nrecv = 1 on every rank and level 0 has nrecv = 2, which matches the number of senders exactly. The wildcard probe stores each message in a slot chosen from its source (j), and the merge tree runs over those fixed slots, so the order of arrival does not change the result. Every receive at a level completes before the sc_MPI_Barrier at the end of the call, so the next call cannot inject messages with the same tag. If a separate payload phase runs, it receives from specific sources with a distinct tag, and the non-overtaking rule keeps its order. Nothing a run can vary changes the outcome."
+  },
+  "ab5082": {
+    "verdict": "race",
+    "confidence": 0.65,
+    "location": "general/communication.cpp:184",
+    "consequence": "crash",
+    "conditions": "a rank finishes mesh 1's GroupTopology::Create and sends mesh 2's group data (tag 822) while a peer is still receiving for mesh 1",
+    "reasoning": "Both ParMesh constructors call gtopo.Create(groups, 822) on the same MPI_COMM_WORLD with the same tag, and no collective separates the two Create calls. A rank's Isends can complete eagerly, so it can finish mesh 1's Create, build mesh 2 locally and Isend mesh 2's group records. Meanwhile another rank is still in mesh 1's MPI_Recv(MPI_ANY_SOURCE, 822) waiting for a third rank. That receive can take the mesh-2 message. The record can be longer than max_recv_size (truncation error), can fail groups.Lookup, or can come from the wrong master, which makes mfem_error abort. Even if it passes those checks, it sets the wrong group_mgroup. The mesh-1 message left behind then pollutes mesh 2's Create."
+  },
+  "a7d8e5": {
+    "verdict": "no-race",
+    "confidence": 0.85,
+    "location": null,
+    "consequence": "none",
+    "conditions": "single createWithoutTopology call on the plan's own communicator, 3 ranks",
+    "reasoning": "The number of wildcard receives (tag 1221) comes from an Allreduce of importing flags, and each importer sends exactly one count message to each rank it imports from, so the counts match. Whichever order the messages match in, send_counts(i) and send_to(i) come from the same status, so each count stays paired with its source. The index phase uses tag 1222 and receives from specific sources, so it cannot take count messages, and messages from the same source arrive in order. Receives are posted before the blocking MPI_Send, so nothing depends on buffering. What can change between runs is the order of export_indices and the steering, and the test sorts the steering and compares neighbours as sets. The import neighbours are pushed in rank order. Only one plan is built."
+  },
+  "dcaf36": {
+    "verdict": "no-race",
+    "confidence": 0.85,
+    "location": null,
+    "consequence": "none",
+    "conditions": "nbx.tuning=1 enables the initial MPI_Barrier in every allToAllConsensus call",
+    "reasoning": "Within one NBX round, MPI_Issend completes only when its message has been matched. A rank enters the Ibarrier only after all its sends are matched, and the Ibarrier completes only when every rank has entered it. So when a rank leaves the loop, every message of the round has been received. The danger is a rank that leaves early and posts the next call's Issend with the same tag (msgType+1867) while a peer is still polling. With tuning=1 every call starts with a blocking MPI_Barrier on the same communicator, which no rank can pass until all ranks have left the previous loop. The data exchange between rounds uses a different tag (msgType) and explicit sources. Each source sends at most one message per round, and the received maps are keyed by source."
+  },
+  "9e1162": {
+    "verdict": "race",
+    "confidence": 0.7,
+    "location": "include/deal.II/base/mpi_remote_point_evaluation.h:328",
+    "consequence": "wrong-result",
+    "conditions": "consecutive evaluate_at_points calls on the cached RemotePointEvaluation (min, max, insert after avg), with no synchronisation between them",
+    "reasoning": "evaluate_and_process Isends to its send_ranks and then calls MPI_Probe(MPI_ANY_SOURCE, remote_point_evaluation) once per recv_rank. The four evaluations of one test reuse the cache, so only the first runs reinit's collectives and nothing separates calls 2 to 4. A fast rank A can finish call k, since its Isends complete eagerly, and Isend call k+1's data to rank B while B is still waiting for rank C's call-k message. B's wildcard probe then takes A's second message, and temp_recv_map[A] is overwritten. That leaves no entry for C, so the copy loop fills output from the wrong or missing data and the min/max/insert results differ. C's message is left over and is consumed in a later call."
+  }
+}

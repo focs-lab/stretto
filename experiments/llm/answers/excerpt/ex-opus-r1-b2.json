@@ -1,0 +1,34 @@
+{
+  "ccd0e2": {
+    "verdict": "no-race",
+    "confidence": 0.9,
+    "location": null,
+    "consequence": "none",
+    "conditions": "none; all receives name a specific source and tag",
+    "reasoning": "MG has no wildcard receives or probes. ready() posts mpi_irecv from nbr(axis,-dir,k) with tag msg_type(axis,dir), and the matching give3/give3_ex sends go to nbr(axis,dir,k) with the same tag. The tags differ by axis and direction, so even when both neighbours along an axis are the same rank (a dimension of 2 processes) the two directions cannot be confused. Successive exchanges reuse the same tags, but each pair of processes is ordered by non-overtaking and every exchange is completed by mpi_wait before the next one starts, so each receive gets the message from the matching exchange. In comm3 every irecv is posted before the blocking sends, so whether sends are buffered cannot cause a deadlock. The matching is the same on every run."
+  },
+  "77ec6a": {
+    "verdict": "race",
+    "confidence": 0.6,
+    "location": "SRC/double/pdgstrs3d.c:3903",
+    "consequence": "wrong-result",
+    "conditions": "a rank finishes its L-solve and sends U-solve (RD_U/BC_U) messages while a peer is still in its L-solve receive loop",
+    "reasoning": "The forward and back solves both receive with MPI_ANY_SOURCE/MPI_ANY_TAG on the same grid->comm. Each loop just counts nfrecvx+nfrecvmod (or nbrecvx+nbrecvmod) messages and branches on the tag. There is no barrier or other synchronisation between pdgsTrForwardSolve3d_newsolve and pdgsTrBackSolve3d_newsolve (the barriers are commented out, and with -d 1 there is no z-communication). The elimination tree is a forest of six independent trees, so on the 1x3 grid a rank can finish its L-solve early and start sending RD_U lsums for its U-roots to the diagonal ranks. A peer still waiting for a late RD_L from a third rank can then take the U message in its L loop, where it is miscounted or ignored. The displaced RD_L is later taken by the U loop and handled as a U message. The result is a wrong solution, or a hang if the counts stop balancing."
+  },
+  "8d0015": {
+    "verdict": "race",
+    "confidence": 0.75,
+    "location": "src/Pstream/mpi/UPstreamWrapping.txx:991",
+    "consequence": "wrong-result",
+    "conditions": "successive exchange calls reuse tag msgType()+1867; a fast rank enters the next call's NBX while its ring successor is still polling the previous call's Ibarrier",
+    "reasoning": "On a rank, the Ibarrier completes once every rank has entered it, but other ranks may not have seen their own completion yet. Rank r can then finish call c's data exchange (small eager sends, so waitRequests returns) and start call c+1, Issending its size to r+1 with the same tag. Rank r+1 is still in call c's loop, and it calls MPI_Iprobe(ANY_SOURCE, tag) before it tests the barrier. It can therefore take the call c+1 size message and overwrite recvSizes[r] with the next call's size. Call c then receives the data with the wrong size, which gives a wrong buffer length and contents (or MPI_ERR_TRUNCATE when the size shrinks). Call c+1 never gets r's size, so it misses r's data, and that data is matched later in a call where it does not belong. The driver reports wrong answers."
+  },
+  "245580": {
+    "verdict": "no-race",
+    "confidence": 0.92,
+    "location": null,
+    "consequence": "none",
+    "conditions": "none; rank 0 receives from each source explicitly, in order",
+    "reasoning": "gatherEvents has no wildcard receives or probes. Rank 0 loops over sourceRank 1..3 and, for each one, receives the size and then the payload with that specific source and tag 0. Each worker sends exactly the size and then the payload to rank 0 with tag 0. Non-overtaking between a pair of processes guarantees that the size message is matched before the data message, and messages from different sources cannot match the wrong receive. Workers that block in MPI_Send while rank 0 serves a lower rank only wait; there is no cyclic dependency, so whether sends are buffered cannot cause a deadlock. Staggering changes only the timing, not the matching."
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "3b67af": {
+    "verdict": "no-race",
+    "confidence": 0.85,
+    "location": null,
+    "consequence": "none",
+    "conditions": "none; the order of arrival does not change the result",
+    "reasoning": "Rank r receives exactly r messages with MPI_ANY_SOURCE/MPI_ANY_TAG at mpisbaij.c:2797. All of them have the same count (the size of the receiver's own row range), come from the lower ranks, and are folded into va with a max, which is commutative and associative. The order in which they are taken therefore does not affect the result. The tag is only the sender's rank and is not used. Every send is issued before any receive and the dependency chain 0 -> 1 -> 2 -> 3 is acyclic, and messages are 2 KB so eager anyway, so there is no buffering-dependent deadlock. Earlier PETSc communication is complete and collectives use separate contexts, so no foreign message can be matched."
+  },
+  "50e789": {
+    "verdict": "no-race",
+    "confidence": 0.85,
+    "location": null,
+    "consequence": "none",
+    "conditions": "none; ANY_SOURCE length receives are drained before the barrier, and received atoms are ordered by sender rank",
+    "reasoning": "The only wildcard receive is the length message (tag 0) at irregular.cpp:411. Each process posts exactly nrecv_proc of them, where nrecv_proc comes from the Reduce_scatter and matches the number of senders, and each sender sends exactly one length message. Source and length are stored together, so the pairing is consistent whatever the arrival order. The MPI_Barrier at line 446 ensures no process starts the tag-0 data sends of exchange_atom (which use specific sources) before every wildcard receive is done, so a data message cannot be taken by a length receive. migrate_atoms(1) passes sortflag=1, so proc_recv is sorted by rank and the unpack order, hence the local atom order and floating-point sums, is deterministic."
+  },
+  "8dba4d": {
+    "verdict": "race",
+    "confidence": 0.8,
+    "location": "source/base/mpi.cc:979",
+    "consequence": "wrong-result",
+    "conditions": "consecutive NBX calls on the same communicator with the same tags; a fast rank leaves the Ibarrier of call c, starts call c+1 and sends its request before a slow rank has seen the barrier complete",
+    "reasoning": "All calls reuse tag_request/tag_delivery on MPI_COMM_WORLD. A rank that sees the Ibarrier complete leaves call c and immediately sends its call c+1 request. A slow rank still in step 4 of call c (the loop at mpi.cc:905 tests the barrier first, then calls process_requests) can have the barrier complete between its check_global_state and its Iprobe at line 979. The Iprobe then matches the call c+1 request, which is received at line 1004 and answered with call c's process_request, so the reply carries call c instead of c+1. The requester unpacks a wrong answer, which the driver detects and counts as wrong. No barrier separates calls in Release (the extra MPI_Barrier at line 1122 exists only under DEBUG). Which request the probe takes depends on timing, so it differs between runs."
+  },
+  "64c6e0": {
+    "verdict": "race",
+    "confidence": 0.55,
+    "location": "lb/code/src/server.c:376",
+    "consequence": "hang",
+    "conditions": "subscript longer than the inline size so it travels as a separate ADLB_TAG_SYNC_SUB message; a server in xlb_serve_server(source) (steal path) while the other server's SYNC_SUB message to it is still unconsumed",
+    "reasoning": "The 49-byte subscripts exceed the 32-byte inline limit, so each subscribe/notify sync is a SYNC_REQUEST header (matched by a pre-posted ANY_SOURCE Irecv) followed by a separate SYNC_SUB message that stays in the unexpected queue until the handler does a source-specific Recv. xlb_poll probes with ANY_TAG and returns NOTHING when the first message is SYNC_SUB. In xlb_serve_server(source), the loop polls only that source and never tests the sync receive ring. If the other server's SYNC_SUB reaches the front of the queue before the header was handled, it is probed first, ignored forever, and every later message from that source (e.g. a steal reply) stays behind it, since messages from one source are not overtaken. The server spins and the run hangs. Whether the header and subscript land inside that window depends on timing. A second possible effect is deferred syncs swapping subscripts."
+  }
+}

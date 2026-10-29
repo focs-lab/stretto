@@ -1,0 +1,42 @@
+{
+  "fc1e24": {
+    "verdict": "no-race",
+    "confidence": 0.7,
+    "location": null,
+    "consequence": "none",
+    "conditions": "none; request tags alternate per level and a collective separates the exchanges",
+    "reasoning": "ReceiveRequest (ParaSails.c:155) and the reply probes (252, 375) use ANY_SOURCE, but each is guarded. Level 1 and level 2 requests use different tags (221 and 227), so a process that finishes level 1 early cannot have its level-2 request taken by a slower process still serving level 1. Level-2 replies on ROW_REPI_TAG are sent only after the receiver's level-2 request, which it sends after finishing level 1. FindNumReplies is an Allreduce that synchronises each exchange. ExchangeStoredRows uses its own request tag (222). Each reply is self-describing (row numbers and lengths), and the index and value messages are received from the same probed source. The order of arrival of replies from different sources therefore does not change the result."
+  },
+  "65f689": {
+    "verdict": "no-race",
+    "confidence": 0.85,
+    "location": null,
+    "consequence": "none",
+    "conditions": "none; the Issend, Ibarrier and final MPI_Barrier sequence keeps consecutive calls apart",
+    "reasoning": "The Iprobe with ANY_SOURCE on SC_TAG_NOTIFY_NBX (sc_notify.c:1963) uses the same tag in both consecutive calls with no driver barrier between them. All sends are Issend, so a send completes only once its message is matched. Ibarrier is entered only after all of a rank's sends have completed, so its completion means every message of this call has been received. The extra MPI_Barrier at line 2003 then ensures no rank leaves the call and starts the next call's Issends while another rank is still probing in the loop. A call-2 message therefore cannot be matched by a call-1 probe. The payload is 4 bytes, so the eager path is used and no separate payload exchange occurs."
+  },
+  "1c72c6": {
+    "verdict": "no-race",
+    "confidence": 0.9,
+    "location": null,
+    "consequence": "none",
+    "conditions": "none; no wildcard receives, and the same tag 822 is used for both meshes",
+    "reasoning": "GroupTopology::Create uses Isend and Irecv with explicit source ranks and the fixed tag 822. Both ParMeshes use the same tag on the same communicator. MPI's non-overtaking rule orders messages between a given pair. Each rank completes all its receives for mesh 1 (Waitany loop, then Waitall on the sends) before it posts any receive for mesh 2. A mesh-2 message from a peer is sent after that peer's mesh-1 message, so mesh-1 receives always take mesh-1 messages. Message sizes are consistent on both sides. Waitany only picks the order in which received buffers are processed, and each buffer is processed independently. The outcome is deterministic."
+  },
+  "86c6b6": {
+    "verdict": "no-race",
+    "confidence": 0.65,
+    "location": null,
+    "consequence": "none",
+    "conditions": "none; only floating-point rounding differences from the order in which lsum contributions arrive",
+    "reasoning": "The MPI_Recv with ANY_SOURCE and ANY_TAG (pdgstrs3d.c:3903 and 5946) is an event-driven dispatch loop. Each message carries its block number and its tag (BC_L or RD_L; BC_U or RD_U), and the loop runs for the exact count of expected messages. Handling is independent per block, and counters (fmod, bmod) trigger the dependent work. Forward and back phases are separated by MPI_Barrier (line 4180) and use different tags, so no message crosses phases. Arrival order can change only the order of floating-point additions into lsum, which gives rounding-level differences, not a hang or wrong result."
+  },
+  "224d88": {
+    "verdict": "no-race",
+    "confidence": 0.85,
+    "location": null,
+    "consequence": "none",
+    "conditions": "none; ANY_SOURCE order only changes the pairing order, and the pair is kept and then sorted",
+    "reasoning": "The Irecv with ANY_SOURCE (comm_invert_map.c:134) carries only a length. procs_from[i] is taken from the status of the same request req[i] that filled lengths_from[i], so the pair is always consistent. Zoltan_Comm_Sort_Ints then orders both arrays by source, so the result does not depend on arrival order. The receives are posted before the blocking sends, so there is no buffering-dependent deadlock. The collective calls at the start of Invert_Map (Allreduce, Reduce, Scatter, Bcast) mean no process can send a later plan's length message to a process still in an earlier plan's receive phase. RCB sub-communicators are separate."
+  }
+}

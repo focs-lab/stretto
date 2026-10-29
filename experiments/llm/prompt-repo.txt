@@ -1,0 +1,9 @@
+You are reviewing an MPI program for correctness. Read ~/llm-bench/desc/<id>.md: it describes the program run (driver, options, process count, MPI) and ends with a question. The program's full source tree is on the host a-p13 in the directory ~/llmb/trees/<id>/.
+
+Rules:
+- Read tool: only on ~/llm-bench/desc/<id>.md.
+- Bash tool: only commands of the form ssh a-p13 '<cmd>' where <cmd> only reads inside ~/llmb/trees/<id>/ (cd, ls, find, grep, sed -n, cat, head, tail, wc). Nothing else on either host: no other directories, no builds, no running the program, no network.
+- Write tool: once, to write your answer to ~/llm-bench/answers-repo/rp-opus-r1-b<n>.json
+- No other tools, no web search.
+
+Explore the source as you see fit to answer the question. Write ~/llm-bench/answers-repo/rp-opus-r1-b<n>.json as a JSON object {"<id>": <your answer object in exactly the format the question asks for>}. Then reply with the single word: done.

@@ -1,0 +1,42 @@
+{
+  "e3cf4d": {
+    "verdict": "no-race",
+    "confidence": 0.8,
+    "location": null,
+    "consequence": "none",
+    "conditions": "none; calls are serialized by the CollectiveMutex",
+    "reasoning": "Each sender sends exactly one message per evaluation to each receiver. The MPI_Probe(ANY_SOURCE) result is mapped back to the sender through status.MPI_SOURCE, and the receive buffer is sized per source, so arrival order does not matter within a call. Between consecutive calls the static CollectiveMutex (Ibarrier on unlock, wait on next lock) guarantees every rank has finished receiving before any rank sends the next call's messages. Same tag cannot mix across calls."
+  },
+  "8fa246": {
+    "verdict": "no-race",
+    "confidence": 0.7,
+    "location": null,
+    "consequence": "none",
+    "conditions": "none; order of ghost refinements does not change the mesh structure",
+    "reasoning": "Each neighbor sends one NeighborRefinementMessage per Refine call. The probe with MPI_ANY_SOURCE is followed by a receive from the probed rank and size, so the right message is always taken. Only the order in which independent ghost refinements are applied varies, which affects internal node ids but not the resulting mesh. Consecutive Refine calls in ex6p are separated by collectives (error estimation, solve, rebalancing), so messages of different calls cannot mix."
+  },
+  "61a354": {
+    "verdict": "race",
+    "confidence": 0.65,
+    "location": "lb/code/src/server.c:376",
+    "consequence": "crash",
+    "conditions": "key length 49 exceeds the inline sync data size, so the subscript travels as a separate ADLB_TAG_SYNC_SUB message; it must be visible to the server's ANY_TAG poll before it is received",
+    "reasoning": "A sync subscribe or notify sends a header (SYNC_REQUEST, matched by the preposted Irecv ring) and then a separate SYNC_SUB message. If the SYNC_SUB message is already in the unexpected queue (header matched by the Irecv between the MPI_Test of the head and the poll, or a deferred sync waiting) then the server's xlb_poll IPROBE(MPI_ANY_SOURCE, MPI_ANY_TAG) can return it. xlb_handle_pending then dispatches it as a request with tag SYNC_SUB, which has no valid handler, so the server returns an error and aborts. Timing dependent."
+  },
+  "c869a1": {
+    "verdict": "race",
+    "confidence": 0.55,
+    "location": "src/sc_notify.c:1369",
+    "consequence": "wrong-result",
+    "conditions": "two consecutive sc_notify calls with no barrier between them; top level (tag NARY+0) has three ranks per group, so a rank receives from two different sources; needs a delayed message from one sender to overtake",
+    "reasoning": "At level 0 each rank probes MPI_ANY_SOURCE on the same tag for both calls, with two senders per rank. A fast sender that has finished call 1 can send its call-2 message to a rank that is still waiting for another sender's call-1 message. MPI does not order messages from different senders, so the probe/recv may take the call-2 message as call-1 data, overwrite that source's slot, and leave the other sender's call-1 message to be consumed by call 2. Senders/payloads are then wrong. In practice shared-memory FIFO order makes it rare."
+  },
+  "c06ed6": {
+    "verdict": "race",
+    "confidence": 0.55,
+    "location": "src/parcsr_mv/par_csr_assumed_part.c:259",
+    "consequence": "wrong-result",
+    "conditions": "several assumed partitions are built back to back on the same communicator (one per sub-block) with the same tag 17; needs one rank to run ahead into the next build while another still waits for a message",
+    "reasoning": "hypre_LocateAssumedPartition receives with MPI_ANY_SOURCE and the fixed tag 17 until rows_found equals locate_row_count. Nothing in the function separates consecutive builds. A rank that finished build k can start build k+1 and send its contact ranges to a rank still waiting in build k for a slower sender. The ANY_SOURCE receive can take the build k+1 range as build k, giving a wrong row count and wrong partition list (possibly a hang, since the loop tests != rather than <). Every collective between builds would remove this."
+  }
+}

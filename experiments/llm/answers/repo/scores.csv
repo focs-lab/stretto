@@ -1,0 +1,37 @@
+run,id,project,kind,label,verdict,correct,conf,loc,cons,pair
+rp-opus-r1,a55842,,documented,positive,missing,,,,,
+rp-opus-r1,520bef,,fixed,negative,missing,,,,,
+rp-opus-r1,0d199a,,documented,positive,missing,,,,,
+rp-opus-r1,ccd0e2,,fixed,negative,missing,,,,,
+rp-opus-r1,9e1162,,documented,positive,missing,,,,,
+rp-opus-r1,55816f,,fixed,negative,missing,,,,,
+rp-opus-r1,8dba4d,,documented,positive,missing,,,,,
+rp-opus-r1,ec7c94,,fixed,negative,missing,,,,,
+rp-opus-r1,8df9ee,,documented,positive,missing,,,,,
+rp-opus-r1,a7d8e5,,fixed,negative,missing,,,,,
+rp-opus-r1,377dc2,,documented,positive,missing,,,,,
+rp-opus-r1,245580,,fixed,negative,missing,,,,,
+rp-opus-r1,ab5082,,documented,positive,missing,,,,,
+rp-opus-r1,1c72c6,,fixed,negative,missing,,,,,
+rp-opus-r1,12506a,,documented,positive,missing,,,,,
+rp-opus-r1,50e789,,fixed,negative,missing,,,,,
+rp-opus-r1,21631d,HYPRE,new,positive,race,True,0.75,True,True,fc1e24
+rp-opus-r1,fc1e24,HYPRE,fixed,negative,no-race,True,0.8,,,21631d
+rp-opus-r1,77ec6a,SuperLU_DIST,new,positive,race,True,0.7,True,True,86c6b6
+rp-opus-r1,86c6b6,SuperLU_DIST,fixed,negative,no-race,True,0.6,,,77ec6a
+rp-opus-r1,d9668c,Quantum ESPRESSO,new,positive,race,True,0.85,True,True,fd3e23
+rp-opus-r1,fd3e23,Quantum ESPRESSO,fixed,negative,no-race,True,0.8,,,d9668c
+rp-opus-r1,8d0015,OpenFOAM,latent,positive,no-race,False,0.85,False,,dcaf36
+rp-opus-r1,dcaf36,OpenFOAM,fixed,negative,no-race,True,0.8,,,8d0015
+rp-opus-r1,1bff96,libsc,latent,positive,race,True,0.85,True,True,65f689
+rp-opus-r1,65f689,libsc,fixed,negative,no-race,True,0.85,,,1bff96
+rp-opus-r1,c869a1,libsc,latent,positive,race,True,0.8,True,False,10a10b
+rp-opus-r1,10a10b,libsc,fixed,negative,no-race,True,0.85,,,c869a1
+rp-opus-r1,61a354,Swift/T,latent,positive,race,True,0.75,True,True,64c6e0
+rp-opus-r1,64c6e0,Swift/T,fixed,negative,no-race,True,0.6,,,61a354
+rp-opus-r1,c06ed6,HYPRE,screened-safe,negative,no-race,True,0.75,,,
+rp-opus-r1,175dd3,DUNE,screened-safe,negative,no-race,True,0.55,,,
+rp-opus-r1,3b67af,PETSc,screened-safe,negative,no-race,True,0.8,,,
+rp-opus-r1,8fa246,MFEM,screened-safe,negative,race,False,0.6,,,
+rp-opus-r1,e3cf4d,deal.II,screened-safe,negative,no-race,True,0.85,,,
+rp-opus-r1,224d88,Trilinos/Zoltan,screened-safe,negative,no-race,True,0.8,,,

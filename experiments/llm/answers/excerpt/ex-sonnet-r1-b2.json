@@ -1,0 +1,34 @@
+{
+  "ccd0e2": {
+    "verdict": "no-race",
+    "confidence": 0.9,
+    "location": null,
+    "consequence": "none",
+    "conditions": "none; all receives name source and tag",
+    "reasoning": "NPB MG posts mpi_irecv with an explicit source (nbr(axis,-dir,k)) and an explicit tag (msg_type(axis,dir)). There is no MPI_ANY_SOURCE, MPI_ANY_TAG or probe. When two neighbours coincide on an axis with 2 processes, the two directions still have distinct tags. In comm3 both receives are posted before the blocking sends, so no deadlock depends on buffering. comm3_ex splits ranks into take and give roles per axis with no cycle. Successive exchanges with the same source and tag are matched in order by MPI non-overtaking, and each wait completes before the next axis starts. Matching is deterministic."
+  },
+  "77ec6a": {
+    "verdict": "race",
+    "confidence": 0.62,
+    "location": "SRC/double/pdgstrs3d.c:3903",
+    "consequence": "wrong-result",
+    "conditions": "A rank finishes its forward-solve receives and starts the back solve (RD_U sends) while another rank is still in the forward receive loop. This is likely with a forest etree and no barrier (PROFlevel=0).",
+    "reasoning": "The forward-solve loop receives a fixed number (nfrecvx+nfrecvmod) of messages with MPI_ANY_SOURCE and MPI_ANY_TAG on grid->comm, and dispatches on status.MPI_TAG (BC_L, otherwise RD_L). pdgstrs3d_newsolve has no barrier between forward and back solve (the barriers are only under PROFlevel>=1). In a forest the independent roots have no forward dependence on the other ranks. A rank that has received everything it expects can therefore enter the back solve, solve its root and send RD_U (tag 4) lsum messages to a rank still waiting in the forward loop. That rank's wildcard receive can take the U-solve message in place of a forward message and handle it as RD_L. This corrupts lsum or fmod, or leaves a forward block unsolved, so the result is wrong. A hang or crash is also possible downstream. Which message is taken depends on timing."
+  },
+  "8d0015": {
+    "verdict": "race",
+    "confidence": 0.6,
+    "location": "src/Pstream/mpi/UPstreamWrapping.txx:991",
+    "consequence": "wrong-result",
+    "conditions": "tuning_NBX_ = 0 (no initial barrier, the default), successive calls (-calls 3) reusing the same size tag, and one rank delayed after entering the Ibarrier of call c while its neighbour starts call c+1.",
+    "reasoning": "Every call of Pstream::exchange on a Map runs allToAllConsensus (NBX) with the same tag (msgType()+1867), and no initial barrier is issued by default. A rank P completes the Ibarrier of call c once all ranks have entered it. P then does its data exchange and starts call c+1, issending its size to Q. If Q is slow and has not yet tested its barrier request in call c, Q's MPI_Iprobe(ANY_SOURCE, same tag) finds P's call c+1 message and receives it into call c's recvBufs. That overwrites the call c size from P with the call c+1 size. Q then gets no size from P in call c+1. The data exchanges are mismatched, so the sizes or contents are wrong and later calls are shifted. The checker prints wrong entries. Timing-dependent."
+  },
+  "245580": {
+    "verdict": "no-race",
+    "confidence": 0.93,
+    "location": null,
+    "consequence": "none",
+    "conditions": "none",
+    "reasoning": "Rank 0 receives from sourceRank 1..n-1 in sequence. Each receive names the source and tag 0, for both the size message and the BigMPI data message. Each worker sends exactly two messages, size then data, to rank 0 with tag 0. Per source pair, non-overtaking order matches size to size and data to data. There is no wildcard, probe or poll. Workers blocked in MPI_Send until rank 0 reaches them cannot form a cycle, because rank 0 only receives and workers only send. This is deterministic whether sends are buffered or not. The stagger option only changes timing, not matching."
+  }
+}

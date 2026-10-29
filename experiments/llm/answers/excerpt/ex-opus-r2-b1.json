@@ -1,0 +1,42 @@
+{
+  "55816f": {
+    "verdict": "no-race",
+    "confidence": 0.8,
+    "location": null,
+    "consequence": "none",
+    "conditions": "none; each call is bracketed by the CollectiveMutex barriers and each sender sends one message per destination per call",
+    "reasoning": "MPI_Probe(ANY_SOURCE, remote_point_evaluation) is followed by MPI_Recv from status.MPI_SOURCE, and the data is stored in temp_recv_map keyed by source. std::map iterates in rank order, so the output does not depend on arrival order. Each rank sends at most one message to each destination per call, so within a call every probe takes a distinct expected sender. The four point_values calls reuse the tag, but CollectiveMutex lock/unlock synchronises the communicator around every evaluate_and_process call. A rank leaves only after all its receives are done, so a message from the next call cannot be taken by the current one. The two test() instantiations use different triangulation communicators. Sends are Isend followed by Waitall after the receives, so buffering cannot cause a deadlock."
+  },
+  "d9668c": {
+    "verdict": "race",
+    "confidence": 0.65,
+    "location": "PHonon/PH/elphon.f90:1508",
+    "consequence": "wrong-result",
+    "conditions": "LSDA with 3 pools of one process each; spin-up and spin-down copies of the k point sit in pools 1 and 2, neither on ionode",
+    "reasoning": "In LSDA the k list is duplicated, spin-up first and then spin-down, and pools take contiguous blocks. With -nk 3 the two spin copies of the requested k can belong to two different non-ionode ranks. Each of those ranks then sends el_ph_mat on tag 4*nproc and two et arrays on tag 6*nproc with blocking MPI_SEND; these are small, eager messages that arrive concurrently. For ispn=1 the ionode receives with MPI_ANY_SOURCE, so it can take the spin-2 sender's matrix first. The et receives are also ANY_SOURCE and are not tied to the source of the matrix receive, so energies from different ranks/spins can be mixed and the two et receives can come from different ranks. The printed |g| and energies per spin channel can then be swapped or mixed between runs."
+  },
+  "12506a": {
+    "verdict": "no-race",
+    "confidence": 0.85,
+    "location": null,
+    "consequence": "none",
+    "conditions": "none; displace_atoms calls migrate_atoms(1), so received atoms are sorted by source",
+    "reasoning": "In create_atom, MPI_Recv(ANY_SOURCE, tag 0) collects one count per sending rank and records status.MPI_SOURCE together with its length, so each pair stays consistent. The barrier afterwards guarantees that no exchange_atom data message (also tag 0) can be taken by these receives. The exchange_atom Irecvs name explicit sources. Arrival order only permutes proc_recv, and with sortflag=1 (displace_atoms calls migrate_atoms(1)) the list is sorted by proc ID, so atom order and results are deterministic. The 1-int MPI_Sends are eager under default settings, and data Irecvs are posted before the sends, so there is no buffering-dependent deadlock. The run itself uses Comm::exchange with explicit sources."
+  },
+  "21631d": {
+    "verdict": "race",
+    "confidence": 0.55,
+    "location": "src/distributed_ls/ParaSails/ParaSails.c:153",
+    "consequence": "hang",
+    "conditions": "nlevels=2: a fast rank's level-2 ROW_PRUNED_REQ request reaches a rank still in its level-1 request loop before a slower rank's level-1 request is delivered",
+    "reasoning": "ExchangePrunedRows uses the same tag ROW_PRUNED_REQ_TAG at every level, and ReceiveRequest probes MPI_ANY_SOURCE. The only thing between levels is the Allreduce in FindNumReplies. Rank P can finish level 1 (Q has already replied to P) and send a level-2 request to Q while Q is still waiting for R's level-1 request. MPI gives no ordering between different sources, so Q may count P's level-2 request as its last level-1 request and leave the loop. Q then goes to level 2 and blocks in the level-2 Allreduce. R, meanwhile, waits in ReceiveReplyPrunedRows for Q's reply to its level-1 request, which Q will only send after that Allreduce: a deadlock. Single-node shared-memory FIFOs make this rare, but MPI semantics allow it."
+  },
+  "1bff96": {
+    "verdict": "race",
+    "confidence": 0.85,
+    "location": "src/sc_notify.c:1960",
+    "consequence": "wrong-result",
+    "conditions": "two consecutive NBX calls on the same communicator and tag with no barrier between them (barrier=0); a rank leaves the Ibarrier and Issends call-1 messages while a peer still polls in call 0",
+    "reasoning": "sc_notify_payload_nbx uses the same tag SC_TAG_NOTIFY_NBX in every call. Once the Ibarrier has completed at rank P, P returns, starts call 1 and Issends to rank Q. Q may have entered the barrier without its MPI_Test having reported completion yet, and its loop runs MPI_Iprobe(ANY_SOURCE) before MPI_Test. Q can therefore probe and receive P's call-1 message inside call 0. Q then records an extra sender and payload for call 0 and is missing it in call 1. P's Issend completes because it was matched, so nothing hangs, but the driver's check reports FAIL. The 4-byte payload is below the eager threshold, so it travels inside the NBX messages."
+  }
+}

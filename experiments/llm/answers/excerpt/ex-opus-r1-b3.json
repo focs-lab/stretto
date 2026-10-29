@@ -1,0 +1,42 @@
+{
+  "fd3e23": {
+    "verdict": "no-race",
+    "confidence": 0.6,
+    "location": null,
+    "consequence": "none",
+    "conditions": "each spin's k point lives in exactly one pool; one sender per tag",
+    "reasoning": "For each spin the vertex is sent by the single pool root that holds the k point (3 pools of 1 process, each k of a given spin in exactly one pool). Tags separate the spins (12/13 for el_ph_mat, 18/19 for et), so each wildcard receive on the ionode has exactly one possible sender for its tag. The two et messages with equal tag come from the same sender and are ordered by MPI's non-overtaking rule (ikk then ikq), matching the receive order. If the ionode holds a spin itself it copies locally and posts no receive, and no other process sends for that spin. The matching is therefore determined regardless of timing or buffering."
+  },
+  "ec7c94": {
+    "verdict": "no-race",
+    "confidence": 0.65,
+    "location": null,
+    "consequence": "none",
+    "conditions": "CollectiveMutex barrier separates consecutive NBX calls",
+    "reasoning": "Within one call each rank sends one request to each target; the Iprobe(ANY_SOURCE, tag_request) may take them in any order but each is answered to its true source, and answers are received by specific source. A rank enters the Ibarrier only after all its answers arrived, so all requests were received before the barrier completes. Cross-call confusion (a fast rank's call c+1 request probed by a rank still in call c) is prevented by the static CollectiveMutex: its ScopedLock performs a barrier on unlock/lock, so no rank starts call c+1 until every rank has left call c. Thus every probe can only match requests of the current call, and every answer is correct."
+  },
+  "8df9ee": {
+    "verdict": "race",
+    "confidence": 0.75,
+    "location": "core/src/Cabana_CommunicationPlan.hpp:1268",
+    "consequence": "hang",
+    "conditions": "a rank enters the id phase before a third rank's count reaches the receiver",
+    "reasoning": "Phase 1 posts num_recvs MPI_ANY_SOURCE receives with tag 1221 for counts; phase 2 sends the import ids with the same tag 1221 on the same communicator. With 3 ranks every rank imports from both others. Rank 1 can receive its two counts, enter phase 2 and Isend ids to rank 2 before rank 0 has sent its count to rank 2 (rank 0 sends to 1 first, then 2). Rank 2's second wildcard receive then takes rank 1's id (non-overtaking only orders rank 1's own messages). send_to becomes {1,1} with a bogus count, phase-2 receives from rank 1 expect more messages than rank 1 sends, rank 0's count and ids are never matched: hang (or wrong plan/test failure)."
+  },
+  "a55842": {
+    "verdict": "no-race",
+    "confidence": 0.6,
+    "location": null,
+    "consequence": "none",
+    "conditions": "default single level; collectives separate the pruned and stored exchanges",
+    "reasoning": "Wildcard probes take ROW_REQ requests in arbitrary order, but each is answered to its actual source and the content of a reply depends only on the rows requested, so order is immaterial. Reply probes on ROW_REPI pick a source and then receive ROW_REPI and ROW_REPV from that same source, ordered by non-overtaking. Every request sent in a round precedes the round's Allreduce (FindNumReplies), so the counts are exact. With the driver's default of one level there is a single pruned-rows round, and LoadBalDonate's collective (cost Allgather) between ExchangePrunedRows and ExchangeStoredRows keeps a fast rank's stored-rows request from reaching a rank still in the pruned exchange. The outcome does not depend on matching order."
+  },
+  "377dc2": {
+    "verdict": "race",
+    "confidence": 0.75,
+    "location": "stempy/electron_mpi.cpp:50",
+    "consequence": "crash",
+    "conditions": "two workers' gather messages overlap at rank 0 (stagger only narrows the window)",
+    "reasoning": "Rank 0 receives the size with MPI_ANY_SOURCE tag 0 and then the data with MPI_ANY_SOURCE tag 0, independently. Both size and data messages of all workers use tag 0, so after taking worker A's size, the data receive can match worker B's 8-byte size message or B's data, and later size receives can match a large data message. Map sizes differ per worker, so this gives a truncation error (MPI_ERRORS_ARE_FATAL abort), a cereal deserialization exception (MPI_Abort), or a wrong merge. The 5 ms per-rank stagger makes overlap unlikely but not impossible (scheduling delays, rendezvous for the multi-KB data messages); MPI gives no ordering across senders."
+  }
+}

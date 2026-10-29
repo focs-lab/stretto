@@ -1,0 +1,42 @@
+{
+  "fd3e23": {
+    "verdict": "no-race",
+    "confidence": 0.6,
+    "location": null,
+    "consequence": "none",
+    "conditions": "each spin channel of the target k point is found by one pool root; tags are distinct per spin and per array",
+    "reasoning": "For each spin, only the pool root that found the k point sends: el_ph_mat with tag 4*nproc+ispn-1, then two et messages with tag 6*nproc+ispn-1. The tags differ between spins and between the matrix and the eigenvalues. Because there is only one sender per tag, MPI_ANY_SOURCE can match only that sender, and non-overtaking keeps the ikk/ikq order of the two et messages. The ionode receives in the same spin order as the senders send, and the messages are small enough to go eager, so the blocking MPI_SEND/MPI_RECV pairs cannot deadlock. With 3 pools, each spin's copy of a k point sits in exactly one pool, so no second sender competes for the same tag. Nothing else in the excerpt uses these tags."
+  },
+  "ec7c94": {
+    "verdict": "no-race",
+    "confidence": 0.7,
+    "location": null,
+    "consequence": "none",
+    "conditions": "CollectiveMutex lock/unlock are blocking barriers that separate consecutive NBX calls",
+    "reasoning": "Within one call, the Iprobe(ANY_SOURCE, tag_request) takes requests in any order, but each is received from status.MPI_SOURCE and answered to that same rank. Answers are received with specific sources. A rank finishes its own state only after all its requests have been answered, which implies they were received, so the Ibarrier cannot complete while a request is still unreceived. Across calls, the static CollectiveMutex ScopedLock wraps run(): it takes a barrier on lock and another on unlock (in the destructor, after clean_up). So no rank can send a call c+1 request while another rank is still probing in call c. The answers are therefore always the expected ones, whatever the matching order."
+  },
+  "8df9ee": {
+    "verdict": "race",
+    "confidence": 0.6,
+    "location": "core/src/Cabana_CommunicationPlan.hpp:1268",
+    "consequence": "hang",
+    "conditions": "one importer's count message to a rank is delayed while another importer has already moved on to sending its ids",
+    "reasoning": "Phase-1 counts and phase-2 id messages use the same tag 1221 on the same communicator, and the count receives are wildcard Irecvs. Rank 1 can reach phase 2 once it has received its own counts from ranks 0 and 2. It then Isends its ids to rank 0. If rank 2's count to rank 0 is still in flight, rank 0's second wildcard Irecv can match rank 1's first id (value 0) as a count. Rank 0 then records send_to={1,1} with counts {5,0}. It posts 5 receives from rank 1, but only 4 id messages from rank 1 are left, so rank 0 blocks in the second Waitall. Rank 2's count and ids stay unmatched. This is allowed by MPI, though rare on shared memory."
+  },
+  "a55842": {
+    "verdict": "race",
+    "confidence": 0.6,
+    "location": "distributed_ls/ParaSails/ParaSails.c:166",
+    "consequence": "hang",
+    "conditions": "no collective separates ExchangePrunedRows from ExchangeStoredRows (logging off via -pout 0); a fast rank sends its stored-rows request while a slow rank is still receiving pruned-row requests",
+    "reasoning": "Both exchanges send ROW_REQ_TAG requests with Isend before their Allreduce, and receive them with Probe(ANY_SOURCE, ROW_REQ_TAG). A rank Q that has finished the pruned exchange can go on to ExchangeStoredRows and Isend a request to P, while P is still in its pruned ReceiveRequest loop waiting for R's request. P's probe can take Q's stored-rows request instead of R's. P then answers Q with a pruned-format REPI and no REPV, so Q blocks in its Recv of ROW_REPV_TAG from P. R's pruned request gets answered later, in P's stored exchange. The mismatched counts and replies block the ranks in Recv/Allreduce: a hang, or corrupted rows."
+  },
+  "377dc2": {
+    "verdict": "race",
+    "confidence": 0.85,
+    "location": "stempy/electron_mpi.cpp:50",
+    "consequence": "crash",
+    "conditions": "two workers' gather messages overlap at rank 0 (the 5 ms stagger makes this less likely but does not prevent it)",
+    "reasoning": "Rank 0 receives the size with MPI_ANY_SOURCE, tag 0, and then the data with a second, independent MPI_ANY_SOURCE, tag 0 receive. All workers send both the size and the data with tag 0. If worker B's messages arrive while rank 0 is between worker A's size and data, the data receive can take B's 8-byte size or B's data. The buffer is sized for A, but the maps differ in size. The result is MPI_ERR_TRUNCATE (abort under the default error handler), or cereal deserializing garbage (an exception, then MPI_Abort). The size receive can likewise take a data message and truncate. The stagger only makes overlap less likely."
+  }
+}

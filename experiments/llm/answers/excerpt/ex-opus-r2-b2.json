@@ -1,0 +1,34 @@
+{
+  "ccd0e2": {
+    "verdict": "no-race",
+    "confidence": 0.85,
+    "location": null,
+    "consequence": "none",
+    "conditions": "none; all receives name a specific neighbour and tag",
+    "reasoning": "Every receive in the halo exchange (ready: mpi_irecv from nbr(axis,-dir,k) with tag msg_type(axis,dir)) names an explicit source and tag; there is no MPI_ANY_SOURCE/ANY_TAG and no probe or test poll. The two directions use distinct tags, so the case of two processes per axis (same neighbour both ways) is still unambiguous. Successive comm3/comm3_ex calls reuse tags, but MPI's non-overtaking order per (source, tag, comm) pairs them in program order on both sides. The receives are posted before the blocking sends in comm3, and in comm3_ex the takers post and wait while the givers only send, so no outcome depends on buffering. Matching is deterministic; the benchmark verifies the same result every run."
+  },
+  "77ec6a": {
+    "verdict": "race",
+    "confidence": 0.6,
+    "location": "SRC/double/pdgstrs3d.c:3903",
+    "consequence": "hang",
+    "conditions": "forest elimination tree; one process finishes the L-solve and sends U-solve messages while another is still in its L-solve receive loop",
+    "reasoning": "The forward-solve loop receives a fixed count of messages with MPI_Recv(MPI_ANY_SOURCE, MPI_ANY_TAG, grid->comm) and dispatches on the tag. The back solve uses the same communicator (tags BC_U/RD_U), and nothing synchronizes the two phases: the barriers are commented out or only compiled with profiling. Because the matrix is block-diagonal, the trees are independent. One process can finish its L-solve for every tree and start sending RD_U lsum messages for a root while a neighbour is still waiting for RD_L messages from another tree. The neighbour's wildcard receive can take the U message, handle it as a forward message and count it. The real RD_L message is then left over: one forward block never reaches fmod==0, its x is never sent, and other ranks wait forever. The back solve also takes the stray RD_L message as its own, so the result can be wrong as well."
+  },
+  "8d0015": {
+    "verdict": "race",
+    "confidence": 0.65,
+    "location": "src/Pstream/mpi/UPstreamWrapping.txx:991",
+    "consequence": "wrong-result",
+    "conditions": "successive exchange calls reuse tag msgType()+1867; a fast rank reaches the next call's NBX while its receiver is still polling the previous one",
+    "reasoning": "The NBX loop calls Iprobe(MPI_ANY_SOURCE, tag) before it tests the Ibarrier. Once the barrier has completed globally, rank r can leave, do its data exchange (small eager sends, and its receive comes from r-1), and start the next call's Issend of sizes to r+1 with the same tag. Meanwhile r+1 may not yet have observed its own barrier completing. Its next Iprobe then matches the next call's size message and overwrites recvBufs(r) with the new size (sizes differ per call: 1, 2, 3). Rank r+1 then posts the data receive with the wrong length, which gives a wrong-length received list or an MPI_ERR_TRUNCATE abort. In the next call that size message is missing, so the data message is matched against the wrong receive. The driver detects and reports this as wrong answers."
+  },
+  "245580": {
+    "verdict": "no-race",
+    "confidence": 0.9,
+    "location": null,
+    "consequence": "none",
+    "conditions": "none; rank 0 receives from explicit sources in rank order",
+    "reasoning": "gatherEvents on rank 0 loops sourceRank = 1..size-1 and calls receivePartialMap. That function posts MPI_Recv for the size, then MPIX_Recv_x for the data, both with that explicit source and tag 0 on MPI_COMM_WORLD. Each worker sends the size and then the data to rank 0 with tag 0. With no wildcards, non-overtaking order pairs the size with the size and the data with the data for each sender, whatever the arrival order across workers (the stagger only changes timing). Messages from other workers wait unexpected until their turn. Blocking sends cannot deadlock, because rank 0 eventually posts a matching receive for every worker. The gathered result is the same in every run."
+  }
+}

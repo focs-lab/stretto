@@ -1,0 +1,26 @@
+{
+  "520bef": {
+    "verdict": "no-race",
+    "confidence": 0.62,
+    "location": null,
+    "consequence": "none",
+    "conditions": "none; alternative matches (e.g. a level-L+1 request taken during level L in ExchangePrunedRows) yield identical replies",
+    "reasoning": "Request tags differ between the pruned and stored exchanges; all replies a process expects are received before it leaves an exchange, and stored-row requests are only sent afterwards, so ROW_REPI_TAG replies cannot cross phases. REPV is received from the specific source found by the REPI probe, and each source sends at most one reply per receiver. In ExchangePrunedRows a fast process's next-level request may be consumed by a slower process still in the previous level's ReceiveRequest loop, but the reply depends only on the requested rows, which are owned and fixed on the replier, and per-level counts still sum correctly, so the leftover request is served in the next level. Replies are merged into a pattern set (order-insensitive; indices sorted before requests). No hang, crash or changed result."
+  },
+  "0d199a": {
+    "verdict": "no-race",
+    "confidence": 0.7,
+    "location": null,
+    "consequence": "none",
+    "conditions": "none",
+    "reasoning": "The wildcard-source irecvs in ready() use tag msg_type(axis,dir), which encodes axis and direction, so within one comm3/comm3_ex exchange exactly one process sends a given tag to a given receiver (the unique periodic neighbour on that axis/direction, even when -1 and +1 neighbours coincide, since the tags differ). Receives are pre-posted before the blocking sends, so no buffering-dependent deadlock. A later message with the same tag from the same neighbour is ordered behind the current one by non-overtaking, and a neighbour cannot start its next exchange on that axis before receiving this process's messages of the current one. The expansion step is one-directional (take before give, from coarse active to newly active processes). Matching is therefore deterministic in effect; results are verified identically."
+  },
+  "175dd3": {
+    "verdict": "race",
+    "confidence": 0.68,
+    "location": "dune-common/dune/common/parallel/indicessyncer.hh:1028",
+    "consequence": "wrong-result",
+    "conditions": "useFixedOrder false (default in the test); messages from two or more neighbours arrive in varying order",
+    "reasoning": "With useFixedOrder false, recvAndUnpack probes MPI_ANY_SOURCE with tag 345, so the order in which neighbours' messages are unpacked follows arrival order. Each newly learned global index is added with local index numberer(global), and the renumberer assigns consecutive numbers on first use, so the local numbering of the added coarse indices (and thus the ordering of coarse-level rows) depends on which message is taken first. The coarse matrices and the order-dependent smoothers/coarse solver then compute in a different order, giving non-reproducible residuals and possibly iteration counts between runs; this is why the fixed-order option exists. The message contents are not misattributed (source is taken from the probe and each neighbour sends exactly one message), so there is no hang or crash, only a run-dependent numerical result."
+  }
+}

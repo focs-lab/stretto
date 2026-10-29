@@ -1,0 +1,34 @@
+{
+  "3b67af": {
+    "verdict": "no-race",
+    "confidence": 0.8,
+    "location": null,
+    "consequence": "none",
+    "conditions": "none; any arrival order of the per-source contributions gives the same maxima",
+    "reasoning": "Rank r receives exactly r messages (one from each lower rank) with ANY_SOURCE/ANY_TAG. All have the same length (its owned row count), and each is folded into va by an elementwise max, which is commutative and exact, so the order does not matter. A message from a later operation cannot be taken instead: sends go only to higher ranks and are posted before each rank's receive loop. Any later point-to-point traffic (the SF scatters of MatMult in KSPSolve) comes after collectives such as VecNorm's allreduce, which cannot complete while some rank is still in this loop. The same source's earlier message is never overtaken. The blocking sends form an acyclic pattern (low to high, and the last rank only receives), so there is no buffering-dependent deadlock."
+  },
+  "50e789": {
+    "verdict": "no-race",
+    "confidence": 0.85,
+    "location": null,
+    "consequence": "none",
+    "conditions": "none; barrier separates the size exchange from the data exchange, and sortflag=1 orders the senders",
+    "reasoning": "create_atom receives nrecv_proc tag-0 length messages with MPI_ANY_SOURCE. The count is exact (from Reduce_scatter), and the MPI_Barrier after the loop ensures that no rank reaches exchange_atom and sends tag-0 atom data before every length message has been matched, so a length receive cannot take an atom-data message. The arrival order of senders varies, but migrate_atoms(1) passes sortflag=1, so proc_recv/length_recv are sorted by rank. The receives in exchange_atom then name their source explicitly and are posted in a deterministic order, which makes the order of unpacked atoms reproducible. No other tag-0 traffic on world is pending at that point. The sends are matched by pre-posted Irecvs, so nothing depends on buffering."
+  },
+  "8dba4d": {
+    "verdict": "race",
+    "confidence": 0.85,
+    "location": "source/base/mpi.cc:979",
+    "consequence": "wrong-result",
+    "conditions": "successive NBX calls on the same communicator reuse tags 12/13; one rank leaves call c (its Ibarrier test succeeds) and sends call c+1 requests while another rank is still polling in call c",
+    "reasoning": "All calls use the same comm and the same tag_request/tag_delivery. The Ibarrier completes once every rank has entered it, but each rank only notices this through MPI_Test, so a fast rank A can finish call c and start call c+1, Isend-ing tag-12 requests to B while B is still in call c's 'while (!check_global_state()) process_requests()' loop. B's MPI_Iprobe(ANY_SOURCE, tag_request) then takes A's call-c+1 request and B answers it with its own call number c. A's call-c+1 Irecv from B (tag 13) receives that answer, and unpack_recv_buffer flags it as wrong (call mismatch). In Release there is no extra MPI_Barrier, so whether this happens depends on timing."
+  },
+  "64c6e0": {
+    "verdict": "no-race",
+    "confidence": 0.55,
+    "location": null,
+    "consequence": "none",
+    "conditions": "49-byte subscripts go as separate SYNC_SUB messages; any reordering affects only same-id subscriptions",
+    "reasoning": "With 2 servers, the sync-header Irecvs (ANY_SOURCE, SYNC_REQUEST) can only match the one other server, and headers from it arrive in order. xlb_poll's ANY_TAG probe skips SYNC_SUB messages instead of dispatching them as invalid tags. A SYNC_SUB is always preceded by its header from the same source, and serve_several drains headers first, so the subscript is eventually received by a RECV that names the source. A deferral by the lower-ranked server can make it pair SYNC_SUB payloads with headers in a different order. Here, though, all remote subscriptions go from one server to the single container id the other owns, with equal lengths, so a permutation registers the same set of (id, key) subscriptions and every task is released. The 49-byte blocking SENDs are eager under Open MPI defaults."
+  }
+}

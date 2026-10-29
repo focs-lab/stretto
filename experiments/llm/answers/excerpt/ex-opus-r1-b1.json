@@ -1,0 +1,42 @@
+{
+  "55816f": {
+    "verdict": "no-race",
+    "confidence": 0.8,
+    "location": null,
+    "consequence": "none",
+    "conditions": "none; the CollectiveMutex synchronises consecutive evaluate_and_process calls",
+    "reasoning": "Each call sends at most one message per destination with tag remote_point_evaluation, and each receiver probes exactly as many times as it has remote recv_ranks. Whatever order the ANY_SOURCE probes take, the data is stored in temp_recv_map under status.MPI_SOURCE, and the copy-out walks the std::map in rank order, so the result does not depend on the order. Messages from different calls cannot mix: the CollectiveMutex ScopedLock synchronises all ranks on the communicator at unlock or at the next lock, and unlock happens only after every rank has finished its receive loop. So no rank can send the next call's messages (four point_values calls per test, two tests) while another rank is still probing in the previous call. The Recv names the probed source and tag, so it gets exactly the probed message."
+  },
+  "d9668c": {
+    "verdict": "race",
+    "confidence": 0.7,
+    "location": "PHonon/PH/elphon.f90:1508",
+    "consequence": "wrong-result",
+    "conditions": "LSDA: the spin-up and spin-down copies of the k point sit in two different non-ionode pools (pools 1 and 2)",
+    "reasoning": "With LSDA, nspn=2 and the k list holds spin-up points first and spin-down points second, split into contiguous blocks over 3 pools with one process each. If neither spin's k point is on the ionode, two senders each send el_ph_mat (tag 4*nproc) and two et arrays (tag 6*nproc). The ionode receives for ispn=1 and then ispn=2 using MPI_ANY_SOURCE. Its first receive can match the spin-2 pool's matrix and store it as spin 1. The et receives can also mix sources, for example et2(:,1) from one pool and et2(:,2) from the other. Nothing ties a message to its spin; the order is per source only. The result is swapped or mixed |g| and energies in the printed vertex; there is no hang, because the counts match."
+  },
+  "12506a": {
+    "verdict": "no-race",
+    "confidence": 0.85,
+    "location": null,
+    "consequence": "none",
+    "conditions": "migrate_atoms(1) sorts proc_recv; a barrier separates the phases; the count messages are small and eager",
+    "reasoning": "In create_atom every rank sends one 1-int message with tag 0 to each target and then receives nrecv_proc messages with ANY_SOURCE. The arrival order can vary, but displace_atoms calls migrate_atoms(1), so sortflag sorts proc_recv and length_recv by rank and the later receive order and atom order are deterministic. The MPI_Barrier after the receive loop ensures that no exchange_atom data message (also tag 0) is sent before every rank has finished its ANY_SOURCE receives, so the wildcard cannot take an atom-data message. The exchange_atom receives name their source. The 1-int blocking sends complete eagerly under default Open MPI, so the send-before-receive pattern does not deadlock. Atom totals and the run are unaffected."
+  },
+  "21631d": {
+    "verdict": "race",
+    "confidence": 0.55,
+    "location": "src/distributed_ls/ParaSails/ParaSails.c:153",
+    "consequence": "hang",
+    "conditions": "nlevels=2: one neighbour finishes level 1 and posts its level-2 request before another neighbour's level-1 request is matched",
+    "reasoning": "In ExchangePrunedRows, each level sends its requests with tag 221 before FindNumReplies, and nothing separates the levels' requests. Strip partition: rank 1 serves requests from 0 and 2. Rank 0 can get rank 1's level-1 reply, finish level 1 and Isend its level-2 request (same tag) to rank 1 while rank 1 is still in its level-1 ReceiveRequest loop. Rank 1's ANY_SOURCE probe can then take rank 0's level-2 request in place of rank 2's level-1 request; ob1's round-robin wildcard matching makes this possible. Rank 1 answers the wrong request and enters the level-2 Allreduce. Rank 2 waits forever in ReceiveReplyPrunedRows for rank 1's level-1 reply, so it never reaches the Allreduce: deadlock."
+  },
+  "1bff96": {
+    "verdict": "race",
+    "confidence": 0.75,
+    "location": "src/sc_notify.c:1960",
+    "consequence": "wrong-result",
+    "conditions": "two consecutive NBX calls with the same tag and no barrier between them (barrier=0)",
+    "reasoning": "In NBX, a rank's Ibarrier can complete while another rank X is still spinning in its loop. A rank Y whose barrier has completed returns, starts call 2 and Issends its call-2 payload (same tag SC_TAG_NOTIFY_NBX) to X. X's loop runs MPI_Iprobe(ANY_SOURCE) before MPI_Test on the barrier, so X can match Y's call-2 message in call 1: X records an extra sender with payload 2000+Y in call 1 and misses it in call 2. The Issend is matched, so nothing hangs, but the driver's check finds the wrong senders and payloads and prints FAIL. The payload is 4 bytes, so the eager path is used and there is no separate payload phase to catch the mix-up."
+  }
+}

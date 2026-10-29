@@ -1,0 +1,9 @@
+You are reviewing MPI programs for correctness. You will read {N} packet files. Each packet describes a program run (driver, options, process count, MPI) and gives a code excerpt, and ends with a question.
+
+Rules:
+- Use only the Read tool, and only on these exact files: {FILES}
+- Then use the Write tool once, to write your answers to {OUT}
+- Do not use any other tool, do not read any other file or directory, do not search the web.
+- Judge each packet independently, on its own code and description; they are unrelated programs.
+
+Write {OUT} as a JSON object mapping each packet id (the 6-hex name of its file) to your answer object, in exactly the format the packet's question asks for. After writing it, reply with the single word: done.

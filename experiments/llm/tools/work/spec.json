@@ -1,0 +1,1892 @@
+[
+ {
+  "id": "a55842",
+  "lang": "c",
+  "program": "HYPRE, a library of parallel linear solvers and preconditioners (C). The run solves a linear system by PCG with the ParaSails sparse approximate inverse preconditioner.",
+  "driver": "HYPRE's test driver `ij` (`test/ij.c`), unmodified",
+  "options": "mpirun -np 4 ./ij -solver 8 -pout 0",
+  "procs": 4,
+  "mpi": "MPICH 4.2.0 (Ubuntu 24.04 package)",
+  "input": "the driver's built-in default problem (a 3D Laplacian)",
+  "parts": [
+   {
+    "file": "distributed_ls/ParaSails/ParaSails.c",
+    "sel": [
+     {
+      "lines": "^#define ROW_\\w*TAG"
+     },
+     {
+      "fn": "^HYPRE_Int FindNumReplies\\("
+     },
+     {
+      "fn": "^static void SendRequests\\("
+     },
+     {
+      "fn": "^static void ReceiveRequest\\("
+     },
+     {
+      "fn": "^static void SendReplyPrunedRows\\("
+     },
+     {
+      "fn": "^static void ReceiveReplyPrunedRows\\("
+     },
+     {
+      "fn": "^static void SendReplyStoredRows\\("
+     },
+     {
+      "fn": "^static void ReceiveReplyStoredRows\\("
+     },
+     {
+      "fn": "^static void ExchangePrunedRows\\("
+     },
+     {
+      "fn": "^static void ExchangeStoredRows\\("
+     },
+     {
+      "fn": "^void ParaSailsSetupPattern\\("
+     },
+     {
+      "fn": "^HYPRE_Int ParaSailsSetupValues\\("
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "id": "520bef",
+  "lang": "c",
+  "program": "HYPRE, a library of parallel linear solvers and preconditioners (C). The run solves a linear system by PCG with the ParaSails sparse approximate inverse preconditioner.",
+  "driver": "HYPRE's test driver `ij` (`src/test/ij.c`), unmodified",
+  "options": "mpirun -np 4 ./ij -solver 8 -pout 0",
+  "procs": 4,
+  "mpi": "MPICH 4.2.0 (Ubuntu 24.04 package)",
+  "input": "the driver's built-in default problem (a 3D Laplacian)",
+  "parts": [
+   {
+    "file": "src/distributed_ls/ParaSails/ParaSails.c",
+    "sel": [
+     {
+      "lines": "^#define ROW_\\w*TAG"
+     },
+     {
+      "fn": "^HYPRE_Int FindNumReplies\\("
+     },
+     {
+      "fn": "^static void SendRequests\\("
+     },
+     {
+      "fn": "^static void ReceiveRequest\\("
+     },
+     {
+      "fn": "^static void SendReplyPrunedRows\\("
+     },
+     {
+      "fn": "^static void ReceiveReplyPrunedRows\\("
+     },
+     {
+      "fn": "^static void SendReplyStoredRows\\("
+     },
+     {
+      "fn": "^static void ReceiveReplyStoredRows\\("
+     },
+     {
+      "fn": "^static void ExchangePrunedRows\\("
+     },
+     {
+      "fn": "^static void ExchangeStoredRows\\("
+     },
+     {
+      "fn": "^void ParaSailsSetupPattern\\("
+     },
+     {
+      "fn": "^HYPRE_Int ParaSailsSetupValues\\("
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "id": "0d199a",
+  "lang": "fortran",
+  "program": "The NAS Parallel Benchmarks' MG kernel, MPI version (Fortran 77): V-cycle multigrid on a periodic 3D grid, with halo exchanges between neighbouring processes at every grid level.",
+  "driver": "the benchmark itself, built with `make MG NPROCS=16 CLASS=S` in `NPB2.4-MPI`",
+  "options": "mpirun -np 16 ./mg.S.16",
+  "procs": 16,
+  "mpi": "MPICH 4.2.0 (Ubuntu 24.04 package)",
+  "input": "class S (32^3 grid, 4 iterations)",
+  "parts": [
+   {
+    "file": "NPB2.4-MPI/MG/mg.f",
+    "sel": [
+     {
+      "fn": "^\\s+program mg_mpi"
+     },
+     {
+      "lines": "^\\s+msg_type\\(.*\\)\\s*="
+     },
+     {
+      "fn": "^\\s+subroutine mg3P\\("
+     },
+     {
+      "fn": "^\\s+subroutine psinv\\("
+     },
+     {
+      "fn": "^\\s+subroutine resid\\("
+     },
+     {
+      "fn": "^\\s+subroutine rprj3\\("
+     },
+     {
+      "fn": "^\\s+subroutine interp\\("
+     },
+     {
+      "fn": "^\\s+subroutine zran3\\("
+     },
+     {
+      "fn": "^\\s+subroutine comm3\\("
+     },
+     {
+      "fn": "^\\s+subroutine comm3_ex\\("
+     },
+     {
+      "fn": "^\\s+subroutine ready\\("
+     },
+     {
+      "fn": "^\\s+subroutine give3\\("
+     },
+     {
+      "fn": "^\\s+subroutine take3\\("
+     },
+     {
+      "fn": "^\\s+subroutine give3_ex\\("
+     },
+     {
+      "fn": "^\\s+subroutine take3_ex\\("
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "id": "ccd0e2",
+  "lang": "fortran",
+  "program": "The NAS Parallel Benchmarks' MG kernel, MPI version (Fortran 77): V-cycle multigrid on a periodic 3D grid, with halo exchanges between neighbouring processes at every grid level.",
+  "driver": "the benchmark itself, built with `make MG NPROCS=16 CLASS=S` in `NPB3.3-MPI`",
+  "options": "mpirun -np 16 ./mg.S.16",
+  "procs": 16,
+  "mpi": "MPICH 4.2.0 (Ubuntu 24.04 package)",
+  "input": "class S (32^3 grid, 4 iterations)",
+  "parts": [
+   {
+    "file": "NPB3.3-MPI/MG/mg.f",
+    "sel": [
+     {
+      "fn": "^\\s+program mg_mpi"
+     },
+     {
+      "lines": "^\\s+msg_type\\(.*\\)\\s*="
+     },
+     {
+      "fn": "^\\s+subroutine mg3P\\("
+     },
+     {
+      "fn": "^\\s+subroutine psinv\\("
+     },
+     {
+      "fn": "^\\s+subroutine resid\\("
+     },
+     {
+      "fn": "^\\s+subroutine rprj3\\("
+     },
+     {
+      "fn": "^\\s+subroutine interp\\("
+     },
+     {
+      "fn": "^\\s+subroutine zran3\\("
+     },
+     {
+      "fn": "^\\s+subroutine comm3\\("
+     },
+     {
+      "fn": "^\\s+subroutine comm3_ex\\("
+     },
+     {
+      "fn": "^\\s+subroutine ready\\("
+     },
+     {
+      "fn": "^\\s+subroutine give3\\("
+     },
+     {
+      "fn": "^\\s+subroutine take3\\("
+     },
+     {
+      "fn": "^\\s+subroutine give3_ex\\("
+     },
+     {
+      "fn": "^\\s+subroutine take3_ex\\("
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "id": "9e1162",
+  "lang": "cpp",
+  "program": "deal.II, a C++ finite element library. The run is one of its own tests: a distributed triangulation, a finite element vector, and the values of that vector evaluated at a set of points owned by other processes, through a cached Utilities::MPI::RemotePointEvaluation.",
+  "driver": "deal.II's test `tests/remote_point_evaluation/mapping_01.cc`, built as a program against the library (Release, MPI and p4est)",
+  "options": "mpirun -np 4 ./mapping_01",
+  "procs": 4,
+  "mpi": "MPICH 4.2.0 (Ubuntu 24.04 package)",
+  "input": "none (the test builds its mesh and points); its output is compared with `mapping_01.mpirun=4.output`",
+  "parts": [
+   {
+    "file": "include/deal.II/base/mpi_tags.h",
+    "sel": [
+     {
+      "lines": "^\\s+remote_point_evaluation,"
+     }
+    ]
+   },
+   {
+    "file": "include/deal.II/base/mpi_remote_point_evaluation.h",
+    "sel": [
+     {
+      "fn": "RemotePointEvaluation<dim, spacedim>::evaluate_and_process\\(",
+      "nth": 0
+     }
+    ]
+   },
+   {
+    "file": "include/deal.II/numerics/vector_tools_evaluate.h",
+    "sel": [
+     {
+      "fn": "^\\s*(value_type> )?(evaluate_at_points|point_values)\\(",
+      "nth": 2
+     },
+     {
+      "fn": "^\\s*(value_type> )?(evaluate_at_points|point_values)\\(",
+      "nth": 3
+     }
+    ]
+   },
+   {
+    "file": "tests/remote_point_evaluation/mapping_01.cc",
+    "sel": [
+     {
+      "range": [
+       1,
+       1000000
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "id": "55816f",
+  "lang": "cpp",
+  "program": "deal.II, a C++ finite element library. The run is one of its own tests: a distributed triangulation, a finite element vector, and the values of that vector evaluated at a set of points owned by other processes, through a cached Utilities::MPI::RemotePointEvaluation.",
+  "driver": "deal.II's test `tests/remote_point_evaluation/mapping_01.cc`, built as a program against the library (Release, MPI and p4est)",
+  "options": "mpirun -np 4 ./mapping_01",
+  "procs": 4,
+  "mpi": "MPICH 4.2.0 (Ubuntu 24.04 package)",
+  "input": "none (the test builds its mesh and points); its output is compared with `mapping_01.mpirun=4.output`",
+  "parts": [
+   {
+    "file": "include/deal.II/base/mpi_tags.h",
+    "sel": [
+     {
+      "lines": "^\\s+remote_point_evaluation,"
+     }
+    ]
+   },
+   {
+    "file": "include/deal.II/base/mpi_remote_point_evaluation.h",
+    "sel": [
+     {
+      "fn": "RemotePointEvaluation<dim, spacedim>::evaluate_and_process\\(",
+      "nth": 0
+     }
+    ]
+   },
+   {
+    "file": "include/deal.II/numerics/vector_tools_evaluate.h",
+    "sel": [
+     {
+      "fn": "^\\s*(value_type> )?(evaluate_at_points|point_values)\\(",
+      "nth": 2
+     },
+     {
+      "fn": "^\\s*(value_type> )?(evaluate_at_points|point_values)\\(",
+      "nth": 3
+     }
+    ]
+   },
+   {
+    "file": "tests/remote_point_evaluation/mapping_01.cc",
+    "sel": [
+     {
+      "range": [
+       1,
+       1000000
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "id": "e3cf4d",
+  "lang": "cpp",
+  "program": "deal.II, a C++ finite element library. The run is one of its own tests: a distributed triangulation, a finite element vector, and the values of that vector evaluated at a set of points owned by other processes, through a cached Utilities::MPI::RemotePointEvaluation.",
+  "driver": "deal.II's test `tests/remote_point_evaluation/mapping_01.cc`, built as a program against the library (Release, MPI and p4est)",
+  "options": "mpirun -np 4 ./mapping_01",
+  "procs": 4,
+  "mpi": "Open MPI 4.1.6 (Ubuntu 24.04 package)",
+  "input": "none (the test builds its mesh and points); its output is compared with `mapping_01.mpirun=4.output`",
+  "parts": [
+   {
+    "file": "include/deal.II/base/mpi_tags.h",
+    "sel": [
+     {
+      "lines": "^\\s+remote_point_evaluation,"
+     }
+    ]
+   },
+   {
+    "file": "include/deal.II/base/mpi_remote_point_evaluation.h",
+    "sel": [
+     {
+      "fn": "RemotePointEvaluation<dim, spacedim>::evaluate_and_process\\(",
+      "nth": 0
+     },
+     {
+      "fn": "RemotePointEvaluation<dim, spacedim>::evaluate_and_process\\(",
+      "nth": 1
+     }
+    ]
+   },
+   {
+    "file": "include/deal.II/numerics/vector_tools_evaluate.h",
+    "sel": [
+     {
+      "fn": "^\\s*(value_type> )?(evaluate_at_points|point_values)\\(",
+      "nth": 0,
+      "after": "^#ifndef DOXYGEN"
+     },
+     {
+      "fn": "^\\s*(value_type> )?(evaluate_at_points|point_values)\\(",
+      "nth": 1,
+      "after": "^#ifndef DOXYGEN"
+     }
+    ]
+   },
+   {
+    "file": "tests/remote_point_evaluation/mapping_01.cc",
+    "sel": [
+     {
+      "range": [
+       1,
+       1000000
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "id": "8dba4d",
+  "lang": "cpp",
+  "program": "deal.II, a C++ finite element library: its consensus algorithm Utilities::MPI::ConsensusAlgorithm_NBX, by which each process finds out which processes want something from it, used for example to find the owners of indices.",
+  "driver": "a program written for this run, `driver/nbx_calls.cc`, linked against the library (Release, MPI)",
+  "options": "mpirun -np 4 ./nbx_calls 3",
+  "procs": 4,
+  "mpi": "Open MPI 4.1.6 (Ubuntu 24.04 package)",
+  "parts": [
+   {
+    "file": "include/deal.II/base/mpi.h",
+    "sel": [
+     {
+      "lines": "static const unsigned int tag_(request|delivery)\\s*=\\s*1[23];"
+     }
+    ]
+   },
+   {
+    "file": "source/base/mpi.cc",
+    "sel": [
+     {
+      "fn": "ConsensusAlgorithm_NBX<T1, T2>::run\\(\\)"
+     },
+     {
+      "fn": "ConsensusAlgorithm_NBX<T1, T2>::check_own_state\\(\\)"
+     },
+     {
+      "fn": "ConsensusAlgorithm_NBX<T1, T2>::signal_finish\\(\\)"
+     },
+     {
+      "fn": "ConsensusAlgorithm_NBX<T1, T2>::check_global_state\\(\\)"
+     },
+     {
+      "fn": "ConsensusAlgorithm_NBX<T1, T2>::process_requests\\(\\)"
+     },
+     {
+      "fn": "ConsensusAlgorithm_NBX<T1, T2>::start_communication\\(\\)"
+     },
+     {
+      "fn": "ConsensusAlgorithm_NBX<T1, T2>::clean_up_and_end_communication\\(\\)"
+     }
+    ]
+   },
+   {
+    "file": "driver/nbx_calls.cc",
+    "sel": [
+     {
+      "range": [
+       1,
+       1000000
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "id": "ec7c94",
+  "lang": "cpp",
+  "program": "deal.II, a C++ finite element library: its consensus algorithm Utilities::MPI::ConsensusAlgorithm_NBX, by which each process finds out which processes want something from it, used for example to find the owners of indices.",
+  "driver": "a program written for this run, `driver/nbx_calls.cc`, linked against the library (Release, MPI)",
+  "options": "mpirun -np 4 ./nbx_calls 3",
+  "procs": 4,
+  "mpi": "Open MPI 4.1.6 (Ubuntu 24.04 package)",
+  "parts": [
+   {
+    "file": "include/deal.II/base/mpi.h",
+    "sel": [
+     {
+      "lines": "static const unsigned int tag_(request|delivery)\\s*=\\s*1[23];"
+     }
+    ]
+   },
+   {
+    "file": "source/base/mpi.cc",
+    "sel": [
+     {
+      "fn": "ConsensusAlgorithm_NBX<T1, T2>::run\\(\\)"
+     },
+     {
+      "fn": "ConsensusAlgorithm_NBX<T1, T2>::check_own_state\\(\\)"
+     },
+     {
+      "fn": "ConsensusAlgorithm_NBX<T1, T2>::signal_finish\\(\\)"
+     },
+     {
+      "fn": "ConsensusAlgorithm_NBX<T1, T2>::check_global_state\\(\\)"
+     },
+     {
+      "fn": "ConsensusAlgorithm_NBX<T1, T2>::process_requests\\(\\)"
+     },
+     {
+      "fn": "ConsensusAlgorithm_NBX<T1, T2>::start_communication\\(\\)"
+     },
+     {
+      "fn": "ConsensusAlgorithm_NBX<T1, T2>::clean_up_and_end_communication\\(\\)"
+     }
+    ]
+   },
+   {
+    "file": "driver/nbx_calls.cc",
+    "sel": [
+     {
+      "range": [
+       1,
+       1000000
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "id": "8df9ee",
+  "lang": "cpp",
+  "program": "Cabana, a performance-portable C++ library for particle methods (Kokkos and MPI). The run is one of its unit tests of Cabana::CommunicationPlan, which builds a plan of point-to-point messages from the ids each process imports.",
+  "driver": "Cabana's unit test `Cabana_Core_Test_CommunicationPlan_MPI_SERIAL` (`core/unit_test/tstCommunicationPlan.hpp`), Kokkos Serial back end",
+  "options": "mpirun -np 3 ./Cabana_Core_Test_CommunicationPlan_MPI_SERIAL --gtest_filter=CommPlan.Test10NoTopo",
+  "procs": 3,
+  "mpi": "Open MPI 4.1.6 (Ubuntu 24.04 package)",
+  "parts": [
+   {
+    "file": "core/src/Cabana_CommunicationPlan.hpp",
+    "sel": [
+     {
+      "fn": "^\\s+auto createWithoutTopology\\( ExecutionSpace exec_space, Import,"
+     },
+     {
+      "fn": "^\\s+auto createWithoutTopology\\( Import,"
+     }
+    ]
+   },
+   {
+    "file": "core/unit_test/tstCommunicationPlan.hpp",
+    "sel": [
+     {
+      "fn": "^\\s+createFromImports\\( const ViewType& element_import_ranks,"
+     },
+     {
+      "fn": "^void test10\\( const bool use_topology \\)"
+     },
+     {
+      "lines": "^TEST\\( CommPlan, Test10NoTopo \\)"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "id": "a7d8e5",
+  "lang": "cpp",
+  "program": "Cabana, a performance-portable C++ library for particle methods (Kokkos and MPI). The run is one of its unit tests of Cabana::CommunicationPlan, which builds a plan of point-to-point messages from the ids each process imports.",
+  "driver": "Cabana's unit test `Cabana_Core_Test_CommunicationPlan_MPI_SERIAL` (`core/unit_test/tstCommunicationPlan.hpp`), Kokkos Serial back end",
+  "options": "mpirun -np 3 ./Cabana_Core_Test_CommunicationPlan_MPI_SERIAL --gtest_filter=CommPlan.Test10NoTopo",
+  "procs": 3,
+  "mpi": "Open MPI 4.1.6 (Ubuntu 24.04 package)",
+  "parts": [
+   {
+    "file": "core/src/Cabana_CommunicationPlan.hpp",
+    "sel": [
+     {
+      "fn": "^\\s+auto createWithoutTopology\\( ExecutionSpace exec_space, Import,"
+     },
+     {
+      "fn": "^\\s+auto createWithoutTopology\\( Import,"
+     }
+    ]
+   },
+   {
+    "file": "core/unit_test/tstCommunicationPlan.hpp",
+    "sel": [
+     {
+      "fn": "^\\s+createFromImports\\( const ViewType& element_import_ranks,"
+     },
+     {
+      "fn": "^void test10\\( const bool use_topology \\)"
+     },
+     {
+      "lines": "^TEST\\( CommPlan, Test10NoTopo \\)"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "id": "377dc2",
+  "lang": "cpp",
+  "program": "stempy, a toolkit for 4D scanning transmission electron microscopy data (C++ with Python bindings). Its MPI electron counting ends by gathering every worker's sparse events on rank 0 (`gatherEvents`).",
+  "driver": "a harness written for this run, `driver/harness.cpp`, that includes stempy's own functions from `stempy/electron_mpi.cpp` (serializeEvents through gatherBlocks, verbatim) and calls `gatherEvents` on synthetic events; BigMPI and cereal as stempy uses them",
+  "options": "mpirun -np 4 ./harness 256 12 5",
+  "procs": 4,
+  "mpi": "Open MPI 4.1.6 (Ubuntu 24.04 package)",
+  "parts": [
+   {
+    "file": "stempy/electron_mpi.cpp",
+    "sel": [
+     {
+      "fn": "^void serializeEvents\\("
+     },
+     {
+      "fn": "^void receivePartialMap\\("
+     },
+     {
+      "fn": "^void sendPartialMap\\("
+     },
+     {
+      "fn": "^void gatherEvents\\("
+     }
+    ]
+   },
+   {
+    "file": "driver/harness.cpp",
+    "sel": [
+     {
+      "range": [
+       1,
+       1000000
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "id": "245580",
+  "lang": "cpp",
+  "program": "stempy, a toolkit for 4D scanning transmission electron microscopy data (C++ with Python bindings). Its MPI electron counting ends by gathering every worker's sparse events on rank 0 (`gatherEvents`).",
+  "driver": "a harness written for this run, `driver/harness.cpp`, that includes stempy's own functions from `stempy/electron_mpi.cpp` (serializeEvents through gatherBlocks, verbatim) and calls `gatherEvents` on synthetic events; BigMPI and cereal as stempy uses them",
+  "options": "mpirun -np 4 ./harness 256 12 5",
+  "procs": 4,
+  "mpi": "Open MPI 4.1.6 (Ubuntu 24.04 package)",
+  "parts": [
+   {
+    "file": "stempy/electron_mpi.cpp",
+    "sel": [
+     {
+      "fn": "^void serializeEvents\\("
+     },
+     {
+      "fn": "^void receivePartialMap\\("
+     },
+     {
+      "fn": "^void sendPartialMap\\("
+     },
+     {
+      "fn": "^void gatherEvents\\("
+     }
+    ]
+   },
+   {
+    "file": "driver/harness.cpp",
+    "sel": [
+     {
+      "range": [
+       1,
+       1000000
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "id": "ab5082",
+  "lang": "cpp",
+  "program": "MFEM, a C++ finite element library, in its parallel (MPI) build with HYPRE 2.11.2 and METIS 4. The run builds two parallel meshes, one after the other, and a finite element space on each.",
+  "driver": "a program written for this run, `driver/twomesh.cpp`, linked against the library",
+  "options": "mpirun -np 4 ./twomesh",
+  "procs": 4,
+  "mpi": "Open MPI 4.1.6 (Ubuntu 24.04 package)",
+  "parts": [
+   {
+    "file": "general/communication.cpp",
+    "sel": [
+     {
+      "fn": "^void GroupTopology::Create\\("
+     }
+    ]
+   },
+   {
+    "file": "mesh/pmesh.cpp",
+    "sel": [
+     {
+      "fn": "^ParMesh::ParMesh\\(MPI_Comm comm, Mesh &mesh,"
+     }
+    ]
+   },
+   {
+    "file": "driver/twomesh.cpp",
+    "sel": [
+     {
+      "range": [
+       1,
+       1000000
+      ]
+     }
+    ]
+   }
+  ],
+  "marks": [
+   "gtopo\\.Create"
+  ]
+ },
+ {
+  "id": "1c72c6",
+  "lang": "cpp",
+  "program": "MFEM, a C++ finite element library, in its parallel (MPI) build with HYPRE 2.11.2 and METIS 4. The run builds two parallel meshes, one after the other, and a finite element space on each.",
+  "driver": "a program written for this run, `driver/twomesh.cpp`, linked against the library",
+  "options": "mpirun -np 4 ./twomesh",
+  "procs": 4,
+  "mpi": "Open MPI 4.1.6 (Ubuntu 24.04 package)",
+  "parts": [
+   {
+    "file": "general/communication.cpp",
+    "sel": [
+     {
+      "fn": "^void GroupTopology::Create\\("
+     }
+    ]
+   },
+   {
+    "file": "mesh/pmesh.cpp",
+    "sel": [
+     {
+      "fn": "^ParMesh::ParMesh\\(MPI_Comm comm, Mesh &mesh,"
+     }
+    ]
+   },
+   {
+    "file": "driver/twomesh.cpp",
+    "sel": [
+     {
+      "range": [
+       1,
+       1000000
+      ]
+     }
+    ]
+   }
+  ],
+  "marks": [
+   "gtopo\\.Create"
+  ]
+ },
+ {
+  "id": "12506a",
+  "lang": "cpp",
+  "program": "LAMMPS, a classical molecular dynamics code (C++). The run displaces every atom at random, which migrates atoms between the processes' subdomains, and then runs 10 steps.",
+  "driver": "LAMMPS itself (`src/lmp_mpi`, `make mpi`, no packages) with the input `driver/in.displace` written for this run",
+  "options": "mpirun -np 4 ./lmp_mpi -in in.displace -log none",
+  "procs": 4,
+  "mpi": "Open MPI 4.1.6 (Ubuntu 24.04 package)",
+  "parts": [
+   {
+    "file": "src/irregular.cpp",
+    "sel": [
+     {
+      "fn": "^void Irregular::migrate_atoms\\("
+     },
+     {
+      "fn": "^int Irregular::create_atom\\("
+     },
+     {
+      "fn": "^void Irregular::exchange_atom\\("
+     }
+    ]
+   },
+   {
+    "file": "src/displace_atoms.cpp",
+    "sel": [
+     {
+      "fn": "^void DisplaceAtoms::command\\("
+     }
+    ]
+   },
+   {
+    "file": "driver/in.displace",
+    "lang": "text",
+    "sel": [
+     {
+      "range": [
+       1,
+       1000000
+      ]
+     }
+    ]
+   }
+  ],
+  "marks": [
+   "migrate_atoms\\("
+  ]
+ },
+ {
+  "id": "50e789",
+  "lang": "cpp",
+  "program": "LAMMPS, a classical molecular dynamics code (C++). The run displaces every atom at random, which migrates atoms between the processes' subdomains, and then runs 10 steps.",
+  "driver": "LAMMPS itself (`src/lmp_mpi`, `make mpi`, no packages) with the input `driver/in.displace` written for this run",
+  "options": "mpirun -np 4 ./lmp_mpi -in in.displace -log none",
+  "procs": 4,
+  "mpi": "Open MPI 4.1.6 (Ubuntu 24.04 package)",
+  "parts": [
+   {
+    "file": "src/irregular.cpp",
+    "sel": [
+     {
+      "fn": "^void Irregular::migrate_atoms\\("
+     },
+     {
+      "fn": "^int Irregular::create_atom\\("
+     },
+     {
+      "fn": "^void Irregular::exchange_atom\\("
+     }
+    ]
+   },
+   {
+    "file": "src/displace_atoms.cpp",
+    "sel": [
+     {
+      "fn": "^void DisplaceAtoms::command\\("
+     }
+    ]
+   },
+   {
+    "file": "driver/in.displace",
+    "lang": "text",
+    "sel": [
+     {
+      "range": [
+       1,
+       1000000
+      ]
+     }
+    ]
+   }
+  ],
+  "marks": [
+   "migrate_atoms\\("
+  ]
+ },
+ {
+  "id": "21631d",
+  "lang": "c",
+  "program": "HYPRE, a library of parallel linear solvers and preconditioners (C). The run solves a 2D Laplacian by PCG with the ParaSails sparse approximate inverse preconditioner, whose sparsity pattern is built over two levels.",
+  "driver": "HYPRE's example `src/examples/ex5.c` with one option added, `-sai_levels`, that sets ParaSails' number of levels (nlevels of HYPRE_ParaSailsSetParams, otherwise 1): `src/examples/ex5_levels.c`",
+  "options": "mpirun -np 4 ./ex5_levels -solver 8 -sai_levels 2 -n 33",
+  "procs": 4,
+  "mpi": "Open MPI 4.1.6 (Ubuntu 24.04 package)",
+  "parts": [
+   {
+    "file": "src/distributed_ls/ParaSails/ParaSails.c",
+    "sel": [
+     {
+      "lines": "^#define (ROW_\\w*TAG\\w*|PRUNED_REQ_TAG)"
+     },
+     {
+      "fn": "^HYPRE_Int FindNumReplies\\("
+     },
+     {
+      "fn": "^static void SendRequests\\("
+     },
+     {
+      "fn": "^static void ReceiveRequest\\("
+     },
+     {
+      "fn": "^static void SendReplyPrunedRows\\("
+     },
+     {
+      "fn": "^static void ReceiveReplyPrunedRows\\("
+     },
+     {
+      "fn": "^static void SendReplyStoredRows\\("
+     },
+     {
+      "fn": "^static void ReceiveReplyStoredRows\\("
+     },
+     {
+      "fn": "^static void ExchangePrunedRows\\("
+     },
+     {
+      "fn": "^static void ExchangeStoredRows\\("
+     },
+     {
+      "fn": "^void ParaSailsSetupPattern\\("
+     },
+     {
+      "fn": "^HYPRE_Int ParaSailsSetupValues\\("
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "id": "fc1e24",
+  "lang": "c",
+  "program": "HYPRE, a library of parallel linear solvers and preconditioners (C). The run solves a 2D Laplacian by PCG with the ParaSails sparse approximate inverse preconditioner, whose sparsity pattern is built over two levels.",
+  "driver": "HYPRE's example `src/examples/ex5.c` with one option added, `-sai_levels`, that sets ParaSails' number of levels (nlevels of HYPRE_ParaSailsSetParams, otherwise 1): `src/examples/ex5_levels.c`",
+  "options": "mpirun -np 4 ./ex5_levels -solver 8 -sai_levels 2 -n 33",
+  "procs": 4,
+  "mpi": "Open MPI 4.1.6 (Ubuntu 24.04 package)",
+  "parts": [
+   {
+    "file": "src/distributed_ls/ParaSails/ParaSails.c",
+    "sel": [
+     {
+      "lines": "^#define (ROW_\\w*TAG\\w*|PRUNED_REQ_TAG)"
+     },
+     {
+      "fn": "^HYPRE_Int FindNumReplies\\("
+     },
+     {
+      "fn": "^static void SendRequests\\("
+     },
+     {
+      "fn": "^static void ReceiveRequest\\("
+     },
+     {
+      "fn": "^static void SendReplyPrunedRows\\("
+     },
+     {
+      "fn": "^static void ReceiveReplyPrunedRows\\("
+     },
+     {
+      "fn": "^static void SendReplyStoredRows\\("
+     },
+     {
+      "fn": "^static void ReceiveReplyStoredRows\\("
+     },
+     {
+      "fn": "^static void ExchangePrunedRows\\("
+     },
+     {
+      "fn": "^static void ExchangeStoredRows\\("
+     },
+     {
+      "fn": "^void ParaSailsSetupPattern\\("
+     },
+     {
+      "fn": "^HYPRE_Int ParaSailsSetupValues\\("
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "id": "77ec6a",
+  "lang": "c",
+  "program": "SuperLU_DIST, a distributed-memory sparse direct solver (C). The run factors and solves a sparse system on a 3D process grid with the default 3D triangular solve (pdgstrs3d_newsolve, tree communication).",
+  "driver": "SuperLU_DIST's example `EXAMPLE/pddrive3d.c`, unmodified (CMake defaults without ParMETIS, internal BLAS, double precision; OMP_NUM_THREADS=1)",
+  "options": "mpirun -np 3 ./pddrive3d -r 1 -c 3 -d 1 blk12x6.mtx",
+  "procs": 3,
+  "mpi": "Open MPI 4.1.6 (Ubuntu 24.04 package)",
+  "input": "`driver/blk12x6.mtx`, a block-diagonal matrix of 864 rows: six independent 12x12 five-point grid operators (its elimination tree is a forest)",
+  "parts": [
+   {
+    "file": "SRC/include/superlu_defs.h",
+    "sel": [
+     {
+      "lines": "^static const int (BC|RD)_(L|U)="
+     }
+    ]
+   },
+   {
+    "file": "SRC/double/pdgstrs3d.c",
+    "sel": [
+     {
+      "fn": "^void dForwardSolve3d_newsolve_reusepdgstrs\\(",
+      "end": "^\\} /\\* dForwardSolve3d_newsolve_reusepdgstrs \\*/"
+     },
+     {
+      "fn": "^void dBackSolve3d_newsolve_reusepdgstrs\\(",
+      "end": "^\\} /\\* dBackSolve3d_newsolve_reusepdgstrs \\*/"
+     },
+     {
+      "fn": "^\\s*int_t pdgsTrForwardSolve3d_newsolve\\("
+     },
+     {
+      "fn": "^\\s*int_t pdgsTrBackSolve3d_newsolve\\("
+     },
+     {
+      "fn": "^pdgstrs3d_newsolve \\("
+     }
+    ]
+   }
+  ],
+  "marks": [
+   "Solve3d_newsolve(_reusepdgstrs)?\\(",
+   "MPI_ANY"
+  ]
+ },
+ {
+  "id": "86c6b6",
+  "lang": "c",
+  "program": "SuperLU_DIST, a distributed-memory sparse direct solver (C). The run factors and solves a sparse system on a 3D process grid with the default 3D triangular solve (pdgstrs3d_newsolve, tree communication).",
+  "driver": "SuperLU_DIST's example `EXAMPLE/pddrive3d.c`, unmodified (CMake defaults without ParMETIS, internal BLAS, double precision; OMP_NUM_THREADS=1)",
+  "options": "mpirun -np 3 ./pddrive3d -r 1 -c 3 -d 1 blk12x6.mtx",
+  "procs": 3,
+  "mpi": "Open MPI 4.1.6 (Ubuntu 24.04 package)",
+  "input": "`driver/blk12x6.mtx`, a block-diagonal matrix of 864 rows: six independent 12x12 five-point grid operators (its elimination tree is a forest)",
+  "parts": [
+   {
+    "file": "SRC/include/superlu_defs.h",
+    "sel": [
+     {
+      "lines": "^static const int (BC|RD)_(L|U)="
+     }
+    ]
+   },
+   {
+    "file": "SRC/double/pdgstrs3d.c",
+    "sel": [
+     {
+      "fn": "^void dForwardSolve3d_newsolve_reusepdgstrs\\(",
+      "end": "^\\} /\\* dForwardSolve3d_newsolve_reusepdgstrs \\*/"
+     },
+     {
+      "fn": "^void dBackSolve3d_newsolve_reusepdgstrs\\(",
+      "end": "^\\} /\\* dBackSolve3d_newsolve_reusepdgstrs \\*/"
+     },
+     {
+      "fn": "^\\s*int_t pdgsTrForwardSolve3d_newsolve\\("
+     },
+     {
+      "fn": "^\\s*int_t pdgsTrBackSolve3d_newsolve\\("
+     },
+     {
+      "fn": "^pdgstrs3d_newsolve \\("
+     }
+    ]
+   }
+  ],
+  "marks": [
+   "Solve3d_newsolve(_reusepdgstrs)?\\(",
+   "MPI_ANY"
+  ]
+ },
+ {
+  "id": "d9668c",
+  "lang": "fortran",
+  "program": "Quantum ESPRESSO, plane-wave electronic-structure codes (Fortran). The run is a phonon calculation (ph.x) that also prints the electron-phonon vertex at one k point (electron_phonon='prt'), for spin-polarised (LSDA) nickel, with the k points distributed over three pools.",
+  "driver": "pw.x and ph.x, built with CMake (no OpenMP, no ScaLAPACK); first `pw.x -nk 3 -in ni.scf.in` (the test-suite's Ni case, LSDA), then ph.x with `driver/ph.in` (phonon at X, fildvscf, electron_phonon='prt', kx,ky,kz = -0.375, 1.125, 0.375)",
+  "options": "mpirun -np 3 ./ph.x -nk 3 -in ph.in",
+  "procs": 3,
+  "mpi": "MPICH 4.2.0 (Ubuntu 24.04 package)",
+  "input": "`driver/ni.scf.in`, `driver/ph.in`, the pseudopotential Ni.pbe-nd-rrkjus.UPF",
+  "parts": [
+   {
+    "file": "PHonon/PH/elphon.f90",
+    "sel": [
+     {
+      "fn": "^SUBROUTINE elph_prt\\(\\)"
+     }
+    ]
+   },
+   {
+    "file": "PHonon/PH/do_phonon.f90",
+    "sel": [
+     {
+      "fn": "^SUBROUTINE do_phonon\\("
+     }
+    ]
+   },
+   {
+    "file": "PHonon/PH/phonon.f90",
+    "sel": [
+     {
+      "fn": "^PROGRAM phonon"
+     }
+    ]
+   },
+   {
+    "file": "driver/ph.in",
+    "lang": "text",
+    "sel": [
+     {
+      "range": [
+       1,
+       1000000
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "id": "fd3e23",
+  "lang": "fortran",
+  "program": "Quantum ESPRESSO, plane-wave electronic-structure codes (Fortran). The run is a phonon calculation (ph.x) that also prints the electron-phonon vertex at one k point (electron_phonon='prt'), for spin-polarised (LSDA) nickel, with the k points distributed over three pools.",
+  "driver": "pw.x and ph.x, built with CMake (no OpenMP, no ScaLAPACK); first `pw.x -nk 3 -in ni.scf.in` (the test-suite's Ni case, LSDA), then ph.x with `driver/ph.in` (phonon at X, fildvscf, electron_phonon='prt', kx,ky,kz = -0.375, 1.125, 0.375)",
+  "options": "mpirun -np 3 ./ph.x -nk 3 -in ph.in",
+  "procs": 3,
+  "mpi": "MPICH 4.2.0 (Ubuntu 24.04 package)",
+  "input": "`driver/ni.scf.in`, `driver/ph.in`, the pseudopotential Ni.pbe-nd-rrkjus.UPF",
+  "parts": [
+   {
+    "file": "PHonon/PH/elphon.f90",
+    "sel": [
+     {
+      "fn": "^SUBROUTINE elph_prt\\(\\)"
+     }
+    ]
+   },
+   {
+    "file": "PHonon/PH/do_phonon.f90",
+    "sel": [
+     {
+      "fn": "^SUBROUTINE do_phonon\\("
+     }
+    ]
+   },
+   {
+    "file": "PHonon/PH/phonon.f90",
+    "sel": [
+     {
+      "fn": "^PROGRAM phonon"
+     }
+    ]
+   },
+   {
+    "file": "driver/ph.in",
+    "lang": "text",
+    "sel": [
+     {
+      "range": [
+       1,
+       1000000
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "id": "8d0015",
+  "lang": "cpp",
+  "program": "OpenFOAM (the openfoam.com code base), a C++ CFD toolbox: its parallel stream layer Pstream, here Pstream::exchange on Map containers (a sparse exchange of per-process lists, whose sizes are exchanged first).",
+  "driver": "a program written for this run, `driver/nbxExchange/nbxExchange.C`, built with wmake against libOpenFOAM and the MPI Pstream library",
+  "options": "mpirun -np 4 nbxExchange -parallel -calls 3 -pattern ring",
+  "procs": 4,
+  "mpi": "Open MPI 4.1.6 (Ubuntu 24.04 package)",
+  "parts": [
+   {
+    "file": "src/Pstream/mpi/UPstreamWrapping.txx",
+    "sel": [
+     {
+      "fn": "^void Foam::PstreamDetail::allToAllConsensus$",
+      "nth": 1
+     }
+    ]
+   },
+   {
+    "file": "src/Pstream/mpi/UPstreamAllToAll.C",
+    "sel": [
+     {
+      "block": [
+       "^#define Pstream_CommonRoutines\\(Native, TaggedType\\)",
+       "^\\}\\s*$"
+      ],
+      "nth": 1
+     }
+    ]
+   },
+   {
+    "file": "src/OpenFOAM/db/IOstreams/Pstreams/PstreamExchange.txx",
+    "sel": [
+     {
+      "fn": "^void Foam::Pstream::exchangeSizes$",
+      "nth": 2
+     },
+     {
+      "fn": "^void Foam::Pstream::exchangeSizes$",
+      "nth": 3
+     },
+     {
+      "fn": "^void Foam::Pstream::exchange$",
+      "nth": 2
+     },
+     {
+      "fn": "^void Foam::Pstream::exchange$",
+      "nth": 3
+     },
+     {
+      "fn": "^void exchangeContainer$",
+      "nth": 1
+     }
+    ]
+   },
+   {
+    "file": "driver/nbxExchange/nbxExchange.C",
+    "sel": [
+     {
+      "range": [
+       1,
+       1000000
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "id": "dcaf36",
+  "lang": "cpp",
+  "program": "OpenFOAM (the openfoam.com code base), a C++ CFD toolbox: its parallel stream layer Pstream, here Pstream::exchange on Map containers (a sparse exchange of per-process lists, whose sizes are exchanged first).",
+  "driver": "a program written for this run, `driver/nbxExchange/nbxExchange.C`, built with wmake against libOpenFOAM and the MPI Pstream library",
+  "options": "mpirun -np 4 nbxExchange -parallel -calls 3 -pattern ring -opt-switch nbx.tuning=1",
+  "procs": 4,
+  "mpi": "Open MPI 4.1.6 (Ubuntu 24.04 package)",
+  "parts": [
+   {
+    "file": "src/Pstream/mpi/UPstreamWrapping.txx",
+    "sel": [
+     {
+      "fn": "^void Foam::PstreamDetail::allToAllConsensus$",
+      "nth": 1
+     }
+    ]
+   },
+   {
+    "file": "src/Pstream/mpi/UPstreamAllToAll.C",
+    "sel": [
+     {
+      "block": [
+       "^#define Pstream_CommonRoutines\\(Native, TaggedType\\)",
+       "^\\}\\s*$"
+      ],
+      "nth": 1
+     }
+    ]
+   },
+   {
+    "file": "src/OpenFOAM/db/IOstreams/Pstreams/PstreamExchange.txx",
+    "sel": [
+     {
+      "fn": "^void Foam::Pstream::exchangeSizes$",
+      "nth": 2
+     },
+     {
+      "fn": "^void Foam::Pstream::exchangeSizes$",
+      "nth": 3
+     },
+     {
+      "fn": "^void Foam::Pstream::exchange$",
+      "nth": 2
+     },
+     {
+      "fn": "^void Foam::Pstream::exchange$",
+      "nth": 3
+     },
+     {
+      "fn": "^void exchangeContainer$",
+      "nth": 1
+     }
+    ]
+   },
+   {
+    "file": "driver/nbxExchange/nbxExchange.C",
+    "sel": [
+     {
+      "range": [
+       1,
+       1000000
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "id": "1bff96",
+  "lang": "c",
+  "program": "libsc, the support library of p4est (C). Its notification service sc_notify tells each process which processes will send to it, with a payload; the run selects the algorithm type SC_NOTIFY_NBX.",
+  "driver": "a program written for this run, `driver/notify2.c`, over libsc's public API (libsc built with CMake, MPI on, Release)",
+  "options": "mpirun -np 6 ./notify2 nbx 2",
+  "procs": 6,
+  "mpi": "Open MPI 4.1.6 (Ubuntu 24.04 package)",
+  "parts": [
+   {
+    "file": "src/sc_mpi.h",
+    "sel": [
+     {
+      "block": [
+       "^typedef enum",
+       "sc_tag_t;"
+      ],
+      "nth": 0
+     }
+    ]
+   },
+   {
+    "file": "src/sc_notify.c",
+    "sel": [
+     {
+      "fn": "^sc_notify_payload_nbx \\("
+     },
+     {
+      "fn": "^sc_notify_payload \\("
+     }
+    ]
+   },
+   {
+    "file": "driver/notify2.c",
+    "sel": [
+     {
+      "range": [
+       1,
+       1000000
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "id": "65f689",
+  "lang": "c",
+  "program": "libsc, the support library of p4est (C). Its notification service sc_notify tells each process which processes will send to it, with a payload; the run selects the algorithm type SC_NOTIFY_NBX.",
+  "driver": "a program written for this run, `driver/notify2.c`, over libsc's public API (libsc built with CMake, MPI on, Release)",
+  "options": "mpirun -np 6 ./notify2 nbx 2",
+  "procs": 6,
+  "mpi": "Open MPI 4.1.6 (Ubuntu 24.04 package)",
+  "parts": [
+   {
+    "file": "src/sc_mpi.h",
+    "sel": [
+     {
+      "block": [
+       "^typedef enum",
+       "sc_tag_t;"
+      ],
+      "nth": 0
+     }
+    ]
+   },
+   {
+    "file": "src/sc_notify.c",
+    "sel": [
+     {
+      "fn": "^sc_notify_payload_nbx \\("
+     },
+     {
+      "fn": "^sc_notify_payload \\("
+     }
+    ]
+   },
+   {
+    "file": "driver/notify2.c",
+    "sel": [
+     {
+      "range": [
+       1,
+       1000000
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "id": "c869a1",
+  "lang": "c",
+  "program": "libsc, the support library of p4est (C). Its notification service sc_notify tells each process which processes will send to it, with a payload; the run selects the algorithm type SC_NOTIFY_NARY with widths 3 2 2.",
+  "driver": "a program written for this run, `driver/notify2.c`, over libsc's public API (libsc built with CMake, MPI on, Release)",
+  "options": "mpirun -np 6 ./notify2 nary 2 3 2 2",
+  "procs": 6,
+  "mpi": "Open MPI 4.1.6 (Ubuntu 24.04 package)",
+  "parts": [
+   {
+    "file": "src/sc_mpi.h",
+    "sel": [
+     {
+      "block": [
+       "^typedef enum",
+       "sc_tag_t;"
+      ],
+      "nth": 0
+     }
+    ]
+   },
+   {
+    "file": "src/sc_notify.c",
+    "sel": [
+     {
+      "fn": "^sc_notify_recursive_nary \\("
+     },
+     {
+      "fn": "^sc_notify_payload_nary \\("
+     },
+     {
+      "fn": "^sc_notify_payload \\("
+     }
+    ]
+   },
+   {
+    "file": "driver/notify2.c",
+    "sel": [
+     {
+      "range": [
+       1,
+       1000000
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "id": "10a10b",
+  "lang": "c",
+  "program": "libsc, the support library of p4est (C). Its notification service sc_notify tells each process which processes will send to it, with a payload; the run selects the algorithm type SC_NOTIFY_NARY with widths 3 2 2.",
+  "driver": "a program written for this run, `driver/notify2.c`, over libsc's public API (libsc built with CMake, MPI on, Release)",
+  "options": "mpirun -np 6 ./notify2 nary 2 3 2 2",
+  "procs": 6,
+  "mpi": "Open MPI 4.1.6 (Ubuntu 24.04 package)",
+  "parts": [
+   {
+    "file": "src/sc_mpi.h",
+    "sel": [
+     {
+      "block": [
+       "^typedef enum",
+       "sc_tag_t;"
+      ],
+      "nth": 0
+     }
+    ]
+   },
+   {
+    "file": "src/sc_notify.c",
+    "sel": [
+     {
+      "fn": "^sc_notify_recursive_nary \\("
+     },
+     {
+      "fn": "^sc_notify_payload_nary \\("
+     },
+     {
+      "fn": "^sc_notify_payload \\("
+     }
+    ]
+   },
+   {
+    "file": "driver/notify2.c",
+    "sel": [
+     {
+      "range": [
+       1,
+       1000000
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "id": "61a354",
+  "lang": "c",
+  "program": "ADLB, the load balancer and distributed data store of Swift/T (C, MPI): servers hold tasks and data, workers put and get tasks; tasks may wait on container subscripts, and servers synchronise with each other to subscribe and notify.",
+  "driver": "a program written for this run, `driver/adlbsub.c`, over ADLB's C API (c-utils and lb built with autotools, -O2)",
+  "options": "mpirun -np 4 ./adlbsub 40 48",
+  "procs": 4,
+  "mpi": "Open MPI 4.1.6 (Ubuntu 24.04 package)",
+  "input": "4 ranks: 2 ADLB servers and 2 workers; 40 tasks waiting on 48-byte subscripts",
+  "parts": [
+   {
+    "file": "lb/code/src/messaging.h",
+    "sel": [
+     {
+      "block": [
+       "^typedef enum",
+       "adlb_tag;"
+      ],
+      "nth": 1
+     },
+     {
+      "lines": "SYNC_DATA_SIZE|PACKED_SUBSCRIBE_INLINE_BYTES|PACKED_SYNC_SIZE"
+     }
+    ]
+   },
+   {
+    "file": "lb/code/src/handlers.h",
+    "sel": [
+     {
+      "fn": "^xlb_handle\\(adlb_tag tag, int caller\\)"
+     }
+    ]
+   },
+   {
+    "file": "lb/code/src/server.c",
+    "sel": [
+     {
+      "fn": "^ADLB_Server\\(long max_memory\\)"
+     },
+     {
+      "fn": "^serve_several\\(\\)"
+     },
+     {
+      "fn": "^xlb_poll\\(int source, MPI_Status\\* req_status\\)"
+     },
+     {
+      "fn": "^xlb_handle_pending\\(MPI_Status\\* status\\)"
+     },
+     {
+      "fn": "^xlb_serve_one\\(int source\\)"
+     },
+     {
+      "fn": "^xlb_serve_server\\(int source\\)"
+     }
+    ]
+   },
+   {
+    "file": "lb/code/src/sync.h",
+    "sel": [
+     {
+      "fn": "^static inline adlb_code xlb_check_sync_msgs\\(int \\*caller\\)$"
+     }
+    ]
+   },
+   {
+    "file": "lb/code/src/sync.c",
+    "sel": [
+     {
+      "fn": "^xlb_sync_init\\(void\\)"
+     },
+     {
+      "fn": "^xlb_sync\\(int target\\)"
+     },
+     {
+      "fn": "^xlb_sync2\\("
+     },
+     {
+      "fn": "^send_subscribe_sync\\("
+     },
+     {
+      "fn": "^xlb_sync_subscribe\\("
+     },
+     {
+      "fn": "^xlb_sync_notify\\("
+     },
+     {
+      "fn": "^static xlb_sync_recv \\*xlb_next_sync_msg\\(void\\)",
+      "nth": 1
+     },
+     {
+      "fn": "^static adlb_code xlb_sync_msg_done\\(void\\)",
+      "nth": 1
+     },
+     {
+      "fn": "^static adlb_code msg_from_other_server\\(",
+      "nth": 1
+     },
+     {
+      "fn": "^adlb_code xlb_handle_next_sync_msg\\(int caller\\)"
+     },
+     {
+      "fn": "^static adlb_code xlb_handle_subscribe_sync\\(int rank,",
+      "nth": 1
+     },
+     {
+      "fn": "^adlb_code xlb_handle_notify_sync\\(int rank,"
+     }
+    ]
+   },
+   {
+    "file": "driver/adlbsub.c",
+    "sel": [
+     {
+      "range": [
+       1,
+       1000000
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "id": "64c6e0",
+  "lang": "c",
+  "program": "ADLB, the load balancer and distributed data store of Swift/T (C, MPI): servers hold tasks and data, workers put and get tasks; tasks may wait on container subscripts, and servers synchronise with each other to subscribe and notify.",
+  "driver": "a program written for this run, `driver/adlbsub.c`, over ADLB's C API (c-utils and lb built with autotools, -O2)",
+  "options": "mpirun -np 4 ./adlbsub 40 48",
+  "procs": 4,
+  "mpi": "Open MPI 4.1.6 (Ubuntu 24.04 package)",
+  "input": "4 ranks: 2 ADLB servers and 2 workers; 40 tasks waiting on 48-byte subscripts",
+  "parts": [
+   {
+    "file": "lb/code/src/messaging.h",
+    "sel": [
+     {
+      "block": [
+       "^typedef enum",
+       "adlb_tag;"
+      ],
+      "nth": 1
+     },
+     {
+      "lines": "SYNC_DATA_SIZE|PACKED_SUBSCRIBE_INLINE_BYTES|PACKED_SYNC_SIZE"
+     }
+    ]
+   },
+   {
+    "file": "lb/code/src/handlers.h",
+    "sel": [
+     {
+      "fn": "^xlb_handle\\(adlb_tag tag, int caller\\)"
+     }
+    ]
+   },
+   {
+    "file": "lb/code/src/server.c",
+    "sel": [
+     {
+      "fn": "^ADLB_Server\\(long max_memory\\)"
+     },
+     {
+      "fn": "^serve_several\\(\\)"
+     },
+     {
+      "fn": "^xlb_poll\\(int source, MPI_Status\\* req_status\\)"
+     },
+     {
+      "fn": "^xlb_handle_pending\\(MPI_Status\\* status\\)"
+     },
+     {
+      "fn": "^xlb_serve_one\\(int source\\)"
+     },
+     {
+      "fn": "^xlb_serve_server\\(int source\\)"
+     }
+    ]
+   },
+   {
+    "file": "lb/code/src/sync.h",
+    "sel": [
+     {
+      "fn": "^static inline adlb_code xlb_check_sync_msgs\\(int \\*caller\\)$"
+     }
+    ]
+   },
+   {
+    "file": "lb/code/src/sync.c",
+    "sel": [
+     {
+      "fn": "^xlb_sync_init\\(void\\)"
+     },
+     {
+      "fn": "^xlb_sync\\(int target\\)"
+     },
+     {
+      "fn": "^xlb_sync2\\("
+     },
+     {
+      "fn": "^send_subscribe_sync\\("
+     },
+     {
+      "fn": "^xlb_sync_subscribe\\("
+     },
+     {
+      "fn": "^xlb_sync_notify\\("
+     },
+     {
+      "fn": "^static xlb_sync_recv \\*xlb_next_sync_msg\\(void\\)",
+      "nth": 1
+     },
+     {
+      "fn": "^static adlb_code xlb_sync_msg_done\\(void\\)",
+      "nth": 1
+     },
+     {
+      "fn": "^static adlb_code msg_from_other_server\\(",
+      "nth": 1
+     },
+     {
+      "fn": "^adlb_code xlb_handle_next_sync_msg\\(int caller\\)"
+     },
+     {
+      "fn": "^static adlb_code xlb_handle_subscribe_sync\\(int rank,",
+      "nth": 1
+     },
+     {
+      "fn": "^adlb_code xlb_handle_notify_sync\\(int rank,"
+     }
+    ]
+   },
+   {
+    "file": "driver/adlbsub.c",
+    "sel": [
+     {
+      "range": [
+       1,
+       1000000
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "id": "c06ed6",
+  "lang": "c",
+  "program": "HYPRE, a library of parallel linear solvers and preconditioners (C). The run solves a 3D Laplacian with the MGR (multigrid reduction) solver, whose set-up extracts sub-blocks of the matrix and builds an assumed partition for each.",
+  "driver": "HYPRE's test driver `src/test/ij.c`, unmodified",
+  "options": "mpirun -np 8 ./ij -laplacian -n 13 13 13 -P 8 1 1 -solver 70 -mgr_bsize 2 -mgr_nlevels 1 -mgr_interp_type 4",
+  "procs": 8,
+  "mpi": "Open MPI 4.1.6 (Ubuntu 24.04 package)",
+  "parts": [
+   {
+    "file": "src/parcsr_mv/par_csr_assumed_part.c",
+    "sel": [
+     {
+      "fn": "^hypre_LocateAssumedPartition\\("
+     },
+     {
+      "fn": "^hypre_AssumedPartitionCreate\\("
+     },
+     {
+      "fn": "^hypre_ParCSRMatrixCreateAssumedPartition\\("
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "id": "175dd3",
+  "lang": "cpp",
+  "program": "DUNE (dune-common and dune-istl), C++ numerics libraries. The run is dune-istl's parallel algebraic multigrid test: an AMG hierarchy is built by aggregation, and each coarsening step synchronises the remote index information of the coarse level (IndicesSyncer).",
+  "driver": "dune-istl's test `dune/istl/paamg/test/parallelamgtest.cc` (pamgtest), unmodified (Release, no ParMETIS or SuperLU)",
+  "options": "mpirun -np 4 ./pamgtest 100",
+  "procs": 4,
+  "mpi": "Open MPI 4.1.6 (Ubuntu 24.04 package)",
+  "parts": [
+   {
+    "file": "dune-common/dune/common/parallel/indicessyncer.hh",
+    "sel": [
+     {
+      "fn": "^  void IndicesSyncer<T>::sync\\(T1& numberer, bool useFixedOrder\\)"
+     },
+     {
+      "fn": "^  void IndicesSyncer<T>::packAndSend\\("
+     },
+     {
+      "fn": "^  void IndicesSyncer<T>::recvAndUnpack\\("
+     },
+     {
+      "lines": "\\b345\\b"
+     }
+    ]
+   },
+   {
+    "file": "dune-istl/dune/istl/paamg/indicescoarsener.hh",
+    "sel": [
+     {
+      "fn": "^    void ParallelIndicesCoarsener<T,E>::buildCoarseRemoteIndices\\("
+     },
+     {
+      "fn": "^    ParallelIndicesCoarsener<T,E>::coarsen\\(ParallelInformation& fineInfo,"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "id": "3b67af",
+  "lang": "c",
+  "program": "PETSc, a library of parallel solvers (C). The run solves a 2D Laplacian with KSP, the matrix stored in the symmetric block format SBAIJ, and the Jacobi preconditioner built from the largest absolute value of each row.",
+  "driver": "PETSc's KSP tutorial `src/ksp/ksp/tutorials/ex2.c`, unmodified",
+  "options": "mpirun -np 4 ./ex2 -m 32 -n 32 -mat_type sbaij -mat_ignore_lower_triangular -pc_type jacobi -pc_jacobi_type rowmax",
+  "procs": 4,
+  "mpi": "Open MPI 4.1.6 (Ubuntu 24.04 package)",
+  "parts": [
+   {
+    "file": "src/mat/impls/sbaij/mpi/mpisbaij.c",
+    "sel": [
+     {
+      "fn": "^static PetscErrorCode MatGetRowMaxAbs_MPISBAIJ\\(Mat A"
+     }
+    ]
+   },
+   {
+    "file": "src/mat/interface/matrix.c",
+    "sel": [
+     {
+      "fn": "^PetscErrorCode MatGetRowMaxAbs\\("
+     }
+    ]
+   },
+   {
+    "file": "src/ksp/pc/impls/jacobi/jacobi.c",
+    "sel": [
+     {
+      "fn": "^static PetscErrorCode PCSetUp_Jacobi\\("
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "id": "8fa246",
+  "lang": "cpp",
+  "program": "MFEM, a C++ finite element library, parallel build with HYPRE 3.2.0 and METIS 4. The run is an adaptive refinement example: solve, estimate the error, refine the mesh non-conformingly (and rebalance it), repeated until a size limit.",
+  "driver": "MFEM's example `examples/ex6p.cpp`, unmodified",
+  "options": "mpirun -np 4 ./ex6p -m ../data/star.mesh -no-vis -md 4000",
+  "procs": 4,
+  "mpi": "Open MPI 4.1.6 (Ubuntu 24.04 package)",
+  "parts": [
+   {
+    "file": "general/communication.hpp",
+    "sel": [
+     {
+      "fn": "^   static void Probe\\(int &rank, int &size, MPI_Comm comm\\)"
+     },
+     {
+      "fn": "^   static void IsendAll\\(MapT& rank_msg, MPI_Comm comm\\)"
+     },
+     {
+      "fn": "^   static void WaitAllSent\\(MapT& rank_msg\\)"
+     }
+    ]
+   },
+   {
+    "file": "mesh/pncmesh.hpp",
+    "sel": [
+     {
+      "lines": "VarMessage<"
+     }
+    ]
+   },
+   {
+    "file": "mesh/pncmesh.cpp",
+    "sel": [
+     {
+      "fn": "^void ParNCMesh::Refine\\(const Array<Refinement> &refinements\\)"
+     }
+    ]
+   },
+   {
+    "file": "mesh/pmesh.cpp",
+    "sel": [
+     {
+      "fn": "^void ParMesh::NonconformingRefinement\\("
+     }
+    ]
+   },
+   {
+    "file": "mesh/mesh.cpp",
+    "sel": [
+     {
+      "fn": "^void Mesh::GeneralRefinement\\(const Array<Refinement> &refinements,"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "id": "224d88",
+  "lang": "c",
+  "program": "Zoltan (Trilinos), a C library for parallel partitioning and data migration. The run partitions a small graph with recursive coordinate bisection (RCB) and migrates the objects; every data movement builds a communication plan with Zoltan_Comm_Create.",
+  "driver": "Zoltan's test driver zdrive (`src/driver`), with the test input `test/ch_simple/zdrive.inp.rcb`",
+  "options": "mpirun -np 4 ./zdrive.exe zdrive.inp.rcb",
+  "procs": 4,
+  "mpi": "Open MPI 4.1.6 (Ubuntu 24.04 package)",
+  "parts": [
+   {
+    "file": "packages/zoltan/src/Utilities/Communication/comm_invert_map.c",
+    "sel": [
+     {
+      "fn": "^int\\s+Zoltan_Comm_Invert_Map\\("
+     }
+    ]
+   },
+   {
+    "file": "packages/zoltan/src/Utilities/Communication/comm_create.c",
+    "sel": [
+     {
+      "fn": "^int Zoltan_Comm_Create\\("
+     }
+    ]
+   },
+   {
+    "file": "packages/zoltan/src/rcb/shared.c",
+    "sel": [
+     {
+      "fn": "^int Zoltan_RB_Send_Outgoing\\("
+     },
+     {
+      "fn": "^int Zoltan_RB_Send_To_Part\\("
+     }
+    ]
+   }
+  ],
+  "marks": [
+   "Zoltan_Comm_Create\\("
+  ]
+ }
+]

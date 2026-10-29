@@ -1,0 +1,42 @@
+{
+  "55816f": {
+    "verdict": "no-race",
+    "confidence": 0.85,
+    "location": null,
+    "consequence": "none",
+    "conditions": "none; the CollectiveMutex keeps successive evaluate_and_process calls from overlapping",
+    "reasoning": "The probe at mpi_remote_point_evaluation.h:331 uses MPI_ANY_SOURCE with one fixed tag. Each rank sends exactly one message per call to each of its recv_ranks, and the receive uses status.MPI_SOURCE. The data goes into a std::map keyed by source rank, so the order in which messages arrive does not change the result. The static CollectiveMutex (Ibarrier on unlock, wait on the next lock) stops a fast rank from sending the next point_values call's messages while a slower rank is still receiving. Messages from different calls therefore cannot mix, and the probe/receive order is irrelevant."
+  },
+  "d9668c": {
+    "verdict": "no-race",
+    "confidence": 0.6,
+    "location": null,
+    "consequence": "none",
+    "conditions": "Only one pool holds the requested k point, for both spins, so there is a single sender. A race would need the two spins found on different pools or the k point duplicated.",
+    "reasoning": "The wildcard receives at elphon.f90:1508-1513 take the matrix with tag 4*nproc and then two et vectors with tag 6*nproc. Both use MPI_ANY_SOURCE. They could mix data only if two different processes sent for different spins. In LSDA, QE keeps the up and down copies of a k point in the same pool, and ph's k, k+q list is distributed in units that keep the spins together. The k point is therefore found in exactly one pool, for both spins. That sender's messages are FIFO-ordered per source and tag, in the same order as the receiver's loop, so the matching is deterministic."
+  },
+  "12506a": {
+    "verdict": "no-race",
+    "confidence": 0.85,
+    "location": null,
+    "consequence": "none",
+    "conditions": "none; the barrier at the end of create_atom separates the ANY_SOURCE length messages from the later data messages",
+    "reasoning": "The ANY_SOURCE receive at irregular.cpp:409 collects one int length per sending rank, and the source is recorded from status. The result is sorted with sortflag=1, so the order is deterministic anyway. The MPI_Barrier at line 444 guarantees that all ANY_SOURCE messages are consumed before any rank enters exchange_atom and sends data with the same tag 0 on the same communicator. The data receives are posted with explicit sources, and per-source FIFO keeps successive calls apart. Nothing can be matched wrongly. The 4-byte blocking sends are eager."
+  },
+  "21631d": {
+    "verdict": "race",
+    "confidence": 0.62,
+    "location": "src/distributed_ls/ParaSails/ParaSails.c:153",
+    "consequence": "hang",
+    "conditions": "num_levels=2 (-sai_levels 2). A rank finishes level 1 and sends its level-2 request before a slower rank has received all its level-1 requests. Open MPI's wildcard probe scans peers round-robin, not in arrival order.",
+    "reasoning": "In ExchangePrunedRows, ReceiveRequest probes MPI_ANY_SOURCE with the same tag ROW_PRUNED_REQ_TAG at every level. A fast rank P gets its level-1 replies and sends its level-2 requests before the allreduce that opens level 2. A slow rank Q may still have a level-1 request from another rank R pending. Q's wildcard probe can then take P's level-2 request as one of its level-1 requests. R's level-1 request stays unserved, and R waits for Q's reply in ReceiveReplyPrunedRows. Q moves on to the level-2 allreduce and waits for R. The result is a deadlock. With num_levels=1 this cannot happen. The window is narrow."
+  },
+  "1bff96": {
+    "verdict": "race",
+    "confidence": 0.8,
+    "location": "src/sc_notify.c:1960",
+    "consequence": "wrong-result",
+    "conditions": "Two consecutive sc_notify NBX calls on the same communicator and tag, with no barrier between them (barrier=0). A fast rank starts call 1 and sends while a slow rank is still looping in call 0.",
+    "reasoning": "The NBX loop uses one fixed tag, SC_TAG_NOTIFY_NBX, and MPI_Iprobe with MPI_ANY_SOURCE. All call-0 messages to a rank Q have been matched before the Ibarrier completes. A fast rank P can leave call 0, enter call 1 and Issend its call-1 payload to Q while Q is still polling in call 0, because Q has not yet seen its barrier complete. Q's Iprobe at line 1960 then takes P's call-1 message as a call-0 sender. Q's call-0 sender list gains an entry it should not have, and call 1 on Q loses one. The notify2 check then reports FAIL. Whether it happens depends on timing."
+  }
+}

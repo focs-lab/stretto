@@ -1,0 +1,34 @@
+{
+  "3b67af": {
+    "verdict": "no-race",
+    "confidence": 0.75,
+    "location": null,
+    "consequence": "none",
+    "conditions": "single PCSetUp; max reduction is order-independent",
+    "reasoning": "Rank r receives exactly r messages (one from each lower rank, tag = sender rank) with MPI_ANY_SOURCE/MPI_ANY_TAG at mpisbaij.c:2797, each processed before the next receive into the same buffer. All have the same count and the processing is an elementwise max, which is commutative and idempotent, so the order of arrival does not change the result. MatGetRowMaxAbs is called once in this run (only diag is allocated for the default left preconditioning; ex2 solves once). After PCSetUp, KSPSolve with a zero initial guess reaches a collective (VecNorm) before any point-to-point traffic on the same communicator, so no later message from a rank that ran ahead can be taken by the wildcard receive of a slower rank. The sends are small (eager), and blocking sends only go to higher ranks, so there is no buffering-dependent deadlock."
+  },
+  "50e789": {
+    "verdict": "no-race",
+    "confidence": 0.8,
+    "location": null,
+    "consequence": "none",
+    "conditions": "sortflag=1 in displace_atoms; barrier separates phases",
+    "reasoning": "In create_atom each rank receives nrecv_proc size messages (tag 0) with MPI_ANY_SOURCE at irregular.cpp:411; the count comes from Reduce_scatter, so exactly the right number are taken, and the order only permutes proc_recv/length_recv. displace_atoms calls migrate_atoms(1), so the arrays are sorted by rank, which makes the order of received atoms deterministic. MPI_Barrier at line 446 ensures every rank has consumed all its size messages before anyone sends atom data (also tag 0) in exchange_atom, so a wildcard receive cannot take an atom-data message. exchange_atom posts all Irecvs with specific sources before the blocking Sends, so there is no buffering-dependent deadlock, and the Waitall completes everything before return."
+  },
+  "8dba4d": {
+    "verdict": "race",
+    "confidence": 0.85,
+    "location": "source/base/mpi.cc:979",
+    "consequence": "wrong-result",
+    "conditions": "consecutive NBX calls on the same communicator; a rank finishes call c and sends its call c+1 requests while another rank is still polling in phase 4 of call c",
+    "reasoning": "All calls use the same communicator and fixed tags (12/13). Once rank A's Ibarrier completes, A can return and start call c+1, Isending a tag_request message to B. B may have entered the Ibarrier but not yet seen it complete with MPI_Test, so it is still in the while(!check_global_state()) process_requests() loop. Its MPI_Iprobe(MPI_ANY_SOURCE, tag_request) can match A's new request, and B answers it with its call-c state. A's call-(c+1) Irecv from B (tag_delivery) receives that answer, which names call c, so the driver counts a wrong answer. B's later call c+1 never sees A's request, but A already has an answer, so there is no hang. The Release build omits the DEBUG-only MPI_Barrier in clean-up, so nothing separates the calls."
+  },
+  "64c6e0": {
+    "verdict": "no-race",
+    "confidence": 0.5,
+    "location": null,
+    "consequence": "none",
+    "conditions": "2 servers; one task-holding server; 49-byte subscripts sent out of line",
+    "reasoning": "Sync headers arrive via preposted MPI_ANY_SOURCE Irecvs that are consumed FIFO. Out-of-line subscripts are received with source- and tag-specific RECVs, matched in send order per source. A deferral (header from a higher-ranked server arriving during a server's own sync) can reorder which header gets which subscript, e.g. after check_steal, when a new sync is handled before the pending queue. In this run each direction carries one mode and one container id: subscribes for one container from the task server, notifies for that container back. All keys have equal length. A swap therefore yields the same set of subscriptions and notifications, with no truncation or change in result. The headers and subscripts are small (eager), so the blocking SEND/RECV cannot deadlock. The xlb_poll filter for SYNC_SUB does not starve worker messages under Open MPI's wildcard matching, and deferred syncs are drained after the next handled request."
+  }
+}

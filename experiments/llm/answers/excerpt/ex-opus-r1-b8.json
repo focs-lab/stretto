@@ -1,0 +1,42 @@
+{
+  "fc1e24": {
+    "verdict": "no-race",
+    "confidence": 0.78,
+    "location": null,
+    "consequence": "none",
+    "conditions": "nlevels=2; request tags alternate 221/227 per level",
+    "reasoning": "A process sends its level-L requests only after it has received every level-(L-1) reply. So a ROW_REPI_TAG probe at ParaSails.c:252 can only see replies to its own current-level requests. A fast process at level 2 can send requests to a peer still in level 1's ReceiveRequest loop, but those carry tag 227 (PRUNED_REQ_TAG(2)) while level 1 probes tag 221, so they cannot be taken early. With only two levels, no tag is reused across levels. After level 2's Allreduce, every process has finished level 1. Stored-row requests use tag 222, and their replies are only triggered after ExchangePrunedRows has completed everywhere that matters. Replies arriving in a different order only change storage order: the merged pattern is a set and requests are sorted. Within one source, the REPI/REPV pair is kept in order by non-overtaking. The result is deterministic."
+  },
+  "65f689": {
+    "verdict": "no-race",
+    "confidence": 0.85,
+    "location": null,
+    "consequence": "none",
+    "conditions": "two consecutive NBX calls, no driver barrier; sc_notify_payload_nbx ends with MPI_Barrier",
+    "reasoning": "Within one call, NBX is correct. Issend completes only when the message is matched by the MPI_Recv. So once the Ibarrier completes, every message of that call has been received, and no later message with SC_TAG_NOTIFY_NBX belongs to it. The cross-call danger is a fast process starting call 2's Issends while a peer is still polling Iprobe(ANY_SOURCE) in call 1. That is prevented by the MPI_Barrier at sc_notify.c:2003: no process can leave call 1 until every process has left its polling loop. Arrival order varies, but with sorted=1 the senders and payloads are sorted in cleanup, and the driver sorts before comparing anyway. Any payload phase above the eager threshold uses receives from named sources. No matching nondeterminism affects the result."
+  },
+  "1c72c6": {
+    "verdict": "no-race",
+    "confidence": 0.8,
+    "location": null,
+    "consequence": "none",
+    "conditions": "two ParMesh built back to back with the same tag 822",
+    "reasoning": "GroupTopology::Create posts its Irecvs with a named source (lproc_proc[nbr]) and tag 822; there is no wildcard. A rank sends to a neighbour exactly when that neighbour expects groups from it, so sends and receives pair up. The two consecutive meshes reuse tag 822. But each pair of ranks sends mesh 1's message before mesh 2's, and MPI's non-overtaking rule makes mesh 1's receive take mesh 1's message. Each Create waits for all of its receives and sends before returning. MPI_Waitany completion order varies, but each message only fills group_mgroup[g] for distinct groups, so the processing order does not matter. The result is deterministic."
+  },
+  "86c6b6": {
+    "verdict": "no-race",
+    "confidence": 0.55,
+    "location": null,
+    "consequence": "none",
+    "conditions": "1x3x1 grid; barrier closes the L-solve; barrier at start of each pdgstrs3d_newsolve",
+    "reasoning": "The wildcard receives (pdgstrs3d.c:3903, 5946) take only messages of the current phase. The L-solve ends with MPI_Barrier(grid->comm) at line 4180, after waiting for its sends, so no BC_U/RD_U message can reach a rank still in the forward loop. Each pdgstrs3d_newsolve begins with MPI_Barrier(grid3d->comm), which keeps a later solve (iterative refinement) from reaching an earlier back-solve loop. With Pr=1 only reduction messages flow. The block-diagonal matrix gives each rank its own two blocks, so pdgsmv has no point-to-point traffic. The leftover nondeterminism is the order in which lsum contributions are summed, which affects only rounding. Caveat: the back solve has no closing barrier, so this assumes the X-to-B redistribution that follows uses collectives."
+  },
+  "224d88": {
+    "verdict": "no-race",
+    "confidence": 0.75,
+    "location": null,
+    "consequence": "none",
+    "conditions": "repeated Zoltan_Comm_Create with the same tag; MPI_RECV_LIMIT path not taken",
+    "reasoning": "Zoltan_Comm_Invert_Map posts nrecvs Irecv(ANY_SOURCE, tag) at comm_invert_map.c:134 and pairs each length with status.MPI_SOURCE. The results are then sorted by source, so arrival order does not change the plan. Every call starts with MPI_Allreduce, MPI_Reduce, MPI_Scatter and MPI_Bcast. No process can get past the Allreduce of call N+1 until all processes have entered it, and each process enters it only after completing its own waits in call N. So a next-plan length message cannot be taken by a previous call's wildcard receive. Comm_Do receives from named sources. The number of receives comes from the reduction, so counts match. The blocking 1-int sends cannot deadlock: receives are pre-posted and every rank posts its Irecvs before its sends."
+  }
+}

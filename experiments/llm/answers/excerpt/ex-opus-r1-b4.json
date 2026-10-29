@@ -1,0 +1,26 @@
+{
+  "520bef": {
+    "verdict": "race",
+    "confidence": 0.6,
+    "location": "src/distributed_ls/ParaSails/ParaSails.c:167",
+    "consequence": "hang",
+    "conditions": "num_levels > 1 (ij passes max_levels to ParaSailsSetParams); a level-(l+1) request from one process reaches a peer before another process's level-l request",
+    "reasoning": "ExchangePrunedRows loops over levels and uses the same tag ROW_PRUNED_REQ_TAG at every level. ReceiveRequest probes MPI_ANY_SOURCE and takes exactly num_replies messages for the current level. Process B can finish level l and Isend its level-(l+1) request to A before C's level-l request (Isent before the level-l Allreduce) has arrived. A then serves B's later request inside level l, and C's request is left for level l+1. C blocks in ReceiveReplyPrunedRows waiting for A's reply. A moves on to the level-(l+1) Allreduce in FindNumReplies, or blocks in Waitall on its reply to B, who is already inside that Allreduce. C never reaches that Allreduce, so all processes hang. Collectives do not order point-to-point delivery from different senders, so MPI allows this interleaving. Replies are matched by source, which is safe."
+  },
+  "0d199a": {
+    "verdict": "no-race",
+    "confidence": 0.7,
+    "location": null,
+    "consequence": "none",
+    "conditions": "tags msg_type(axis,dir) identify a unique sender per exchange; receives are posted before sends and completed before the next exchange",
+    "reasoning": "ready() posts MPI_ANY_SOURCE irecvs, but the tag msg_type(axis,dir) encodes both the axis and the direction. In each comm3/comm3_ex exchange, only the one neighbour on that axis and side sends with that tag to a given process. That holds even when both neighbours are the same process, because the directions use different tags. Each process posts its receives before it sends and waits for them in take3/take3_ex before going on to the next axis. Successive exchanges with the same tag come from the same neighbour at a given level, so non-overtaking orders them. A different sender would have to overtake a message that is causally earlier, which does not happen in practice. The data each receive gets is therefore fixed, and the verified norm is deterministic."
+  },
+  "175dd3": {
+    "verdict": "race",
+    "confidence": 0.65,
+    "location": "dune-common/dune/common/parallel/indicessyncer.hh:1028",
+    "consequence": "wrong-result",
+    "conditions": "useFixedOrder false (the default in the AMG criterion); messages from two or more neighbours arrive in a different order",
+    "reasoning": "With useFixedOrder false, recvAndUnpack probes MPI_ANY_SOURCE with tag 345, so neighbours' messages are processed in arrival order. Each new global index is added through indexSet_.add with numberer(global). ParallelAggregateRenumberer hands out consecutive local numbers in call order, so the local numbering of the added coarse-level indices, and the order of entries in the remote index lists, depend on which message is matched first. The coarse matrices and the coarse-level smoother sweeps then run in a different row and column order. Floating-point results such as residuals and the iteration count can differ from run to run, and the fixed-order option exists to avoid exactly this. There is no hang: the Issends are all waited on, and each neighbour sends exactly one message."
+  }
+}

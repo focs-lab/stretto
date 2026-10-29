@@ -1,0 +1,42 @@
+{
+  "10a10b": {
+    "verdict": "no-race",
+    "confidence": 0.85,
+    "location": null,
+    "consequence": "none",
+    "conditions": "none; the wildcard probe only reorders arrivals, and results are stored by source rank",
+    "reasoning": "With 6 ranks and widths 3 2 2 the tree has depth 2. Level 0 uses tag NARY+0 and level 1 uses NARY+1, so the levels cannot mix. Within a level, every rank sends only to peers in its own group. The ANY_SOURCE probe at sc_notify.c:1369 can see the messages in any order, but each message is put into the slot computed from its source rank (j from source) and then merged in fixed order, so the result is the same. The nrecv counts are exact (2 per rank at level 0, 1 at level 1). An MPI_Barrier at the end of sc_notify_payload_nary (line 1562) separates consecutive calls, so no message from call c+1 can reach a probe of call c. Payloads with 4-byte ints travel inside the algorithm; otherwise they go with specific-source receives."
+  },
+  "ab5082": {
+    "verdict": "race",
+    "confidence": 0.7,
+    "location": "general/communication.cpp:184",
+    "consequence": "wrong-result",
+    "conditions": "Second ParMesh is built right after the first. The two Create calls use the same tag 822 and the same communicator, with no collective between them. A rank that has finished mesh 1 sends its mesh-2 group messages while a slow rank is still waiting for a mesh-1 message from another master.",
+    "reasoning": "GroupTopology::Create receives with MPI_ANY_SOURCE and a fixed tag 822. Both meshes use that tag on MPI_COMM_WORLD, and nothing synchronizes the ranks between the two Create calls. Isend of small messages completes eagerly, so a master such as rank 0, which only sends, can return from mesh 1 and send mesh-2 messages at once. A non-master rank still waiting for a mesh-1 message from another master can match that mesh-2 message instead. It is then looked up in the wrong group table (groups.Lookup), so group_mgroup gets the wrong value. That gives a wrong group topology, a possible mfem_error abort at line 193, or a crash on a failed lookup. Per-source ordering does not prevent this, because the two messages come from different sources."
+  },
+  "a7d8e5": {
+    "verdict": "no-race",
+    "confidence": 0.85,
+    "location": null,
+    "consequence": "none",
+    "conditions": "none; the wildcard receives only change which request gets which count, and the source is recorded per request",
+    "reasoning": "The only wildcard receives are the num_recvs Irecvs with MPI_ANY_SOURCE for the counts at line 1266. All of them use tag 1221 and are matched by senders that each send exactly one count. Which request takes which sender's message can vary. The behaviour does not change, because send_to(i) is taken from mpi_statuses[i].MPI_SOURCE and send_counts(i) from the same request, so the pair is consistent. In this test the counts are both 5 anyway. The id exchange uses tag 1222 with specific-source receives, which match in posting order, and there are exactly send_counts(i) of them per source. The export ranks and ids come from the same request order, so they agree. The test sorts the steering vector, so the permutation does not matter. There is a single call, and the barrier ends it."
+  },
+  "dcaf36": {
+    "verdict": "no-race",
+    "confidence": 0.8,
+    "location": null,
+    "consequence": "none",
+    "conditions": "none; nbx.tuning=1 enables the initial MPI_Barrier, which separates consecutive NBX calls",
+    "reasoning": "allToAllConsensus uses Issend, then Iprobe with ANY_SOURCE on tag+1867, then Ibarrier. Consecutive calls use the same tag, so without protection a fast rank could send a call c+1 message while a slow rank still probes in call c. With -opt-switch nbx.tuning=1, initialBarrier is true, so every call starts with a full MPI_Barrier (line 951). A rank cannot send call c+1 messages until all ranks have left call c's loop. Within a call, the ring pattern has one sender per receiver, and the probe is followed by a receive from the probed source. The data messages use a different tag and specific-source receives. The result is deterministic."
+  },
+  "9e1162": {
+    "verdict": "race",
+    "confidence": 0.75,
+    "location": "include/deal.II/base/mpi_remote_point_evaluation.h:328",
+    "consequence": "wrong-result",
+    "conditions": "Consecutive evaluate_at_points calls (avg, min, max, insert) on the cached evaluation. All ranks hold all 25 points, so every rank exchanges with every other. One rank must run ahead into the next call while a slow rank still waits for a message from a third rank.",
+    "reasoning": "evaluate_and_process sends with Isend and tag remote_point_evaluation, then receives with MPI_Probe(MPI_ANY_SOURCE, same tag), looping recv_ranks.size() times. Four calls run back to back with no barrier or other synchronization. A rank sends first and receives afterwards, so it can finish call k and start sending for call k+1. Waitall on small Isends completes eagerly, so a fast rank P can send its call k+1 message to Q while Q still waits for a call k message from a slow rank X. Q's wildcard probe then matches P's second message. temp_recv_map[P] is overwritten and X's entry is missing, so recv_permutation is not fully filled and the output stays zero for X's points. Results are then wrong. The shifted message also gets mixed into the next call."
+  }
+}

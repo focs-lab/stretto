@@ -1,0 +1,26 @@
+{
+  "520bef": {
+    "verdict": "no-race",
+    "confidence": 0.65,
+    "location": null,
+    "consequence": "none",
+    "conditions": "Default ij run has one ParaSails level; each process sends at most one request and one reply to any peer.",
+    "reasoning": "The ANY_SOURCE probes (ParaSails.c:167, 264, 387) receive messages that are each complete and self-contained: a request or a reply carries its own row numbers and data. Each peer sends at most one request per level, because SendRequests sorts the indices and sends one message per owner. After the probe, the Recv is pinned to the probed source and tag. The allreduce in FindNumReplies separates the request phase from the reply phase. The pruned-row exchange (tag 221) and the stored-row exchange (tag 222) are also separated by collectives and use different request tags. Replies are all consumed before the Waitall and before the next collective. Arrival order only changes the order in which rows are stored and which external indices are numbered first. That has no effect on correctness, and the numerical result is the same up to rounding."
+  },
+  "0d199a": {
+    "verdict": "no-race",
+    "confidence": 0.6,
+    "location": null,
+    "consequence": "none",
+    "conditions": "A wrong match would need a message from a different neighbour with the same axis and direction tag to arrive early, from a later level's exchange.",
+    "reasoning": "The irecv with MPI_ANY_SOURCE in ready (mg.f:1164) uses a tag that encodes both axis and direction, so for a given level only one neighbour can send that tag. Receives are posted before the sends and completed before the next axis. Messages from the same source and tag cannot overtake each other. The only way to get a wrong match is for a neighbour at a different level (a different nbr, because of dead processes) to send the same tag early. That sender would first have to complete its previous exchange. That exchange needs the earlier message, which is sent before the later one in give3 order (+1 first, then -1). The wildcard is therefore effectively deterministic. Sends are blocking, but the receives are pre-posted, so there is no buffering-dependent deadlock."
+  },
+  "175dd3": {
+    "verdict": "race",
+    "confidence": 0.6,
+    "location": "dune-common/dune/common/parallel/indicessyncer.hh:1028",
+    "consequence": "wrong-result",
+    "conditions": "useFixedOrder is false (default), so the probe uses MPI_ANY_SOURCE and neighbours' messages are unpacked in arrival order.",
+    "reasoning": "recvAndUnpack probes with MPI_ANY_SOURCE and tag 345 when useFixedOrder is false. Each neighbour sends exactly one message, and the order in which the neighbours' messages are handled depends on timing. Handling order decides the order in which indexSet_.add is called, and numberer(global) assigns new local indices in call order. The local numbering of the added ghost indices, and so the layout of the coarse index set and matrices, therefore differs between runs. The flag useFixedOrder exists to force a fixed source order for reproducible results. The effect is mathematically equivalent but not bitwise reproducible, so the floating-point summation order and possibly the iteration counts can differ. There is no hang, because the Issend messages are all consumed and the Waitall follows."
+  }
+}

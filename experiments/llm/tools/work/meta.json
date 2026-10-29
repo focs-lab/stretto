@@ -1,0 +1,2006 @@
+{
+ "a55842": {
+  "excerpt_lines": 603,
+  "window": 20,
+  "parts": [
+   {
+    "file": "distributed_ls/ParaSails/ParaSails.c",
+    "ranges": [
+     [
+      36,
+      38
+     ],
+     [
+      71,
+      88
+     ],
+     [
+      109,
+      142
+     ],
+     [
+      161,
+      178
+     ],
+     [
+      199,
+      243
+     ],
+     [
+      255,
+      288
+     ],
+     [
+      312,
+      367
+     ],
+     [
+      377,
+      413
+     ],
+     [
+      419,
+      501
+     ],
+     [
+      699,
+      794
+     ],
+     [
+      1660,
+      1695
+     ],
+     [
+      1755,
+      1897
+     ]
+    ],
+    "lines": 603
+   }
+  ]
+ },
+ "520bef": {
+  "excerpt_lines": 604,
+  "window": 20,
+  "parts": [
+   {
+    "file": "src/distributed_ls/ParaSails/ParaSails.c",
+    "ranges": [
+     [
+      36,
+      39
+     ],
+     [
+      72,
+      89
+     ],
+     [
+      110,
+      143
+     ],
+     [
+      162,
+      179
+     ],
+     [
+      200,
+      244
+     ],
+     [
+      256,
+      289
+     ],
+     [
+      313,
+      368
+     ],
+     [
+      378,
+      414
+     ],
+     [
+      420,
+      502
+     ],
+     [
+      700,
+      795
+     ],
+     [
+      1661,
+      1696
+     ],
+     [
+      1756,
+      1898
+     ]
+    ],
+    "lines": 604
+   }
+  ]
+ },
+ "0d199a": {
+  "excerpt_lines": 1472,
+  "window": 20,
+  "parts": [
+   {
+    "file": "NPB2.4-MPI/MG/mg.f",
+    "ranges": [
+     [
+      48,
+      329
+     ],
+     [
+      357,
+      357
+     ],
+     [
+      503,
+      565
+     ],
+     [
+      570,
+      633
+     ],
+     [
+      638,
+      701
+     ],
+     [
+      706,
+      796
+     ],
+     [
+      801,
+      963
+     ],
+     [
+      1051,
+      1089
+     ],
+     [
+      1094,
+      1130
+     ],
+     [
+      1135,
+      1168
+     ],
+     [
+      1174,
+      1292
+     ],
+     [
+      1297,
+      1390
+     ],
+     [
+      1395,
+      1519
+     ],
+     [
+      1524,
+      1623
+     ],
+     [
+      1998,
+      2193
+     ]
+    ],
+    "lines": 1472
+   }
+  ]
+ },
+ "ccd0e2": {
+  "excerpt_lines": 1464,
+  "window": 20,
+  "parts": [
+   {
+    "file": "NPB3.3-MPI/MG/mg.f",
+    "ranges": [
+     [
+      48,
+      63
+     ],
+     [
+      72,
+      184
+     ],
+     [
+      252,
+      317
+     ],
+     [
+      356,
+      396
+     ],
+     [
+      424,
+      424
+     ],
+     [
+      570,
+      632
+     ],
+     [
+      637,
+      702
+     ],
+     [
+      707,
+      772
+     ],
+     [
+      777,
+      869
+     ],
+     [
+      874,
+      1038
+     ],
+     [
+      1131,
+      1169
+     ],
+     [
+      1174,
+      1210
+     ],
+     [
+      1215,
+      1250
+     ],
+     [
+      1256,
+      1386
+     ],
+     [
+      1391,
+      1486
+     ],
+     [
+      1491,
+      1627
+     ],
+     [
+      1632,
+      1733
+     ],
+     [
+      2108,
+      2303
+     ]
+    ],
+    "lines": 1464
+   }
+  ]
+ },
+ "9e1162": {
+  "excerpt_lines": 338,
+  "window": 20,
+  "parts": [
+   {
+    "file": "include/deal.II/base/mpi_tags.h",
+    "ranges": [
+     [
+      143,
+      143
+     ]
+    ],
+    "lines": 1
+   },
+   {
+    "file": "include/deal.II/base/mpi_remote_point_evaluation.h",
+    "ranges": [
+     [
+      254,
+      362
+     ]
+    ],
+    "lines": 109
+   },
+   {
+    "file": "include/deal.II/numerics/vector_tools_evaluate.h",
+    "ranges": [
+     [
+      103,
+      116
+     ],
+     [
+      179,
+      297
+     ]
+    ],
+    "lines": 133
+   },
+   {
+    "file": "tests/remote_point_evaluation/mapping_01.cc",
+    "ranges": [
+     [
+      1,
+      95
+     ]
+    ],
+    "lines": 95
+   }
+  ]
+ },
+ "55816f": {
+  "excerpt_lines": 340,
+  "window": 20,
+  "parts": [
+   {
+    "file": "include/deal.II/base/mpi_tags.h",
+    "ranges": [
+     [
+      143,
+      143
+     ]
+    ],
+    "lines": 1
+   },
+   {
+    "file": "include/deal.II/base/mpi_remote_point_evaluation.h",
+    "ranges": [
+     [
+      254,
+      365
+     ]
+    ],
+    "lines": 112
+   },
+   {
+    "file": "include/deal.II/numerics/vector_tools_evaluate.h",
+    "ranges": [
+     [
+      103,
+      115
+     ],
+     [
+      178,
+      296
+     ]
+    ],
+    "lines": 132
+   },
+   {
+    "file": "tests/remote_point_evaluation/mapping_01.cc",
+    "ranges": [
+     [
+      1,
+      95
+     ]
+    ],
+    "lines": 95
+   }
+  ]
+ },
+ "e3cf4d": {
+  "excerpt_lines": 373,
+  "window": 20,
+  "parts": [
+   {
+    "file": "include/deal.II/base/mpi_tags.h",
+    "ranges": [
+     [
+      141,
+      141
+     ]
+    ],
+    "lines": 1
+   },
+   {
+    "file": "include/deal.II/base/mpi_remote_point_evaluation.h",
+    "ranges": [
+     [
+      759,
+      946
+     ],
+     [
+      949,
+      966
+     ]
+    ],
+    "lines": 206
+   },
+   {
+    "file": "include/deal.II/numerics/vector_tools_evaluate.h",
+    "ranges": [
+     [
+      284,
+      313
+     ],
+     [
+      745,
+      786
+     ]
+    ],
+    "lines": 72
+   },
+   {
+    "file": "tests/remote_point_evaluation/mapping_01.cc",
+    "ranges": [
+     [
+      1,
+      94
+     ]
+    ],
+    "lines": 94
+   }
+  ]
+ },
+ "8dba4d": {
+  "excerpt_lines": 393,
+  "window": 20,
+  "parts": [
+   {
+    "file": "include/deal.II/base/mpi.h",
+    "ranges": [
+     [
+      890,
+      891
+     ]
+    ],
+    "lines": 2
+   },
+   {
+    "file": "source/base/mpi.cc",
+    "ranges": [
+     [
+      886,
+      910
+     ],
+     [
+      914,
+      930
+     ],
+     [
+      934,
+      949
+     ],
+     [
+      953,
+      967
+     ],
+     [
+      971,
+      1035
+     ],
+     [
+      1039,
+      1089
+     ],
+     [
+      1093,
+      1132
+     ]
+    ],
+    "lines": 229
+   },
+   {
+    "file": "driver/nbx_calls.cc",
+    "ranges": [
+     [
+      1,
+      162
+     ]
+    ],
+    "lines": 162
+   }
+  ]
+ },
+ "ec7c94": {
+  "excerpt_lines": 403,
+  "window": 20,
+  "parts": [
+   {
+    "file": "include/deal.II/base/mpi.h",
+    "ranges": [
+     [
+      1118,
+      1119
+     ]
+    ],
+    "lines": 2
+   },
+   {
+    "file": "source/base/mpi.cc",
+    "ranges": [
+     [
+      950,
+      977
+     ],
+     [
+      981,
+      997
+     ],
+     [
+      1001,
+      1016
+     ],
+     [
+      1020,
+      1034
+     ],
+     [
+      1038,
+      1102
+     ],
+     [
+      1106,
+      1156
+     ],
+     [
+      1160,
+      1206
+     ]
+    ],
+    "lines": 239
+   },
+   {
+    "file": "driver/nbx_calls.cc",
+    "ranges": [
+     [
+      1,
+      162
+     ]
+    ],
+    "lines": 162
+   }
+  ]
+ },
+ "8df9ee": {
+  "excerpt_lines": 355,
+  "window": 20,
+  "parts": [
+   {
+    "file": "core/src/Cabana_CommunicationPlan.hpp",
+    "ranges": [
+     [
+      1206,
+      1427
+     ],
+     [
+      1458,
+      1468
+     ]
+    ],
+    "lines": 233
+   },
+   {
+    "file": "core/unit_test/tstCommunicationPlan.hpp",
+    "ranges": [
+     [
+      70,
+      80
+     ],
+     [
+      765,
+      874
+     ],
+     [
+      1023,
+      1023
+     ]
+    ],
+    "lines": 122
+   }
+  ]
+ },
+ "a7d8e5": {
+  "excerpt_lines": 359,
+  "window": 20,
+  "parts": [
+   {
+    "file": "core/src/Cabana_CommunicationPlan.hpp",
+    "ranges": [
+     [
+      1204,
+      1429
+     ],
+     [
+      1460,
+      1470
+     ]
+    ],
+    "lines": 237
+   },
+   {
+    "file": "core/unit_test/tstCommunicationPlan.hpp",
+    "ranges": [
+     [
+      70,
+      80
+     ],
+     [
+      765,
+      874
+     ],
+     [
+      1023,
+      1023
+     ]
+    ],
+    "lines": 122
+   }
+  ]
+ },
+ "377dc2": {
+  "excerpt_lines": 155,
+  "window": 20,
+  "parts": [
+   {
+    "file": "stempy/electron_mpi.cpp",
+    "ranges": [
+     [
+      25,
+      29
+     ],
+     [
+      37,
+      117
+     ]
+    ],
+    "lines": 86
+   },
+   {
+    "file": "driver/harness.cpp",
+    "ranges": [
+     [
+      1,
+      69
+     ]
+    ],
+    "lines": 69
+   }
+  ]
+ },
+ "245580": {
+  "excerpt_lines": 156,
+  "window": 20,
+  "parts": [
+   {
+    "file": "stempy/electron_mpi.cpp",
+    "ranges": [
+     [
+      25,
+      29
+     ],
+     [
+      37,
+      118
+     ]
+    ],
+    "lines": 87
+   },
+   {
+    "file": "driver/harness.cpp",
+    "ranges": [
+     [
+      1,
+      69
+     ]
+    ],
+    "lines": 69
+   }
+  ]
+ },
+ "ab5082": {
+  "excerpt_lines": 241,
+  "window": 20,
+  "parts": [
+   {
+    "file": "general/communication.cpp",
+    "ranges": [
+     [
+      89,
+      207
+     ]
+    ],
+    "lines": 119
+   },
+   {
+    "file": "mesh/pmesh.cpp",
+    "ranges": [
+     [
+      84,
+      114
+     ],
+     [
+      618,
+      658
+     ],
+     [
+      668,
+      671
+     ]
+    ],
+    "lines": 76
+   },
+   {
+    "file": "driver/twomesh.cpp",
+    "ranges": [
+     [
+      1,
+      46
+     ]
+    ],
+    "lines": 46
+   }
+  ]
+ },
+ "1c72c6": {
+  "excerpt_lines": 297,
+  "window": 20,
+  "parts": [
+   {
+    "file": "general/communication.cpp",
+    "ranges": [
+     [
+      92,
+      266
+     ]
+    ],
+    "lines": 175
+   },
+   {
+    "file": "mesh/pmesh.cpp",
+    "ranges": [
+     [
+      86,
+      116
+     ],
+     [
+      622,
+      662
+     ],
+     [
+      689,
+      692
+     ]
+    ],
+    "lines": 76
+   },
+   {
+    "file": "driver/twomesh.cpp",
+    "ranges": [
+     [
+      1,
+      46
+     ]
+    ],
+    "lines": 46
+   }
+  ]
+ },
+ "12506a": {
+  "excerpt_lines": 612,
+  "window": 20,
+  "parts": [
+   {
+    "file": "src/irregular.cpp",
+    "ranges": [
+     [
+      101,
+      204
+     ],
+     [
+      294,
+      449
+     ],
+     [
+      473,
+      513
+     ]
+    ],
+    "lines": 301
+   },
+   {
+    "file": "src/displace_atoms.cpp",
+    "ranges": [
+     [
+      59,
+      353
+     ]
+    ],
+    "lines": 295
+   },
+   {
+    "file": "driver/in.displace",
+    "ranges": [
+     [
+      1,
+      16
+     ]
+    ],
+    "lines": 16
+   }
+  ]
+ },
+ "50e789": {
+  "excerpt_lines": 614,
+  "window": 20,
+  "parts": [
+   {
+    "file": "src/irregular.cpp",
+    "ranges": [
+     [
+      101,
+      204
+     ],
+     [
+      294,
+      451
+     ],
+     [
+      475,
+      515
+     ]
+    ],
+    "lines": 303
+   },
+   {
+    "file": "src/displace_atoms.cpp",
+    "ranges": [
+     [
+      59,
+      353
+     ]
+    ],
+    "lines": 295
+   },
+   {
+    "file": "driver/in.displace",
+    "ranges": [
+     [
+      1,
+      16
+     ]
+    ],
+    "lines": 16
+   }
+  ]
+ },
+ "21631d": {
+  "excerpt_lines": 604,
+  "window": 20,
+  "parts": [
+   {
+    "file": "src/distributed_ls/ParaSails/ParaSails.c",
+    "ranges": [
+     [
+      29,
+      32
+     ],
+     [
+      58,
+      75
+     ],
+     [
+      96,
+      129
+     ],
+     [
+      148,
+      165
+     ],
+     [
+      186,
+      230
+     ],
+     [
+      242,
+      275
+     ],
+     [
+      299,
+      354
+     ],
+     [
+      364,
+      400
+     ],
+     [
+      406,
+      488
+     ],
+     [
+      686,
+      781
+     ],
+     [
+      1681,
+      1716
+     ],
+     [
+      1776,
+      1918
+     ]
+    ],
+    "lines": 604
+   }
+  ]
+ },
+ "fc1e24": {
+  "excerpt_lines": 606,
+  "window": 20,
+  "parts": [
+   {
+    "file": "src/distributed_ls/ParaSails/ParaSails.c",
+    "ranges": [
+     [
+      29,
+      34
+     ],
+     [
+      60,
+      77
+     ],
+     [
+      98,
+      131
+     ],
+     [
+      150,
+      167
+     ],
+     [
+      188,
+      232
+     ],
+     [
+      244,
+      277
+     ],
+     [
+      301,
+      356
+     ],
+     [
+      366,
+      402
+     ],
+     [
+      408,
+      490
+     ],
+     [
+      688,
+      783
+     ],
+     [
+      1683,
+      1718
+     ],
+     [
+      1778,
+      1920
+     ]
+    ],
+    "lines": 606
+   }
+  ]
+ },
+ "77ec6a": {
+  "excerpt_lines": 1234,
+  "window": 20,
+  "parts": [
+   {
+    "file": "SRC/include/superlu_defs.h",
+    "ranges": [
+     [
+      241,
+      244
+     ]
+    ],
+    "lines": 4
+   },
+   {
+    "file": "SRC/double/pdgstrs3d.c",
+    "ranges": [
+     [
+      3144,
+      3164
+     ],
+     [
+      3292,
+      3360
+     ],
+     [
+      3514,
+      3554
+     ],
+     [
+      3586,
+      3626
+     ],
+     [
+      3883,
+      3930
+     ],
+     [
+      4102,
+      4280
+     ],
+     [
+      5241,
+      5261
+     ],
+     [
+      5376,
+      5444
+     ],
+     [
+      5541,
+      5593
+     ],
+     [
+      5653,
+      5693
+     ],
+     [
+      5702,
+      5742
+     ],
+     [
+      5926,
+      5967
+     ],
+     [
+      6090,
+      6130
+     ],
+     [
+      6191,
+      6269
+     ],
+     [
+      7589,
+      7604
+     ],
+     [
+      7738,
+      7855
+     ],
+     [
+      7903,
+      7984
+     ],
+     [
+      7996,
+      8036
+     ],
+     [
+      8187,
+      8287
+     ],
+     [
+      8421,
+      8506
+     ]
+    ],
+    "lines": 1230
+   }
+  ]
+ },
+ "86c6b6": {
+  "excerpt_lines": 1234,
+  "window": 20,
+  "parts": [
+   {
+    "file": "SRC/include/superlu_defs.h",
+    "ranges": [
+     [
+      241,
+      244
+     ]
+    ],
+    "lines": 4
+   },
+   {
+    "file": "SRC/double/pdgstrs3d.c",
+    "ranges": [
+     [
+      3144,
+      3164
+     ],
+     [
+      3292,
+      3360
+     ],
+     [
+      3514,
+      3554
+     ],
+     [
+      3586,
+      3626
+     ],
+     [
+      3883,
+      3930
+     ],
+     [
+      4102,
+      4280
+     ],
+     [
+      5241,
+      5261
+     ],
+     [
+      5376,
+      5444
+     ],
+     [
+      5541,
+      5593
+     ],
+     [
+      5653,
+      5693
+     ],
+     [
+      5702,
+      5742
+     ],
+     [
+      5926,
+      5967
+     ],
+     [
+      6090,
+      6130
+     ],
+     [
+      6191,
+      6269
+     ],
+     [
+      7589,
+      7604
+     ],
+     [
+      7738,
+      7855
+     ],
+     [
+      7903,
+      7984
+     ],
+     [
+      7996,
+      8036
+     ],
+     [
+      8187,
+      8287
+     ],
+     [
+      8421,
+      8506
+     ]
+    ],
+    "lines": 1230
+   }
+  ]
+ },
+ "d9668c": {
+  "excerpt_lines": 359,
+  "window": 20,
+  "parts": [
+   {
+    "file": "PHonon/PH/elphon.f90",
+    "ranges": [
+     [
+      1408,
+      1423
+     ],
+     [
+      1480,
+      1532
+     ],
+     [
+      1737,
+      1740
+     ]
+    ],
+    "lines": 73
+   },
+   {
+    "file": "PHonon/PH/do_phonon.f90",
+    "ranges": [
+     [
+      1,
+      175
+     ]
+    ],
+    "lines": 175
+   },
+   {
+    "file": "PHonon/PH/phonon.f90",
+    "ranges": [
+     [
+      1,
+      101
+     ]
+    ],
+    "lines": 101
+   },
+   {
+    "file": "driver/ph.in",
+    "ranges": [
+     [
+      1,
+      10
+     ]
+    ],
+    "lines": 10
+   }
+  ]
+ },
+ "fd3e23": {
+  "excerpt_lines": 359,
+  "window": 20,
+  "parts": [
+   {
+    "file": "PHonon/PH/elphon.f90",
+    "ranges": [
+     [
+      1408,
+      1423
+     ],
+     [
+      1480,
+      1532
+     ],
+     [
+      1737,
+      1740
+     ]
+    ],
+    "lines": 73
+   },
+   {
+    "file": "PHonon/PH/do_phonon.f90",
+    "ranges": [
+     [
+      1,
+      175
+     ]
+    ],
+    "lines": 175
+   },
+   {
+    "file": "PHonon/PH/phonon.f90",
+    "ranges": [
+     [
+      1,
+      101
+     ]
+    ],
+    "lines": 101
+   },
+   {
+    "file": "driver/ph.in",
+    "ranges": [
+     [
+      1,
+      10
+     ]
+    ],
+    "lines": 10
+   }
+  ]
+ },
+ "8d0015": {
+  "excerpt_lines": 612,
+  "window": 20,
+  "parts": [
+   {
+    "file": "src/Pstream/mpi/UPstreamWrapping.txx",
+    "ranges": [
+     [
+      886,
+      1067
+     ]
+    ],
+    "lines": 182
+   },
+   {
+    "file": "src/Pstream/mpi/UPstreamAllToAll.C",
+    "ranges": [
+     [
+      66,
+      94
+     ]
+    ],
+    "lines": 29
+   },
+   {
+    "file": "src/OpenFOAM/db/IOstreams/Pstreams/PstreamExchange.txx",
+    "ranges": [
+     [
+      493,
+      603
+     ],
+     [
+      859,
+      897
+     ],
+     [
+      900,
+      950
+     ],
+     [
+      953,
+      981
+     ],
+     [
+      984,
+      1009
+     ]
+    ],
+    "lines": 256
+   },
+   {
+    "file": "driver/nbxExchange/nbxExchange.C",
+    "ranges": [
+     [
+      1,
+      145
+     ]
+    ],
+    "lines": 145
+   }
+  ]
+ },
+ "dcaf36": {
+  "excerpt_lines": 612,
+  "window": 20,
+  "parts": [
+   {
+    "file": "src/Pstream/mpi/UPstreamWrapping.txx",
+    "ranges": [
+     [
+      886,
+      1067
+     ]
+    ],
+    "lines": 182
+   },
+   {
+    "file": "src/Pstream/mpi/UPstreamAllToAll.C",
+    "ranges": [
+     [
+      66,
+      94
+     ]
+    ],
+    "lines": 29
+   },
+   {
+    "file": "src/OpenFOAM/db/IOstreams/Pstreams/PstreamExchange.txx",
+    "ranges": [
+     [
+      493,
+      603
+     ],
+     [
+      859,
+      897
+     ],
+     [
+      900,
+      950
+     ],
+     [
+      953,
+      981
+     ],
+     [
+      984,
+      1009
+     ]
+    ],
+    "lines": 256
+   },
+   {
+    "file": "driver/nbxExchange/nbxExchange.C",
+    "ranges": [
+     [
+      1,
+      145
+     ]
+    ],
+    "lines": 145
+   }
+  ]
+ },
+ "1bff96": {
+  "excerpt_lines": 508,
+  "window": 20,
+  "parts": [
+   {
+    "file": "src/sc_mpi.h",
+    "ranges": [
+     [
+      97,
+      122
+     ]
+    ],
+    "lines": 26
+   },
+   {
+    "file": "src/sc_notify.c",
+    "ranges": [
+     [
+      1892,
+      2008
+     ],
+     [
+      2776,
+      2926
+     ]
+    ],
+    "lines": 268
+   },
+   {
+    "file": "driver/notify2.c",
+    "ranges": [
+     [
+      1,
+      214
+     ]
+    ],
+    "lines": 214
+   }
+  ]
+ },
+ "65f689": {
+  "excerpt_lines": 510,
+  "window": 20,
+  "parts": [
+   {
+    "file": "src/sc_mpi.h",
+    "ranges": [
+     [
+      97,
+      122
+     ]
+    ],
+    "lines": 26
+   },
+   {
+    "file": "src/sc_notify.c",
+    "ranges": [
+     [
+      1895,
+      2013
+     ],
+     [
+      2783,
+      2933
+     ]
+    ],
+    "lines": 270
+   },
+   {
+    "file": "driver/notify2.c",
+    "ranges": [
+     [
+      1,
+      214
+     ]
+    ],
+    "lines": 214
+   }
+  ]
+ },
+ "c869a1": {
+  "excerpt_lines": 786,
+  "window": 20,
+  "parts": [
+   {
+    "file": "src/sc_mpi.h",
+    "ranges": [
+     [
+      97,
+      122
+     ]
+    ],
+    "lines": 26
+   },
+   {
+    "file": "src/sc_notify.c",
+    "ranges": [
+     [
+      1176,
+      1570
+     ],
+     [
+      2776,
+      2926
+     ]
+    ],
+    "lines": 546
+   },
+   {
+    "file": "driver/notify2.c",
+    "ranges": [
+     [
+      1,
+      214
+     ]
+    ],
+    "lines": 214
+   }
+  ]
+ },
+ "10a10b": {
+  "excerpt_lines": 789,
+  "window": 20,
+  "parts": [
+   {
+    "file": "src/sc_mpi.h",
+    "ranges": [
+     [
+      97,
+      122
+     ]
+    ],
+    "lines": 26
+   },
+   {
+    "file": "src/sc_notify.c",
+    "ranges": [
+     [
+      1176,
+      1573
+     ],
+     [
+      2783,
+      2933
+     ]
+    ],
+    "lines": 549
+   },
+   {
+    "file": "driver/notify2.c",
+    "ranges": [
+     [
+      1,
+      214
+     ]
+    ],
+    "lines": 214
+   }
+  ]
+ },
+ "61a354": {
+  "excerpt_lines": 973,
+  "window": 20,
+  "parts": [
+   {
+    "file": "lb/code/src/messaging.h",
+    "ranges": [
+     [
+      516,
+      516
+     ],
+     [
+      557,
+      560
+     ],
+     [
+      583,
+      641
+     ]
+    ],
+    "lines": 64
+   },
+   {
+    "file": "lb/code/src/handlers.h",
+    "ranges": [
+     [
+      97,
+      125
+     ]
+    ],
+    "lines": 29
+   },
+   {
+    "file": "lb/code/src/server.c",
+    "ranges": [
+     [
+      216,
+      261
+     ],
+     [
+      273,
+      367
+     ],
+     [
+      371,
+      391
+     ],
+     [
+      469,
+      505
+     ]
+    ],
+    "lines": 199
+   },
+   {
+    "file": "lb/code/src/sync.h",
+    "ranges": [
+     [
+      204,
+      225
+     ]
+    ],
+    "lines": 22
+   },
+   {
+    "file": "lb/code/src/sync.c",
+    "ranges": [
+     [
+      122,
+      201
+     ],
+     [
+      277,
+      288
+     ],
+     [
+      303,
+      477
+     ],
+     [
+      498,
+      557
+     ],
+     [
+      656,
+      718
+     ],
+     [
+      722,
+      740
+     ],
+     [
+      933,
+      997
+     ],
+     [
+      1067,
+      1127
+     ]
+    ],
+    "lines": 535
+   },
+   {
+    "file": "driver/adlbsub.c",
+    "ranges": [
+     [
+      1,
+      124
+     ]
+    ],
+    "lines": 124
+   }
+  ]
+ },
+ "64c6e0": {
+  "excerpt_lines": 975,
+  "window": 20,
+  "parts": [
+   {
+    "file": "lb/code/src/messaging.h",
+    "ranges": [
+     [
+      516,
+      516
+     ],
+     [
+      557,
+      560
+     ],
+     [
+      583,
+      641
+     ]
+    ],
+    "lines": 64
+   },
+   {
+    "file": "lb/code/src/handlers.h",
+    "ranges": [
+     [
+      97,
+      125
+     ]
+    ],
+    "lines": 29
+   },
+   {
+    "file": "lb/code/src/server.c",
+    "ranges": [
+     [
+      216,
+      261
+     ],
+     [
+      273,
+      367
+     ],
+     [
+      371,
+      393
+     ],
+     [
+      471,
+      507
+     ]
+    ],
+    "lines": 201
+   },
+   {
+    "file": "lb/code/src/sync.h",
+    "ranges": [
+     [
+      204,
+      225
+     ]
+    ],
+    "lines": 22
+   },
+   {
+    "file": "lb/code/src/sync.c",
+    "ranges": [
+     [
+      122,
+      201
+     ],
+     [
+      277,
+      288
+     ],
+     [
+      303,
+      477
+     ],
+     [
+      498,
+      557
+     ],
+     [
+      656,
+      718
+     ],
+     [
+      722,
+      740
+     ],
+     [
+      933,
+      997
+     ],
+     [
+      1067,
+      1127
+     ]
+    ],
+    "lines": 535
+   },
+   {
+    "file": "driver/adlbsub.c",
+    "ranges": [
+     [
+      1,
+      124
+     ]
+    ],
+    "lines": 124
+   }
+  ]
+ },
+ "c06ed6": {
+  "excerpt_lines": 355,
+  "window": 20,
+  "parts": [
+   {
+    "file": "src/parcsr_mv/par_csr_assumed_part.c",
+    "ranges": [
+     [
+      19,
+      307
+     ],
+     [
+      310,
+      375
+     ]
+    ],
+    "lines": 355
+   }
+  ]
+ },
+ "175dd3": {
+  "excerpt_lines": 424,
+  "window": 20,
+  "parts": [
+   {
+    "file": "dune-common/dune/common/parallel/indicessyncer.hh",
+    "ranges": [
+     [
+      742,
+      956
+     ],
+     [
+      1012,
+      1134
+     ]
+    ],
+    "lines": 338
+   },
+   {
+    "file": "dune-istl/dune/istl/paamg/indicescoarsener.hh",
+    "ranges": [
+     [
+      233,
+      251
+     ],
+     [
+      323,
+      389
+     ]
+    ],
+    "lines": 86
+   }
+  ]
+ },
+ "3b67af": {
+  "excerpt_lines": 237,
+  "window": 20,
+  "parts": [
+   {
+    "file": "src/mat/impls/sbaij/mpi/mpisbaij.c",
+    "ranges": [
+     [
+      2727,
+      2808
+     ]
+    ],
+    "lines": 82
+   },
+   {
+    "file": "src/mat/interface/matrix.c",
+    "ranges": [
+     [
+      5448,
+      5470
+     ]
+    ],
+    "lines": 23
+   },
+   {
+    "file": "src/ksp/pc/impls/jacobi/jacobi.c",
+    "ranges": [
+     [
+      171,
+      302
+     ]
+    ],
+    "lines": 132
+   }
+  ]
+ },
+ "8fa246": {
+  "excerpt_lines": 224,
+  "window": 20,
+  "parts": [
+   {
+    "file": "general/communication.hpp",
+    "ranges": [
+     [
+      786,
+      805
+     ],
+     [
+      826,
+      834
+     ]
+    ],
+    "lines": 29
+   },
+   {
+    "file": "mesh/pncmesh.hpp",
+    "ranges": [
+     [
+      472,
+      472
+     ],
+     [
+      475,
+      475
+     ],
+     [
+      570,
+      570
+     ]
+    ],
+    "lines": 3
+   },
+   {
+    "file": "mesh/pncmesh.cpp",
+    "ranges": [
+     [
+      2081,
+      2159
+     ]
+    ],
+    "lines": 79
+   },
+   {
+    "file": "mesh/pmesh.cpp",
+    "ranges": [
+     [
+      3936,
+      3992
+     ]
+    ],
+    "lines": 57
+   },
+   {
+    "file": "mesh/mesh.cpp",
+    "ranges": [
+     [
+      11713,
+      11768
+     ]
+    ],
+    "lines": 56
+   }
+  ]
+ },
+ "224d88": {
+  "excerpt_lines": 621,
+  "window": 20,
+  "parts": [
+   {
+    "file": "packages/zoltan/src/Utilities/Communication/comm_invert_map.c",
+    "ranges": [
+     [
+      35,
+      184
+     ]
+    ],
+    "lines": 150
+   },
+   {
+    "file": "packages/zoltan/src/Utilities/Communication/comm_create.c",
+    "ranges": [
+     [
+      26,
+      315
+     ]
+    ],
+    "lines": 290
+   },
+   {
+    "file": "packages/zoltan/src/rcb/shared.c",
+    "ranges": [
+     [
+      328,
+      416
+     ],
+     [
+      422,
+      513
+     ]
+    ],
+    "lines": 181
+   }
+  ]
+ }
+}

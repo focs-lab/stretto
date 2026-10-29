@@ -1,0 +1,42 @@
+{
+  "fd3e23": {
+    "verdict": "no-race",
+    "confidence": 0.8,
+    "location": null,
+    "consequence": "none",
+    "conditions": "Only one pool holds the requested k point, and in LSDA both spins of a k point are in the same pool, so each tag has exactly one possible sender.",
+    "reasoning": "The ANY_SOURCE receives in elph_prt use tags 4*nproc+ispn-1 for the matrix and 6*nproc+ispn-1 for the band energies. The two spins have different tags. For a given spin only the one pool that owns the k point sends, so the wildcard has a single candidate sender. The two energy messages for one spin come from the same sender with the same tag, and MPI non-overtaking keeps them in order (ikk first, then ikq). The two tag families (12,13 and 18,19 at nproc=3) do not collide. Different runs cannot match differently."
+  },
+  "ec7c94": {
+    "verdict": "no-race",
+    "confidence": 0.8,
+    "location": null,
+    "consequence": "none",
+    "conditions": "Consecutive NBX calls on the same communicator are separated by the static CollectiveMutex taken in run(); only a cross-call mix-up would be harmful, and the mutex prevents it.",
+    "reasoning": "The wildcard is MPI_Iprobe(ANY_SOURCE, tag_request) at mpi.cc:1046, followed by a Recv from the probed source. Within one call every rank sends exactly one request to every other rank, and the reply goes to status.MPI_SOURCE. The order in which requests are taken therefore does not change any result. Answers are received by Irecv with a specific source. A fast rank could otherwise send call c+1 requests that a slow rank's probe in call c would take. run() takes a static CollectiveMutex first. Its lock waits for an Ibarrier posted by unlock, which completes only after all ranks have left the previous call. So no request of the next call is sent while any rank is still processing the previous one."
+  },
+  "8df9ee": {
+    "verdict": "race",
+    "confidence": 0.8,
+    "location": "core/src/Cabana_CommunicationPlan.hpp:1268",
+    "consequence": "wrong-result",
+    "conditions": "A neighbor finishes the count phase and sends its id messages (same tag 1221, same communicator) to a rank before a third rank's count message reaches that rank. Needs 3 or more ranks, each importing from two neighbors, and a timing gap.",
+    "reasoning": "The count exchange and the id exchange use the same tag, 1221, on the same communicator. Rank B posts num_recvs=2 MPI_ANY_SOURCE Irecvs at line 1268. Neighbor A sends its count, completes its own Waitall, then Isends its ids to B with the same tag. If the other neighbor C has not yet delivered its count to B (C sends in rank order and can be delayed after sending to A), A's first id message matches B's second wildcard receive. send_counts then holds an id value and send_to holds A twice. C's real count stays unexpected. The export counts and message totals are wrong, and the phase-2 receives are posted for the wrong number of messages. The outcome is a wrong plan, a hang or a truncation error."
+  },
+  "a55842": {
+    "verdict": "no-race",
+    "confidence": 0.65,
+    "location": null,
+    "consequence": "none",
+    "conditions": "ij -solver 8 uses ParaSails with the default 1 level, so ExchangePrunedRows runs a single level. The other exchanges are separated by collectives. A cross-level or cross-phase mix-up would need 2 or more levels or missing synchronization.",
+    "reasoning": "The wildcard probes at ParaSails.c:166, 263 and 386 are each followed by a Recv from the probed source. The REPV Recv for stored rows is also from that specific source. Replies are self-describing and go to the requester. A different arrival order only changes the merge order, not the set of rows, and does not change control flow. The reply and request counts are fixed by the Allreduce in FindNumReplies, which is called after SendRequests and before the receive loops. With one level, a fast rank cannot send the next level's requests into a slow rank's receive loop. Moving from the pattern exchange to the stored-rows exchange passes through the load-balancing step and its collectives, which I believe synchronize the ranks but is not shown in the excerpt. That is the main uncertainty."
+  },
+  "377dc2": {
+    "verdict": "race",
+    "confidence": 0.65,
+    "location": "stempy/electron_mpi.cpp:50",
+    "consequence": "crash",
+    "conditions": "Two or more worker ranks reach their sends close together, so that one worker's size message arrives between another worker's size message and its data message. The 5 ms stagger makes this unlikely but does not exclude it. 3 workers send to rank 0.",
+    "reasoning": "Rank 0 receives the size with MPI_ANY_SOURCE tag 0 (line 43) and then the payload with MPI_ANY_SOURCE tag 0 (line 50). The second receive is not tied to the rank that sent the size. Each worker sends size then data with the same tag 0 on MPI_COMM_WORLD. If worker 2's 8-byte size message arrives between worker 1's size and worker 1's data, the payload receive takes it. The buffer then holds an 8-byte message but is sized for worker 1's data, so cereal deserializes garbage. The next size receive can match a large data message and fail with truncation. The result is an abort, a cereal exception or wrong event counts. A strictly sequential arrival order, which the stagger encourages, gives the correct result."
+  }
+}

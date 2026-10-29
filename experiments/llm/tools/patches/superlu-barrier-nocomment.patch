@@ -1,0 +1,39 @@
+diff --git a/SRC/complex16/pzgstrs3d.c b/SRC/complex16/pzgstrs3d.c
+index efb8ec39..e821731c 100644
+--- a/SRC/complex16/pzgstrs3d.c
++++ b/SRC/complex16/pzgstrs3d.c
+@@ -4186,7 +4186,7 @@ if ( !(get_new3dsolvetreecomm() && get_acc_solve())){
+ 				// deallocate requests here
+ 			}
+ 		}
+-		// MPI_Barrier( grid->comm );
++		MPI_Barrier( grid->comm );
+ 
+ #if ( VAMPIR>=1 )
+ 		VT_traceoff();
+diff --git a/SRC/double/pdgstrs3d.c b/SRC/double/pdgstrs3d.c
+index 5f0d9ba3..e5b4613f 100755
+--- a/SRC/double/pdgstrs3d.c
++++ b/SRC/double/pdgstrs3d.c
+@@ -4177,7 +4177,7 @@ if ( !(get_new3dsolvetreecomm() && get_acc_solve())){
+ 				// deallocate requests here
+ 			}
+ 		}
+-		// MPI_Barrier( grid->comm );
++		MPI_Barrier( grid->comm );
+ 
+ #if ( VAMPIR>=1 )
+ 		VT_traceoff();
+diff --git a/SRC/single/psgstrs3d.c b/SRC/single/psgstrs3d.c
+index 96d72a29..57e6078f 100644
+--- a/SRC/single/psgstrs3d.c
++++ b/SRC/single/psgstrs3d.c
+@@ -4177,7 +4177,7 @@ if ( !(get_new3dsolvetreecomm() && get_acc_solve())){
+ 				// deallocate requests here
+ 			}
+ 		}
+-		// MPI_Barrier( grid->comm );
++		MPI_Barrier( grid->comm );
+ 
+ #if ( VAMPIR>=1 )
+ 		VT_traceoff();

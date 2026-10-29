@@ -1,0 +1,42 @@
+{
+  "e3cf4d": {
+    "verdict": "no-race",
+    "confidence": 0.8,
+    "location": null,
+    "consequence": "none",
+    "conditions": "none; each call is bracketed by CollectiveMutex lock/unlock barriers",
+    "reasoning": "In evaluate_and_process every rank Isends exactly one message with tag remote_point_evaluation to each rank in send_ranks, and each receiver probes exactly as many times as it has remote recv_ranks. The probe takes any source, but the source is mapped back to its slot j through recv_ranks, and recv_and_unpack receives from status.MPI_SOURCE, so arrival order does not change the result. The four point_values calls reuse the same tag. The CollectiveMutex ScopedLock synchronises the communicator on lock and on unlock, so no rank can send call k+1's message before every rank has drained call k. reinit uses its own consensus-algorithm tags. The sends are nonblocking and are waited for only after the receives, so buffering cannot cause a deadlock."
+  },
+  "8fa246": {
+    "verdict": "no-race",
+    "confidence": 0.8,
+    "location": null,
+    "consequence": "none",
+    "conditions": "none; consecutive Refine calls are separated by collectives (Allreduce in LimitNCLevel, solve, estimator, rebalance)",
+    "reasoning": "ParNCMesh::Refine Isends one NeighborRefinementMessage, possibly empty, to every neighbor and then probes neighbors.Size() times with that message type's own tag. Every neighbor sends exactly one message per call. The ghost refinements applied are the same whatever the arrival order, and Recv uses the probed source. A message from the next Refine call cannot arrive early: between calls there is an MPI_Allreduce (ParNCMesh::LimitNCLevel, error estimation, solver), and no rank leaves it before the slow rank has finished its probe loop. The sends are nonblocking and are waited for after the receives, so there is no buffering deadlock."
+  },
+  "61a354": {
+    "verdict": "race",
+    "confidence": 0.65,
+    "location": "lb/code/src/server.c:376",
+    "consequence": "crash",
+    "conditions": "subscript of 49 bytes > SYNC_DATA_SIZE (32), so the subscript goes as a separate ADLB_TAG_SYNC_SUB message; cross-server subscribe/notify",
+    "reasoning": "With klen=48 the subscript length is 49, which is more than SYNC_DATA_SIZE. send_subscribe_sync therefore sends the SYNC_REQUEST header (matched by a pre-posted Irecv) and then a separate SEND with tag ADLB_TAG_SYNC_SUB. The target server's loop first tests its sync Irecv and then calls xlb_poll, an IPROBE with MPI_ANY_SOURCE and MPI_ANY_TAG. If both messages arrive between that test and the Iprobe, the header is absorbed by the Irecv and the Iprobe sees the unmatched SYNC_SUB message, which is meant for the specific-source RECV in xlb_handle_subscribe_sync/notify. xlb_handle then receives a server-outgoing tag that has no handler, so the server returns an error ('SERVER ERROR') and aborts. The behaviour depends on timing."
+  },
+  "c869a1": {
+    "verdict": "race",
+    "confidence": 0.6,
+    "location": "src/sc_notify.c:1369",
+    "consequence": "wrong-result",
+    "conditions": "two consecutive sc_notify calls with no barrier (barrier=0); same per-level tags reused across calls; a fast peer reaches call 1's level-0 send before a slow peer's call-0 message arrives",
+    "reasoning": "With 6 ranks and widths 3 2 2 the depth is 2: pairs exchange at tag NARY+1, then triples {0,2,4} and {1,3,5} exchange at tag NARY+0. At level 0 a rank probes MPI_ANY_SOURCE twice. Peer A can finish call 0 (it already has R's and B's messages) and call 1's level 1, which involves only its pair partner, then send its call-1 level-0 message. If that message reaches R before B's call-0 message, R takes it as its second call-0 message and overwrites slot j. B's message is then consumed in call 1. Data from different calls get mixed, and the driver's check fails. Nothing between the calls synchronises the ranks."
+  },
+  "c06ed6": {
+    "verdict": "race",
+    "confidence": 0.5,
+    "location": "src/parcsr_mv/par_csr_assumed_part.c:259",
+    "consequence": "hang",
+    "conditions": "several assumed partitions built back to back in MGR setup on the same communicator with the fixed tag 17 and no full synchronisation between them; actual partition (13 planes over 8 ranks) differs from the assumed one",
+    "reasoning": "hypre_LocateAssumedPartition Isends contact messages with the fixed tag 17 and receives with MPI_ANY_SOURCE until rows_found equals locate_row_count. MGR builds an assumed partition for each extracted sub-block on the same communicator. A rank that finishes one call early can start the next one and send its tag-17 contacts while a slower rank is still collecting the previous call's messages. That rank then counts rows from the wrong partition. rows_found can overshoot, and the blocking Recv loop never terminates (hang), or the recorded owners are wrong, which corrupts the communication package. Nothing in the excerpt separates consecutive calls; whether a global exchange always intervenes is not shown."
+  }
+}
