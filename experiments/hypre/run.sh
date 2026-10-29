@@ -15,7 +15,7 @@
 # Steps, inside the experiment container (experiments/container/run.sh), from the repository
 # root, MPICH build (HYPRE 2.10.1 calls MPI-1 functions Open MPI 4 removed):
 #   fetch    download both versions, check the archives' sha256
-#   build    configure and make each version with the MPICH wrappers, -j8
+#   build    configure and make each version with the MPICH wrappers, -j$MAKE_JOBS (8)
 #   trace    one run of test/ij -solver 8 -pout 0 at 4 ranks per version, traced (with
 #            KEEP_TRACES set, kept as hypre/trace4 and hypre/trace4-211, stretto.keep)
 #   analyse  stretto analyze on both traces
@@ -49,7 +49,7 @@ step_build() {
     for v in 2.10.1 2.11.0; do
         (cd "$(src $v)" && ./configure CC=mpicc.mpich CXX=mpicxx.mpich F77=mpif77.mpich CFLAGS="-O2 -fcommon -g" \
              CXXFLAGS="-O2 -g" --without-fei --with-MPI > "$R/$OUT/configure$(tag $v).log" 2>&1 \
-         && make -j8 > "$R/$OUT/make$(tag $v).log" 2>&1 && cd test && make ij > "$R/$OUT/ij$(tag $v).log" 2>&1) \
+         && make -j"${MAKE_JOBS:-8}" > "$R/$OUT/make$(tag $v).log" 2>&1 && cd test && make ij > "$R/$OUT/ij$(tag $v).log" 2>&1) \
             || { echo "build of $v failed" >&2; return 1; }
     done
 }

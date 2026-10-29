@@ -22,7 +22,7 @@
 #            image has none), check every file's sha256
 #   build    p4est with the MPICH wrappers, then each deal.II version in Release with MPI and
 #            p4est and nothing else that can be switched off (bundled Boost; no TBB, complex
-#            scalars or examples), -j8, which gcc 13 compiles unpatched; then the in-tree
+#            scalars or examples), -j$MAKE_JOBS (8), which gcc 13 compiles unpatched; then the in-tree
 #            tests of RemotePointEvaluation as programs
 #   predict  RUNS traced runs per version and process count, each analysed; every probe
 #            alternative on the RemotePointEvaluation tag is replayed with the pins of its
@@ -42,7 +42,8 @@
 # (ninja-fixed-some.csv: step ninja with NINJA_LIBRARY=libninja-fixed-some.so).
 # usage: experiments/dealii/run.sh [fetch|build|predict|stress|changes|ninja|ninja-check|all]
 #        NPS (default 4), RUNS (default 20), JOBS (default 1), TEST (default mapping_01),
-#        DEALII_DIR (default third_party/apps/dealii)
+#        DEALII_DIR (default third_party/apps/dealii), DEALII_VERSIONS (default "9.3.0-rc1 9.3.0": the
+#        versions build and predict make), MAKE_JOBS (default 8)
 set -uo pipefail
 R="$(cd "$(dirname "$0")/../.." && pwd)"; cd "$R"
 D="${DEALII_DIR:-$R/third_party/apps/dealii}"
@@ -51,7 +52,7 @@ NPS="${NPS:-4}"; RUNS="${RUNS:-20}"; TEST="${TEST:-mapping_01}"; TIMEOUT=120
 PINLIB="$R/replay/bin/mpich/libstretto-pin.so"
 source "$R/experiments/harness.sh"
 export STRETTO_COMMIT="${STRETTO_COMMIT:-$(python3 "$R/experiments/provenance.py")}"
-VERSIONS="9.3.0-rc1 9.3.0"
+VERSIONS="${DEALII_VERSIONS:-9.3.0-rc1 9.3.0}"
 declare -A SHA=([dealii-9.3.0-rc1.tar.gz]=8cc3ae374e82ae02b9312cc85e0a86beee699d9269aad0e6a9a7017b39cd976d
                 [dealii-9.3.0.tar.gz]=b65ea933ebc9fc698e78018b4b10cee1b36061045411d45d6dae8ff5be584526
                 [p4est-2.2.tar.gz]=1549cbeba29bee2c35e7cc50a90a04961da5f23b6eada9c8047f511b90a8e438
@@ -121,7 +122,7 @@ step_build() {
         mkdir -p "$D/build-p4est" && (cd "$D/build-p4est" && "$D/p4est-2.2/configure" --enable-mpi --enable-shared \
              --disable-static --disable-vtk-binary --without-blas --prefix="$D/p4est" CC=/usr/bin/mpicc.mpich CFLAGS=-O2 \
              CPPFLAGS=-DSC_LOG_PRIORITY=SC_LP_ESSENTIAL > "$D/p4est-configure.log" 2>&1 \
-         && make -j8 > "$D/p4est-make.log" 2>&1 && make install >> "$D/p4est-make.log" 2>&1) \
+         && make -j"${MAKE_JOBS:-8}" > "$D/p4est-make.log" 2>&1 && make install >> "$D/p4est-make.log" 2>&1) \
             || { echo "build of p4est failed" >&2; return 1; }
     fi
     for v in $VERSIONS; do
@@ -134,7 +135,7 @@ step_build() {
                  -DCMAKE_INSTALL_PREFIX="$D/install-$v" -DDEAL_II_ALLOW_AUTODETECTION=OFF -DDEAL_II_FORCE_BUNDLED_BOOST=ON \
                  -DDEAL_II_WITH_MPI=ON -DDEAL_II_WITH_P4EST=ON -DP4EST_DIR="$D/p4est" -DDEAL_II_WITH_COMPLEX_VALUES=OFF \
                  -DDEAL_II_COMPONENT_EXAMPLES=OFF > "$D/configure-$v.log" 2>&1 \
-             && make -j8 install > "$D/make-$v.log" 2>&1) \
+             && make -j"${MAKE_JOBS:-8}" install > "$D/make-$v.log" 2>&1) \
                 || { echo "build of deal.II $v failed" >&2; return 1; }
         fi
         # the in-tree tests of RemotePointEvaluation, each a program of its own, built as
@@ -156,7 +157,7 @@ ENDFOREACH()
 CMAKE
         (cd "$(bindir "$v")" && "$CMAKE" -S "$D/drivers-src-$v" -B . -DDEAL_II_DIR="$D/install-$v" \
              -DTEST_DIR="$D/dealii-$v/tests/remote_point_evaluation" > "$D/drivers-$v.log" 2>&1 \
-         && make -j8 >> "$D/drivers-$v.log" 2>&1) || { echo "build of the tests of $v failed" >&2; return 1; }
+         && make -j"${MAKE_JOBS:-8}" >> "$D/drivers-$v.log" 2>&1) || { echo "build of the tests of $v failed" >&2; return 1; }
     done
 }
 step_predict() {

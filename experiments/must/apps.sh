@@ -5,8 +5,13 @@
 #   HYPRE 3.2.0, ex5_levels -solver 8 -sai_levels 2 -n 33, 4 and 8 ranks (experiments/hypre3/)
 #   PETSc 3.26.0 with HYPRE 3.2.0, ex2 with ParaSails at two levels, 4 and 8 ranks
 #     (experiments/petsc/)
-#   NPB MG 2.4.1 class S, 16 ranks (experiments/npbmg/)
+#   NPB MG 2.4.1 class S, 16 and 32 ranks (experiments/npbmg/)
 #   deal.II 9.3.0-rc1, tests/remote_point_evaluation/mapping_01, 4 ranks (experiments/dealii/)
+# and the fixes as controls for what MUST does to those programs by itself: HYPRE 2.11.0, HYPRE
+# 3.2.0 with experiments/hypre3/'s fix (VARIANT=fix), NPB MG 3.3.1 and deal.II 9.3.0, at the same
+# rank counts (configurations named <case>-fix-<ranks>). PETSc's ex2 has no fixed build: its
+# campaign has none, and the fix of HYPRE 3.2.0 is ex5's. APPS chooses which of the five cases
+# fetch and build make (default all: hypre hypre3 petsc npbmg dealii).
 # MUST's images carry MPICH 4.0.2 and clang 14 on Debian 12 (experiments/must/Dockerfile, and
 # MPI-BugBench's image of MUST 1.9.2, the same base and toolchain), so the applications are
 # built there, once, by each campaign's own build step with MPICH's wrappers; the builds run
@@ -62,7 +67,7 @@
 #        RUNS (20), FIRST (1: the number of the first run, to add runs to a configuration),
 #        JOBS (1), CPUS (cpuset of every container), MEMORY (24g), CONFIGS (all),
 #        MUST_APPS_DIR (third_party/apps/must), TIMEOUT (per configuration), CASES (apps),
-#        PREFIX (stretto-honest: the containers' names), MAKE_JOBS (8), SLU_MATS, HIST_APPS (all:
+#        PREFIX (stretto-honest: the containers' names), MAKE_JOBS (8), SLU_MATS, APPS, HIST_APPS (all:
 #        cabana stempy mfem332 lammps superlu qe dealii8929)
 set -uo pipefail
 R="$(cd "$(dirname "$0")/../.." && pwd)"; cd "$R"
@@ -91,7 +96,15 @@ hypre3-ex5-8|hypre3|3.2.0|8|30|residual|$MW/hypre3/hypre-3.2.0/src/examples/ex5_
 petsc-ex2-4|petsc|3.26.0|4|30|iterations|$MW/petsc/petsc-3.26.0/src/ksp/ksp/tutorials/ex2 $PS
 petsc-ex2-8|petsc|3.26.0|8|30|iterations|$MW/petsc/petsc-3.26.0/src/ksp/ksp/tutorials/ex2 $PS
 npbmg-16|npbmg|2.4.1|16|120|mgnorm|$MW/npb-mg/NPB2.4.1/NPB2.4-MPI/bin/mg.S.16
-dealii-4|dealii|9.3.0-rc1|4|120|dealii|$MW/dealii/drivers-9.3.0-rc1/mapping_01"
+npbmg-32|npbmg|2.4.1|32|120|mgnorm|$MW/npb-mg/NPB2.4.1/NPB2.4-MPI/bin/mg.S.32
+dealii-4|dealii|9.3.0-rc1|4|120|dealii|$MW/dealii/drivers-9.3.0-rc1/mapping_01
+hypre-fix-4|hypre|2.11.0|4|60|residual|$MW/hypre/hypre-2.11.0/src/test/ij -solver 8 -pout 0
+hypre-fix-8|hypre|2.11.0|8|60|residual|$MW/hypre/hypre-2.11.0/src/test/ij -solver 8 -pout 0
+hypre3-ex5-fix-4|hypre3|3.2.0-fix|4|30|residual|$MW/hypre3/hypre-3.2.0-fix/src/examples/ex5_levels -solver 8 -sai_levels 2 -n 33
+hypre3-ex5-fix-8|hypre3|3.2.0-fix|8|30|residual|$MW/hypre3/hypre-3.2.0-fix/src/examples/ex5_levels -solver 8 -sai_levels 2 -n 33
+npbmg-fix-16|npbmg|3.3.1|16|120|mgnorm|$MW/npb-mg/NPB3.3.1/NPB3.3-MPI/bin/mg.S.16
+npbmg-fix-32|npbmg|3.3.1|32|120|mgnorm|$MW/npb-mg/NPB3.3.1/NPB3.3-MPI/bin/mg.S.32
+dealii-fix-4|dealii|9.3.0|4|120|dealii|$MW/dealii/drivers-9.3.0/mapping_01"
 # CASES=hist, with the regexes of the stress runs' verdicts (experiments/<case>/run.sh, OK)
 CB="$MW/cabana/build-fbbcc37f/core/unit_test/Cabana_Core_Test_CommunicationPlan_MPI_SERIAL --gtest_filter=CommPlan.Test10NoTopo"
 LM="$MW/lammps/lammps-3a2da51a8210970a2382185f003fd512c12bada9/src/lmp_mpi -in /w/experiments/lammps/in.displace -log none"
@@ -133,51 +146,44 @@ declare -A HIST_BUILD=([cabana]="CABANA_DIR=$MW/cabana $HW experiments/cabana/ru
                        [qe]="MAKE_JOBS=${MAKE_JOBS:-8} experiments/must/hist.sh build-qe $MW/qe"
                        [dealii8929]="DEALII8929_DIR=$MW/dealii8929 $HW MPI_FC=/usr/bin/mpifort.mpich experiments/dealii8929/run.sh build")
 HIST_APPS="${HIST_APPS:-cabana stempy mfem332 lammps superlu qe dealii8929}"
-hist_steps() {   # hist_steps <FETCH|BUILD>: the steps of HIST_APPS, one per line
-    local a; local -n s="HIST_$1"
-    for a in $HIST_APPS; do
-        [ -n "${s[$a]:-}" ] || { echo "HIST_APPS: no case $a" >&2; return 2; }
+# the fetch and build steps of each case of CASES=apps, in the experiment image and in MUST's;
+# MPICH's wrappers call clang 14 (MPICH_CC, MPICH_CXX in the image); the Fortran of MG is gfortran's
+AW="MPI_CC=/usr/bin/mpicc.mpich MPI_CXX=/usr/bin/mpicxx.mpich MAKE_JOBS=${MAKE_JOBS:-8}"
+declare -A APPS_FETCH=([hypre]="HYPRE_DIR=$MW/hypre experiments/hypre/run.sh fetch"
+                       [hypre3]="HYPRE3_DIR=$MW/hypre3 experiments/hypre3/run.sh fetch && HYPRE3_DIR=$MW/hypre3 VARIANT=fix experiments/hypre3/run.sh fetch"
+                       [petsc]="PETSC_SRC_DIR=$MW/petsc experiments/petsc/run.sh fetch"
+                       [npbmg]="NPB_MG_DIR=$MW/npb-mg experiments/npbmg/run.sh fetch"
+                       [dealii]="DEALII_DIR=$MW/dealii experiments/dealii/run.sh fetch")
+declare -A APPS_BUILD=([hypre]="HYPRE_DIR=$MW/hypre MAKE_JOBS=${MAKE_JOBS:-8} experiments/hypre/run.sh build"
+                       [hypre3]="HYPRE3_DIR=$MW/hypre3 $AW experiments/hypre3/run.sh build && HYPRE3_DIR=$MW/hypre3 VARIANT=fix $AW experiments/hypre3/run.sh build"
+                       [petsc]="PETSC_SRC_DIR=$MW/petsc PETSC_ARCH=arch-mpich-opt $AW experiments/petsc/run.sh build"
+                       [npbmg]="NPB_MG_DIR=$MW/npb-mg NPS='16 32' experiments/npbmg/run.sh build"
+                       [dealii]="DEALII_DIR=$MW/dealii DEALII_VERSIONS='${DEALII_VERSIONS:-9.3.0-rc1 9.3.0}' MAKE_JOBS=${MAKE_JOBS:-8} experiments/dealii/run.sh build")
+APPS="${APPS:-hypre hypre3 petsc npbmg dealii}"
+case_steps() {   # case_steps <FETCH|BUILD>: the steps of APPS (HIST_APPS for CASES=hist), one per line
+    local a list=$APPS p=APPS; [ "$CASES" = hist ] && { list=$HIST_APPS; p=HIST; }
+    local -n s="${p}_$1"
+    for a in $list; do
+        [ -n "${s[$a]:-}" ] || { echo "${p/HIST/HIST_APPS}: no case $a" >&2; return 2; }
         echo "${s[$a]}"
     done
 }
 
 step_fetch() {
-    [ "$CASES" = hist ] && { fetch_hist; return; }
-    docker run --rm --name stretto-honest-fetch "${cpus[@]}" --memory "$MEMORY" --user "$(id -u):$(id -g)" -e HOME=/tmp \
-        -e STRETTO_COMMIT -v "$R:/w" -w /w "$EXP_IMAGE" bash -c "
-      HYPRE_DIR=$MW/hypre experiments/hypre/run.sh fetch && HYPRE3_DIR=$MW/hypre3 experiments/hypre3/run.sh fetch &&
-      PETSC_SRC_DIR=$MW/petsc experiments/petsc/run.sh fetch && NPB_MG_DIR=$MW/npb-mg experiments/npbmg/run.sh fetch &&
-      DEALII_DIR=$MW/dealii experiments/dealii/run.sh fetch"
-}
-fetch_hist() {
-    local steps; steps=$(hist_steps FETCH) || return 1
-    case " $HIST_APPS " in
-        *" superlu "*) mkdir -p "$M/superlu" && cp "${SLU_MATS:?SLU_MATS names the directory of the verification matrices}"/blk12x6.mtx \
+    local steps; steps=$(case_steps FETCH) || return 1
+    case "$CASES $HIST_APPS " in
+        "hist "*" superlu "*) mkdir -p "$M/superlu" && cp "${SLU_MATS:?SLU_MATS names the directory of the verification matrices}"/blk12x6.mtx \
                            "$SLU_MATS"/blk8x10.mtx "$M/superlu/" || return 1;;
     esac
     docker run --rm --name "$PREFIX-fetch" "${cpus[@]}" --memory "$MEMORY" --user "$(id -u):$(id -g)" -e HOME=/tmp \
         -e STRETTO_COMMIT -v "$R:/w" -w /w "$EXP_IMAGE" bash -c "set -e
 $steps"
 }
-build_hist() {
-    local steps; steps=$(hist_steps BUILD) || return 1
+step_build() {
+    local steps; steps=$(case_steps BUILD) || return 1
     docker run --rm --name "$PREFIX-build" "${cpus[@]}" --memory "$MEMORY" --memory-swap "$MEMORY" \
         --user "$(id -u):$(id -g)" -e HOME=/tmp -e STRETTO_COMMIT -v "$R:/w" -w /w "$BUILD_IMAGE" bash -c "set -e
 $steps"
-}
-step_build() {
-    [ "$CASES" = hist ] && { build_hist; return; }
-    # MPICH's wrappers call clang 14 (MPICH_CC, MPICH_CXX in the image); the Fortran of MG is gfortran's
-    local j="${MAKE_JOBS:-8}"
-    docker run --rm --name stretto-honest-build "${cpus[@]}" --memory "$MEMORY" --memory-swap "$MEMORY" \
-        --user "$(id -u):$(id -g)" -e HOME=/tmp -e STRETTO_COMMIT -v "$R:/w" -w /w "$BUILD_IMAGE" bash -c "
-      set -e
-      HYPRE_DIR=$MW/hypre experiments/hypre/run.sh build
-      HYPRE3_DIR=$MW/hypre3 MPI_CC=/usr/bin/mpicc.mpich MPI_CXX=/usr/bin/mpicxx.mpich MAKE_JOBS=$j experiments/hypre3/run.sh build
-      PETSC_SRC_DIR=$MW/petsc PETSC_ARCH=arch-mpich-opt MPI_CC=/usr/bin/mpicc.mpich MPI_CXX=/usr/bin/mpicxx.mpich MAKE_JOBS=$j \
-        experiments/petsc/run.sh build
-      NPB_MG_DIR=$MW/npb-mg NPS=16 experiments/npbmg/run.sh build
-      DEALII_DIR=$MW/dealii experiments/dealii/run.sh build"
 }
 one_run() {   # one_run <name> <app> <version> <np> <timeout> <check> <i> <program and args>
     local name=$1 app=$2 ver=$3 np=$4 to=$5 check=$6 i=$7 cmd=$8
