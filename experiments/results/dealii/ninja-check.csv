@@ -1,16 +1,21 @@
 label,np,mode,setting,run,result,seconds,reached,value,commit
-mapping_01-9.3.0-rc1,4,plain,,1,FINISHED,4.2,,0,8ec4e74-dirty
-mapping_01-9.3.0-rc1,4,plain,,2,FINISHED,4.2,,0,8ec4e74-dirty
-mapping_01-9.3.0-rc1,4,plain,,3,FINISHED,4.2,,0,8ec4e74-dirty
-mapping_01-9.3.0-rc1,4,plain,,4,FINISHED,4.2,,0,8ec4e74-dirty
-mapping_01-9.3.0-rc1,4,plain,,5,FINISHED,4.2,,0,8ec4e74-dirty
-mapping_01-9.3.0-rc1 libninja-fixed,4,random,ratio=1e-06% delay=1us,1,SIGNAL:6,5.3,,207,8ec4e74-dirty
-mapping_01-9.3.0-rc1 libninja-fixed,4,random,ratio=1e-06% delay=1us,2,SIGNAL:6,5.3,,207,8ec4e74-dirty
-mapping_01-9.3.0-rc1 libninja-fixed,4,random,ratio=1e-06% delay=1us,3,SIGNAL:6,5.3,,207,8ec4e74-dirty
-mapping_01-9.3.0-rc1 libninja-fixed,4,random,ratio=1e-06% delay=1us,4,SIGNAL:6,5.3,,207,8ec4e74-dirty
-mapping_01-9.3.0-rc1 libninja-fixed,4,random,ratio=1e-06% delay=1us,5,SIGNAL:6,5.3,,207,8ec4e74-dirty
-mapping_01-9.3.0-rc1 libninja-fixed-some,4,random,ratio=1e-06% delay=1us,1,SIGNAL:6,4.3,,156,8ec4e74-dirty
-mapping_01-9.3.0-rc1 libninja-fixed-some,4,random,ratio=1e-06% delay=1us,2,SIGNAL:6,4.3,,156,8ec4e74-dirty
-mapping_01-9.3.0-rc1 libninja-fixed-some,4,random,ratio=1e-06% delay=1us,3,SIGNAL:6,4.3,,156,8ec4e74-dirty
-mapping_01-9.3.0-rc1 libninja-fixed-some,4,random,ratio=1e-06% delay=1us,4,SIGNAL:6,4.3,,156,8ec4e74-dirty
-mapping_01-9.3.0-rc1 libninja-fixed-some,4,random,ratio=1e-06% delay=1us,5,SIGNAL:6,4.3,,156,8ec4e74-dirty
+mapping_01-9.3.0-rc1,4,plain,,1,FINISHED,4.4,,0,27d1532
+mapping_01-9.3.0-rc1,4,plain,,2,FINISHED,4.4,,0,27d1532
+mapping_01-9.3.0-rc1,4,plain,,3,FINISHED,4.5,,0,27d1532
+mapping_01-9.3.0-rc1,4,plain,,4,FINISHED,4.4,,0,27d1532
+mapping_01-9.3.0-rc1,4,plain,,5,FINISHED,4.5,,0,27d1532
+mapping_01-9.3.0-rc1 libninja-fixed,4,random,ratio=1e-06% delay=1us,1,SIGNAL:6,5.7,,207,27d1532
+mapping_01-9.3.0-rc1 libninja-fixed,4,random,ratio=1e-06% delay=1us,2,SIGNAL:6,5.7,,207,27d1532
+mapping_01-9.3.0-rc1 libninja-fixed,4,random,ratio=1e-06% delay=1us,3,SIGNAL:6,5.7,,207,27d1532
+mapping_01-9.3.0-rc1 libninja-fixed,4,random,ratio=1e-06% delay=1us,4,SIGNAL:6,5.8,,207,27d1532
+mapping_01-9.3.0-rc1 libninja-fixed,4,random,ratio=1e-06% delay=1us,5,SIGNAL:6,5.9,,207,27d1532
+mapping_01-9.3.0-rc1 libninja-fixed-some,4,random,ratio=1e-06% delay=1us,1,SIGNAL:6,4.7,,156,27d1532
+mapping_01-9.3.0-rc1 libninja-fixed-some,4,random,ratio=1e-06% delay=1us,2,SIGNAL:6,4.7,,156,27d1532
+mapping_01-9.3.0-rc1 libninja-fixed-some,4,random,ratio=1e-06% delay=1us,3,SIGNAL:6,4.7,,156,27d1532
+mapping_01-9.3.0-rc1 libninja-fixed-some,4,random,ratio=1e-06% delay=1us,4,SIGNAL:6,4.7,,156,27d1532
+mapping_01-9.3.0-rc1 libninja-fixed-some,4,random,ratio=1e-06% delay=1us,5,SIGNAL:6,4.8,,156,27d1532
+mapping_01-9.3.0-rc1 libninja-fixed-some-testall,4,random,ratio=1e-06% delay=1us,1,FINISHED,5.5,,0,27d1532
+mapping_01-9.3.0-rc1 libninja-fixed-some-testall,4,random,ratio=1e-06% delay=1us,2,FINISHED,4.5,,0,27d1532
+mapping_01-9.3.0-rc1 libninja-fixed-some-testall,4,random,ratio=1e-06% delay=1us,3,FINISHED,4.5,,0,27d1532
+mapping_01-9.3.0-rc1 libninja-fixed-some-testall,4,random,ratio=1e-06% delay=1us,4,FINISHED,4.5,,0,27d1532
+mapping_01-9.3.0-rc1 libninja-fixed-some-testall,4,random,ratio=1e-06% delay=1us,5,FINISHED,4.5,,0,27d1532
