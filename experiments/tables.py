@@ -2246,7 +2246,9 @@ def write_paper_numbers():
     os.makedirs(gen, exist_ok=True)
     lines = ["% Written by experiments/tables.py from the CSV files under experiments/results/. Do not edit.", ""]
     for k in sorted(NUM):
-        lines.append(f"\\newcommand{{\\{k}}}{{{NUM[k]}\\xspace}}")
+        # a value may be text (NINJA's best setting: "10% of sends"), whose % would start a comment
+        v = str(NUM[k]).replace("%", "\\%")
+        lines.append(f"\\newcommand{{\\{k}}}{{{v}\\xspace}}")
     lines += ["", "% Not produced by this run: provisional values, marked as such in the draft."]
     for k, v in STATIC.items():
         if k not in NUM:
