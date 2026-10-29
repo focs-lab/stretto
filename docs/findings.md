@@ -79,21 +79,33 @@ with the hunt notes, outside this repository.
 - Alternatives that need two changed matches are not predicted (HDF5 ph5diff 1.8.9). Under study.
 - Treating every collective as a barrier changes no finding (0 of 115 MBI, 0 of 396 MBB): the
   minimal synchronisation of collectives is not an advantage on these corpora.
-- Several threads (milestone A, [threads.md](threads.md) §9): the L1 check does not finish on
-  the 1 024-iteration MPICH `mt_*` traces (`mt_isendirecv`, 24 702 records, over 50 min); the
-  generic check judges each alternative over the whole trace. Open. The tracer's issue lock hides
+- Several threads (milestone A, [threads.md](threads.md) §9): the L1 check did not finish on
+  the 1 024-iteration MPICH `mt_*` traces (`mt_isendirecv`, 24 702 records, over 50 min): a
+  quadratic enumeration and 2 * 10^7 orientation edges per graph, for 32 700 alternatives. Fixed
+  for receive alternatives 29 Oct (§10: 286 s, 159 s and 55 s for the three receive tests); the
+  probe tests' 16 400 probe alternatives per trace still go to the generic check at 45 s each,
+  so those four traces do not finish. Open. The tracer's issue lock hides
   a crash: untraced, `mt_probe` and `mt_iprobe` abort in their racy phase (MPI_ERR_COUNT, 3 of 3
   runs), traced never; the report names the race, not the crash. The tracer can crash in
   `PMPI_Comm_group` on a freed communicator (CorrBench `task_comm_free`, 1 of 2 runs; older than
   the thread work). Open.
 
-## Multithreaded benchmarks (milestone A, L1 only)
+## Multithreaded benchmarks (L1 only)
 
 MPICH fb003aa `test/mpi/threads/pt2pt` `mt_*` (16 iterations): every finding is in the racy
 phase (one communicator and tag), none in the two control phases. MPI-CorrBench a05644b OpenMP
 ordering: 8 of 23 erroneous programs found (4 deadlocks observed, 2 concurrent collectives,
 request reuse, Probe-then-Recv as 1f); 2 need lock reordering (L1+SP-T, not built); task
 programs are degraded; 0 of 15 correct programs get an error class.
+
+At 1 024 iterations (milestone B, [threads.md](threads.md) §10) the same holds for the three
+receive tests: 5, 39 and 49 L1 1f findings, all on the racy phase's threads.
+
+HDF5 Subfiling VFD 9975eaeb2, the wrong-worker race fixed by ffc254983 (the unique data tag that
+27bb358 later squashed into develop): 5 of 5 clean traces of `t_subfiling_vfd` (4 ranks) predict at
+L1 that two worker threads of the I/O concentrator take each other's write data (4-6 per trace,
+1a truncations in an earlier run); 0 of 5 traces of the fix. Untraced, 20 of 20 runs passed. Not
+replayed (no pins for threads). Evidence: [experiments/subfiling](../experiments/subfiling/README.md).
 
 ## Not yet traced
 
@@ -120,6 +132,7 @@ analysable since the fix for cancelled receives above.
 Thread-level candidates for the multithreaded extension (read only; [threads.md](threads.md)): Uintah + hypre (a code comment in KokkosScheduler.cc documents
 crashes from hypre's `Iprobe` taking a Uintah message on the shared communicator, and the
 reverse hazard it leaves); Legion/Realm's MPI network in interop mode (wildcard `Irecv` with tag 1
-on `MPI_COMM_WORLD`); DLA-Future and SLATE (tags reused by concurrent tasks); HDF5 Subfiling (a
-fixed wrong-worker race, 27bb358, as a known bug). By reading, not a race: Realm's
+on `MPI_COMM_WORLD`); DLA-Future and SLATE (tags reused by concurrent tasks). For Uintah a build of
+Core, Schedulers, Solvers and Examples with hypre (driver `Examples/solvertest1.ups`, `sus
+-nthreads`) looks feasible in under 2 hours on 4 cores (§10; a guess, not built). By reading, not a race: Realm's
 `generate_payload_tag` (am_mpi.cc:225) uses the attribute key `MPI_TAG_UB` as the tag bound.

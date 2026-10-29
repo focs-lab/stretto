@@ -1,7 +1,8 @@
 # Several threads calling MPI: design
 
 Status: designed 29 Oct 2026; milestone A (tracer, loader, analysis at L1, the observed thread
-classes, tests) implemented the same day, section 9 says how it differs from the design. Decided
+classes, tests) implemented the same day, section 9 says how it differs from the design; section
+10 says how milestone B made the check scale and what it found in HDF5's Subfiling VFD. Decided
 29 Oct 2026: Stretto is extended to programs in which several threads of an MPI process call MPI
 on shared communicators (`MPI_THREAD_MULTIPLE`, and `MPI_THREAD_SERIALIZED` with several calling
 threads). Before, such a trace was analysed for observed findings only (`docs/model.md` §6). This
@@ -771,3 +772,78 @@ their traces under `analysis/tests/golden/{openmpi,mpich}`.
   `mt_isendirecv` 0.54 / 0.60 / 0.60 s, `mt_mprobe_sendrecv` 0.70 / 0.80 / 0.92 s;
   `osu_latency_mt` small messages 3.3 / 16.2 / 16.6 µs. Writing the trace dominates; the issue
   lock, the rewrite and the clocks add 0-15 % on top of it.
+
+## 10. Milestone B as built (29 Oct 2026): scale, and a known bug
+
+Not the replay of the plan's milestone B (7.1): no pins for several threads yet.
+
+**Why the 1 024-iteration `mt_*` traces did not finish.** Not the horizon: on `mt_isendirecv`
+(24 702 records) the enumeration alone ran over 300 s (a search of the observed graph per
+candidate, and each sending chain's queue walked from its start per receive), and each of the
+about 32 700 alternatives (threads at 1 024 iterations, against 435 at 16) was judged at every
+threshold with a graph of 2 * 10^7 orientation edges (60-73 s, 4 GB): the racy phase's four
+receiving threads are concurrent throughout, so every pair had an orientation edge against
+every receive and send of the phase. The horizon kept a third of the trace.
+
+**What changed** (`threads.py`, `report.py`):
+
+- Enumeration: vector clocks over the chains for the observed happens-before
+  (`observed_reaches`), and per receiving chain and queue a pointer past the sends taken before
+  (`_Heads`). The same candidates on all 84 multithreaded traces.
+- Orientation edges up to reachability (`_Reduced`): per pair and other chain, the earliest
+  operation that goes after (program order reaches the rest), and the last of each run of
+  operations matched before, whose match nodes the competitor and sender-side order edges link
+  anyway. The window is cut by bisection where a chain's receives of one source take their
+  messages in physical order and its sends are issued in order (always, under the issue lock),
+  with the alternative's re-matched receives judged one by one, and walked elsewhere. The full
+  construction stays (`FULL_ORIENTATION`) and the tests compare the three on every alternative,
+  probe alternative and threshold of the multithreaded golden traces and random thread pools.
+  The equivalence assumes that physical order agrees with happens-before for the sends of a
+  process (it does under the issue lock; where the bisection meets a pair that contradicts it,
+  it walks).
+- Order filter (`OrderFilter`): obligations of the changed receives that hold whatever the
+  horizon (rule 6 only takes messages away): an earlier message of the channel that no receive
+  before it takes; a receive before it without a message; an earlier receive of its class
+  taking a later message of the channel; and the previous receive of its class on its thread
+  taking a message that a concurrent thread issued after the new one, whose two sender-side
+  orientation edges form a cycle of two issue nodes (or, without that message in the horizon,
+  that receive is left pending before the changed one). The generic check rejects each such
+  alternative at every threshold, so the report rejects it with that reason. The same for probe
+  alternatives (none rejected on these traces).
+
+**Gate.** The 531 single-chain traces of milestone A and idiom 32 (Open MPI, 3 ranks), against
+main (68b00af) as text, `--json` and `--full-profile --json`: 1 596 outputs and exit statuses, 0
+differences. The 84 multithreaded traces (idioms 15-31 of both MPIs, 38 CorrBench, the 16-iteration
+`mt_*`): findings, notes, status and exit statuses unchanged; in the JSON of five `mt_*` traces
+the reason of 22 to 310 rejected alternatives names the filter's obligation instead of the first
+one the generic check meets. Unit tests: 512 run, 35 skipped, all pass (main: 509, the same tree).
+
+**Times** (a-p13, one text analysis, wall clock; at 1 024 iterations main's numbers are those
+above, the analyses did not finish): `mt_isendirecv` 286.5 s (5 L1 1f), `mt_sendrecv` 158.7 s
+(39), `mt_ssendrecv` 55.1 s (49), every finding on the racy phase's chains; 142, 41 and 49
+alternatives per trace reach the generic check. At 16 iterations, main / branch: `mt_isendirecv`
+10.3 / 1.1 s, `mt_sendrecv` 10.2 / 2.8, `mt_ssendrecv` 6.5 / 3.4, `mt_probe` 4.3 / 2.7, `mt_iprobe`
+5.2 / 3.3, `mt_mprobe` 1.7 / 1.9, `mt_improbe` 2.2 / 2.4. **Not finished**: the four probe tests at
+1 024 iterations (99 633 to 172 127 records) have about 16 400 probe alternatives each, judged by
+the generic check at 45 s each (probe windows are walked, and most are rejected by a cycle that
+the probing chain's cut creates: its later receives lose their match nodes, and the sender-side
+orientation then orders two sending threads both ways, which no horizon-free rule decides).
+
+**HDF5 Subfiling VFD** (`experiments/subfiling`). The bug of PR #1883's message ("multiple write
+requests from a given rank being read by the wrong worker thread") is fixed by ffc254983 (17 Nov
+2021) on the subfiling branch that 27bb358 squashed into develop; develop's parent of 27bb358
+has no Subfiling VFD, so the version with the bug is ffc254983's parent 9975eaeb2. `t_subfiling_vfd`
+on 4 ranks, Open MPI, 5 traced runs per version: every clean trace of 9975eaeb2 predicts at L1 a
+concurrent swap or steal between two worker threads of the I/O concentrator receiving one
+client's data messages (4-6 per trace, tag `WRITE_INDEP_DATA`; in an earlier run also two 1a
+truncations, an 800-byte write into a 96-byte receive); ffc254983's traces have none. Untraced,
+9975eaeb2 passed 20 of 20 runs. Not replayed (no pins for threads). Both versions also report probe
+alternatives of the concentrator's `Iprobe(ANY_SOURCE, ANY_TAG)` (about 170 and 230 per trace,
+without consequence) and an observed `2-thread-finalize` (not examined).
+
+**Uintah + hypre** (read only, not built). `StandAlone/inputs/Examples/solvertest1.ups` drives the
+hypre solver from the Examples component, and `sus -nthreads N` runs the Unified scheduler under
+`MPI_THREAD_MULTIPLE`; the hazard comment is in `KokkosScheduler.cc`, which needs Kokkos as well.
+Core, Schedulers, Solvers and Examples are about 255 `.cc` files (95 000 lines); with hypre built
+from source and libxml2's headers added to the image, a build under 2 hours on 4 cores looks
+feasible (a guess; nothing was built).
