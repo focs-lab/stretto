@@ -1,0 +1,17 @@
+case,version,label,np,setting,runs,failed,source,commit
+openfoam,ring-tuning1,nbxExchange -calls 3 -pattern ring -opt-switch nbx.tuning=1,4,delays,40,0,68a81857c,d0101cd
+openfoam,ring-tuning1,nbxExchange -calls 3 -pattern ring -opt-switch nbx.tuning=1,4,plain,40,0,68a81857c,d0101cd
+openfoam,ring-tuning1,nbxExchange -calls 3 -pattern ring -opt-switch nbx.tuning=1,8,delays,40,0,68a81857c,d0101cd
+openfoam,ring-tuning1,nbxExchange -calls 3 -pattern ring -opt-switch nbx.tuning=1,8,plain,40,0,68a81857c,d0101cd
+openfoam,ring,nbxExchange -calls 3 -pattern ring,4,delays,40,0,68a81857c,d0101cd
+openfoam,ring,nbxExchange -calls 3 -pattern ring,4,plain,40,0,68a81857c,d0101cd
+openfoam,ring,nbxExchange -calls 3 -pattern ring,8,delays,40,0,68a81857c,d0101cd
+openfoam,ring,nbxExchange -calls 3 -pattern ring,8,plain,40,0,68a81857c,d0101cd
+openfoam,scatter-tuning1,nbxExchange -calls 3 -pattern scatter -opt-switch nbx.tuning=1,4,delays,40,0,68a81857c,d0101cd
+openfoam,scatter-tuning1,nbxExchange -calls 3 -pattern scatter -opt-switch nbx.tuning=1,4,plain,40,0,68a81857c,d0101cd
+openfoam,scatter-tuning1,nbxExchange -calls 3 -pattern scatter -opt-switch nbx.tuning=1,8,delays,40,0,68a81857c,d0101cd
+openfoam,scatter-tuning1,nbxExchange -calls 3 -pattern scatter -opt-switch nbx.tuning=1,8,plain,40,0,68a81857c,d0101cd
+openfoam,scatter,nbxExchange -calls 3 -pattern scatter,4,delays,40,0,68a81857c,d0101cd
+openfoam,scatter,nbxExchange -calls 3 -pattern scatter,4,plain,40,0,68a81857c,d0101cd
+openfoam,scatter,nbxExchange -calls 3 -pattern scatter,8,delays,40,0,68a81857c,d0101cd
+openfoam,scatter,nbxExchange -calls 3 -pattern scatter,8,plain,40,1,68a81857c,d0101cd

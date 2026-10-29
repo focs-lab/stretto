@@ -1,0 +1,16 @@
+case,version,np,kind,traced,clean,predicting,alternatives,replayed,wrong,matched,valid,controls_ok,confirmed,source,commit
+openfoam,ring,4,cross,10,10,10,80,80,80,80,80,80,80,68a81857c,d0101cd
+openfoam,ring,8,cross,10,10,10,160,160,160,160,160,160,160,68a81857c,d0101cd
+openfoam,scatter,4,cross,10,9,9,54,54,54,54,54,53,53,68a81857c,d0101cd
+openfoam,scatter,8,cross,10,10,10,140,140,140,140,140,136,136,68a81857c,d0101cd
+openfoam,all,4,cross,10,10,0,0,0,0,0,0,0,0,68a81857c,d0101cd
+openfoam,all,8,cross,10,10,0,0,0,0,0,0,0,0,68a81857c,d0101cd
+openfoam,ring-tuning1,4,cross,10,10,0,0,0,0,0,0,0,0,68a81857c,d0101cd
+openfoam,ring-tuning1,8,cross,10,10,0,0,0,0,0,0,0,0,68a81857c,d0101cd
+openfoam,scatter-tuning1,4,cross,10,10,0,0,0,0,0,0,0,0,68a81857c,d0101cd
+openfoam,scatter-tuning1,8,cross,10,10,0,0,0,0,0,0,0,0,68a81857c,d0101cd
+openfoam,nbxmin2,4,cross,5,5,5,15,15,0,15,15,15,0,68a81857c,d0101cd
+openfoam,nbxmin2,8,cross,5,5,5,35,35,0,35,35,35,0,68a81857c,d0101cd
+openfoam,insidePoints-pbufs1,6,cross,3,3,0,0,0,0,0,0,0,0,68a81857c,d0101cd
+openfoam,gap_detection-pbufs1,8,cross,3,3,0,0,0,0,0,0,0,0,68a81857c,d0101cd
+openfoam,dist-pbufs1,8,cross,3,3,0,0,0,0,0,0,0,0,68a81857c,d0101cd

@@ -1,0 +1,13 @@
+case,version,label,np,setting,runs,failed,source,commit
+swiftt,bug,adlb,4,delays,40,0,4b3882d,d0101cd
+swiftt,bug,adlb,4,plain,40,0,4b3882d,d0101cd
+swiftt,bug,adlb,6,delays,40,0,4b3882d,d0101cd
+swiftt,bug,adlb,6,plain,40,0,4b3882d,d0101cd
+swiftt,bug,adlb2000,4,plain,100,0,4b3882d,d0101cd
+swiftt,fix,adlb,4,delays,40,0,4b3882d+fix.diff,d0101cd
+swiftt,fix,adlb,4,plain,40,0,4b3882d+fix.diff,d0101cd
+swiftt,fix,adlb,6,delays,40,0,4b3882d+fix.diff,d0101cd
+swiftt,fix,adlb,6,plain,40,0,4b3882d+fix.diff,d0101cd
+swiftt,fix,adlb2000,4,plain,100,0,4b3882d+fix.diff,d0101cd
+swiftt,bug,adlb400 one processor,4,plain,30,0,4b3882d,
+swiftt,fix,adlb400 one processor,4,plain,30,0,4b3882d+fix.diff,
