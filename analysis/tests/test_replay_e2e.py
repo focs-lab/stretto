@@ -283,5 +283,58 @@ class FlipPins(unittest.TestCase):
         self.assertNotIn("unused", rp.proc.stderr)
 
 
+class EnvelopePins(unittest.TestCase):
+    """Idiom 32: rank 0 drains tags 21 and 22 through one Iprobe call site. A replay with rank 1
+    delayed finds the tag-22 messages first; a probe pin with its envelope's ordinal (the fourth
+    field of its identity) still falls on its probe, one without it on a probe of the other tag
+    (VTK's particle tracker, tags 622 and 624, docs/findings.md)."""
+
+    analysed = PinIdentity.analysed
+    LATE = {"STRETTO_SEND_DELAY_MS": "1:400"}      # rank 1's tag-21 messages after rank 2's
+
+    def unflip(self, t, rep, n):
+        """The unflip of the n-th tag-21 probe that found a message."""
+        fs = [f for f in rep.by_class("probe-unflip") if t.probes[f.probe].tag == 21
+              and C.envelope_ordinal(t, t.probes[f.probe]) == n]
+        if not fs:
+            self.skipTest(f"no tag-21 probe {n} in this trace")
+        return fs[0]
+
+    def test_an_unflip_falls_on_its_envelope_when_the_tags_interleave_otherwise(self):
+        exe, t, rep = self.analysed(32)
+        u = self.unflip(t, rep, 1)
+        q = t.probes[u.probe]
+        self.assertRegex(u.pin, rf"^STRETTO_PIN_PROBE=0:{q.pidx}:-1@0:21:[0-9a-f]+:1$")
+        rp = C.run_checked(3, exe, [], [u.pin], timeout=30, extra_env=self.LATE)
+        self.assertEqual(rp.result, "FINISHED", rp.proc.stderr[-2000:])
+        self.assertEqual(rp.misapplied, [])
+        self.assertRegex(rp.proc.stderr, rf"\[stretto-pin\] rank 0: applied unflip pidx={q.pidx} id=0:21:")
+        self.assertNotIn("unused", rp.proc.stderr)
+        # the same pin by the rank's ordinal alone: a tag-22 probe there, the run ends misapplied
+        old = u.pin.rsplit(":", 1)[0]
+        rp = C.run_checked(3, exe, [], [old], timeout=30, extra_env=self.LATE)
+        self.assertEqual(rp.result, f"APP-ERROR:{C.PIN_MISAPPLIED}", rp.proc.stderr[-2000:])
+
+    def test_a_flip_names_the_probes_of_its_envelope(self):
+        """A failed tag-22 poll after both tag-21 messages, forced to return rank 2's message:
+        its pin counts the tag-22 probes found before it (none), not the rank's two."""
+        exe, t, rep = self.analysed(32)
+
+        def found_21(q):
+            return sum(1 for p in t.probes.values() if p.tag == 21 and p.pidx is not None and p.idx < q.idx)
+        fl = [f for f in rep.by_class("probe-flip") if t.probes[f.probe].tag == 22 and t.sends[f.send].rank == 2
+              and found_21(t.probes[f.probe]) == 2]
+        if not fl:
+            self.skipTest("no tag-22 flip after the tag-21 messages in this trace")
+        f = min(fl, key=lambda f: t.probes[f.probe].idx)
+        self.assertTrue(f.pin.endswith(":0"), f.pin)
+        alt, ctl = C.horizon_pins(t, f)
+        ra = C.run_checked(3, exe, [], alt, timeout=30)
+        self.assertEqual((ra.result, ra.misapplied), ("FINISHED", []), ra.proc.stderr[-2000:])
+        self.assertTrue(C.all_matched(alt, ra.proc.stderr, C.required_matches(t, f), ra.seen), ra.proc.stderr[-2000:])
+        rc = C.run_checked(3, exe, [], ctl, timeout=30)
+        self.assertEqual((rc.result, rc.misapplied), ("FINISHED", []), rc.proc.stderr[-2000:])
+
+
 if __name__ == "__main__":
     unittest.main()

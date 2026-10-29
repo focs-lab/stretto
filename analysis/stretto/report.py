@@ -704,25 +704,32 @@ def flip_pin(t: Trace, rank: int, idx: int, src: int, tag: Optional[int], ident)
     """STRETTO_PIN_FLIP for the failed poll at record idx of rank: its key (Trace.poll_key, the
     rank's calls before it that are not failed polls), the source (world rank; -2 completes a
     test's request) and tag it is to return, and the call's identity (replay/pin.h):
-    communicator, tag argument, call site, and the number of the rank's wildcard probes that
-    found a message before it, which the replay library compares with its own count, so that a
-    replay that diverged before the call ends instead of forcing another iteration's call. None
-    if the record is not a failed poll."""
+    communicator, tag argument, call site, and the number of wildcard probes that found a
+    message before it, which the replay library compares with its own count, so that a replay
+    that diverged before the call ends instead of forcing another iteration's call. The number
+    is that of the probes of the poll's envelope (its communicator and tag argument) when the
+    identity names both, so that another polling loop of the rank, whose messages may come in
+    another order in the replay, does not change it; that of all the rank's wildcard probes for
+    a test. None if the record is not a failed poll."""
     key = t.poll_key.get((rank, idx))
     if key is None:
         return None
     c, g, s = ident
-    found = sum(1 for p in t.probes.values() if p.rank == rank and p.idx < idx and p.flag and p.wildcard and p.completed)
-    ident_text = f"{'x' if c is None else c}:{'x' if g is None else g}:{'x' if s is None else format(s, 'x')}:{found}"
+    probes = [p for p in t.probes.values() if p.rank == rank and p.idx < idx and p.flag and p.wildcard and p.completed]
+    if c is not None and g is not None:
+        local = t.ranks[rank][idx].raw.get("comm") if t.ranks[rank][idx].raw is not None else None
+        probes = [p for p in probes if p.tag == g and t.ranks[rank][p.idx].raw is not None
+                  and t.ranks[rank][p.idx].raw.get("comm") == local]
+    ident_text = f"{'x' if c is None else c}:{'x' if g is None else g}:{'x' if s is None else format(s, 'x')}:{len(probes)}"
     return f"STRETTO_PIN_FLIP={rank}:{key}:{src}" + (f":{tag}" if tag is not None else "") + "@" + ident_text
 
 
 def flip_finding(t: Trace, p: Probe, s: Optional[Send], brange: str) -> Finding:
     """A flag flip of an Iprobe or Improbe: false -> true with s, or true -> false (s None)."""
-    from .confirm import _ident_text, identity     # confirm imports this module
+    from .confirm import ident_text, identity     # confirm imports this module
     if s is None:
         seen = t.sends[p.seen]
-        pin = (f"STRETTO_PIN_PROBE={p.rank}:{p.pidx}:-1@" + _ident_text(identity(t, p))) if p.pidx is not None else None
+        pin = (f"STRETTO_PIN_PROBE={p.rank}:{p.pidx}:-1@" + ident_text(t, p)) if p.pidx is not None else None
         return Finding("probe", "probe-unflip", "L1", f"{p} could return false instead of reporting {seen}",
                        ["a false flag is always a possible result (no progress guarantee): the message may arrive later",
                         f"L1: continuation of rank {p.rank} after the probe undetermined", FLIP_LEVEL_NOTE],

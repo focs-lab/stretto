@@ -14,7 +14,7 @@ from stretto.confirm import (PIN_INLINE_MAX, all_matched, changed_pin, classify_
 from stretto import confirm as C  # noqa: E402
 from stretto import trace as T  # noqa: E402
 from stretto.matching import candidates_full  # noqa: E402
-from stretto.report import Finding  # noqa: E402
+from stretto.report import Finding, analyze  # noqa: E402
 from test_checker import failed_iprobe, mk, recv, send, wait  # noqa: E402
 from test_hb import irecv, reply_to_pending_receive, stolen_after_later_receive  # noqa: E402
 
@@ -417,6 +417,67 @@ def on_a_dup(tag=7, site_offset=0x1234):
                  1: [{"op": "init", "np": 2}, world(1), self_(1), dup,
                      {"op": "send", "mode": "std", "dst": 0, "tag": tag, "comm": 2, "count": 1, "tsize": 4}, {"op": "finalize"}]})
     return t
+
+
+def found_iprobe(tag, msrc, pidx):
+    """An Iprobe(ANY_SOURCE, tag) record that found msrc's message, the pidx-th wildcard probe
+    of its rank to find one."""
+    return {"op": "probe", "kind": "iprobe", "src": 0, "anysrc": 1, "tag": tag, "comm": 0, "flag": 1,
+            "msrc": msrc, "mtag": tag, "mbytes": 4, "pidx": pidx}
+
+
+def two_tag_drains(order=(21, 21, 22)):
+    """Rank 0 drains tags 21 (rank 1's) and 22 (rank 2's) through Iprobe(ANY_SOURCE), finding
+    them in the given order, then fails a tag-22 poll and receives rank 2's last message."""
+    src = {21: 1, 22: 2}
+    r0 = []
+    for k, tag in enumerate(order):
+        r0 += [found_iprobe(tag, src[tag], k), recv(src[tag], tag, src[tag], tag)]
+    r0 += [failed_iprobe(22), recv(2, 22, 2, 22)]
+    n21, n22 = order.count(21), order.count(22)
+    return mk({0: r0, 1: [send(0, 21)] * n21, 2: [send(0, 22)] * (n22 + 1)})
+
+
+class EnvelopePins(unittest.TestCase):
+    """A probe pin names its probe by the ordinal of its envelope (communicator and tag
+    argument) among the wildcard probes that found a message, the fourth field of its
+    identity; the rank's ordinal (pidx) only labels it. Two drain loops of other tags at one
+    call site find their messages in another order in a replay (VTK's particle tracker, tags
+    622 and 624), which moves pidx and not the envelope's ordinal (replay/pin.h)."""
+
+    def test_the_token_carries_the_envelope_ordinal(self):
+        t = two_tag_drains()
+        q = {p.pidx: p for p in t.probes.values() if p.pidx is not None}
+        self.assertEqual([C.envelope_ordinal(t, q[i]) for i in range(3)], [0, 1, 0])
+        self.assertEqual(C.pin_token(t, q[1], 1), "0:1:1@0:21:x:1")
+        self.assertEqual(C.pin_token(t, q[2], 2), "0:2:2@0:22:x:0")
+        self.assertEqual(C.with_identity(t, ["STRETTO_PIN_PROBE=0:2:2"]), ["STRETTO_PIN_PROBE=0:2:2@0:22:x:0"])
+        (k,) = C.pin_tokens("STRETTO_PIN_PROBE=0:2:2@0:22:x:0")
+        self.assertEqual((k.ident, k.n), ((0, 22, None), 0))
+        self.assertEqual(C.control_pin(t, "STRETTO_PIN_PROBE=0:1:-1@0:21:x:1"), "STRETTO_PIN_PROBE=0:1:1@0:21:x:1")
+
+    def test_the_unflip_and_the_flip_name_their_envelope(self):
+        t = two_tag_drains()
+        rep = analyze(t, with_sp=False)
+        unflips = {t.probes[f.probe].pidx: f.pin for f in rep.by_class("probe-unflip")}
+        self.assertEqual(unflips[2], "STRETTO_PIN_PROBE=0:2:-1@0:22:x:0")
+        (fl,) = rep.by_class("probe-flip")
+        # one tag-22 probe found a message before the failed poll, three wildcard probes in all
+        self.assertTrue(fl.pin.endswith("@0:22:x:1"), fl.pin)
+
+    def test_a_replay_that_finds_the_other_tag_first(self):
+        """In the replay's own trace the tag-22 message comes first: the pin of the trace's
+        tag-22 probe (pidx 2) falls on the replay's pidx 0, the probe of its envelope; without
+        the envelope's ordinal it falls on a tag-21 probe and is misapplied."""
+        replay = two_tag_drains((22, 21, 21))
+        pin = "STRETTO_PIN_PROBE=0:2:2@0:22:x:0"
+        self.assertEqual(trace_matches(replay, pin), {("probe", 0, 2)})
+        self.assertEqual(C.trace_misapplied(replay, pin), [])
+        old = "STRETTO_PIN_PROBE=0:2:2@0:22"
+        self.assertEqual(trace_matches(replay, old), set())
+        self.assertTrue(C.trace_misapplied(replay, old))
+        # the library's lines name the pin by its pidx, wherever the probe was in the run
+        self.assertTrue(all_matched([pin], "[stretto-pin] rank 0: applied probe pidx=2 src=2 tag=22 id=0:22:x\n"))
 
 
 class PinIdentity(unittest.TestCase):

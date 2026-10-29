@@ -287,7 +287,10 @@ request; -1, the control: returns false). `STRETTO_SEND_DELAY_MS="rank:ms,..."` 
 confirm` writes also carry the traced operation's identity, `rank:idx:src[:tag]@comm:tag:site`
 (its communicator's creation ordinal on the rank, its tag argument, its call site): a replay that
 diverged before a pin would otherwise pin another operation and report it matched. The replay
-library ends such a run with exit code 86, and the replay is inconclusive (`replay/pin.h`).
+library ends such a run with exit code 86, and the replay is inconclusive (`replay/pin.h`). A
+probe pin's identity has a fourth field, the probe's ordinal among the rank's wildcard probes of
+its communicator and tag that found a message, by which the library pins it: two polling loops
+of other tags at one call site find their messages in another order in a replay.
 
 Of class 1a only a truncation is confirmable: the receive fails with `MPI_ERR_TRUNCATE`, inside
 the call, so its pin shows as applied (and, under the tracer, the receive as pending where the
@@ -361,7 +364,7 @@ lost message whose single-path witness stays within them is an L1 finding
 | [`analysis/`](analysis/) | the Python package `stretto` (standard library only) and its tests |
 | [`replay/`](replay/) | the pin library, `libstretto-pin.so`: forced sources, delays |
 | [`rerun/`](rerun/) | the re-execution shim, `libstretto-rerun.so`: one rank runs alone on given results (level L2) |
-| [`idioms/`](idioms/) | fourteen small MPI programs, each with the prediction it should give |
+| [`idioms/`](idioms/) | fifteen small MPI programs, each with the prediction it should give |
 | [`experiments/`](experiments/) | the corpus harness (MBI, MPI-BugBench), the applications, the image, the results |
 | [`artifact/`](artifact/) | one reproduction target per research question, and the claims check |
 | [`docs/`](docs/) | the model, the first-read bounds, the results, the feasibility gate, the proposal |

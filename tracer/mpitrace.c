@@ -54,7 +54,8 @@
      reqfree   req (MPI_Request_free: the operation completes unobserved)
      probe     kind(probe|iprobe|mprobe|improbe), src, tag, comm, [anysrc], [anytag], flag,
                [msrc, mtag, mbytes], [pidx] (the probe's ordinal among the rank's wildcard
-               probes, what STRETTO_PIN_PROBE counts)
+               probes, what STRETTO_PIN_PROBE counts; a pin with an envelope ordinal counts the
+               probes of its communicator and tag argument instead, replay/pin.h)
      coll      name, comm, root(-1 if none), count, tsize, [req], [din], [dout]
      comm      name, parent(local id), id(local id), ranks:[world ranks in comm-rank order],
                gord (creation ordinal of that group); an intercommunicator carries
@@ -1883,7 +1884,7 @@ static inline __attribute__((always_inline)) void probe_rec(const char *kind, in
     if (pinned) rb_printf(&b, ",\"pinned\":{\"src\":%d}", psrc);
     if (flag && rc == MPI_SUCCESS && st) { int cnt = -1; PMPI_Get_count(st, MPI_BYTE, &cnt); rb_printf(&b, ",\"msrc\":%d,\"mtag\":%d,\"mbytes\":%d", st->MPI_SOURCE, st->MPI_TAG, cnt); }
     if (flag) rb_iseq(&b, iseq);
-    if (flag) stretto_pin_probe_commit(pidx, rc == MPI_SUCCESS && st ? st->MPI_SOURCE : -1, rc == MPI_SUCCESS && st ? st->MPI_TAG : -1);
+    if (flag) stretto_pin_probe_commit(pidx, comm, tag, rc == MPI_SUCCESS && st ? st->MPI_SOURCE : -1, rc == MPI_SUCCESS && st ? st->MPI_TAG : -1);
     rb_emit_kind(&b, !flag);
 }
 /* Under the issue lock a blocking probe is a loop of nonblocking ones, each under the lock, so

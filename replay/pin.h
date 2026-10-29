@@ -15,13 +15,25 @@
                                            minus its object's load address, as the tracer's
                                            site records give it); 'x' leaves a part
                                            unchecked. A pin without '@' is not checked.
-   STRETTO_PIN_PROBE="rank:pidx:src[:tag][@comm:otag[:site]],..."  same for the pidx-th
+   STRETTO_PIN_PROBE="rank:pidx:src[:tag][@comm:otag[:site[:n]]],..."  same for the pidx-th
                                            wildcard probe that found a message (Probe/Mprobe,
                                            and Iprobe/Improbe with flag 1), counted separately
                                            ("pidx" field of probe records). A src of -1
                                            makes an Iprobe or Improbe at that ordinal return
                                            flag 0 once, without polling: a probe that saw a
                                            message reports none (a flag flip to false).
+                                           n: the probe's ordinal among the rank's wildcard
+                                           probes of its envelope (communicator and tag
+                                           argument, both given) that found a message; a
+                                           token with it pins the probe of that envelope at
+                                           that ordinal, whatever the rank's ordinal, and
+                                           pidx only names it in the report lines. Two polling
+                                           loops of other tags or communicators from one call
+                                           site find their messages in another order in a
+                                           replay than in the trace, which moves the rank's
+                                           ordinal and not the envelope's. Where the rank's
+                                           wildcard probes all have one envelope the two
+                                           ordinals are equal.
    STRETTO_PIN_FLIP="rank:key:src[:tag][@comm:otag[:site[:found]]],..."  a poll that failed in the trace
                                            (a poll is an Iprobe or Improbe, or an MPI_Test,
                                            Testall, Testany, Testsome or MPI_Request_get_status;
@@ -41,9 +53,12 @@
                                            -2: the test waits until its request is complete and
                                            returns flag 1; -1: the call returns flag 0 without
                                            polling, the trace's own result (the control). found:
-                                           the number of the rank's wildcard probes that found a
-                                           message before the call; a call met after another
-                                           number ends the run as misapplied ("flip pin key=K
+                                           the number of the wildcard probes of the call's
+                                           envelope (as for STRETTO_PIN_PROBE's n) that found a
+                                           message before the call, or of all the rank's
+                                           wildcard probes for a test or an unchecked
+                                           communicator; a call met after another number ends
+                                           the run as misapplied ("flip pin key=K
                                            misapplied"), since the replay diverged before it.
    STRETTO_SEND_DELAY_MS="rank:ms,..."     sleep before every send on that rank (last wins).
    STRETTO_RECV_DELAY_MS="rank:ms,..."     sleep before every receive on that rank.
@@ -81,9 +96,11 @@ int  stretto_pin_probe(int *src, int *tag, MPI_Comm comm, int *pidx);
 /* The ordinal a wildcard probe would take (-1 for another probe), without applying a pin: for a
    call that a flip pin forces instead. */
 int  stretto_pin_probe_ordinal(int src, int tag);
-/* src, tag: the envelope the probe reported (comm-local); a pinned probe that found its message
-   is reported as "[stretto-pin] rank R: applied probe pidx=P src=S tag=T id=C:G:X" */
-void stretto_pin_probe_commit(int pidx, int src, int tag);
+/* A wildcard probe found a message: the rank's ordinal and that of its envelope (comm, otag:
+   its communicator and tag argument) advance. src, tag: the envelope the probe reported
+   (comm-local); a pinned probe that found its message is reported as "[stretto-pin] rank R:
+   applied probe pidx=P src=S tag=T id=C:G:X", P the pin's pidx */
+void stretto_pin_probe_commit(int pidx, MPI_Comm comm, int otag, int src, int tag);
 /* Every record the tracer writes (both builds call it, the replay library writing none): counts
    the calls that are not failed polls, the key of STRETTO_PIN_FLIP. body is the record's text,
    failed_poll whether it is a poll that returned false; the buffer guard's and overflow records

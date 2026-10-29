@@ -127,7 +127,11 @@ def classify_rc(rc: int, stderr: str, elapsed: Optional[float] = None, timeout: 
 # leaves a part unchecked. The replay library compares them with the operation at the ordinal
 # and ends the run on a difference ("misapplied", replay/pin.h); its report lines carry the
 # run's identity, and the replay's own trace is compared too (trace_matches,
-# trace_misapplied). A token without '@', as pins were written before, is not checked.
+# trace_misapplied). A token without '@', as pins were written before, is not checked. A probe
+# pin's identity has a fourth field since 29 Oct 2026, the probe's ordinal among the rank's
+# wildcard probes of its communicator and tag argument that found a message (envelope_ordinal):
+# the library pins by it, since two polling loops of other tags at one call site interleave
+# differently in a replay, and the pidx then names a probe of the other loop.
 
 PIN_MISAPPLIED = 86      # the exit code the replay library ends a run with (replay/pin.h STRETTO_PIN_MISAPPLIED)
 
@@ -142,6 +146,10 @@ class PinToken:
     src: int                  # the sender's world rank; -1 a flag 0, -2 a test's request (flips, replay/pin.h)
     tag: Optional[int]        # the tag an ANY_TAG operation takes, None if the pin names none
     ident: Optional[Ident]    # the traced operation's identity, None in a token without it
+    # the identity's fourth field: of a probe pin, the probe's ordinal among the rank's wildcard
+    # probes of its envelope that found a message (envelope_ordinal), which the replay library
+    # pins by; of a flip pin, the number of those found before the poll
+    n: Optional[int] = None
 
 
 def _parse_ident(text: str) -> Ident:
@@ -150,9 +158,17 @@ def _parse_ident(text: str) -> Ident:
             None if f[2] == "x" else int(f[2], 16))
 
 
-def _ident_text(ident: Ident) -> str:
+def _parse_n(text: str) -> Optional[int]:
+    f = text.split(":")
+    return int(f[3]) if len(f) > 3 and f[3] != "x" else None
+
+
+def _ident_text(ident: Ident, n: Optional[int] = None) -> str:
     c, g, s = ident
-    return f"{'x' if c is None else c}:{'x' if g is None else g}" + ("" if s is None else f":{s:x}")
+    text = f"{'x' if c is None else c}:{'x' if g is None else g}"
+    if n is not None:
+        return text + f":{'x' if s is None else format(s, 'x')}:{n}"
+    return text + ("" if s is None else f":{s:x}")
 
 
 def _pin_kind(name: str) -> str:
@@ -172,7 +188,8 @@ def pin_tokens(pins) -> List[PinToken]:
             if len(parts) < 3:
                 continue
             out.append(PinToken(kind, int(parts[0]), int(parts[1]), int(parts[2]),
-                                int(parts[3]) if len(parts) > 3 else None, _parse_ident(ident) if at else None))
+                                int(parts[3]) if len(parts) > 3 else None, _parse_ident(ident) if at else None,
+                                _parse_n(ident) if at else None))
     return out
 
 
@@ -225,11 +242,56 @@ def identity(t, x) -> Ident:
     return _local_comms(t).get((x.rank, x.comm)), x.tag, (site[1] if site else None)
 
 
+def _envelopes(t) -> Dict:
+    """Per probe of trace t that found a message as a wildcard probe (one with a pidx): its
+    envelope, (rank, the communicator's local id, the tag argument), and its ordinal among the
+    probes of that envelope, as the replay library counts them (replay/pin.h, STRETTO_PIN_PROBE's
+    n); and the reverse map. Cached on t."""
+    cache = t.__dict__.get("_stretto_envelopes")
+    if cache is None:
+        of, at, count = {}, {}, Counter()
+        for q in sorted((q for q in t.probes.values() if q.pidx is not None), key=lambda q: (q.rank, q.idx)):
+            raw = t.ranks[q.rank][q.idx].raw if q.idx < len(t.ranks.get(q.rank, ())) else None
+            local = raw.get("comm") if raw is not None else None
+            if local is None:
+                continue
+            env = (q.rank, local, q.tag)
+            of[q.key] = (env, count[env])
+            at[env + (count[env],)] = q
+            count[env] += 1
+        cache = t.__dict__["_stretto_envelopes"] = (of, at)
+    return cache
+
+
+def envelope_ordinal(t, q) -> Optional[int]:
+    """The ordinal of probe q of trace t among the wildcard probes of its rank, communicator and
+    tag argument that found a message (the replay library's n), None if q has none or its
+    communicator's local id is not the one its identity names."""
+    e = _envelopes(t)[0].get(q.key)
+    if e is None or identity(t, q)[0] != e[0][1]:
+        return None
+    return e[1]
+
+
+def probe_at_envelope(t, rank: int, comm: int, tag: int, n: int):
+    """The probe of rank in trace t that is the n-th wildcard probe of communicator comm (local
+    id) and tag argument tag to find a message, or None: where a pin with an envelope ordinal
+    falls in a replay's own trace."""
+    return _envelopes(t)[1].get((rank, comm, tag, n))
+
+
+def ident_text(t, x) -> str:
+    """The identity of receive or probe x of trace t as a pin writes it after '@'; a probe's
+    carries its envelope ordinal as a fourth field when it has one."""
+    n = envelope_ordinal(t, x) if hasattr(x, "pidx") else None
+    return _ident_text(identity(t, x), n)
+
+
 def pin_token(t, x, src: int, tag: Optional[int] = None) -> str:
     """The pin of receive or probe x of trace t to world rank src (and to tag, for an ANY_TAG
     operation), with x's identity."""
     idx = x.pidx if hasattr(x, "pidx") else x.widx
-    return f"{x.rank}:{idx}:{src}" + (f":{tag}" if x.tag == ANY and tag is not None else "") + "@" + _ident_text(identity(t, x))
+    return f"{x.rank}:{idx}:{src}" + (f":{tag}" if x.tag == ANY and tag is not None else "") + "@" + ident_text(t, x)
 
 
 def _op_at(t, kind: str, rank: int, idx: int):
@@ -244,6 +306,15 @@ def _op_at(t, kind: str, rank: int, idx: int):
     return ix.get((kind, rank, idx))
 
 
+def _op_of(t, k: PinToken):
+    """The operation pin token k falls on in trace t (a replay's own): a probe pin with an
+    envelope ordinal on that envelope's probe at it, any other pin on the operation of its
+    ordinal."""
+    if k.kind == "probe" and k.n is not None and k.ident is not None and k.ident[0] is not None and k.ident[1] is not None:
+        return probe_at_envelope(t, k.rank, k.ident[0], k.ident[1], k.n)
+    return _op_at(t, k.kind, k.rank, k.idx)
+
+
 def with_identity(t, pins: List[str]) -> List[str]:
     """The pins with the identity of the operation each names in trace t added where a token
     has none (a finding's own pin, a witness's)."""
@@ -255,7 +326,7 @@ def with_identity(t, pins: List[str]) -> List[str]:
         for tok in spec.split(","):
             parts = tok.split("@")[0].split(":")
             x = _op_at(t, kind, int(parts[0]), int(parts[1])) if "@" not in tok and len(parts) >= 3 else None
-            toks.append(tok if x is None else tok + "@" + _ident_text(identity(t, x)))
+            toks.append(tok if x is None else tok + "@" + ident_text(t, x))
         out.append(f"{name}={','.join(toks)}")
     return out
 
@@ -603,15 +674,20 @@ def _blocked_on(t) -> Set:
     return out
 
 
-def _end_probes(t, ppins) -> list:
+def _end_probes(t, ppins, tokens=()) -> list:
     """(probe, its envelope in the replay, its pin) for every probe a hung run ended in without
     a message: a blocking probe a rank was blocked in, or a failed Iprobe that is its rank's
-    last record (a polling loop). Its pin is the one of the rank's next probe ordinal
-    (replay/pin.c counts the wildcard probes that found a message)."""
+    last record (a polling loop). Its pin is the one of its envelope's next ordinal, for a pin
+    that names one (tokens), else that of the rank's next probe ordinal (replay/pin.c counts the
+    wildcard probes that found a message, per rank and per envelope)."""
     nxt: Dict[int, int] = {}
     for q in t.probes.values():
         if q.pidx is not None:
             nxt[q.rank] = max(nxt.get(q.rank, 0), q.pidx + 1)
+    by_env = {(k.rank, k.ident[0], k.ident[1], k.n): (k.src, k.tag) for k in tokens
+              if k.kind == "probe" and k.src >= 0 and k.n is not None and k.ident is not None and None not in k.ident[:2]}
+    global_pidx = {(k.rank, k.idx) for k in tokens if k.kind == "probe" and k.n is not None}
+    env_next = Counter(env for env, _ in _envelopes(t)[0].values()) if by_env else Counter()
     last = {}
     for rank in t.truncated:
         recs = [r for r in t.ranks.get(rank, []) if r.op != "guard"]
@@ -622,7 +698,13 @@ def _end_probes(t, ppins) -> list:
         polling = not p.flag and last.get(p.rank) == p.idx
         if p.completed and not polling:
             continue
-        pin = ppins.get((p.rank, nxt.get(p.rank, 0))) if p.wildcard else None
+        pin = None
+        if p.wildcard:
+            raw = t.ranks[p.rank][p.idx].raw if by_env else None
+            env = (p.rank, raw.get("comm"), p.tag) if raw is not None else None
+            pin = by_env.get(env + (env_next[env],)) if env is not None else None
+            if pin is None and (p.rank, nxt.get(p.rank, 0)) not in global_pidx:
+                pin = ppins.get((p.rank, nxt.get(p.rank, 0)))
         out.append((p, _envelope(p, pin), pin))
     return out
 
@@ -682,7 +764,7 @@ def unpinned_violation(t, finished: bool = True, hung: bool = False, pins=None, 
     from .matching import build_graph, matching_order_ok
     rpins, ppins = parse_pins(pins)
     pend = sorted((r for r in t.recvs.values() if not r.completed and not r.cancelled and not r.mrecv), key=lambda r: r.key)
-    end_probes = _end_probes(t, ppins) if hung else []
+    end_probes = _end_probes(t, ppins, pin_tokens(pins)) if hung else []
     if not pend and not end_probes:
         why = matching_order_ok(t, t.observed, lambda rk: True, None, lambda q: True)
         if why is None and build_graph(t, t.observed, None, None).find_cycle():
@@ -729,19 +811,24 @@ def trace_matches(t, pins) -> Set[Tuple[str, int, int]]:
     """The pins a replay's own trace shows taken, as _reported has them: ("recv", rank, widx)
     for a pinned receive that completed from its pinned source (with its pinned tag, if the pin
     names one), ("probe", rank, pidx) for a pinned probe that saw a message of its pinned
-    source. The trace says what the run did; the replay library's report lines, which Open
-    MPI's mpirun merges from the ranks' stderr in chunks, can be cut apart and missed. A pin
-    with an identity counts only on an operation of that identity (trace_misapplied)."""
-    toks = {(k.kind, k.rank, k.idx): k for k in pin_tokens(pins)}
+    source, pidx the pin's (a pin with an envelope ordinal falls on its envelope's probe, whatever
+    that probe's pidx in the replay). The trace says what the run did; the replay library's
+    report lines, which Open MPI's mpirun merges from the ranks' stderr in chunks, can be cut
+    apart and missed. A pin with an identity counts only on an operation of that identity
+    (trace_misapplied)."""
+    tokens = pin_tokens(pins)
+    toks = {(k.kind, k.rank, k.idx): k for k in tokens}
     out: Set[Tuple[str, int, int]] = set()
     for r in t.recvs.values():
         k = toks.get(("recv", r.rank, r.widx)) if r.widx is not None else None
         if k and r.completed and r.msrc == k.src and (k.tag is None or r.mtag == k.tag) and _agrees(k.ident, identity(t, r)):
             out.add(("recv", r.rank, r.widx))
-    for q in t.probes.values():
-        k = toks.get(("probe", q.rank, q.pidx)) if q.pidx is not None else None
-        if k and q.flag and q.msrc == k.src and (k.tag is None or q.mtag == k.tag) and _agrees(k.ident, identity(t, q)):
-            out.add(("probe", q.rank, q.pidx))
+    for k in tokens:
+        if k.kind != "probe":
+            continue
+        q = _op_of(t, k)
+        if q is not None and q.flag and q.msrc == k.src and (k.tag is None or q.mtag == k.tag) and _agrees(k.ident, identity(t, q)):
+            out.add(("probe", k.rank, k.idx))
     return out
 
 
@@ -752,7 +839,7 @@ def trace_misapplied(t, pins) -> List[str]:
     for k in pin_tokens(pins):
         if k.ident is None:
             continue
-        x = _op_at(t, k.kind, k.rank, k.idx)
+        x = _op_of(t, k)
         if x is not None and not _agrees(k.ident, identity(t, x)):
             out.append(f"rank {k.rank} {'pidx' if k.kind == 'probe' else 'widx'}={k.idx}: the replay's operation has "
                        f"id={_ident_text(identity(t, x))}, the pin's id={_ident_text(k.ident)}")

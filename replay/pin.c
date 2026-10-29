@@ -28,11 +28,22 @@ struct pin {
     int ident, has_comm, has_otag, has_site;
     int comm, otag; long site;
     int seen_comm, seen_otag; long seen_site;
-    int nprobe, has_nprobe;           /* a flip pin: how many wildcard probes of the rank found a message before the call */
+    /* the fourth field of the identity: how many wildcard probes of the rank's envelope (the
+       communicator and tag argument of the identity) found a message before the call; for a
+       probe pin its ordinal among them, which selects it, for a flip pin a check */
+    int nprobe, has_nprobe;
     int used;
 };
 static struct pin *g_pins = NULL, *g_ppins = NULL, *g_fpins = NULL;
 static int g_npins = 0, g_nppins = 0, g_nfpins = 0;
+/* probe pins that name their envelope's ordinal (STRETTO_PIN_PROBE with a fourth identity
+   field), sorted by (comm, otag, nprobe); g_ppins keeps the others, by the rank's ordinal */
+static struct pin *g_epins = NULL;
+static int g_nepins = 0;
+/* per envelope (communicator ordinal, tag argument, -1 for ANY_TAG): the wildcard probes of
+   the rank that found a message */
+static struct { int comm, otag, n; } *g_env = NULL;
+static int g_nenv = 0;
 /* the key of STRETTO_PIN_FLIP: how many of this rank's calls other than failed polls have
    written their record so far (stretto_pin_record) */
 static int g_calls = 0;
@@ -94,7 +105,7 @@ static void parse_ident(char *s, struct pin *p) {
         if (k == 0) { p->comm = atoi(f); p->has_comm = 1; }
         else if (k == 1) { p->otag = atoi(f); p->has_otag = 1; }
         else if (k == 2) { p->site = strtol(f, NULL, 16); p->has_site = 1; }
-        else if (k == 3) { p->nprobe = atoi(f); p->has_nprobe = 1; }   /* flips: the wildcard probes found before */
+        else if (k == 3) { p->nprobe = atoi(f); p->has_nprobe = 1; }   /* the envelope's wildcard probes found before */
     }
 }
 
@@ -140,6 +151,53 @@ static struct pin *find_pin(struct pin *pins, int n, int idx) {
     return lo < n && pins[lo].idx == idx ? &pins[lo] : NULL;
 }
 
+static int env_cmp(int c1, int t1, int n1, int c2, int t2, int n2) {
+    return c1 != c2 ? (c1 < c2 ? -1 : 1) : t1 != t2 ? (t1 < t2 ? -1 : 1) : n1 != n2 ? (n1 < n2 ? -1 : 1) : 0;
+}
+
+static int by_envelope(const void *a, const void *b) {
+    const struct pin *x = a, *y = b;
+    return env_cmp(x->comm, x->otag, x->nprobe, y->comm, y->otag, y->nprobe);
+}
+
+/* The probe pin of the envelope's ordinal n, by binary search. */
+static struct pin *find_epin(int comm, int otag, int n) {
+    int lo = 0, hi = g_nepins;
+    while (lo < hi) {
+        int mid = (lo + hi) / 2;
+        if (env_cmp(g_epins[mid].comm, g_epins[mid].otag, g_epins[mid].nprobe, comm, otag, n) < 0) lo = mid + 1; else hi = mid;
+    }
+    return lo < g_nepins && env_cmp(g_epins[lo].comm, g_epins[lo].otag, g_epins[lo].nprobe, comm, otag, n) == 0 ? &g_epins[lo] : NULL;
+}
+
+/* The wildcard probes of the envelope that found a message so far (caller holds g_pmu). */
+static int *env_slot(int comm, int otag) {
+    for (int i = 0; i < g_nenv; i++)
+        if (g_env[i].comm == comm && g_env[i].otag == otag) return &g_env[i].n;
+    g_env = realloc(g_env, sizeof *g_env * (g_nenv + 1));
+    g_env[g_nenv].comm = comm; g_env[g_nenv].otag = otag; g_env[g_nenv].n = 0;
+    return &g_env[g_nenv++].n;
+}
+
+/* Probe pins with an envelope ordinal move from g_ppins to g_epins: a rank that runs two
+   polling loops of different tags or communicators from one call site (VTK's particle
+   tracker drains tags 622 and 624 through one Iprobe) finds their messages in another order in
+   a replay than in the trace, and the rank's ordinal of the probe then names a probe of the
+   other loop; the envelope's ordinal does not depend on that order. */
+static void split_envelope_pins(void) {
+    int k = 0;
+    for (int i = 0; i < g_nppins; i++) {
+        struct pin p = g_ppins[i];
+        if (p.has_nprobe && p.has_comm && p.has_otag) {
+            g_epins = realloc(g_epins, sizeof *g_epins * (g_nepins + 1));
+            g_epins[g_nepins++] = p;
+        } else
+            g_ppins[k++] = p;
+    }
+    g_nppins = k;
+    if (g_nepins > 1) qsort(g_epins, g_nepins, sizeof *g_epins, by_envelope);
+}
+
 HIDDEN void stretto_pin_init(int rank) {
     /* ld.so ignores a preloaded library it cannot open, and the run then goes on unpinned and
        undelayed, as a plain run. Rank 0 therefore announces the library, which the harness
@@ -160,7 +218,9 @@ HIDDEN void stretto_pin_init(int rank) {
     if (g_npins)
         fprintf(stderr, "[stretto-pin] rank %d: %d pin(s) active\n", rank, g_npins);
     g_nprobe = 0;
+    g_nenv = 0;
     g_nppins = parse_pins("STRETTO_PIN_PROBE", rank, &g_ppins);
+    split_envelope_pins();
     g_calls = 0;
     g_nfpins = parse_pins("STRETTO_PIN_FLIP", rank, &g_fpins);
     g_send_delay_ms = parse_rank_ms(getenv("STRETTO_SEND_DELAY_MS"), rank);
@@ -267,34 +327,45 @@ HIDDEN void stretto_pin_matched(int widx, int comm_src) {
             p ? seen_ident(p, id, sizeof id) : "");
 }
 
-static int g_pinned_probe = -1;   /* the pidx whose pin was applied by the last peek */
-static int g_misapplied_probe = -1;   /* the pidx whose pin the last peek found on another operation */
+/* The last peek (stretto_pin_probe): the pidx it gave, the pin it looked at (NULL if none), and
+   whether that pin fell on an operation of another identity. Every peek of a wildcard probe sets
+   all three, so that a commit never acts on an earlier probe's pin. */
+static int g_peek_idx = -1;
+static struct pin *g_peek_pin = NULL;
+static int g_peek_bad = 0;
 
 HIDDEN int stretto_pin_probe_ordinal(int src, int tag) {
     if (src != MPI_ANY_SOURCE && tag != MPI_ANY_TAG) return -1;
     pthread_mutex_lock(&g_pmu);
     int idx = g_nprobe;
+    g_peek_idx = idx; g_peek_pin = NULL; g_peek_bad = 0;   /* a flip forces this call, no probe pin */
     pthread_mutex_unlock(&g_pmu);
     return idx;
 }
 
 HIDDEN int stretto_pin_probe(int *src, int *tag, MPI_Comm comm, int *pidx) {
-    /* Peek only: the ordinal advances in stretto_pin_probe_commit(), called when the probe
+    /* Peek only: the ordinals advance in stretto_pin_probe_commit(), called when the probe
        found a message. Failed polls (Iprobe/Improbe with flag 0) do not count, so the
-       ordinal is the same in a traced run and in a pinned replay however long each busy
-       loop spins. A probe whose identity differs from the pin's is not pinned; if it then
-       finds a message, it takes the pinned ordinal, and stretto_pin_probe_commit ends the run. */
+       ordinals are the same in a traced run and in a pinned replay however long each busy
+       loop spins. A pin with an envelope ordinal (the fourth field of its identity) is the
+       one of this probe's communicator and tag at the number of its probes that found a
+       message so far; one without is the one of the rank's ordinal. A probe whose identity
+       differs from the pin's is not pinned; if it then finds a message, it takes the pinned
+       ordinal, and stretto_pin_probe_commit ends the run. */
     *pidx = -1;
     if (*src != MPI_ANY_SOURCE && *tag != MPI_ANY_TAG) return 0;
+    int ecomm = stretto_comm_ordinal(comm), eotag = *tag == MPI_ANY_TAG ? -1 : *tag;
     pthread_mutex_lock(&g_pmu);
     int idx = g_nprobe;
+    struct pin *p = g_nepins ? find_epin(ecomm, eotag, *env_slot(ecomm, eotag)) : NULL;
+    if (!p) p = find_pin(g_ppins, g_nppins, idx);
+    g_peek_idx = idx; g_peek_pin = NULL; g_peek_bad = 0;
     pthread_mutex_unlock(&g_pmu);
     *pidx = idx;
-    struct pin *p = find_pin(g_ppins, g_nppins, idx);
     if (!p || p->used) return 0;
     current_ident(comm, *tag, p);
     if (!ident_holds(p)) {
-        pthread_mutex_lock(&g_pmu); g_misapplied_probe = idx; g_pinned_probe = -1; pthread_mutex_unlock(&g_pmu);
+        pthread_mutex_lock(&g_pmu); g_peek_pin = p; g_peek_bad = 1; pthread_mutex_unlock(&g_pmu);
         return 0;
     }
     if (p->src == -1) {
@@ -302,37 +373,40 @@ HIDDEN int stretto_pin_probe(int *src, int *tag, MPI_Comm comm, int *pidx) {
            not advance (no message was found), and the loop's next call at it is not pinned */
         char id[96];
         p->used = 1;
-        fprintf(stderr, "[stretto-pin] rank %d: applied unflip pidx=%d%s\n", g_rank, idx, seen_ident(p, id, sizeof id));
+        fprintf(stderr, "[stretto-pin] rank %d: applied unflip pidx=%d%s\n", g_rank, p->idx, seen_ident(p, id, sizeof id));
         return 2;
     }
     if (*src == MPI_ANY_SOURCE) {
         int cr = to_comm_rank(comm, p->src);
         if (cr == MPI_UNDEFINED) {
-            fprintf(stderr, "[stretto-pin] rank %d: probe pin pidx=%d names world rank %d, not a member of the communicator: not applied\n", g_rank, idx, p->src);
+            fprintf(stderr, "[stretto-pin] rank %d: probe pin pidx=%d names world rank %d, not a member of the communicator: not applied\n", g_rank, p->idx, p->src);
             return 0;
         }
         *src = cr;
     }
     if (*tag == MPI_ANY_TAG && p->tag != MPI_ANY_TAG) *tag = p->tag;
-    pthread_mutex_lock(&g_pmu); g_pinned_probe = idx; g_misapplied_probe = -1; pthread_mutex_unlock(&g_pmu);
+    pthread_mutex_lock(&g_pmu); g_peek_pin = p; pthread_mutex_unlock(&g_pmu);
     return 1;
 }
 
-HIDDEN void stretto_pin_probe_commit(int pidx, int src, int tag) {
+HIDDEN void stretto_pin_probe_commit(int pidx, MPI_Comm comm, int otag, int src, int tag) {
     if (pidx < 0) return;
+    int ecomm = stretto_comm_ordinal(comm), eotag = otag == MPI_ANY_TAG ? -1 : otag;
     pthread_mutex_lock(&g_pmu);
     if (g_nprobe == pidx) {
         g_nprobe++;
-        struct pin *p = find_pin(g_ppins, g_nppins, pidx);
-        if (p && g_misapplied_probe == pidx) {
+        (*env_slot(ecomm, eotag))++;
+        struct pin *p = g_peek_idx == pidx ? g_peek_pin : NULL;
+        g_peek_idx = -1; g_peek_pin = NULL;
+        if (p && g_peek_bad) {
             pthread_mutex_unlock(&g_pmu);
-            misapplied("probe pin pidx", pidx, p);
+            misapplied("probe pin pidx", p->idx, p);
         }
-        if (g_pinned_probe == pidx) {
+        if (p) {
             char id[96];
-            fprintf(stderr, "[stretto-pin] rank %d: applied probe pidx=%d src=%d tag=%d%s\n", g_rank, pidx, src, tag,
-                    p ? seen_ident(p, id, sizeof id) : "");
-            g_pinned_probe = -1;
+            p->used = 1;
+            fprintf(stderr, "[stretto-pin] rank %d: applied probe pidx=%d src=%d tag=%d%s\n", g_rank, p->idx, src, tag,
+                    seen_ident(p, id, sizeof id));
         }
     }
     pthread_mutex_unlock(&g_pmu);
@@ -360,11 +434,14 @@ HIDDEN void stretto_pin_record(const char *body, int failed_poll) {
 /* A flip pin that names the number of wildcard probes found before its call (the fourth field
    of its identity) and meets its call after another number: the replay diverged before the
    call, and forcing it could wait for a message that never comes. The run ends as for any
-   misapplied pin. */
-static void flip_count_holds(const struct pin *p, int key) {
+   misapplied pin. For a probe whose identity names its communicator and tag the number is that
+   of its envelope's probes, which another polling loop of the rank (another tag, another
+   communicator) does not change however its messages interleave; for a test, or a probe of an
+   unchecked communicator, it is that of all the rank's wildcard probes. */
+static void flip_count_holds(const struct pin *p, int key, int is_test) {
     if (!p->has_nprobe) return;
     pthread_mutex_lock(&g_pmu);
-    int n = g_nprobe;
+    int n = !is_test && p->has_comm && p->has_otag ? *env_slot(p->seen_comm, p->seen_otag) : g_nprobe;
     pthread_mutex_unlock(&g_pmu);
     if (n == p->nprobe) return;
     fprintf(stderr, "[stretto-pin] rank %d: flip pin key=%d misapplied: the run's call follows %d wildcard probe(s) that found a message, the trace's %d\n",
@@ -390,13 +467,13 @@ HIDDEN int stretto_pin_flip(int is_test, int src, int tag, MPI_Comm comm, int *f
         if (!ident_holds(p)) continue;
         char id[96];
         if (p->src == -1) {
-            flip_count_holds(p, k);
+            flip_count_holds(p, k, is_test);
             p->used = 1;
             fprintf(stderr, "[stretto-pin] rank %d: applied flip key=%d flag=0%s\n", g_rank, k, seen_ident(p, id, sizeof id));
             return -1;
         }
         if (is_test) {
-            flip_count_holds(p, k);
+            flip_count_holds(p, k, is_test);
             p->used = 1; g_flip_key = k; g_flip_pin = p;
             fprintf(stderr, "[stretto-pin] rank %d: applied flip key=%d test%s\n", g_rank, k, seen_ident(p, id, sizeof id));
             return 1;
@@ -405,7 +482,7 @@ HIDDEN int stretto_pin_flip(int is_test, int src, int tag, MPI_Comm comm, int *f
         if (cr == MPI_UNDEFINED || (src != MPI_ANY_SOURCE && src != cr)) continue;   /* another call of the loop */
         int t = tag == MPI_ANY_TAG ? p->tag : tag;
         if (tag != MPI_ANY_TAG && p->tag != MPI_ANY_TAG && p->tag != tag) continue;
-        flip_count_holds(p, k);
+        flip_count_holds(p, k, is_test);
         p->used = 1; g_flip_key = k; g_flip_pin = p;
         *fsrc = cr; *ftag = t;
         fprintf(stderr, "[stretto-pin] rank %d: applied flip key=%d src=%d (world %d) tag=%d%s\n", g_rank, k, cr, p->src, t,
@@ -429,6 +506,14 @@ HIDDEN void stretto_pin_finalize(void) {
     for (int i = 0; i < g_nppins; i++)
         if (g_ppins[i].idx >= g_nprobe && !g_ppins[i].used)
             fprintf(stderr, "[stretto-pin] rank %d: probe pin pidx=%d unused: %d wildcard probe(s) found a message\n", g_rank, g_ppins[i].idx, g_nprobe);
+    for (int i = 0; i < g_nepins; i++)
+        if (!g_epins[i].used) {
+            const struct pin *p = &g_epins[i];
+            int n = 0;
+            for (int j = 0; j < g_nenv; j++) if (g_env[j].comm == p->comm && g_env[j].otag == p->otag) n = g_env[j].n;
+            fprintf(stderr, "[stretto-pin] rank %d: probe pin pidx=%d unused: %d wildcard probe(s) of comm %d tag %d found a message\n",
+                    g_rank, p->idx, n, p->comm, p->otag);
+        }
     for (int i = 0; i < g_nfpins; i++)
         if (!g_fpins[i].used)
             fprintf(stderr, "[stretto-pin] rank %d: flip pin key=%d unused: %d call(s) other than failed polls, no call of its identity forced\n", g_rank, g_fpins[i].idx, g_calls);

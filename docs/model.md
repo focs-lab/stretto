@@ -688,14 +688,21 @@ between two of its calls, and the later segments are numbered one lower. A name 
 ordinal sent forced calls to an earlier loop, where they waited for a message that the rank's
 own later calls hold back (on a driver of deal.II's NBX consensus algorithm, 28 Oct 2026, 9 of
 the first 33 replays hung so). A replay that follows the trace only up to a point can still
-reach a key after other calls; found, the number of the rank's wildcard probes that found a
-message before the call, is compared at the call, and a replay that meets it after another
-number ends as misapplied (inconclusive) instead. A replay whose forced call never returns ends
-by the timeout without "matched flip" and is inconclusive. The records of one key have only
-failed polls between them, which have no edge but program order, so a flip at a later record is
-the flip at the first record of its identity and call site, with the same horizon; only that
-one is enumerated. An unflip is pinned by the probe ordinal
-(`STRETTO_PIN_PROBE` with source `-1`: the call returns false once).
+reach a key after other calls; found, the number of the wildcard probes of the poll's
+envelope (its communicator and tag argument; of all the rank's wildcard probes for a test) that
+found a message before the call, is compared at the call, and a replay that meets it after
+another number ends as misapplied (inconclusive) instead. A replay whose forced call never
+returns ends by the timeout without "matched flip" and is inconclusive. The records of one key
+have only failed polls between them, which have no edge but program order, so a flip at a later
+record is the flip at the first record of its identity and call site, with the same horizon;
+only that one is enumerated. An unflip is pinned by the probe's ordinal among the wildcard
+probes of its envelope that found a message (`STRETTO_PIN_PROBE=rank:pidx:-1@comm:tag:site:n`:
+the call returns false once), as every probe pin is since 29 Oct 2026. Before, a probe was
+named by its ordinal among all the rank's wildcard probes, and a rank that drains two tags
+through one call site (VTK's `vtkPLagrangianParticleTracker`, tags 622 and 624) found their
+messages in another order in the replay: the ordinal then fell on a probe of the other tag, and
+40 of 40 replays of one alternative ended misapplied. The envelope's ordinal equals the rank's
+where the rank's wildcard probes have one envelope.
 
 `R*` must survive the closure (`witness_kept`): a blocking changed receive must complete inside
 H, a nonblocking one must be posted inside H with its new message issued inside H (the match

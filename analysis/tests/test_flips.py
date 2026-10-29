@@ -164,7 +164,7 @@ class C_ProbeUnflip(unittest.TestCase):
             f = fast.Observed(t, B).check_probe(p, None)
             self.assertEqual((f.feasible, f.cut), (True, g.cut))
         (u,) = analyze(t, with_sp=False).by_class("probe-unflip")
-        self.assertEqual(u.pin, "STRETTO_PIN_PROBE=0:0:-1@0:1")
+        self.assertEqual(u.pin, "STRETTO_PIN_PROBE=0:0:-1@0:1:x:0")     # the first probe of its envelope
 
     def test_blocking_probe_has_no_flip(self):
         p = {"op": "probe", "kind": "probe", "src": 0, "anysrc": 1, "tag": 1, "comm": 0, "flag": 1, "msrc": 1, "mtag": 1}
