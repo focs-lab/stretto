@@ -340,7 +340,8 @@ and on Nekbone: every replay matched its pins and finished, and so did every con
 processes ({t('LuEvents')} M events) in {t('LuAnalysis')} s, AMG in {t('AMGtime')} s, Nekbone
 ({t('NekRecords')} M records) in {t('NekMinutes')} min and {t('NekGB')} GB.
 {scale}
-Full tables: [`docs/results.md`](docs/results.md).
+Full tables: [`docs/results.md`](docs/results.md). Every bug found, latent bugs, sites shown safe and
+the tool's own defects: [`docs/findings.md`](docs/findings.md).
 <!-- results:end -->"""
     path = os.path.join(root, "README.md")
     s = open(path).read()

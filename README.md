@@ -205,7 +205,8 @@ takes 1.6 ms at 16 processes and 0.7 ms at 64 (69 µs per record plus 0.32 ms pe
 analysis grows from 1 to 21 s; LU's, with no wildcards, 6.6-fold with its
 4.7-fold trace. All 60 sampled replays matched their pins and all but two finished: each of those left takes a request probe of HYPRE's ParaSails, the race above; every control finished.
 
-Full tables: [`docs/results.md`](docs/results.md).
+Full tables: [`docs/results.md`](docs/results.md). Every bug found, latent bugs, sites shown safe and
+the tool's own defects: [`docs/findings.md`](docs/findings.md).
 <!-- results:end -->
 
 ## Quick start
