@@ -732,8 +732,9 @@ class C_CancelAndMprobe(unittest.TestCase):
 
 
 class C_Cancellation(unittest.TestCase):
-    """The model has no cancel: a run in which a cancel succeeded, or whose outcome the trace
-    does not have, is reported with observed findings only (audit of 22 Oct 2026)."""
+    """A run in which the cancel of a send succeeded, or a cancel whose outcome the trace does
+    not have, is reported with observed findings only (audit of 22 Oct 2026); a receive whose
+    cancel succeeded is posted until its cancel and matched to nothing (29 Oct 2026)."""
 
     @staticmethod
     def witness(outcome):
@@ -767,15 +768,85 @@ class C_Cancellation(unittest.TestCase):
         self.assertFalse(t.sends[(1, 0)].cancelled)
         self.assertTrue([f for f in analyze(t, with_sp=False).findings if f.level == "L1"])
 
+    @staticmethod
+    def cancelled(req=0):
+        return {"op": "wait", "kind": "wait", "reqs": [req],
+                "done": [{"req": req, "msrc": None, "mtag": None, "mcount": None, "cancelled": 1}]}
+
     def test_successful_cancel_of_a_receive(self):
-        # rank 0 cancels a pending Irecv(ANY, 5) that rank 2's message would have reached
-        t = mk({0: [irecv(T.ANY, 5, 0), recv(T.ANY, T.ANY, 1, 7, widx=0), {"op": "cancel", "req": 0},
-                    {"op": "wait", "kind": "wait", "reqs": [0], "done": [{"req": 0, "msrc": None, "mtag": None, "mcount": None, "cancelled": 1}]},
+        """Rank 0 cancels a pending Irecv(ANY, 5) w; a blocking Recv(ANY, ANY) r posted between
+        w and the cancel cannot take rank 2's tag-5 message, which w, still posted, would take:
+        the receive is modelled since 29 Oct 2026 (posted until its cancel, never matched), and
+        the steal is rejected, not reported."""
+        t = mk({0: [irecv(T.ANY, 5, 0), recv(T.ANY, T.ANY, 1, 7, widx=0), {"op": "cancel", "req": 0}, self.cancelled(),
                     recv(2, 5, 2, 5)],
                 1: [send(0, 7)], 2: [send(0, 5)]})
-        self.assertTrue(t.recvs[(0, 0)].cancelled)
-        self.assertEqual(t.unmodelled, [(0, "Cancel (succeeded)")])
-        self.assertEqual([f for f in analyze(t, with_sp=False).findings if f.level != "observed"], [])
+        w = t.recvs[(0, 0)]
+        self.assertTrue(w.cancelled)
+        self.assertEqual((w.cancel_idx, t.unmodelled), (3, []))
+        self.assertEqual(t.withdrawn(0), [w])
+        alt = next(a for a in candidates_full(t)[0] if a.recv == (0, 1) and a.send == (2, 0))
+        self.assertFalse(check(t, alt.M, alt.changed, None, "L1").feasible)
+        rep = analyze(t, with_sp=False)
+        self.assertEqual(rep.status(), "complete")
+        self.assertFalse([f for f in rep.findings if f.recv == (0, 1) and f.send == (2, 0)])
+        self.assertFalse([a for a in candidates_full(t)[0] if a.recv == w.key])     # w takes nothing
+        fast_equals_generic(self, t)
+
+    def test_a_receive_matched_after_the_cancel_may_take_its_message(self):
+        """The same with r nonblocking and waited after the cancel: r can take the tag-5 message
+        once w is withdrawn (edge cancel -> m(r)), and the steal is feasible; waited before the
+        cancel, r would have to take it while w is posted, and it is not."""
+        after = mk({0: [irecv(T.ANY, 5, 0), irecv(T.ANY, T.ANY, 1), {"op": "cancel", "req": 0}, self.cancelled(),
+                        wait((1, 1, 7)), recv(2, 5, 2, 5)],
+                    1: [send(0, 7)], 2: [send(0, 5)]})
+        alt = next(a for a in candidates_full(after)[0] if a.recv == (0, 1) and a.send == (2, 0))
+        v = check(after, alt.M, alt.changed, None, "L1")
+        self.assertTrue(v.feasible, v.reason)
+        g = build_graph(after, alt.M, v.cut, None)
+        self.assertIn((0, 2, "m"), g.succ[(0, 3, "c")])                # the cancel precedes r's match
+        self.assertTrue([f for f in analyze(after, with_sp=False).findings if f.recv == (0, 1) and f.send == (2, 0)])
+        fast_equals_generic(self, after)
+        before = mk({0: [irecv(T.ANY, 5, 0), irecv(T.ANY, T.ANY, 1), wait((1, 1, 7)), {"op": "cancel", "req": 0},
+                         self.cancelled(), recv(2, 5, 2, 5)],
+                     1: [send(0, 7)], 2: [send(0, 5)]})
+        alt = next(a for a in candidates_full(before)[0] if a.recv == (0, 1) and a.send == (2, 0))
+        self.assertFalse(check(before, alt.M, alt.changed, None, "L1").feasible)
+        fast_equals_generic(self, before)
+
+    def test_a_probe_before_the_cancel_does_not_see_its_message(self):
+        """A failed Iprobe(ANY, ANY) between w's posting and its cancel cannot return w's
+        message: w would have taken it. The same probe after the cancel can."""
+        before = mk({0: [irecv(T.ANY, 5, 0), failed_iprobe(), {"op": "cancel", "req": 0}, self.cancelled(), recv(2, 5, 2, 5)],
+                     2: [send(0, 5)], 1: []})
+        after = mk({0: [irecv(T.ANY, 5, 0), {"op": "cancel", "req": 0}, self.cancelled(), failed_iprobe(), recv(2, 5, 2, 5)],
+                    2: [send(0, 5)], 1: []})
+        self.assertFalse([f for f in analyze(before, with_sp=False).by_class("probe-flip") if f.send == (2, 0)])
+        self.assertTrue([f for f in analyze(after, with_sp=False).by_class("probe-flip") if f.send == (2, 0)])
+        for tr in (before, after):
+            fast_equals_generic(self, tr)
+
+    def test_the_tracer_records_the_outcome_of_a_freed_or_abandoned_receive(self):
+        """A cancelled receive the program frees (the tracer waits for it, reqfree with the
+        flag) or never completes (tested at MPI_Finalize, cancelstatus): a successful cancel
+        is modelled; a failed one completes with its status; an outcome the test could not
+        get (null) leaves the trace degraded, as one recorded before 29 Oct 2026."""
+        def trace(last):
+            return mk({0: [irecv(T.ANY, 5, 0), {"op": "cancel", "req": 0}, last, recv(T.ANY, 5, 2, 5, widx=1)],
+                       1: [], 2: [send(0, 5)]})
+        for last in ({"op": "reqfree", "req": 0, "cancelled": 1}, {"op": "cancelstatus", "req": 0, "cancelled": 1}):
+            t = trace(last)
+            self.assertEqual((t.unmodelled, [w.key for w in t.withdrawn(0)]), ([], [(0, 0)]), last)
+            self.assertEqual(analyze(t, with_sp=False).status(), "complete")
+        t = trace({"op": "cancelstatus", "req": 0, "cancelled": None})
+        self.assertEqual(t.unmodelled, [(0, "Cancel (outcome not recorded)")])
+        t = trace({"op": "reqfree", "req": 0})                  # the free of a tracer before 29 Oct 2026
+        self.assertEqual(t.unmodelled, [(0, "Cancel (outcome not recorded)")])
+        t = mk({0: [irecv(T.ANY, 5, 0), {"op": "cancel", "req": 0},
+                    {"op": "reqfree", "req": 0, "msrc": 2, "mtag": 5, "mcount": 1, "cancelled": 0}],
+                1: [], 2: [send(0, 5)]})
+        r = t.recvs[(0, 0)]
+        self.assertEqual((t.unmodelled, r.completed, t.observed.get(r.key)), ([], True, (2, 0)))
 
 
 class C_RequestGetStatus(unittest.TestCase):

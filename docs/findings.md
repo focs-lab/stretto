@@ -63,8 +63,9 @@ with the hunt notes, outside this repository.
   flips since 27 Oct 2026. Flips were not forced in replays and were named by a timing-dependent
   segment: fixed 28 Oct (d582a71, 14b6221).
 - A trace whose receives are cancelled at shutdown and never completed (ADLB) is reported
-  degraded and predicts nothing; the hunt stripped the trailing cancel records
-  (`experiments/latent/swiftt/strip_cancel.py`). Open.
+  degraded and predicts nothing; the hunt stripped the trailing cancel records. Fixed 29 Oct:
+  the tracer records the cancel's outcome at a free and at `MPI_Finalize`, and a receive whose
+  cancel succeeded is modelled, posted until its cancel (docs/model.md, cancellation).
 - A flag flip cannot be pinned when one rank has two wildcard-probe sites with different tags
   under one call-site identity: the pin library counts the rank's wildcard probes together, the
   two tags interleave differently in the replay, and the pin lands on the other probe (VTK 9.7
@@ -108,8 +109,8 @@ dolfinx a7b1840 `nbx_consensus_rounds` (MPI.cpp:182-290), two readings that disa
 `Irecv(ANY_SOURCE)` listener still posted when the call ends, and cancelled after its Ibarrier,
 may match the next call's Issend. Against it: IndexMap runs the exchange on a communicator of its
 own, and every other caller creates a communicator right after it, which synchronises in both
-MPIs although the standard does not require it. Unverified; the cancelled listener also needs the
-fix for cancelled receives above.
+MPIs although the standard does not require it. Unverified; a trace with the cancelled listener is
+analysable since the fix for cancelled receives above.
 
 Thread-level candidates for the multithreaded extension (read only; [threads.md](threads.md)): Uintah + hypre (a code comment in KokkosScheduler.cc documents
 crashes from hypre's `Iprobe` taking a Uintah message on the shared communicator, and the

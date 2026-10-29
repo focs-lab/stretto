@@ -17,9 +17,11 @@
 # The driver, adlbsub.c: two servers and two or four workers; NTASKS tasks put with ADLB_Dput,
 # each waiting on a 48-byte subscript of one of two containers (one per server), then stored;
 # worker 0 prints "adlbsub: OK n", a failed server "adlbsub: SERVER ERROR rc" (judge.py).
-# ADLB cancels its pre-posted sync receives at shutdown without completing them, which the
-# analysis cannot model; strip_cancel.py runs experiments/history_predict.py with those records
-# removed from every trace it loads.
+# ADLB cancels its pre-posted sync receives at shutdown without completing them; the tracer tests
+# them at MPI_Finalize and records that the cancels succeeded, and the analysis models such a
+# receive as posted until its cancel (docs/model.md, cancellation; since 29 Oct 2026). The tables
+# of 29 Oct 2026 came from traces of an earlier tracer, read through a filter that dropped their
+# cancel records (strip_cancel.py, last in commit ec56253).
 #
 # Steps, inside the experiment container, from the repository root, Open MPI:
 #   fetch    swift-t at 4b3882d (git checks the commit), and a copy with fix.diff applied
@@ -28,7 +30,7 @@
 #            syncsub alternatives per process count (classify.py: a wildcard-tag probe that could
 #            see SYNC_SUB) replayed with its horizon pins and with its control; and a sample of
 #            OTHER_SAMPLE of the other probe alternatives at 4 in OTHER_RUNS traced runs, which
-#            should be harmless (experiments/history_predict.py through strip_cancel.py)
+#            should be harmless (experiments/history_predict.py)
 #   fixed    OTHER_RUNS traced runs of the fixed copy at 4, a sample of SAMPLE/2 syncsub
 #            alternatives replayed (they remain: the probe can still see SYNC_SUB)
 #   stress   untraced runs of both copies: STRESS_RUNS per process count (4 and 6), plain and with
@@ -91,7 +93,7 @@ step_build() {
 p1() {        # p1 <bug|fix> <version> <np> <runs> <kind> <sample>
     local v=$1 ver=$2 np=$3 runs=$4 kind=$5 sample=$6
     rm -f "$OUT/predict-$ver-np$np.csv"
-    python3 "$H/strip_cancel.py" --version "$ver" --mpi openmpi --np "$np" --runs "$runs" --no-sp \
+    python3 experiments/history_predict.py --version "$ver" --mpi openmpi --np "$np" --runs "$runs" --no-sp \
         --classify "$H/classify.py" --replay "$kind" --sample "$sample" --timeout "$TIMEOUT" --trace-timeout 120 \
         --jobs "$JOBS" --judge "$H/judge.py" --out "$OUT/predict-$ver-np$np.csv" -- "$(exe "$v")" 40 48
 }

@@ -7,6 +7,7 @@ setting of experiments/run_remaining.sh tests, which builds and traces first).
 import glob
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -349,6 +350,61 @@ class EnvelopePins(unittest.TestCase):
         self.assertTrue(C.all_matched(alt, ra.proc.stderr, C.required_matches(t, f), ra.seen), ra.proc.stderr[-2000:])
         rc = C.run_checked(3, exe, [], ctl, timeout=30)
         self.assertEqual((rc.result, rc.misapplied), ("FINISHED", []), rc.proc.stderr[-2000:])
+
+
+CANCEL_C = r"""
+#include <mpi.h>
+#include <stdio.h>
+/* Rank 0 posts three Irecv(MPI_ANY_SOURCE, 5) and cancels them: the first it waits for, the
+   second it frees, the third it leaves to MPI_Finalize (as Swift/T's ADLB does at shutdown).
+   Rank 1 sends one message of tag 6, which a last receive takes. */
+int main(int argc, char **argv) {
+    int rank, a[3], v = 1;
+    MPI_Request q[3];
+    MPI_Init(&argc, &argv);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    if (rank == 0) {
+        for (int i = 0; i < 3; i++) MPI_Irecv(&a[i], 1, MPI_INT, MPI_ANY_SOURCE, 5, MPI_COMM_WORLD, &q[i]);
+        for (int i = 0; i < 3; i++) MPI_Cancel(&q[i]);
+        MPI_Wait(&q[0], MPI_STATUS_IGNORE);
+        MPI_Request_free(&q[1]);
+        MPI_Recv(&v, 1, MPI_INT, MPI_ANY_SOURCE, 6, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    } else if (rank == 1) {
+        MPI_Send(&v, 1, MPI_INT, 0, 6, MPI_COMM_WORLD);
+    }
+    MPI_Finalize();
+    return 0;
+}
+"""
+
+
+class CancelOutcome(unittest.TestCase):
+    """The tracer records whether a receive's cancel succeeded wherever the program lets it
+    know: at its wait, at its free (which the tracer turns into a wait) and, for a receive the
+    program never completes, at MPI_Finalize (docs/model.md, cancellation)."""
+
+    def test_every_cancelled_receive_has_its_outcome(self):
+        from stretto import report, trace
+        mpicc = f"/usr/bin/mpicc.{MPI}"
+        if not (os.path.exists(TRACER) and os.path.exists(mpicc)):
+            if REQUIRE:
+                self.fail(f"not built: {TRACER} {mpicc}")
+            self.skipTest("tracer or MPI compiler missing")
+        with tempfile.TemporaryDirectory() as d:
+            src, exe, tdir = os.path.join(d, "cancel.c"), os.path.join(d, "cancel"), os.path.join(d, "trace")
+            with open(src, "w") as fh:
+                fh.write(CANCEL_C)
+            subprocess.run([mpicc, "-O0", "-g", "-o", exe, src], check=True)
+            os.mkdir(tdir)
+            r = subprocess.run(["/usr/bin/mpirun.openmpi", "--oversubscribe", "-np", "2", "-x", f"LD_PRELOAD={TRACER}",
+                                "-x", f"STRETTO_TRACE_DIR={tdir}", exe], capture_output=True, text=True, timeout=60)
+            self.assertEqual(r.returncode, 0, r.stderr[-2000:])
+            t = trace.load(tdir)
+            self.assertEqual(t.unmodelled, [])
+            self.assertEqual(len(t.withdrawn(0)), 3)
+            ops = [rec.op for rec in t.ranks[0]]
+            self.assertIn("cancelstatus", ops)
+            self.assertEqual(report.analyze(t, with_sp=False).status(), "complete")
 
 
 if __name__ == "__main__":

@@ -199,6 +199,14 @@ def build_graph(t: Trace, M: Dict[Key, Key], cut: Optional[Dict[int, int]], B: O
             m2 = mnode.get(r2.key)
             if m2 is not None:
                 succ.setdefault(m2, []).append(m)
+        # a receive posted before r that accepts s and is withdrawn by a successful cancel
+        # takes no message: r takes s after the cancel (docs/model.md §2b, cancellation). Not a
+        # guaranteed edge (it needs the cancel to take effect at its call), so not in strong_only
+        if not strong_only:
+            for w in t.withdrawn_competitors(r, s):
+                wc = (w.rank, w.cancel_idx, "c")
+                if wc in node_set:
+                    succ.setdefault(wc, []).append(m)
         # sender side: an earlier message of s's channel that r accepts is matched first, by
         # another receive than r, which takes s
         for s2 in t.earlier_sends(r, s):
@@ -221,6 +229,11 @@ def build_graph(t: Trace, M: Dict[Key, Key], cut: Optional[Dict[int, int]], B: O
             m2 = mnode.get(r2.key)
             if m2 is not None:
                 g.add(m2, pc)
+        if not strong_only:
+            for w in t.withdrawn_competitors(p, s):     # still posted, it would take s: after its cancel
+                wc = (w.rank, w.cancel_idx, "c")
+                if wc in node_set:
+                    g.add(wc, pc)
         for s2 in t.earlier_sends(p, s):
             r2k = recv_of.get(s2.key) if mnode else None
             m2 = mnode.get(r2k) if r2k is not None else None
@@ -430,8 +443,8 @@ def candidates_full(t: Trace, hb=None) -> Tuple[List[Alternative], List[Tuple[st
     pruned: List[Tuple[str, str]] = []
     consumed = _ConsumedBefore(t)
     for r in sorted(t.recvs.values(), key=lambda r: r.key):
-        if not r.wildcard:
-            continue
+        if not r.wildcard or r.cancelled:
+            continue                  # a receive whose cancel succeeded takes no message in any execution
         s_obs = t.observed_send(r)
         rc = r.complete_node()
         consumed_before = consumed.before(r.rank, r.idx)
@@ -652,7 +665,8 @@ def test_flip_candidates(t: Trace, hb=None) -> List[Tuple[object, Recv, Send]]:
 
 
 def matching_order_ok(t: Trace, M: Dict[Key, Key], kept_recv, ranks: Optional[Set[int]] = None,
-                      kept_probe=None, probe_alt: Optional[Dict[Key, Key]] = None) -> Optional[str]:
+                      kept_probe=None, probe_alt: Optional[Dict[Key, Key]] = None,
+                      cancel_kept=None) -> Optional[str]:
     """MPI matching order for M restricted to receives with kept_recv(key) (posting-index
     based), optionally only for receives on the given ranks (the observed matching is
     valid by construction, so only ranks touched by a change need re-checking).
@@ -666,7 +680,12 @@ def matching_order_ok(t: Trace, M: Dict[Key, Key], kept_recv, ranks: Optional[Se
     ANY_TAG receive): the latest earlier send of each tag stands for the earlier sends of that
     tag, the latest earlier receive of each envelope class for its class, since the pairs of
     the rank are all checked and each obligation chains through them (Trace.earlier_sends,
-    Trace.earlier_competitors); an unmatched receive is found by the earliest one per class."""
+    Trace.earlier_competitors); an unmatched receive is found by the earliest one per class.
+    A receive withdrawn by a successful cancel (Trace.withdrawn) has no message either, but only
+    until its cancel, which the constraint graph orders before the matches it would have taken
+    (build_graph); cancel_kept(rank, idx), if given, says whether the cancel record is in the
+    kept prefix, and a receive whose cancel is not counts as unmatched here. A trace of several
+    threads with a withdrawn receive is not analysed (report.analyze, threads-cancel)."""
     if t.multi:
         from .threads import matching_order_ok as threads_order
         return threads_order(t, M, kept_recv, ranks, kept_probe, probe_alt)
@@ -675,7 +694,11 @@ def matching_order_ok(t: Trace, M: Dict[Key, Key], kept_recv, ranks: Optional[Se
     # the earliest receive without a message in M, per (rank, comm, source or ANY, tag or ANY)
     first_unmatched: Dict[Tuple[int, int, int, int], int] = {}
     for r in t.recvs.values():
-        if r.key not in M and not r.cancelled and not r.mrecv and (ranks is None or r.rank in ranks):
+        pending = r.key not in M and not r.cancelled and not r.mrecv
+        if not pending and cancel_kept is not None and r.cancelled and r.cancel_idx is not None \
+                and r.complete_idx is not None and not cancel_kept(r.rank, r.cancel_idx):
+            pending = True                # withdrawn after the kept prefix: posted through it
+        if pending and (ranks is None or r.rank in ranks):
             k = (r.rank, r.comm, r.src, r.tag)
             if r.idx < first_unmatched.get(k, 10**18):
                 first_unmatched[k] = r.idx

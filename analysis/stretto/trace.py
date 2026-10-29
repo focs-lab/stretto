@@ -150,6 +150,7 @@ class Recv:
     freed: bool = False              # MPI_Request_free'd while pending: completes unobserved
     proc: Optional[int] = None       # the process (world rank); rank is the chain (docs/threads.md)
     iseq: Optional[int] = None       # the order in which MPI saw the posting, when the tracer numbered it
+    cancel_idx: Optional[int] = None  # the record of the first MPI_Cancel of its request (see Trace.withdrawn)
 
     def __post_init__(self):
         if self.proc is None:
@@ -387,6 +388,21 @@ class Trace:
                 out = self._earlier[k] = tuple(self._earlier_sends(r, s))
         return out
 
+    def withdrawn(self, rank: Optional[int] = None) -> List[Recv]:
+        """The receives of rank whose cancel succeeded, in posting order: posted at their record,
+        withdrawn at their MPI_Cancel (cancel_idx), never matched (docs/model.md §2b,
+        cancellation); without rank, those of every rank."""
+        if rank is None:
+            return [w for v in self._withdrawn.values() for w in v]
+        return self._withdrawn.get(rank, [])
+
+    def withdrawn_competitors(self, x, s: "Send") -> List[Recv]:
+        """The withdrawn receives of x's rank and communicator that accept s and are still
+        posted when x is (posted before x, cancelled after it): x, a receive or a probe, can take
+        or report s only after their cancels."""
+        return [w for w in self._withdrawn.get(x.rank, ())
+                if w.idx < x.idx < w.cancel_idx and w.comm == x.comm and w.accepts(s)]
+
     def _earlier_sends(self, r, s: Send) -> List[Send]:
         q = (s.rank, s.dst, s.comm)
         tags = (r.tag,) if r.tag != ANY else self._tags_on.get(q, ())
@@ -485,6 +501,11 @@ class Trace:
             if not r.cancelled and not r.mrecv:
                 self._recv_class.setdefault((r.rank, r.comm, r.src, r.tag), []).append(r)
         self._recv_class_idx = {k: [r.idx for r in v] for k, v in self._recv_class.items()}
+        # receives whose cancel succeeded, per rank in posting order (Trace.withdrawn)
+        self._withdrawn = {}
+        for r in sorted(self.recvs.values(), key=lambda r: r.idx):
+            if r.cancelled and r.cancel_idx is not None and r.complete_idx is not None:
+                self._withdrawn.setdefault(r.rank, []).append(r)
         self._send_tag = {}
         for s in sorted(self.sends.values(), key=lambda s: s.idx):
             if not s.cancelled:
@@ -783,13 +804,26 @@ def _build(t: Trace, raw_ranks: Dict[int, List[dict]]) -> None:
                     cancelled_ops.append(obj)
                 if isinstance(obj, Send):
                     obj.cancelled = True     # provisional; the completion status (if any) decides
+                if isinstance(obj, Recv) and obj.cancel_idx is None:
+                    obj.cancel_idx = rec.idx
             elif call == "reqfree":
                 obj = pending_req.pop(raw.get("req"), None)
                 st = status_at.pop(raw.get("req"), None)
                 if obj is not None and st is not None:
                     _complete_at_status(obj, st, worldg, rank)
+                elif isinstance(obj, Recv) and raw.get("cancelled") is not None:
+                    # a cancelled receive the tracer waited for in place of the free (since 29 Oct
+                    # 2026): the record has the cancel's outcome, and the status if it failed
+                    _complete_at_status(obj, {**raw, "idx": rec.idx}, worldg, rank)
                 elif isinstance(obj, Recv):
                     obj.freed = True         # the receive completes unobserved: its message is not an orphan
+            elif call == "cancelstatus":
+                # a cancelled receive the program never completed, tested by the tracer at
+                # MPI_Finalize; null: still incomplete there, its outcome unknown
+                obj = pending_req.get(raw.get("req"))
+                if isinstance(obj, Recv) and raw.get("cancelled") is not None:
+                    del pending_req[raw.get("req")]
+                    _complete_at_status(obj, {**raw, "idx": rec.idx}, worldg, rank)
             elif call == "probe":
                 if raw.get("procnull"):
                     continue                   # a probe of MPI_PROC_NULL returns at once and observes nothing
@@ -853,12 +887,14 @@ def _build(t: Trace, raw_ranks: Dict[int, List[dict]]) -> None:
             obj = pending_req.get(q)
             if obj is not None:
                 _complete_at_status(obj, st, worldg, rank)
-        # the model has no cancellation: a cancel that succeeded withdrew an operation at a
-        # point no matching rule describes, and one whose outcome the trace does not have may
-        # have; a cancel that failed changed nothing (an implementation may always let it fail)
+        # a receive whose cancel succeeded is modelled: posted until its cancel, never matched
+        # (Trace.withdrawn, docs/model.md §2b). A send whose cancel succeeded withdrew a message at
+        # a point no matching rule describes, and a cancel whose outcome the trace does not have
+        # may have withdrawn either; a cancel that failed changed nothing (an implementation may
+        # always let it fail)
         for obj in cancelled_ops:
             returned = obj.complete_idx is not None      # a completion call returned the request
-            if returned and obj.cancelled:
+            if returned and obj.cancelled and isinstance(obj, Send):
                 t.unmodelled.append((rank, "Cancel (succeeded)"))
             elif not returned:
                 t.unmodelled.append((rank, "Cancel (outcome not recorded)"))

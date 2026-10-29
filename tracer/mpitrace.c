@@ -51,7 +51,12 @@
      pollrepeat n: the previous record (a failed Test* or Iprobe/Improbe) repeated n more
                times; busy-polling loops are summarised instead of written per iteration
      cancel    req
-     reqfree   req (MPI_Request_free: the operation completes unobserved)
+     reqfree   req (MPI_Request_free: the operation completes unobserved); of a receive the
+               program cancelled, the tracer waits for it instead of freeing it (local for a
+               cancelled operation), and the record has cancelled:0|1 and, for 0, the status
+     cancelstatus req, cancelled:1|0|null: at MPI_Finalize, a receive the program cancelled
+               and never completed, tested once: the cancel succeeded, the receive took the
+               message of its status (0), or it is still incomplete (null)
      probe     kind(probe|iprobe|mprobe|improbe), src, tag, comm, [anysrc], [anytag], flag,
                [msrc, mtag, mbytes], [pidx] (the probe's ordinal among the rank's wildcard
                probes, what STRETTO_PIN_PROBE counts; a pin with an envelope ordinal counts the
@@ -1347,9 +1352,37 @@ int MPI_Init_thread(int *argc, char ***argv, int req, int *prov) {
     t_mpidepth--;
     return rc;
 }
+/* At MPI_Finalize, the receives the program cancelled and never completed (ADLB cancels its
+   pre-posted receives at shutdown and leaves them): each is tested once, which the program can
+   no longer do, and a cancelstatus record says what became of it: cancelled 1 (the cancel
+   succeeded, the receive took no message), 0 with its status (it took a message), or null (the
+   test found it incomplete: unknown). Inlined, so that the records name the program's call of
+   MPI_Finalize (REC). */
+static void status_fields(rec_t *b, MPI_Status *st, MPI_Datatype dt, int ok);
+static inline __attribute__((always_inline)) void cancelled_outcomes(void) {
+    pthread_mutex_lock(&g_mu);
+    int n = 0;
+    reqent *left = g_nreqs ? xrealloc(NULL, sizeof *left * g_nreqs) : NULL;
+    for (int i = 0; i < g_nreqs; i++)
+        if (g_reqs[i].kind == 1 && g_reqs[i].cancel_req && !g_reqs[i].persistent) left[n++] = g_reqs[i];
+    pthread_mutex_unlock(&g_mu);
+    for (int i = 0; i < n; i++) {
+        MPI_Request r = left[i].req;
+        MPI_Status st;
+        int flag = 0, cancelled = 0, rc = PMPI_Test(&r, &flag, &st);
+        if (rc == MPI_SUCCESS && flag) PMPI_Test_cancelled(&st, &cancelled);
+        REC(b, "cancelstatus"); rb_printf(&b, ",\"req\":%d", left[i].id);
+        if (rc != MPI_SUCCESS || !flag) rb_printf(&b, ",\"cancelled\":null");
+        else if (cancelled) rb_printf(&b, ",\"cancelled\":1");
+        else { status_fields(&b, &st, left[i].dt, 1); rb_printf(&b, ",\"cancelled\":0"); }
+        rb_emit(&b);
+    }
+    free(left);
+}
 int MPI_Finalize(void) {
     GUARD;
     guard_finish();
+    cancelled_outcomes();
     stretto_pin_finalize();
     REC(b, "finalize"); if (g_truncated) rb_printf(&b, ",\"truncated\":1"); rb_emit(&b);
     pthread_mutex_lock(&g_mu);
@@ -1829,9 +1862,39 @@ int MPI_Testsome(int n, MPI_Request reqs[], int *outcount, int idx[], MPI_Status
     free(before); free(mine);
     return rc;
 }
+/* A receive the program cancelled and then frees: the free is replaced by a wait, which MPI
+   guarantees to return at once for a cancelled operation (MPI 4.1 §4.8.4: it is local, whatever
+   the other processes do) and which, like the free, leaves the handle MPI_REQUEST_NULL; the
+   record then says whether the cancel succeeded (cancelled 1) or the receive took a message
+   (cancelled 0 and its status), which a free would not tell. Not done for a send: Open MPI does
+   not cancel sends, and a wait for one would wait for its receiver. Inlined, so that the record
+   names the program's call site (REC). */
+static inline __attribute__((always_inline)) int free_cancelled_recv(MPI_Request *req, int id, int *rc_out) {
+    pthread_mutex_lock(&g_mu);
+    reqent *e = req_find_locked(*req, req);
+    int take = e && e->kind == 1 && e->cancel_req && !e->persistent, pin1 = e ? e->pin1 : 0;
+    MPI_Datatype dt = e ? e->dt : MPI_DATATYPE_NULL;
+    pthread_mutex_unlock(&g_mu);
+    if (!take) return 0;
+    MPI_Status st;
+    int rc = *rc_out = PMPI_Wait(req, &st), cancelled = 0;
+    if (rc == MPI_SUCCESS) PMPI_Test_cancelled(&st, &cancelled);
+    REC(b, "reqfree"); rb_printf(&b, ",\"req\":%d", id);
+    if (rc == MPI_SUCCESS && !cancelled) {
+        status_fields(&b, &st, dt, 1);
+        if (pin1) stretto_pin_matched(pin1 - 1, st.MPI_SOURCE);
+    }
+    if (rc == MPI_SUCCESS) rb_printf(&b, ",\"cancelled\":%d", cancelled);
+    rb_emit(&b);
+    guard_done(id, 0);
+    return 1;
+}
 int MPI_Request_free(MPI_Request *req) {
     GUARD;
     int id = req_id(*req, req);
+    MPI_Request handle = *req;
+    int rc = MPI_SUCCESS;
+    if (free_cancelled_recv(req, id, &rc)) { req_remove(handle, req); *req = MPI_REQUEST_NULL; return rc; }
     REC(b, "reqfree"); rb_printf(&b, ",\"req\":%d", id); rb_emit(&b);
     guard_done(id, 0);      /* the operation completes unobserved: its buffers are no longer followed */
     MPI_Request original;

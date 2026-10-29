@@ -941,6 +941,8 @@ class Observed:
         if alt.kind != "steal":
             return None
         t, B = self.t, self.B
+        if t.withdrawn():
+            return None          # receives withdrawn by a cancel: the generic check judges (feasible.check)
         r, s = t.recvs[alt.recv], t.sends[alt.send]
         if not r.blocking:
             return None
@@ -1059,8 +1061,8 @@ class Observed:
         right after it), so no cycle can pass through the new edges, and a probe that reports
         nothing has none; what remains is that s be issued and that no earlier receive of the
         probe's rank be pending with s acceptable to it (rule 6)."""
-        if not self.acyclic():
-            return None
+        if not self.acyclic() or self.t.withdrawn():
+            return None          # receives withdrawn by a cancel: the generic check judges (feasible.check)
         t = self.t
         # the closure depends on the probe, not on the message it would report, and a probe's
         # alternatives come one after another (matching.probe_candidates): the last probe's
@@ -1098,8 +1100,8 @@ class Observed:
         """A completion event at record idx of rank (a Waitany completing another index, a test
         flip): rule 1 cuts after it, must_issue is issued inside the horizon, and must_match,
         the receive the record completes, keeps its message (rule 6 may deprive it)."""
-        if not self.acyclic():
-            return None
+        if not self.acyclic() or self.t.withdrawn():
+            return None          # receives withdrawn by a cancel: the generic check judges (feasible.check)
         c = self.closure(changed_events=[(rank, idx)])
         cut, issued = c
         if idx >= cut[rank]:
@@ -1125,9 +1127,10 @@ class Observed:
                 c = self.closure(mode="SP", hangs=hangs)
                 self._obs_closure = c[0], c[1], hangs, c.deprived
             cut, issued, hangs, deprived = self._obs_closure
-            if deprived:
+            if deprived or self.t.withdrawn():
                 # rule 6 deprived receives of their messages: the matching judged is the observed
-                # one without them, whose obligations the generic check evaluates
+                # one without them, whose obligations the generic check evaluates, as it does those
+                # of receives withdrawn by a cancel
                 from .feasible import observed_feasible_at
                 v = self._observed[strong] = observed_feasible_at(self.t, self.B, strong)
                 return v

@@ -266,10 +266,13 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
         rep.notes.append(threads.chain_note(t))
         for cls, title, detail in threads.observed_findings(t, tasks=bool(tasks)):
             rep.findings.append(Finding("2", cls, "observed", title, detail))
-        if t.thread_limits:
-            for reason, detail in t.thread_limits:
+        # the chains' matching order (stretto.threads) does not know receives withdrawn by a cancel
+        limits = t.thread_limits + ([("threads-cancel", "a receive withdrawn by a successful cancel: "
+                                      "not modelled across threads")] if t.withdrawn() else [])
+        if limits:
+            for reason, detail in limits:
                 rep.degrade(reason, detail)
-            rep.notes.append("several threads: " + "; ".join(sorted({d for _, d in t.thread_limits}))
+            rep.notes.append("several threads: " + "; ".join(sorted({d for _, d in limits}))
                              + "; alternatives are not predicted (observed findings only)")
             return rep
         rep.notes.append("several threads: alternatives are judged by the generic check without the single-path "
@@ -460,7 +463,12 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
     # ---- single-path consequences via the explorer (MOPPER's setting)
     if with_sp and sp_targets:
         nevents = sum(len(recs) for recs in t.ranks.values())
-        if nevents > sp_max_events:
+        if t.withdrawn():
+            # the straight-line twin has no cancel: its receive would wait for a message
+            rep.notes.append("L1+SP explorer skipped: a receive is withdrawn by a successful cancel, which the "
+                             "single-path explorer does not model")
+            rep.degrade("explorer-skipped", "a receive withdrawn by a cancel: no L1+SP consequence was looked for")
+        elif nevents > sp_max_events:
             rep.notes.append(f"L1+SP explorer skipped: {nevents} events > {sp_max_events}")
             rep.degrade("explorer-skipped", f"{nevents} events > {sp_max_events}: no L1+SP consequence was looked for")
         else:
@@ -599,7 +607,7 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
     # only a re-executed twin has them) supports no deadlock and no dismissal, and counts
     # against "every execution"; what happened in it before, an abort or a departure from the
     # trace's calls, stands.
-    if twin is not None and sp_targets:
+    if twin is not None and sp_targets and not t.withdrawn():     # a twin has no cancel either
         for rk, sk, f in sp_targets:
             for B in (0, None):
                 try:

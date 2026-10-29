@@ -74,7 +74,11 @@ def check(t: Trace, M: Dict[Key, Key], changed, B: Optional[int], mode: str = "L
         earlier = (x for x in t.recvs_of(p.rank) if x.idx < p.idx) if not t.multi else \
             (x for c in t.chains_of(p.proc) for x in t.recvs_of(c) if t.hb.before(x.rank, x.idx, p.rank, p.idx))
         for x in earlier:
-            if x.key not in M and not x.cancelled and not x.mrecv and x.accepts(s):
+            # a receive withdrawn by a successful cancel is pending until its cancel: the graph
+            # orders the probe after a kept cancel (build_graph), and one cut leaves it posted
+            pending = not x.cancelled or (x.cancel_idx is not None and x.complete_idx is not None
+                                          and x.cancel_idx >= cut[x.rank])
+            if x.key not in M and pending and not x.mrecv and x.accepts(s):
                 return Verdict(False, f"receiver order: earlier {x} accepts {s} and has no message in this matching", cut)
     for sk in must_issue:
         s = t.sends[sk]
@@ -105,7 +109,12 @@ def check(t: Trace, M: Dict[Key, Key], changed, B: Optional[int], mode: str = "L
     ranks = affected_ranks(t, M, changed) if changed or M != t.observed else set()
     for pk in (probe_alt or {}):
         ranks.add(pk[0])
-    why = matching_order_ok(t, M, kept_recv, ranks, kept_probe, probe_alt)
+    for rank in t.ranks:
+        # a receive whose cancel the horizon cuts stays posted over the rank's kept records, where
+        # even the run's own matches of the messages it accepts are not realisable
+        if any(w.idx < cut[rank] <= w.cancel_idx for w in t.withdrawn(rank)):
+            ranks.add(rank)
+    why = matching_order_ok(t, M, kept_recv, ranks, kept_probe, probe_alt, cancel_kept=lambda rank, idx: idx < cut[rank])
     if why:
         return Verdict(False, why, cut)
     g = build_graph(t, M, cut, B, extra_edges, strong_only, probe_alt, issued)

@@ -86,7 +86,9 @@ Buffering threshold `B ∈ ℕ ∪ {∞}`: a send with bytes > B completes only 
      envelope class that accepts `s` (source `rank(s)` or ANY, tag `tag(s)` or ANY) and the
      latest earlier send of each tag of `s`'s channel that `r` accepts; within a class each
      member accepts what a later one accepts, so the order reaches the rest of the class
-     through the members' own pairs (`Trace.earlier_competitors`, `Trace.earlier_sends`);
+     through the members' own pairs (`Trace.earlier_competitors`, `Trace.earlier_sends`); a
+     receive withdrawn by a successful cancel orders its cancel before the matches it would
+     have taken (§2b, cancellation);
    - collectives, by shape: barrier-like (barrier, allreduce, allgather(v), alltoall(v/w),
      reduce_scatter) all-to-all; bcast/scatter(v) root → others; reduce/gather(v)
      others → root; scan/exscan i → j for i < j. Unknown collectives are treated as barriers,
@@ -282,7 +284,8 @@ Premises of every theorem below, stated because the proofs use them: message del
 arbitrary (any interleaving the matching rules allow is an execution); a Waitany or Waitsome
 may return any completed request; a send that does not block at B completes at once
 (unbounded buffering below the threshold); collectives synchronise by their shape and do not
-depend on B; no cancel succeeded in σ; and σ records every communication call of the run.
+depend on B; no cancel of a send succeeded in σ, and the successful cancel of a receive took
+effect at its call (below, cancellation); and σ records every communication call of the run.
 
 The report enforces the last premise as far as the trace shows it, and states observed findings
 only (with a note that names the reason) when it fails: a call the tracer marks `unmodelled`
@@ -300,14 +303,35 @@ added notes, and predictions were made on a happens-before relation with message
 missing (`C_IncompleteTrace`). The report's status names the reason: `degraded:` with
 `unmodelled`, `missing-ranks`, `unmatched-completions`, `tracer-overflow` or `creation-unknown`.
 
-Cancellation is outside the model: a cancel that succeeds withdraws an operation at a point that
-no matching rule describes (a cancelled send is pending until its cancel, and a receive posted
-before then may take it). A run with a successful cancel, or with a cancel whose outcome the
-trace does not have (its request never returned), is reported with observed findings only. A
-cancel that failed changed nothing, and it fails in every alternative execution too, since an
-implementation may always let a cancel fail (MPI 4.1 §4.8.4). Before 22 Oct 2026 cancelled
-operations were simply left out of the competitors and of the channel order, which accepts
-steals that MPI cannot realise (`C_Cancellation`).
+Cancellation. A cancel that failed changed nothing, and it fails in every alternative execution
+too, since an implementation may always let a cancel fail (MPI 4.1 §4.8.4). A receive whose
+cancel succeeded (its completion reports `MPI_Test_cancelled` true) is modelled since 29 Oct
+2026: it is posted at its record, withdrawn at its `MPI_Cancel` and matched to nothing, in the
+run and in every alternative (`Trace.withdrawn`; it is never a candidate either). While it is
+posted it takes any message it accepts before a receive posted after it, and no probe reports
+such a message (MPI 4.1 §4.5), so a pair `(r, s)` whose receive or probe is posted after the
+withdrawn receive `w`, before its cancel `c`, with `w` accepting `s`, gets the order edge
+`complete(c) → m(r, s)` (a probe: `→ complete(probe)`): `r` takes `s` only after the cancel. A
+receive or probe that completes before the cancel then closes a cycle, and one completed after it
+is accepted. When the horizon cuts the rank before `c`, `w` stays posted over the kept prefix and
+counts as a receive without a message for conditions 3 and the probes (the run's own matches of
+the rank are then checked too); a contained deadlock counts it as a posted receive. The edge
+rests on a premise: the cancel takes effect at its call (Open MPI and MPICH withdraw a pending
+receive inside `MPI_Cancel`), which is why it is no guaranteed edge (`strong_only`). The
+single-path explorer and the L2 twins have no cancel, and are skipped on such a trace
+(`explorer-skipped`).
+
+The tracer records the outcome where it can: at the completion call that returns the request
+(the status's cancel flag, as before); at an `MPI_Request_free` of a cancelled receive, which it
+replaces by a wait (local for a cancelled operation) to read that flag; and at `MPI_Finalize`,
+for a cancelled receive the program never completed (Swift/T's ADLB cancels its pre-posted
+`Irecv(MPI_ANY_SOURCE)` at shutdown, `sync.c:208-211`, and leaves them), by one `MPI_Test` and a
+`cancelstatus` record. A cancel whose outcome the trace still lacks (older traces, a test at
+finalize that found the receive incomplete) and a successful cancel of a send (a message
+withdrawn after it was issued, which a receive posted before then may have taken) stay outside
+the model: the report gives observed findings only (`degraded: unmodelled`). Before 22 Oct 2026
+cancelled operations were simply left out of the competitors and of the channel order, which
+accepts steals that MPI cannot realise (`C_Cancellation`).
 
 **Theorem T1 (soundness of the L1 check).** Let M' be a matching, R* the receives whose match
 differs from M₀, and H the kept prefix of §3 for (M', R*, B). If `feasible.check(σ, M', R*, B,

@@ -89,7 +89,12 @@ def contained_deadlock(t: Trace, M, changed: Set[Key], cut: Dict[int, int], issu
         for x in t.recvs_of(s.dst):
             if not in_h(x.rank, x.idx):
                 break
-            if x.cancelled or not x.accepts(s):
+            if not x.accepts(s):
+                continue
+            if x.cancelled:
+                # withdrawn by a successful cancel: still posted, and taking s, if H ends first
+                if x.cancel_idx is not None and x.complete_idx is not None and not in_h(x.rank, x.cancel_idx):
+                    return True
                 continue
             sk = M.get(x.key)
             if sk is None or not sent(t.sends[sk]):
