@@ -70,8 +70,8 @@ with the hunt notes, outside this repository.
   two tags interleave differently in the replay, and the pin lands on the other probe (VTK 9.7
   `vtkPLagrangianParticleTracker`, tags 622 and 624: 40 of 40 replays misapplied). Fixed 29 Oct:
   a probe pin names its envelope's ordinal, a flip pin counts its envelope's probes.
-- `horizon_pins` returns no pins for unflips and test flips, so the hunts replayed them with a
-  pin of their own. Open.
+- `horizon_pins` returned no pins for unflips and test flips, so the hunts replayed them with a
+  pin of their own. Fixed 29 Oct (`replay_sample.py --flips` samples them too).
 - Analysis time: a SuperLU_DIST ABglobal trace of 7 403 events took 1 072 s. Under study.
 - Alternatives that need two changed matches are not predicted (HDF5 ph5diff 1.8.9). Under study.
 - Treating every collective as a barrier changes no finding (0 of 115 MBI, 0 of 396 MBB): the

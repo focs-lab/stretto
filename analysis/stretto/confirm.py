@@ -494,15 +494,44 @@ def changed_pin(t, f: Finding) -> Optional[Tuple[str, int, int]]:
     return None
 
 
+def _test_flip_event(t, f: Finding):
+    """(record, receive, send) of a test-flip finding: the failed MPI_Test or
+    MPI_Request_get_status at f.event, the receive of its request and the message the run
+    completed it with (report.test_flip_finding); None if the trace does not give them."""
+    if f.event is None:
+        return None
+    rank, idx = f.event
+    recs = t.ranks.get(rank, [])
+    rec = recs[idx] if idx < len(recs) else None
+    if rec is None or rec.raw is None or rec.op != "wait":
+        return None
+    reqs = [q for q in rec.raw.get("reqs", []) if q is not None and q >= 0]
+    r = t.recv_by_req(rank, reqs[0]) if len(reqs) == 1 else None
+    s = t.observed_send(r) if r is not None else None
+    return None if s is None else (rec, r, s)
+
+
 def _horizon(t, f: Finding, B=None, infeasible_ok: bool = False, M=None, changed=None):
     """M and changed, if given, are the alternative matching and its changed receives (a swap);
     by default the finding is a steal: f.recv takes f.send and the receive that took it in the
-    run is left without a message."""
+    run is left without a message. A probe finding without a message (probe-unflip) is the
+    probe returning false, and a test-flip finding (f.event) the failed test finding its
+    receive complete, each judged as the report judged it (report.probe_kw, report.wait_kw)."""
     from .feasible import check
+    from .report import wait_kw
     if f.probe is not None and f.send is not None:
         M = t.observed
         chk = check(t, M, set(), B, "L1", changed_probes={f.probe}, probe_alt={f.probe: f.send})
         change = ("probe", f.probe, f.send)
+    elif f.probe is not None and f.cls == "probe-unflip":
+        M = t.observed
+        chk = check(t, M, set(), B, "L1", changed_probes={f.probe}, probe_alt={f.probe: None})
+        change = ("unflip", f.probe, None)
+    elif f.cls == "test-flip" and _test_flip_event(t, f) is not None:
+        rec, r_j, s_j = _test_flip_event(t, f)
+        M = t.observed
+        chk = check(t, M, set(), B, "L1", **wait_kw(rec, None, r_j, s_j))
+        change = ("event", f.event, None)
     elif f.recv is not None and f.send is not None and f.level in ("L1", "L1+SP"):
         if M is None:
             M = dict(t.observed)
@@ -519,10 +548,12 @@ def _horizon(t, f: Finding, B=None, infeasible_ok: bool = False, M=None, changed
     cut = chk.cut
     required: Set[Tuple[str, int, int]] = set()
     # a flag flip changes a failed poll, which no probe pin names: its own pin (STRETTO_PIN_FLIP,
-    # the message to return) forces it in the alternative, and the control pins the recorded
-    # false (control_pin); the alternative must show "matched flip key" for the pin's key, the
-    # forced call returning true
-    flip = change[0] == "probe" and not t.probes[change[1]].flag
+    # the message to return, or for a test its request's completion) forces it in the
+    # alternative, and the control pins the recorded false (control_pin); the alternative must
+    # show "matched flip key" for the pin's key, the forced call returning true. An unflip pins
+    # its probe to flag 0 in the alternative (STRETTO_PIN_PROBE with source -1, "applied
+    # unflip") and to its observed message in the control.
+    flip = change[0] == "event" or (change[0] == "probe" and not t.probes[change[1]].flag)
     if flip:
         ftoks = [k for k in pin_tokens(f.pin) if k.kind == "flip"] if f.pin else []
         if len(ftoks) != 1:
@@ -544,10 +575,15 @@ def _horizon(t, f: Finding, B=None, infeasible_ok: bool = False, M=None, changed
             if alternative and r.completed and _cidx(r) < cut[r.rank]:
                 required.add(("recv", r.rank, r.widx))
         for q in sorted(t.probes.values(), key=lambda q: (q.rank, q.idx)):
-            outside = q.idx >= cut[q.rank] and not (change[0] == "probe" and change[1] == q.key)
+            mine = change[0] in ("probe", "unflip") and change[1] == q.key
+            outside = q.idx >= cut[q.rank] and not mine
             if q.pidx is None or not q.flag or outside:
                 continue
-            sk = change[2] if alternative and change[0] == "probe" and change[1] == q.key else q.seen
+            if alternative and mine and change[0] == "unflip":
+                ptok.append(f"{q.rank}:{q.pidx}:-1@" + ident_text(t, q))
+                required.add(("probe", q.rank, q.pidx))
+                continue
+            sk = change[2] if alternative and mine else q.seen
             if sk is None:
                 continue
             m = t.sends[sk]

@@ -17,12 +17,17 @@ records (Nekbone) saves the 33 GB it takes. The pins are computed for the whole 
 the first replay and the trace is then let go, so that judging a replay's own trace, as large,
 does not come on top of it.
 
+The pool is every L1 alternative with a message: receive and probe alternatives and probe
+flips. --flips adds the flips without one, a probe returning false (probe-unflip) and a failed
+test finding its receive complete (test-flip); horizon_pins forces each with its own pin and
+pins the recorded result in its control.
+
 With KEEP_TRACES set, each replay's and control's trace is kept (stretto.keep) under the
 table's campaign (amg/replay_sample, valid/nekbone, scale/samples/amg-64) or --keep-campaign,
 as <k>-<class>-<pin>-replay and -control, k the row of the sample.
 
 usage: replay_sample.py --out CSV [--sample N] [--seed K] [--timeout S] [--mpi openmpi|mpich]
-                        [--from-csv CSV] <trace dir> <np> <exe> [args ...]
+                        [--from-csv CSV] [--flips] <trace dir> <np> <exe> [args ...]
 The options come first: everything after <exe> is the program's own command line, which may
 start with a dash, and the replays run it from the current directory, as the traced run was.
 """
@@ -49,12 +54,18 @@ KEYS = ["finding", "cls", "pin", "site", "pins", "replay", "matched", "run_valid
 
 _PROBE = re.compile(r"^(?:i?m?probe)\((\d+), (\d+)\) .*? could observe send\((\d+), (\d+)\)")
 _RECV = re.compile(r"^recv\((\d+), (\d+)\) .*? <- send\((\d+), (\d+)\)")
+_FLIP = re.compile(r"^(?:i?m?probe)\((\d+), (\d+)\) .*? could return true with send\((\d+), (\d+)\)")
+_UNFLIP = re.compile(r"^(?:i?m?probe)\((\d+), (\d+)\) .*? could return false instead of reporting send\(")
+_TEST_FLIP = re.compile(r"^\w+ at rank (\d+) #(\d+) could find recv\(")
+FLIPS = ("probe-flip", "probe-unflip", "test-flip")
 
 
 def finding_of(title: str, cls: str = "", pin: str = "", site: str = "") -> Optional[Finding]:
     """The alternative a sample row names, from its finding column (report.Finding titles:
     "iprobe(5, 501) src=ANY tag=2000 could observe send(6, 580)->5 ..." or "recv(1, 1093) ...
-    <- send(2, 1088)->1 ..."); None if the title is of neither form."""
+    <- send(2, 1088)->1 ...", and the flag flips' "... could return true with send(...)",
+    "... could return false instead of reporting send(...)" and "test at rank R #K could find
+    recv(...) complete ..."); None if the title is of none of these forms."""
     m = _PROBE.match(title)
     if m:
         a, b, c, d = map(int, m.groups())
@@ -63,6 +74,18 @@ def finding_of(title: str, cls: str = "", pin: str = "", site: str = "") -> Opti
     if m:
         a, b, c, d = map(int, m.groups())
         return Finding("1", cls or "1f", "L1", title, recv=(a, b), send=(c, d), pin=pin or None, site=site or None)
+    m = _FLIP.match(title)
+    if m:
+        a, b, c, d = map(int, m.groups())
+        return Finding("probe", "probe-flip", "L1", title, probe=(a, b), send=(c, d), pin=pin or None, site=site or None)
+    m = _UNFLIP.match(title)
+    if m:
+        a, b = map(int, m.groups())
+        return Finding("probe", "probe-unflip", "L1", title, probe=(a, b), pin=pin or None, site=site or None)
+    m = _TEST_FLIP.match(title)
+    if m:
+        a, b = map(int, m.groups())
+        return Finding("waitany", "test-flip", "L1", title, event=(a, b), pin=pin or None, site=site or None)
     return None
 
 
@@ -77,6 +100,8 @@ def main() -> int:
     ap.add_argument("--timeout", type=int, default=600)
     ap.add_argument("--mpi", default="openmpi")
     ap.add_argument("--from-csv", help="replay the alternatives of this earlier sample (its finding column) instead")
+    ap.add_argument("--flips", action="store_true",
+                    help="sample the flips without a message too (probe-unflip, test-flip; a probe-flip is sampled anyway)")
     ap.add_argument("--out", required=True)
     ap.add_argument("--keep-campaign", default=None,
                     help="with KEEP_TRACES set, keep the replays' traces under this campaign (stretto.keep; default: the table's)")
@@ -94,6 +119,8 @@ def main() -> int:
     else:
         rep = analyze(t, with_sp=False)
         pool = [f for f in rep.findings if f.level == "L1" and f.send is not None and (f.probe is not None or f.recv is not None)]
+        if args.flips:
+            pool += [f for f in rep.findings if f.level == "L1" and f.cls in ("probe-unflip", "test-flip")]
         rng = random.Random(args.seed)
         sample = rng.sample(pool, min(args.sample, len(pool)))
         pool = len(pool)

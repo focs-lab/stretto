@@ -315,6 +315,21 @@ class EnvelopePins(unittest.TestCase):
         rp = C.run_checked(3, exe, [], [old], timeout=30, extra_env=self.LATE)
         self.assertEqual(rp.result, f"APP-ERROR:{C.PIN_MISAPPLIED}", rp.proc.stderr[-2000:])
 
+    def test_the_horizon_of_an_unflip_replays_with_its_control(self):
+        """horizon_pins: the first tag-21 probe pinned to rank 1 and the second forced false; the
+        control pins both to rank 1. Both finish, with every pin taken, delayed or not."""
+        exe, t, rep = self.analysed(32)
+        u = self.unflip(t, rep, 1)
+        alt, ctl = C.horizon_pins(t, u)
+        req = C.required_matches(t, u)
+        for env in (None, self.LATE):
+            ra = C.run_checked(3, exe, [], alt, timeout=30, extra_env=env)
+            self.assertEqual((ra.result, ra.misapplied), ("FINISHED", []), ra.proc.stderr[-2000:])
+            self.assertTrue(C.all_matched(alt, ra.proc.stderr, req, ra.seen), ra.proc.stderr[-2000:])
+            rc = C.run_checked(3, exe, [], ctl, timeout=30, extra_env=env)
+            self.assertEqual((rc.result, rc.misapplied), ("FINISHED", []), rc.proc.stderr[-2000:])
+            self.assertTrue(C.all_matched(ctl, rc.proc.stderr, None, rc.seen), rc.proc.stderr[-2000:])
+
     def test_a_flip_names_the_probes_of_its_envelope(self):
         """A failed tag-22 poll after both tag-21 messages, forced to return rank 2's message:
         its pin counts the tag-22 probes found before it (none), not the rank's two."""

@@ -702,7 +702,10 @@ named by its ordinal among all the rank's wildcard probes, and a rank that drain
 through one call site (VTK's `vtkPLagrangianParticleTracker`, tags 622 and 624) found their
 messages in another order in the replay: the ordinal then fell on a probe of the other tag, and
 40 of 40 replays of one alternative ended misapplied. The envelope's ordinal equals the rank's
-where the rank's wildcard probes have one envelope.
+where the rank's wildcard probes have one envelope. A flip or unflip is replayed by
+`horizon_pins` like any alternative: the flip's pin or the unflip's in the alternative, the
+recorded result in the control, every other wildcard operation of the horizon pinned to its
+observed sender in both.
 
 `R*` must survive the closure (`witness_kept`): a blocking changed receive must complete inside
 H, a nonblocking one must be posted inside H with its new message issued inside H (the match

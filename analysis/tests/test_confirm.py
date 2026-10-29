@@ -16,6 +16,7 @@ from stretto import trace as T  # noqa: E402
 from stretto.matching import candidates_full  # noqa: E402
 from stretto.report import Finding, analyze  # noqa: E402
 from test_checker import failed_iprobe, mk, recv, send, wait  # noqa: E402
+import test_checker as TC  # noqa: E402
 from test_hb import irecv, reply_to_pending_receive, stolen_after_later_receive  # noqa: E402
 
 APPLIED = ("[stretto-pin] rank 0: 2 pin(s) active\n[stretto-pin] rank 0: applied widx=0 src=2 (world 2) tag=5\n"
@@ -478,6 +479,38 @@ class EnvelopePins(unittest.TestCase):
         self.assertTrue(C.trace_misapplied(replay, old))
         # the library's lines name the pin by its pidx, wherever the probe was in the run
         self.assertTrue(all_matched([pin], "[stretto-pin] rank 0: applied probe pidx=2 src=2 tag=22 id=0:22:x\n"))
+
+
+class FlipHorizons(unittest.TestCase):
+    """horizon_pins replays the flips without a message like any alternative (since 29 Oct
+    2026): an unflip forces its probe false and pins the horizon's other probes, a test flip
+    forces its test true; each control pins the recorded result."""
+
+    def test_an_unflip_is_pinned_in_its_horizon(self):
+        t = two_tag_drains()
+        rep = analyze(t, with_sp=False)
+        (u,) = [f for f in rep.by_class("probe-unflip") if t.probes[f.probe].pidx == 1]
+        alt, ctl = horizon_pins(t, u)
+        self.assertEqual(alt, ["STRETTO_PIN_PROBE=0:0:1@0:21:x:0,0:1:-1@0:21:x:1"])
+        self.assertEqual(ctl, ["STRETTO_PIN_PROBE=0:0:1@0:21:x:0,0:1:1@0:21:x:1"])
+        req = required_matches(t, u)
+        self.assertEqual(req, {("probe", 0, 0), ("probe", 0, 1)})
+        self.assertTrue(all_matched(alt, "[stretto-pin] rank 0: applied probe pidx=0 src=1 tag=21 id=0:21:x\n"
+                                         "[stretto-pin] rank 0: applied unflip pidx=1 id=0:21:x\n", req))
+        self.assertFalse(all_matched(alt, "[stretto-pin] rank 0: applied probe pidx=0 src=1 tag=21 id=0:21:x\n", req))
+        self.assertTrue(all_matched(ctl, "[stretto-pin] rank 0: applied probe pidx=0 src=1 tag=21 id=0:21:x\n"
+                                         "[stretto-pin] rank 0: applied probe pidx=1 src=1 tag=21 id=0:21:x\n"))
+
+    def test_a_test_flip_is_pinned_in_its_horizon(self):
+        t = mk({0: [TC.irecv(T.ANY, 5, 0), {"op": "wait", "kind": "test", "flag": 0, "reqs": [0], "done": []},
+                    wait((0, 1, 5))], 1: [send(0, 5)]})
+        (f,) = analyze(t, with_sp=False).by_class("test-flip")
+        key = t.poll_key[(0, 2)]
+        self.assertEqual(f.pin, f"STRETTO_PIN_FLIP=0:{key}:-2@x:x:x:0")
+        alt, ctl = horizon_pins(t, f)
+        self.assertEqual(alt, [f.pin])
+        self.assertEqual(ctl, [f"STRETTO_PIN_FLIP=0:{key}:-1@x:x:x:0"])
+        self.assertEqual(required_matches(t, f), {("flip", 0, key)})
 
 
 class PinIdentity(unittest.TestCase):
