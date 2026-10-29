@@ -49,7 +49,6 @@ No shipped caller reaches them, so they count apart from the bugs above.
 | PETSc 3.26 own wildcard sites | - | 480 replays benign |
 | MFEM 4.10 | - | 160 replays: 150 benign, 10 inconclusive (ex15p hex) |
 | deal.II 9.8.0 | - | 8 419 alternatives, all within one exchange; 120 replays benign |
-| dolfinx `nbx_consensus_rounds` | duplicated communicator per IndexMap; communicator creation follows other calls | reading |
 | openfpm_vcluster, code_saturne, KaHIP | GPU-only clash; NBX never selected; not an NBX between calls | reading |
 
 The 26 Oct screen of 70 codes and its safe list: kept with the hunt notes, outside this
@@ -71,3 +70,10 @@ repository.
 
 PFLOTRAN (perturbation inversion, needs three or more process groups) and SPECFEM3D (HDF5 I/O
 server): read only.
+
+dolfinx a7b1840 `nbx_consensus_rounds` (MPI.cpp:182-290), two readings that disagree: an
+`Irecv(ANY_SOURCE)` listener still posted when the call ends, and cancelled after its Ibarrier,
+may match the next call's Issend. Against it: IndexMap runs the exchange on a communicator of its
+own, and every other caller creates a communicator right after it, which synchronises in both
+MPIs although the standard does not require it. Unverified; the cancelled listener also needs the
+fix for cancelled receives above.
