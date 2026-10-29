@@ -1,12 +1,13 @@
 # Several threads calling MPI: design
 
-Status: design (29 Oct 2026), nothing implemented. Decided 29 Oct 2026: Stretto is extended to
-programs in which several threads of an MPI process call MPI on shared communicators
-(`MPI_THREAD_MULTIPLE`, and `MPI_THREAD_SERIALIZED` with several calling threads). Today such a
-trace is analysed for observed findings only (`analysis/stretto/report.py:254-265`,
-`analysis/stretto/hb.py:272-277`, `docs/model.md` §6). This document says what the standard
-allows, what the tracer must record, how the model, the analysis and the replay change, which
-programs test it, which benchmarks contain such programs, and what the work costs.
+Status: designed 29 Oct 2026; milestone A (tracer, loader, analysis at L1, the observed thread
+classes, tests) implemented the same day, section 9 says how it differs from the design. Decided
+29 Oct 2026: Stretto is extended to programs in which several threads of an MPI process call MPI
+on shared communicators (`MPI_THREAD_MULTIPLE`, and `MPI_THREAD_SERIALIZED` with several calling
+threads). Before, such a trace was analysed for observed findings only (`docs/model.md` §6). This
+document says what the standard allows, what the tracer must record, how the model, the analysis
+and the replay change, which programs test it, which benchmarks contain such programs, and what
+the work costs. File and line references in sections 1-8 are to the code before milestone A.
 
 Terms used below. A *chain* is one logical thread of control of a process: a POSIX thread, or an
 OpenMP implicit task (one thread of one parallel region). A rank's records become one chain per
@@ -657,20 +658,116 @@ the checker can be trusted (the E6 comparison), so it moves before step 3 (c).
 - **Regression.** The chain/process split touches every module; the byte-identical gate after each
   step is the protection.
 
-## 8. Open questions
+## 8. Decisions (29 Oct 2026)
 
-1. L1 keeps lock order (sync-preserving), so lock-order races and SERIALIZED programs' thread
-   races are predicted only at L1+SP-T, confirmed by replay. Is that the intended trade, or
-   should lock-protected state be analysed statically (a first-read analysis for critical
-   sections) to certify some reorderings at L1?
-2. The issue lock and the blocking rewrite under MULTIPLE perturb the run in exchange for an exact
-   observed matching. Acceptable, or should the reconstruction instead search for a consistent
-   matching (counts, hashes, acyclicity) without the lock, and degrade when it is ambiguous?
-3. OpenMP: wrap libgomp (gcc 13, the image as it is) in v1 and OMPT later, or add clang and
-   libomp to an image and use OMPT only?
-4. MPI calls in explicit OpenMP tasks: v1 degrades them. Two CorrBench programs need them.
-5. Are the observed thread findings (3.7) in scope for the paper, or only the predictions?
-6. Which applications use MULTIPLE with shared communicators and could be traced?
-7. The orientation picks (3.2) make the check incomplete; is a bounded search over the picks of
-   the changed receives worth its cost, or is a measured incompleteness enough?
-8. `docs/model.md` cites MPI 4.0 section numbers as MPI 4.1's (1); fix them in a separate commit?
+1. L1 keeps lock order (sync-preserving); lock reordering comes at L1+SP-T, a later milestone. No
+   static analysis of critical sections now.
+2. The issue lock and the blocking rewrite under MULTIPLE, as designed, switchable by
+   `STRETTO_THREADS=0`, with their perturbation measured.
+3. OpenMP through libgomp's entry points in v1; no clang or libomp image now.
+4. MPI calls in explicit OpenMP tasks: degraded in v1.
+5. The observed thread classes (3.7) are in scope, reported as observed findings.
+6. Targets: MPICH's `test/mpi/threads` (commit fb003aa; the `mt_*` tests run a racy phase and
+   two controls) and MPI-CorrBench's OpenMP ordering pairs (Probe against Mprobe) as programs
+   with known answers; then HDF5's Subfiling VFD at the parent of 27bb358, a fixed bug; Uintah
+   with hypre later.
+7. The incompleteness of the orientation picks (3.2) is accepted in v1 and documented (3.6).
+8. `docs/model.md`'s MPI 4.0 section numbers are corrected in a commit of their own.
+
+## 9. Milestone A as built (29 Oct 2026)
+
+**Tracer** (`tracer/mpitrace.c`, trace format 3). As in 2.2, with these differences: no message
+hashes and no `cs` records yet; the `chain` record's `parent` is the nearest ancestor that has
+an id; work-share read-modify-writes are recorded after the libgomp call returns (holding a lock
+across it could deadlock), which adds only edges consistent with the record order; not wrapped:
+libgomp's legacy `GOMP_parallel_start`/`_end`, the `_ull_` loop forms, `pthread_tryjoin_np` and
+`pthread_timedjoin_np`. Synchronisation calls whose return address lies in the MPI library, the
+OpenMP runtime, libc or the tracer are ignored. `omp_in_explicit_task()` (present in the image's
+libgomp) detects MPI calls inside tasks. Failed polls fold per chain.
+
+**Loader** (`analysis/stretto/chains.py`, `trace.py`). A rank with records of several chains is
+split; a `begin` record's `after` moves to the record it folds into; the observed matching of a
+split rank is reconstructed in `iseq` order (in file order below MULTIPLE), and an `Mrecv` takes
+the message of its own thread's `Mprobe`; a pair whose sizes disagree degrades the trace
+(`reconstruction`). A request completed by another thread than the one that started it degrades
+the trace (`threads-handoff`); so does an MPI call inside an OpenMP task (`threads-tasks`).
+
+**Analysis** (`analysis/stretto/threads.py`, with changes in `matching.py`, `horizon.py`,
+`feasible.py`, `report.py`). As in section 3, with these choices:
+
+- Orientation picks (3.2). Two receives of one process on different chains, r taking s and x
+  accepting s: when x's message is of s's channel, the postings follow the order of the two
+  sends (x is matched first if its message was issued first), otherwise the physical order of
+  the two postings in the run; sends keep the order in which MPI saw them unless happens-before
+  orders their receives otherwise. Probes are oriented against concurrent receives and sends in
+  the same way. The check is incomplete where another pick would accept an alternative.
+- Candidates: steals (the concurrent loser left pending in H) and concurrent swaps; a swap's
+  second receive is classified too, so a truncation on it is a 1a finding. A steal that
+  re-matches the loser to its next message (a two-change alternative) is not enumerated.
+- Rule 8 and the synchronisation points between two records of a chain. A chain that waits at
+  an acquire inside such a gap reaches the releases of the gap made before that acquire, and no
+  later ones. Each `after` entry carries the ordinals of the release and of the acquire among
+  their threads' synchronisation calls (`[chain, seq, kc, ka]`), which orders them. For an
+  entry without ordinals, a release counts as reached only if the record it precedes also
+  precedes every point the chain waits for: had the chain waited first, the run would have
+  needed that point before itself. A chain cut by rule 1 reaches nothing after its cut.
+  Contained deadlocks (T7) are claimed only for chains that stop at an MPI operation, never
+  through a wait for a synchronisation.
+- Not for several chains yet: the fast checks (the generic check judges everything), the
+  single-path explorer (L1+SP), read bounds, flag flips, the comparison with happens-before
+  (`hb.declines`), replay pins.
+- New observed classes, error classes in the scorer too: `2-thread-collective`,
+  `2-thread-wait`, `2-thread-finalize`, `2-thread-level`. With `threads-tasks`, only the
+  thread-level check runs, and the cross-rank collective-ordering check is skipped (the order
+  of a rank's collectives is not known).
+
+**Idioms** (numbered 15-31; the table of section 5 maps as 15→15, 16a→16, 16b→17, 17→18,
+18→19, 19→20, 20→21, 21→22, 22→23, 23→24, 24→25, 25→26, 26→27, 27→28, 28→29, 29→30, 30→31), with
+their traces under `analysis/tests/golden/{openmpi,mpich}`.
+
+**Results (29 Oct 2026, a-p13 in the experiment image, Open MPI 4.1.6 unless said).**
+
+- *Byte-identical gate.* The 531 traces with one chain per rank (503 corpus traces of the last
+  MBI and MPI-BugBench run, 14 idiom traces, 14 golden traces), analysed by main (2f82750) and by
+  this branch as a text report, with `--json` and with `--full-profile --json`: 3 186 outputs and
+  exit statuses, 0 differences. The unit tests: 483 run, 18 skipped (as on main), all pass.
+- *Idioms 15-31* (traces of Open MPI and MPICH): as expected in section 5, at L1. Two
+  receivers (15): a concurrent swap; probe split (16): a 1a truncation on the swapped probing
+  receive; probe split with one message (17): a contained deadlock (1d) of the probing thread;
+  both threads probing (18): a probe alternative across threads (its hang is for the replay);
+  Mprobe (19): probe alternatives without consequence; two sender threads (20): the sender-side
+  alternative; ordered by a condition variable (21), by a mutex (22, L1 keeps lock order),
+  probe and receive in one critical section (23), a communicator per thread (24): nothing;
+  concurrent collectives (25): `2-thread-collective` (Open MPI; in the MPICH run one thread ran
+  both sections, so the run has no concurrency, and the section assignment is kept); double wait
+  (26): `2-thread-wait` (degraded `threads-handoff`, the request is completed by another thread);
+  lock held across a receive (27): nothing at L1; head-to-head between threads (28): no
+  2-buffering; early finalize (29), FUNNELED violation (30): their observed classes; MULTIPLE
+  with one thread (31): analysed as a single chain.
+- *MPICH `test/mpi/threads/pt2pt`* (fb003aa, built against Open MPI; 2 ranks of 4 threads, 16
+  iterations): every finding of the seven `mt_*` tests lies in the racy phase (communicator 0,
+  tag 0, the phase's threads), none in the two control phases: `mt_sendrecv` 135 L1 1f,
+  `mt_ssendrecv` 143, `mt_isendirecv` 3, `mt_probe_sendrecv` 4 and one probe alternative,
+  `mt_iprobe_sendrecv` 4, `mt_mprobe_sendrecv` and `mt_improbe_sendrecv` 63 probe alternatives
+  each (which thread's Mprobe gets which message). 2 to 11 s per trace. Untraced,
+  `mt_probe_sendrecv` and `mt_iprobe_sendrecv` fail in their racy phase (MPI_ERR_COUNT, 3 of 3
+  runs); traced they pass, so the issue lock hides it, and the L1 report names the race (1f, all
+  messages have one size) but not that consequence. The 1 024-iteration traces (25 000 to
+  170 000 records) are beyond milestone A: `mt_isendirecv` (24 702 records) did not finish in
+  50 minutes with the generic check, which judges every alternative over the whole trace.
+- *MPI-CorrBench OpenMP ordering* (a05644b, 2 ranks, 2 threads): of the 23 programs with an
+  error, found: `deadlock`, `deadlock_2`, `deadlock_send_recv`, `dependant/deadlock_probe_2`
+  (observed hangs; the last also as L1 1d), `two_collectives`, `_2` (`2-thread-collective`),
+  `request_reuse` (observed 1c, degraded `threads-handoff`), `dependant/probe` (L1 1f only, a
+  warning: the run had the race, and with messages of 8 and 4 bytes no truncation follows).
+  Missed by design: `dependant/deadlock_probe` (lock order, L1+SP-T), `two_collectives_9`
+  (collectives ordered by a critical section whose order differs between ranks: lock order),
+  `two_collectives_3`-`_8`, `deadlock_task_send_recv`, `nondeterministic_deadlock`,
+  `task_comm_free` (MPI in tasks: degraded), and the handle lifetime and buffer programs
+  (outside the model). Of the 15 correct ones, none has an error class; the Mprobe versions of
+  `probe` and `deadlock_probe_2` have two probe alternatives each (warnings).
+- *Overhead* (median of 3, wall time with mpirun start, `-iter=1024`; untraced / traced with
+  `STRETTO_THREADS=0` / traced with threads): `mt_sendrecv` 0.64 / 0.57 / 0.57 s,
+  `mt_isendirecv` 0.54 / 0.60 / 0.60 s, `mt_mprobe_sendrecv` 0.70 / 0.80 / 0.92 s;
+  `osu_latency_mt` small messages 3.3 / 16.2 / 16.6 µs. Writing the trace dominates; the issue
+  lock, the rewrite and the clocks add 0-15 % on top of it.
