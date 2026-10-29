@@ -46,17 +46,24 @@
 #   Quantum ESPRESSO 615e40cf, ph.x on the test-suite's Ni at X with electron_phonon='prt',
 #     3 ranks in 3 pools; Fortran, so with MUST_IMAGE=stretto-must:1.11.2-fortran,
 #     MUST_LABEL=1.11.2-fortran and MUST_ARGS="--must:distributed --must:language fortran"
-# The first four are fetched and built by their campaigns' own steps (MPI_CC and MPI_CXX set to
-# MPICH's wrappers), the last two by experiments/must/hist.sh (SLU_MATS: the verification's
-# matrices). Their checks: the campaign's own verdict on the output (match: the regex of its
-# stress runs; value "ok" or "not ok"), the x error of pddrive3d (xerr: above 1e-4 is wrong, as
-# in the verification), and the elph_prt table against the reference of one process (qe: value,
-# the rows whose eigenvalues or |g_sym| differ).
+#   deal.II 2c1b27fb, the NBX driver (three ConsensusAlgorithm_NBX calls), 4 and 8 ranks
+#     (experiments/dealii8929/)
+# The fixes of Cabana (38170631), MFEM (3.4) and deal.II (f9ea3396) run as controls for what
+# MUST does to those programs by itself. The first four cases and deal.II are fetched and built
+# by their campaigns' own steps (MPI_CC, MPI_CXX and, for deal.II, MPI_FC set to MPICH's
+# wrappers), SuperLU_DIST and QE by experiments/must/hist.sh (SLU_MATS: the verification's
+# matrices); HIST_APPS chooses which of them fetch and build make (default all). Their checks:
+# the campaign's own verdict on the output (match: the regex of its stress runs; value "ok" or
+# "not ok"), the x error of pddrive3d (xerr: above 1e-4 is wrong, as in the verification), the
+# elph_prt table against the reference of one process (qe: value, the rows whose eigenvalues or
+# |g_sym| differ), and the NBX driver's own check of its answers (nbx: value, the wrong answers
+# rank 0 counts).
 # usage: experiments/must/apps.sh [fetch|build|run ...]
 #        RUNS (20), FIRST (1: the number of the first run, to add runs to a configuration),
 #        JOBS (1), CPUS (cpuset of every container), MEMORY (24g), CONFIGS (all),
 #        MUST_APPS_DIR (third_party/apps/must), TIMEOUT (per configuration), CASES (apps),
-#        PREFIX (stretto-honest: the containers' names), MAKE_JOBS (8), SLU_MATS
+#        PREFIX (stretto-honest: the containers' names), MAKE_JOBS (8), SLU_MATS, HIST_APPS (all:
+#        cabana stempy mfem332 lammps superlu qe dealii8929)
 set -uo pipefail
 R="$(cd "$(dirname "$0")/../.." && pwd)"; cd "$R"
 CASES="${CASES:-apps}"; PREFIX="${PREFIX:-stretto-honest}"
@@ -101,10 +108,38 @@ cabana-fix-3|cabana|38170631|3|60|match|${CB/fbbcc37f/38170631}
 mfem332-fix-4|mfem332|3.4|4|60|match|$MW/mfem332/twomesh-3.4
 superlu-blk12x6-3|superlu_dist|9.3.1|3|60|xerr|$SLU -r 1 -c 3 -d 1 $MW/superlu/blk12x6.mtx
 superlu-blk8x10-6|superlu_dist|9.3.1|6|60|xerr|$SLU -r 2 -c 3 -d 1 $MW/superlu/blk8x10.mtx
-qe-3|qe|615e40cf|3|120|qe|$MW/qe/build/bin/ph.x -nk 3 -in ph.in"
+qe-3|qe|615e40cf|3|120|qe|$MW/qe/build/bin/ph.x -nk 3 -in ph.in
+dealii8929-4|dealii8929|2c1b27fb|4|60|nbx|$MW/dealii8929/driver-2c1b27fb/nbx_calls 3
+dealii8929-8|dealii8929|2c1b27fb|8|60|nbx|$MW/dealii8929/driver-2c1b27fb/nbx_calls 3
+dealii8929-fix-4|dealii8929|f9ea3396|4|60|nbx|$MW/dealii8929/driver-f9ea3396/nbx_calls 3
+dealii8929-fix-8|dealii8929|f9ea3396|8|60|nbx|$MW/dealii8929/driver-f9ea3396/nbx_calls 3"
 declare -A OK_RE=([cabana]='\[  PASSED  \] 1 test\.' [stempy]='gather ok' [mfem332]='(?s)mesh 1:[^\n]* ok.*mesh 2:[^\n]* ok'
                   [lammps]='Total wall time')
 [ "$CASES" = hist ] && ALL="$HIST"
+# the fetch and build steps of each case of CASES=hist, in the experiment image and in MUST's
+HW="MPI_CC=/usr/bin/mpicc.mpich MPI_CXX=/usr/bin/mpicxx.mpich MAKE_JOBS=${MAKE_JOBS:-8}"
+declare -A HIST_FETCH=([cabana]="CABANA_DIR=$MW/cabana experiments/cabana/run.sh fetch"
+                       [stempy]="STEMPY_DIR=$MW/stempy experiments/stempy/run.sh fetch"
+                       [mfem332]="MFEM332_DIR=$MW/mfem332 experiments/mfem332/run.sh fetch"
+                       [lammps]="LAMMPS_DIR=$MW/lammps experiments/lammps/run.sh fetch"
+                       [superlu]="experiments/must/hist.sh fetch-superlu $MW/superlu"
+                       [qe]="experiments/must/hist.sh fetch-qe $MW/qe"
+                       [dealii8929]="DEALII8929_DIR=$MW/dealii8929 experiments/dealii8929/run.sh fetch")
+declare -A HIST_BUILD=([cabana]="CABANA_DIR=$MW/cabana $HW experiments/cabana/run.sh build"
+                       [stempy]="STEMPY_DIR=$MW/stempy $HW experiments/stempy/run.sh build"
+                       [mfem332]="MFEM332_DIR=$MW/mfem332 $HW experiments/mfem332/run.sh build"
+                       [lammps]="LAMMPS_DIR=$MW/lammps $HW experiments/lammps/run.sh build"
+                       [superlu]="MAKE_JOBS=${MAKE_JOBS:-8} experiments/must/hist.sh build-superlu $MW/superlu"
+                       [qe]="MAKE_JOBS=${MAKE_JOBS:-8} experiments/must/hist.sh build-qe $MW/qe"
+                       [dealii8929]="DEALII8929_DIR=$MW/dealii8929 $HW MPI_FC=/usr/bin/mpifort.mpich experiments/dealii8929/run.sh build")
+HIST_APPS="${HIST_APPS:-cabana stempy mfem332 lammps superlu qe dealii8929}"
+hist_steps() {   # hist_steps <FETCH|BUILD>: the steps of HIST_APPS, one per line
+    local a; local -n s="HIST_$1"
+    for a in $HIST_APPS; do
+        [ -n "${s[$a]:-}" ] || { echo "HIST_APPS: no case $a" >&2; return 2; }
+        echo "${s[$a]}"
+    done
+}
 
 step_fetch() {
     [ "$CASES" = hist ] && { fetch_hist; return; }
@@ -115,25 +150,20 @@ step_fetch() {
       DEALII_DIR=$MW/dealii experiments/dealii/run.sh fetch"
 }
 fetch_hist() {
-    mkdir -p "$M/superlu" && cp "${SLU_MATS:?SLU_MATS names the directory of the verification matrices}"/blk12x6.mtx "$SLU_MATS"/blk8x10.mtx "$M/superlu/" \
-        || return 1
+    local steps; steps=$(hist_steps FETCH) || return 1
+    case " $HIST_APPS " in
+        *" superlu "*) mkdir -p "$M/superlu" && cp "${SLU_MATS:?SLU_MATS names the directory of the verification matrices}"/blk12x6.mtx \
+                           "$SLU_MATS"/blk8x10.mtx "$M/superlu/" || return 1;;
+    esac
     docker run --rm --name "$PREFIX-fetch" "${cpus[@]}" --memory "$MEMORY" --user "$(id -u):$(id -g)" -e HOME=/tmp \
-        -e STRETTO_COMMIT -v "$R:/w" -w /w "$EXP_IMAGE" bash -c "
-      CABANA_DIR=$MW/cabana experiments/cabana/run.sh fetch && STEMPY_DIR=$MW/stempy experiments/stempy/run.sh fetch &&
-      MFEM332_DIR=$MW/mfem332 experiments/mfem332/run.sh fetch && LAMMPS_DIR=$MW/lammps experiments/lammps/run.sh fetch &&
-      experiments/must/hist.sh fetch-superlu $MW/superlu && experiments/must/hist.sh fetch-qe $MW/qe"
+        -e STRETTO_COMMIT -v "$R:/w" -w /w "$EXP_IMAGE" bash -c "set -e
+$steps"
 }
 build_hist() {
-    local j="${MAKE_JOBS:-8}" w="MPI_CC=/usr/bin/mpicc.mpich MPI_CXX=/usr/bin/mpicxx.mpich MAKE_JOBS=${MAKE_JOBS:-8}"
+    local steps; steps=$(hist_steps BUILD) || return 1
     docker run --rm --name "$PREFIX-build" "${cpus[@]}" --memory "$MEMORY" --memory-swap "$MEMORY" \
-        --user "$(id -u):$(id -g)" -e HOME=/tmp -e STRETTO_COMMIT -v "$R:/w" -w /w "$BUILD_IMAGE" bash -c "
-      set -e
-      CABANA_DIR=$MW/cabana $w experiments/cabana/run.sh build
-      STEMPY_DIR=$MW/stempy $w experiments/stempy/run.sh build
-      MFEM332_DIR=$MW/mfem332 $w experiments/mfem332/run.sh build
-      LAMMPS_DIR=$MW/lammps $w experiments/lammps/run.sh build
-      MAKE_JOBS=$j experiments/must/hist.sh build-superlu $MW/superlu
-      MAKE_JOBS=$j experiments/must/hist.sh build-qe $MW/qe"
+        --user "$(id -u):$(id -g)" -e HOME=/tmp -e STRETTO_COMMIT -v "$R:/w" -w /w "$BUILD_IMAGE" bash -c "set -e
+$steps"
 }
 step_build() {
     [ "$CASES" = hist ] && { build_hist; return; }

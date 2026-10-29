@@ -53,12 +53,14 @@
 # Writes experiments/results/dealii8929/{predict,stress}-{2c1b27fb,f9ea3396}.csv.
 # usage: experiments/dealii8929/run.sh [fetch|build|predict|stress|fixed|all]
 #        NPS ("4 8"), RUNS (10), STRESS_RUNS (40), CALLS (3), TIMEOUT (60), JOBS (2), MAKE_JOBS (12),
-#        DEALII8929_DIR (third_party/apps/dealii8929)
+#        DEALII8929_DIR (third_party/apps/dealii8929), MPI_CC, MPI_CXX and MPI_FC (the build's MPI
+#        wrappers, default Open MPI's: experiments/must/apps.sh builds with MPICH's)
 set -uo pipefail
 R="$(cd "$(dirname "$0")/../.." && pwd)"; cd "$R"
 D="${DEALII8929_DIR:-$R/third_party/apps/dealii8929}"
 OUT="$R/experiments/results/dealii8929"; mkdir -p "$OUT"
 NPS="${NPS:-4 8}"; RUNS="${RUNS:-10}"; STRESS_RUNS="${STRESS_RUNS:-40}"; CALLS="${CALLS:-3}"; TIMEOUT="${TIMEOUT:-60}"
+MPI_CC="${MPI_CC:-/usr/bin/mpicc.openmpi}"; MPI_CXX="${MPI_CXX:-/usr/bin/mpicxx.openmpi}"; MPI_FC="${MPI_FC:-/usr/bin/mpifort.openmpi}"
 source "$R/experiments/harness.sh"
 export STRETTO_COMMIT="${STRETTO_COMMIT:-$(python3 "$R/experiments/provenance.py")}"
 # the container refuses process_vm_readv, the single-copy mechanism of Open MPI's shared-memory
@@ -92,8 +94,8 @@ step_build() {
         v=$(short $c)
         if [ ! -f "$D/install-$v/lib/libdeal_II.so" ]; then
             mkdir -p "$D/build-$v" && (cd "$D/build-$v" && "$CMAKE" -S "$D/dealii-$c" -B . -DCMAKE_BUILD_TYPE=Release \
-                 -DCMAKE_C_COMPILER=/usr/bin/mpicc.openmpi -DCMAKE_CXX_COMPILER=/usr/bin/mpicxx.openmpi \
-                 -DCMAKE_Fortran_COMPILER=/usr/bin/mpifort.openmpi -DMPI_Fortran_COMPILER=/usr/bin/mpifort.openmpi \
+                 -DCMAKE_C_COMPILER="$MPI_CC" -DCMAKE_CXX_COMPILER="$MPI_CXX" \
+                 -DCMAKE_Fortran_COMPILER="$MPI_FC" -DMPI_Fortran_COMPILER="$MPI_FC" \
                  -DCMAKE_INSTALL_PREFIX="$D/install-$v" -DDEAL_II_ALLOW_AUTODETECTION=OFF -DDEAL_II_FORCE_BUNDLED_BOOST=ON \
                  -DDEAL_II_WITH_MPI=ON -DDEAL_II_WITH_THREADS=OFF -DDEAL_II_WITH_ZLIB=OFF -DDEAL_II_WITH_LAPACK=OFF \
                  -DDEAL_II_WITH_MUPARSER=OFF -DDEAL_II_WITH_COMPLEX_VALUES=OFF -DDEAL_II_COMPONENT_EXAMPLES=OFF \
