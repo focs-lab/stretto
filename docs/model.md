@@ -30,7 +30,7 @@ probes (before 22 Oct 2026 a probe of `MPI_PROC_NULL` was loaded as an `ANY_SOUR
 the `MPI_Mrecv`/`MPI_Imrecv` of the message such a probe returns.
 
 Creating and freeing communicators. The constructors and `MPI_Comm_free` are collective (MPI
-4.1 §7.4), and a member may have to wait in one until the others have entered it:
+4.1 §8.4), and a member may have to wait in one until the others have entered it:
 `MPI_Comm_split`'s result depends on every member's colour and key, and Open MPI and MPICH agree
 on the new context by an allreduce; the standard leaves the rest open. Each such call is a collective
 `comm_<call>` in the sequence of collectives of the communicator it is collective over: the
@@ -233,7 +233,7 @@ query did not set the ready edge aside: E8b found a steal of a ready send that t
 accepts and the explorer realises pruned (synthetic program 037; `C_PruneOnKeptEdges`, and
 `C_EnumerationComplete` over E6's programs).
 
-Ready sends. MPI 4.1 §3.4 lets a ready-mode send start only once its matching receive is
+Ready sends. MPI 4.1 §4.4 lets a ready-mode send start only once its matching receive is
 posted, and the model says so of the receive the send is matched to: the edge
 issue(r₂) → issue(s) and rule 7. Before 22 Oct 2026 the explorer was looser: it raised
 rsend-no-receive only when no posted receive accepted the send at its issue, so a ready send
@@ -305,7 +305,7 @@ no matching rule describes (a cancelled send is pending until its cancel, and a 
 before then may take it). A run with a successful cancel, or with a cancel whose outcome the
 trace does not have (its request never returned), is reported with observed findings only. A
 cancel that failed changed nothing, and it fails in every alternative execution too, since an
-implementation may always let a cancel fail (MPI 4.1 §3.8.4). Before 22 Oct 2026 cancelled
+implementation may always let a cancel fail (MPI 4.1 §4.8.4). Before 22 Oct 2026 cancelled
 operations were simply left out of the competitors and of the channel order, which accepts
 steals that MPI cannot realise (`C_Cancellation`).
 
@@ -322,7 +322,7 @@ operations of H in that order. Program order is respected by construction. Every
 `issue(s) → complete(r)` puts the send before the receive's completion; the matching-order
 conditions 1–3' make each kept receive, when it completes, the earliest posted receive at its
 rank that accepts the message and the message the earliest unconsumed one of its source that
-the receive accepts, which is exactly MPI's matching rule (§3.5 of the standard: non-overtaking,
+the receive accepts, which is exactly MPI's matching rule (§4.5 of the standard: non-overtaking,
 per communicator and source), so the MPI library has no choice but M' on the judged receives;
 the obligations are evaluated for every receive posted inside H, which is why the claim can
 cover receives that complete beyond it; rule 6 removed every receive that a pending receive of
@@ -570,7 +570,7 @@ set closed under (`horizon.compute_cut`):
    follows it are removed;
 6. a receive posted inside the prefix whose `M'` send is not issued there (removed, or absent)
    stays pending through the prefix, so a later receive of its rank cannot take a message the
-   pending one accepts (the standard's second non-overtaking clause, §3.5: the later receive
+   pending one accepts (the standard's second non-overtaking clause, §4.5: the later receive
    "cannot be satisfied by this message if the first one is still unmatched"). A blocking
    receive is removed with what follows it; so is a later probe that reports such a message,
    since a probe reports what a receive posted at that point would take. A nonblocking receive
@@ -646,13 +646,13 @@ M₀, if any, lies on p's rank after p, beyond H; every earlier message of its s
 accepts is matched (their match nodes precede `complete(p)`); and no receive of the rank posted
 before p and unmatched accepts s (condition 3). So a receive posted at that point would take s,
 and with arbitrary message delays s can have arrived: `MPI_Iprobe` may return it (MPI 4.1
-§3.8.1). The other operations of H keep their results, as in T1, and nothing of p's rank after
+§4.8.1). The other operations of H keep their results, as in T1, and nothing of p's rank after
 p is in H, so every program consistent with σ on H issues H's operations in that order. A test
 flip is the same with `m(r, s) → complete(test)`: the receive is matched, its data may have
 arrived, and `MPI_Test` returns true once the operation is complete. An unflip removes edges
 only, and at `complete(p)` the message may still be in transit: a single Iprobe returning false
 is a correct result at any time, since only a loop that busy-waits is guaranteed to see the
-message eventually (§3.8.1). Tests: `test_flips.py` (in-memory traces, the fast check against
+message eventually (§4.8.1). Tests: `test_flips.py` (in-memory traces, the fast check against
 the generic one on random runs with failed polls) and E6 with `--probes`, which forces the
 probe's result in the explorer (`explore(force_probes=)`, a test flip as a marked wait) and
 keeps every kept probe's recorded result (a program consistent with σ may branch on it).

@@ -381,7 +381,7 @@ class _Ctx:
     def visible(self, st: GState, rank: int, op: Probe) -> List[Msg]:
         """The messages a probe of rank could return now: pending, accepted, the earliest
         pending one of its source that the probe accepts (non-overtaking), and taken by no
-        receive the rank has posted (MPI 4.1 §3.8.1: a probe returns what a receive posted at
+        receive the rank has posted (MPI 4.1 §4.8.1: a probe returns what a receive posted at
         that point would match, and a posted receive that accepts the message comes first)."""
         out = []
         for m in st.pending:
@@ -620,7 +620,7 @@ class _Ctx:
             np_ = self.advance(p, nsend=p.nsend + 1, blocked_send=blocked, reqs=reqs)
             errors, ready = st.errors, st.ready
             if mode == "rsend":
-                # MPI 4.1 §3.4: a ready send may start only if its matching receive is already
+                # MPI 4.1 §4.4: a ready send may start only if its matching receive is already
                 # posted. Which receive takes it is decided later, so the receives posted now that
                 # accept it are kept with it: the error is recorded here if there is none, at the
                 # match if another receive takes it, once all of them have taken other messages,

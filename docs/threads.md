@@ -20,9 +20,10 @@ in the same order as in the trace.
 ## 1. What the standard says
 
 Section numbers are those of the MPI 4.1 standard as the Forum's HTML rendering
-(mpi-forum.org/docs/mpi-4.1/mpi41-report/) numbers them, read on 29 Oct 2026. (`docs/model.md`
-cites "MPI 4.1 §3.5", "§3.8.1" and "§7.4"; in 4.1 point-to-point communication is chapter 4 and
-communicators chapter 8, so those numbers are MPI 4.0's. Not corrected here.)
+(mpi-forum.org/docs/mpi-4.1/mpi41-report/) numbers them, read on 29 Oct 2026. Until 29 Oct 2026
+`docs/model.md` and comments in the analysis cited MPI 4.0's numbers as MPI 4.1's (§3.5 for
+non-overtaking, §7.4 for communicator creation); in 4.1 point-to-point communication is chapter 4
+and communicators chapter 8.
 
 **Threads are not addressable; any thread may receive** (§12.6.1): "threads are not separately
 addressable: the rank argument in a send or receive call identifies an MPI process, not a

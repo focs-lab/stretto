@@ -10,7 +10,7 @@ from .trace import ANY, Coll, Key, Probe, Recv, Send, Trace
 
 Node = Tuple[int, int, str]
 
-# Collective synchronisation shapes (MPI 4.1 §6.1: a collective may return as soon as the
+# Collective synchronisation shapes (MPI 4.1 §7.1: a collective may return as soon as the
 # caller's participation is complete). 'all': every member waits for every member;
 # 'root-out': non-roots wait for the root; 'root-in': the root waits for non-roots;
 # 'prefix': member j waits for members i < j.
@@ -281,7 +281,7 @@ def observed_hb(t: Trace, B: Optional[int] = None):
 
 def observed_ready_errors(t: Trace) -> Tuple[List[Tuple[Recv, Send]], List[Send]]:
     """Ready-mode sends that the recorded run issued before the receive it matched them to was
-    posted. Such a run is erroneous (MPI 4.1 §3.4; Open MPI and MPICH usually deliver the send
+    posted. Such a run is erroneous (MPI 4.1 §4.4; Open MPI and MPICH usually deliver the send
     all the same), and the edge issue(r) -> issue(s) closes a cycle in its observed graph at
     every threshold. Judged over guaranteed edges at B = inf, what every execution with the
     observed matching has, it returns (certain, others): the pairs (r, s) whose receive every

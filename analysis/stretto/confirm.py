@@ -660,7 +660,7 @@ def unpinned_violation(t, finished: bool = True, hung: bool = False, pins=None, 
     """Is the recorded run of a pinned replay a run of the program without the pins? A pin
     rewrites a wildcard receive into one from a given source, so a later receive of its rank can
     take a message the original receive accepts while the pinned one is still pending, which MPI
-    forbids for the original receive (non-overtaking, MPI 4.1 §3.5), and a probe can report such
+    forbids for the original receive (non-overtaking, MPI 4.1 §4.5), and a probe can report such
     a message. The pinned run then forces a match that no run of the program has. The tracer
     records the original envelope of a pinned operation, so t, the replay's own trace, is judged
     by MPI's matching order on its matches with those envelopes (matching.matching_order_ok

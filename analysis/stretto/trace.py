@@ -492,7 +492,7 @@ def check_records(fname: str, rank: int, recs: List[dict]) -> None:
 
 SIDE_RECORDS = ("comm", "overflow", "guard")
 
-# Communicator constructors and MPI_Comm_free are collective (MPI 4.1 §7.4), and a member may
+# Communicator constructors and MPI_Comm_free are collective (MPI 4.1 §8.4), and a member may
 # have to wait in one until the others have entered it: MPI_Comm_split's result depends on
 # every member's colour and key, and the implementations agree on the new context by an
 # allreduce; the standard leaves the rest open. Each becomes a collective record "comm_<name>" in the sequence of collectives of

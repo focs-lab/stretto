@@ -3,10 +3,10 @@ name (``MPI_INT``), a derived type flattened into its basic constituents as
 ``name*count`` items separated by commas (``MPI_INT*4,MPI_DOUBLE*2``), or an opaque
 ``derived:...`` description when it cannot flatten. Two transfers are compatible when the
 send's signature, repeated count times, is an initial segment of the receive's (MPI 4.1
-§3.3.1); an opaque signature decides nothing. Two types are not compared by name:
+§4.3.1); an opaque signature decides nothing. Two types are not compared by name:
 MPI_PACKED, which a message of any type may be received as, and whose sent contents
-carry types the trace does not show (§3.3.1, §5.2), and MPI_BYTE, untyped storage, which
-is compared with MPI_BYTE only, by length (§3.3.1)."""
+carry types the trace does not show (§4.3.1, §6.2), and MPI_BYTE, untyped storage, which
+is compared with MPI_BYTE only, by length (§4.3.1)."""
 from __future__ import annotations
 from typing import List, Optional, Tuple
 
