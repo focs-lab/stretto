@@ -51,9 +51,11 @@ and compact result tables: [experiments/latent](../experiments/latent/README.md)
 | MFEM 4.10 | - | 160 replays: 150 benign, 10 inconclusive (ex15p hex) |
 | deal.II 9.8.0 | - | 8 419 alternatives, all within one exchange; 120 replays benign |
 | openfpm_vcluster, code_saturne, KaHIP | GPU-only clash; NBX never selected; not an NBX between calls | reading |
+| MFEM master d259866 `ParFiniteElementSpace::OrderPropagation` (pfespace.cpp:3704-3751): a real race, benign | the barrier orders the Isends, not their delivery, so the `Iprobe(ANY)` drain can miss an order message, which the second drain drops; the fixpoint loop (fespace.cpp:3249) resends it | shipped miniapp `phpref -dim 2 -n 100`, np 4: ~900 flag-flip alternatives per trace; 46 of 46 replays and 10 of 10 at np 8 (3D) correct; the race also occurred unforced in 2 controls |
 
-The 26 Oct screen of 70 codes and its safe list: kept with the hunt notes, outside this
-repository.
+The 26 Oct screen of 70 codes, and the 29 Oct screen of ~85 more (deal.II master, PETSc main,
+MOOSE, runtimes, climate, CFD, MD and electronic-structure codes), with their safe lists: kept
+with the hunt notes, outside this repository.
 
 ## Defects and limits of the tool found by the hunts
 
@@ -63,6 +65,12 @@ repository.
 - A trace whose receives are cancelled at shutdown and never completed (ADLB) is reported
   degraded and predicts nothing; the hunt stripped the trailing cancel records
   (`experiments/latent/swiftt/strip_cancel.py`). Open.
+- A flag flip cannot be pinned when one rank has two wildcard-probe sites with different tags
+  under one call-site identity: the pin library counts the rank's wildcard probes together, the
+  two tags interleave differently in the replay, and the pin lands on the other probe (VTK 9.7
+  `vtkPLagrangianParticleTracker`, tags 622 and 624: 40 of 40 replays misapplied). Open; it
+  blocks that candidate (below). Also, `horizon_pins` returns no pins for flips and unflips, so
+  the hunts replayed them with a pin of their own.
 - Analysis time: a SuperLU_DIST ABglobal trace of 7 403 events took 1 072 s. Under study.
 - Alternatives that need two changed matches are not predicted (HDF5 ph5diff 1.8.9). Under study.
 - Treating every collective as a barrier changes no finding (0 of 115 MBI, 0 of 396 MBB): the
@@ -72,6 +80,13 @@ repository.
 
 PFLOTRAN (perturbation inversion, needs three or more process groups) and SPECFEM3D (HDF5 I/O
 server): read only.
+
+VTK 9.7 c5d8bc83 `vtkPLagrangianParticleTracker` (Filters/ParallelFlowPaths, :434-545): rank 0
+decides global termination from statuses it drains with `Iprobe(ANY_SOURCE, 622)`; a status
+still in flight after a particle hand-over could let it terminate while a particle is live. The
+shipped test `TestPLagrangianParticleTracker` (2 ranks) predicts the flip, but no replay could
+force it (the pin defect above). Unconfirmed; the test may be too small to lose a particle (a
+guess).
 
 dolfinx a7b1840 `nbx_consensus_rounds` (MPI.cpp:182-290), two readings that disagree: an
 `Irecv(ANY_SOURCE)` listener still posted when the call ends, and cancelled after its Ibarrier,
