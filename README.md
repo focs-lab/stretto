@@ -253,7 +253,8 @@ JSON. The reasons:
 | `tracer-overflow` | a table of the tracer filled up: later records of its kind may be incomplete |
 | `unmatched-completions` | a receive completed from a send the trace does not have (an untraced caller, such as Fortran under Open MPI) |
 | `guard-off` | the buffer guard was asked for and off (MPI_THREAD_MULTIPLE) |
-| `threads` | several threads called MPI under MPI_THREAD_MULTIPLE: no alternative is predicted |
+| `threads` | several threads called MPI and the tracer did not follow them (`STRETTO_THREADS=0`, or a trace older than format 3): no alternative is predicted. Followed threads are analysed at L1 only ([docs/threads.md](docs/threads.md)) |
+| `threads-tasks`, `threads-unordered`, `threads-handoff` | a followed thread called MPI inside an OpenMP task, issued a call whose posting the tracer does not order, or completed another thread's request: observed findings only |
 | `unmodelled` | a call outside the modelled fragment (one-sided, neighbourhood collectives, ...): no alternative is predicted |
 | `ready-send` | the run issued a ready send before its receive: no alternative is predicted |
 | `explorer-skipped` | the trace has more events than `--sp-max-events`: no L1+SP consequence was looked for |

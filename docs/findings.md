@@ -75,6 +75,21 @@ with the hunt notes, outside this repository.
 - Alternatives that need two changed matches are not predicted (HDF5 ph5diff 1.8.9). Under study.
 - Treating every collective as a barrier changes no finding (0 of 115 MBI, 0 of 396 MBB): the
   minimal synchronisation of collectives is not an advantage on these corpora.
+- Several threads (milestone A, [threads.md](threads.md) §9): the L1 check does not finish on
+  the 1 024-iteration MPICH `mt_*` traces (`mt_isendirecv`, 24 702 records, over 50 min); the
+  generic check judges each alternative over the whole trace. Open. The tracer's issue lock hides
+  a crash: untraced, `mt_probe` and `mt_iprobe` abort in their racy phase (MPI_ERR_COUNT, 3 of 3
+  runs), traced never; the report names the race, not the crash. The tracer can crash in
+  `PMPI_Comm_group` on a freed communicator (CorrBench `task_comm_free`, 1 of 2 runs; older than
+  the thread work). Open.
+
+## Multithreaded benchmarks (milestone A, L1 only)
+
+MPICH fb003aa `test/mpi/threads/pt2pt` `mt_*` (16 iterations): every finding is in the racy
+phase (one communicator and tag), none in the two control phases. MPI-CorrBench a05644b OpenMP
+ordering: 8 of 23 erroneous programs found (4 deadlocks observed, 2 concurrent collectives,
+request reuse, Probe-then-Recv as 1f); 2 need lock reordering (L1+SP-T, not built); task
+programs are degraded; 0 of 15 correct programs get an error class.
 
 ## Not yet traced
 
@@ -95,8 +110,7 @@ own, and every other caller creates a communicator right after it, which synchro
 MPIs although the standard does not require it. Unverified; the cancelled listener also needs the
 fix for cancelled receives above.
 
-Thread-level candidates for the multithreaded extension (read only; design on branch
-`threads`, docs/threads.md): Uintah + hypre (a code comment in KokkosScheduler.cc documents
+Thread-level candidates for the multithreaded extension (read only; [threads.md](threads.md)): Uintah + hypre (a code comment in KokkosScheduler.cc documents
 crashes from hypre's `Iprobe` taking a Uintah message on the shared communicator, and the
 reverse hazard it leaves); Legion/Realm's MPI network in interop mode (wildcard `Irecv` with tag 1
 on `MPI_COMM_WORLD`); DLA-Future and SLATE (tags reused by concurrent tasks); HDF5 Subfiling (a
