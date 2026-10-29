@@ -14,7 +14,7 @@ from stretto.feasible import check
 from stretto.horizon import compute_cut
 from stretto.matching import candidates_full, probe_candidates
 from stretto.report import analyze, format_report
-from test_checker import coll, mk, recv, send, wait
+from test_checker import coll, irecv, mk, recv, send, wait
 
 
 def th(tid, rec, label=None, after=()):
@@ -239,6 +239,97 @@ class C_Observed(unittest.TestCase):
         t = mkt({0: [th(1, send(1, 0), "s")], 1: [recv(0, 0, 0, 0)]}, level=1, issue=False)
         rep = analyze(t, with_sp=False)
         self.assertIn("2-thread-level", {f.cls for f in rep.findings}, format_report(t, rep))
+
+
+GOLDEN = os.path.join(os.path.dirname(os.path.abspath(__file__)), "golden")
+
+
+def pool(seed, k=3, n=5, nonblocking=False):
+    """The racy phase of MPICH's mt_* tests: k threads of rank 0 send n messages each with one
+    tag, k threads of rank 1 receive n each (blocking, or nonblocking with a wait at the end),
+    the calls of the threads interleaved at random in the order MPI saw them."""
+    import random
+    rnd = random.Random(seed)
+
+    def interleave(chains):
+        out, pos = [], [0] * len(chains)
+        while any(p < len(c) for p, c in zip(pos, chains)):
+            i = rnd.choice([i for i, c in enumerate(chains) if pos[i] < len(c)])
+            out.append(chains[i][pos[i]])
+            pos[i] += 1
+        return out
+    sends = [[th(tid, send(1, 0)) for _ in range(n)] for tid in range(k)]
+    if nonblocking:
+        recvs = [[th(tid, irecv(0, 0, 100 * tid + i)) for i in range(n)]
+                 + [th(tid, wait(*[(100 * tid + i, 0, 0) for i in range(n)], kind="waitall"))] for tid in range(k)]
+    else:
+        recvs = [[th(tid, recv(0, 0, 0, 0)) for _ in range(n)] for tid in range(k)]
+    return mkt({0: interleave(sends), 1: interleave(recvs)})
+
+
+def thread_traces():
+    """The multithreaded golden traces (idioms 15 on) and random thread pools."""
+    out = []
+    for mpi in ("openmpi", "mpich"):
+        d = os.path.join(GOLDEN, mpi)
+        for name in sorted(os.listdir(d)) if os.path.isdir(d) else ():
+            t = T.load(os.path.join(d, name))
+            if t.multi:
+                out.append((f"{mpi}/{name}", t))
+    for seed in range(4):
+        out.append((f"pool {seed}", pool(seed)))
+        out.append((f"pool {seed} nonblocking", pool(seed, nonblocking=True)))
+    return out
+
+
+class C_Scale(unittest.TestCase):
+    """What lets the L1 check finish on the 1 024-iteration mt_* traces (docs/threads.md,
+    section 10) must not change a verdict: the orientation edges reduced up to reachability, by
+    a walk or by bisection, against the edges written out in full; the clocks of the observed
+    happens-before against the graph's search."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.traces = thread_traces()
+
+    def verdicts(self, t):
+        from stretto.feasible import breakpoints
+        from stretto.report import probe_kw
+        items = [(a.M, a.changed, {}) for a in candidates_full(t)[0]]
+        items += [(t.observed, set(), probe_kw(p, s)) for p, s in probe_candidates(t)]
+        items.append((t.observed, set(), {}))
+        out = []
+        for M, changed, kw in items:
+            for B in breakpoints(t) + [None]:
+                for mode in ("L1", "SP"):
+                    v = check(t, M, changed, B, mode, **kw)
+                    out.append((v.feasible, v.ok, v.reason))
+        return out
+
+    def test_reduced_orientation_edges(self):
+        try:
+            for name, t in self.traces:
+                TH.FULL_ORIENTATION = True
+                full = self.verdicts(t)
+                TH.FULL_ORIENTATION, TH.FAST_WINDOWS = False, False
+                walked = self.verdicts(t)
+                TH.FAST_WINDOWS = True
+                fast = self.verdicts(t)
+                self.assertEqual(full, walked, name)
+                self.assertEqual(full, fast, name)
+        finally:
+            TH.FULL_ORIENTATION, TH.FAST_WINDOWS = False, True
+
+    def test_observed_clocks(self):
+        from stretto.matching import build_graph
+        for name, t in self.traces:
+            g = build_graph(t, t.observed, cut=None, B=None, thread_orient=False)
+            reach = TH.observed_reaches(t)
+            nodes = [n for n in g.nodes if n[0] >= 0 and n[2] != "m"]
+            for a in nodes[::3]:
+                rs = g.reach_set(a)
+                for b in g.nodes:
+                    self.assertEqual(reach(a, b), b in rs, (name, a, b))
 
 
 if __name__ == "__main__":
