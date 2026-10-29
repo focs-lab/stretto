@@ -5,11 +5,36 @@
    wildcard counting and pinning, no file output.
 
    Record kinds (all carry "r" and "seq"):
-     init      np, thread (provided level), version (of this format, TRACE_VERSION).
-               Under MPI_THREAD_MULTIPLE every record also carries tid (the calling
-               thread), since per-rank order is then not total; under the other levels the
-               records of a thread other than the one that initialised MPI carry it (several
-               threads may call MPI under MPI_THREAD_SERIALIZED, or a misused FUNNELED).
+     init      np, thread (provided level), version (of this format, TRACE_VERSION),
+               [issue:1] (MPI_THREAD_MULTIPLE: the issue lock and the blocking rewrite are on,
+               and point-to-point records carry iseq), [threads:0] (STRETTO_THREADS=0: the
+               synchronisation between threads is not followed, no record carries after).
+   Threads (format 3, section "threads" at the end of the file). A rank's records form one
+   chain per thread of control: a POSIX thread, or the implicit task of OpenMP thread j > 0
+   of a parallel region. Chain 0 is the thread that initialised MPI; the records of every
+   other chain carry tid (its chain id), and before a chain's first record a side record
+     chain     id, name, parent, kind(pthread|omp) names it: chain 0 is "0", the k-th thread
+               created by chain c is "c.k", the implicit task of thread j of the p-th parallel
+               region entered by chain c is "c/p.j" (k and p count from 0).
+   A record other than overflow, guard, unordered, chain, task and overlap (communicator
+   records included: they are collectives of the model) carries after:[[c,s,kc,ka],...] when
+   other chains' synchronisation now precedes it. Every chain counts the synchronisation
+   operations the wrappers act on (acquires, releases, barrier waits, thread creation and end,
+   the fork and join of a parallel region), from 1; an entry says that chain c's operation
+   number kc, made after its record with seq s (and before its next record), happens before
+   this chain's operation number ka, made since this chain's previous record (ka 0: the
+   chain's start, the entries of its creator's clock at the creation or fork). Per chain c
+   only the latest (s, then kc) is written. A barrier wait has one ordinal for its arrival and
+   its departure. So the order of several synchronisation points between two records of one
+   chain is known: a join of B after a creation of A, with no record between, has the larger
+   ordinal on the joining chain. Under
+   issue:1 every posting of a point-to-point operation (send, recv, irecv, a Start, the
+   receive half of a sendrecv, a probe that found a message) carries iseq, the order in which
+   the rank posted it, among all its threads. Further side records:
+     overlap   two threads were inside MPI calls at once below MPI_THREAD_MULTIPLE (once)
+     task      an MPI call was made inside an explicit OpenMP task, which is no chain (once)
+     unordered call: a posting the issue lock does not order (MPI_Sendrecv_replace; once)
+     overflow  with what "chain table": more than 256 chains wrote records (later chains: tid -1)
      begin     call=<recv|wait|probe|coll|send> + the call's arguments; emitted BEFORE a
                potentially blocking call. The loader drops a begin followed by its
                record; an unpaired begin means the rank was killed inside that call.
@@ -83,6 +108,8 @@
 #include <limits.h>
 #include <link.h>
 #include <pthread.h>
+#include <sched.h>
+#include <semaphore.h>
 #include <signal.h>
 #include <stdarg.h>
 #include <stdint.h>
@@ -95,6 +122,16 @@
 #include <ucontext.h>
 #include <unistd.h>
 #include "../replay/pin.h"
+
+#ifndef STRETTO_PIN_ONLY
+/* The tracer wraps pthread_mutex_lock and pthread_mutex_unlock (section "threads" at the end
+   of the file) to follow the program's synchronisation. Its own locks must not go through
+   those wrappers: every internal use below is redirected to the real functions. */
+static int stretto_real_lock(pthread_mutex_t *m);
+static int stretto_real_unlock(pthread_mutex_t *m);
+#define pthread_mutex_lock(m) stretto_real_lock(m)
+#define pthread_mutex_unlock(m) stretto_real_unlock(m)
+#endif
 
 /* MPI-4 calls that the library declares. tracer/Makefile probes for them (STRETTO_PROBED), since
    MPI_VERSION is not enough: Open MPI 5 says 3.1 and provides much of MPI 4.0, but not the
@@ -114,16 +151,55 @@
 /* ------------------------------------------------------------------ state */
 /* The trace format, in the init record. 2 (22 Oct 2026): every member of a communicator
    creation records it, a MPI_COMM_NULL result included, and an MPI_Comm_idup is recorded at its
-   call; the analysis takes traces without the field as version 1. */
-#define TRACE_VERSION 2
+   call; the analysis takes traces without the field as version 1. 3 (29 Oct 2026): records
+   name their chain (tid, chain records), carry the happens-before between chains (after), and
+   under MPI_THREAD_MULTIPLE the order in which point-to-point operations were posted (iseq). */
+#define TRACE_VERSION 3
 static FILE *g_out = NULL;
 static int g_rank = -1;
 static long g_seq __attribute__((unused)) = 0;
 static int g_truncated = 0;
-static int g_multi = 0;           /* MPI_THREAD_MULTIPLE was provided: every record carries tid */
-static long g_init_tid = 0;       /* the thread that initialised MPI: below MULTIPLE, the records of any other carry tid */
 static long g_payload = 0;        /* STRETTO_PAYLOAD: record message contents up to this many bytes */
 static pthread_mutex_t g_mu = PTHREAD_MUTEX_INITIALIZER;
+
+/* ---------------------------------------------------------- chains (state)
+   A chain is a POSIX thread, or the implicit task of thread j > 0 of an OpenMP parallel region
+   (thread 0 continues the chain that entered the region). Chain 0 is the thread that
+   initialised MPI. A chain gets its id when it writes its first record. Each chain counts its
+   synchronisation operations (k, from 1) and keeps a vector clock whose components are pairs
+   (seq, k): component c is chain c's latest synchronisation point that happens before the
+   chain's present point, as the seq of chain c's last record before it (-1: none) and chain
+   c's ordinal k of that operation. Synchronisation objects keep clocks too (TSan's scheme at
+   the granularity of records). An acquire that raises a component leaves a pending entry
+   (component, seq, k there, ordinal of the acquire here), and the chain's next record carries
+   its pending entries ("after"). */
+#define MAXCH 256
+typedef struct { long s[MAXCH], k[MAXCH]; } vclock;
+typedef struct thr {
+    int id;                       /* chain id, -1 until the chain writes a record */
+    int untracked;                /* an MPI library thread, or a runtime's pool thread outside its tasks */
+    int parent;                   /* id of the nearest creating chain with records, -1 if none */
+    int ncreated, nregions;       /* threads created and parallel regions entered so far: the children's names */
+    int done;                     /* the thread has ended: fin holds its last clock */
+    long k;                       /* synchronisation operations so far */
+    struct thr *up;               /* the creating chain */
+    const char *kind;             /* "pthread" or "omp" */
+    char name[160];
+    vclock vc, fin;
+    long pend_s[MAXCH], pend_kc[MAXCH], pend_ka[MAXCH];   /* pending "after" entries, by component (pend_s -1: none) */
+} thr;
+static int g_nch __attribute__((unused)) = 0;             /* chain ids handed out */
+static int g_chain_over __attribute__((unused)) = 0;      /* more than MAXCH chains wrote records */
+static int g_threads_on = 1;      /* STRETTO_THREADS != "0": follow synchronisation */
+static int g_issue = 0;           /* MPI_THREAD_MULTIPLE with g_threads_on: issue lock and blocking rewrite */
+static int g_level = -1;          /* the provided thread level, -1 before MPI_Init */
+#define TTLS(type, name) static __thread type name __attribute__((tls_model("initial-exec"), unused))
+TTLS(thr *, t_cur);               /* the chain this thread runs now */
+TTLS(thr *, t_self);              /* the thread's own chain (t_cur differs inside an OpenMP implicit task) */
+TTLS(int, t_mpidepth);            /* MPI wrappers of this thread in progress */
+#ifndef STRETTO_PIN_ONLY
+static thr *cur_chain(void);
+#endif
 
 static void *xrealloc(void *p, size_t n) {
     void *q = realloc(p, n);
@@ -230,18 +306,37 @@ static int site_id_locked(void *ra) {
 }
 #endif
 
-/* The calling thread's id, a system call the first time only. */
-static __thread long t_tid;
-static inline __attribute__((unused)) long my_tid(void) {
-    if (!t_tid) t_tid = (long)gettid();
-    return t_tid;
+#ifndef STRETTO_PIN_ONLY
+static thr *g_poll_chain = NULL;     /* the chain of the failed poll in g_poll_body: polls fold per chain */
+static int (*g_in_explicit_task)(void) = NULL;   /* libgomp's omp_in_explicit_task, if the program has it */
+static int g_task_seen = 0;
+
+/* A chain writes its first record: give it an id and describe it (not chain 0, the one that
+   initialised MPI). */
+static void chain_id_locked(thr *c) {
+    if (c->id >= 0 || g_chain_over) return;
+    if (g_nch >= MAXCH) {
+        g_chain_over = 1;
+        fprintf(g_out, "{\"r\":%d,\"seq\":%ld,\"op\":\"overflow\",\"what\":\"chain table\"}\n", g_rank, g_seq++);
+        return;
+    }
+    c->id = __atomic_fetch_add(&g_nch, 1, __ATOMIC_ACQ_REL);
+    if (c->id == 0) return;
+    int parent = -1;
+    for (thr *u = c->up; u; u = u->up) if (u->id >= 0) { parent = u->id; break; }
+    c->parent = parent;
+    fprintf(g_out, "{\"r\":%d,\"seq\":%ld,\"op\":\"chain\",\"id\":%d,\"name\":", g_rank, g_seq++, c->id);
+    json_str(g_out, c->name);
+    fprintf(g_out, ",\"parent\":%d,\"kind\":\"%s\"}\n", parent, c->kind ? c->kind : "pthread");
 }
+#endif
 static void rb_emit_kind(rec_t *b, int failed_poll) {
     stretto_pin_record(b->p, failed_poll);     /* both builds: the flip pins count the calls between failed polls */
 #ifndef STRETTO_PIN_ONLY
+    thr *c = cur_chain();
     pthread_mutex_lock(&g_mu);
     if (g_out) {
-        if (failed_poll && g_poll_body && strcmp(g_poll_body, b->p) == 0) {
+        if (failed_poll && g_poll_body && g_poll_chain == c && strcmp(g_poll_body, b->p) == 0) {
             g_poll_rep++;
             pthread_mutex_unlock(&g_mu);
             free(b->p);
@@ -250,12 +345,35 @@ static void rb_emit_kind(rec_t *b, int failed_poll) {
         flush_poll_locked();
         free(g_poll_body);
         g_poll_body = failed_poll ? strdup(b->p) : NULL;
+        g_poll_chain = c;
         int site = site_id_locked(b->site);
-        char head[96];
-        long tid = my_tid();
-        if (g_multi || tid != g_init_tid) snprintf(head, sizeof head, "{\"r\":%d,\"seq\":%ld,\"tid\":%ld,", g_rank, g_seq++, tid);
-        else snprintf(head, sizeof head, "{\"r\":%d,\"seq\":%ld,", g_rank, g_seq++);
-        fwrite(head, 1, strlen(head), g_out);
+        chain_id_locked(c);
+        if (!g_task_seen && g_in_explicit_task && g_in_explicit_task()) {
+            /* an MPI call inside an explicit OpenMP task: tasks are not chains (format 3) */
+            g_task_seen = 1;
+            fprintf(g_out, "{\"r\":%d,\"seq\":%ld,\"op\":\"task\"}\n", g_rank, g_seq++);
+        }
+        long seq = g_seq++;
+        /* side records (overflow, guard, unordered) are no events: they
+           carry no "after" and are no point of the chain's clock */
+        int side = strncmp(b->p, "\"op\":\"overflow\"", 15) == 0
+                   || strncmp(b->p, "\"op\":\"guard\"", 12) == 0 || strncmp(b->p, "\"op\":\"unordered\"", 16) == 0;
+        fprintf(g_out, "{\"r\":%d,\"seq\":%ld,", g_rank, seq);
+        if (c->id != 0) fprintf(g_out, "\"tid\":%d,", c->id);
+        if (g_threads_on && !side) {
+            int n = __atomic_load_n(&g_nch, __ATOMIC_ACQUIRE), first = 1;
+            if (n > MAXCH) n = MAXCH;
+            for (int i = 0; i < n; i++) {
+                if (c->pend_s[i] < 0) continue;
+                if (i != c->id) {
+                    fprintf(g_out, "%s[%d,%ld,%ld,%ld]", first ? "\"after\":[" : ",", i, c->pend_s[i], c->pend_kc[i], c->pend_ka[i]);
+                    first = 0;
+                }
+                c->pend_s[i] = -1;
+            }
+            if (!first) fputs("],", g_out);
+        }
+        if (c->id >= 0 && !side) { c->vc.s[c->id] = seq; c->vc.k[c->id] = c->k; }
         fwrite(b->p, 1, b->len, g_out);
         if (site >= 0) fprintf(g_out, ",\"site\":%d", site);
         fwrite("}\n", 1, 2, g_out);
@@ -633,9 +751,25 @@ static void guard_close(void) {
 }
 
 /* ---- the wrappers' bracket: GUARD is the first statement of every wrapper */
+/* Threads inside an MPI wrapper at once: two of them below MPI_THREAD_MULTIPLE is an overlap
+   (a SERIALIZED program that calls concurrently, or a misused FUNNELED), written once. */
+static int g_inmpi = 0, g_overlap_seen __attribute__((unused)) = 0;
+static void overlap_check(void) {
+#ifndef STRETTO_PIN_ONLY
+    if (g_level < 0 || g_level >= MPI_THREAD_MULTIPLE || __atomic_load_n(&g_overlap_seen, __ATOMIC_RELAXED)) return;
+    pthread_mutex_lock(&g_mu);
+    if (!g_overlap_seen && g_out) {
+        g_overlap_seen = 1;
+        fprintf(g_out, "{\"r\":%d,\"seq\":%ld,\"op\":\"overlap\"}\n", g_rank, g_seq++);
+        fflush(g_out);
+    }
+    pthread_mutex_unlock(&g_mu);
+#endif
+}
 static inline gctx guard_enter(void *ra) {
     gctx g = {ra, t_call_ra == NULL};
     if (g.outer) t_call_ra = ra;                 /* the call site a pin checks (replay/pin.c) */
+    if (t_mpidepth++ == 0 && __atomic_add_fetch(&g_inmpi, 1, __ATOMIC_ACQ_REL) > 1) overlap_check();
     if (g_guard && t_gdepth++ == 0) {
         if (!t_gcaller) guard_thread();
         guard_open();
@@ -645,6 +779,7 @@ static inline gctx guard_enter(void *ra) {
 }
 static inline void guard_leave(gctx *g) {
     if (g->outer) t_call_ra = NULL;
+    if (t_mpidepth > 0 && --t_mpidepth == 0) __atomic_sub_fetch(&g_inmpi, 1, __ATOMIC_ACQ_REL);
     if (g_guard && t_gdepth > 0 && --t_gdepth == 0) { guard_flush(); guard_close(); }
 }
 #define GUARD __attribute__((cleanup(guard_leave))) gctx _g = guard_enter(__builtin_return_address(0)); (void)_g
@@ -1173,23 +1308,44 @@ static void open_trace(int provided) {
     }
 #endif
     stretto_pin_init(g_rank);
-    g_multi = provided == MPI_THREAD_MULTIPLE;
-    g_init_tid = my_tid();
+    g_level = provided;
+#ifndef STRETTO_PIN_ONLY
+    {   /* the initialising thread is chain 0 */
+        thr *c = cur_chain();
+        pthread_mutex_lock(&g_mu);
+        if (c->id < 0) { c->id = 0; if (g_nch < 1) __atomic_store_n(&g_nch, 1, __ATOMIC_RELEASE); }
+        snprintf(c->name, sizeof c->name, "0");
+        pthread_mutex_unlock(&g_mu);
+        g_issue = g_threads_on && provided == MPI_THREAD_MULTIPLE;
+        g_in_explicit_task = (int (*)(void))dlsym(RTLD_DEFAULT, "omp_in_explicit_task");
+    }
+#endif
     guard_init(provided);
     int np; PMPI_Comm_size(MPI_COMM_WORLD, &np);
     REC(b, "init"); rb_printf(&b, ",\"np\":%d,\"thread\":%d,\"version\":%d", np, provided, TRACE_VERSION);
+    if (g_issue) rb_printf(&b, ",\"issue\":1");
+    if (!g_threads_on) rb_printf(&b, ",\"threads\":0");
     if (g_guard_asked) rb_printf(&b, ",\"guard\":%d", g_guard);
     rb_emit(&b);
     comm_register("world", MPI_COMM_WORLD, MPI_COMM_WORLD, -1);   /* local id 0 */
     comm_register("self", MPI_COMM_WORLD, MPI_COMM_SELF, -1);     /* local id 1 */
 }
+/* MPI_Init and MPI_Init_thread count as MPI calls of their thread: the threads the library
+   starts inside them are its own, and are not followed. */
 int MPI_Init(int *argc, char ***argv) {
+    t_mpidepth++;
     int rc = PMPI_Init(argc, argv), provided = MPI_THREAD_SINGLE;
     PMPI_Query_thread(&provided);      /* an implementation may provide more than MPI_Init asks */
     open_trace(provided);
+    t_mpidepth--;
     return rc;
 }
-int MPI_Init_thread(int *argc, char ***argv, int req, int *prov) { int rc = PMPI_Init_thread(argc, argv, req, prov); open_trace(*prov); return rc; }
+int MPI_Init_thread(int *argc, char ***argv, int req, int *prov) {
+    t_mpidepth++;
+    int rc = PMPI_Init_thread(argc, argv, req, prov); open_trace(*prov);
+    t_mpidepth--;
+    return rc;
+}
 int MPI_Finalize(void) {
     GUARD;
     guard_finish();
@@ -1210,6 +1366,26 @@ int MPI_Abort(MPI_Comm comm, int code) {
     return PMPI_Abort(comm, code);
 }
 
+/* ------------------------------------------------------- issue order (MULTIPLE)
+   Under MPI_THREAD_MULTIPLE (and STRETTO_THREADS not 0) every call that posts a point-to-point
+   operation or probes runs under one per-process lock and is numbered there ("iseq"), so the
+   trace has the order in which MPI saw the postings of all threads; the blocking forms are
+   rewritten as the nonblocking form under the lock and a wait outside it (a probe as a loop of
+   Iprobe that releases the lock between tries). Matching is unchanged by the rewrite: a
+   nonblocking operation is ordered by the call that initiates it (MPI 4.1 section 4.7.4). */
+static pthread_mutex_t g_issmu = PTHREAD_MUTEX_INITIALIZER;
+static long g_iseq = 0;
+static inline void iss_lock(void) { if (g_issue) pthread_mutex_lock(&g_issmu); }
+static inline void iss_unlock(void) { if (g_issue) pthread_mutex_unlock(&g_issmu); }
+static inline long iss_next(void) { return g_issue ? g_iseq++ : -1; }      /* under iss_lock */
+static inline void rb_iseq(rec_t *b, long iseq) { if (iseq >= 0) rb_printf(b, ",\"iseq\":%ld", iseq); }
+static int g_unordered_seen = 0;
+static void unordered(const char *call) {     /* a posting the issue lock does not order, written once */
+    if (!g_issue || g_unordered_seen) return;
+    g_unordered_seen = 1;
+    REC(b, "unordered"); rb_printf(&b, ",\"call\":\"%s\"", call); rb_emit(&b);
+}
+
 /* ------------------------------------------------------------------ sends */
 static void send_fields(rec_t *b, const char *mode, int count, MPI_Datatype dt, int dst, int tag, MPI_Comm comm) {
     rb_printf(b, ",\"mode\":\"%s\"", mode);
@@ -1217,24 +1393,29 @@ static void send_fields(rec_t *b, const char *mode, int count, MPI_Datatype dt, 
     rb_printf(b, ",\"tag\":%d,\"comm\":%d", tag, comm_id(comm));
     rb_type(b, count, dt);
 }
-#define BLOCKING_SEND(NAME, MODE) \
+#define BLOCKING_SEND(NAME, INAME, MODE) \
 int NAME(const void *buf, int count, MPI_Datatype dt, int dst, int tag, MPI_Comm comm) { \
     GUARD; stretto_pin_before_send(); \
     if (dst != MPI_PROC_NULL) GUARD_BUF(-1, #NAME, buf, count, dt, 0, 0); \
     { REC(b, "begin"); rb_printf(&b, ",\"call\":\"send\""); send_fields(&b, MODE, count, dt, dst, tag, comm); rb_emit(&b); } \
-    int rc = P##NAME(buf, count, dt, dst, tag, comm); \
-    { REC(b, "send"); send_fields(&b, MODE, count, dt, dst, tag, comm); rb_send_data(&b, dst, buf, count, dt); rb_emit(&b); } \
+    long iseq = -1; int rc; \
+    if (g_issue) { \
+        MPI_Request r_; iss_lock(); iseq = iss_next(); rc = P##INAME(buf, count, dt, dst, tag, comm, &r_); iss_unlock(); \
+        if (rc == MPI_SUCCESS) rc = PMPI_Wait(&r_, MPI_STATUS_IGNORE); \
+    } else rc = P##NAME(buf, count, dt, dst, tag, comm); \
+    { REC(b, "send"); send_fields(&b, MODE, count, dt, dst, tag, comm); rb_iseq(&b, iseq); rb_send_data(&b, dst, buf, count, dt); rb_emit(&b); } \
     return rc; }
-BLOCKING_SEND(MPI_Send,  "std")
-BLOCKING_SEND(MPI_Ssend, "ssend")
-BLOCKING_SEND(MPI_Bsend, "bsend")
-BLOCKING_SEND(MPI_Rsend, "rsend")
+BLOCKING_SEND(MPI_Send,  MPI_Isend,  "std")
+BLOCKING_SEND(MPI_Ssend, MPI_Issend, "ssend")
+BLOCKING_SEND(MPI_Bsend, MPI_Ibsend, "bsend")
+BLOCKING_SEND(MPI_Rsend, MPI_Irsend, "rsend")
 #define NONBLOCKING_SEND(NAME, MODE) \
 int NAME(const void *buf, int count, MPI_Datatype dt, int dst, int tag, MPI_Comm comm, MPI_Request *req) { \
-    GUARD; stretto_pin_before_send(); int rc = P##NAME(buf, count, dt, dst, tag, comm, req); \
+    GUARD; stretto_pin_before_send(); \
+    iss_lock(); long iseq = iss_next(); int rc = P##NAME(buf, count, dt, dst, tag, comm, req); iss_unlock(); \
     int id = rc == MPI_SUCCESS ? req_add(req, 0, dt, 0) : -1; \
     REC(b, "send"); send_fields(&b, MODE, count, dt, dst, tag, comm); if (id >= 0) rb_printf(&b, ",\"req\":%d", id); \
-    rb_send_data(&b, dst, buf, count, dt); rb_emit(&b); \
+    rb_iseq(&b, iseq); rb_send_data(&b, dst, buf, count, dt); rb_emit(&b); \
     if (id >= 0 && dst != MPI_PROC_NULL) GUARD_BUF(id, #NAME, buf, count, dt, 0, 0); \
     return rc; }
 NONBLOCKING_SEND(MPI_Isend,  "isend")
@@ -1326,7 +1507,7 @@ static void restore_shadow(MPI_Request *slot, MPI_Request before) {
     if (*slot == before) PMPI_Request_free(slot);
     *slot = original;
 }
-static inline __attribute__((always_inline)) void start_one(MPI_Request *rp, void *ra) {
+static inline __attribute__((always_inline)) void start_one(MPI_Request *rp, void *ra, long iseq) {
     MPI_Request r = *rp;
     int kind; MPI_Datatype dt;
     int id = req_start(r, &kind, &dt);
@@ -1348,7 +1529,7 @@ static inline __attribute__((always_inline)) void start_one(MPI_Request *rp, voi
     if (kind == 0) {
         stretto_pin_before_send();
         REC(b, "send"); send_fields(&b, copy.mode, copy.count, copy.dt, copy.peer, copy.tag, copy.comm);
-        rb_printf(&b, ",\"req\":%d,\"persistent\":1", id); rb_emit(&b);
+        rb_printf(&b, ",\"req\":%d,\"persistent\":1", id); rb_iseq(&b, iseq); rb_emit(&b);
         if (id >= 0 && copy.peer != MPI_PROC_NULL) guard_buffers(id, "MPI_Start", &gb, 1, ra);
     } else {
         int src = copy.peer, tag = copy.tag, widx = -1;
@@ -1366,15 +1547,17 @@ static inline __attribute__((always_inline)) void start_one(MPI_Request *rp, voi
             } else pinned = 0;
         }
         REC(b, "irecv"); rb_src(&b, copy.peer); rb_tag(&b, copy.tag); rb_printf(&b, ",\"comm\":%d", comm_id(copy.comm));
-        rb_type(&b, copy.count, copy.dt); rb_printf(&b, ",\"req\":%d,\"persistent\":1", id);
+        rb_type(&b, copy.count, copy.dt); rb_printf(&b, ",\"req\":%d,\"persistent\":1", id); rb_iseq(&b, iseq);
         if (widx >= 0) rb_printf(&b, ",\"widx\":%d", widx);
         if (pinned) rb_printf(&b, ",\"pinned\":{\"src\":%d,\"tag\":%d}", src, tag);
         rb_emit(&b);
         if (id >= 0 && copy.peer != MPI_PROC_NULL) guard_buffers(id, "MPI_Start", &gb, 1, ra);
     }
 }
-int MPI_Start(MPI_Request *req) { GUARD; start_one(req, _g.ra); return PMPI_Start(req); }
-int MPI_Startall(int n, MPI_Request reqs[]) { GUARD; for (int i = 0; i < n; i++) start_one(&reqs[i], _g.ra); return PMPI_Startall(n, reqs); }
+int MPI_Start(MPI_Request *req) { GUARD; iss_lock(); start_one(req, _g.ra, iss_next()); int rc = PMPI_Start(req); iss_unlock(); return rc; }
+int MPI_Startall(int n, MPI_Request reqs[]) {
+    GUARD; iss_lock(); for (int i = 0; i < n; i++) start_one(&reqs[i], _g.ra, iss_next());
+    int rc = PMPI_Startall(n, reqs); iss_unlock(); return rc; }
 
 /* -------------------------------------------------------------- receives */
 static void status_fields(rec_t *b, MPI_Status *st, MPI_Datatype dt, int ok) {
@@ -1400,11 +1583,16 @@ int MPI_Recv(void *buf, int count, MPI_Datatype dt, int src, int tag, MPI_Comm c
     { REC(b, "begin"); rb_printf(&b, ",\"call\":\"recv\""); recv_args(&b, osrc, otag, comm, count, dt, widx); rb_emit(&b); }
     MPI_Status mine;
     if (st == MPI_STATUS_IGNORE) st = &mine;
-    int rc = PMPI_Recv(buf, count, dt, src, tag, comm, st);
+    long iseq = -1; int rc;
+    if (g_issue) {
+        MPI_Request r_; iss_lock(); iseq = iss_next(); rc = PMPI_Irecv(buf, count, dt, src, tag, comm, &r_); iss_unlock();
+        if (rc == MPI_SUCCESS) rc = PMPI_Wait(&r_, st);
+    } else rc = PMPI_Recv(buf, count, dt, src, tag, comm, st);
     if (pinned && rc == MPI_SUCCESS) stretto_pin_matched(widx, st->MPI_SOURCE);
     REC(b, "recv"); recv_args(&b, osrc, otag, comm, count, dt, widx);
     status_fields(&b, st, dt, rc == MPI_SUCCESS);
     if (pinned) rb_printf(&b, ",\"pinned\":{\"src\":%d,\"tag\":%d}", src, tag);
+    rb_iseq(&b, iseq);
     rb_emit(&b);
     return rc;
 }
@@ -1412,30 +1600,32 @@ int MPI_Irecv(void *buf, int count, MPI_Datatype dt, int src, int tag, MPI_Comm 
     GUARD; stretto_pin_before_recv();
     int osrc = src, otag = tag, widx = -1;
     int pinned = stretto_pin_recv(&src, &tag, comm, &widx);
-    int rc = PMPI_Irecv(buf, count, dt, src, tag, comm, req);
+    iss_lock(); long iseq = iss_next(); int rc = PMPI_Irecv(buf, count, dt, src, tag, comm, req); iss_unlock();
     int id = rc == MPI_SUCCESS ? req_add(req, 1, dt, 0) : -1;
     if (pinned && id >= 0) req_set_pin(req, widx);
     REC(b, "irecv"); recv_args(&b, osrc, otag, comm, count, dt, widx); if (id >= 0) rb_printf(&b, ",\"req\":%d", id);
     if (pinned) rb_printf(&b, ",\"pinned\":{\"src\":%d,\"tag\":%d}", src, tag);
+    rb_iseq(&b, iseq);
     rb_emit(&b);
     if (id >= 0 && osrc != MPI_PROC_NULL) GUARD_BUF(id, "MPI_Irecv", buf, count, dt, 1, 1);
     return rc;
 }
-static inline __attribute__((always_inline)) int sendrecv_common(const void *sbuf, int scount, MPI_Datatype sdt, int dst, int stag, int rcount, MPI_Datatype rdt, int *src, int *rtag, MPI_Comm comm, int *widx, int *reqid) {
+static inline __attribute__((always_inline)) int sendrecv_common(const void *sbuf, int scount, MPI_Datatype sdt, int dst, int stag, int rcount, MPI_Datatype rdt, int *src, int *rtag, MPI_Comm comm, int *widx, int *reqid, long siseq) {
     /* Modelled as Isend + Recv + Wait. */
     stretto_pin_before_send();
     pthread_mutex_lock(&g_mu); *reqid = g_next_req++; pthread_mutex_unlock(&g_mu);
     { REC(b, "send"); send_fields(&b, "isend", scount, sdt, dst, stag, comm); rb_printf(&b, ",\"req\":%d", *reqid);
-      rb_send_data(&b, dst, sbuf, scount, sdt); rb_emit(&b); }
+      rb_iseq(&b, siseq); rb_send_data(&b, dst, sbuf, scount, sdt); rb_emit(&b); }
     int osrc = *src, otag = *rtag;
     int pinned = stretto_pin_recv(src, rtag, comm, widx);
     { REC(b, "begin"); rb_printf(&b, ",\"call\":\"recv\""); recv_args(&b, osrc, otag, comm, rcount, rdt, *widx); rb_emit(&b); }
     return pinned;
 }
-static inline __attribute__((always_inline)) void sendrecv_finish(int rcount, MPI_Datatype rdt, int osrc, int otag, int src, int rtag, MPI_Comm comm, MPI_Status *st, int rc, int widx, int pinned, int reqid) {
+static inline __attribute__((always_inline)) void sendrecv_finish(int rcount, MPI_Datatype rdt, int osrc, int otag, int src, int rtag, MPI_Comm comm, MPI_Status *st, int rc, int widx, int pinned, int reqid, long riseq) {
     if (pinned && rc == MPI_SUCCESS) stretto_pin_matched(widx, st->MPI_SOURCE);
     { REC(b, "recv"); recv_args(&b, osrc, otag, comm, rcount, rdt, widx); status_fields(&b, st, rdt, rc == MPI_SUCCESS);
       if (pinned) rb_printf(&b, ",\"pinned\":{\"src\":%d,\"tag\":%d}", src, rtag);
+      rb_iseq(&b, riseq);
       rb_emit(&b); }
     { REC(b, "wait"); rb_printf(&b, ",\"kind\":\"wait\",\"reqs\":[%d],\"done\":[{\"req\":%d}]", reqid, reqid); rb_emit(&b); }
 }
@@ -1448,21 +1638,40 @@ int MPI_Sendrecv(const void *sbuf, int scount, MPI_Datatype sdt, int dst, int st
         if (src != MPI_PROC_NULL) gb[k++] = (gbuf){rbuf, rcount, rdt, 1, 0};
         guard_buffers(-1, "MPI_Sendrecv", gb, k, _g.ra);
     }
-    int osrc = src, otag = rtag, widx = -1, reqid;
-    int pinned = sendrecv_common(sbuf, scount, sdt, dst, stag, rcount, rdt, &src, &rtag, comm, &widx, &reqid);
+    int osrc = src, otag = rtag, widx = -1, reqid, rc;
+    long siseq = -1, riseq = -1;
     MPI_Status mine; if (st == MPI_STATUS_IGNORE) st = &mine;
-    int rc = PMPI_Sendrecv(sbuf, scount, sdt, dst, stag, rbuf, rcount, rdt, src, rtag, comm, st);
-    sendrecv_finish(rcount, rdt, osrc, otag, src, rtag, comm, st, rc, widx, pinned, reqid);
+    if (g_issue) {
+        /* both postings under one hold of the issue lock, then one wait */
+        iss_lock(); siseq = iss_next(); riseq = iss_next();
+        int pinned = sendrecv_common(sbuf, scount, sdt, dst, stag, rcount, rdt, &src, &rtag, comm, &widx, &reqid, siseq);
+        MPI_Request rq[2] = {MPI_REQUEST_NULL, MPI_REQUEST_NULL};
+        rc = PMPI_Isend(sbuf, scount, sdt, dst, stag, comm, &rq[0]);
+        if (rc == MPI_SUCCESS) rc = PMPI_Irecv(rbuf, rcount, rdt, src, rtag, comm, &rq[1]);
+        iss_unlock();
+        if (rc == MPI_SUCCESS) {
+            MPI_Status sts[2];
+            rc = PMPI_Waitall(2, rq, sts);
+            *st = sts[1];
+            if (rc == MPI_ERR_IN_STATUS) rc = sts[0].MPI_ERROR != MPI_SUCCESS ? sts[0].MPI_ERROR : sts[1].MPI_ERROR;
+        }
+        sendrecv_finish(rcount, rdt, osrc, otag, src, rtag, comm, st, rc, widx, pinned, reqid, riseq);
+        return rc;
+    }
+    int pinned = sendrecv_common(sbuf, scount, sdt, dst, stag, rcount, rdt, &src, &rtag, comm, &widx, &reqid, -1);
+    rc = PMPI_Sendrecv(sbuf, scount, sdt, dst, stag, rbuf, rcount, rdt, src, rtag, comm, st);
+    sendrecv_finish(rcount, rdt, osrc, otag, src, rtag, comm, st, rc, widx, pinned, reqid, -1);
     return rc;
 }
 int MPI_Sendrecv_replace(void *buf, int count, MPI_Datatype dt, int dst, int stag, int src, int rtag, MPI_Comm comm, MPI_Status *st) {
     GUARD;
     if (dst != MPI_PROC_NULL || src != MPI_PROC_NULL) GUARD_BUF(-1, "MPI_Sendrecv_replace", buf, count, dt, src != MPI_PROC_NULL, 0);
+    unordered("Sendrecv_replace");
     int osrc = src, otag = rtag, widx = -1, reqid;
-    int pinned = sendrecv_common(buf, count, dt, dst, stag, count, dt, &src, &rtag, comm, &widx, &reqid);
+    int pinned = sendrecv_common(buf, count, dt, dst, stag, count, dt, &src, &rtag, comm, &widx, &reqid, -1);
     MPI_Status mine; if (st == MPI_STATUS_IGNORE) st = &mine;
     int rc = PMPI_Sendrecv_replace(buf, count, dt, dst, stag, src, rtag, comm, st);
-    sendrecv_finish(count, dt, osrc, otag, src, rtag, comm, st, rc, widx, pinned, reqid);
+    sendrecv_finish(count, dt, osrc, otag, src, rtag, comm, st, rc, widx, pinned, reqid, -1);
     return rc;
 }
 
@@ -1667,20 +1876,36 @@ static int msg_take(MPI_Message m, int *comm, int *src, int *tag) {
     pthread_mutex_unlock(&g_mu);
     return found;
 }
-static inline __attribute__((always_inline)) void probe_rec(const char *kind, int src, int tag, MPI_Comm comm, int flag, MPI_Status *st, int rc, int pidx, int pinned, int psrc) {
+static inline __attribute__((always_inline)) void probe_rec(const char *kind, int src, int tag, MPI_Comm comm, int flag, MPI_Status *st, int rc, int pidx, int pinned, int psrc, long iseq) {
     REC(b, "probe");
     rb_printf(&b, ",\"kind\":\"%s\"", kind); rb_src(&b, src); rb_tag(&b, tag); rb_printf(&b, ",\"comm\":%d,\"flag\":%d", comm_id(comm), flag);
     if (flag && pidx >= 0) rb_printf(&b, ",\"pidx\":%d", pidx);
     if (pinned) rb_printf(&b, ",\"pinned\":{\"src\":%d}", psrc);
     if (flag && rc == MPI_SUCCESS && st) { int cnt = -1; PMPI_Get_count(st, MPI_BYTE, &cnt); rb_printf(&b, ",\"msrc\":%d,\"mtag\":%d,\"mbytes\":%d", st->MPI_SOURCE, st->MPI_TAG, cnt); }
+    if (flag) rb_iseq(&b, iseq);
     if (flag) stretto_pin_probe_commit(pidx, rc == MPI_SUCCESS && st ? st->MPI_SOURCE : -1, rc == MPI_SUCCESS && st ? st->MPI_TAG : -1);
     rb_emit_kind(&b, !flag);
+}
+/* Under the issue lock a blocking probe is a loop of nonblocking ones, each under the lock, so
+   that the probe is ordered with the other threads' postings at the try that found the message. */
+static int issued_probe(int src, int tag, MPI_Comm comm, MPI_Message *msg, MPI_Status *st, long *iseq) {
+    int rc, found = 0;
+    for (;;) {
+        iss_lock();
+        rc = msg ? PMPI_Improbe(src, tag, comm, &found, msg, st) : PMPI_Iprobe(src, tag, comm, &found, st);
+        if (rc == MPI_SUCCESS && found) *iseq = iss_next();
+        iss_unlock();
+        if (rc != MPI_SUCCESS || found) return rc;
+        sched_yield();
+    }
 }
 int MPI_Probe(int src, int tag, MPI_Comm comm, MPI_Status *st) {
     GUARD; MPI_Status mine; if (st == MPI_STATUS_IGNORE) st = &mine;
     int osrc = src, otag = tag, pidx = -1; int pinned = stretto_pin_probe(&src, &tag, comm, &pidx);
     { REC(b, "begin"); rb_printf(&b, ",\"call\":\"probe\",\"kind\":\"probe\""); rb_src(&b, osrc); rb_tag(&b, otag); rb_printf(&b, ",\"comm\":%d", comm_id(comm)); rb_emit(&b); }
-    int rc = PMPI_Probe(src, tag, comm, st); probe_rec("probe", osrc, otag, comm, 1, st, rc, pidx, pinned, src); return rc;
+    long iseq = -1;
+    int rc = g_issue ? issued_probe(src, tag, comm, NULL, st, &iseq) : PMPI_Probe(src, tag, comm, st);
+    probe_rec("probe", osrc, otag, comm, 1, st, rc, pidx, pinned, src, iseq); return rc;
 }
 /* A flip pin (STRETTO_PIN_FLIP) forces this Iprobe or Improbe: flip 1 waits for the message of
    fsrc and ftag and returns it (the blocking probe of the same envelope), flip -1 returns flag 0
@@ -1688,6 +1913,7 @@ int MPI_Probe(int src, int tag, MPI_Comm comm, MPI_Status *st) {
 int MPI_Iprobe(int src, int tag, MPI_Comm comm, int *flag, MPI_Status *st) {
     GUARD; MPI_Status mine; if (st == MPI_STATUS_IGNORE) st = &mine;
     int osrc = src, otag = tag, pidx = -1, fsrc = src, ftag = tag, fkey = -1, rc = MPI_SUCCESS;
+    long iseq = -1;
     int flip = stretto_pin_flip(0, src, tag, comm, &fsrc, &ftag, &fkey);
     int pinned = flip ? 0 : stretto_pin_probe(&src, &tag, comm, &pidx);
     if (flip) pidx = stretto_pin_probe_ordinal(osrc, otag);
@@ -1696,19 +1922,22 @@ int MPI_Iprobe(int src, int tag, MPI_Comm comm, int *flag, MPI_Status *st) {
         if (*flag) stretto_pin_flip_matched(fkey, st->MPI_SOURCE, st->MPI_TAG);
         pinned = 1; src = fsrc;
     } else if (flip == -1 || pinned == 2) *flag = 0;
-    else rc = PMPI_Iprobe(src, tag, comm, flag, st);
-    probe_rec("iprobe", osrc, otag, comm, *flag, st, rc, pidx, pinned, src); return rc;
+    else { iss_lock(); rc = PMPI_Iprobe(src, tag, comm, flag, st); if (rc == MPI_SUCCESS && *flag) iseq = iss_next(); iss_unlock(); }
+    probe_rec("iprobe", osrc, otag, comm, *flag, st, rc, pidx, pinned, src, iseq); return rc;
 }
 int MPI_Mprobe(int src, int tag, MPI_Comm comm, MPI_Message *msg, MPI_Status *st) {
     GUARD; MPI_Status mine; if (st == MPI_STATUS_IGNORE) st = &mine;
     int osrc = src, otag = tag, pidx = -1; int pinned = stretto_pin_probe(&src, &tag, comm, &pidx);
     { REC(b, "begin"); rb_printf(&b, ",\"call\":\"probe\",\"kind\":\"mprobe\""); rb_src(&b, osrc); rb_tag(&b, otag); rb_printf(&b, ",\"comm\":%d", comm_id(comm)); rb_emit(&b); }
-    int rc = PMPI_Mprobe(src, tag, comm, msg, st); if (rc == MPI_SUCCESS) msg_add(*msg, comm, st);
-    probe_rec("mprobe", osrc, otag, comm, 1, st, rc, pidx, pinned, src); return rc;
+    long iseq = -1;
+    int rc = g_issue ? issued_probe(src, tag, comm, msg, st, &iseq) : PMPI_Mprobe(src, tag, comm, msg, st);
+    if (rc == MPI_SUCCESS) msg_add(*msg, comm, st);
+    probe_rec("mprobe", osrc, otag, comm, 1, st, rc, pidx, pinned, src, iseq); return rc;
 }
 int MPI_Improbe(int src, int tag, MPI_Comm comm, int *flag, MPI_Message *msg, MPI_Status *st) {
     GUARD; MPI_Status mine; if (st == MPI_STATUS_IGNORE) st = &mine;
     int osrc = src, otag = tag, pidx = -1, fsrc = src, ftag = tag, fkey = -1, rc = MPI_SUCCESS;
+    long iseq = -1;
     int flip = stretto_pin_flip(0, src, tag, comm, &fsrc, &ftag, &fkey);
     int pinned = flip ? 0 : stretto_pin_probe(&src, &tag, comm, &pidx);
     if (flip) pidx = stretto_pin_probe_ordinal(osrc, otag);
@@ -1717,9 +1946,9 @@ int MPI_Improbe(int src, int tag, MPI_Comm comm, int *flag, MPI_Message *msg, MP
         if (*flag) stretto_pin_flip_matched(fkey, st->MPI_SOURCE, st->MPI_TAG);
         pinned = 1; src = fsrc;
     } else if (flip == -1 || pinned == 2) *flag = 0;
-    else rc = PMPI_Improbe(src, tag, comm, flag, msg, st);
+    else { iss_lock(); rc = PMPI_Improbe(src, tag, comm, flag, msg, st); if (rc == MPI_SUCCESS && *flag) iseq = iss_next(); iss_unlock(); }
     if (rc == MPI_SUCCESS && *flag) msg_add(*msg, comm, st);
-    probe_rec("improbe", osrc, otag, comm, *flag, st, rc, pidx, pinned, src); return rc;
+    probe_rec("improbe", osrc, otag, comm, *flag, st, rc, pidx, pinned, src, iseq); return rc;
 }
 /* Mrecv/Imrecv consume the probed message: recorded as a receive whose source/tag are the
    message's (known from the probe's status), so the loader matches it by FIFO. */
@@ -2135,3 +2364,507 @@ int MPI_Comm_disconnect(MPI_Comm *c) { GUARD; comm_release("free", c); return PM
 /* ------------------------------------------------------------- buffering */
 int MPI_Buffer_attach(void *buf, int size) { GUARD; REC(b, "bufattach"); rb_printf(&b, ",\"size\":%d", size); rb_emit(&b); return PMPI_Buffer_attach(buf, size); }
 int MPI_Buffer_detach(void *buf, int *size) { GUARD; int rc = PMPI_Buffer_detach(buf, size); REC(b, "bufdetach"); rb_emit(&b); return rc; }
+
+#ifndef STRETTO_PIN_ONLY
+/* ================================================================= threads
+   Format version 3: the synchronisation between the threads of a process, as vector clocks
+   (section "chains" at the top of the file). Wrapped: thread creation and join, mutexes,
+   read-write locks, spin locks, condition variables (as the mutex they release and take
+   again), barriers and semaphores of POSIX threads; and the OpenMP constructs of gcc's
+   libgomp: parallel regions (an implicit task of thread j > 0 is a chain of its own), team
+   barriers, critical sections, atomic and ordered regions, OpenMP locks, and the dynamic
+   work-sharing calls whose order decides which thread runs which chunk (as a read-modify-write
+   of the work share). Not seen: atomics, spin flags and anything else that does not call these
+   functions (docs/threads.md, section 2.3). Ignored: calls made inside an MPI wrapper, from MPI
+   and runtime libraries (by the object of the return address), and from threads those
+   libraries start. STRETTO_THREADS=0 forwards every call untouched (chains are still named). */
+#undef pthread_mutex_lock
+#undef pthread_mutex_unlock
+#define RA __builtin_return_address(0)
+#define RESOLVE(p, sym) do { if (!(p)) { *(void **)&(p) = dlsym(RTLD_NEXT, sym); \
+    if (!(p)) { fprintf(stderr, "stretto tracer: no %s to wrap\n", sym); abort(); } } } while (0)
+
+static int (*r_mutex_lock)(pthread_mutex_t *);
+static int (*r_mutex_unlock)(pthread_mutex_t *);
+static int stretto_real_lock(pthread_mutex_t *m) { RESOLVE(r_mutex_lock, "pthread_mutex_lock"); return r_mutex_lock(m); }
+static int stretto_real_unlock(pthread_mutex_t *m) { RESOLVE(r_mutex_unlock, "pthread_mutex_unlock"); return r_mutex_unlock(m); }
+#define IL(m) stretto_real_lock(m)
+#define IU(m) stretto_real_unlock(m)
+
+static void *g_tself_base = NULL;     /* this library's load address */
+__attribute__((constructor)) static void threads_init(void) {
+    const char *e = getenv("STRETTO_THREADS");
+    g_threads_on = !(e && strcmp(e, "0") == 0);
+    Dl_info d;
+    if (dladdr((void *)threads_init, &d)) g_tself_base = d.dli_fbase;
+}
+
+static thr *thr_new(thr *up, const char *kind) {
+    thr *c = calloc(1, sizeof *c);
+    if (!c) { fprintf(stderr, "stretto tracer: out of memory\n"); abort(); }
+    c->id = -1; c->parent = -1; c->up = up; c->kind = kind;
+    memset(c->vc.s, 0xff, sizeof c->vc.s); memset(c->fin.s, 0xff, sizeof c->fin.s); memset(c->pend_s, 0xff, sizeof c->pend_s);
+    return c;
+}
+
+/* ---- clocks: components are pairs (seq, k), ordered by seq, then by k */
+static inline int vc_n(void) { int n = __atomic_load_n(&g_nch, __ATOMIC_ACQUIRE); return n > MAXCH ? MAXCH : n; }
+static void vc_init(vclock *v) { memset(v->s, 0xff, sizeof v->s); memset(v->k, 0, sizeof v->k); }
+static inline int vc_above(long s1, long k1, long s2, long k2) { return s1 > s2 || (s1 == s2 && k1 > k2); }
+static inline void vc_join(vclock *dst, const vclock *src) {
+    int n = vc_n();
+    for (int i = 0; i < n; i++)
+        if (vc_above(src->s[i], src->k[i], dst->s[i], dst->k[i])) { dst->s[i] = src->s[i]; dst->k[i] = src->k[i]; }
+}
+/* a pending "after" entry of chain c: component i's point (s, kc) precedes c's operation ka;
+   per component the latest point is kept */
+static inline void pend_add(thr *c, int i, long s, long kc, long ka) {
+    if (s < 0 || i == c->id) return;
+    if (vc_above(s, kc, c->pend_s[i], c->pend_kc[i])) { c->pend_s[i] = s; c->pend_kc[i] = kc; c->pend_ka[i] = ka; }
+}
+/* chain c takes src at its operation with ordinal ka: every component src raises is pending */
+static inline void vc_acquire(thr *c, const vclock *src, long ka) {
+    int n = vc_n();
+    for (int i = 0; i < n; i++)
+        if (vc_above(src->s[i], src->k[i], c->vc.s[i], c->vc.k[i])) {
+            c->vc.s[i] = src->s[i]; c->vc.k[i] = src->k[i];
+            pend_add(c, i, src->s[i], src->k[i], ka);
+        }
+}
+/* a synchronisation operation of chain c begins: its ordinal (from 1); the chain's own
+   component carries it from here on, so that a release made by the operation does */
+static inline long sync_op(thr *c) {
+    long k = ++c->k;
+    if (c->id >= 0) c->vc.k[c->id] = k;
+    return k;
+}
+/* a chain starts from its creator's clock: every component precedes its start (ordinal 0) */
+static void chain_start(thr *c, const vclock *from) {
+    c->vc = *from;
+    int n = vc_n();
+    for (int i = 0; i < n; i++) pend_add(c, i, from->s[i], from->k[i], 0);
+}
+/* The chain of the calling thread; a thread this library did not see start is the main thread
+   ("0") or a thread some library started outside pthread_create's wrapper (not followed). */
+static thr *cur_chain(void) {
+    if (t_cur) return t_cur;
+    static int nunknown = 0;
+    thr *c = thr_new(NULL, "pthread");
+    if ((long)gettid() == (long)getpid()) snprintf(c->name, sizeof c->name, "0");
+    else { snprintf(c->name, sizeof c->name, "u%d", __atomic_fetch_add(&nunknown, 1, __ATOMIC_RELAXED)); c->untracked = 1; }
+    t_self = t_cur = c;
+    return c;
+}
+
+/* ---- callers from MPI and runtime libraries are not the program's synchronisation */
+#define RA_SLOTS 4096
+static struct { void *ra; int skip; } g_ratab[RA_SLOTS];
+static pthread_mutex_t g_ramu = PTHREAD_MUTEX_INITIALIZER;
+static int ra_classify(void *ra) {
+    Dl_info d;
+    if (!dladdr(ra, &d)) return 0;
+    if (d.dli_fbase == g_tself_base) return 1;
+    const char *p = d.dli_fname ? strrchr(d.dli_fname, '/') : NULL;
+    p = p ? p + 1 : (d.dli_fname ? d.dli_fname : "");
+    static const char *libs[] = {"libmpi", "libopen-", "libpmix", "libprrte", "libuc", "libevent", "libhwloc",
+                                 "libfabric", "libpsm", "libgomp", "libomp", "ld-linux", "libc.so", "libgcc_s", NULL};
+    for (int i = 0; libs[i]; i++) if (strncmp(p, libs[i], strlen(libs[i])) == 0) return 1;
+    return 0;
+}
+static int ra_skipped(void *ra) {
+    size_t h = ((uintptr_t)ra >> 2) % RA_SLOTS;
+    for (int k = 0; k < 64; k++) {
+        size_t i = (h + k) % RA_SLOTS;
+        void *r = __atomic_load_n(&g_ratab[i].ra, __ATOMIC_ACQUIRE);
+        if (r == ra) return g_ratab[i].skip;
+        if (!r) break;
+    }
+    int skip = ra_classify(ra);
+    IL(&g_ramu);
+    for (int k = 0; k < 64; k++) {
+        size_t i = (h + k) % RA_SLOTS;
+        if (g_ratab[i].ra == ra) break;
+        if (g_ratab[i].ra) continue;
+        g_ratab[i].skip = skip;
+        __atomic_store_n(&g_ratab[i].ra, ra, __ATOMIC_RELEASE);
+        break;
+    }
+    IU(&g_ramu);
+    return skip;
+}
+
+/* ---- vector clocks of synchronisation objects, by address */
+typedef struct sobj { const void *key; struct sobj *next; unsigned count, gen, arrived; vclock *bacc; vclock vc; } sobj;
+#define SOBJ_BUCKETS 8192
+static sobj *g_sobj[SOBJ_BUCKETS];
+static pthread_mutex_t g_symu = PTHREAD_MUTEX_INITIALIZER;
+static sobj *sobj_get_locked(const void *key) {
+    size_t h = ((uintptr_t)key >> 3) % SOBJ_BUCKETS;
+    for (sobj *s = g_sobj[h]; s; s = s->next) if (s->key == key) return s;
+    sobj *s = calloc(1, sizeof *s);
+    if (!s) { fprintf(stderr, "stretto tracer: out of memory\n"); abort(); }
+    s->key = key; vc_init(&s->vc);
+    s->next = g_sobj[h]; g_sobj[h] = s;
+    return s;
+}
+static inline int tracking(void) { return g_threads_on && t_mpidepth == 0 && !cur_chain()->untracked; }
+static inline int tracked_call(void *ra) { return tracking() && !ra_skipped(ra); }
+static void sync_acquire(const void *key) {
+    thr *c = cur_chain(); long ka = sync_op(c);
+    IL(&g_symu); vc_acquire(c, &sobj_get_locked(key)->vc, ka); IU(&g_symu);
+}
+static void sync_release(const void *key) {
+    thr *c = cur_chain(); sync_op(c);
+    IL(&g_symu); vc_join(&sobj_get_locked(key)->vc, &c->vc); IU(&g_symu);
+}
+static void sync_rmw(vclock *obj) {
+    thr *c = cur_chain(); long ka = sync_op(c);
+    IL(&g_symu); vc_acquire(c, obj, ka); vc_join(obj, &c->vc); IU(&g_symu);
+}
+
+/* ---- POSIX threads */
+#define TSLOTS 4096
+static struct { pthread_t t; thr *c; int used; } g_ttab[TSLOTS];
+static void thread_put(pthread_t t, thr *c) {
+    IL(&g_symu);
+    for (int i = 0; i < TSLOTS; i++) if (!g_ttab[i].used) { g_ttab[i].t = t; g_ttab[i].c = c; g_ttab[i].used = 1; break; }
+    IU(&g_symu);
+}
+static thr *thread_take(pthread_t t) {
+    thr *c = NULL;
+    IL(&g_symu);
+    for (int i = 0; i < TSLOTS; i++) if (g_ttab[i].used && pthread_equal(g_ttab[i].t, t)) { c = g_ttab[i].c; g_ttab[i].used = 0; break; }
+    IU(&g_symu);
+    return c;
+}
+static void thread_end(thr *c) {       /* the thread's end is a release, which a join takes */
+    if (!c) return;
+    if (g_threads_on && !c->untracked) sync_op(c);
+    c->fin = c->vc;
+    __atomic_store_n(&c->done, 1, __ATOMIC_RELEASE);
+}
+typedef struct { void *(*start)(void *); void *arg; thr *child; } boot_t;
+static void *thread_boot(void *p) {
+    boot_t b = *(boot_t *)p;
+    free(p);
+    t_self = t_cur = b.child;
+    void *ret = b.start(b.arg);
+    thread_end(b.child);
+    return ret;
+}
+static int (*r_create)(pthread_t *, const pthread_attr_t *, void *(*)(void *), void *);
+int pthread_create(pthread_t *t, const pthread_attr_t *a, void *(*start)(void *), void *arg) {
+    RESOLVE(r_create, "pthread_create");
+    thr *p = cur_chain();
+    thr *c = thr_new(p, "pthread");
+    c->untracked = p->untracked || t_mpidepth > 0 || ra_skipped(RA);
+    if (!c->untracked) {
+        snprintf(c->name, sizeof c->name, "%.120s.%d", p->name, p->ncreated++);
+        if (g_threads_on) { sync_op(p); chain_start(c, &p->vc); }   /* the creation is a release of the creator */
+    } else snprintf(c->name, sizeof c->name, "u");
+    boot_t *b = malloc(sizeof *b);
+    if (!b) { free(c); return EAGAIN; }
+    b->start = start; b->arg = arg; b->child = c;
+    int rc = r_create(t, a, thread_boot, b);
+    if (rc) { free(b); free(c); return rc; }
+    thread_put(*t, c);
+    return 0;
+}
+static int (*r_join)(pthread_t, void **);
+int pthread_join(pthread_t t, void **ret) {
+    RESOLVE(r_join, "pthread_join");
+    int rc = r_join(t, ret);
+    if (rc == 0) {
+        thr *c = thread_take(t);
+        if (c && !c->untracked && __atomic_load_n(&c->done, __ATOMIC_ACQUIRE) && tracking()) {
+            thr *j = cur_chain(); long ka = sync_op(j); vc_acquire(j, &c->fin, ka);
+        }
+    }
+    return rc;
+}
+static void (*r_exit)(void *);
+void pthread_exit(void *ret) {
+    RESOLVE(r_exit, "pthread_exit");
+    thread_end(t_self);
+    r_exit(ret);
+    __builtin_unreachable();
+}
+
+#define WRAP_ACQ(name, T) \
+static int (*r_##name)(T *); \
+int name(T *o) { RESOLVE(r_##name, #name); int rc = r_##name(o); if (rc == 0 && tracked_call(RA)) sync_acquire((const void *)o); return rc; }
+#define WRAP_REL(name, T) \
+static int (*r_##name)(T *); \
+int name(T *o) { RESOLVE(r_##name, #name); if (tracked_call(RA)) sync_release((const void *)o); return r_##name(o); }
+#define WRAP_TACQ(name, T) \
+static int (*r_##name)(T *, const struct timespec *); \
+int name(T *o, const struct timespec *ts) { RESOLVE(r_##name, #name); int rc = r_##name(o, ts); if (rc == 0 && tracked_call(RA)) sync_acquire((const void *)o); return rc; }
+
+int pthread_mutex_lock(pthread_mutex_t *m) { int rc = stretto_real_lock(m); if (rc == 0 && tracked_call(RA)) sync_acquire(m); return rc; }
+int pthread_mutex_unlock(pthread_mutex_t *m) { if (tracked_call(RA)) sync_release(m); return stretto_real_unlock(m); }
+WRAP_ACQ(pthread_mutex_trylock, pthread_mutex_t)
+WRAP_TACQ(pthread_mutex_timedlock, pthread_mutex_t)
+WRAP_ACQ(pthread_rwlock_rdlock, pthread_rwlock_t)
+WRAP_ACQ(pthread_rwlock_wrlock, pthread_rwlock_t)
+WRAP_ACQ(pthread_rwlock_tryrdlock, pthread_rwlock_t)
+WRAP_ACQ(pthread_rwlock_trywrlock, pthread_rwlock_t)
+WRAP_TACQ(pthread_rwlock_timedrdlock, pthread_rwlock_t)
+WRAP_TACQ(pthread_rwlock_timedwrlock, pthread_rwlock_t)
+WRAP_REL(pthread_rwlock_unlock, pthread_rwlock_t)
+WRAP_ACQ(pthread_spin_lock, pthread_spinlock_t)
+WRAP_ACQ(pthread_spin_trylock, pthread_spinlock_t)
+WRAP_REL(pthread_spin_unlock, pthread_spinlock_t)
+WRAP_ACQ(sem_wait, sem_t)
+WRAP_ACQ(sem_trywait, sem_t)
+WRAP_TACQ(sem_timedwait, sem_t)
+WRAP_REL(sem_post, sem_t)
+
+static int (*r_cond_wait)(pthread_cond_t *, pthread_mutex_t *);
+int pthread_cond_wait(pthread_cond_t *c, pthread_mutex_t *m) {
+    RESOLVE(r_cond_wait, "pthread_cond_wait");
+    int t = tracked_call(RA);
+    if (t) sync_release(m);
+    int rc = r_cond_wait(c, m);
+    if (t) sync_acquire(m);
+    return rc;
+}
+static int (*r_cond_timedwait)(pthread_cond_t *, pthread_mutex_t *, const struct timespec *);
+int pthread_cond_timedwait(pthread_cond_t *c, pthread_mutex_t *m, const struct timespec *ts) {
+    RESOLVE(r_cond_timedwait, "pthread_cond_timedwait");
+    int t = tracked_call(RA);
+    if (t) sync_release(m);
+    int rc = r_cond_timedwait(c, m, ts);
+    if (t) sync_acquire(m);
+    return rc;
+}
+
+/* A barrier: every arrival of one generation precedes every departure from it. Two
+   accumulators, since the next generation's arrivals begin while late threads still leave.
+   A thread's wait is one operation: its arrival and its departure have the same ordinal. */
+static unsigned bar_arrive(vclock *bacc, unsigned *gen, unsigned *arrived, unsigned count, thr *c) {
+    unsigned g = *gen;
+    vc_join(&bacc[g & 1], &c->vc);
+    if (count && ++*arrived >= count) { (*gen)++; *arrived = 0; vc_init(&bacc[(g + 1) & 1]); }
+    return g;
+}
+static int (*r_barrier_init)(pthread_barrier_t *, const pthread_barrierattr_t *, unsigned);
+int pthread_barrier_init(pthread_barrier_t *b, const pthread_barrierattr_t *a, unsigned count) {
+    RESOLVE(r_barrier_init, "pthread_barrier_init");
+    int rc = r_barrier_init(b, a, count);
+    if (rc == 0) {
+        IL(&g_symu);
+        sobj *s = sobj_get_locked(b);
+        s->count = count; s->gen = 0; s->arrived = 0;
+        IU(&g_symu);
+    }
+    return rc;
+}
+static int (*r_barrier_wait)(pthread_barrier_t *);
+int pthread_barrier_wait(pthread_barrier_t *b) {
+    RESOLVE(r_barrier_wait, "pthread_barrier_wait");
+    if (!tracked_call(RA)) return r_barrier_wait(b);
+    thr *c = cur_chain();
+    long k = sync_op(c);
+    IL(&g_symu);
+    sobj *s = sobj_get_locked(b);
+    if (!s->bacc) { s->bacc = malloc(2 * sizeof(vclock)); vc_init(&s->bacc[0]); vc_init(&s->bacc[1]); }
+    unsigned g = bar_arrive(s->bacc, &s->gen, &s->arrived, s->count, c);
+    IU(&g_symu);
+    int rc = r_barrier_wait(b);
+    IL(&g_symu);
+    vc_acquire(c, &s->bacc[g & 1], k);
+    IU(&g_symu);
+    return rc;
+}
+
+/* ---- OpenMP (gcc's libgomp ABI) */
+typedef struct region {
+    void (*fn)(void *); void *data;
+    thr *master;
+    int pidx, nws0;
+    unsigned bgen, barrived;
+    vclock snap, acc, ordvc;
+    vclock bacc[2];
+    vclock *ws[64];               /* the clocks of the region's dynamic work shares, by index */
+} region;
+TTLS(region *, t_region);         /* the innermost parallel region of this thread */
+TTLS(int, t_wsidx);               /* this thread's work-sharing constructs so far in t_region */
+static int (*p_thread_num)(void), (*p_num_threads)(void);
+static void omp_resolve(void) {
+    if (!p_thread_num) *(void **)&p_thread_num = dlsym(RTLD_DEFAULT, "omp_get_thread_num");
+    if (!p_num_threads) *(void **)&p_num_threads = dlsym(RTLD_DEFAULT, "omp_get_num_threads");
+}
+static region *region_new(void (*fn)(void *), void *data, int nws0) {
+    region *R = calloc(1, sizeof *R);
+    if (!R) { fprintf(stderr, "stretto tracer: out of memory\n"); abort(); }
+    omp_resolve();
+    R->fn = fn; R->data = data; R->nws0 = nws0;
+    R->master = cur_chain();
+    R->pidx = R->master->nregions++;
+    if (g_threads_on && !R->master->untracked) sync_op(R->master);    /* the fork: a release of the master */
+    R->snap = R->master->vc;
+    vc_init(&R->acc); vc_init(&R->ordvc); vc_init(&R->bacc[0]); vc_init(&R->bacc[1]);
+    return R;
+}
+static void region_end(region *R) {   /* the join of the region: an acquire of the master */
+    if (g_threads_on && !R->master->untracked) { long ka = sync_op(R->master); vc_acquire(R->master, &R->acc, ka); }
+    for (int i = 0; i < 64; i++) free(R->ws[i]);
+    free(R);
+}
+static void omp_tramp(void *a) {
+    region *R = a;
+    int j = p_thread_num ? p_thread_num() : 0;
+    thr *saved = t_cur; region *saved_r = t_region; int saved_ws = t_wsidx;
+    t_region = R; t_wsidx = R->nws0;
+    if (j == 0) R->fn(R->data);
+    else {
+        thr *c = thr_new(R->master, "omp");
+        c->untracked = R->master->untracked;
+        snprintf(c->name, sizeof c->name, "%.120s/%d.%d", R->master->name, R->pidx, j);
+        if (g_threads_on) chain_start(c, &R->snap);
+        t_cur = c;
+        R->fn(R->data);
+        if (g_threads_on) { sync_op(c); IL(&g_symu); vc_join(&R->acc, &c->vc); IU(&g_symu); }   /* the task's end: a release */
+        t_cur = saved;
+        if (c->id < 0) {
+            IL(&g_mu); if (g_poll_chain == c) g_poll_chain = NULL; IU(&g_mu);
+            free(c);           /* a chain without records; one with records keeps its id */
+        }
+    }
+    t_region = saved_r; t_wsidx = saved_ws;
+}
+static vclock *ws_clock(region *R, int idx) {
+    vclock **slot = &R->ws[idx & 63];
+    IL(&g_symu);
+    if (!*slot) { *slot = malloc(sizeof(vclock)); vc_init(*slot); }
+    IU(&g_symu);
+    return *slot;
+}
+static inline int omp_tracking(void) { return tracking() && t_region; }
+static void ws_rmw(int start) {
+    if (!omp_tracking()) return;
+    if (start) t_wsidx++;
+    sync_rmw(ws_clock(t_region, t_wsidx));
+}
+static unsigned team_arrive(long *k) {
+    region *R = t_region;
+    unsigned n = p_num_threads ? (unsigned)p_num_threads() : 1;
+    thr *c = cur_chain();
+    *k = sync_op(c);
+    IL(&g_symu);
+    unsigned g = bar_arrive(R->bacc, &R->bgen, &R->barrived, n, c);
+    IU(&g_symu);
+    return g;
+}
+static void team_depart(unsigned g, long k) {
+    IL(&g_symu); vc_acquire(cur_chain(), &t_region->bacc[g & 1], k); IU(&g_symu);
+}
+
+#define PAR_WRAP(name, NWS, PARAMS, ARGS) \
+static void (*r_##name) PARAMS; \
+void name PARAMS { RESOLVE(r_##name, #name); region *R = region_new(fn, data, NWS); void (*fn_)(void *) = omp_tramp; void *data_ = R; \
+    { void (*fn)(void *) = fn_; void *data = data_; r_##name ARGS; } region_end(R); }
+PAR_WRAP(GOMP_parallel, 0, (void (*fn)(void *), void *data, unsigned n, unsigned flags), (fn, data, n, flags))
+PAR_WRAP(GOMP_parallel_sections, 1, (void (*fn)(void *), void *data, unsigned n, unsigned count, unsigned flags), (fn, data, n, count, flags))
+PAR_WRAP(GOMP_parallel_loop_static, 1, (void (*fn)(void *), void *data, unsigned n, long s, long e, long i, long ch, unsigned flags), (fn, data, n, s, e, i, ch, flags))
+PAR_WRAP(GOMP_parallel_loop_dynamic, 1, (void (*fn)(void *), void *data, unsigned n, long s, long e, long i, long ch, unsigned flags), (fn, data, n, s, e, i, ch, flags))
+PAR_WRAP(GOMP_parallel_loop_guided, 1, (void (*fn)(void *), void *data, unsigned n, long s, long e, long i, long ch, unsigned flags), (fn, data, n, s, e, i, ch, flags))
+PAR_WRAP(GOMP_parallel_loop_nonmonotonic_dynamic, 1, (void (*fn)(void *), void *data, unsigned n, long s, long e, long i, long ch, unsigned flags), (fn, data, n, s, e, i, ch, flags))
+PAR_WRAP(GOMP_parallel_loop_nonmonotonic_guided, 1, (void (*fn)(void *), void *data, unsigned n, long s, long e, long i, long ch, unsigned flags), (fn, data, n, s, e, i, ch, flags))
+PAR_WRAP(GOMP_parallel_loop_runtime, 1, (void (*fn)(void *), void *data, unsigned n, long s, long e, long i, unsigned flags), (fn, data, n, s, e, i, flags))
+PAR_WRAP(GOMP_parallel_loop_nonmonotonic_runtime, 1, (void (*fn)(void *), void *data, unsigned n, long s, long e, long i, unsigned flags), (fn, data, n, s, e, i, flags))
+PAR_WRAP(GOMP_parallel_loop_maybe_nonmonotonic_runtime, 1, (void (*fn)(void *), void *data, unsigned n, long s, long e, long i, unsigned flags), (fn, data, n, s, e, i, flags))
+static unsigned (*r_GOMP_parallel_reductions)(void (*)(void *), void *, unsigned, unsigned);
+unsigned GOMP_parallel_reductions(void (*fn)(void *), void *data, unsigned n, unsigned flags) {
+    RESOLVE(r_GOMP_parallel_reductions, "GOMP_parallel_reductions");
+    region *R = region_new(fn, data, 0);
+    unsigned v = r_GOMP_parallel_reductions(omp_tramp, R, n, flags);
+    region_end(R);
+    return v;
+}
+
+#define BAR_WRAP(name, RT, RET) \
+static RT (*r_##name)(void); \
+RT name(void) { RESOLVE(r_##name, #name); if (!omp_tracking()) return r_##name(); \
+    long k_; unsigned g = team_arrive(&k_); RT v RET r_##name(); team_depart(g, k_); return v; }
+/* void and bool forms: the void ones keep a dummy */
+static void (*r_GOMP_barrier)(void);
+void GOMP_barrier(void) { RESOLVE(r_GOMP_barrier, "GOMP_barrier"); if (!omp_tracking()) { r_GOMP_barrier(); return; } long k_; unsigned g = team_arrive(&k_); r_GOMP_barrier(); team_depart(g, k_); }
+static void (*r_GOMP_loop_end)(void);
+void GOMP_loop_end(void) { RESOLVE(r_GOMP_loop_end, "GOMP_loop_end"); if (!omp_tracking()) { r_GOMP_loop_end(); return; } long k_; unsigned g = team_arrive(&k_); r_GOMP_loop_end(); team_depart(g, k_); }
+static void (*r_GOMP_sections_end)(void);
+void GOMP_sections_end(void) { RESOLVE(r_GOMP_sections_end, "GOMP_sections_end"); if (!omp_tracking()) { r_GOMP_sections_end(); return; } long k_; unsigned g = team_arrive(&k_); r_GOMP_sections_end(); team_depart(g, k_); }
+BAR_WRAP(GOMP_barrier_cancel, _Bool, =)
+BAR_WRAP(GOMP_loop_end_cancel, _Bool, =)
+BAR_WRAP(GOMP_sections_end_cancel, _Bool, =)
+
+static int g_crit_key, g_atomic_key;
+#define LOCK_WRAP0(name, KEY, ACQ) \
+static void (*r_##name)(void); \
+void name(void) { RESOLVE(r_##name, #name); if (ACQ) { r_##name(); if (tracking()) sync_acquire(KEY); } else { if (tracking()) sync_release(KEY); r_##name(); } }
+LOCK_WRAP0(GOMP_critical_start, &g_crit_key, 1)
+LOCK_WRAP0(GOMP_critical_end, &g_crit_key, 0)
+LOCK_WRAP0(GOMP_atomic_start, &g_atomic_key, 1)
+LOCK_WRAP0(GOMP_atomic_end, &g_atomic_key, 0)
+static void (*r_GOMP_critical_name_start)(void **);
+void GOMP_critical_name_start(void **p) { RESOLVE(r_GOMP_critical_name_start, "GOMP_critical_name_start"); r_GOMP_critical_name_start(p); if (tracking()) sync_acquire(p); }
+static void (*r_GOMP_critical_name_end)(void **);
+void GOMP_critical_name_end(void **p) { RESOLVE(r_GOMP_critical_name_end, "GOMP_critical_name_end"); if (tracking()) sync_release(p); r_GOMP_critical_name_end(p); }
+static void (*r_GOMP_ordered_start)(void);
+void GOMP_ordered_start(void) { RESOLVE(r_GOMP_ordered_start, "GOMP_ordered_start"); r_GOMP_ordered_start(); if (omp_tracking()) { thr *c = cur_chain(); long ka = sync_op(c); IL(&g_symu); vc_acquire(c, &t_region->ordvc, ka); IU(&g_symu); } }
+static void (*r_GOMP_ordered_end)(void);
+void GOMP_ordered_end(void) { RESOLVE(r_GOMP_ordered_end, "GOMP_ordered_end"); if (omp_tracking()) { thr *c = cur_chain(); sync_op(c); IL(&g_symu); vc_join(&t_region->ordvc, &c->vc); IU(&g_symu); } r_GOMP_ordered_end(); }
+
+/* OpenMP locks, by the lock's address (omp_lock_t and omp_nest_lock_t, OMP_3.0) */
+#define OLOCK(name, ACQ) \
+static void (*r_##name)(void *); \
+void name(void *l) { RESOLVE(r_##name, #name); if (ACQ) { r_##name(l); if (tracking()) sync_acquire(l); } else { if (tracking()) sync_release(l); r_##name(l); } }
+OLOCK(omp_set_lock, 1)
+OLOCK(omp_unset_lock, 0)
+OLOCK(omp_set_nest_lock, 1)
+OLOCK(omp_unset_nest_lock, 0)
+static int (*r_omp_test_lock)(void *);
+int omp_test_lock(void *l) { RESOLVE(r_omp_test_lock, "omp_test_lock"); int v = r_omp_test_lock(l); if (v && tracking()) sync_acquire(l); return v; }
+static int (*r_omp_test_nest_lock)(void *);
+int omp_test_nest_lock(void *l) { RESOLVE(r_omp_test_nest_lock, "omp_test_nest_lock"); int v = r_omp_test_nest_lock(l); if (v && tracking()) sync_acquire(l); return v; }
+
+/* Dynamic work sharing: which thread gets which chunk, section or single is decided by the order
+   of these calls, kept as a read-modify-write of the work share's clock (after the call: an
+   approximation of their order that only adds edges). */
+static _Bool (*r_GOMP_single_start)(void);
+_Bool GOMP_single_start(void) { RESOLVE(r_GOMP_single_start, "GOMP_single_start"); _Bool v = r_GOMP_single_start(); ws_rmw(1); return v; }
+static unsigned (*r_GOMP_sections_start)(unsigned);
+unsigned GOMP_sections_start(unsigned n) { RESOLVE(r_GOMP_sections_start, "GOMP_sections_start"); unsigned v = r_GOMP_sections_start(n); ws_rmw(1); return v; }
+static unsigned (*r_GOMP_sections2_start)(unsigned, uintptr_t *, void **);
+unsigned GOMP_sections2_start(unsigned n, uintptr_t *red, void **mem) { RESOLVE(r_GOMP_sections2_start, "GOMP_sections2_start"); unsigned v = r_GOMP_sections2_start(n, red, mem); ws_rmw(1); return v; }
+static unsigned (*r_GOMP_sections_next)(void);
+unsigned GOMP_sections_next(void) { RESOLVE(r_GOMP_sections_next, "GOMP_sections_next"); unsigned v = r_GOMP_sections_next(); ws_rmw(0); return v; }
+#define LOOP_START_CH(name) \
+static _Bool (*r_##name)(long, long, long, long, long *, long *); \
+_Bool name(long s, long e, long i, long ch, long *is, long *ie) { RESOLVE(r_##name, #name); _Bool v = r_##name(s, e, i, ch, is, ie); ws_rmw(1); return v; }
+#define LOOP_START_RT(name) \
+static _Bool (*r_##name)(long, long, long, long *, long *); \
+_Bool name(long s, long e, long i, long *is, long *ie) { RESOLVE(r_##name, #name); _Bool v = r_##name(s, e, i, is, ie); ws_rmw(1); return v; }
+#define LOOP_NEXT(name) \
+static _Bool (*r_##name)(long *, long *); \
+_Bool name(long *is, long *ie) { RESOLVE(r_##name, #name); _Bool v = r_##name(is, ie); ws_rmw(0); return v; }
+LOOP_START_CH(GOMP_loop_dynamic_start)
+LOOP_START_CH(GOMP_loop_guided_start)
+LOOP_START_CH(GOMP_loop_nonmonotonic_dynamic_start)
+LOOP_START_CH(GOMP_loop_nonmonotonic_guided_start)
+LOOP_START_RT(GOMP_loop_runtime_start)
+LOOP_START_RT(GOMP_loop_nonmonotonic_runtime_start)
+LOOP_START_RT(GOMP_loop_maybe_nonmonotonic_runtime_start)
+LOOP_NEXT(GOMP_loop_dynamic_next)
+LOOP_NEXT(GOMP_loop_guided_next)
+LOOP_NEXT(GOMP_loop_runtime_next)
+LOOP_NEXT(GOMP_loop_nonmonotonic_dynamic_next)
+LOOP_NEXT(GOMP_loop_nonmonotonic_guided_next)
+LOOP_NEXT(GOMP_loop_nonmonotonic_runtime_next)
+LOOP_NEXT(GOMP_loop_maybe_nonmonotonic_runtime_next)
+static _Bool (*r_GOMP_loop_start)(long, long, long, long, long, long *, long *, uintptr_t *, void **);
+_Bool GOMP_loop_start(long s, long e, long i, long sched, long ch, long *is, long *ie, uintptr_t *red, void **mem) {
+    RESOLVE(r_GOMP_loop_start, "GOMP_loop_start");
+    _Bool v = r_GOMP_loop_start(s, e, i, sched, ch, is, ie, red, mem); ws_rmw(1); return v;
+}
+#endif /* STRETTO_PIN_ONLY */
