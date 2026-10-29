@@ -254,6 +254,19 @@ class SplitIdiom(unittest.TestCase):
         self.assertEqual([(x.cls, x.pin) for x in f], [("1f", "STRETTO_PIN=1:0:3")])
 
 
+class FreedTypeIdiom(unittest.TestCase):
+    """Idiom 33: two receives whose datatype is freed while they are pending. The tracer counts
+    their elements with the type's size taken at the posting; with the handle (before 30 Oct
+    2026) it read the freed type, which the idiom's overwritten free memory turns into an
+    unknown count or MPI_ERR_TYPE."""
+
+    def test_33_counts_of_receives_with_a_freed_type(self):
+        t = trace.load(need_trace(self, 33))
+        got = sorted((r.msrc, r.mcount) for r in t.recvs.values() if r.rank == 0)
+        self.assertEqual(got, [(1, 1), (1, 1)])
+        self.assertEqual(analyze(t, with_sp=False).findings, [])
+
+
 class Cli(unittest.TestCase):
     """The command line as the harness uses it: exit status 1 on an error-class finding, 0
     otherwise, 2 when the directory cannot be loaded; --json carries the whole text report."""

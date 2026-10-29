@@ -1,8 +1,8 @@
 /* A receive whose datatype is freed while the receive is pending, as SLATE's Tile::irecv does for
  * a strided tile (MPI_Type_vector, MPI_Type_commit, MPI_Irecv, MPI_Type_free, later MPI_Wait).
  * MPI allows it: "Any communication that is currently using this datatype will complete
- * normally" (MPI 4.1, MPI_TYPE_FREE). Untraced the program prints "ok"; under the tracer the
- * completion's MPI_Get_count uses the freed datatype.
+ * normally" (MPI 4.1, MPI_TYPE_FREE). Untraced the program prints "ok"; under the tracer before
+ * 30 Oct 2026 the completion's MPI_Get_count used the freed datatype (idioms/33_recv_type_freed).
  *   mpicc typefree.c -o typefree && mpirun -np 2 ./typefree */
 #include <mpi.h>
 #include <stdio.h>

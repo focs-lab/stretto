@@ -1,0 +1,17 @@
+{"r":0,"seq":0,"op":"init","np":3,"thread":0,"version":3}
+{"r":0,"seq":1,"op":"comm","name":"world","parent":0,"id":0,"ranks":[0,1,2],"gord":0}
+{"r":0,"seq":2,"op":"comm","name":"self","parent":0,"id":1,"ranks":[0],"gord":0}
+{"r":0,"seq":3,"op":"site","id":0,"obj":"/w/idioms/33_recv_type_freed/bin/mpich/main","addr":94388383774186,"base":94388383768576}
+{"r":0,"seq":4,"op":"irecv","src":1,"tag":3,"comm":0,"count":1,"tsize":128,"tsig":"MPI_DOUBLE*16","req":0,"site":0}
+{"r":0,"seq":5,"op":"irecv","src":1,"tag":3,"comm":0,"count":1,"tsize":128,"tsig":"MPI_DOUBLE*16","req":1,"site":0}
+{"r":0,"seq":6,"op":"site","id":1,"obj":"/w/idioms/33_recv_type_freed/bin/mpich/main","addr":94388383774235,"base":94388383768576}
+{"r":0,"seq":7,"op":"begin","call":"coll","name":"barrier","comm":0,"root":-1,"count":0,"tsize":0,"tsig":"null","site":1}
+{"r":0,"seq":8,"op":"coll","name":"barrier","comm":0,"root":-1,"count":0,"tsize":0,"tsig":"null","site":1}
+{"r":0,"seq":9,"op":"site","id":2,"obj":"/w/idioms/33_recv_type_freed/bin/mpich/main","addr":94388383774255,"base":94388383768576}
+{"r":0,"seq":10,"op":"begin","call":"wait","kind":"wait","reqs":[0],"site":2}
+{"r":0,"seq":11,"op":"wait","kind":"wait","reqs":[0],"done":[{"req":0,"msrc":1,"mtag":3,"mcount":1}],"site":2}
+{"r":0,"seq":12,"op":"site","id":3,"obj":"/w/idioms/33_recv_type_freed/bin/mpich/main","addr":94388383774284,"base":94388383768576}
+{"r":0,"seq":13,"op":"begin","call":"wait","kind":"waitall","reqs":[1],"site":3}
+{"r":0,"seq":14,"op":"wait","kind":"waitall","reqs":[1],"done":[{"req":1,"msrc":1,"mtag":3,"mcount":1}],"site":3}
+{"r":0,"seq":15,"op":"site","id":4,"obj":"/w/idioms/33_recv_type_freed/bin/mpich/main","addr":94388383774519,"base":94388383768576}
+{"r":0,"seq":16,"op":"finalize","site":4}

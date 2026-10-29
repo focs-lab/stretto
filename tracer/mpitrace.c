@@ -213,7 +213,7 @@ static void *xrealloc(void *p, size_t n) {
     return q;
 }
 
-typedef struct { MPI_Request req; int id; int kind; MPI_Datatype dt; int persistent; int active; int cancel_req; int pin1; MPI_Request *slot; } reqent; /* kind: 0 send, 1 recv, 2 coll, 3 idup, 4 partitioned (guard only); pin1: the handle stretto_pin_recv gave a pinned receive (replay/pin.h), 0 if none; slot: where the program received the handle */
+typedef struct { MPI_Request req; int id; int kind; long rsize; int persistent; int active; int cancel_req; int pin1; MPI_Request *slot; } reqent; /* rsize: a receive's type size, taken at the posting (status_fields), -1 if none; kind: 0 send, 1 recv, 2 coll, 3 idup, 4 partitioned (guard only); pin1: the handle stretto_pin_recv gave a pinned receive (replay/pin.h), 0 if none; slot: where the program received the handle */
 static reqent *g_reqs = NULL;
 static int g_nreqs = 0, g_capreqs = 0, g_next_req = 0;
 
@@ -1012,6 +1012,13 @@ static int gc_redscat(const void *s, const void *r, const int *rc, int n, MPI_Da
 
 /* ------------------------------------------------------------ small utils */
 static int tsize(MPI_Datatype dt) { int s = 0; if (dt != MPI_DATATYPE_NULL) PMPI_Type_size(dt, &s); return s; }
+/* The size a receive's count is computed with at its completion (status_fields), -1 without a
+   type. A nonblocking receive keeps the size, not the handle: the program may free the type
+   while the receive is pending ("Any communication that is currently using this datatype will
+   complete normally", MPI 4.1, MPI_TYPE_FREE), and the library releases it when the request
+   completes, before the completion is recorded; MPI_Get_count on the handle then reads freed
+   memory (SLATE's Tile::irecv, MPI_ERR_TYPE in traced gelqf runs, 30 Oct 2026). */
+static long recv_size(MPI_Datatype dt) { return dt == MPI_DATATYPE_NULL ? -1 : tsize(dt); }
 /* Type signatures (analysis/stretto/types.py reads them): a named type by its name, a
    derived type flattened into runs of named types, "MPI_INT*4,MPI_DOUBLE*2", in type-map
    order. Combiners the flattening does not follow (darray, f90) and signatures longer than
@@ -1262,7 +1269,7 @@ static int req_add(MPI_Request *slot, int kind, MPI_Datatype dt, int persistent)
         e = &g_reqs[g_nreqs++];
     }
     int id = g_next_req++;
-    *e = (reqent){r, id, kind, dt, persistent, !persistent, 0, 0, slot};
+    *e = (reqent){r, id, kind, kind == 1 ? recv_size(dt) : -1, persistent, !persistent, 0, 0, slot};
     pthread_mutex_unlock(&g_mu);
     guard_done(dropped, 0);
     return id;
@@ -1291,11 +1298,11 @@ static void req_remove(MPI_Request r, MPI_Request *slot) {
     pthread_mutex_unlock(&g_mu);
 }
 /* A persistent request gets a fresh id at every Start (each start is a new operation). */
-static int req_start(MPI_Request r, int *kind, MPI_Datatype *dt) {
+static int req_start(MPI_Request r, int *kind) {
     pthread_mutex_lock(&g_mu);
     reqent *e = req_find_locked(r, NULL);
     int id = -1;
-    if (e) { e->id = g_next_req++; e->active = 1; id = e->id; *kind = e->kind; *dt = e->dt; }
+    if (e) { e->id = g_next_req++; e->active = 1; id = e->id; *kind = e->kind; }
     else *kind = -1;
     pthread_mutex_unlock(&g_mu);
     return id;
@@ -1367,7 +1374,7 @@ int MPI_Init_thread(int *argc, char ***argv, int req, int *prov) {
    succeeded, the receive took no message), 0 with its status (it took a message), or null (the
    test found it incomplete: unknown). Inlined, so that the records name the program's call of
    MPI_Finalize (REC). */
-static void status_fields(rec_t *b, MPI_Status *st, MPI_Datatype dt, int ok);
+static void status_fields(rec_t *b, MPI_Status *st, long rsize, int ok);
 static inline __attribute__((always_inline)) void cancelled_outcomes(void) {
     pthread_mutex_lock(&g_mu);
     int n = 0;
@@ -1383,7 +1390,7 @@ static inline __attribute__((always_inline)) void cancelled_outcomes(void) {
         REC(b, "cancelstatus"); rb_printf(&b, ",\"req\":%d", left[i].id);
         if (rc != MPI_SUCCESS || !flag) rb_printf(&b, ",\"cancelled\":null");
         else if (cancelled) rb_printf(&b, ",\"cancelled\":1");
-        else { status_fields(&b, &st, left[i].dt, 1); rb_printf(&b, ",\"cancelled\":0"); }
+        else { status_fields(&b, &st, left[i].rsize, 1); rb_printf(&b, ",\"cancelled\":0"); }
         rb_emit(&b);
     }
     free(left);
@@ -1556,8 +1563,8 @@ static void restore_shadow(MPI_Request *slot, MPI_Request before) {
 }
 static inline __attribute__((always_inline)) void start_one(MPI_Request *rp, void *ra, long iseq) {
     MPI_Request r = *rp;
-    int kind; MPI_Datatype dt;
-    int id = req_start(r, &kind, &dt);
+    int kind;
+    int id = req_start(r, &kind);
     pthread_mutex_lock(&g_mu); pinfo *pi = pers_find(r); pinfo copy; if (pi) copy = *pi; pthread_mutex_unlock(&g_mu);
 #ifdef STRETTO_MPI4
     partent part;
@@ -1589,7 +1596,7 @@ static inline __attribute__((always_inline)) void start_one(MPI_Request *rp, voi
             if (PMPI_Recv_init(copy.buf, copy.count, copy.dt, src, tag, copy.comm, &shadow) == MPI_SUCCESS) {
                 pthread_mutex_lock(&g_mu);
                 if (g_nreqs == g_capreqs) { g_capreqs = g_capreqs ? g_capreqs * 2 : 64; g_reqs = xrealloc(g_reqs, sizeof *g_reqs * g_capreqs); }
-                g_reqs[g_nreqs++] = (reqent){shadow, id, 1, copy.dt, 1, 1, 0, pinned, rp};
+                g_reqs[g_nreqs++] = (reqent){shadow, id, 1, recv_size(copy.dt), 1, 1, 0, pinned, rp};
                 pthread_mutex_unlock(&g_mu);
                 shadow_add(shadow, r);
                 *rp = shadow;
@@ -1629,13 +1636,17 @@ int MPI_Startall(int n, MPI_Request reqs[]) {
     return rc; }
 
 /* -------------------------------------------------------------- receives */
-static void status_fields(rec_t *b, MPI_Status *st, MPI_Datatype dt, int ok) {
+static void status_fields(rec_t *b, MPI_Status *st, long rsize, int ok) {
     int cancelled = 0;
     if (!ok || !st) { rb_printf(b, ",\"msrc\":null,\"mtag\":null,\"mcount\":null"); return; }
     PMPI_Test_cancelled(st, &cancelled);
     if (cancelled) { rb_printf(b, ",\"msrc\":null,\"mtag\":null,\"mcount\":null,\"cancelled\":1"); return; }
     int cnt = -1;
-    if (dt != MPI_DATATYPE_NULL) PMPI_Get_count(st, dt, &cnt);
+    if (rsize >= 0) {          /* MPI_Get_count's arithmetic, on the size the type had at the posting */
+        MPI_Count n = 0;
+        PMPI_Get_elements_x(st, MPI_BYTE, &n);
+        cnt = rsize == 0 ? (n ? MPI_UNDEFINED : 0) : (n % rsize || n / rsize > INT_MAX) ? MPI_UNDEFINED : (int)(n / rsize);
+    }
     if (st->MPI_SOURCE == MPI_PROC_NULL) rb_printf(b, ",\"msrc\":null,\"mtag\":null,\"mcount\":0,\"procnull\":1");
     else if (cnt == MPI_UNDEFINED) rb_printf(b, ",\"msrc\":%d,\"mtag\":%d,\"mcount\":null", st->MPI_SOURCE, st->MPI_TAG);
     else rb_printf(b, ",\"msrc\":%d,\"mtag\":%d,\"mcount\":%d", st->MPI_SOURCE, st->MPI_TAG, cnt);
@@ -1661,7 +1672,7 @@ int MPI_Recv(void *buf, int count, MPI_Datatype dt, int src, int tag, MPI_Comm c
     } else { stretto_pin_posted(STRETTO_OP_RECV, rord_); rc = PMPI_Recv(buf, count, dt, src, tag, comm, st); }
     if (pinned && rc == MPI_SUCCESS) stretto_pin_matched(pinned, st->MPI_SOURCE);
     REC(b, "recv"); recv_args(&b, osrc, otag, comm, count, dt, widx);
-    status_fields(&b, st, dt, rc == MPI_SUCCESS);
+    status_fields(&b, st, recv_size(dt), rc == MPI_SUCCESS);
     if (pinned) rb_printf(&b, ",\"pinned\":{\"src\":%d,\"tag\":%d}", src, tag);
     rb_iseq(&b, iseq);
     rb_emit(&b);
@@ -1696,7 +1707,7 @@ static inline __attribute__((always_inline)) int sendrecv_common(const void *sbu
 }
 static inline __attribute__((always_inline)) void sendrecv_finish(int rcount, MPI_Datatype rdt, int osrc, int otag, int src, int rtag, MPI_Comm comm, MPI_Status *st, int rc, int widx, int pinned, int reqid, long riseq) {
     if (pinned && rc == MPI_SUCCESS) stretto_pin_matched(pinned, st->MPI_SOURCE);
-    { REC(b, "recv"); recv_args(&b, osrc, otag, comm, rcount, rdt, widx); status_fields(&b, st, rdt, rc == MPI_SUCCESS);
+    { REC(b, "recv"); recv_args(&b, osrc, otag, comm, rcount, rdt, widx); status_fields(&b, st, recv_size(rdt), rc == MPI_SUCCESS);
       if (pinned) rb_printf(&b, ",\"pinned\":{\"src\":%d,\"tag\":%d}", src, rtag);
       rb_iseq(&b, riseq);
       rb_emit(&b); }
@@ -1766,7 +1777,7 @@ static void done_entry(rec_t *b, int first, MPI_Request before, MPI_Request *slo
     reqent *e = req_find_locked(before, slot);
     int id = e ? e->id : -1, kind = e ? e->kind : -1, persistent = e ? e->persistent : 0, cancel_req = e ? e->cancel_req : 0;
     int pin1 = e ? e->pin1 : 0;
-    MPI_Datatype dt = e ? e->dt : MPI_DATATYPE_NULL;
+    long rsize = e ? e->rsize : -1;
     if (e && !persistent) { *e = g_reqs[--g_nreqs]; }
     else if (e) { e->active = 0; e->cancel_req = 0; }
     pthread_mutex_unlock(&g_mu);
@@ -1774,7 +1785,7 @@ static void done_entry(rec_t *b, int first, MPI_Request before, MPI_Request *slo
     if (kind == 3) idup_complete(before, id);
     if (id < 0) { rb_printf(b, "%s{\"req\":null}", first ? "" : ","); return; }
     rb_printf(b, "%s{\"req\":%d", first ? "" : ",", id);
-    if (kind == 1) status_fields(b, st, dt, ok);
+    if (kind == 1) status_fields(b, st, rsize, ok);
     if (kind == 1 && pin1 && ok && st) {
         int cancelled = 0; PMPI_Test_cancelled(st, &cancelled);
         if (!cancelled) stretto_pin_matched(pin1, st->MPI_SOURCE);
@@ -1798,9 +1809,9 @@ int MPI_Request_get_status(MPI_Request req, int *flag, MPI_Status *st) {
     if (*flag && rc == MPI_SUCCESS && req != MPI_REQUEST_NULL) {
         pthread_mutex_lock(&g_mu);
         reqent *e = req_find_locked(req, NULL);
-        int kind = e ? e->kind : -1; MPI_Datatype dt = e ? e->dt : MPI_DATATYPE_NULL;
+        int kind = e ? e->kind : -1; long rsize = e ? e->rsize : -1;
         pthread_mutex_unlock(&g_mu);
-        if (kind == 1) status_fields(&b, st, dt, 1);
+        if (kind == 1) status_fields(&b, st, rsize, 1);
     }
     rb_emit_kind(&b, !*flag);
     return rc;
@@ -1917,7 +1928,7 @@ static inline __attribute__((always_inline)) int free_cancelled_recv(MPI_Request
     pthread_mutex_lock(&g_mu);
     reqent *e = req_find_locked(*req, req);
     int take = e && e->kind == 1 && e->cancel_req && !e->persistent, pin1 = e ? e->pin1 : 0;
-    MPI_Datatype dt = e ? e->dt : MPI_DATATYPE_NULL;
+    long rsize = e ? e->rsize : -1;
     pthread_mutex_unlock(&g_mu);
     if (!take) return 0;
     MPI_Status st;
@@ -1925,7 +1936,7 @@ static inline __attribute__((always_inline)) int free_cancelled_recv(MPI_Request
     if (rc == MPI_SUCCESS) PMPI_Test_cancelled(&st, &cancelled);
     REC(b, "reqfree"); rb_printf(&b, ",\"req\":%d", id);
     if (rc == MPI_SUCCESS && !cancelled) {
-        status_fields(&b, &st, dt, 1);
+        status_fields(&b, &st, rsize, 1);
         if (pin1) stretto_pin_matched(pin1, st.MPI_SOURCE);
     }
     if (rc == MPI_SUCCESS) rb_printf(&b, ",\"cancelled\":%d", cancelled);
@@ -2074,7 +2085,7 @@ int MPI_Mrecv(void *buf, int count, MPI_Datatype dt, MPI_Message *msg, MPI_Statu
     if (rc == MPI_SUCCESS) { src = st->MPI_SOURCE; tag = st->MPI_TAG; }
     REC(b, "recv"); rb_printf(&b, ",\"src\":%d,\"tag\":%d,\"comm\":%d,\"mrecv\":1", src, tag, comm); rb_type(&b, count, dt);
     if (noproc && rc != MPI_SUCCESS) rb_printf(&b, ",\"procnull\":1");   /* else the status says so */
-    status_fields(&b, st, dt, rc == MPI_SUCCESS); rb_emit(&b);
+    status_fields(&b, st, recv_size(dt), rc == MPI_SUCCESS); rb_emit(&b);
     return rc;
 }
 int MPI_Imrecv(void *buf, int count, MPI_Datatype dt, MPI_Message *msg, MPI_Request *req) {

@@ -107,10 +107,11 @@ with the hunt notes, outside this repository.
   in which SLATE's tag race happened report nothing. Operations of one envelope pending at once
   on two threads, each posted and completed within one call, are concurrent without any
   happens-before; `experiments/slate/overlap.py` finds them in every such trace. Open. The
-  tracer aborts traced SLATE `gelqf` (2 of 2 runs) and `geqrf` (1 of 2) with `MPI_ERR_TYPE` in
-  its own `MPI_Get_count` (`status_fields`, mpitrace.c:1638); untraced both pass. That the
-  receive's datatype, freed by SLATE after posting (allowed), is the cause is a guess: a
-  single-threaded reproducer does not fail. Open. SLATE's task threads appear as untracked
+  tracer aborted traced SLATE `gelqf` and `geqrf` runs (17 and 11 of 20) with `MPI_ERR_TYPE` in
+  its own `MPI_Get_count`: SLATE frees a pending receive's datatype (allowed), the library
+  releases it when the receive completes, and the tracer then asked about the freed handle
+  (confirmed with a diagnostic build). Fixed 30 Oct: the count comes from the type's size at the
+  posting; 20 of 20 traced runs each pass (idiom 33). SLATE's task threads appear as untracked
   chains named `u` (libgomp runs deferred tasks after the outlined function returned; by
   reading). Open.
 

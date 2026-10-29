@@ -1,0 +1,13 @@
+{"r":1,"seq":0,"op":"init","np":3,"thread":0,"version":3}
+{"r":1,"seq":1,"op":"comm","name":"world","parent":0,"id":0,"ranks":[0,1,2],"gord":0}
+{"r":1,"seq":2,"op":"comm","name":"self","parent":0,"id":1,"ranks":[1],"gord":0}
+{"r":1,"seq":3,"op":"site","id":0,"obj":"/w/idioms/33_recv_type_freed/bin/openmpi/main","addr":94388950668998,"base":94388950663168}
+{"r":1,"seq":4,"op":"begin","call":"coll","name":"barrier","comm":0,"root":-1,"count":0,"tsize":0,"tsig":"null","site":0}
+{"r":1,"seq":5,"op":"coll","name":"barrier","comm":0,"root":-1,"count":0,"tsize":0,"tsig":"null","site":0}
+{"r":1,"seq":6,"op":"site","id":1,"obj":"/w/idioms/33_recv_type_freed/bin/openmpi/main","addr":94388950669127,"base":94388950663168}
+{"r":1,"seq":7,"op":"begin","call":"send","mode":"std","dst":0,"tag":3,"comm":0,"count":16,"tsize":8,"tsig":"MPI_DOUBLE","site":1}
+{"r":1,"seq":8,"op":"send","mode":"std","dst":0,"tag":3,"comm":0,"count":16,"tsize":8,"tsig":"MPI_DOUBLE","site":1}
+{"r":1,"seq":9,"op":"begin","call":"send","mode":"std","dst":0,"tag":3,"comm":0,"count":16,"tsize":8,"tsig":"MPI_DOUBLE","site":1}
+{"r":1,"seq":10,"op":"send","mode":"std","dst":0,"tag":3,"comm":0,"count":16,"tsize":8,"tsig":"MPI_DOUBLE","site":1}
+{"r":1,"seq":11,"op":"site","id":2,"obj":"/w/idioms/33_recv_type_freed/bin/openmpi/main","addr":94388950669148,"base":94388950663168}
+{"r":1,"seq":12,"op":"finalize","site":2}

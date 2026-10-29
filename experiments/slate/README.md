@@ -149,18 +149,19 @@ same tags.
   traces in which the race happened. The physical overlap that `overlap.py` reads needs no
   happens-before and found it in every plain trace; an observed class from it would cover such
   programs where the overlapping operations are posted and completed within one call.
-- **Defect: the tracer aborts traced `gelqf` and `geqrf` runs.** 2 of 2 traced `gelqf` runs and
-  1 of 2 `geqrf` runs (tester, square 800, nb 100, 2x2, 4 threads, Open MPI) end in
-  `MPI_ERR_TYPE: invalid datatype` "in MPI_Get_count"; SLATE does not call `MPI_Get_count`, the
-  tracer's `status_fields` (`tracer/mpitrace.c:1638`) does, with the datatype the receive was
-  posted with. SLATE frees a strided tile's datatype right after posting the receive
-  (`Tile.hh:1104-1110`), which MPI allows, and these receives are completed later by other
-  threads (`threads-handoff`). Untraced, both routines pass. Reproducer:
-  `mpirun -np 4 -x OMP_NUM_THREADS=4 -x LD_PRELOAD=.../libstretto-trace.so tester --type d
-  --dim 800 --nb 100 --grid 2x2 --check y --ref n gelqf`. A single-threaded program that frees
-  the datatype of a pending `MPI_Irecv` ([typefree.c](typefree.c)) does not reproduce it, also
-  with `MALLOC_PERTURB_`; that the cause is the freed datatype is a guess. Not fixed (minimal
-  note only).
+- **Defect, fixed 30 Oct: the tracer aborted traced `gelqf` and `geqrf` runs.** Traced `gelqf`
+  and `geqrf` runs (tester, square 800, nb 100, 2x2, 4 threads, Open MPI) ended in
+  `MPI_ERR_TYPE: invalid datatype` "in MPI_Get_count" (17 and 11 of 20 runs), untraced never.
+  SLATE frees a strided tile's datatype right after posting the receive (`Tile.hh:1104-1110`),
+  which MPI allows; the library keeps the type until the request completes and releases it
+  there, and the tracer's `status_fields` then asked `MPI_Get_count` about the freed handle.
+  Checked by marking, in a diagnostic build, receives whose type the program freed while they
+  were pending: in each of 3 aborted runs the aborting process's last such completion entered
+  `MPI_Get_count` and never returned. A single-threaded program ([typefree.c](typefree.c))
+  usually reads intact freed memory; with glibc's thread cache off and `MALLOC_PERTURB_` it
+  records an unknown count, and the program's own `MPI_Get_count` on the freed handle fails.
+  The tracer now keeps the type's size from the posting and computes the count from the bytes
+  the status reports; with it 20 of 20 traced runs of each routine pass. Regression idiom 33.
 - **Chain names.** The OpenMP threads that run SLATE's tasks appear as chains named `u` of kind
   `pthread` (untracked), not as `0/p.j`: libgomp runs deferred tasks in the region's closing
   barrier, after the outlined function has returned and the tracer's `omp_tramp` has restored

@@ -1,0 +1,8 @@
+{"r":2,"seq":0,"op":"init","np":3,"thread":0,"version":3}
+{"r":2,"seq":1,"op":"comm","name":"world","parent":0,"id":0,"ranks":[0,1,2],"gord":0}
+{"r":2,"seq":2,"op":"comm","name":"self","parent":0,"id":1,"ranks":[2],"gord":0}
+{"r":2,"seq":3,"op":"site","id":0,"obj":"/w/idioms/33_recv_type_freed/bin/mpich/main","addr":93997243205288,"base":93997243199488}
+{"r":2,"seq":4,"op":"begin","call":"coll","name":"barrier","comm":0,"root":-1,"count":0,"tsize":0,"tsig":"null","site":0}
+{"r":2,"seq":5,"op":"coll","name":"barrier","comm":0,"root":-1,"count":0,"tsize":0,"tsig":"null","site":0}
+{"r":2,"seq":6,"op":"site","id":1,"obj":"/w/idioms/33_recv_type_freed/bin/mpich/main","addr":93997243205431,"base":93997243199488}
+{"r":2,"seq":7,"op":"finalize","site":1}
