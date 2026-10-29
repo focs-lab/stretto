@@ -2,7 +2,8 @@
 
 Status: designed 29 Oct 2026; milestone A (tracer, loader, analysis at L1, the observed thread
 classes, tests) implemented the same day, section 9 says how it differs from the design; section
-10 says how milestone B made the check scale and what it found in HDF5's Subfiling VFD. Decided
+10 says how milestone B made the check scale and what it found in HDF5's Subfiling VFD; section 11
+says how milestone C replays alternatives of several threads (30 Oct 2026). Decided
 29 Oct 2026: Stretto is extended to programs in which several threads of an MPI process call MPI
 on shared communicators (`MPI_THREAD_MULTIPLE`, and `MPI_THREAD_SERIALIZED` with several calling
 threads). Before, such a trace was analysed for observed findings only (`docs/model.md` §6). This
@@ -847,3 +848,83 @@ hypre solver from the Examples component, and `sus -nthreads N` runs the Unified
 Core, Schedulers, Solvers and Examples are about 255 `.cc` files (95 000 lines); with hypre built
 from source and libxml2's headers added to the image, a build under 2 hours on 4 cores looks
 feasible (a guess; nothing was built).
+
+## 11. Milestone C as built (30 Oct 2026): replay pins for several threads
+
+The replay of section 4, with these choices (`replay/pin.h`, `replay/pin.c`, the tracer's
+wrappers, `analysis/stretto/confirm.py`).
+
+- **Naming.** A chain pin (`STRETTO_PIN_CHAIN`) names a receive by the tracer's logical chain
+  name and its ordinal among the chain's receives (all of them but those of `MPI_PROC_NULL` and
+  `Mrecv`/`Imrecv`), a gate names a send or a probe that found a message the same way. Only
+  the tracer names chains, so the replay library alone refuses both variables; the harness runs
+  replays under the tracer anyway. In a trace with several chains every receive of the horizon
+  gets a chain pin, a rank of one chain included (its chain is `0`); probes are pinned by their
+  rank ordinal only where one chain of the process probes, and flips and probe alternatives of
+  such traces are not replayed.
+- **Order gates** (`STRETTO_PIN_ORDER="rank:A#k#n<B#k#n"`): B's operation waits, before it is
+  posted and outside the issue lock, until A's is posted (a probe: has returned a message). Gated
+  pairs: two concurrent operations of one process in the horizon that could take or report one
+  message (receives and probes with overlapping envelopes, sends to one process on one
+  communicator), each operation against the latest such operation of each other chain, once in
+  a topological order of the alternative's constraint graph (ties broken by the run's file
+  order) and once in the run's issue order. Only the pairs on which the two orders disagree are
+  gated, in the first order in the replay and in the second in the control; the rest are left
+  free. Gating every pair (the first version of 30 Oct) failed on HDF5: its pools of worker
+  threads take other requests in each run, so a worker posts another number of operations and
+  a gate between two pools' workers never opens. Operations beyond the horizon wait for the
+  horizon's and nothing waits for them. A gate closed after 80 % of the run's timeout ends the
+  run (exit 87): inconclusive.
+- **Evidence.** A chain pin's token carries the message its receive must take (sender process,
+  chain, send ordinal) and its happens-before (per other chain of its process, how many of that
+  chain's operations precede it). It counts as matched only when the replay's own trace,
+  reconstructed in issue order (P-T4), shows that message; the library's report line names the
+  source, which two messages of one channel share, and no message hash is recorded yet. A
+  replay or control whose happens-before differs from the trace's (`sync_divergence`), or whose
+  control did not take its pinned messages, is inconclusive. A replay of several threads that
+  hung or left receives pending is not judged as a run of the program (`unpinned_violation`
+  says undetermined).
+- **Not built:** the `k` replays per alternative inside `confirm` (`experiments/replay_sample.py
+  --repeat` does it), message hashes, lock-order gates (L1+SP-T).
+
+**Gate and tests.** The 531 single-chain traces and idiom 32, analysed by main (b1187c7) and this
+branch as text, `--json` and `--full-profile --json`: 1 596 outputs, exit statuses and stderr
+files, 0 differences (a-p13). Unit tests: 519 run, 18 skipped, all pass, the end-to-end replays
+included (idioms traced by `scripts/run_all.sh`, Open MPI).
+
+**Thread idioms** (Open MPI, two replays and two controls each, `test_replay_e2e.Threads`): the
+concurrent swap of idiom 15 (both threads print "wrong header"), the sender-side alternative of
+20 ("wrong order: 2 before 1"), the probe split of 16 (`MPI_ERR_TRUNCATE`, `confirm`: confirmed)
+and of 17 (hang, 1d confirmed); every required pin matched, every control finished without the
+consequence and with its own pins matched, no gate timed out and no replay diverged.
+
+**HDF5 Subfiling** (`experiments/subfiling`, `replay.sh`, `replay.csv`): 20 wrong-worker
+alternatives of 9975eaeb2 (4 per trace of 5 new traces, all 1f), each replayed twice with its
+control. 0 of 40 replays took their pinned messages; 38 replays and all 40 controls synchronised
+their threads otherwise than the trace; outcomes of the replays: 12 finished, 13 crashed (SIGSEGV,
+SIGABRT), 1 failed, 12 misapplied pins, 2 gate timeouts; of the controls 31 finished, 1 crashed;
+no run read back wrong data. Nothing is confirmed. The I/O concentrator hands each request to
+whichever worker of its pool wakes first (a mutex and a condition variable), so the workers'
+receive counts differ between runs and a worker's k-th receive names another request; P-T5
+holds for the chain names, not for the work a pool's chain does. MPI-level gates cannot force
+the hand-out: that needs the synchronisation order replayed (lock gates of L1+SP-T, with
+condition-variable waits whose number varies), or a receive named by the request it serves
+(its happens-before position on the dispatching chain). The fix's 5 traces have no alternative
+at a receive: nothing to replay.
+
+**Uintah + hypre** (`experiments/uintah`): built in 6 minutes (hypre 2.33.0, since hypre's
+master dropped SparseMSG; Uintah 493d2b5, Examples only, Unified scheduler, no Kokkos), driver
+`Examples/solvertest1.ups` with 8 patches, `sus -nthreads 2` on 2 and 4 ranks. L1 predicts no
+receive alternative (Uintah and hypre receive from named sources) and probe alternatives only
+between hypre messages of different threads (tags 1000, 3000, 4000), none with a Uintah message;
+they are not replayed. Every trace has an observed `2-thread-collective`: Uintah's reduction
+(`OnDemandDataWarehouse::reduceMPI`) and hypre's `MPI_Allreduce` on two threads of a rank, on
+`MPI_COMM_WORLD`, unordered. Untraced, runs with threads end in `MPI_ERR_TRUNCATE` inside
+`MPI_Allreduce` (4 ranks: 4 of 20 passed with 2 threads, 0 of 20 with 4; 2 ranks, 2 threads: 14
+of 20), the single-threaded MPI scheduler passes 20 of 20. That the failing call is that pair is
+a hypothesis.
+
+**Defect found on the way.** The reduced orientation edges of milestone B kept the views of a
+chain's receive classes and send tags in one cache with keys of one shape; on Uintah's trace a
+collision ended the analysis (internal error). Fixed; on the 84 multithreaded traces of
+milestone B text and JSON reports are unchanged.

@@ -89,6 +89,12 @@ with the hunt notes, outside this repository.
   runs), traced never; the report names the race, not the crash. The tracer can crash in
   `PMPI_Comm_group` on a freed communicator (CorrBench `task_comm_free`, 1 of 2 runs; older than
   the thread work). Open.
+- Replays of several threads (milestone C, [threads.md](threads.md) §11): chain pins name a
+  receive by its thread's ordinal, which a pool of worker threads does not keep from run to run
+  (HDF5 Subfiling: every replay and control diverged), so such alternatives stay unconfirmed. Open.
+  Gating every concurrent pair instead of the reordered ones timed out on the same pools; fixed
+  30 Oct. The reduced orientation edges shared one cache between receive and send views and ended
+  the analysis of a Uintah trace; fixed 30 Oct (84 multithreaded reports unchanged).
 
 ## Multithreaded benchmarks (L1 only)
 
@@ -101,11 +107,26 @@ programs are degraded; 0 of 15 correct programs get an error class.
 At 1 024 iterations (milestone B, [threads.md](threads.md) §10) the same holds for the three
 receive tests: 5, 39 and 49 L1 1f findings, all on the racy phase's threads.
 
+Thread idioms 15, 16, 17 and 20 (Open MPI): each L1 alternative at a receive forced by chain pins
+and order gates, twice, with the predicted consequence (wrong header, truncation, hang, wrong order)
+and a control that finishes without it ([threads.md](threads.md) §11, `test_replay_e2e.Threads`).
+
 HDF5 Subfiling VFD 9975eaeb2, the wrong-worker race fixed by ffc254983 (the unique data tag that
 27bb358 later squashed into develop): 5 of 5 clean traces of `t_subfiling_vfd` (4 ranks) predict at
 L1 that two worker threads of the I/O concentrator take each other's write data (4-6 per trace,
-1a truncations in an earlier run); 0 of 5 traces of the fix. Untraced, 20 of 20 runs passed. Not
-replayed (no pins for threads). Evidence: [experiments/subfiling](../experiments/subfiling/README.md).
+1a truncations in an earlier run); 0 of 5 traces of the fix. Untraced, 20 of 20 runs passed. Replayed
+30 Oct with chain pins and order gates ([threads.md](threads.md) §11): 0 of 40 replays of 20
+alternatives took their pinned messages, every control diverged in its threads' synchronisation (the
+concentrator's worker pool hands requests to other workers in each run); not confirmed. Evidence:
+[experiments/subfiling](../experiments/subfiling/README.md) (`replay.csv`).
+
+Uintah 493d2b5 + hypre 2.33.0, Unified scheduler (`sus -nthreads`, Examples/solvertest1): every
+trace shows Uintah's reduction and hypre's `MPI_Allreduce` called concurrently by two threads on
+`MPI_COMM_WORLD` (observed `2-thread-collective`); untraced, 4 of 20 runs at 4 ranks with 2 threads
+pass and 0 of 20 with 4 (`MPI_ERR_TRUNCATE` in `MPI_Allreduce`), 20 of 20 with the MPI scheduler.
+That the pair is the cause is a hypothesis; L1 predicts no receive alternative and probe
+alternatives between hypre messages only. Not reported upstream. Evidence:
+[experiments/uintah](../experiments/uintah/README.md).
 
 ## Not yet traced
 
@@ -134,5 +155,5 @@ crashes from hypre's `Iprobe` taking a Uintah message on the shared communicator
 reverse hazard it leaves); Legion/Realm's MPI network in interop mode (wildcard `Irecv` with tag 1
 on `MPI_COMM_WORLD`); DLA-Future and SLATE (tags reused by concurrent tasks). For Uintah a build of
 Core, Schedulers, Solvers and Examples with hypre (driver `Examples/solvertest1.ups`, `sus
--nthreads`) looks feasible in under 2 hours on 4 cores (§10; a guess, not built). By reading, not a race: Realm's
+-nthreads`) built in 6 minutes with 2 jobs on 30 Oct (above, [experiments/uintah](../experiments/uintah/README.md)). By reading, not a race: Realm's
 `generate_payload_tag` (am_mpi.cc:225) uses the attribute key `MPI_TAG_UB` as the tag bound.
