@@ -36,7 +36,8 @@ NUMBERS = os.path.join(ROOT, "experiments", "generated", "numbers.tex")
 RQ_OF = [
     (1, r"^nEsix|^nMBIReplay|^nAMGsample|^nNeksample|^nPin|^nReadsEsix|^nReadsReplay|^nValid"),
     (4, r"^nReads"),
-    (6, r"^n?Ninja(Hypre|Replica|MG|Petsc|Cabana|Stempy|MfemGroup|DealNbx|Lammps|Superlu|Qe)|^nMust|^Prv(Cabana|Stempy|MfemGroup|DealNbx|Lammps|Superlu|Qe)"),
+    (6, r"^n?Ninja(Hypre|Replica|MG|Petsc|Cabana|Stempy|MfemGroup|DealNbx|Deal|Lammps|Superlu|Qe)|^nMust"
+        r"|^Prv(Hypre|HypreNew|Petsc|MG|Deal|Cabana|Stempy|MfemGroup|DealNbx|Lammps|Superlu|Qe)"),
     (2, r"^n?NinjaMBI|^nMBIMUST|^nTsanLC|^(MBI|MBB)fone|^n(MBI|MBB)(tp|fn|fp|progs|notBuilt|correct|errors|race|Stress|Clean|OnlyStretto|LC)|^n?Guard|^n?Reps"
         r"|^n?PRV|^n?(MBI|MBB)(Union|Sign)"),
     (3, r"^nEtwo|^B[a-z]+OMPI$"),
@@ -50,7 +51,7 @@ FIXED = re.compile(r"^n(MBI|MBB)(progs|notBuilt|correct|errors|race)$|^B[a-z]+OM
                    r"|^n(MBI|MBB)Stress(Runs|Progs)$|^n(MBI|MBB)StressEager(Runs|Bytes|Err)$|^nHypre(Fixed)?(Traced|(Four|Eight)(Local)?Runs)$|^nHypreStressRuns$"
                    r"|^nMBBLC$|^nGuardLC(OMPI|MPICH)built$|^nGuardCases$|^nGuardAppRuns$"
                    r"|^nReps(Runs|Progs|Errors)$|^nDeal(Fixed)?Traced$|^nDealRanks$|^nDealStress(Plain|Delay)?Runs$"
-                   r"|^nNinja(Hypre|Replica|MG|Petsc|Cabana|Stempy|MfemGroup|DealNbx|Lammps|Superlu|Qe)(Fix)?[A-Za-z]*Runs$|^nNinjaMBIerrors$|^nTsanLC$"
+                   r"|^nNinja(Hypre|Replica|MG|Petsc|Cabana|Stempy|MfemGroup|DealNbx|Deal|Lammps|Superlu|Qe)(Fix)?[A-Za-z]*Runs$|^nNinjaMBIerrors$|^nTsanLC$"
                    r"|^nMust[A-Za-z]*Runs$"
                    r"|^n(HypreNew(Fix|All)?|Petsc)(Two|One)?Traced$|^n(HypreNew|Petsc)(Four|Eight)Runs$"
                    r"|^nHypreNew(Fix|All)?Stress(Two(Delay)?)?Runs$|^nPetscStressTwo(Delay)?Runs$"
@@ -380,6 +381,15 @@ def claims(n: dict) -> list:
     for p, what in (("Cabana", "Cabana 38170631"), ("MfemGroup", "MFEM 3.4"), ("DealNbx", "deal.II f9ea3396")):
         claim(6, f"{what}, the fix: MUST's report names no race in any run",
               [f"nMust{p}FixRuns", f"nMust{p}FixRace"], lambda r, s: s == 0, over=[f"nMust{p}FixRuns"])
+    # E5j: the same tools on the bugs of E5c to E5f; the fixes are the controls again. MUST's
+    # control on NPB MG 3.3.1 is left out: one run reports a deadlock, a cycle of two MPI_Send of
+    # give3 that MUST takes for unbuffered sends, which no receive or race is part of (docs/results.md, E5j)
+    for p, what in (("Hypre", "HYPRE 2.11.0"), ("HypreNew", "HYPRE 3.2.0 ex5 with the fix"), ("MG", "NPB MG 3.3.1"), ("Deal", "deal.II 9.3.0")):
+        claim(6, f"{what}, the fix: no NINJA run shows the bug's symptom",
+              [f"nNinja{p}FixRuns", f"nNinja{p}FixRevealed"], lambda r, s: s == 0, over=[f"nNinja{p}FixRuns"])
+        if p != "MG":
+            claim(6, f"{what}, the fix: MUST's report names no race in any run",
+                  [f"nMust{p}FixRuns", f"nMust{p}FixRace"], lambda r, s: s == 0, over=[f"nMust{p}FixRuns"])
     claim(6, "SuperLU_DIST 9f7c819: every clean traced run of a reducible matrix, on Open MPI and on MPICH, predicts that a "
              "receive of one solve's loop takes the other solve's message, at every buffering threshold",
           ["nSluClean", "nSluExposed", "nSluCrossAlts", "nSluCrossAnyB", "nSluOmpiClean", "nSluOmpiExposed", "nSluMpichClean",

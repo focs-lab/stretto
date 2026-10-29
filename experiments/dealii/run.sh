@@ -22,7 +22,7 @@
 #            image has none), check every file's sha256
 #   build    p4est with the MPICH wrappers, then each deal.II version in Release with MPI and
 #            p4est and nothing else that can be switched off (bundled Boost; no TBB, complex
-#            scalars or examples), -j8, which gcc 13 compiles unpatched; then the in-tree
+#            scalars or examples), -j$MAKE_JOBS (8), which gcc 13 compiles unpatched; then the in-tree
 #            tests of RemotePointEvaluation as programs
 #   predict  RUNS traced runs per version and process count, each analysed; every probe
 #            alternative on the RemotePointEvaluation tag is replayed with the pins of its
@@ -32,17 +32,23 @@
 #            the test's expected output
 #   changes  for every replay, control and stress run whose output differs, the ranks and
 #            calls whose values differ (experiments/dealii/changes.py, mapping_01 at 4 ranks)
-#   ninja    NINJA on 9.3.0-rc1: NINJA_RUNS (default 40) runs per process count in each of its
-#            random, system- and application-centric modes, each output compared with the
-#            expected one (NINJA_DIR, default third_party/ninja; NINJA_LIBRARY, step_ninja)
+#   ninja    NINJA on 9.3.0-rc1 (and the fix 9.3.0, NINJA_VERSIONS): NINJA_RUNS (default 40)
+#            runs per process count in each of its random, system- and application-centric
+#            modes, each output compared with the expected one (NINJA_DIR, default
+#            third_party/ninja; NINJA_LIBRARY, step_ninja)
 #   ninja-check  plain runs, and runs with each build of NINJA loaded but no send delayed
 #            (random mode, a ratio of 1e-6%), CHECK_RUNS (default 5) each: ninja-check.csv
 #   all      fetch build predict stress changes
 # Writes experiments/results/dealii/{predict-9.3.0-rc1,predict-9.3.0,stress,changes,ninja,ninja-check}.csv
-# (ninja-fixed-some.csv: step ninja with NINJA_LIBRARY=libninja-fixed-some.so).
+# (ninja-fixed-some.csv, ninja-fixed-some-testall.csv: step ninja with NINJA_LIBRARY naming that
+# build of NINJA; experiments/ninja/build.sh says what each repairs). Every run of the test
+# aborts with libninja-fixed.so and libninja-fixed-some.so loaded, noise or none; with
+# libninja-fixed-some-testall.so it passes.
 # usage: experiments/dealii/run.sh [fetch|build|predict|stress|changes|ninja|ninja-check|all]
 #        NPS (default 4), RUNS (default 20), JOBS (default 1), TEST (default mapping_01),
-#        DEALII_DIR (default third_party/apps/dealii)
+#        DEALII_DIR (default third_party/apps/dealii), DEALII_VERSIONS (default "9.3.0-rc1 9.3.0": the
+#        versions build and predict make), NINJA_VERSIONS (default 9.3.0-rc1: the versions
+#        step ninja runs), MAKE_JOBS (default 8)
 set -uo pipefail
 R="$(cd "$(dirname "$0")/../.." && pwd)"; cd "$R"
 D="${DEALII_DIR:-$R/third_party/apps/dealii}"
@@ -51,7 +57,7 @@ NPS="${NPS:-4}"; RUNS="${RUNS:-20}"; TEST="${TEST:-mapping_01}"; TIMEOUT=120
 PINLIB="$R/replay/bin/mpich/libstretto-pin.so"
 source "$R/experiments/harness.sh"
 export STRETTO_COMMIT="${STRETTO_COMMIT:-$(python3 "$R/experiments/provenance.py")}"
-VERSIONS="9.3.0-rc1 9.3.0"
+VERSIONS="${DEALII_VERSIONS:-9.3.0-rc1 9.3.0}"
 declare -A SHA=([dealii-9.3.0-rc1.tar.gz]=8cc3ae374e82ae02b9312cc85e0a86beee699d9269aad0e6a9a7017b39cd976d
                 [dealii-9.3.0.tar.gz]=b65ea933ebc9fc698e78018b4b10cee1b36061045411d45d6dae8ff5be584526
                 [p4est-2.2.tar.gz]=1549cbeba29bee2c35e7cc50a90a04961da5f23b6eada9c8047f511b90a8e438
@@ -121,7 +127,7 @@ step_build() {
         mkdir -p "$D/build-p4est" && (cd "$D/build-p4est" && "$D/p4est-2.2/configure" --enable-mpi --enable-shared \
              --disable-static --disable-vtk-binary --without-blas --prefix="$D/p4est" CC=/usr/bin/mpicc.mpich CFLAGS=-O2 \
              CPPFLAGS=-DSC_LOG_PRIORITY=SC_LP_ESSENTIAL > "$D/p4est-configure.log" 2>&1 \
-         && make -j8 > "$D/p4est-make.log" 2>&1 && make install >> "$D/p4est-make.log" 2>&1) \
+         && make -j"${MAKE_JOBS:-8}" > "$D/p4est-make.log" 2>&1 && make install >> "$D/p4est-make.log" 2>&1) \
             || { echo "build of p4est failed" >&2; return 1; }
     fi
     for v in $VERSIONS; do
@@ -134,7 +140,7 @@ step_build() {
                  -DCMAKE_INSTALL_PREFIX="$D/install-$v" -DDEAL_II_ALLOW_AUTODETECTION=OFF -DDEAL_II_FORCE_BUNDLED_BOOST=ON \
                  -DDEAL_II_WITH_MPI=ON -DDEAL_II_WITH_P4EST=ON -DP4EST_DIR="$D/p4est" -DDEAL_II_WITH_COMPLEX_VALUES=OFF \
                  -DDEAL_II_COMPONENT_EXAMPLES=OFF > "$D/configure-$v.log" 2>&1 \
-             && make -j8 install > "$D/make-$v.log" 2>&1) \
+             && make -j"${MAKE_JOBS:-8}" install > "$D/make-$v.log" 2>&1) \
                 || { echo "build of deal.II $v failed" >&2; return 1; }
         fi
         # the in-tree tests of RemotePointEvaluation, each a program of its own, built as
@@ -156,7 +162,7 @@ ENDFOREACH()
 CMAKE
         (cd "$(bindir "$v")" && "$CMAKE" -S "$D/drivers-src-$v" -B . -DDEAL_II_DIR="$D/install-$v" \
              -DTEST_DIR="$D/dealii-$v/tests/remote_point_evaluation" > "$D/drivers-$v.log" 2>&1 \
-         && make -j8 >> "$D/drivers-$v.log" 2>&1) || { echo "build of the tests of $v failed" >&2; return 1; }
+         && make -j"${MAKE_JOBS:-8}" >> "$D/drivers-$v.log" 2>&1) || { echo "build of the tests of $v failed" >&2; return 1; }
     done
 }
 step_predict() {
@@ -207,18 +213,21 @@ step_ninja() {
     # NINJA_RUNS runs per process count in its random (50 ms), system- and application-centric
     # modes (experiments/ninja/run.py), each output compared with the expected one (differs.sh:
     # the number of lines that differ, in the table's value column). NINJA_LIBRARY chooses
-    # another build of NINJA (libninja-fixed-some.so: ninja-fixed-some.csv)
-    local np m b t; b="$(bindir 9.3.0-rc1)"
+    # another build of NINJA (libninja-fixed-some.so: ninja-fixed-some.csv). NINJA_VERSIONS adds
+    # the fix, 9.3.0, as the control: a run of it whose output differs is NINJA's doing
+    local np m v t
     t=ninja; [ -n "${NINJA_LIBRARY:-}" ] && [ "$NINJA_LIBRARY" != libninja-fixed.so ] && { t="${NINJA_LIBRARY#lib}"; t="${t%.so}"; }
     rm -f "$OUT/$t.csv"
-    for np in $NPS; do
-        local exp="$D/dealii-9.3.0-rc1/tests/remote_point_evaluation/$TEST.mpirun=$np.output"
-        for m in random system app; do
-            local extra=(); [ $m = random ] && extra=(--rand-ratio 10 --rand-delay 50000)
-            python3 experiments/ninja/run.py runs --np $np --mode $m "${extra[@]}" --runs "${NINJA_RUNS:-40}" --timeout $TIMEOUT \
-                --mpi mpich --label "$TEST-9.3.0-rc1" --out "$OUT/$t.csv" --keep "$OUT/$t-logs" \
-                --check "$R/experiments/dealii/differs.sh $D/dealii-9.3.0-rc1/cmake/scripts/normalize.pl $exp" \
-                -- "$b/$TEST" || return 1
+    for v in ${NINJA_VERSIONS:-9.3.0-rc1}; do
+        for np in $NPS; do
+            local exp="$D/dealii-$v/tests/remote_point_evaluation/$TEST.mpirun=$np.output"
+            for m in random system app; do
+                local extra=(); [ $m = random ] && extra=(--rand-ratio 10 --rand-delay 50000)
+                python3 experiments/ninja/run.py runs --np $np --mode $m "${extra[@]}" --runs "${NINJA_RUNS:-40}" --timeout $TIMEOUT \
+                    --mpi mpich --label "$TEST-$v" --out "$OUT/$t.csv" --keep "$OUT/$t-logs" \
+                    --check "$R/experiments/dealii/differs.sh $D/dealii-$v/cmake/scripts/normalize.pl $exp" \
+                    -- "$(bindir "$v")/$TEST" || return 1
+            done
         done
     done
 }
@@ -231,7 +240,7 @@ step_ninja_check() {
     local a=(--np 4 --runs "${CHECK_RUNS:-5}" --timeout $TIMEOUT --mpi mpich --out "$OUT/ninja-check.csv" --keep "$OUT/ninja-check-logs"
              --check "$R/experiments/dealii/differs.sh $D/dealii-9.3.0-rc1/cmake/scripts/normalize.pl $exp")
     python3 experiments/ninja/run.py runs --mode plain --label "$TEST-9.3.0-rc1" "${a[@]}" -- "$b/$TEST" || return 1
-    for lib in libninja-fixed.so libninja-fixed-some.so; do
+    for lib in libninja-fixed.so libninja-fixed-some.so libninja-fixed-some-testall.so; do
         NINJA_LIBRARY=$lib python3 experiments/ninja/run.py runs --mode random --rand-ratio 0.000001 --rand-delay 1 \
             --label "$TEST-9.3.0-rc1 ${lib%.so}" "${a[@]}" -- "$b/$TEST" || return 1
     done
