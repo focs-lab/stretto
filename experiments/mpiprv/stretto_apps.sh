@@ -33,9 +33,12 @@
 #   lammps   LAMMPS 3a2da51a: Irregular::create_atom and create_data in src/irregular.cpp
 #   superlu  SuperLU_DIST 9.3.1: the 3D solve's receive loops in SRC/double/pdgstrs3d.c (C)
 #   qe       Quantum ESPRESSO 615e40cf: elph_prt in PHonon/PH/elphon.f90 is Fortran
+#   dealii8929  deal.II 2c1b27fb: ConsensusAlgorithm_NBX::run() in source/base/mpi.cc (C++17,
+#            against the installed headers and the generated mpi.inst of the Open MPI build of
+#            experiments/dealii8929/run.sh, DEALII8929_DIR)
 # Writes experiments/results/mpiprv/stretto-apps.csv; logs under experiments/mpiprv/work/apps/.
 # usage: experiments/mpiprv/prv.sh experiments/mpiprv/stretto_apps.sh
-#        [hypre|dealii|mg|cabana|stempy|mfem332|lammps|superlu|qe ...]
+#        [hypre|dealii|mg|cabana|stempy|mfem332|lammps|superlu|qe|dealii8929 ...]
 set -uo pipefail
 R="$(cd "$(dirname "$0")/../.." && pwd)"; cd "$R"
 M="${MUST_APPS_DIR:-$R/third_party/apps/must}"
@@ -190,11 +193,22 @@ step_qe() {
     row qe 615e40cf "ph.x, Ni at X, 3 ranks in 3 pools" "-" "-" unsupported \
         "elph_prt (PHonon/PH/elphon.f90) is Fortran; MPI-PRV's instrumenter (wac, wacc, wacxx) weaves C and C++ sources only"
 }
+step_dealii8929() {
+    # the Open MPI build of experiments/dealii8929/run.sh (DEALII8929_DIR): its installed headers
+    # carry the configuration that compiled mpi.cc, and its build directory has mpi.inst, the
+    # instantiations that deal.II's build generates and mpi.cc includes
+    local D="${DEALII8929_DIR:-$R/third_party/apps/dealii8929}" c=2c1b27fbee49028f7de95863e44efe33d41f26ac
+    local s="$W/dealii8929-src/dealii-$c" i="$D/install-${c:0:8}/include"
+    [ -d "$s" ] || { mkdir -p "$W/dealii8929-src" && tar xzf "$D/dealii-$c.tar.gz" -C "$W/dealii8929-src"; } || return 1
+    weave dealii8929 2c1b27fb "nbx_calls 3, 4 and 8 ranks" wacxx "$s/source/base/mpi.cc" \
+        "ConsensusAlgorithm_NBX::run's request Isends, wildcard Iprobe and Recv" -std=c++17 -I"$i" -I"$i/deal.II/bundled" \
+        -I"$D/build-${c:0:8}/source/base"
+}
 aspect || { echo "the aspect library could not be built" >&2; exit 1; }
 steps=("$@"); [ $# -gt 0 ] || steps=(hypre dealii mg)
 for step in "${steps[@]}"; do
     case "$step" in
-        hypre|dealii|mg|cabana|stempy|mfem332|lammps|superlu|qe) "step_$step";;
-        *) echo "usage: $0 [hypre|dealii|mg|cabana|stempy|mfem332|lammps|superlu|qe ...]" >&2; exit 2;;
+        hypre|dealii|mg|cabana|stempy|mfem332|lammps|superlu|qe|dealii8929) "step_$step";;
+        *) echo "usage: $0 [hypre|dealii|mg|cabana|stempy|mfem332|lammps|superlu|qe|dealii8929 ...]" >&2; exit 2;;
     esac
 done

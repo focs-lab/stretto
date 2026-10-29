@@ -54,6 +54,7 @@
 \newcommand{\NekPerAlt}{0.11\xspace}
 \newcommand{\NekRecords}{10.3\xspace}
 \newcommand{\NinjaCabanaBest}{random, 10% of sends by 0.05 s, 4 ranks\xspace}
+\newcommand{\NinjaDealNbxBest}{application-centric, 8 ranks\xspace}
 \newcommand{\NinjaHypreEightAppRate}{0.62\xspace}
 \newcommand{\NinjaHypreEightRandomLongRate}{0.23\xspace}
 \newcommand{\NinjaHypreEightRandomShortRate}{0.30\xspace}
@@ -131,6 +132,7 @@
 \newcommand{\PRVfoneStretto}{0.60\xspace}
 \newcommand{\PRVfoneStrettoLC}{0.89\xspace}
 \newcommand{\PrvCabana}{unsupported\xspace}
+\newcommand{\PrvDealNbx}{unsupported\xspace}
 \newcommand{\PrvLammps}{out-of-scope\xspace}
 \newcommand{\PrvMfemGroup}{unsupported\xspace}
 \newcommand{\PrvQe}{unsupported\xspace}
@@ -1200,6 +1202,28 @@
 \newcommand{\nMustCabanaRuns}{40\xspace}
 \newcommand{\nMustCabanaTypematch}{0\xspace}
 \newcommand{\nMustCabanaWrong}{0\xspace}
+\newcommand{\nMustDealNbxCompleted}{40\xspace}
+\newcommand{\nMustDealNbxCrashed}{0\xspace}
+\newcommand{\nMustDealNbxDeadlock}{0\xspace}
+\newcommand{\nMustDealNbxFixCompleted}{40\xspace}
+\newcommand{\nMustDealNbxFixCrashed}{0\xspace}
+\newcommand{\nMustDealNbxFixDeadlock}{0\xspace}
+\newcommand{\nMustDealNbxFixNoEnd}{32\xspace}
+\newcommand{\nMustDealNbxFixRace}{0\xspace}
+\newcommand{\nMustDealNbxFixRaceCI}{[0, 0.088]\xspace}
+\newcommand{\nMustDealNbxFixRaceCIHi}{0.088\xspace}
+\newcommand{\nMustDealNbxFixRaceCILo}{0\xspace}
+\newcommand{\nMustDealNbxFixRuns}{40\xspace}
+\newcommand{\nMustDealNbxFixTypematch}{0\xspace}
+\newcommand{\nMustDealNbxFixWrong}{0\xspace}
+\newcommand{\nMustDealNbxNoEnd}{31\xspace}
+\newcommand{\nMustDealNbxRace}{0\xspace}
+\newcommand{\nMustDealNbxRaceCI}{[0, 0.088]\xspace}
+\newcommand{\nMustDealNbxRaceCIHi}{0.088\xspace}
+\newcommand{\nMustDealNbxRaceCILo}{0\xspace}
+\newcommand{\nMustDealNbxRuns}{40\xspace}
+\newcommand{\nMustDealNbxTypematch}{0\xspace}
+\newcommand{\nMustDealNbxWrong}{1\xspace}
 \newcommand{\nMustLammpsCompleted}{0\xspace}
 \newcommand{\nMustLammpsCrashed}{0\xspace}
 \newcommand{\nMustLammpsDeadlock}{37\xspace}
@@ -1316,6 +1340,47 @@
 \newcommand{\nNinjaCabanaThreeRandomRuns}{40\xspace}
 \newcommand{\nNinjaCabanaThreeSystemRevealed}{0\xspace}
 \newcommand{\nNinjaCabanaThreeSystemRuns}{40\xspace}
+\newcommand{\nNinjaDealNbxBestRevealed}{13\xspace}
+\newcommand{\nNinjaDealNbxBestRevealedCI}{[0.20, 0.48]\xspace}
+\newcommand{\nNinjaDealNbxBestRevealedCIHi}{0.48\xspace}
+\newcommand{\nNinjaDealNbxBestRevealedCILo}{0.20\xspace}
+\newcommand{\nNinjaDealNbxBestRuns}{40\xspace}
+\newcommand{\nNinjaDealNbxCheckPlainRevealed}{9\xspace}
+\newcommand{\nNinjaDealNbxCheckPlainRuns}{80\xspace}
+\newcommand{\nNinjaDealNbxEightAppRevealed}{13\xspace}
+\newcommand{\nNinjaDealNbxEightAppRuns}{40\xspace}
+\newcommand{\nNinjaDealNbxEightRandomRevealed}{11\xspace}
+\newcommand{\nNinjaDealNbxEightRandomRuns}{40\xspace}
+\newcommand{\nNinjaDealNbxEightSystemRevealed}{12\xspace}
+\newcommand{\nNinjaDealNbxEightSystemRuns}{40\xspace}
+\newcommand{\nNinjaDealNbxFixEightAppRevealed}{0\xspace}
+\newcommand{\nNinjaDealNbxFixEightAppRuns}{40\xspace}
+\newcommand{\nNinjaDealNbxFixEightRandomRevealed}{0\xspace}
+\newcommand{\nNinjaDealNbxFixEightRandomRuns}{40\xspace}
+\newcommand{\nNinjaDealNbxFixEightSystemRevealed}{0\xspace}
+\newcommand{\nNinjaDealNbxFixEightSystemRuns}{40\xspace}
+\newcommand{\nNinjaDealNbxFixFourAppRevealed}{0\xspace}
+\newcommand{\nNinjaDealNbxFixFourAppRuns}{40\xspace}
+\newcommand{\nNinjaDealNbxFixFourRandomRevealed}{0\xspace}
+\newcommand{\nNinjaDealNbxFixFourRandomRuns}{40\xspace}
+\newcommand{\nNinjaDealNbxFixFourSystemRevealed}{0\xspace}
+\newcommand{\nNinjaDealNbxFixFourSystemRuns}{40\xspace}
+\newcommand{\nNinjaDealNbxFixRevealed}{0\xspace}
+\newcommand{\nNinjaDealNbxFixRevealedCI}{[0, 0.016]\xspace}
+\newcommand{\nNinjaDealNbxFixRevealedCIHi}{0.016\xspace}
+\newcommand{\nNinjaDealNbxFixRevealedCILo}{0\xspace}
+\newcommand{\nNinjaDealNbxFixRuns}{240\xspace}
+\newcommand{\nNinjaDealNbxFourAppRevealed}{0\xspace}
+\newcommand{\nNinjaDealNbxFourAppRuns}{40\xspace}
+\newcommand{\nNinjaDealNbxFourRandomRevealed}{0\xspace}
+\newcommand{\nNinjaDealNbxFourRandomRuns}{40\xspace}
+\newcommand{\nNinjaDealNbxFourSystemRevealed}{0\xspace}
+\newcommand{\nNinjaDealNbxFourSystemRuns}{40\xspace}
+\newcommand{\nNinjaDealNbxRevealed}{36\xspace}
+\newcommand{\nNinjaDealNbxRevealedCI}{[0.11, 0.20]\xspace}
+\newcommand{\nNinjaDealNbxRevealedCIHi}{0.20\xspace}
+\newcommand{\nNinjaDealNbxRevealedCILo}{0.11\xspace}
+\newcommand{\nNinjaDealNbxRuns}{240\xspace}
 \newcommand{\nNinjaHypreEightAppFirst}{4\xspace}
 \newcommand{\nNinjaHypreEightAppHang}{25\xspace}
 \newcommand{\nNinjaHypreEightAppHangSetup}{25\xspace}

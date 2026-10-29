@@ -76,6 +76,13 @@ case "$check" in
             # judged once ph.x printed JOB DONE, whether or not mustrun ended after it
             { [ "$value" = 0 ] && wrong=False || wrong=True; }
         fi;;
+    nbx)
+        # the NBX driver's own check (experiments/dealii8929/nbx_calls.cc): value, the wrong answers
+        # rank 0 counts after the last call; a wrong answer that a rank printed is wrong when rank 0
+        # printed no count. Judged once the program printed either, whether or not mustrun ended
+        value=$(sed -n 's/.*nbx_calls: [0-9]* calls on [0-9]* ranks, \([0-9]*\) wrong answers.*/\1/p' <<< "$txt" | tail -1)
+        if [ -n "$value" ]; then { [ "$value" = 0 ] && wrong=False || wrong=True; }
+        elif grep -q "^call [0-9]* rank [0-9]*: the answer of rank" <<< "$txt"; then wrong=True; fi;;
 esac
 # residual and iterations: the bug is a hang; a printed value is the run's own (no reference)
 echo "$result,$rc,$took,${classes%%|*},${classes#*|},$dead,$value,$wrong"
