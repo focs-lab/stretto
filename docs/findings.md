@@ -120,13 +120,19 @@ alternatives took their pinned messages, every control diverged in its threads' 
 concentrator's worker pool hands requests to other workers in each run); not confirmed. Evidence:
 [experiments/subfiling](../experiments/subfiling/README.md) (`replay.csv`).
 
-Uintah 493d2b5 + hypre 2.33.0, Unified scheduler (`sus -nthreads`, Examples/solvertest1): every
-trace shows Uintah's reduction and hypre's `MPI_Allreduce` called concurrently by two threads on
-`MPI_COMM_WORLD` (observed `2-thread-collective`); untraced, 4 of 20 runs at 4 ranks with 2 threads
-pass and 0 of 20 with 4 (`MPI_ERR_TRUNCATE` in `MPI_Allreduce`), 20 of 20 with the MPI scheduler.
-That the pair is the cause is a hypothesis; L1 predicts no receive alternative and probe
-alternatives between hypre messages only. Not reported upstream. Evidence:
-[experiments/uintah](../experiments/uintah/README.md).
+**Uintah 493d2b5 (master on 30 Oct) + hypre 2.33.0, Unified scheduler** (`sus -nthreads`,
+Examples/solvertest1, 8 patches), a real bug, observed: every trace shows the `MPI_Allreduce` of
+`ApplicationCommon::reduceSystemVars` (`reduceMPI(..., -1)`, ApplicationCommon.cc:499, so
+`MPI_COMM_WORLD`) and hypre's (`hypre_StructGridAssemble`, the communicator of
+HypreSolver.cc's `pg->getComm()`) called concurrently by two threads (`2-thread-collective`).
+The scheduler starts the `usesMPI` task once the other tasks of its phase have been taken, not
+finished (UnifiedScheduler.cc:746, 709). Abort stacks put `MPI_ERR_TRUNCATE` in hypre's call,
+and the garbage delT 1.23516e-321 is hypre's int 250 read as a double. Untraced, 4 ranks, 40
+runs each: Open MPI 14 and 0 pass with 2 and 4 threads, MPICH 7 and 0; with hypre on a
+duplicated communicator (a 32-line patch) 40 of 40 in every setting, in both MPIs. The 2021 fix
+of the same conflict (fefdd7d) was reverted in Jan 2022; no issue mentions it. L1 predicts no
+receive alternative and probe alternatives between hypre messages only. Report drafted, not
+sent. Evidence: [experiments/uintah](../experiments/uintah/README.md) (`series.csv`).
 
 ## Not yet traced
 

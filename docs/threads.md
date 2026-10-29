@@ -921,8 +921,10 @@ they are not replayed. Every trace has an observed `2-thread-collective`: Uintah
 (`OnDemandDataWarehouse::reduceMPI`) and hypre's `MPI_Allreduce` on two threads of a rank, on
 `MPI_COMM_WORLD`, unordered. Untraced, runs with threads end in `MPI_ERR_TRUNCATE` inside
 `MPI_Allreduce` (4 ranks: 4 of 20 passed with 2 threads, 0 of 20 with 4; 2 ranks, 2 threads: 14
-of 20), the single-threaded MPI scheduler passes 20 of 20. That the failing call is that pair is
-a hypothesis.
+of 20), the single-threaded MPI scheduler passes 20 of 20. That the failing call is that pair was
+a hypothesis; confirmed 30 Oct (abort stacks, and hypre on a duplicated communicator passes 40
+of 40 in every setting with both MPIs; [experiments/uintah](../experiments/uintah/README.md),
+"Cause and fix").
 
 **Defect found on the way.** The reduced orientation edges of milestone B kept the views of a
 chain's receive classes and send tags in one cache with keys of one shape; on Uintah's trace a
