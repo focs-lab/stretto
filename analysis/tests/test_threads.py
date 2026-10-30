@@ -268,6 +268,9 @@ class C_Tasks(unittest.TestCase):
             # the concurrent swap (1f, its truncating half 1a) and, in some runs, a steal variant (1f)
             self.assertEqual({f.cls for f in rep.findings if f.level == "L1"}, {"1a", "1f"}, format_report(t, rep))
             self.assertTrue(any("concurrent swap" in d for f in rep.findings for d in f.detail))
+            # a chain's site ids are its process's: the tasks' receives have their call sites
+            for c in tasks:
+                self.assertIsNotNone(t.site_of(c, t.recvs[(c, 0)].idx), f"{mpi}: chain {c}")
 
     def test_ordered_tasks_do_not_race(self):
         """Idioms 35 (depend), 36 (taskgroup, taskwait, team barrier, nested task): no finding."""

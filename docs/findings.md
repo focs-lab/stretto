@@ -102,6 +102,9 @@ with the hunt notes, outside this repository.
   Gating every concurrent pair instead of the reordered ones timed out on the same pools; fixed
   30 Oct. The reduced orientation edges shared one cache between receive and send views and ended
   the analysis of a Uintah trace; fixed 30 Oct (84 multithreaded reports unchanged).
+  Records of chains other than a rank's first had no call site (`Trace.site_of` looked the
+  process's site ids up under the chain), so `stretto sites` and the report's grouping missed
+  worker threads' records; found on Uintah's ARCHES traces, fixed 30 Oct.
 - MPI inside OpenMP tasks (SLATE, 30 Oct): every trace with messages was degraded
   `threads-tasks`, and with it the observed thread classes were skipped, so the traces of runs
   in which SLATE's tag race happened reported nothing; `experiments/slate/overlap.py` located the

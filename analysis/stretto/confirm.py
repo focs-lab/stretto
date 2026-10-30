@@ -269,15 +269,9 @@ def _local_comms(t) -> Dict[Tuple[int, int], int]:
 
 
 def _site_of(t, x) -> Optional[Tuple[str, int]]:
-    """The call site of operation x: Trace.site_of, whose site records are the process's when x
-    is on a chain of a split rank."""
-    proc = getattr(x, "proc", x.rank)
-    if proc == x.rank:
-        return t.site_of(x.rank, x.idx)
-    ids = t._site_ids.get(x.rank)
-    sid = ids[x.idx] if ids is not None and x.idx < len(ids) else -1
-    s = t.sites.get((proc, sid)) if sid >= 0 else None
-    return None if s is None else (s.get("obj", "?"), s.get("addr", 0) - s.get("base", 0))
+    """The call site of operation x (Trace.site_of, which looks a chain's sites up under its
+    process)."""
+    return t.site_of(x.rank, x.idx)
 
 
 def identity(t, x) -> Ident:

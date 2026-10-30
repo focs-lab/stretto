@@ -305,16 +305,15 @@ class Trace:
     def site_of(self, rank: int, idx: int) -> Optional[Tuple[str, int]]:
         """The call site of record idx of rank as (object path, offset in the object), the
         same in every process of the run; None if the tracer recorded none."""
-        ids = self._site_ids.get(rank)
-        sid = ids[idx] if ids is not None and idx < len(ids) else -1
-        s = self.sites.get((rank, sid)) if sid >= 0 else None
+        s = self.site_record(rank, idx)
         return None if s is None else (s.get("obj", "?"), s.get("addr", 0) - s.get("base", 0))
 
     def site_record(self, rank: int, idx: int) -> Optional[dict]:
-        """The tracer's site record (object, return address, load address) of record idx."""
+        """The tracer's site record (object, return address, load address) of record idx; rank
+        may be a chain, whose site ids are its process's (the tracer numbers sites per process)."""
         ids = self._site_ids.get(rank)
         sid = ids[idx] if ids is not None and idx < len(ids) else -1
-        return self.sites.get((rank, sid)) if sid >= 0 else None
+        return self.sites.get((self.proc.get(rank, rank), sid)) if sid >= 0 else None
 
     def site_label(self, rank: int, idx: int) -> Optional[str]:
         s = self.site_of(rank, idx)
