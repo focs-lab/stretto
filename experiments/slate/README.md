@@ -78,8 +78,9 @@ before the tall control, and the arithmetic for m <= n is the same.)
 (`A_mt + A_nt = 2 A_mt`).
 
 **Traces** (`traced.sh`, [traced.csv](traced.csv), 5 traced runs of each library at 1000x2000 on
-2x2). Stretto reports nothing: every trace is degraded `threads-tasks` (MPI inside explicit
-OpenMP tasks, which are not chains; docs/threads.md §9), so only the thread-level check runs.
+2x2; the tracer before 30 Oct). Stretto reports nothing: every trace is degraded `threads-tasks`
+(MPI inside explicit OpenMP tasks, which were not chains; docs/threads.md §9), so only the
+thread-level check runs.
 `overlap.py` scans a trace for operations of one envelope (direction, communicator, peer, tag)
 on two threads of a rank whose [start, completion] intervals overlap, leaving out operations
 completed by another thread or freed. Every operation `permuteRows` starts it completes in the
@@ -94,6 +95,31 @@ of tags 21-29 on ranks 2 and 3 can only be the trailing update of step 9 (column
 separates. Of all 19 traced plain runs (these 5, 5 of an earlier version of the scan, 8 with
 their logs kept, 1 read in detail), 3 aborted with `MPI_ERR_TRUNCATE` and 16 gave wrong
 factors; untraced none aborted (the tracer's issue lock changes the interleavings).
+
+**Traces since the tracer follows tasks** (docs/threads.md §12; `traced_cells.sh`,
+[traced-cells.csv](traced-cells.csv), 5 traced runs per cell, Stretto's L1 report and
+`finding_sites.py`, which names the function of each finding's receive). Each task is a chain
+ordered by its creation, dependences, taskwaits and barriers, and the race is an L1 concurrent
+swap or steal of two tasks' receives:
+
+| cell (4 ranks, 4 threads, nb 100) | runs (factor) | traces with findings | L1 findings per trace | in `permuteRows` |
+|---|---|---|---|---|
+| 1000x2000, 2x2, plain | 4 wrong, 1 aborted | 4 of 5 | 4 to 86 | all, tags 20-27 |
+| 1000x2000, 4x1, plain | 3 wrong, 2 right | 5 of 5 | 7 to 105 (two 1a) | all |
+| 1000x2000, 2x2 and 4x1, patched | 10 right | 0 of 10 | 0 | |
+| 1000x1000 (square), 900x2000, partial pivoting, plain | 15 right | 0 of 15 | 0 | |
+
+The 1a findings are the trailing broadcast's 80 000-byte tile taken by a 36 000-byte row receive,
+the `MPI_ERR_TRUNCATE` of the aborted runs. The aborted run's trace is degraded `reconstruction`
+(its last receive's size disagrees with the reconstructed message); one wrong 2x2 run also has an
+observed `2-buffering` (the observed matching judged infeasible), not diagnosed. 8 more traced
+2x2 runs, all with a right factor: 37 to 90 findings each (one 1a), all in `permuteRows`, tags
+20 to 27. The traced share of wrong runs varied between sessions (above 7 of 10, later 0 of 52,
+the tracer of main too; untraced 10 of 10 wrong). Replay of the 1a alternative of a right run
+([replay.csv](replay.csv), 3 replays, 3 controls): not confirmed; one replay ended in
+`MPI_ERR_TRUNCATE` with its pins unmatched and its synchronisation diverged, two at a gate
+timeout, and every control gave a wrong factor on its own. The tasks take locks
+(`LockGuard` on tile nodes, `critical(slate_mpi)`) whose order varies between runs.
 
 **Upstream.** Not found in the issue tracker (searched 30 Oct for tntpiv, CALU, getrf, tag,
 hang): the only CALU issue, #70 (accuracy on GPUs, square matrix, closed Jan 2024), is another
@@ -141,14 +167,18 @@ have no point-to-point message at all and are analysed completely, 0 findings. T
 binary of the sweep was linked against the patched library, which for square matrices uses the
 same tags.
 
+With the tracer following tasks ([sweep-d.csv](sweep-d.csv)): all 39 routines pass traced and
+untraced (`gelqf` and `geqrf` included), 30 traces are analysed completely and 9 are degraded
+`threads-handoff` (`gesv`, `gesv_tntpiv`, `geqrf`, `gelqf`, `gels`, `unmqr`, `he2hb`, `ge2tb`,
+`svd`: requests completed by another task), 0 findings in every trace.
+
 ## What the tool did and did not do on these traces
 
-- **Gap: MPI in OpenMP tasks.** Every SLATE trace with messages is degraded `threads-tasks`
-  (`analysis/stretto/chains.py:116`, `report.py:242`): no alternative is predicted and the
-  observed thread classes are skipped (`threads.observed_findings` with `tasks=True`), even on
-  traces in which the race happened. The physical overlap that `overlap.py` reads needs no
-  happens-before and found it in every plain trace; an observed class from it would cover such
-  programs where the overlapping operations are posted and completed within one call.
+- **Gap: MPI in OpenMP tasks, closed 30 Oct.** Until then every SLATE trace with messages was
+  degraded `threads-tasks` (`analysis/stretto/chains.py`, `report.py`): no alternative was
+  predicted and the observed thread classes were skipped, even on traces in which the race
+  happened; `overlap.py`, which needs no happens-before, located it. Since the tracer follows
+  tasks as chains (docs/threads.md §12) the race is predicted at L1 from clean traces (above).
 - **Defect, fixed 30 Oct: the tracer aborted traced `gelqf` and `geqrf` runs.** Traced `gelqf`
   and `geqrf` runs (tester, square 800, nb 100, 2x2, 4 threads, Open MPI) ended in
   `MPI_ERR_TYPE: invalid datatype` "in MPI_Get_count" (17 and 11 of 20 runs), untraced never.
@@ -162,15 +192,17 @@ same tags.
   records an unknown count, and the program's own `MPI_Get_count` on the freed handle fails.
   The tracer now keeps the type's size from the posting and computes the count from the bytes
   the status reports; with it 20 of 20 traced runs of each routine pass. Regression idiom 33.
-- **Chain names.** The OpenMP threads that run SLATE's tasks appear as chains named `u` of kind
-  `pthread` (untracked), not as `0/p.j`: libgomp runs deferred tasks in the region's closing
+- **Chain names, fixed 30 Oct.** The OpenMP threads that ran SLATE's tasks appeared as chains
+  named `u` of kind `pthread` (untracked): libgomp runs deferred tasks in the region's closing
   barrier, after the outlined function has returned and the tracer's `omp_tramp` has restored
-  the pool thread's chain (`tracer/mpitrace.c:2830-2850`; a reading of the code, not checked
-  further). Their synchronisation is then not recorded.
+  the pool thread's chain. Each task now runs on a chain of its own, `0~k`.
 
 ## Files
 
 `Dockerfile` (CMake, OpenBLAS, gdb on top of stretto-exp:24.04), `build.sh` (tester),
 `build-lib.sh` (library, plain and patched, and the driver, per MPI), `wide_lu.cc` (driver and
-oracle), `series.sh`, `traced.sh`, `sweep.sh`, `overlap.py`, `sites.sh` (call sites by gdb's
-`info symbol`), `typefree.c`, `tntpiv-tags.patch` (against 878439b, `git apply` or `patch -p1`).
+oracle), `series.sh`, `traced.sh`, `traced_cells.sh` (traced cells with Stretto's report),
+`finding_sites.py` (functions of the findings' receives), `sweep.sh`, `overlap.py`, `sites.sh`
+(call sites by gdb's `info symbol`), `typefree.c`, `tntpiv-tags.patch` (against 878439b, `git
+apply` or `patch -p1`);
+results: `series*.csv`, `traced.csv`, `traced-cells.csv`, `sweep.csv`, `sweep-d.csv`, `replay.csv`.
