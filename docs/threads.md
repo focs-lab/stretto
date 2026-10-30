@@ -3,7 +3,8 @@
 Status: designed 29 Oct 2026; milestone A (tracer, loader, analysis at L1, the observed thread
 classes, tests) implemented the same day, section 9 says how it differs from the design; section
 10 says how milestone B made the check scale and what it found in HDF5's Subfiling VFD; section 11
-says how milestone C replays alternatives of several threads (30 Oct 2026). Decided
+says how milestone C replays alternatives of several threads, section 12 how milestone D follows
+OpenMP tasks (both 30 Oct 2026). Decided
 29 Oct 2026: Stretto is extended to programs in which several threads of an MPI process call MPI
 on shared communicators (`MPI_THREAD_MULTIPLE`, and `MPI_THREAD_SERIALIZED` with several calling
 threads). Before, such a trace was analysed for observed findings only (`docs/model.md` §6). This
@@ -194,7 +195,7 @@ What produces `after`:
 | | `GOMP_barrier`, `GOMP_loop_end`, `GOMP_sections_end`, `GOMP_single_*` with its barrier | barrier of the team |
 | | `GOMP_critical_start/end`, `GOMP_critical_name_*`, `omp_set/unset_lock`, nest locks, `GOMP_ordered_*` | as mutexes |
 | | `GOMP_sections_next`, `GOMP_loop_*_next` (dynamic and guided schedules), `GOMP_single_start` | a read-modify-write of the work-share: which chain gets which section or chunk is a result of the runtime, so its order is preserved like a lock's |
-| | `GOMP_task`, `GOMP_taskwait`, `GOMP_taskgroup_*`, dependences | not in v1: an MPI call inside an explicit task degrades the trace (`threads-tasks`) |
+| | `GOMP_task`, `GOMP_taskwait`, `GOMP_taskgroup_*`, dependences | not in v1: an MPI call inside an explicit task degrades the trace (`threads-tasks`); since milestone D (section 12) each task is a chain, ordered by its creation, dependences, taskwait, taskgroup and team barriers |
 
 Synchronisation inside an MPI call (the library's own mutexes, which Open MPI may take through
 `pthread_mutex_lock`) and from the library's progress threads must be ignored: the wrapper skips
@@ -205,7 +206,8 @@ would order user threads.
 OpenMP through OMPT (LLVM's libomp, which gcc's libgomp does not implement) is the portable route
 and the one that covers tasks, as the Archer tool does for data races; it needs clang and libomp
 in the image (the experiment image has neither; the first-read image has clang 18 but no libomp).
-Planned for v2.
+Planned for v2; not built (section 12: libgomp has no OMPT, and tasks are followed through its
+entry points).
 
 ### 2.3 What the first version assumes
 
@@ -216,7 +218,7 @@ Planned for v2.
 | P-T3 arbitrary scheduling and per-thread progress | any thread may be delayed arbitrarily; a blocked thread does not stop others (§12.6.1, requirement 2) | none in practice: the standard requires the second part of any thread-compliant implementation |
 | P-T4 physical matching | the implementation matches in the order in which its posting entry points ran, serialised by the issue lock | the observed matching is wrong; checked against counts and hashes, and the trace degraded (`reconstruction`) when they disagree |
 | P-T5 deterministic chain names | each chain creates threads and enters parallel regions in the same order in every run | replays name the wrong chain and end as misapplied (inconclusive); no effect on the analysis |
-| P-T6 no MPI in explicit tasks (v1) | | the trace is degraded |
+| P-T6 no MPI in explicit tasks (v1; since milestone D, none in tasks the tracer does not follow, section 12) | | the trace is degraded |
 
 What is lost, and in which direction:
 
@@ -667,7 +669,7 @@ the checker can be trusted (the E6 comparison), so it moves before step 3 (c).
 2. The issue lock and the blocking rewrite under MULTIPLE, as designed, switchable by
    `STRETTO_THREADS=0`, with their perturbation measured.
 3. OpenMP through libgomp's entry points in v1; no clang or libomp image now.
-4. MPI calls in explicit OpenMP tasks: degraded in v1.
+4. MPI calls in explicit OpenMP tasks: degraded in v1 (tasks are chains since milestone D, section 12).
 5. The observed thread classes (3.7) are in scope, reported as observed findings.
 6. Targets: MPICH's `test/mpi/threads` (commit fb003aa; the `mt_*` tests run a racy phase and
    two controls) and MPI-CorrBench's OpenMP ordering pairs (Probe against Mprobe) as programs
@@ -930,3 +932,115 @@ of 40 in every setting with both MPIs; [experiments/uintah](../experiments/uinta
 chain's receive classes and send tags in one cache with keys of one shape; on Uintah's trace a
 collision ended the analysis (internal error). Fixed; on the 84 multithreaded traces of
 milestone B text and JSON reports are unchanged.
+
+## 12. Milestone D as built (30 Oct 2026): OpenMP tasks as chains
+
+Planned in 7.1 as OMPT with libomp. Not possible in the images: libgomp (gcc 14.2's, in the
+experiment image and the SLATE image) exports no OMPT symbol, and neither image has clang or
+libomp. Tasks are followed through libgomp's entry points instead, as parallel regions are
+(decision 3).
+
+**Tracer** (`tracer/mpitrace.c`, section "OpenMP explicit tasks"; the trace format keeps version
+3). Each explicit task is a chain of kind `task`, named `c~k` (the k-th task chain c created), so
+an MPI call in a task is no longer degraded. `GOMP_task` hands libgomp a trampoline and a copy of
+the task's data behind a pointer to the task's state (through the program's copy function when
+it has one). Edges:
+
+- creation: a release of the creator, which the task's start takes;
+- dependences, kept per parent and address as gcc 14's `gomp_task_handle_depend` orders them: in
+  and inoutset after the latest out, inout or mutexinoutset of the address and the other in-type
+  since it, out-type after all of these, `omp_all_memory` after every earlier sibling with
+  dependences and before every later one, `omp_depend_t` objects included; recorded also when the
+  sibling has already completed (libgomp then does not wait, but the order is the program's);
+- the task's end, a release taken by the parent's next `taskwait`, by the innermost `taskgroup`
+  open at its creation, by the departures of the team barrier of its generation (a task belongs to
+  its creator's generation) and the region's end, and by the creator's return from `GOMP_task`
+  when libgomp ran the task inside the call (undeferred: `if(0)`, a final task's child, or
+  libgomp's bound on queued tasks); `taskwait depend(...)` takes the ends its clauses name.
+
+Not followed, written as a `task` record (`what`: `untracked` or `detach`) and degraded
+`threads-tasks`: MPI calls in tasks of `taskloop` (libgomp creates them inside), and any MPI call
+after a detached task was created (its end is `omp_fulfill_event`'s). Chains are now reference
+counted: one without records is freed only after the chains it created, which a child looks up
+for its parent's id (before, an implicit task's chain was freed at the region's end while a task
+it created could still run). The chains named `u` of SLATE's traces (`experiments/slate`) are
+gone: the deferred tasks that libgomp runs in the closing barrier run on their own chains.
+
+**Analysis.** Unchanged but the loader's message for `what: detach`: a task chain is a chain, so
+candidates, the L1 check and the observed classes apply to tasks. P-T6 (2.3) now reads: MPI
+calls are made outside tasks or in tasks the tracer follows. A new premise, **P-T7 task
+progress**: an alternative's schedule needs, at every point, a thread for each task in progress;
+a tied task blocked in MPI holds its thread, the team has a fixed number of threads, and libgomp
+decides which ready task a free thread runs. The claim of T1-T holds where the tasks that the
+alternative keeps in progress at once fit the team; where they do not, the alternative is
+unrealisable (over-prediction; a replay times out as inconclusive). The other way, a program can
+hang because every thread blocks in a task that waits for a task no thread runs (CorrBench's
+`deadlock_task_send_recv`); L1 does not predict that (under-prediction).
+
+**Step 3: the finding.** The cross-task match of SLATE's CALU collision is a receive alternative
+the machinery already expresses: the two tasks' receives with one envelope are concurrent
+receives with a competitor, and the concurrent swap and the steal of 3.3 change both or one of
+them; they are certified by T1-T, so no new class was needed. A class from physical overlap
+alone (`experiments/slate/overlap.py`) was not added: an overlap of two operations' [posting,
+completion] intervals shows concurrency only where each is posted and completed in one call
+with no synchronisation in between, which the trace does not say, and with the tasks' order
+recorded the happens-before already gives concurrency where it holds.
+
+**Results** (a-p13, Open MPI unless said).
+
+- Idioms 33-36, both MPIs: 33 (a receive's type freed while pending) counts 1 and 1, no finding;
+  34 (two unordered tasks receive on one tag) an L1 concurrent swap with its 1a truncation; 35
+  (ordered by `depend`) and 36 (ordered by a taskgroup, a taskwait, a team barrier, a nested
+  task, an undeferred task) no finding. Mutations of the tracer that drop the task-end joins,
+  the dependence edges or the undeferred edge make 35 and 36 report findings (1 to 19).
+- SLATE wide CALU (`experiments/slate/traced_cells.sh`, [traced-cells.csv](../experiments/slate/traced-cells.csv),
+  5 traced runs per cell, 4 ranks of 4 threads, nb 100): plain 1000x2000 on 2x2, 4 of 5 traces
+  report 4 to 86 L1 findings, every L1 one at a receive in `slate::internal::permuteRows`
+  (internal_swap.cc) with a tag in the collision range [20, 29]; the fifth run aborted with
+  `MPI_ERR_TRUNCATE` and its trace is degraded `reconstruction`. Plain on 4x1: 5 of 5, 7 to 105
+  findings, two of them 1a (the 80 000-byte tile into a 36 000-byte row receive), including 2
+  runs whose factor came out right. 8 further traced 2x2 runs, all with a right factor: 37 to 90
+  findings each (one 1a), all in `permuteRows`, tags 20 to 27 (not in the CSV: the same command
+  with the traces kept, for the replay below). Patched library (2x2 and 4x1), square 1000x1000,
+  partial pivoting and 900x2000 (q does not divide A_mt): 0 findings in all 25 traces, status
+  complete.
+  Traces 0.7 MB, 54 to 58 chains per rank; analysis 34 to 436 s per plain trace, 1 to 3 s per
+  patched one. One plain 2x2 trace whose factor came out wrong also had an observed
+  `2-buffering` ("observed matching infeasible even with infinite buffering"); not diagnosed (no
+  wrong traced run since). Untraced 10 of 10 runs are wrong; traced, the share varies between
+  sessions (7 of 10 wrong and 1 aborted in the series; 0 of 52 later, and 0 of 10
+  with the tracer of main at that time; that the load of the machine decides it is a guess).
+- SLATE sweep (`sweep.sh`, [sweep-d.csv](../experiments/slate/sweep-d.csv), 39 tester routines,
+  square 800): every routine passes traced and untraced; 30 traces complete and 9 degraded
+  `threads-handoff` (requests completed by another task: `gesv`, `gesv_tntpiv`, `geqrf`, `gelqf`,
+  `gels`, `unmqr`, `he2hb`, `ge2tb`, `svd`), 0 findings in all 39 (before: 31 degraded
+  `threads-tasks`).
+- Replay (`replay_sample.py --threads`, the 1a alternative of a run with a right factor, 3
+  replays and 3 controls): not confirmed. One replay ended in `MPI_ERR_TRUNCATE`, the predicted
+  consequence, but its pins did not take their messages and its synchronisation differed from the
+  trace's; two ended at a gate timeout; all three controls finished with a wrong factor, the race
+  happening on its own. SLATE's tasks take locks (`LockGuard` on tile nodes, `critical(slate_mpi)`,
+  `include/slate/BaseMatrix.hh`, `Tile.hh`) whose order varies between runs, and a gated task
+  holds its thread (P-T7): forcing one pair of tasks needs the lock order replayed, as for HDF5
+  (section 11).
+- MPI-CorrBench (a05644b, 2 ranks, 2 threads): the 14 OpenMP ordering programs that call MPI in
+  tasks, all degraded `threads-tasks` before, retraced. Of the 9 with an error,
+  `two_collectives_3`, `_4`, `_6`, `_7` now report `2-thread-collective`, `_5` also `2-collective`;
+  missed: `two_collectives_8` (the broadcasts' order across ranks is decided by a critical
+  section: lock order, L1+SP-T), `deadlock_task_send_recv` (every thread blocks in a task: P-T7),
+  `task_comm_free` (handle lifetime, outside the model), and `nondeterministic_deadlock`
+  overflows the tracer's chain table (more than 256 chains with records on a rank; degraded
+  `tracer-overflow`). Of the 5 labelled correct, `correct/two_collectives_4` reports
+  `2-thread-collective` and `_5` `2-collective`, and both are errors as built: in the first each
+  of the 2 threads creates a barrier task and a broadcast task, so two barriers of a rank are
+  concurrent; in the second rank 0's 2 threads issue 4 broadcasts against rank 1's 2.
+- Chain table: SLATE's wide CALU at nb 100 makes about 3 chains per tile column and rank (54 to
+  58 at 1000x2000, 114 at 2000x4000, 174 at 3000x6000), so the 256 chains per rank of the tracer
+  overflow from about 4 500x9 000 (extrapolated). Not raised: a vector clock is 4 KB per object
+  at 256 chains and grows with the bound.
+- Gate: the 531 single-chain traces, idiom 32 and the 84 multithreaded traces of milestone B,
+  analysed by main (b857bd2) and this branch as text, `--json` and `--full-profile --json`: 1 848
+  outputs and exit statuses, 0 differences (those traces predate task chains; their
+  `threads-tasks` stays).
+- Unit tests (RUNBOOK tests step, `STRETTO_REQUIRE_TRACES=1`, idioms traced first): 525 run, 17
+  skipped, all pass, in the experiment image and in the SLATE image.

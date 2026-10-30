@@ -102,18 +102,23 @@ with the hunt notes, outside this repository.
   Gating every concurrent pair instead of the reordered ones timed out on the same pools; fixed
   30 Oct. The reduced orientation edges shared one cache between receive and send views and ended
   the analysis of a Uintah trace; fixed 30 Oct (84 multithreaded reports unchanged).
-- MPI inside OpenMP tasks (SLATE, 30 Oct): every trace with messages is degraded
-  `threads-tasks`, and with it the observed thread classes are skipped, so the traces of runs
-  in which SLATE's tag race happened report nothing. Operations of one envelope pending at once
-  on two threads, each posted and completed within one call, are concurrent without any
-  happens-before; `experiments/slate/overlap.py` finds them in every such trace. Open. The
-  tracer aborted traced SLATE `gelqf` and `geqrf` runs (17 and 11 of 20) with `MPI_ERR_TYPE` in
-  its own `MPI_Get_count`: SLATE frees a pending receive's datatype (allowed), the library
-  releases it when the receive completes, and the tracer then asked about the freed handle
-  (confirmed with a diagnostic build). Fixed 30 Oct: the count comes from the type's size at the
-  posting; 20 of 20 traced runs each pass (idiom 33). SLATE's task threads appear as untracked
-  chains named `u` (libgomp runs deferred tasks after the outlined function returned; by
-  reading). Open.
+- MPI inside OpenMP tasks (SLATE, 30 Oct): every trace with messages was degraded
+  `threads-tasks`, and with it the observed thread classes were skipped, so the traces of runs
+  in which SLATE's tag race happened reported nothing; `experiments/slate/overlap.py` located the
+  race without happens-before. Fixed 30 Oct (milestone D, [threads.md](threads.md) §12): explicit
+  tasks are chains ordered by creation, dependences, taskwait, taskgroup and team barriers
+  (libgomp's entry points: its runtime has no OMPT), and the race is an L1 concurrent swap or
+  steal; still degraded: `taskloop` and detached tasks, and requests completed by another task
+  (`threads-handoff`, 9 of SLATE's 39 tester routines). A premise is added (P-T7): the tasks an
+  alternative keeps in progress at once must fit the team's threads. The tracer aborted traced
+  SLATE `gelqf` and `geqrf` runs (17 and 11 of 20) with `MPI_ERR_TYPE` in its own
+  `MPI_Get_count`: SLATE frees a pending receive's datatype (allowed), the library releases it
+  when the receive completes, and the tracer then asked about the freed handle (confirmed with a
+  diagnostic build). Fixed 30 Oct: the count comes from the type's size at the posting; 20 of 20
+  traced runs each pass (idiom 33). SLATE's task threads appeared as untracked chains named `u`;
+  fixed with the task chains. Open: replays of task alternatives diverge (SLATE's tasks take
+  locks whose order varies; a gated task holds its thread), and one wrong traced run's observed
+  matching was judged infeasible (`2-buffering`, observed), not diagnosed.
 
 ## Multithreaded benchmarks (L1 only)
 
@@ -121,7 +126,11 @@ MPICH fb003aa `test/mpi/threads/pt2pt` `mt_*` (16 iterations): every finding is 
 phase (one communicator and tag), none in the two control phases. MPI-CorrBench a05644b OpenMP
 ordering: 8 of 23 erroneous programs found (4 deadlocks observed, 2 concurrent collectives,
 request reuse, Probe-then-Recv as 1f); 2 need lock reordering (L1+SP-T, not built); task
-programs are degraded; 0 of 15 correct programs get an error class.
+programs were degraded; 0 of 15 correct programs get an error class. With tasks followed (30 Oct,
+[threads.md](threads.md) §12): 5 more found (`two_collectives_3` to `_7`), `_8` needs lock
+reordering, `nondeterministic_deadlock` overflows the tracer's 256-chain table; 2 programs
+labelled correct now get an error class, and both are erroneous as built (concurrent barriers;
+4 broadcasts on one rank against 2).
 
 At 1 024 iterations (milestone B, [threads.md](threads.md) §10) the same holds for the three
 receive tests: 5, 39 and 49 L1 1f findings, all on the racy phase's threads.
@@ -162,16 +171,23 @@ so for n > m left column j and right column j + A_mt share a tag, and their task
 100, residual `||PA - LU||` 0.33 to 6.5 instead of 6e-17: 2x2 grid 40 of 40 wrong, 4x1 28 of 40
 (Open MPI), 20 of 20 and 20 of 20 (MPICH); with the left tags started at `A_mt + A_nt` (one
 line) 0 wrong in every cell; square, one thread, 900x2000 on 2x2 (q does not divide A_mt) 0
-wrong. Traced, also
-`MPI_ERR_TRUNCATE` (3 of 19 runs). Stretto degrades every SLATE trace (`threads-tasks`); same-
-envelope `permuteRows` exchanges pending on two threads at once, 16 to 33 per plain trace and 0
-per patched one, located it in the traces. The tester checks `getrf` only on square matrices.
+wrong. Traced, also `MPI_ERR_TRUNCATE` (3 of 19 runs). Until 30 Oct Stretto degraded every
+SLATE trace (`threads-tasks`), and same-envelope `permuteRows` exchanges pending on two threads
+at once (16 to 33 per plain trace, 0 per patched one) located it. Since the tracer follows tasks
+(milestone D), Stretto predicts it at L1 from clean traces: 9 of 10 plain wide traces (2x2 and
+4x1) report 4 to 105 concurrent swaps and steals, every one at a receive in `permuteRows` with a
+tag of the collision range (two of them 1a, the 80 000-byte tile into a 36 000-byte row
+receive), also in runs whose factor came out right (2 of 10, and 8 more right runs with 37 to 90
+each, one 1a); the tenth aborted (`reconstruction`); 0 findings in 10 patched and 15 control traces
+(square, partial pivoting, 900x2000) and in the 39-routine sweep. Not confirmed by replay (task
+locks and gates diverge). The tester checks `getrf` only on square matrices.
 Shown safe by reading: partial-pivoting `getrf` (tag = column, chained by `column[j]`),
 `potrf`, `gemmA`/`gemmC`/`herk` (chained broadcasts), `geqrf` and `ttmqr` (disjoint column
 ranges), `getrf_nopiv` (shared tags, but row and column process sets meet in one rank), `he2hb`,
 the pivot `MPI_Bcast`s in chained panel tasks; 39 tester routines (square 800, 2x2, 4 threads)
 pass untraced, with no such overlap in their traces. Report drafted, not sent. Evidence:
-[experiments/slate](../experiments/slate/README.md) (`series.csv`, `series-mpich.csv`).
+[experiments/slate](../experiments/slate/README.md) (`series.csv`, `series-mpich.csv`,
+`traced-cells.csv`).
 DLA-Future not built (below).
 
 ## Not yet traced
