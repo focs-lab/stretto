@@ -33,12 +33,14 @@ import sys
 from typing import Dict, Iterable, List
 
 ERROR = {"1a", "1c", "1d", "2-buffering", "2-collective", "2-blocked", "2-ready", "3-local", "3-race", "abort",
-         "2-thread-collective", "2-thread-wait", "2-thread-finalize", "2-thread-level"}   # the last four: docs/threads.md
+         "2-thread-collective", "2-thread-wait", "2-thread-finalize", "2-thread-level",   # these four and the next: docs/threads.md
+         "2-lock-order"}
 WARN = {"1b", "1f", "probe-alt", "waitany-order", "probe-flip", "probe-unflip", "test-flip"}
 OBSERVED = {"observed:1c", "observed:2-blocked", "observed:2-collective", "observed:2-ready", "observed:3-local",
             "observed:abort", "observed:2-thread-collective", "observed:2-thread-wait", "observed:2-thread-finalize",
             "observed:2-thread-level"}
-PREDICTED = {"L1:1a", "L1:1c", "L1:1d", "L1+SP:1a", "L1+SP:1c", "L1+SP:1d", "observed:2-buffering"}   # 2-buffering on finished runs only
+PREDICTED = {"L1:1a", "L1:1c", "L1:1d", "L1+SP:1a", "L1+SP:1c", "L1+SP:1d", "observed:2-buffering",   # 2-buffering on finished runs only
+             "L1+L:1a", "L1+L:1c", "L1+L:1d", "L1+L:2-lock-order", "L1+L:2-thread-collective"}   # lock order changed
 FLAGGED = {"L1:1a", "L1:1b", "L1:1f"}            # a wildcard alternative found from the trace alone
 CERTIFIED = {"L1:1a", "L1:1c", "L1:1d", "L1+SP:1a", "L1+SP:1c", "L1+SP:1d"}   # an error consequence of a predicted alternative
 L1_ONLY = {"L1:1a", "L1:1c", "L1:1d"}            # an error consequence without the single-path assumption

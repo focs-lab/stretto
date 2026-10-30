@@ -1075,10 +1075,14 @@ def chain_note(t: Trace) -> str:
 # ------------------------------------------------------------------ contained deadlocks
 
 def contained_deadlock(t: Trace, M, changed: Set[Key], cut: Dict[int, int], issued: Dict[int, int],
-                       B: Optional[int], rule1: Optional[Dict[int, int]] = None) -> Optional[Dict[int, str]]:
+                       B: Optional[int], rule1: Optional[Dict[int, int]] = None,
+                       sync_stops: Optional[Dict[int, Tuple[str, Set[int]]]] = None) -> Optional[Dict[int, str]]:
     """deadlock.contained_deadlock over chains (docs/threads.md, theorem T7 with chains): a
     chain also stops at a synchronisation whose predecessor is not reached, and the partners
-    of an operation are the chains of the ranks that could complete it."""
+    of an operation are the chains of the ranks that could complete it. sync_stops: chains
+    that stop at a synchronisation (stretto.locks: the acquire of a lock another chain holds, a
+    wait for a point of another chain), as (what, the chains that could release it)."""
+    sync_stops = sync_stops or {}
     from .deadlock import _completed_at
     from .horizon import _cidx, coll_can_complete
     from .matching import send_blocks
@@ -1101,7 +1105,7 @@ def contained_deadlock(t: Trace, M, changed: Set[Key], cut: Dict[int, int], issu
     recv_of = {sk: rk for rk, sk in M.items()}
     terminated = set()
     for ch, n in lengths.items():
-        if ch in rule1 and n >= rule1[ch] or getattr(cut, "dead", {}).get(ch) == n:
+        if ch in rule1 and n >= rule1[ch] or getattr(cut, "dead", {}).get(ch) == n or ch in sync_stops:
             continue                         # its continuation is not known: it may not have ended
         if cut[ch] == n and n and (t.ranks[ch][-1].op == "finalize" or t.proc.get(ch, ch) != ch):
             terminated.add(ch)
@@ -1170,6 +1174,10 @@ def contained_deadlock(t: Trace, M, changed: Set[Key], cut: Dict[int, int], issu
     stops: Dict[int, Tuple[str, Set[int]]] = {}
     for ch, n in lengths.items():
         c = cut[ch]
+        if ch in sync_stops:
+            what, partners = sync_stops[ch]
+            stops[ch] = (what, set(partners) - {ch})
+            continue
         if c >= n or (ch in rule1 and c >= rule1[ch]):
             continue
         rec = t.ranks[ch][c]

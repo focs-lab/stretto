@@ -14,14 +14,14 @@ from .matching import (candidates_full, flip_candidates, match_node, observed_hb
 from .trace import ANY, Key, Probe, Recv, Send, Trace
 from . import types
 from .deadlock import contained_deadlock
-from . import threads
+from . import locks, threads
 from .reads import _cidx, erroneous, witness_respects
 
 
 # classes that make a program's verdict ERROR (the warnings 1b, 1f, probe-alt, the flag flips and
 # waitany-order do not); experiments/mbi/score.py uses the same set
 ERROR_CLASSES = frozenset({"1a", "1c", "1d", "2-buffering", "2-collective", "2-blocked", "2-ready", "3-local", "3-race", "abort",
-                           "2-thread-collective", "2-thread-wait", "2-thread-finalize", "2-thread-level"})
+                           "2-thread-collective", "2-thread-wait", "2-thread-finalize", "2-thread-level", "2-lock-order"})
 
 
 @dataclass
@@ -29,7 +29,7 @@ class Finding:
     family: str                 # '1' message race, '2' deadlock/ordering, '3' local concurrency, 'run', 'waitany', 'probe'
     cls: str                    # '1a'..'1f', '2-buffering', '2-collective', '2-blocked', '2-ready', '3-local', 'abort', 'waitany-order',
                                 # 'probe-alt', and the flag flips 'probe-flip', 'probe-unflip', 'test-flip' (docs/model.md §3)
-    level: str                  # 'L1', 'L1+SP', 'observed'
+    level: str                  # 'L1', 'L1+SP', 'L1+L' (lock order changed, stretto.locks), 'observed'
     title: str
     detail: List[str] = field(default_factory=list)
     B: str = ""                 # human range of thresholds at which the finding is realisable
@@ -692,6 +692,10 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
                                     f"{kind} at rank {rec.rank} #{rec.idx} could complete index {j} ({r_j} <- {s_j}) first",
                                     [f"L1: continuation of rank {rec.rank} is undetermined if it depends on the index",
                                      "no replay mechanism for completion order: not confirmable by pin"], B=brange))
+    # ---- lock reordering (level L1+L, stretto.locks): alternatives, deadlocks and collective orders
+    # that need two critical sections of one lock in the other order than in the run
+    if t.multi:
+        locks.report(t, rep, classify, classify_probe, _fmt_B)
     for f in rep.findings:
         x = t.probes.get(f.probe) if f.probe is not None else t.recvs.get(f.recv) if f.recv is not None else None
         if f.event is not None:

@@ -39,14 +39,16 @@ class Verdict:
 def check(t: Trace, M: Dict[Key, Key], changed, B: Optional[int], mode: str = "L1",
           extra_edges: Iterable = (), changed_probes: Set[Key] = frozenset(), strong_only: bool = False,
           probe_alt: Optional[Dict[Key, Key]] = None, changed_events: Set[Tuple[int, int]] = frozenset(),
-          must_issue: Iterable[Key] = (), bounds=None, must_match: Iterable[Key] = ()) -> Verdict:
+          must_issue: Iterable[Key] = (), bounds=None, must_match: Iterable[Key] = (),
+          caps: Optional[Dict[int, int]] = None) -> Verdict:
     """must_issue: sends the alternative needs issued inside the kept prefix besides those
     of M (the message a Waitany alternative completes with). bounds: read bounds
     (stretto.reads) for rule 1 of the horizon, H1 when None. must_match: receives that must
     keep their message of M inside the horizon (the receive a Waitany alternative or a test
     flip completes), which rule 6 may deprive of it. The matching judged is M without the
     receives rule 6 deprived (Verdict.deprived)."""
-    h = _horizon(t, M, changed, B, mode, changed_probes, probe_alt, changed_events, must_issue, bounds, must_match)
+    h = _horizon(t, M, changed, B, mode, changed_probes, probe_alt, changed_events, must_issue, bounds, must_match,
+                 caps=caps)
     return h if isinstance(h, Verdict) else h.judge(B, extra_edges, strong_only)
 
 
@@ -81,7 +83,7 @@ class _Horizon:
 def _horizon(t: Trace, M: Dict[Key, Key], changed, B: Optional[int], mode: str = "L1",
              changed_probes: Set[Key] = frozenset(), probe_alt: Optional[Dict[Key, Key]] = None,
              changed_events: Set[Tuple[int, int]] = frozenset(), must_issue: Iterable[Key] = (), bounds=None,
-             must_match: Iterable[Key] = (), sensitive: Optional[List] = None):
+             must_match: Iterable[Key] = (), sensitive: Optional[List] = None, caps: Optional[Dict[int, int]] = None):
     """check() up to the constraint graph: the Verdict if the alternative fails before it,
     else its _Horizon. sensitive, if given, receives the sends whose blocking at B the
     horizon closure asked about (horizon.compute_cut)."""
@@ -98,7 +100,7 @@ def _horizon(t: Trace, M: Dict[Key, Key], changed, B: Optional[int], mode: str =
     issued: Dict[int, int] = {}
     deprived: Set[Key] = set()
     cut = compute_cut(t, M, set(changed), B, mode, changed_probes, hangs, changed_events, issued, probe_alt, bounds,
-                      deprived, sensitive)
+                      deprived, sensitive, caps)
     M = without(M, deprived)
     # SP mode only: the continuation is fixed, so a cut operation is one its rank never completes.
     # The matching may still be realisable (the run then deadlocks): feasible says the former,

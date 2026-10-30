@@ -86,7 +86,8 @@ def compute_cut(t: Trace, M: Dict[Key, Key], changed: Set[Key], B: Optional[int]
                 changed_probes: Set[Key] = frozenset(), hangs: Optional[Dict[int, str]] = None,
                 changed_events: Set[Tuple[int, int]] = frozenset(),
                 issued: Optional[Dict[int, int]] = None, probe_alt: Optional[Dict[Key, Key]] = None,
-                bounds=None, deprived: Optional[Set[Key]] = None, sensitive: Optional[List] = None) -> Dict[int, int]:
+                bounds=None, deprived: Optional[Set[Key]] = None, sensitive: Optional[List] = None,
+                caps: Optional[Dict[int, int]] = None) -> Dict[int, int]:
     """The horizon closure as a worklist: every rule is evaluated once at the start and then
     only where an input of its condition changed, which happens when a record loses its
     issue (each record does so at most once, since cuts only decrease) or a receive is
@@ -110,7 +111,10 @@ def compute_cut(t: Trace, M: Dict[Key, Key], changed: Set[Key], B: Optional[int]
     sensitive, if given, receives every send whose blocking at B (matching.send_blocks) the
     closure asks about. B enters the closure there only (rule 3), so the closure takes the
     same steps at every threshold at which each of those sends blocks as it does at B
-    (feasible.check_profile)."""
+    (feasible.check_profile).
+
+    caps: chain -> k, a chain that does not get past the gap before its record k (stretto.locks:
+    it waits there for a lock that a chain of the horizon holds to its end)."""
     cut: Dict[int, int] = {rank: len(recs) for rank, recs in t.ranks.items()}
     if issued is None:
         issued = {}
@@ -317,6 +321,8 @@ def compute_cut(t: Trace, M: Dict[Key, Key], changed: Set[Key], B: Optional[int]
             lower(p.rank, p.idx + 1, gap_dead=True)
         for rank, idx in changed_events:
             lower(rank, idx + 1, gap_dead=True)
+        for ch, k in (caps or {}).items():
+            lower(ch, k, gap_dead=True)
     for r in t.recvs.values():
         if r.key not in M:
             rule2(r)
