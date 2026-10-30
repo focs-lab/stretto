@@ -114,7 +114,8 @@ with the hunt notes, outside this repository.
   tasks are chains ordered by creation, dependences, taskwait, taskgroup and team barriers
   (libgomp's entry points: its runtime has no OMPT), and the race is an L1 concurrent swap or
   steal; still degraded: `taskloop` and detached tasks, and requests completed by another task
-  (`threads-handoff`, 9 of SLATE's 39 tester routines). A premise is added (P-T7): the tasks an
+  (`threads-handoff`, 8 of SLATE's 39 tester routines in the run with lock events, 9 before;
+  some of them may be the handle-reuse defect below). A premise is added (P-T7): the tasks an
   alternative keeps in progress at once must fit the team's threads. The tracer aborted traced
   SLATE `gelqf` and `geqrf` runs (17 and 11 of 20) with `MPI_ERR_TYPE` in its own
   `MPI_Get_count`: SLATE frees a pending receive's datatype (allowed), the library releases it
@@ -122,8 +123,13 @@ with the hunt notes, outside this repository.
   diagnostic build). Fixed 30 Oct: the count comes from the type's size at the posting; 20 of 20
   traced runs each pass (idiom 33). SLATE's task threads appeared as untracked chains named `u`;
   fixed with the task chains. Open: replays of task alternatives diverge (SLATE's tasks take
-  locks whose order varies; a gated task holds its thread), and one wrong traced run's observed
-  matching was judged infeasible (`2-buffering`, observed), not diagnosed.
+  locks whose order varies; a gated task holds its thread), and the observed matching of wrong
+  traced 2x2 runs is judged infeasible (`2-buffering`, observed; 4 of 13 in the remeasurement of
+  30 Oct, 1 of 5 before), not diagnosed. Open, found in that remeasurement: the tracer misnames a
+  request whose handle MPI freed in one thread's wait and gave to another thread's new request
+  before the first wrapper dropped it (`req_find_locked` returns the oldest entry of the handle);
+  the trace is then degraded `threads-handoff` (2 of 35 SLATE cell traces, 1 of 5 diagnostic
+  runs; experiments/slate/README.md).
 - Lock order (milestone A, [threads.md](threads.md) §9): an alternative that needs two critical
   sections of one lock in the other order was never predicted (CorrBench `deadlock_probe`,
   `two_collectives_8`, `_9`). Fixed 30 Oct (level L1+L, §13, under premise P-T8); checked against
@@ -220,13 +226,17 @@ line) 0 wrong in every cell; square, one thread, 900x2000 on 2x2 (q does not div
 wrong. Traced, also `MPI_ERR_TRUNCATE` (3 of 19 runs). Until 30 Oct Stretto degraded every
 SLATE trace (`threads-tasks`), and same-envelope `permuteRows` exchanges pending on two threads
 at once (16 to 33 per plain trace, 0 per patched one) located it. Since the tracer follows tasks
-(milestone D), Stretto predicts it at L1 from clean traces: 9 of 10 plain wide traces (2x2 and
-4x1) report 4 to 105 concurrent swaps and steals, every one at a receive in `permuteRows` with a
-tag of the collision range (two of them 1a, the 80 000-byte tile into a 36 000-byte row
-receive), also in runs whose factor came out right (2 of 10, and 8 more right runs with 37 to 90
-each, one 1a); the tenth aborted (`reconstruction`); 0 findings in 10 patched and 15 control traces
-(square, partial pivoting, 900x2000) and in the 39-routine sweep. Not confirmed by replay (task
-locks and gates diverge). The tester checks `getrf` only on square matrices.
+(milestone D), Stretto predicts it at L1 from clean traces. Remeasured 30 Oct with lock events,
+level L1+L and the L1 fix (main 5fdd932): 16 of 18 plain wide traces (13 on 2x2, 5 on 4x1)
+report 1 to 85 concurrent swaps and steals, all at receives of the collision's tags 20-27, all
+in `permuteRows` but one at the colliding tile broadcast's receive (1a in 5 traces, the
+80 000-byte tile into a 36 000-byte row receive); the other two are degraded (an aborted run,
+`reconstruction`; a tracer handle-reuse defect, `threads-handoff`); none at L1+L; 0 findings in
+10 patched and 15 control traces (square, partial pivoting, 900x2000) and in the 39-routine
+sweep. No traced run of the remeasurement had a right factor (16 wrong, 2 aborted); before it,
+17 of 18 plain traces had findings (4 to 105), 10 of them from runs whose factor came out right
+(37 to 90 each), so the prediction from runs without the error rests on the earlier traces. Not
+confirmed by replay (task locks and gates diverge). The tester checks `getrf` only on square matrices.
 Shown safe by reading: partial-pivoting `getrf` (tag = column, chained by `column[j]`),
 `potrf`, `gemmA`/`gemmC`/`herk` (chained broadcasts), `geqrf` and `ttmqr` (disjoint column
 ranges), `getrf_nopiv` (shared tags, but row and column process sets meet in one rank), `he2hb`,

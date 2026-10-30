@@ -3,7 +3,7 @@
 
 For each finding of a JSON report (`stretto analyze --json`) the receive it changes is looked up
 in the trace, and its call site is named by the function that holds it (gdb's "info symbol" on
-the object of the site record; no debug information needed). Prints one line per (class,
+the object of the site record; no debug information needed). Prints one line per (class, level,
 function) with the number of findings and their tags.
 
 usage: finding_sites.py TRACE_DIR REPORT.json
@@ -38,13 +38,13 @@ def main():
     rows = defaultdict(list)
     for f in rep["findings"]:
         if not f.get("recv"):
-            rows[(f["cls"], "-")].append(None)
+            rows[(f["cls"], f["level"], "-")].append(None)
             continue
         r = t.recvs.get(tuple(f["recv"]))
         site = _site_of(t, r) if r else None
-        rows[(f["cls"], symbol(*site) if site else "?")].append(r.tag if r else None)
-    for (cls, fn), tags in sorted(rows.items()):
-        print(f"{cls} {len(tags)} {fn} tags {sorted(set(x for x in tags if x is not None))}")
+        rows[(f["cls"], f["level"], symbol(*site) if site else "?")].append(r.tag if r else None)
+    for (cls, level, fn), tags in sorted(rows.items()):
+        print(f"{cls} {level} {len(tags)} {fn} tags {sorted(set(x for x in tags if x is not None))}")
 
 
 if __name__ == "__main__":
