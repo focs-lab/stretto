@@ -159,8 +159,15 @@ and the garbage delT 1.23516e-321 is hypre's int 250 read as a double. Untraced,
 runs each: Open MPI 14 and 0 pass with 2 and 4 threads, MPICH 7 and 0; with hypre on a
 duplicated communicator (a 32-line patch) 40 of 40 in every setting, in both MPIs. The 2021 fix
 of the same conflict (fefdd7d) was reverted in Jan 2022; no issue mentions it. L1 predicts no
-receive alternative and probe alternatives between hypre messages only. Report drafted, not
-sent. Evidence: [experiments/uintah](../experiments/uintah/README.md) (`series.csv`).
+receive alternative and probe alternatives between hypre messages only. Uintah's nightly
+threaded tests (ARCHES `multibox_rmcrt_coal_{1L,2L,DO}_threaded`, 2 ranks, 8 threads) do not
+hit it: 180 of 180 runs pass, plain and fixed alike (60 of 60 at 4 ranks, 3 time steps),
+since there delT needs the velocities the pressure solve produces, which orders the two
+reductions on each rank. Their traces (plain and fixed) show no other conflicting collective:
+every observed pair is a worker's delT reduction against the main thread's statistics after
+`execute()`, ordered by a spin flag the tracer does not record. Report drafted, not sent.
+Evidence:
+[experiments/uintah](../experiments/uintah/README.md) (`series.csv`, `nightly.csv`).
 
 **SLATE 878439b (master on 30 Oct; the code is that of releases 2024.05.31 to 2025.05.28),
 `getrf` with `MethodLU::CALU` on a wide matrix**, a real bug, found by reading the tag ranges of
