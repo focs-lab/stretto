@@ -236,6 +236,91 @@ class C_RequestReuse(unittest.TestCase):
             self.assertEqual((rep.status(), rep.findings), ("complete", []), f"{mpi}: " + format_report(t, rep))
 
 
+def chain_of(t, rank, tid):
+    return next(c for c in t.chains_of(rank) if t.chain_name[c] == str(tid))
+
+
+class C_Handoff(unittest.TestCase):
+    """Requests handed between threads and receives cancelled by another thread (milestone F,
+    docs/threads.md section 15): analysed, no longer degraded."""
+
+    def handoff(self):
+        # chain 1 posts an Irecv that chain 2 completes, with no recorded synchronisation between
+        # them (pika's polling); chain 3 receives on the same envelope
+        return mkt({0: [th(1, irecv(1, 5, 10)), th(3, recv(1, 5, 1, 5)), th(2, wait((10, 1, 5)))],
+                    1: [send(0, 5), send(0, 5)]})
+
+    def test_completion_on_the_completing_chain(self):
+        t = self.handoff()
+        c1, c2, c3 = (chain_of(t, 0, k) for k in (1, 2, 3))
+        r = t.recvs[(c1, 0)]
+        self.assertEqual(r.complete_at(), (c2, 0))
+        self.assertEqual(r.complete_node(), (c2, 0, "c"))
+        self.assertEqual(t.handoffs, 1)
+        self.assertTrue(t.hb.before(c1, 0, c2, 0))           # the posting precedes the wait (P-T9)
+        self.assertFalse(t.hb.before(c3, 0, c2, 0) or t.hb.before(c2, 0, c3, 0))
+        rep = analyze(t, with_sp=False)
+        self.assertEqual(rep.status(), "complete", format_report(t, rep))
+        self.assertTrue(any(f.level == "L1" and "concurrent swap" in " ".join(f.detail) for f in rep.findings),
+                        format_report(t, rep))
+        # rule 1 cuts the chain that completed the changed receive, not the one that posted it
+        alt = next(a for a in candidates_full(t)[0] if r.key in a.changed)
+        cut = compute_cut(t, alt.M, set(alt.changed), None)
+        self.assertEqual(cut[c2], 1)
+        self.assertEqual(cut[c1], len(t.ranks[c1]))
+
+    def test_implied_edges_close_transitively(self):
+        # chain 2 completes chain 1's request, then releases to chain 3: chain 1's posting precedes
+        # chain 3's record although no recorded edge joins chains 1 and 3
+        t = mkt({0: [th(1, send(1, 5, mode="isend", req=10)), th(2, wait((10, None, None)), "w"), th(3, send(1, 6), after=["w"])],
+                 1: [recv(0, 5, 0, 5), recv(0, 6, 0, 6)]})
+        c1, c3 = chain_of(t, 0, 1), chain_of(t, 0, 3)
+        self.assertTrue(t.hb.before(c1, 0, c3, 0))
+        self.assertEqual(analyze(t, with_sp=False).status(), "complete")
+
+    def cancelled(self, req):
+        return {"op": "wait", "kind": "wait", "reqs": [req],
+                "done": [{"req": req, "msrc": None, "mtag": None, "mcount": None, "cancelled": 1}]}
+
+    def test_cancel_by_another_thread(self):
+        # chain 1 posts Irecv(ANY, 5) w, chain 2 cancels it; chain 3's receive, concurrent with w
+        # and posted after it, took the message: only after w's cancel (orientation edge)
+        t = mkt({0: [th(1, irecv(T.ANY, 5, 20)), th(3, recv(1, 5, 1, 5)), th(2, {"op": "cancel", "req": 20}),
+                     th(2, self.cancelled(20))],
+                 1: [send(0, 5)]})
+        c1, c2, c3 = (chain_of(t, 0, k) for k in (1, 2, 3))
+        w, x = t.recvs[(c1, 0)], t.recvs[(c3, 0)]
+        self.assertEqual(t.withdrawn(c1), [w])
+        self.assertEqual(w.cancel_at(), (c2, 0))
+        from stretto.matching import build_graph
+        g = build_graph(t, t.observed, None, None)
+        self.assertTrue(g.reaches((c2, 0, "c"), x.complete_node()))
+        self.assertIsNone(g.find_cycle())
+        rep = analyze(t, with_sp=False)
+        self.assertEqual(rep.status(), "complete", format_report(t, rep))
+        # posted before w, x is first in the queue: no edge from the cancel
+        t2 = mkt({0: [th(3, recv(1, 5, 1, 5)), th(1, irecv(T.ANY, 5, 20)), th(2, {"op": "cancel", "req": 20}),
+                      th(2, self.cancelled(20))],
+                  1: [send(0, 5)]})
+        c1, c2, c3 = (chain_of(t2, 0, k) for k in (1, 2, 3))
+        g2 = build_graph(t2, t2.observed, None, None)
+        self.assertTrue(g2.reaches(t2.recvs[(c3, 0)].issue_node(), t2.recvs[(c1, 0)].issue_node()))
+        self.assertFalse(g2.reaches((c2, 0, "c"), t2.recvs[(c3, 0)].complete_node()))
+
+    def test_withdrawn_receive_blocks_a_steal_across_threads(self):
+        # w on chain 1 is posted until chain 1 itself cancels it, after chain 2's Recv(1, 5), which
+        # it precedes (a release): chain 2 cannot take rank 1's tag-5 message while w is posted,
+        # so an alternative giving it that message must place the cancel first, which the
+        # recorded order (the receive completes before the cancel's release) forbids
+        t = mkt({0: [th(1, irecv(T.ANY, 5, 20), "p"), th(2, recv(T.ANY, T.ANY, 2, 7), "x", after=["p"]),
+                     th(1, {"op": "cancel", "req": 20}, after=["x"]), th(1, self.cancelled(20))],
+                 1: [send(0, 5)], 2: [send(0, 7)]})
+        c2 = chain_of(t, 0, 2)
+        alts = [a for a in candidates_full(t)[0] if a.recv == (c2, 0) and a.send == (1, 0)]
+        for a in alts:
+            self.assertFalse(check(t, a.M, a.changed, None, "L1").feasible)
+
+
 class C_Observed(unittest.TestCase):
     def test_concurrent_collectives(self):
         t = mkt({0: [th(0, coll("bcast", 0)), th(1, coll("allreduce"))],

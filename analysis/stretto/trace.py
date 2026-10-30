@@ -40,7 +40,7 @@ from bisect import bisect_left
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
-from .chains import HB, THREAD_SIDE, split
+from .chains import HB, THREAD_SIDE, add_edges, split
 
 ANY = -1
 WORLD = 0
@@ -122,10 +122,17 @@ class Send:
     def issue_node(self):
         return (self.rank, self.idx, "i")
 
+    def complete_at(self) -> Tuple[int, int]:
+        """The record that completed it, as (chain, index): its own record, the wait or test that
+        returned its request, on another chain when another thread completed it (a hand-off,
+        docs/threads.md section 15)."""
+        return (self.complete_chain if self.complete_chain is not None else self.rank,
+                self.complete_idx if self.complete_idx is not None else self.idx)
+
     def complete_node(self):
         if not self.completed:
             return None
-        return (self.rank, self.complete_idx if self.complete_idx is not None else self.idx, "c")
+        return self.complete_at() + ("c",)
 
     def __str__(self):
         return f"send{self.key}->{self.dst} tag={self.tag} {self.bytes}B"
@@ -160,10 +167,15 @@ class Recv:
     buf: Optional[Tuple[int, int]] = None   # the address range of its buffer, as a send's (STRETTO_BUFS)
     dense: bool = False
     complete_chain: Optional[int] = None
+    cancel_chain: Optional[int] = None    # the chain of its MPI_Cancel, when another than its own cancelled it
 
     def __post_init__(self):
         if self.proc is None:
             self.proc = self.rank
+
+    def cancel_at(self) -> Tuple[int, int]:
+        """The record of its MPI_Cancel, as (chain, index)."""
+        return (self.cancel_chain if self.cancel_chain is not None else self.rank, self.cancel_idx)
 
     @property
     def capacity(self) -> int:
@@ -181,10 +193,17 @@ class Recv:
     def issue_node(self):
         return (self.rank, self.idx, "i")
 
+    def complete_at(self) -> Tuple[int, int]:
+        """The record that completed it, as (chain, index): its own record, the wait or test that
+        returned its request, on another chain when another thread completed it (a hand-off,
+        docs/threads.md section 15)."""
+        return (self.complete_chain if self.complete_chain is not None else self.rank,
+                self.complete_idx if self.complete_idx is not None else self.idx)
+
     def complete_node(self):
         if not self.completed:
             return None
-        return (self.rank, self.complete_idx if self.complete_idx is not None else self.idx, "c")
+        return self.complete_at() + ("c",)
 
     def __str__(self):
         src = "ANY" if self.src == ANY else str(self.src)
@@ -251,6 +270,7 @@ class Coll:
     dout: Optional[str] = None   # what it received
     proc: Optional[int] = None   # the process (world rank), the member; rank is the chain (docs/threads.md)
     sig: Optional[tuple] = None   # (count, type size, type signature) of the call, as recorded
+    complete_chain: Optional[int] = None   # as Send's
 
     def __post_init__(self):
         if self.proc is None:
@@ -259,10 +279,17 @@ class Coll:
     def issue_node(self):
         return (self.rank, self.idx, "i")
 
+    def complete_at(self) -> Tuple[int, int]:
+        """The record that completed it, as (chain, index): its own record, the wait or test that
+        returned its request, on another chain when another thread completed it (a hand-off,
+        docs/threads.md section 15)."""
+        return (self.complete_chain if self.complete_chain is not None else self.rank,
+                self.complete_idx if self.complete_idx is not None else self.idx)
+
     def complete_node(self):
         if not self.completed:
             return None
-        return (self.rank, self.complete_idx if self.complete_idx is not None else self.idx, "c")
+        return self.complete_at() + ("c",)
 
 
 @dataclass
@@ -313,6 +340,7 @@ class Trace:
     fpos: Dict[Tuple[int, int], int] = field(default_factory=dict)   # (chain, idx) -> place in its rank's file
     issue_order: bool = False        # the tracer numbered the postings (MPI_THREAD_MULTIPLE)
     thread_limits: List[Tuple[str, str]] = field(default_factory=list)   # (reason, detail): what chains cannot be analysed
+    handoffs: int = 0     # requests another chain than the posting one completed, tested or cancelled (P-T9)
     thread_overlap: List[int] = field(default_factory=list)   # ranks on which two threads were inside MPI at once
 
     def chains_of(self, rank: int) -> List[int]:
@@ -415,9 +443,17 @@ class Trace:
     def withdrawn_competitors(self, x, s: "Send") -> List[Recv]:
         """The withdrawn receives of x's rank and communicator that accept s and are still
         posted when x is (posted before x, cancelled after it): x, a receive or a probe, can take
-        or report s only after their cancels."""
-        return [w for w in self._withdrawn.get(x.rank, ())
-                if w.idx < x.idx < w.cancel_idx and w.comm == x.comm and w.accepts(s)]
+        or report s only after their cancels. On a split rank "before" and "after" are
+        happens-before: posted before x, and cancelled not before x is called (a cancel
+        concurrent with x gets the edge too, which a schedule can always satisfy); a withdrawn
+        receive concurrent with x is the orientation's business (threads.withdrawn_edges)."""
+        if not self.multi or x.proc not in self.chains:
+            return [w for w in self._withdrawn.get(x.rank, ())
+                    if w.idx < x.idx < w.cancel_idx and w.comm == x.comm and w.accepts(s)]
+        hb = self.hb
+        return [w for c in self.chains_of(x.proc) for w in self._withdrawn.get(c, ())
+                if w.comm == x.comm and w.accepts(s) and hb.before(w.rank, w.idx, x.rank, x.idx)
+                and not hb.before(*w.cancel_at(), x.rank, x.idx)]
 
     def _earlier_sends(self, r, s: Send) -> List[Send]:
         q = (s.rank, s.dst, s.comm)
@@ -735,6 +771,14 @@ def _build(t: Trace, raw_ranks: Dict[int, List[dict]]) -> None:
         pending_req: Dict[int, object] = {}
         cancelled_ops: List[object] = []       # the operations a cancel record names
         status_at: Dict[int, dict] = {}        # request -> the first MPI_Request_get_status that found it complete
+        # a request another chain completed, tested or cancelled: that call names the request, so its
+        # posting returned before it (premise P-T9, docs/threads.md section 15), an edge the clocks may
+        # lack (pika hands requests over through atomics); (posting chain, idx, chain, idx)
+        handed: List[Tuple[int, int, int, int]] = []
+
+        def hand(obj, ch: int, idx: int) -> None:
+            if ch != obj.rank:
+                handed.append((obj.rank, obj.idx, ch, idx))
         for rec in recs:
             raw = rec.raw
             op = rec.op
@@ -807,13 +851,14 @@ def _build(t: Trace, raw_ranks: Dict[int, List[dict]]) -> None:
                     if obj is None:
                         continue
                     st = status_at.pop(q, None)
-                    if (st["chain"] if st is not None else rec.rank) != obj.rank:
-                        # a request completed by a thread other than the one that started it
-                        t.thread_limits.append(("threads-handoff", f"rank {rank}: a request of chain {obj.rank} "
-                                                f"completed by chain {st['chain'] if st is not None else rec.rank}"))
                     obj.complete_idx = rec.idx if st is None else st["idx"]
-                    if (st["chain"] if st is not None else rec.rank) != obj.rank:
-                        obj.complete_chain = st["chain"] if st is not None else rec.rank
+                    ch = st["chain"] if st is not None else rec.rank
+                    if ch != obj.rank:
+                        # a request completed by a thread other than the one that started it: its
+                        # completion node lies on that thread (Send.complete_at, a hand-off)
+                        obj.complete_chain = ch
+                    hand(obj, ch, obj.complete_idx)
+                    hand(obj, rec.rank, rec.idx)
                     obj.completed = True
                     if isinstance(obj, Send):
                         obj.sumc = d.get("sumc")
@@ -833,15 +878,22 @@ def _build(t: Trace, raw_ranks: Dict[int, List[dict]]) -> None:
                     obj.cancelled = True     # provisional; the completion status (if any) decides
                 if isinstance(obj, Recv) and obj.cancel_idx is None:
                     obj.cancel_idx = rec.idx
+                    if rec.rank != obj.rank:
+                        obj.cancel_chain = rec.rank       # cancelled by another thread
+                if obj is not None:
+                    hand(obj, rec.rank, rec.idx)
             elif call == "reqfree":
                 obj = pending_req.pop(raw.get("req"), None)
                 st = status_at.pop(raw.get("req"), None)
+                if obj is not None:
+                    hand(obj, rec.rank, rec.idx)
                 if obj is not None and st is not None:
+                    hand(obj, st["chain"], st["idx"])
                     _complete_at_status(obj, st, worldg, rank)
                 elif isinstance(obj, Recv) and raw.get("cancelled") is not None:
                     # a cancelled receive the tracer waited for in place of the free (since 29 Oct
                     # 2026): the record has the cancel's outcome, and the status if it failed
-                    _complete_at_status(obj, {**raw, "idx": rec.idx}, worldg, rank)
+                    _complete_at_status(obj, {**raw, "idx": rec.idx, "chain": rec.rank}, worldg, rank)
                 elif isinstance(obj, Recv):
                     obj.freed = True         # the receive completes unobserved: its message is not an orphan
             elif call == "cancelstatus":
@@ -850,7 +902,7 @@ def _build(t: Trace, raw_ranks: Dict[int, List[dict]]) -> None:
                 obj = pending_req.get(raw.get("req"))
                 if isinstance(obj, Recv) and raw.get("cancelled") is not None:
                     del pending_req[raw.get("req")]
-                    _complete_at_status(obj, {**raw, "idx": rec.idx}, worldg, rank)
+                    _complete_at_status(obj, {**raw, "idx": rec.idx, "chain": rec.rank}, worldg, rank)
             elif call == "probe":
                 if raw.get("procnull"):
                     continue                   # a probe of MPI_PROC_NULL returns at once and observes nothing
@@ -914,6 +966,7 @@ def _build(t: Trace, raw_ranks: Dict[int, List[dict]]) -> None:
         for q, st in status_at.items():        # found complete, and no later call returned it
             obj = pending_req.get(q)
             if obj is not None:
+                hand(obj, st["chain"], st["idx"])
                 _complete_at_status(obj, st, worldg, rank)
         # a receive whose cancel succeeded is modelled: posted until its cancel, never matched
         # (Trace.withdrawn, docs/model.md §2b). A send whose cancel succeeded withdrew a message at
@@ -926,6 +979,9 @@ def _build(t: Trace, raw_ranks: Dict[int, List[dict]]) -> None:
                 t.unmodelled.append((rank, "Cancel (succeeded)"))
             elif not returned:
                 t.unmodelled.append((rank, "Cancel (outcome not recorded)"))
+        if handed and rank in t.chains:
+            t.handoffs += len({(a, ia) for a, ia, _, _ in handed})
+            add_edges(t, rank, recs, handed)
     if legacy_null:
         t.incomplete.append(("creation-unknown",
                              "the tracer that made this trace (before 22 Oct 2026) wrote no record of "
@@ -1007,6 +1063,8 @@ def _complete_at_status(obj, st: dict, worldg, rank: int) -> None:
     st when the tracer wrote it there (since 22 Oct 2026); without it the receive's message is
     unknown and the receive counts as freed, which the analysis treats as unmatched."""
     obj.complete_idx = st["idx"]
+    if st.get("chain", obj.rank) != obj.rank:
+        obj.complete_chain = st["chain"]
     obj.completed = True
     if isinstance(obj, Recv):
         obj.msrc = worldg(obj.comm, st.get("msrc"), rank)

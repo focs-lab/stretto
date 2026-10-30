@@ -273,9 +273,16 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
         rep.notes.append(threads.chain_note(t))
         for cls, title, detail in threads.observed_findings(t, tasks=bool(tasks)):
             rep.findings.append(Finding("2", cls, "observed", title, detail))
-        # the chains' matching order (stretto.threads) does not know receives withdrawn by a cancel
-        limits = t.thread_limits + ([("threads-cancel", "a receive withdrawn by a successful cancel: "
-                                      "not modelled across threads")] if t.withdrawn() else [])
+        # requests handed between threads and receives withdrawn by a cancel are modelled since
+        # 30 Oct 2026 (docs/threads.md section 15); before, either degraded the trace
+        if t.handoffs:
+            rep.notes.append(f"{t.handoffs} request(s) completed, tested or cancelled by another thread than the one "
+                             "that posted them: each posting precedes that call (premise P-T9), and the operation's "
+                             "result is taken to be read only after its completion (P-T10)")
+        if any(w.proc in t.chains for w in t.withdrawn()):
+            rep.notes.append("several threads: receives withdrawn by a successful cancel are posted until their cancel "
+                             "and ordered against concurrent receives and probes of their process (premise P-T11)")
+        limits = t.thread_limits
         if limits:
             for reason, detail in limits:
                 rep.degrade(reason, detail)
@@ -446,7 +453,7 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
                     v, rule1 = pr.alt_verdicts.get(i, {}).get(B) or check(t, alt.M, alt.changed, B, "L1"), None
                 if v.feasible:
                     D = (threads.contained_deadlock if t.multi else contained_deadlock)(t, without(alt.M, v.deprived), alt.changed, v.cut, v.issued, B, rule1)
-                    if D and any(x.rank not in D or v.cut[x.rank] > _cidx(x) for x in errs):
+                    if D and any(x.complete_at()[0] not in D or v.cut[x.complete_at()[0]] > x.complete_at()[1] for x in errs):
                         D = None
                     if D:
                         held.append((B, D))

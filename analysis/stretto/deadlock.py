@@ -21,7 +21,7 @@ deadlocks): below B0 a send that no receive accepts can block on its own.
 from __future__ import annotations
 from typing import Dict, List, Optional, Set, Tuple
 
-from .horizon import _cidx, coll_can_complete
+from .horizon import coll_can_complete
 from .matching import send_blocks
 from .trace import ANY, Key, Recv, Send, Trace
 
@@ -33,7 +33,7 @@ def _completed_at(t: Trace) -> Dict[Tuple[int, int], list]:
         cache = {}
         for x in list(t.sends.values()) + list(t.recvs.values()) + list(t.colls):
             if x.completed:
-                cache.setdefault((x.rank, _cidx(x)), []).append(x)
+                cache.setdefault(x.complete_at(), []).append(x)
         for p in t.probes.values():
             if p.completed:
                 cache.setdefault((p.rank, p.idx), []).append(p)
@@ -53,7 +53,8 @@ def contained_deadlock(t: Trace, M, changed: Set[Key], cut: Dict[int, int], issu
         rule1 = {}
         for rk in changed:
             r = t.recvs[rk]
-            rule1[r.rank] = min(rule1.get(r.rank, _cidx(r) + 1), _cidx(r) + 1)
+            ch, ci = r.complete_at()
+            rule1[ch] = min(rule1.get(ch, ci + 1), ci + 1)
 
     def in_h(rank: int, idx: int) -> bool:
         return idx < cut[rank]
@@ -93,7 +94,7 @@ def contained_deadlock(t: Trace, M, changed: Set[Key], cut: Dict[int, int], issu
                 continue
             if x.cancelled:
                 # withdrawn by a successful cancel: still posted, and taking s, if H ends first
-                if x.cancel_idx is not None and x.complete_idx is not None and not in_h(x.rank, x.cancel_idx):
+                if x.cancel_idx is not None and x.complete_idx is not None and not in_h(*x.cancel_at()):
                     return True
                 continue
             sk = M.get(x.key)

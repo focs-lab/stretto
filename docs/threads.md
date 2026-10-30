@@ -5,7 +5,8 @@ classes, tests) implemented the same day, section 9 says how it differs from the
 10 says how milestone B made the check scale and what it found in HDF5's Subfiling VFD; section 11
 says how milestone C replays alternatives of several threads, section 12 how milestone D follows
 OpenMP tasks (both 30 Oct 2026), section 13 how level L1+L reorders critical sections, section 14
-how milestone E replays pools of threads and tasks in the trace's lock order (30 Oct 2026).
+how milestone E replays pools of threads and tasks in the trace's lock order, section 15 how
+milestone F analyses requests handed between threads and cancelled receives (30 Oct 2026).
 Decided
 29 Oct 2026: Stretto is extended to programs in which several threads of an MPI process call MPI
 on shared communicators (`MPI_THREAD_MULTIPLE`, and `MPI_THREAD_SERIALIZED` with several calling
@@ -697,8 +698,9 @@ libgomp) detects MPI calls inside tasks. Failed polls fold per chain.
 split; a `begin` record's `after` moves to the record it folds into; the observed matching of a
 split rank is reconstructed in `iseq` order (in file order below MULTIPLE), and an `Mrecv` takes
 the message of its own thread's `Mprobe`; a pair whose sizes disagree degrades the trace
-(`reconstruction`). A request completed by another thread than the one that started it degrades
-the trace (`threads-handoff`); so does an MPI call inside an OpenMP task (`threads-tasks`).
+(`reconstruction`). A request completed by another thread than the one that started it degraded
+the trace (`threads-handoff`) until milestone F modelled it (section 15); so does an MPI call
+inside an OpenMP task (`threads-tasks`).
 
 **Analysis** (`analysis/stretto/threads.py`, with changes in `matching.py`, `horizon.py`,
 `feasible.py`, `report.py`). As in section 3, with these choices:
@@ -1356,3 +1358,132 @@ misapplied pin or lock pin, a gate timeout or a divergence makes the run inconcl
   each ([replay-same-final.csv](../experiments/subfiling/replay-same-final.csv)): 4 of 6 replays
   took every pin, 5 of 6 controls did, all finished and none diverged, 3 of 6 had both; the rest
   was not remeasured.
+
+## 15. Milestone F (30 Oct 2026): requests across threads
+
+Three real bugs of the class "matching race between threads" were missed or blurred: DLA-Future's
+traces were degraded `threads-handoff` (pika's polling completes requests on whichever worker
+polls), PaRSEC's `threads-cancel` (its communication engine cancels 24 persistent wildcard
+receives at finalisation), and a third of SLATE's were blurred by two tool defects. Code: the
+tracer's request table, `stretto.trace` (loader), `stretto.chains.add_edges`,
+`stretto.threads.withdrawn_edges`, `stretto.horizon`; idiom 46.
+
+### 15.1 Request handles reused across threads (tracer)
+
+The tracer told pending requests apart by handle, then by the variable the program received the
+handle in, then by age. Two cases defeat that with several threads, both seen with a diagnostic
+build that printed every posting whose handle another pending entry still held and every
+completion credited to another thread's entry (not committed):
+
+- *A shared handle.* For a send that completes at once both libraries return one permanently
+  complete request (Open MPI's `ompi_request_empty` for an inline send, MPICH's builtin request
+  `0x6c000001`), so two threads hold equal handles at once. A thread that posts into a variable
+  of its own and waits on a copy of the handle, as SLATE's `tileIbcastToSet` does, then took
+  the other thread's entry by age. Idiom 46 (two threads, 100 such `Isend`s each): 40 of 40
+  runs, 20 per MPI, degraded `threads-handoff`; a variant with larger messages (5 runs per size)
+  did so at every size up to 16 KB under MPICH and up to 1 KB under Open MPI.
+- *A handle freed and reused.* Inside a thread's `MPI_Waitall` the library frees a completed
+  request and the next `Isend` of another thread gets the same handle before the first thread's
+  wrapper has dropped its entry; the second thread's lookup by age then takes the first one's.
+  In 6 of 10 traced square SLATE runs (2x2, 4 threads, 16 processors) a task's `Isend` got a
+  heap handle that another task's pending entry held; in those runs the age happened to point
+  at the right entry, in the defect's traces (1 of 5 diagnostic runs, 2 of 35 of the cells, 30
+  Oct) it did not. Idiom 46 does not reproduce this case (no reuse seen at 4 and 16 KB under
+  Open MPI, where the requests are real).
+
+Fix: an entry records the chain that posted it, and a lookup prefers, among entries of the handle,
+one in the program's variable, then one of the calling chain, then the oldest; a completion call
+names (claims) its entries before it calls MPI and retires them by id afterwards, and lookups pass
+over entries that a completion in progress has named while another entry has the handle. With it
+idiom 46 is analysed completely in 40 of 40 runs, no finding.
+
+### 15.2 Observed 2-buffering in SLATE and PaRSEC (analysis)
+
+"Observed matching infeasible even with infinite buffering" in SLATE's 2x2 traces (4 of 13 on 30
+Oct) and in 6 of 10 PaRSEC traces (once analysed, 15.3) was a defect of milestone B's reduced
+orientation edges (section 10): `_thread_edges_reduced` cached physical keys by operation key,
+and a send and a receive of one chain share their key `(chain, ordinal)`, so a send could get its
+namesake receive's place in the run and be oriented against the run's physical order. It needs a
+chain that both sends and receives (PaRSEC's `Sendrecv` to itself, SLATE's row exchanges), which
+the random pools of the tests lacked; they now include such chains. Found by comparing the
+constructions on a PaRSEC trace: the full one accepted the observed matching, the reduced one
+had 52 edges the full one does not imply. With the cache keyed by object no such edge is left on
+the two PaRSEC traces checked so, the observed matching is feasible under all three
+constructions on them, and on 5 of the 6 SLATE traces of 15.4 the report finds it feasible (the
+sixth is an aborted run). Neither the tracer's handle defect nor a
+cross-chain edge was involved: 2-buffering appeared with the old tracer and the fixed one alike.
+
+### 15.3 Model: hand-offs and cancels between threads
+
+**Hand-off.** A request posted by chain A and completed (a wait or a test that returns it),
+found complete (`MPI_Request_get_status`), freed or cancelled by chain B. Its completion node is
+B's record (`Send.complete_at`); the horizon's rules 1 to 4, the deadlock check and the graph read
+the completion there. The call on B names the request, so A's posting returned before it: the
+loader adds the edge posting(A) → that record(B) wherever the clocks lack it (pika passes requests
+through atomics) and closes it transitively (`chains.add_edges`; a record is written when its call
+returns, so file order is a linear extension of both). Rule 1 cuts B, the chain that completed a
+changed receive, right after the completion, and not A.
+
+**Cancel.** A receive w posted on chain A and withdrawn by a successful cancel on chain C (C = A
+included) is posted from its record to the cancel record and never matched, as for one chain
+(docs/model.md §2b). For a receive or probe x of its process and communicator that takes or
+reports a message s that w accepts: x happens-before after w's posting and not after its cancel
+gets the edge complete(cancel) → m(x, s) (`Trace.withdrawn_competitors`); x concurrent with w's
+posting gets one orientation (`threads.withdrawn_edges`), x posted first (issue(x) → issue(w)) or
+w withdrawn first (complete(cancel) → m(x, s), a probe: → complete(x)), picked by the run's
+physical order as in 3.2, the first only when the horizon does not keep the cancel; w with its
+cancel outside the horizon stays posted and counts as a receive without a message for the
+matching order (`threads.matching_order_ok`).
+
+| premise | what it says | if it fails |
+|---|---|---|
+| P-T9 hand-off order | a call that names a request starts after the call that created it returned | cannot fail physically: the handle exists only then |
+| P-T10 results at the completion | every call that depends on an operation's result (its buffer, its status) follows, in happens-before, the call that completed it | over-prediction, as for P-T1: a chain that receives the result through synchronisation the tracer does not record (pika schedules a task's continuation through atomics) keeps calls in the horizon that the changed result decides |
+| P-T11 cancel at its call | a successful cancel withdraws the receive inside `MPI_Cancel`, on whichever thread calls it (Open MPI and MPICH do) | as for one chain: the edges from the cancel are no guaranteed edges (`strong_only`) |
+
+**Soundness (T1-T extended).** Premises of T1-T with P-T9 to P-T11. Take a topological order of
+the graph with completions on their completing chains and the implied edges, and schedule the
+chains by it (P-T3). The implied edges hold in every execution (P-T9), so the order is a schedule
+of the program. A chain cut by rule 1 after a changed receive's completion issues its records up
+to there; any call that reads the result lies HB-after that completion (P-T10), so on that chain
+beyond the cut or on another chain beyond a synchronisation the cut chain does not reach (rule
+8), and the posting chain's records, which do not follow the completion, do not depend on it. A
+withdrawn receive is posted over [posting, cancel] in the schedule; every x that takes or reports
+a message it accepts is ordered before its posting or after its cancel by the edges above, so
+MPI's FIFO rule on the schedule never hands such a message to w, and w's cancel succeeds there
+too (P-T11). The rest is T1-T's argument; the picks add constraints, so acceptance stays sound and
+completeness is lost as in 3.6. T7-T: a chain that completes another's request stops at that
+completion, which is where `contained_deadlock` looks.
+
+**What stays degraded or outside.** `threads-handoff` and `threads-cancel` are no longer
+reasons: every hand-off and every successful cancel of a receive is modelled. A successful cancel
+of a send and a cancel whose outcome the trace lacks stay `unmodelled`, as for one chain. P-T10
+cannot be checked from the trace; the report counts the requests completed by another chain
+and names the premises. Not adapted: the replay harness (`confirm.py`, another track's) still
+places a completion on the posting chain, so replays of traces with hand-offs are not validated;
+the fast checks and read bounds are single-chain only, as before.
+
+### 15.4 Results (30 Oct 2026, a-p13, Open MPI 4.1.6 unless said)
+
+- *Idiom 46* (both MPIs): with the tracer of main, 40 of 40 runs degraded `threads-handoff`
+  (20 per MPI); with the fix 40 of 40 complete without a finding. Golden traces of both MPIs.
+- *SLATE observed `2-buffering`* (15.2): of 24 traced wide 2x2 runs on 12 processors (12 with
+  the tracer of main, 12 with the fixed one; the setting of the 30 Oct remeasurement), 6
+  reported it with the analysis of main (3 with each tracer), with 0 to 41 L1 findings; with the
+  fix, 5 of them have a feasible observed matching and 41 to 70 L1 findings, and the sixth, an
+  aborted run (`MPI_ERR_TRUNCATE`), keeps a different 2-buffering finding: the observed run
+  deadlocks below the 80 000-byte tile's size, the tile the abort left without a receive. The
+  trace of main's tracer degraded `threads-handoff` (the defect of 15.1) has 23 L1 findings now.
+- *Gate* (`experiments/report_diff.py` against main ba9e3c8, text, `--json`, `--full-profile
+  --json`, the JSON's `analysis_commit` field left out): the 531 single-chain traces and idiom 32,
+  1 596 comparisons, 0 differences; 148 traces with threads (every golden of both MPIs, 38
+  CorrBench, the 7 `mt_*` of 16 iterations, HDF5 Subfiling's 10 traces of section 10, Uintah's 6
+  of section 11, the earlier DLA-Future 2 and PaRSEC 15), 444 comparisons, 60 differences, and
+  the 92 idiom traces of the test run, 276 comparisons, 6 differences. Every difference is a
+  trace that main degraded `threads-handoff` or `threads-cancel` and this branch analyses: idiom
+  26 (4 traces; status complete, the same `2-thread-wait`), CorrBench `request_reuse` (an
+  erroneous program: 2 L1 1f at its two receives that never got a message, and the observed run
+  deadlocks below 4 bytes), DLA-Future's 2 and PaRSEC's 15 (now analysed). The reduced-orientation
+  fix changes no report of these traces.
+- *Unit tests* (RUNBOOK tests step, `STRETTO_REQUIRE_TRACES=1`, idioms of both MPIs traced
+  first): 572 run, 17 skipped, all pass, in the experiment image and in the SLATE image.

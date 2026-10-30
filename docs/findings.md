@@ -156,18 +156,21 @@ with the hunt notes, outside this repository.
   alarms of unrecorded synchronisation (P-T2). PaRSEC traces are degraded `threads-cancel` (its
   communication engine cancels its persistent wildcard receives at finalisation). Neither tool
   path predicted the two tag races below; scans of same-envelope operations pending on two threads
-  located them (`experiments/dlaf/pending_pairs.py`, `experiments/slate/overlap.py`). Open.
+  located them (`experiments/dlaf/pending_pairs.py`, `experiments/slate/overlap.py`). Closed 30
+  Oct (milestone F, [threads.md](threads.md) §15): a request completed by another thread is
+  modelled (premises P-T9, P-T10), and so is a receive cancelled by another thread (P-T11). The
+  false alarms of pika's unrecorded synchronisation stay.
 - Request handles reused across threads (30 Oct, SLATE): the tracer credited one thread's
   completion with another thread's request when the library shared a handle between them (a
   send completed at once) or freed one inside a thread's wait and handed it to another thread's
   next request; traces were degraded `threads-handoff` (idiom 46: 40 of 40 runs). Fixed: entries
-  remember their thread and are claimed before the completion call (`tracer/mpitrace.c`, request
-  table).
+  remember their thread and are claimed before the completion call ([threads.md](threads.md)
+  §15.1).
 - Observed `2-buffering` on threads (30 Oct, SLATE 4 of 13 wide traces; PaRSEC 6 of 10 once its
   cancels are modelled, milestone F): the reduced orientation edges cached physical order by
   operation key, which a send and a receive of one thread share, and oriented sends against the
   run; the observed matching then looked infeasible and few alternatives were judged. Fixed
-  (`stretto.threads`, reduced orientation edges).
+  ([threads.md](threads.md) §15.2).
 - Buffer-guard findings said nothing of their consequence (30 Oct): a write to a pending send
   buffer is harmless while the library copies the message in the call. The report now gives each
   3-local finding the thresholds at which data changes (docs/model.md section 7), confirmed by

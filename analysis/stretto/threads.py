@@ -101,13 +101,20 @@ def same_channel(a: Send, b: Send) -> bool:
 # ----------------------------------------------------------------------- matching order
 
 def matching_order_ok(t: Trace, M, kept_recv, ranks: Optional[Set[int]] = None,
-                      kept_probe=None, probe_alt: Optional[Dict[Key, Key]] = None) -> Optional[str]:
+                      kept_probe=None, probe_alt: Optional[Dict[Key, Key]] = None,
+                      cancel_kept=None) -> Optional[str]:
     """matching.matching_order_ok with "posted before" read as happens-before. Concurrent
-    operations carry no obligation here: their order is the orientation edges' business."""
+    operations carry no obligation here: their order is the orientation edges' business. A
+    receive withdrawn by a cancel that the horizon does not keep (cancel_kept(chain, idx)
+    false) stays posted through it and counts as one without a message."""
     matched_send: Dict[Key, Key] = {sk: rk for rk, sk in M.items()}
     first_unmatched: Dict[Tuple[int, int, int, int], Recv] = {}
     for r in t.recvs.values():
-        if r.key not in M and not r.cancelled and not r.mrecv and (ranks is None or r.rank in ranks):
+        pending = r.key not in M and not r.cancelled and not r.mrecv
+        if not pending and cancel_kept is not None and r.cancelled and r.cancel_idx is not None \
+                and r.complete_idx is not None and not cancel_kept(*r.cancel_at()):
+            pending = True                # withdrawn after the kept prefix: posted through it
+        if pending and (ranks is None or r.rank in ranks):
             k = (r.rank, r.comm, r.src, r.tag)
             if k not in first_unmatched or r.idx < first_unmatched[k].idx:
                 first_unmatched[k] = r
@@ -455,6 +462,46 @@ def thread_edges(t: Trace, M, node_set, mnode: Dict[Key, tuple], probe_alt=None,
                     edges.append((mx, pc))
                 else:
                     edges.append((pc, x.issue_node()))
+    return edges
+
+
+def withdrawn_edges(t: Trace, M, node_set, mnode: Dict[Key, tuple], probe_alt=None) -> List[Tuple[tuple, tuple]]:
+    """The orientation of a receive w withdrawn by a successful cancel (docs/model.md section 2b,
+    cancellation; docs/threads.md section 15) against each receive or probe x of its process
+    and communicator that is concurrent with it and takes or reports a message s that w
+    accepts: while w is posted it would take s, so either x is posted (a probe: has reported)
+    before w is, issue(x) -> issue(w), or w's cancel goes first, complete(cancel) -> m(x, s) (a
+    probe: -> complete(p)). The run's physical order picks one, as for two receives (section
+    3.2); with the cancel outside the horizon only the first is left. An x that happens-before
+    places after w gets its edge from Trace.withdrawn_competitors."""
+    by: Dict[Tuple[int, int], List[Recv]] = {}
+    for w in t.withdrawn():
+        if w.proc in t.chains and w.issue_node() in node_set:
+            by.setdefault((w.proc, w.comm), []).append(w)
+    if not by:
+        return []
+    edges: List[Tuple[tuple, tuple]] = []
+
+    def orient(x, s: Send, done_node, first_node) -> None:
+        for w in by.get((x.proc, x.comm), ()):
+            if w is x or not w.accepts(s) or not concurrent(t, w, x):
+                continue
+            wc = w.cancel_at() + ("c",)
+            if wc in node_set and physical_key(t, w) < physical_key(t, x):
+                edges.append((wc, done_node))              # withdrawn before x took s
+            else:
+                edges.append((first_node, w.issue_node()))  # x first, w posted after it
+    for rk, sk in M.items():
+        m = mnode.get(rk)
+        x = t.recvs[rk]
+        if m is not None and x.proc in t.chains:
+            orient(x, t.sends[sk], m, x.issue_node())
+    probe_alt = probe_alt or {}
+    for p in t.probes.values():
+        sk = probe_alt.get(p.key, p.seen)
+        pc = p.complete_node()
+        if sk is not None and pc is not None and pc in node_set and p.proc in t.chains:
+            orient(p, t.sends[sk], pc, pc)
     return edges
 
 
@@ -1087,14 +1134,15 @@ def contained_deadlock(t: Trace, M, changed: Set[Key], cut: Dict[int, int], issu
     wait for a point of another chain), as (what, the chains that could release it)."""
     sync_stops = sync_stops or {}
     from .deadlock import _completed_at
-    from .horizon import _cidx, coll_can_complete
+    from .horizon import coll_can_complete
     from .matching import send_blocks
     lengths = {ch: len(recs) for ch, recs in t.ranks.items()}
     if rule1 is None:
         rule1 = {}
         for rk in changed:
             r = t.recvs[rk]
-            rule1[r.rank] = min(rule1.get(r.rank, _cidx(r) + 1), _cidx(r) + 1)
+            ch, ci = r.complete_at()
+            rule1[ch] = min(rule1.get(ch, ci + 1), ci + 1)
 
     def in_h(ch: int, idx: int) -> bool:
         return idx < cut[ch]

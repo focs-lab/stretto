@@ -204,7 +204,7 @@ def build_graph(t: Trace, M: Dict[Key, Key], cut: Optional[Dict[int, int]], B: O
         # guaranteed edge (it needs the cancel to take effect at its call), so not in strong_only
         if not strong_only:
             for w in t.withdrawn_competitors(r, s):
-                wc = (w.rank, w.cancel_idx, "c")
+                wc = w.cancel_at() + ("c",)
                 if wc in node_set:
                     succ.setdefault(wc, []).append(m)
         # sender side: an earlier message of s's channel that r accepts is matched first, by
@@ -231,7 +231,7 @@ def build_graph(t: Trace, M: Dict[Key, Key], cut: Optional[Dict[int, int]], B: O
                 g.add(m2, pc)
         if not strong_only:
             for w in t.withdrawn_competitors(p, s):     # still posted, it would take s: after its cancel
-                wc = (w.rank, w.cancel_idx, "c")
+                wc = w.cancel_at() + ("c",)
                 if wc in node_set:
                     g.add(wc, pc)
         for s2 in t.earlier_sends(p, s):
@@ -283,10 +283,16 @@ def build_graph(t: Trace, M: Dict[Key, Key], cut: Optional[Dict[int, int]], B: O
     if t.multi:
         # several chains (stretto.threads): synchronisation, and an orientation per concurrent
         # pair whose order decides a match (left out for the observed happens-before)
-        from .threads import thread_edges
+        from .threads import thread_edges, withdrawn_edges
         for a, b in thread_edges(t, M, node_set, mnode, probe_alt, thread_orient):
             if both(a, b):
                 g.add(a, b)
+        if thread_orient and not strong_only:
+            # receives withdrawn by a cancel against concurrent ones (not guaranteed: the cancel
+            # takes effect at its call, as for one chain)
+            for a, b in withdrawn_edges(t, M, node_set, mnode, probe_alt):
+                if both(a, b):
+                    g.add(a, b)
     for a, b in extra_edges:
         if both(a, b):
             g.add(a, b)
@@ -684,11 +690,11 @@ def matching_order_ok(t: Trace, M: Dict[Key, Key], kept_recv, ranks: Optional[Se
     A receive withdrawn by a successful cancel (Trace.withdrawn) has no message either, but only
     until its cancel, which the constraint graph orders before the matches it would have taken
     (build_graph); cancel_kept(rank, idx), if given, says whether the cancel record is in the
-    kept prefix, and a receive whose cancel is not counts as unmatched here. A trace of several
-    threads with a withdrawn receive is not analysed (report.analyze, threads-cancel)."""
+    kept prefix, and a receive whose cancel is not counts as unmatched here; the check for a
+    split rank takes it as one of its process (threads.matching_order_ok)."""
     if t.multi:
         from .threads import matching_order_ok as threads_order
-        return threads_order(t, M, kept_recv, ranks, kept_probe, probe_alt)
+        return threads_order(t, M, kept_recv, ranks, kept_probe, probe_alt, cancel_kept)
     post_idx: Dict[Key, int] = {rk: t.recvs[rk].idx for rk in M}
     matched_send: Dict[Key, Key] = {sk: rk for rk, sk in M.items()}
     # the earliest receive without a message in M, per (rank, comm, source or ANY, tag or ANY)
@@ -696,7 +702,7 @@ def matching_order_ok(t: Trace, M: Dict[Key, Key], kept_recv, ranks: Optional[Se
     for r in t.recvs.values():
         pending = r.key not in M and not r.cancelled and not r.mrecv
         if not pending and cancel_kept is not None and r.cancelled and r.cancel_idx is not None \
-                and r.complete_idx is not None and not cancel_kept(r.rank, r.cancel_idx):
+                and r.complete_idx is not None and not cancel_kept(*r.cancel_at()):
             pending = True                # withdrawn after the kept prefix: posted through it
         if pending and (ranks is None or r.rank in ranks):
             k = (r.rank, r.comm, r.src, r.tag)

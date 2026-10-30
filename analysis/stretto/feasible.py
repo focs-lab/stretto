@@ -118,7 +118,7 @@ def _horizon(t: Trace, M: Dict[Key, Key], changed, B: Optional[int], mode: str =
             # a receive withdrawn by a successful cancel is pending until its cancel: the graph
             # orders the probe after a kept cancel (build_graph), and one cut leaves it posted
             pending = not x.cancelled or (x.cancel_idx is not None and x.complete_idx is not None
-                                          and x.cancel_idx >= cut[x.rank])
+                                          and x.cancel_idx >= cut[x.cancel_at()[0]])
             if x.key not in M and pending and not x.mrecv and x.accepts(s):
                 return Verdict(False, f"receiver order: earlier {x} accepts {s} and has no message in this matching", cut)
     for sk in must_issue:
@@ -150,11 +150,13 @@ def _horizon(t: Trace, M: Dict[Key, Key], changed, B: Optional[int], mode: str =
     ranks = affected_ranks(t, M, changed) if changed or M != t.observed else set()
     for pk in (probe_alt or {}):
         ranks.add(pk[0])
-    for rank in t.ranks:
+    for w in t.withdrawn():
         # a receive whose cancel the horizon cuts stays posted over the rank's kept records, where
-        # even the run's own matches of the messages it accepts are not realisable
-        if any(w.idx < cut[rank] <= w.cancel_idx for w in t.withdrawn(rank)):
-            ranks.add(rank)
+        # even the run's own matches of the messages it accepts are not realisable (on a split
+        # rank, those of every chain: a later receive of any of them may accept them)
+        cc, ci = w.cancel_at()
+        if w.idx < cut[w.rank] and ci >= cut[cc]:
+            ranks.update(t.chains_of(w.proc) if t.multi else (w.rank,))
     why = matching_order_ok(t, M, kept_recv, ranks, kept_probe, probe_alt, cancel_kept=lambda rank, idx: idx < cut[rank])
     if why:
         return Verdict(False, why, cut)

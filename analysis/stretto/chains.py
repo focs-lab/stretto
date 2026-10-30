@@ -225,6 +225,60 @@ def _clocks(hb: HB, t, cmap: Dict[int, int], seqs: Dict[int, List[int]], entries
             hb.pos[(ch, a)] = row
 
 
+def add_edges(t, rank: int, recs: list, edges) -> None:
+    """Add to the happens-before of split rank `rank`, and to its hard half, the edges
+    complete(a, ia) -> issue(b, ib) of `edges` that it does not imply yet, closed transitively:
+    a request completed, tested or cancelled by another chain than the one that posted it
+    (stretto.trace, premise P-T9 of docs/threads.md section 15). recs: the rank's records in
+    file order, a linear extension of happens-before and of these edges (a record is written
+    when its call returns, and a call names a request only after the call that created it has
+    returned it)."""
+    chains = t.chains[rank]
+    for hb in (t.hb, t.hb_hard):
+        if hb is None:
+            continue
+        new = sorted({e for e in edges if not hb.before(*e)})
+        if not new:
+            continue
+        into: Dict[Tuple[int, int], List[Tuple[int, int]]] = {}
+        for a, ia, b, ib in new:
+            into.setdefault((b, ib), []).append((a, ia))
+            key = (a, ia, b, ib)
+            if key not in hb.kall:
+                hb.edges.append(key)
+                hb.out.setdefault(a, []).append((ia, b, ib))
+                hb.kall[key] = []
+        for a in {e[0] for e in new}:
+            hb.out[a].sort()
+        n = {ch: len(t.ranks[ch]) for ch in chains}
+        old = {ch: [(a, hb.pos[(ch, a)]) for a in chains if (ch, a) in hb.pos] for ch in chains}
+        rows = {(b, a): array("i", [-1]) * n[b] for b in chains for a in chains if a != b}
+        vc = {ch: {a: -1 for a in chains if a != ch} for ch in chains}
+        for rec in recs:
+            ch, i = rec.rank, rec.idx
+            if ch not in vc:
+                continue
+            v = vc[ch]
+            srcs = [(a, arr[i]) for a, arr in old[ch] if i < len(arr) and arr[i] > v[a]]
+            srcs += [(a, ia) for a, ia in into.get((ch, i), ()) if ia > v[a]]
+            for a, ia in srcs:
+                if ia <= v[a]:
+                    continue
+                v[a] = ia
+                for c in chains:                 # what precedes (a, ia) precedes this record
+                    if c != ch and c != a:
+                        x = rows[(a, c)][ia]
+                        if x > v[c]:
+                            v[c] = x
+            for a, x in v.items():
+                rows[(ch, a)][i] = x
+        for (b, a), row in rows.items():
+            if any(x >= 0 for x in row):
+                hb.pos[(b, a)] = row
+            else:
+                hb.pos.pop((b, a), None)
+
+
 class CS:
     """A critical section of a mutual-exclusion lock of one process (docs/threads.md, section
     13): the n-th entered of lock lid, on chain. Its acquire and its release lie in gaps of the

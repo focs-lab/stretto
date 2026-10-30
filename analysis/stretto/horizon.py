@@ -211,8 +211,8 @@ def compute_cut(t: Trace, M: Dict[Key, Key], changed: Set[Key], B: Optional[int]
     sets = {(cs[0].comm, cs[0].ordinal): cs for cs in t.coll_sets()}
 
     def rule2(r: Recv) -> None:          # a receive with no message does not complete
-        if r.completed and kept(r.rank, _cidx(r)):
-            lower(r.rank, _cidx(r), lambda: f"{r} never completes: no send for it")
+        if r.completed and kept(*r.complete_at()):
+            lower(*r.complete_at(), lambda: f"{r} never completes: no send for it")
 
     def rule6(r: Recv) -> None:          # a pending receive deprives later receives and probes
         if not (r.completed or r.key in deprived) or not kept(r.rank, r.idx):
@@ -283,19 +283,19 @@ def compute_cut(t: Trace, M: Dict[Key, Key], changed: Set[Key], B: Optional[int]
         x's completion, so what it issues up to there stays; x is then a receive without a
         message (rule 2 at its completion, rules 3 and 7 for its message, rule 6 for x)."""
         deprived.add(x.key)
-        if x.completed and kept(x.rank, _cidx(x)):
-            lower(x.rank, _cidx(x), lambda: f"{x} never gets {t.sends[M[x.key]]}: {by}, posted before it and still pending, takes the message")
+        if x.completed and kept(*x.complete_at()):
+            lower(*x.complete_at(), lambda: f"{x} never gets {t.sends[M[x.key]]}: {by}, posted before it and still pending, takes the message")
         s = t.sends[M[x.key]]
         rule3(s, None)
         rule7(s, None)
         rule6(x)
 
     def rule3(s, rk) -> None:            # a rendezvous send with no posted receive does not complete
-        if s.completed and kept(s.rank, _cidx(s)) and (rk is None or rk in deprived or not kept(rk[0], t.recvs[rk].idx)):
+        if s.completed and kept(*s.complete_at()) and (rk is None or rk in deprived or not kept(rk[0], t.recvs[rk].idx)):
             if sensitive is not None:
                 sensitive.append(s)
             if send_blocks(s, B):
-                lower(s.rank, _cidx(s), lambda: f"{s} never completes: rendezvous with no posted receive", _cidx(s) == s.idx)
+                lower(*s.complete_at(), lambda: f"{s} never completes: rendezvous with no posted receive", s.complete_at() == (s.rank, s.idx))
 
     def rule7(s, rk) -> None:            # a ready send needs its receive posted
         issued_now = kept(s.rank, s.idx) or issued.get(s.rank) == s.idx
@@ -309,13 +309,14 @@ def compute_cut(t: Trace, M: Dict[Key, Key], changed: Set[Key], B: Optional[int]
             return
         pos = {r: i for i, r in enumerate(t.comm_ranks.get(cs[0].comm, []))}
         for c in cs:
-            if c.completed and kept(c.rank, _cidx(c)) and not coll_can_complete(c, have, need, pos):
-                lower(c.rank, _cidx(c), lambda c=c: f"collective {c.name} #{c.ordinal} on comm {c.comm} never completes: a participant never reaches it")
+            if c.completed and kept(*c.complete_at()) and not coll_can_complete(c, have, need, pos):
+                lower(*c.complete_at(), lambda c=c: f"collective {c.name} #{c.ordinal} on comm {c.comm} never completes: a participant never reaches it")
 
     if mode == "L1":
         for rk in changed:
             r = t.recvs[rk]
-            lower(r.rank, bounds.recv(t, r, M.get(rk)) if bounds is not None else _cidx(r) + 1, gap_dead=True)
+            ch, ci = (r.rank, bounds.recv(t, r, M.get(rk)) - 1) if bounds is not None else r.complete_at()
+            lower(ch, ci + 1, gap_dead=True)   # the chain that completes it (a hand-off: another than its own)
         for pk in changed_probes:
             p = t.probes[pk]
             lower(p.rank, p.idx + 1, gap_dead=True)
@@ -416,7 +417,8 @@ def compute_cut_fixpoint(t: Trace, M: Dict[Key, Key], changed: Set[Key], B: Opti
     if mode == "L1":
         for rk in changed:
             r = t.recvs[rk]
-            lower(r.rank, bounds.recv(t, r, M.get(rk)) if bounds is not None else _cidx(r) + 1)
+            ch, ci = (r.rank, bounds.recv(t, r, M.get(rk)) - 1) if bounds is not None else r.complete_at()
+            lower(ch, ci + 1)
         for pk in changed_probes:
             p = t.probes[pk]
             lower(p.rank, p.idx + 1)
@@ -449,12 +451,12 @@ def compute_cut_fixpoint(t: Trace, M: Dict[Key, Key], changed: Set[Key], B: Opti
         for r in t.recvs.values():
             if not r.completed:
                 continue
-            cidx = _cidx(r)
-            if not kept(r.rank, cidx):
+            cch, cidx = r.complete_at()
+            if not kept(cch, cidx):
                 continue
             sk = m_of(r.key)
             if sk is None or not kept(t.sends[sk].rank, t.sends[sk].idx):
-                moved |= lower(r.rank, cidx, f"{r} never completes: no send for it")
+                moved |= lower(cch, cidx, f"{r} never completes: no send for it")
         # rule 6: a receive posted inside the prefix whose message is not issued there stays
         # pending through the prefix, so a later receive of its rank cannot take a message it
         # accepts (the standard's second non-overtaking clause): a blocking one is cut, a
@@ -494,12 +496,12 @@ def compute_cut_fixpoint(t: Trace, M: Dict[Key, Key], changed: Set[Key], B: Opti
         for s in t.sends.values():
             if not s.completed or not send_blocks(s, B):
                 continue
-            cidx = _cidx(s)
-            if not kept(s.rank, cidx):
+            cch, cidx = s.complete_at()
+            if not kept(cch, cidx):
                 continue
             rk = recv_of_send(s.key)
             if rk is None or not kept(t.recvs[rk].rank, t.recvs[rk].idx):
-                moved |= lower(s.rank, cidx, f"{s} never completes: rendezvous with no posted receive", issue_kept=cidx == s.idx)
+                moved |= lower(cch, cidx, f"{s} never completes: rendezvous with no posted receive", issue_kept=(cch, cidx) == (s.rank, s.idx))
         for cs in t.coll_sets():
             need = set(t.comm_members.get(cs[0].comm, [c.rank for c in cs]))
             pos = {r: i for i, r in enumerate(t.comm_ranks.get(cs[0].comm, []))}
@@ -507,8 +509,8 @@ def compute_cut_fixpoint(t: Trace, M: Dict[Key, Key], changed: Set[Key], B: Opti
             if have >= need:
                 continue
             for c in cs:
-                if c.completed and kept(c.rank, _cidx(c)) and not coll_can_complete(c, have, need, pos):
-                    moved |= lower(c.rank, _cidx(c), f"collective {c.name} #{c.ordinal} on comm {c.comm} never completes: a participant never reaches it")
+                if c.completed and kept(*c.complete_at()) and not coll_can_complete(c, have, need, pos):
+                    moved |= lower(*c.complete_at(), f"collective {c.name} #{c.ordinal} on comm {c.comm} never completes: a participant never reaches it")
         for p in t.probes.values():
             if p.key in changed_probes or not p.completed or not p.flag or p.seen is None:
                 continue
@@ -537,7 +539,7 @@ def witness_kept(t: Trace, cut: Dict[int, int], changed: Set[Key], changed_probe
         r = t.recvs[rk]
         if r.idx >= cut[r.rank] or rk in deprived:
             return False
-        if r.completed and r.blocking and _cidx(r) >= cut[r.rank]:
+        if r.completed and r.blocking and r.complete_idx is not None and r.complete_idx >= cut[r.complete_at()[0]]:
             return False
         if not r.blocking and M is not None and rk in M:
             s = t.sends[M[rk]]
