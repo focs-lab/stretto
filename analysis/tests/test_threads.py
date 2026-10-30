@@ -286,6 +286,19 @@ class C_Tasks(unittest.TestCase):
                         if a is not b:
                             self.assertFalse(TH.concurrent(t, a, b), f"{mpi} {n}: {a} {b}")
 
+    def test_lock_roles(self):
+        """Idioms 44 (a pool of workers under a mutex and a condition variable) and 45 (tasks
+        taking roles under a nest lock): the two receives of one tag that the lock order leaves
+        concurrent swap, and the 8-byte one takes the 400 bytes (docs/threads.md, section 14)."""
+        for mpi in ("openmpi", "mpich"):
+            for n in (44, 45):
+                t = self.golden(mpi, n)
+                self.assertEqual(t.thread_limits, [])
+                rep = analyze(t, with_sp=False)
+                self.assertEqual({f.cls for f in rep.findings if f.level == "L1"}, {"1a", "1f"}, f"{mpi} {n}: " + format_report(t, rep))
+                f = next(f for f in rep.findings if f.cls == "1a")
+                self.assertIn("concurrent swap", f.title)
+
     def test_detached_task_degrades(self):
         t = mkt({0: [{"op": "task", "what": "detach"}, th(0, send(1, 0)), th(1, send(1, 0))],
                  1: [recv(0, 0, 0, 0), recv(0, 0, 0, 0)]})

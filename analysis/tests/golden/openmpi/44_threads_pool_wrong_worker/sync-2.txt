@@ -1,0 +1,1 @@
+# stretto sync order 1: lock chain ordinal seq [f]

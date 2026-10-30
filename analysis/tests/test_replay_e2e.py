@@ -454,6 +454,23 @@ class Threads(unittest.TestCase):
                 self.assertEqual(c.verdict, "confirmed", (n, c))
                 self.assertEqual(c.control, "FINISHED")
 
+    def test_the_lock_order_fixes_who_does_what(self):
+        """Idioms 44 and 45: which worker serves which request, and which task draws which slot,
+        varies from run to run; with the trace's lock order (STRETTO_SYNC_ORDER=1 when traced,
+        STRETTO_PIN_LOCK in the replay) every replay truncates and every control finishes
+        (docs/threads.md, section 14)."""
+        from stretto import report, trace
+        for n in (44, 45):
+            exe, tdir = idiom(self, n)
+            t = C.with_sync(trace.load(tdir), tdir)
+            for _ in range(2):
+                res = [c for c in C.confirm(report.analyze(t, with_sp=False), 3, exe, timeout=30, t=t) if c.finding.cls == "1a"]
+                self.assertTrue(res, n)
+                for c in res:
+                    self.assertIn("STRETTO_PIN_LOCK=", c.pin)
+                    self.assertEqual(c.verdict, "confirmed", (n, c))
+                    self.assertEqual(c.control, "FINISHED")
+
 
 if __name__ == "__main__":
     unittest.main()

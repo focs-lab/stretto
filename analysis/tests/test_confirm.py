@@ -745,5 +745,101 @@ class ChainPins(unittest.TestCase):
         self.assertEqual(parse_pins([pin]), ({}, {}))
 
 
+class LockGates(unittest.TestCase):
+    """The trace's lock order (docs/threads.md, section 14): a trace recorded with
+    STRETTO_SYNC_ORDER=1 is replayed with lock gates (STRETTO_PIN_LOCK) over the horizon, the
+    same in the replay and its control, and with every concurrent pair of the horizon gated. The
+    goldens of idioms 44 (a pool of workers under a mutex and a condition variable) and 45
+    (OpenMP tasks taking roles under a nest lock)."""
+
+    def load(self, name, mpi="openmpi"):
+        d = os.path.join(GOLDEN, mpi, name)
+        if not os.path.isdir(d):
+            self.skipTest(f"no golden {d}")
+        t = C.with_sync(T.load(d), d)
+        rep = analyze(t, with_sp=False)
+        return t, next(f for f in rep.findings if f.cls == "1a" and f.level == "L1")
+
+    def test_the_pool_is_gated_up_to_the_changed_workers(self):
+        for mpi in ("openmpi", "mpich"):
+            t, f = self.load("44_threads_pool_wrong_worker", mpi)
+            alt, ctl = horizon_pins(t, f)
+            a, c = dict(x.split("=", 1) for x in alt), dict(x.split("=", 1) for x in ctl)
+            self.assertEqual(sorted(a), ["STRETTO_PIN_CHAIN", "STRETTO_PIN_LOCK", "STRETTO_PIN_ORDER"])
+            self.assertEqual(a["STRETTO_PIN_LOCK"], c["STRETTO_PIN_LOCK"])
+            lock, = a["STRETTO_PIN_LOCK"].split(",")
+            got = lock.split(":", 1)[1].split(">")
+            rows = [(name, n) for _, name, n, _, _ in t._stretto_sync[0]]
+            # the queue's acquisitions in the log's order, up to the workers' returns to the queue
+            # after their changed receives (rule 1 cuts what follows a changed receive)
+            self.assertEqual(got, [f"{name}#{n}" for name, n in rows[:len(got)]], mpi)
+            seqof = {(name, n): seq for _, name, n, seq, _ in t._stretto_sync[0]}
+            served = [r for r in t.recvs.values() if r.tag == 3 and t.proc.get(r.rank, r.rank) == 0]
+            self.assertEqual(len(served), 2)
+            for r in served:
+                name = C.chain_label(t, r.rank)
+                listed = [g.split("#") for g in got if g.startswith(name + "#")]
+                self.assertTrue(listed, (mpi, got))
+                self.assertTrue(all(seqof[(x, int(n))] < t._stretto_seq[(r.rank, r.idx)] for x, n in listed), (mpi, got))
+            # every pair of concurrent operations is gated: the two data receives in the run's order
+            # in the control and the other way in the replay, where the alternative forces it
+            ga, gc = a["STRETTO_PIN_ORDER"].split(","), c["STRETTO_PIN_ORDER"].split(",")
+            n1, n2 = (C.chain_label(t, r.rank) for r in served)
+            data = [g for g in gc if g.count("#r#") == 2 and {g.split(":")[1].split("#")[0], g.split("<")[1].split("#")[0]} == {n1, n2}]
+            self.assertTrue(data, (mpi, gc))
+            for g in data:
+                first, second = g.split(":", 1)[1].split("<")
+                self.assertIn(f"0:{second}<{first}", ga, mpi)
+                self.assertNotIn(g, ga, mpi)
+
+    def test_tasks_keep_the_order_of_their_lock(self):
+        t, f = self.load("45_omp_tasks_lock_roles")
+        alt, _ = horizon_pins(t, f)
+        a = dict(x.split("=", 1) for x in alt)
+        first, second = (name for _, name, _, _, _ in t._stretto_sync[0])
+        self.assertEqual(a["STRETTO_PIN_LOCK"], f"0:{first}#0>{second}#0")
+
+    def test_without_a_sync_log_only_the_reordered_pairs_are_gated(self):
+        d = os.path.join(GOLDEN, "openmpi", "44_threads_pool_wrong_worker")
+        if not os.path.isdir(d):
+            self.skipTest(f"no golden {d}")
+        t = T.load(d)
+        f = next(f for f in analyze(t, with_sp=False).findings if f.cls == "1a" and f.level == "L1")
+        alt, ctl = horizon_pins(t, f)
+        a, c = dict(x.split("=", 1) for x in alt), dict(x.split("=", 1) for x in ctl)
+        self.assertNotIn("STRETTO_PIN_LOCK", a)
+        self.assertFalse(set(a["STRETTO_PIN_ORDER"].split(",")) & set(c.get("STRETTO_PIN_ORDER", "").split(",")))
+
+    def test_flags_and_the_horizon(self):
+        t, f = self.load("44_threads_pool_wrong_worker")
+        rows = t._stretto_sync[0]
+        lid, name, n, seq, _ = rows[0]
+        # a failed try in the horizon fails in the replay too; a timed-out wait is marked; a single
+        # construct's winner goes first within its instance, whatever the log's order
+        extra = [(9, name, 90, seq, "f"), (8, name, 91, seq, "t"), (7, "0.1", 92, -1, "l"), (7, name, 93, seq, "")]
+        t.__dict__["_stretto_sync"] = {0: rows + extra}
+        cut = {ch: len(recs) for ch, recs in t.ranks.items()}
+        toks = C.lock_gates(t, cut)
+        self.assertIn(f"0:{name}#90!", toks)
+        self.assertIn(f"0:{name}#91t", toks)
+        self.assertIn(f"0:{name}#93>0.1#92", toks)
+        # an acquisition after the record at which its chain is cut by a changed receive is not listed
+        main = next(ch for ch in t.chains[0] if C.chain_label(t, ch) == name)
+        j = sum(1 for i in range(len(t.ranks[main])) if t._stretto_seq[(main, i)] <= seq)
+        cut2 = dict(cut)
+        cut2[main] = j
+        self.assertIn(f"0:{name}#91t", C.lock_gates(t, cut2))
+        self.assertNotIn(f"0:{name}#91t", C.lock_gates(t, cut2, {(main, j)}))
+
+    def test_lock_pin_lines(self):
+        line = "[stretto-pin] rank 0 chain 0.1: lock pin a#3 misapplied: it takes another lock than a#2 of chain 0.0\n"
+        self.assertEqual(C.pins_misapplied(line), [line.strip()])
+        timeout = ("[stretto-pin] rank 0 chain 0~1: gate timed out: lock attempt a#0 waits for a#0 of chain 0~0, which has "
+                   "finished 0; 1 thread(s) wait at gates\n")
+        self.assertEqual(C.pins_misapplied(timeout), [timeout.strip()])
+        self.assertTrue(pins_applied("STRETTO_PIN_LOCK=0:0~0#0>0~1#0", ""))
+        self.assertEqual(C.pin_tokens(["STRETTO_PIN_LOCK=0:0~0#0>0~1#0"]), [])
+
+
 if __name__ == "__main__":
     unittest.main()

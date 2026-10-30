@@ -20,7 +20,8 @@ need_lib "$TRACER" tracer
 out="$ROOT/traces/$MPI/$(basename "$dir")"
 rm -rf "$out"; mkdir -p "$out"
 echo "== $(basename "$dir") (np=$np, $MPI)"
-mpi_run "$np" "STRETTO_TRACE_DIR=$out" "LD_PRELOAD=$TRACER" ${envs[@]+"${envs[@]}"} ${STRETTO_GUARD:+"STRETTO_GUARD=$STRETTO_GUARD"} ${STRETTO_PAYLOAD:+"STRETTO_PAYLOAD=$STRETTO_PAYLOAD"} -- "$dir/bin/$MPI/main" "$@" > "$out/stdout.log" 2> "$out/stderr.log"
+# the lock order too (sync-<r>.txt, docs/threads.md section 14): the replays of the thread idioms gate it
+mpi_run "$np" "STRETTO_TRACE_DIR=$out" "LD_PRELOAD=$TRACER" "STRETTO_SYNC_ORDER=1" ${envs[@]+"${envs[@]}"} ${STRETTO_GUARD:+"STRETTO_GUARD=$STRETTO_GUARD"} ${STRETTO_PAYLOAD:+"STRETTO_PAYLOAD=$STRETTO_PAYLOAD"} -- "$dir/bin/$MPI/main" "$@" > "$out/stdout.log" 2> "$out/stderr.log"
 rc=$?
 res="$(classify_rc $rc "$out/stderr.log")"
 keep_trace "$out" "idioms/$MPI" "$(basename "$dir")${STRETTO_GUARD:+-guard$STRETTO_GUARD}${STRETTO_PAYLOAD:+-payload$STRETTO_PAYLOAD}" || exit 1
