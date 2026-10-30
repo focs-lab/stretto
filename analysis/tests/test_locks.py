@@ -1,8 +1,7 @@
 """Lock reordering (docs/threads.md, section 13): the tracer's lock events and hard
-happens-before as the loader reads them, when a rank's lock order is kept instead, what level
-L1+L reports on a trace of two threads sending in critical sections of one mutex, and the
-analysis of several threads at L1 and L1+L against the exhaustive explorer of
-stretto.explore_threads on random programs."""
+happens-before as the loader reads them, when a rank's lock order is kept instead, the traced
+idioms 21-23, 27 and 41-43 of both MPIs, and the analysis of several threads at L1 and L1+L
+against the exhaustive explorer of stretto.explore_threads on random programs."""
 import copy
 import os
 import random
@@ -15,6 +14,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from stretto import explore_threads as X, trace as T
 from stretto.report import analyze, format_report
 
+GOLDEN = os.path.join(os.path.dirname(os.path.abspath(__file__)), "golden")
 
 
 def senders_in_a_mutex():
@@ -109,6 +109,41 @@ class C_Analysis(unittest.TestCase):
         self.assertEqual({f.cls for f in lf}, {"1f"}, format_report(t, rep))
         self.assertTrue(any("P-T8" in d for f in lf for d in f.detail))
         self.assertTrue(any("another order than in the run" in d for f in lf for d in f.detail))
+
+
+def golden(tc, mpi, n):
+    d = os.path.join(GOLDEN, mpi)
+    name = next((x for x in sorted(os.listdir(d)) if x.startswith(f"{n}_")), None) if os.path.isdir(d) else None
+    if name is None:
+        tc.skipTest(f"no golden trace of idiom {n} for {mpi}")
+    return T.load(os.path.join(d, name))
+
+
+class C_Idioms(unittest.TestCase):
+    """The traced idioms (golden copies, both MPIs): which ones L1+L reports, and that it reports
+    nothing where the order of the critical sections carries the order of the communication."""
+
+    def classes(self, mpi, n):
+        t = golden(self, mpi, n)
+        self.assertEqual(t.lock_limits, [], f"{mpi} {n}")
+        rep = analyze(t, with_sp=False)
+        return {f"{f.level}:{f.cls}" for f in rep.findings}, format_report(t, rep)
+
+    def test_expected(self):
+        expected = {
+            21: set(),                                   # a condition variable orders the senders
+            22: {"L1+L:1f"},                             # senders in critical sections of one mutex
+            23: {"L1+L:probe-alt"},                      # probe and receive in one critical section
+            27: {"L1+L:2-lock-order"},                   # a mutex held across a receive
+            41: set(),                                   # a flag in empty critical sections orders the sends
+            42: set(),                                   # the flag polled in the critical section that sends
+            43: {"L1+L:2-thread-collective"},            # broadcasts of two types in critical constructs
+        }
+        for mpi in ("openmpi", "mpich"):
+            for n, want in expected.items():
+                with self.subTest(mpi=mpi, idiom=n):
+                    got, text = self.classes(mpi, n)
+                    self.assertEqual({c for c in got if not c.startswith("observed:")}, want, text)
 
 
 class C_Explorer(unittest.TestCase):

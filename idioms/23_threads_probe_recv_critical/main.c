@@ -1,7 +1,7 @@
 /* 23: 16 with the probe and the receive of every receiving thread inside one critical section
    of a mutex (negative for the probe split): no other thread can receive between a probe and
    its receive. Rank 1 sends 8 bytes, then 400. Expected: no truncation and no probe split at any
-   level; at L1+SP-T, which thread gets which message, without consequence. */
+   level; at L1+L, which thread gets which message (a probe alternative), without consequence. */
 #include "../common.h"
 #include <pthread.h>
 #define TAG 0

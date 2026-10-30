@@ -1,0 +1,11 @@
+{"r":1,"seq":0,"op":"init","np":3,"thread":3,"version":3,"issue":1,"lockorder":1}
+{"r":1,"seq":1,"op":"comm","name":"world","parent":0,"id":0,"ranks":[0,1,2],"gord":0}
+{"r":1,"seq":2,"op":"comm","name":"self","parent":0,"id":1,"ranks":[1],"gord":0}
+{"r":1,"seq":3,"op":"site","id":0,"obj":"/w/idioms/41_threads_lock_flag/bin/openmpi/main","addr":94070242956917,"base":94070242951168}
+{"r":1,"seq":4,"op":"begin","call":"recv","src":0,"tag":0,"comm":0,"count":1,"tsize":4,"tsig":"MPI_INT","site":0}
+{"r":1,"seq":5,"op":"recv","src":0,"tag":0,"comm":0,"count":1,"tsize":4,"tsig":"MPI_INT","msrc":0,"mtag":0,"mcount":1,"iseq":0,"site":0}
+{"r":1,"seq":6,"op":"site","id":1,"obj":"/w/idioms/41_threads_lock_flag/bin/openmpi/main","addr":94070242956969,"base":94070242951168}
+{"r":1,"seq":7,"op":"begin","call":"recv","src":0,"tag":0,"comm":0,"count":1,"tsize":4,"tsig":"MPI_INT","site":1}
+{"r":1,"seq":8,"op":"recv","src":0,"tag":0,"comm":0,"count":1,"tsize":4,"tsig":"MPI_INT","msrc":0,"mtag":0,"mcount":1,"iseq":1,"site":1}
+{"r":1,"seq":9,"op":"site","id":2,"obj":"/w/idioms/41_threads_lock_flag/bin/openmpi/main","addr":94070242957014,"base":94070242951168}
+{"r":1,"seq":10,"op":"finalize","site":2}

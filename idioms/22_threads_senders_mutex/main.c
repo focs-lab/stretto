@@ -1,6 +1,6 @@
 /* 22: 20 with each send inside a critical section of one mutex. The mutex serialises the
    sends but does not order them: either thread may take it first. Observed: thread B starts
-   late. Expected: L1 nothing (the lock order of the trace is kept); at L1+SP-T, the race of 20
+   late. Expected: L1 nothing (the lock order of the trace is kept); at L1+L, the race of 20
    (which thread's message rank 1 receives first). */
 #include "../common.h"
 #include <pthread.h>

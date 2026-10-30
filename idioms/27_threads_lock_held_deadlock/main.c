@@ -2,7 +2,7 @@
    of tag 2 from rank 1; thread B takes the same mutex to send tag 1 to rank 1, which answers
    tag 1 with tag 2. If A takes the mutex first, A waits for rank 1, rank 1 for B, B for the
    mutex: a deadlock. Observed: A starts late, B goes first, the run finishes. Expected: L1
-   nothing (the lock order of the trace is kept); L1+SP-T: the deadlock. */
+   nothing (the lock order of the trace is kept); L1+L: the deadlock (2-lock-order). */
 #include "../common.h"
 #include <pthread.h>
 static pthread_mutex_t mu = PTHREAD_MUTEX_INITIALIZER;
