@@ -1792,8 +1792,19 @@ int MPI_Startall(int n, MPI_Request reqs[]) {
     return rc; }
 
 /* -------------------------------------------------------------- receives */
+/* status_fields' ok for a receive that returned rc: 1 success, 2 MPI_ERR_TRUNCATE, 0 another error */
+static int recv_ok(int rc) {
+    int cls = 0;
+    return rc == MPI_SUCCESS ? 1 : PMPI_Error_class(rc, &cls) == MPI_SUCCESS && cls == MPI_ERR_TRUNCATE ? 2 : 0;
+}
 static void status_fields(rec_t *b, MPI_Status *st, long rsize, int ok) {
     int cancelled = 0;
+    /* a receive that returned MPI_ERR_TRUNCATE (ok 2: a program that sets MPI_ERRORS_RETURN goes
+       on) took the message of the status's source and tag; its count is not known */
+    if (ok == 2 && st && st->MPI_SOURCE >= 0) {
+        rb_printf(b, ",\"msrc\":%d,\"mtag\":%d,\"mcount\":null,\"trunc\":1", st->MPI_SOURCE, st->MPI_TAG);
+        return;
+    }
     if (!ok || !st) { rb_printf(b, ",\"msrc\":null,\"mtag\":null,\"mcount\":null"); return; }
     PMPI_Test_cancelled(st, &cancelled);
     if (cancelled) { rb_printf(b, ",\"msrc\":null,\"mtag\":null,\"mcount\":null,\"cancelled\":1"); return; }
@@ -1828,7 +1839,7 @@ int MPI_Recv(void *buf, int count, MPI_Datatype dt, int src, int tag, MPI_Comm c
     } else { stretto_pin_posted(STRETTO_OP_RECV, rord_); rc = PMPI_Recv(buf, count, dt, src, tag, comm, st); }
     if (pinned && rc == MPI_SUCCESS) stretto_pin_matched(pinned, st->MPI_SOURCE);
     REC(b, "recv"); recv_args(&b, osrc, otag, comm, count, dt, widx); if (src != MPI_PROC_NULL) rb_bufrange(&b, buf, count, dt);
-    status_fields(&b, st, recv_size(dt), rc == MPI_SUCCESS); rb_recv_sum(&b, sum_base(buf, dt, NULL), st, rc == MPI_SUCCESS);
+    status_fields(&b, st, recv_size(dt), recv_ok(rc)); rb_recv_sum(&b, sum_base(buf, dt, NULL), st, rc == MPI_SUCCESS);
     if (pinned) rb_printf(&b, ",\"pinned\":{\"src\":%d,\"tag\":%d}", src, tag);
     rb_iseq(&b, iseq);
     rb_emit(&b);
@@ -1864,7 +1875,7 @@ static inline __attribute__((always_inline)) int sendrecv_common(const void *sbu
 }
 static inline __attribute__((always_inline)) void sendrecv_finish(const void *rbuf, int rcount, MPI_Datatype rdt, int osrc, int otag, int src, int rtag, MPI_Comm comm, MPI_Status *st, int rc, int widx, int pinned, int reqid, long riseq) {
     if (pinned && rc == MPI_SUCCESS) stretto_pin_matched(pinned, st->MPI_SOURCE);
-    { REC(b, "recv"); recv_args(&b, osrc, otag, comm, rcount, rdt, widx); status_fields(&b, st, recv_size(rdt), rc == MPI_SUCCESS);
+    { REC(b, "recv"); recv_args(&b, osrc, otag, comm, rcount, rdt, widx); status_fields(&b, st, recv_size(rdt), recv_ok(rc));
       rb_recv_sum(&b, sum_base(rbuf, rdt, NULL), st, rc == MPI_SUCCESS); if (osrc != MPI_PROC_NULL) rb_bufrange(&b, rbuf, rcount, rdt);
       if (pinned) rb_printf(&b, ",\"pinned\":{\"src\":%d,\"tag\":%d}", src, rtag);
       rb_iseq(&b, riseq);
@@ -2247,7 +2258,7 @@ int MPI_Mrecv(void *buf, int count, MPI_Datatype dt, MPI_Message *msg, MPI_Statu
     if (rc == MPI_SUCCESS) { src = st->MPI_SOURCE; tag = st->MPI_TAG; }
     REC(b, "recv"); rb_printf(&b, ",\"src\":%d,\"tag\":%d,\"comm\":%d,\"mrecv\":1", src, tag, comm); rb_type(&b, count, dt); if (!noproc) rb_bufrange(&b, buf, count, dt);
     if (noproc && rc != MPI_SUCCESS) rb_printf(&b, ",\"procnull\":1");   /* else the status says so */
-    status_fields(&b, st, recv_size(dt), rc == MPI_SUCCESS); rb_recv_sum(&b, sum_base(buf, dt, NULL), st, rc == MPI_SUCCESS); rb_emit(&b);
+    status_fields(&b, st, recv_size(dt), recv_ok(rc)); rb_recv_sum(&b, sum_base(buf, dt, NULL), st, rc == MPI_SUCCESS); rb_emit(&b);
     return rc;
 }
 int MPI_Imrecv(void *buf, int count, MPI_Datatype dt, MPI_Message *msg, MPI_Request *req) {
