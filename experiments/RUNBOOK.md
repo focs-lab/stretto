@@ -856,6 +856,15 @@ write at limit 4 055 and not at 4 056 (Open MPI), at UCX threshold 4 000 and not
 buffer after the call even at an eager size. The table is
 `experiments/results/guard/thresholds.csv`.
 
+`experiments/dealii13206/run.sh` (deal.II 9.3.0 from `experiments/dealii/run.sh build` with
+`DEALII_VERSIONS=9.3.0`): the test `mpi/fe_tools_extrapolate_03` at 3 ranks, as built and with
+the fix of PR 13206 compiled into a library of the file's instantiations that the fixed driver
+loads first; traced runs with the guard, untraced runs at MPICH's defaults, with every message
+by rendezvous, and just below and at the largest misused message. Results in
+`experiments/results/dealii13206/`. In the campaign of 30 Oct the installed tree of another copy
+was mounted read-only at `/w/third_party/apps/dealii`, its build prefix, with `EXTRAPOLATE_DIR`
+outside it.
+
 ## Keeping every trace
 
 The drivers delete the traces they record once they have analysed them (a replay's as soon as it

@@ -1,0 +1,21 @@
+variant,run,rc,records,guard_records,findings_3local,thresholds,sizes,commit
+bug,1,0,67078,48,48,"12x [B < 248];12x [B < 40];24x [B < 96]","40 96 248",8dfff4b-dirty
+bug,2,0,68904,48,48,"12x [B < 248];12x [B < 40];24x [B < 96]","40 96 248",8dfff4b-dirty
+bug,3,0,66094,48,48,"12x [B < 248];12x [B < 40];24x [B < 96]","40 96 248",8dfff4b-dirty
+bug,4,0,66280,48,48,"12x [B < 248];12x [B < 40];24x [B < 96]","40 96 248",8dfff4b-dirty
+bug,5,0,67434,48,48,"12x [B < 248];12x [B < 40];24x [B < 96]","40 96 248",8dfff4b-dirty
+bug,6,0,66458,48,48,"12x [B < 248];12x [B < 40];24x [B < 96]","40 96 248",8dfff4b-dirty
+bug,7,0,67356,48,48,"12x [B < 248];12x [B < 40];24x [B < 96]","40 96 248",8dfff4b-dirty
+bug,8,0,67498,48,48,"12x [B < 248];12x [B < 40];24x [B < 96]","40 96 248",8dfff4b-dirty
+bug,9,0,66938,48,48,"12x [B < 248];12x [B < 40];24x [B < 96]","40 96 248",8dfff4b-dirty
+bug,10,0,66180,48,48,"12x [B < 248];12x [B < 40];24x [B < 96]","40 96 248",8dfff4b-dirty
+fix,1,0,67440,0,0,"","",8dfff4b-dirty
+fix,2,0,68114,0,0,"","",8dfff4b-dirty
+fix,3,0,73106,0,0,"","",8dfff4b-dirty
+fix,4,0,66622,0,0,"","",8dfff4b-dirty
+fix,5,0,66160,0,0,"","",8dfff4b-dirty
+fix,6,0,72256,0,0,"","",8dfff4b-dirty
+fix,7,0,66476,0,0,"","",8dfff4b-dirty
+fix,8,0,66350,0,0,"","",8dfff4b-dirty
+fix,9,0,67034,0,0,"","",8dfff4b-dirty
+fix,10,0,66246,0,0,"","",8dfff4b-dirty

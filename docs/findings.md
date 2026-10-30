@@ -17,6 +17,7 @@ Updated with every finding.
 | stempy 3.3.5 | deserialisation exception | documented | E5g, `experiments/stempy` | fixed |
 | MFEM 3.3.2, group rows | abort (truncation) or wrong groups | documented | E5g, `experiments/mfem332` | fixed |
 | LAMMPS, before March 2017 | deadlock without eager buffering | documented | E5g, `experiments/lammps` | fixed |
+| deal.II 9.3.0 `FETools::extrapolate`, every `Isend` of a round from one buffer | buffer guard: writes to pending send buffers (40-248 B), predicted to change messages below their size; with the eager limit forced below, 10 of 10 runs of the shipped test fail its check, 0 of 10 at it and 0 with the fix | documented (PR 13206), latent at default eager limits | `experiments/dealii13206` | fixed (b3b2b97) |
 | **HYPRE 3.2.0 ParaSails, all pattern levels share tag 221** | probe takes the next level's request; hang | new, Oct 2026 | E5f, `experiments/hypre3` | report drafted |
 | **SuperLU_DIST 9.3.1, 3D solve, barrier commented out (79644321)** | L-solve takes a U-solve message on reducible matrices; hang or wrong x | new, Oct 2026 | E5h, `experiments/superlu3d` | report drafted |
 | **Quantum ESPRESSO develop `elph_prt`, tags independent of spin** | ionode's receives take the other spin's data (LSDA, npool >= 3); wrong printed table | new, Oct 2026 | E5h, `experiments/qeelph` | report drafted |
