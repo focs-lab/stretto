@@ -217,6 +217,25 @@ class C_Rule8(unittest.TestCase):
         self.assertEqual(len(swaps), 1)
         self.assertFalse(accepted(t, swaps[0]))
 
+class C_RequestReuse(unittest.TestCase):
+    def test_idiom_46_requests_stay_with_their_threads(self):
+        """Idiom 46 (both MPIs): two threads complete their Isends through copies of the handle,
+        which the library shares or reuses between them. Before 30 Oct 2026 the tracer credited
+        one thread's completion with the other's request in every run (threads-handoff)."""
+        golden = os.path.join(os.path.dirname(os.path.abspath(__file__)), "golden")
+        for mpi in ("openmpi", "mpich"):
+            d = os.path.join(golden, mpi)
+            name = next((x for x in sorted(os.listdir(d)) if x.startswith("46_")), None) if os.path.isdir(d) else None
+            if name is None:
+                self.skipTest(f"no golden trace of idiom 46 for {mpi}")
+            t = T.load(os.path.join(d, name))
+            sends = [s for s in t.sends.values() if s.proc == 0]
+            self.assertEqual(len(sends), 200, mpi)
+            self.assertTrue(all(s.completed and s.complete_chain is None for s in sends), mpi)
+            rep = analyze(t, with_sp=False)
+            self.assertEqual((rep.status(), rep.findings), ("complete", []), f"{mpi}: " + format_report(t, rep))
+
+
 class C_Observed(unittest.TestCase):
     def test_concurrent_collectives(self):
         t = mkt({0: [th(0, coll("bcast", 0)), th(1, coll("allreduce"))],

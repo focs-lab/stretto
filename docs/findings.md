@@ -157,6 +157,12 @@ with the hunt notes, outside this repository.
   communication engine cancels its persistent wildcard receives at finalisation). Neither tool
   path predicted the two tag races below; scans of same-envelope operations pending on two threads
   located them (`experiments/dlaf/pending_pairs.py`, `experiments/slate/overlap.py`). Open.
+- Request handles reused across threads (30 Oct, SLATE): the tracer credited one thread's
+  completion with another thread's request when the library shared a handle between them (a
+  send completed at once) or freed one inside a thread's wait and handed it to another thread's
+  next request; traces were degraded `threads-handoff` (idiom 46: 40 of 40 runs). Fixed: entries
+  remember their thread and are claimed before the completion call (`tracer/mpitrace.c`, request
+  table).
 - Buffer-guard findings said nothing of their consequence (30 Oct): a write to a pending send
   buffer is harmless while the library copies the message in the call. The report now gives each
   3-local finding the thresholds at which data changes (docs/model.md section 7), confirmed by
