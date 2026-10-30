@@ -1,0 +1,41 @@
+cell,variant,run,result,colliding_pairs,stretto_status,l1_receive_findings,l1_receive_tags,waitany_order,observed_2_thread_collective,observed_2_thread_wait,observed_other
+vp1-mt,fixed,1,ok,,complete,0,,0,0,0,0
+vp1-mt,fixed,2,ok,,complete,0,,0,0,0,0
+vp1-mt,fixed,3,ok,,complete,0,,0,0,0,0
+vp1-mt,fixed,4,ok,,complete,0,,0,0,0,0
+vp1-mt,fixed,5,ok,,complete,0,,0,0,0,0
+vp1-mt,plain,1,ok,,complete,0,,0,0,0,0
+vp1-mt,plain,2,ok,,complete,0,,0,0,0,0
+vp1-mt,plain,3,ok,,complete,0,,0,0,0,0
+vp1-mt,plain,4,ok,,complete,0,,0,0,0,0
+vp1-mt,plain,5,ok,,complete,0,,0,0,0,0
+vp2-mt,fixed,1,ok,,complete,0,,0,0,0,0
+vp2-mt,fixed,2,ok,,complete,0,,0,0,0,0
+vp2-mt,fixed,3,ok,,complete,0,,0,0,0,0
+vp2-mt,fixed,4,ok,,complete,0,,0,0,0,0
+vp2-mt,fixed,5,ok,,complete,0,,0,0,0,0
+vp2-mt,plain,1,ok,,complete,15,0 1 2,0,0,0,0
+vp2-mt,plain,2,ok,,complete,15,0 1 2,0,0,0,0
+vp2-mt,plain,3,ok,,complete,17,0 1 2,0,0,0,0
+vp2-mt,plain,4,ok,,complete,15,0 1 2,0,0,0,0
+vp2-mt,plain,5,ok,,complete,17,0 1 2,0,0,0,0
+vp2-mt-4ranks,fixed,1,ok,,complete,0,,0,0,0,0
+vp2-mt-4ranks,fixed,2,ok,,complete,0,,0,0,0,0
+vp2-mt-4ranks,fixed,3,ok,,complete,0,,0,0,0,0
+vp2-mt-4ranks,fixed,4,ok,,complete,0,,0,0,0,0
+vp2-mt-4ranks,fixed,5,ok,,complete,0,,0,0,0,0
+vp2-mt-4ranks,plain,1,ok,,complete,20,0,0,0,0,0
+vp2-mt-4ranks,plain,2,ok,,complete,20,0,0,0,0,0
+vp2-mt-4ranks,plain,3,ok,,complete,20,0,0,0,0,0
+vp2-mt-4ranks,plain,4,ok,,complete,20,0,0,0,0,0
+vp2-mt-4ranks,plain,5,ok,,complete,20,0,0,0,0,0
+vp2-serialized,fixed,1,ok,,complete,0,,0,0,0,0
+vp2-serialized,fixed,2,ok,,complete,0,,0,0,0,0
+vp2-serialized,fixed,3,ok,,complete,0,,0,0,0,0
+vp2-serialized,fixed,4,ok,,complete,0,,0,0,0,0
+vp2-serialized,fixed,5,ok,,complete,0,,0,0,0,0
+vp2-serialized,plain,1,ok,,complete,0,,0,0,0,0
+vp2-serialized,plain,2,ok,,complete,0,,0,0,0,0
+vp2-serialized,plain,3,ok,,complete,0,,0,0,0,0
+vp2-serialized,plain,4,ok,,complete,0,,0,0,0,0
+vp2-serialized,plain,5,ok,,complete,0,,0,0,0,0

@@ -95,7 +95,27 @@ header counted one line too many, which GNU `patch`, used by `build.sh`, tolerat
 
 ## What the tool did on these traces
 
-Traced `reshape_check` runs (1 rank, 2 virtual processes, `-m 1`, one taskpool): 10 plain runs
+**Since milestone F (30 Oct, docs/threads.md section 15)** a receive withdrawn by a cancel on
+another thread is modelled (posted until its cancel, ordered against concurrent receives and
+probes), and the trace is analysed. `traced.sh` ([traced.csv](traced.csv); a-p13, 16
+processors; the CSV was written by the same commands from a scratch copy of the script), 5
+traced runs per cell and variant, one taskpool each; every run came out right:
+
+| cell | plain: traces with L1 receive alternatives | patched |
+|---|---|---|
+| 1 rank, 6 threads in 2 virtual processes, `-m 1` | 5 of 5 (15 to 17 each, tags 0, 1 and 2) | 0 of 5 |
+| 4 ranks, 2 threads each in 2 virtual processes | 5 of 5 (20 each, tag 0) | 0 of 5 |
+| 2 virtual processes, `-m 0` (`MPI_THREAD_SERIALIZED`) | 0 of 5 | 0 of 5 |
+| 1 virtual process, `-m 1` | 0 of 5 | 0 of 5 |
+
+Every alternative is a concurrent swap or steal (1f, the copies have one size) of two threads'
+`MPI_Sendrecv` receives on a rank's duplicate of `MPI_COMM_SELF` with one tag, the threads `t`
+of the two virtual processes: the race of the finding, predicted from runs in which it did not
+happen. No other finding in any of the 40 traces. Before the fix of 15.2, 6 of the 10 earlier
+plain traces (below) also had an observed `2-buffering` and 5 instead of 15 alternatives; with
+it, those 10 traces give 15 or 17 alternatives each, the 5 patched ones none.
+
+Before milestone F: traced `reshape_check` runs (1 rank, 2 virtual processes, `-m 1`, one taskpool): 10 plain runs
 and 5 patched, all with correct results (the tracer's issue lock serialises the postings).
 Stretto: every trace degraded `threads-cancel` ("a receive withdrawn by a successful cancel:
 not modelled across threads"): PaRSEC cancels the communication engine's 24 persistent wildcard
@@ -108,5 +128,6 @@ same-envelope pairs pending on two threads at once, on the self communicator wit
 ## Files
 
 `Dockerfile`, `build.sh`, `reshape_check.jdf`, `testing_reshape_check.c`, `self-tags.patch`
-(against 6c49997, `patch -p1`), `series.sh`, `clean-room.sh` (the upstream report's reproduction
-block, run verbatim in an empty directory); results `series.csv`.
+(against 6c49997, `patch -p1`), `series.sh`, `traced.sh` (traced runs and Stretto's reports; its
+CSV by `../dlaf/traced_csv.py`), `clean-room.sh` (the upstream report's reproduction block, run
+verbatim in an empty directory); results `series.csv`, `traced.csv`.

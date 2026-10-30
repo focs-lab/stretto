@@ -116,8 +116,34 @@ install without RPATH).
 
 ## What the tool did on these traces
 
-Traced copies (2x1, 4 threads, one copy; the plain run gave a wrong copy, the patched one a
-right one): both traces are degraded `threads-handoff`, so Stretto predicts nothing. pika's MPI
+**Since milestone F (30 Oct, docs/threads.md section 15)** a request completed by another
+thread is analysed: its completion lies on the polling worker, which the posting precedes
+(premise P-T9). `traced.sh` ([traced.csv](traced.csv); a-p13, 16 processors; the CSV was
+written by the same commands from a scratch copy of the script), 5 traced runs per cell and
+variant, one copy each:
+
+| cell (as series.sh) | plain: wrong copies, traces with L1 receive alternatives | patched |
+|---|---|---|
+| 2x1, 4 pika threads, 28 colliding pairs | 5 of 5 wrong, 5 of 5 (52 to 64 each) | 0 of 5, 0 of 5 |
+| 4x1, 2 threads, 344 pairs | 5 of 5, 5 of 5 (113 to 206) | 0 of 5, 0 of 5 |
+| 3x2, 2 threads, 21 pairs | 5 of 5, 5 of 5 (34 to 48) | 0 of 5, 0 of 5 |
+| 2x2, 2 threads, 0 pairs (control) | 0 of 5, 0 of 5 | 0 of 5, 0 of 5 |
+| 2x1, 1 pika thread (control) | 0 of 5, 0 of 5 | 0 of 5, 0 of 5 |
+
+Every alternative is a concurrent swap or steal (1f) of two receives with one source and tag,
+which exist only where tags collide, so all are at colliding tags (4 to 71). The patched traces
+and the controls have none. What remains on every trace with several workers is the false alarms
+above, from pika's synchronisation the tracer does not see (0 to 13 `2-thread-collective`, 2 to
+6 `2-thread-wait` per trace), and `waitany-order` warnings (45 to 2 443 per trace) from pika's
+`MPI_Testsome` polls, whose completion order can vary; neither is a receive alternative. The
+claim rests on P-T10 (a result is read only after its completion in the recorded
+happens-before), which pika's continuations, scheduled through atomics, do not give the trace.
+The two traces of the paragraph below, analysed again, give the same picture (60 alternatives,
+none patched).
+
+Before milestone F: traced copies (2x1, 4 threads, one copy; the plain run gave a wrong copy,
+the patched one a right one): both traces are degraded `threads-handoff`, so Stretto predicts
+nothing. pika's MPI
 polling (`libs/pika/async_mpi/src/mpi_polling.cpp:415, 466, 499`) tests the requests of all
 tasks with `MPI_Testsome`/`MPI_Testany` on whichever worker thread polls, so nearly every
 request is completed by another thread than the one that posted it. The observed classes are
@@ -138,6 +164,7 @@ trace.
 ## Files
 
 `Dockerfile`, `build.sh`, `copy_check.cpp` (driver and oracle), `copy-tags.patch` (against
-09fe442, `patch -p1`), `series.sh`, `pending_pairs.py`, `clean-room.sh` and `CMakeLists.txt` (the
-upstream report's reproduction block, run verbatim in an empty directory); results `series.csv`,
-`series-1thread.csv`.
+09fe442, `patch -p1`), `series.sh`, `traced.sh` and `traced_csv.py` (traced runs and Stretto's
+reports), `pending_pairs.py`, `clean-room.sh` and `CMakeLists.txt` (the upstream report's
+reproduction block, run verbatim in an empty directory); results `series.csv`,
+`series-1thread.csv`, `traced.csv`.

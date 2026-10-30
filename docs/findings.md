@@ -158,8 +158,8 @@ with the hunt notes, outside this repository.
   path predicted the two tag races below; scans of same-envelope operations pending on two threads
   located them (`experiments/dlaf/pending_pairs.py`, `experiments/slate/overlap.py`). Closed 30
   Oct (milestone F, [threads.md](threads.md) §15): a request completed by another thread is
-  modelled (premises P-T9, P-T10), and so is a receive cancelled by another thread (P-T11). The
-  false alarms of pika's unrecorded synchronisation stay.
+  modelled (premises P-T9, P-T10), and so is a receive cancelled by another thread (P-T11); both
+  races are predicted at L1 (below). The false alarms of pika's unrecorded synchronisation stay.
 - Request handles reused across threads (30 Oct, SLATE): the tracer credited one thread's
   completion with another thread's request when the library shared a handle between them (a
   send completed at once) or freed one inside a thread's wait and handed it to another thread's
@@ -287,9 +287,15 @@ ranks MPI matches them in the order the tasks found their tiles ready. Untraced 
 an oracle on every element), 20 runs per cell, 2 to 6 ranks: 20 of 20 wrong on 2x1 (source rank
 shifted, or block size halved), 4x1 and 3x2; 0 of 20 on 2x2 (no colliding pair), with one pika
 thread, and with the global linear tile index as tag (one line) in every cell. The unit test
-`CopyReshuffling` has no colliding pair in its configurations. Stretto predicts nothing (pika:
-`threads-handoff`, above); `pending_pairs.py` finds 24 pending same-envelope receive pairs in a
-plain trace, 0 in a patched one. Shown safe by reading: every collective (`exclusive()`), the
+`CopyReshuffling` has no colliding pair in its configurations. Until milestone F Stretto predicted
+nothing (pika: `threads-handoff`, above); `pending_pairs.py` finds 24 pending same-envelope receive
+pairs in a plain trace, 0 in a patched one. Since then (30 Oct, 5 traced runs per cell and
+variant): 15 of 15 plain traces of the three colliding cells (2x1, 4x1, 3x2) predict L1 swaps or
+steals of two receives with one colliding tag (34 to 206 per trace), 0 of 15 patched ones and 0
+of 20 controls (2x2 without a colliding pair, one pika thread), plain or patched; every trace
+with several workers keeps the false alarms of pika's unrecorded synchronisation, and every one
+`waitany-order` warnings of pika's polling (`experiments/dlaf/traced.csv`). All plain traced runs
+of the colliding cells were wrong. Shown safe by reading: every collective (`exclusive()`), the
 fixed-tag `exclusive()` sends, `bt_band_to_tridiag`'s `shared()` sums, `rot.h`'s serialised
 column exchanges, the permutation's tag 0 (one message per pair and call), `band_to_tridiag`'s
 four tag families. Report drafted, not sent; its reproduction block, run in an empty directory,
@@ -305,9 +311,14 @@ emulated by a synthetic hwloc topology) threads t of both share a tag and receiv
 tiles. Untraced, 20 runs per cell: the shipped `reshape` test fails 3 to 6 of its 7 tests in 20
 of 20 runs, a checking variant 20 of 20 (1 rank) and 15 of 20 (4 ranks); 0 with one virtual
 process, with `MPI_THREAD_SERIALIZED`, or with tags numbered across virtual processes (an
-11-line patch). Traced runs come out right (0 of 10) and are degraded `threads-cancel`;
+11-line patch). Traced runs come out right (0 of 10) and were degraded `threads-cancel`;
 `overlap.py` finds 2 to 22 same-tag `Sendrecv` pairs pending on two threads in 8 of 10 plain
-traces, 0 in 5 patched. Shown safe by reading: activations (received by the communication
+traces, 0 in 5 patched. Since milestone F (30 Oct) Stretto predicts the race at L1 from these
+runs without it: 10 of 10 new plain traces with two virtual processes (1 rank and 4 ranks) have
+15 to 20 swaps or steals of two threads' reshape receives on a self duplicate, at the shared
+tag; 0 of 10 patched and 0 of 20 controls (`MPI_THREAD_SERIALIZED`, one virtual process); all 40
+runs right (`experiments/parsec/traced.csv`). The 10 earlier plain traces give 15 or 17 each.
+Shown safe by reading: activations (received by the communication
 thread only), data messages (communication thread, compare-and-swap tags). Side defects, not
 races: the `rr:` and `file:` vpmaps crash (vpmap.c:384, 308-327). Report drafted, not sent; its
 reproduction block, run in an empty directory, fails 6 of 7 tests in 3 of 3 runs, 0 patched.

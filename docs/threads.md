@@ -1467,6 +1467,24 @@ the fast checks and read bounds are single-chain only, as before.
 
 - *Idiom 46* (both MPIs): with the tracer of main, 40 of 40 runs degraded `threads-handoff`
   (20 per MPI); with the fix 40 of 40 complete without a finding. Golden traces of both MPIs.
+- *DLA-Future 09fe442, `matrix::copy`* ([experiments/dlaf](../experiments/dlaf/README.md),
+  `traced.csv`, 5 traced runs per cell and variant, one copy each): 15 of 15 plain traces of the
+  three cells with colliding tags (2x1, 4x1, 3x2) predict L1 swaps or steals of two receives
+  with one source and one colliding tag, 34 to 206 per trace; 0 of 15 patched traces and 0 of
+  20 controls (2x2 without a colliding pair, one pika thread; plain and patched). All 15 plain
+  runs copied wrongly, none of the others. Before: every trace degraded `threads-handoff`. What
+  stays: the observed false alarms of pika's unrecorded synchronisation (0 to 13
+  `2-thread-collective`, 2 to 6 `2-thread-wait` per trace) and `waitany-order` warnings of
+  pika's `MPI_Testsome` polling (45 to 2 443), on patched traces too; the claims rest on P-T10,
+  which pika does not give the trace (a continuation reads a result on another worker after
+  atomics).
+- *PaRSEC 6c49997, local reshapes* ([experiments/parsec](../experiments/parsec/README.md),
+  `traced.csv`, 5 per cell and variant): every run came out right; 10 of 10 plain traces with
+  two virtual processes (1 rank of 6 threads; 4 ranks of 2) predict 15 to 20 swaps or steals of
+  two threads' reshape receives on a rank's self duplicate at the shared tag, 0 of 10 patched
+  traces and 0 of 20 controls (`MPI_THREAD_SERIALIZED`, one virtual process). Before: degraded
+  `threads-cancel`. The 10 earlier plain traces give 15 or 17 each, 6 of them only 5 and an
+  observed `2-buffering` without the fix of 15.2.
 - *SLATE observed `2-buffering`* (15.2): of 24 traced wide 2x2 runs on 12 processors (12 with
   the tracer of main, 12 with the fixed one; the setting of the 30 Oct remeasurement), 6
   reported it with the analysis of main (3 with each tracer), with 0 to 41 L1 findings; with the
