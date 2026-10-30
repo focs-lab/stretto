@@ -31,8 +31,8 @@ OMP_NUM_THREADS is left alone, and the rows gain the columns of THREAD_KEYS. --r
 alternative and its control K times, since the interleaving the gates leave free varies.
 
 usage: replay_sample.py --out CSV [--sample N] [--seed K] [--timeout S] [--mpi openmpi|mpich]
-                        [--from-csv CSV] [--flips] [--threads] [--repeat K] [--only REGEX] [--grep REGEX]
-                        [--fresh-cwd DIR] <trace dir> <np> <exe> [args ...]
+                        [--from-csv CSV] [--flips] [--threads] [--repeat K] [--only REGEX] [--cls C,...] [--grep REGEX]
+                        [--fresh-cwd DIR] [--env NAME=VALUE ...] <trace dir> <np> <exe> [args ...]
 The options come first: everything after <exe> is the program's own command line, which may
 start with a dash, and the replays run it from the current directory, as the traced run was.
 """
@@ -116,11 +116,17 @@ def main() -> int:
                          "(sync divergence, the output pattern)")
     ap.add_argument("--repeat", type=int, default=1, help="replay each alternative and its control this many times")
     ap.add_argument("--only", default=None, help="sample only the alternatives whose title matches this regular expression")
+    ap.add_argument("--cls", default=None, help="sample only the alternatives of these classes (comma-separated, as 1a,1f)")
     ap.add_argument("--grep", default=None,
                     help="count the lines of each run's output (stdout and stderr) that match this regular expression")
     ap.add_argument("--fresh-cwd", default=None,
                     help="run every replay and control in this directory, emptied before each run (a program whose "
                          "output files change its next run, as HDF5's do)")
+    ap.add_argument("--keep-output", default=None, metavar="DIR",
+                    help="write each replay's and control's stdout and stderr to DIR/<k>-<class>-<pin>[-<repeat>]-replay.out "
+                         "and -control.out (an oracle that needs more than --grep's count)")
+    ap.add_argument("--env", action="append", default=[], metavar="NAME=VALUE",
+                    help="give every rank of every replay and control this variable, as the traced run's launcher did (-x)")
     ap.add_argument("--out", required=True)
     ap.add_argument("--keep-campaign", default=None,
                     help="with KEEP_TRACES set, keep the replays' traces under this campaign (stretto.keep; default: the table's)")
@@ -142,6 +148,8 @@ def main() -> int:
             pool += [f for f in rep.findings if f.level == "L1" and f.cls in ("probe-unflip", "test-flip")]
         if args.only:
             pool = [f for f in pool if re.search(args.only, f.title)]
+        if args.cls:
+            pool = [f for f in pool if f.cls in args.cls.split(",")]
         rng = random.Random(args.seed)
         sample = rng.sample(pool, min(args.sample, len(pool)))
         pool = len(pool)
@@ -153,6 +161,7 @@ def main() -> int:
     rows = []
     # one thread per rank, as in the traced run; a program of several threads keeps its own setting
     env = {} if args.threads else {"OMP_NUM_THREADS": "1"}
+    env.update(x.split("=", 1) for x in args.env)
     pattern = re.compile(args.grep) if args.grep else None
 
     def hits(r) -> int:
@@ -178,6 +187,11 @@ def main() -> int:
                              keep_as=(campaign, name + "-replay"))
             rc = run_checked(args.np, args.exe, args.args, ctl, args.timeout, mpi=args.mpi, extra_env=env, cwd=fresh(),
                              keep_as=(campaign, name + "-control"))
+            if args.keep_output:
+                os.makedirs(args.keep_output, exist_ok=True)
+                for role, r in (("replay", ra), ("control", rc)):
+                    with open(os.path.join(args.keep_output, f"{name}-{role}.out"), "w") as fh:
+                        fh.write(r.proc.stdout + "\n--- stderr\n" + r.proc.stderr)
             rows.append({**row, "pins": sum(x.count(",") + 1 for x in alt),
                          "replay": ra.result, "matched": all_matched(alt, ra.proc.stderr, required, ra.seen),
                          "run_valid": ra.valid, "violation": ra.why[:300],
