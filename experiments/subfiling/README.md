@@ -68,3 +68,51 @@ race, but a crash of a replay that did not follow its pins is not attributed to 
 A first run of 30 Oct gated every pair of concurrent operations instead of the pairs the
 alternative reorders (13 rows, not kept): gates between workers of different pools never opened
 (6 of 13 replays and 7 of 13 controls timed out), for the same reason.
+
+## Replays with the lock order (milestone E, 30 Oct 2026)
+
+[docs/threads.md](../../docs/threads.md) section 14. `run.sh` now records each rank's lock order
+(`STRETTO_SYNC_ORDER=1`) and runs the test in `SCRATCH` (a 3 GB tmpfs in the container, so that
+the test's files stay off the disk); `replay.sh` replays with lock gates, every concurrent pair
+gated, and the concentrators' `Iprobe(ANY_SOURCE, ANY_TAG)` pinned by its envelope ordinal (the
+concentrators of the files probe one communicator in turns). Tracer and analysis of main
+5fdd932 with this branch's replay; a-p13, Open MPI 4.1.6.
+
+**Traces** ([results-e.csv](results-e.csv), two sets, 5 and 8 runs per version): every `pre`
+trace predicts 2 to 7 L1 alternatives at the data receives (1a, a 1264-byte or 800-byte or
+128 MiB write into a 96-byte receive, in 2 of 13); no `fix` trace has one. 12 of 13 `pre` runs and
+13 of 13 `fix` runs pass; the 13th `pre` run (second set, run 8) failed a read request of 128 MiB
+and ended in SIGSEGV on rank 0, its trace reporting 3 1a alternatives (that the bug caused the
+crash is a guess: the scratch tmpfs may have filled; not diagnosed).
+
+**Which pool** (`instances.py`). The test opens its files one after another, each with four
+workers and a concentrator (chains 0.0 to 0.4, 0.5 to 0.9, 0.10 to 0.14). Of the 65 alternatives
+of the 13 `pre` traces, 58 have a worker of one file take data that a worker of another file
+took. Those are over-predictions: a concentrator ends on an atomic flag (`sf_shutdown_flag`,
+`sf_work_pending`) that the tracer does not record, so happens-before leaves the pools of two
+files concurrent (section 2.3, atomics). 7 alternatives, in runs 7 and 8 of the second set, are
+within one pool: the bug the fix removes. (With the analysis before 5fdd932, 9 of 33 alternatives
+of 5 other traces were within one pool; those traces are gone.)
+
+| campaign | replays | every pin taken | finished | gate timeout | controls finished, pins taken, no divergence |
+|---|---|---|---|---|---|
+| sample of the first set ([replay-e.csv](replay-e.csv); all across pools) | 32 | 0 | 0 | 29 (3 SIGSEGV) | 32 of 32 |
+| within one pool, run 7 of the second set (2 alternatives, 3 times each; [replay-same.csv](replay-same.csv)) | 6 | 4 | 5 | 1 | 6 of 6 |
+| within one pool, run 8, the run that crashed (5 alternatives, 3 times each) | 15 | 0 | 0 | 15 | 0 of 15 (14 timed out) |
+
+In run 7 the alternatives are a 1264-byte write taken by a worker's 96-byte receive. The 4
+replays that took every pin are the predicted race: the replay's own trace shows the truncated
+receive with the 1264-byte message (the receive returned `MPI_ERR_TRUNCATE`, which HDF5 lets
+pass; the run finished and the test's data checks printed nothing), and every control
+reproduced the recorded run. The crashed run's trace ends where the run did, and neither a
+replay nor a control follows it. The 58 cross-pool alternatives are over-predictions of the
+missing atomic edges; their replays never take their pins, as they should not.
+
+Before the rebase on main 5fdd932 (the same scripts with the analysis then on main, 5 other
+traces, no longer kept): 9 of 33 alternatives were within one pool (3 a 1a), and 27 of 27 of
+their replays took every pin, with 27 of 27 controls clean; 0 of 30 cross-pool replays did.
+
+The campaigns above ran before the tracer made a waiting thread check its turn again on waking
+(docs/threads.md section 14, item 3). Run 7's two alternatives replayed again with the final
+tracer, 3 times each ([replay-same-final.csv](replay-same-final.csv)): 4 of 6 replays took every
+pin, 5 of 6 controls did, all finished without divergence, and 3 of 6 had both.

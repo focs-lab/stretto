@@ -1,0 +1,27 @@
+set,version,run,test_rc,passed,records,l1_data_tag,l1_data_tag_1a,findings_by_class
+1,pre,1,0,12,3517,6,0,1f:L1=6 2-thread-finalize:observed=1 probe-alt:L1=173
+1,pre,2,0,12,3122,4,0,1f:L1=4 2-thread-finalize:observed=1 probe-alt:L1=170
+1,pre,3,0,12,3236,2,0,1f:L1=2 2-thread-finalize:observed=1 probe-alt:L1=166
+1,pre,4,0,12,6070,4,0,1f:L1=4 2-thread-finalize:observed=1 probe-alt:L1=172
+1,pre,5,0,12,2962,2,0,1f:L1=2 2-thread-finalize:observed=1 probe-alt:L1=172
+1,fix,1,0,12,3652,0,0,2-thread-finalize:observed=1 probe-alt:L1=242
+1,fix,2,0,12,6930,0,0,2-thread-finalize:observed=1 probe-alt:L1=261
+1,fix,3,0,12,6125,0,0,2-thread-finalize:observed=1 probe-alt:L1=236
+1,fix,4,0,12,8675,0,0,2-thread-finalize:observed=1 probe-alt:L1=251
+1,fix,5,0,12,3447,0,0,2-thread-finalize:observed=1 probe-alt:L1=226
+2,pre,1,0,12,3678,6,0,1f:L1=6 2-thread-finalize:observed=1 probe-alt:L1=173
+2,pre,2,0,12,3440,6,0,1f:L1=6 2-thread-finalize:observed=1 probe-alt:L1=168
+2,pre,3,0,12,2899,6,0,1f:L1=6 2-thread-finalize:observed=1 probe-alt:L1=173
+2,pre,4,0,12,3248,4,0,1f:L1=4 2-thread-finalize:observed=1 probe-alt:L1=174
+2,pre,5,0,12,6004,6,0,1f:L1=6 2-thread-finalize:observed=1 probe-alt:L1=169
+2,pre,6,0,12,3416,6,0,1f:L1=6 2-thread-finalize:observed=1 probe-alt:L1=174
+2,pre,7,0,12,4574,6,2,1a:L1=2 1f:L1=4 2-thread-finalize:observed=1 probe-alt:L1=160
+2,pre,8,139,8,10301,7,3,1a:L1=3 1f:L1=6 2-blocked:observed=4 probe-alt:L1=133
+2,fix,1,0,12,6069,0,0,2-thread-finalize:observed=1 probe-alt:L1=229
+2,fix,2,0,12,3926,0,0,2-thread-finalize:observed=1 probe-alt:L1=233
+2,fix,3,0,12,3882,0,0,2-thread-finalize:observed=1 probe-alt:L1=236
+2,fix,4,0,12,3728,0,0,2-thread-finalize:observed=1 probe-alt:L1=229
+2,fix,5,0,12,6723,0,0,2-thread-finalize:observed=1 probe-alt:L1=233
+2,fix,6,0,12,4112,0,0,2-thread-finalize:observed=1 probe-alt:L1=238
+2,fix,7,0,12,3881,0,0,2-thread-finalize:observed=1 probe-alt:L1=243
+2,fix,8,0,12,3763,0,0,2-thread-finalize:observed=1 probe-alt:L1=226

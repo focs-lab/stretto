@@ -6,7 +6,11 @@
 # --threads), every run in an emptied directory: the test's own output files change the next
 # run's path through the Subfiling VFD (an extra I/O concentrator that receives nothing).
 #   experiments/subfiling/replay.sh WORK        (in the container of run.sh, after run.sh WORK)
-# Settings: SAMPLE (4), REPEAT (2), TIMEOUT (60 s per run), SEED (replay_sample.py's default).
+# Settings: SAMPLE (4), REPEAT (2), TIMEOUT (60 s per run), SEED (replay_sample.py's default),
+# SCRATCH (where the runs write the test's files, as in run.sh). A trace with a sync log (run.sh
+# records one) is replayed with its lock order too (STRETTO_PIN_LOCK, docs/threads.md section 14).
+# SAME=1 replays, instead of a sample, every alternative whose two receives are on workers of one
+# I/O concentrator (instances.py) and writes WORK/replay-same.csv; a trace without one is skipped.
 # Writes WORK/replay.csv: replay_sample.py's columns with the run in front; "hits" counts the
 # output lines that report wrong data read back ("expected =", the check of test_basic_dataset_write,
 # which prints and goes on), in the replay and in its control.
@@ -16,14 +20,19 @@ SAMPLE=${SAMPLE:-4}; REPEAT=${REPEAT:-2}; TIMEOUT=${TIMEOUT:-60}
 REPO=$(cd "$(dirname "$0")/../.." && pwd)
 export OMPI_MCA_rmaps_base_oversubscribe=1 OMPI_MCA_btl_vader_single_copy_mechanism=none
 mkdir -p "$W/replay"
-out=$W/replay.csv; rm -f "$out"
+out=$W/replay.csv; tag=
+if [ "${SAME:-0}" = 1 ]; then out=$W/replay-same.csv; tag=-same; SAMPLE=1000; fi
+rm -f "$out"
 for d in "$W"/runs/pre/run*/; do
   i=$(basename "$d")
+  only=tag=14211586
+  [ -n "$tag" ] && only=$(cd /tmp && python3 "$REPO/experiments/subfiling/instances.py" --only-same "$d/trace")
+  [ -n "$only" ] || continue
   (cd /tmp && python3 "$REPO/experiments/replay_sample.py" --threads --repeat "$REPEAT" --sample "$SAMPLE" \
-     ${SEED:+--seed "$SEED"} --only 'tag=14211586' --grep 'expected =' --fresh-cwd "$W/replay/cwd" \
-     --timeout "$TIMEOUT" --out "$W/replay/$i.csv" "$d/trace" 4 "$W/build-pre/bin/t_subfiling_vfd" > "$W/replay/$i.log" 2>&1)
-  [ -f "$out" ] || { head -1 "$W/replay/$i.csv" | sed 's/^/run,/' > "$out"; }
-  tail -n +2 "$W/replay/$i.csv" | sed "s/^/${i#run},/" >> "$out"
+     ${SEED:+--seed "$SEED"} --only "$only" --grep 'expected =' --fresh-cwd "${SCRATCH:-$W/replay}/cwd" \
+     --timeout "$TIMEOUT" --out "$W/replay/$i$tag.csv" "$d/trace" 4 "$W/build-pre/bin/t_subfiling_vfd" > "$W/replay/$i$tag.log" 2>&1)
+  [ -f "$out" ] || { head -1 "$W/replay/$i$tag.csv" | sed 's/^/run,/' > "$out"; }
+  tail -n +2 "$W/replay/$i$tag.csv" | sed "s/^/${i#run},/" >> "$out"
 done
-rm -rf "$W/replay/cwd"     # the test's files, about 500 MB per run
+rm -rf "${SCRATCH:-$W/replay}/cwd"     # the test's files, about 500 MB per run
 cat "$out" | cut -c1-200
