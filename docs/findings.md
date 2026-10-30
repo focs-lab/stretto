@@ -100,7 +100,13 @@ with the hunt notes, outside this repository.
   the thread work). Open.
 - Replays of several threads (milestone C, [threads.md](threads.md) §11): chain pins name a
   receive by its thread's ordinal, which a pool of worker threads does not keep from run to run
-  (HDF5 Subfiling: every replay and control diverged), so such alternatives stay unconfirmed. Open.
+  (HDF5 Subfiling: every replay and control diverged). Fixed 30 Oct (milestone E, §14): the
+  tracer records the lock order (`STRETTO_SYNC_ORDER=1`) and the replay gates it, so a chain's
+  ordinals name the trace's work; on idioms 44 and 45 (a worker pool, tasks taking roles under
+  a lock) 10 of 10 replays confirmed against 0 of 10 without lock gates, whose replays
+  included 3 wrong refutations. Still open: alternatives across HDF5's pools of two files
+  (an atomic flag orders them; over-predictions) and SLATE replays that need more threads
+  than the trace's team (P-T7).
   Gating every concurrent pair instead of the reordered ones timed out on the same pools; fixed
   30 Oct. The reduced orientation edges shared one cache between receive and send views and ended
   the analysis of a Uintah trace; fixed 30 Oct (84 multithreaded reports unchanged).
@@ -122,14 +128,15 @@ with the hunt notes, outside this repository.
   when the receive completes, and the tracer then asked about the freed handle (confirmed with a
   diagnostic build). Fixed 30 Oct: the count comes from the type's size at the posting; 20 of 20
   traced runs each pass (idiom 33). SLATE's task threads appeared as untracked chains named `u`;
-  fixed with the task chains. Open: replays of task alternatives diverge (SLATE's tasks take
-  locks whose order varies; a gated task holds its thread), and the observed matching of wrong
-  traced 2x2 runs is judged infeasible (`2-buffering`, observed; 4 of 13 in the remeasurement of
-  30 Oct, 1 of 5 before), not diagnosed. Open, found in that remeasurement: the tracer misnames a
-  request whose handle MPI freed in one thread's wait and gave to another thread's new request
-  before the first wrapper dropped it (`req_find_locked` returns the oldest entry of the handle);
-  the trace is then degraded `threads-handoff` (2 of 35 SLATE cell traces, 1 of 5 diagnostic
-  runs; experiments/slate/README.md).
+  fixed with the task chains. Replays of task alternatives diverged (SLATE's tasks take locks
+  whose order varies; a gated task holds its thread); with the lock order replayed and a team of
+  8 (§14) 15 of 18 replays took their pins. Open: the observed matching of wrong traced 2x2 runs
+  is judged infeasible (`2-buffering`, observed; 4 of 13 in the remeasurement of 30 Oct, 1 of 5
+  before), not diagnosed. Open, found in that remeasurement: the tracer misnames a request whose
+  handle MPI freed in one thread's wait and gave to another thread's new request before the
+  first wrapper dropped it (`req_find_locked` returns the oldest entry of the handle); the trace
+  is then degraded `threads-handoff` (2 of 35 SLATE cell traces, 1 of 5 diagnostic runs;
+  experiments/slate/README.md).
 - Lock order (milestone A, [threads.md](threads.md) §9): an alternative that needs two critical
   sections of one lock in the other order was never predicted (CorrBench `deadlock_probe`,
   `two_collectives_8`, `_9`). Fixed 30 Oct (level L1+L, §13, under premise P-T8); checked against
@@ -190,8 +197,17 @@ L1 that two worker threads of the I/O concentrator take each other's write data 
 1a truncations in an earlier run); 0 of 5 traces of the fix. Untraced, 20 of 20 runs passed. Replayed
 30 Oct with chain pins and order gates ([threads.md](threads.md) §11): 0 of 40 replays of 20
 alternatives took their pinned messages, every control diverged in its threads' synchronisation (the
-concentrator's worker pool hands requests to other workers in each run); not confirmed. Evidence:
-[experiments/subfiling](../experiments/subfiling/README.md) (`replay.csv`).
+concentrator's worker pool hands requests to other workers in each run). Replayed again in the
+trace's lock order (§14, 13 new traces per version, the analysis of 5fdd932): 58 of 65
+alternatives put a worker of one file's pool on another file's data, over-predictions of an atomic
+flag the tracer does not see (0 of 32 replays took their pins; 32 of 32 controls clean); of the 7
+within one pool, those of a run that passed (a 1264-byte write into a 96-byte receive) were
+realised in 4 of 6 replays, the truncation in the replay's trace, with 6 of 6 controls
+reproducing the run: confirmed with the truncation as the outcome (HDF5 returns the error and goes
+on, so the run itself finishes); those of a run that crashed could not be replayed (15 of 15
+timed out). Evidence:
+[experiments/subfiling](../experiments/subfiling/README.md) (`replay.csv`, `results-e.csv`,
+`replay-e.csv`, `replay-same.csv`).
 
 **Uintah 493d2b5 (master on 30 Oct) + hypre 2.33.0, Unified scheduler** (`sus -nthreads`,
 Examples/solvertest1, 8 patches), a real bug, observed: every trace shows the `MPI_Allreduce` of
@@ -235,8 +251,11 @@ in `permuteRows` but one at the colliding tile broadcast's receive (1a in 5 trac
 10 patched and 15 control traces (square, partial pivoting, 900x2000) and in the 39-routine
 sweep. No traced run of the remeasurement had a right factor (16 wrong, 2 aborted); before it,
 17 of 18 plain traces had findings (4 to 105), 10 of them from runs whose factor came out right
-(37 to 90 each), so the prediction from runs without the error rests on the earlier traces. Not
-confirmed by replay (task locks and gates diverge). The tester checks `getrf` only on square matrices.
+(37 to 90 each), so the prediction from runs without the error rests on the earlier traces.
+Replayed in the trace's lock order with 8 threads (§14): 15 of 18 replays of six 1f alternatives
+took their pins, with a control reproducing the run in 11, but the traced runs of that session
+all had the race already, so no consequence tells them apart; two 1a alternatives stopped at a
+gate (6 of 6, not diagnosed). The tester checks `getrf` only on square matrices.
 Shown safe by reading: partial-pivoting `getrf` (tag = column, chained by `column[j]`),
 `potrf`, `gemmA`/`gemmC`/`herk` (chained broadcasts), `geqrf` and `ttmqr` (disjoint column
 ranges), `getrf_nopiv` (shared tags, but row and column process sets meet in one rank), `he2hb`,

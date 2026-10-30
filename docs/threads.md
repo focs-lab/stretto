@@ -4,8 +4,9 @@ Status: designed 29 Oct 2026; milestone A (tracer, loader, analysis at L1, the o
 classes, tests) implemented the same day, section 9 says how it differs from the design; section
 10 says how milestone B made the check scale and what it found in HDF5's Subfiling VFD; section 11
 says how milestone C replays alternatives of several threads, section 12 how milestone D follows
-OpenMP tasks (both 30 Oct 2026), section 13 how level L1+L reorders critical sections (30 Oct
-2026). Decided
+OpenMP tasks (both 30 Oct 2026), section 13 how level L1+L reorders critical sections, section 14
+how milestone E replays pools of threads and tasks in the trace's lock order (30 Oct 2026).
+Decided
 29 Oct 2026: Stretto is extended to programs in which several threads of an MPI process call MPI
 on shared communicators (`MPI_THREAD_MULTIPLE`, and `MPI_THREAD_SERIALIZED` with several calling
 threads). Before, such a trace was analysed for observed findings only (`docs/model.md` §6). This
@@ -1225,3 +1226,133 @@ of L1+L alternatives; thresholds other than 0 and infinity; the replay (no lock 
   hooks take a lock whose wrapper allocated the thread's chain again inside that allocation;
   every OpenMP idiom under MPICH once the chain structure grew); fixed. The hard clock doubles the
   clocks (8 KiB each at 256 chains).
+
+## 14. Milestone E (30 Oct 2026): replaying pools of threads and tasks
+
+**Why milestone C could not confirm them.** A chain pin names a receive by its thread's ordinal.
+That names the same piece of work in a replay only if the threads share out their work as in the
+trace. A pool of worker threads takes requests from a queue under a mutex and a condition
+variable (HDF5 Subfiling); OpenMP tasks take roles, tiles or slots in the order they take a lock
+(SLATE's tile locks, idiom 45). Which thread takes what follows the lock order, which varies from
+run to run and which the replay left free, so milestone C's controls did not reproduce the
+recorded run, and a replay of the wrong work could even be judged *not confirmed*: on idiom 45,
+2 of 4 milestone C replays (Open MPI) were refuted wrongly, the tasks having no MPI operation
+before their receives for `sync_divergence` to see.
+
+**Design.**
+
+1. *The lock order is recorded* (tracer, section "lock order for replays";
+   `STRETTO_SYNC_ORDER=1`): each chain numbers its attempts to take a lock (mutexes, read-write
+   and spin locks, semaphore waits, the mutex a condition wait takes again, OpenMP critical
+   sections, atomic regions, locks and nest locks, `single` constructs), and `sync-<r>.txt`
+   lists them per lock in the order the lock was taken: `lock chain ordinal seq [f|t|l]` (seq the
+   chain's last record before the attempt; `f` a try that failed, `t` a condition wait that timed
+   out, `l` a thread that lost a `single`). A lock is numbered at its first attempt and again
+   after an `init` or `destroy` at its address. The trace proper is unchanged. The lock events of
+   section 13 are not enough for a replay: they cover mutual exclusion only (no nest locks,
+   whose order SLATE's tasks follow, nor read-write locks, semaphores, failed tries or the
+   winner of a `single`). The locks of numerical libraries (OpenBLAS's buffer allocator) are
+   followed as synchronisation but not listed: their order is the library's and varies.
+2. *The replay gates it* (`STRETTO_PIN_LOCK`, `replay/pin.h`): one token per lock lists its
+   acquisitions of the horizon in the trace's order; an attempt waits until the one before it in
+   its token has taken the lock and must take the lock the token's first attempt took (`lock pin
+   misapplied` otherwise); a try fails where the trace's failed and blocks where it succeeded; a
+   `single` lets the trace's winner call first, so that the tasks it creates get the trace's
+   names. An acquisition lies in the horizon when its chain's next record does, or the one before
+   it does and no changed receive cuts the chain there (rule 1); each token stops at its first
+   acquisition outside, and an attempt outside waits until the listed acquisitions of its lock
+   have happened.
+3. *A condition wait does not hold its mutex while it waits for its turn*: it waits in slices of
+   2 ms and returns once the trace's previous acquisition of the mutex has happened, whether a
+   signal came or not (a spurious wakeup, which POSIX allows; the program then reads what it read
+   in the trace, P-T1), with the trace's result (`t`). A signal may wake another waiter than in the
+   trace; the slices make that harmless. A wait that the tokens do not list asks again when it
+   wakes: it may have begun before its lock's first listed acquisition named the lock, and must
+   not take the mutex before the listed ones (idiom 44's idle worker took a request so).
+4. *Stable identity.* With the lock order fixed, a chain's k-th receive is the k-th piece of the
+   work it did in the trace, so chain names plus ordinals (P-T5) identify the work, which is what
+   naming a worker by the request it serves would have bought. A probe that several threads make
+   on one envelope is pinned by its envelope ordinal when the threads took turns (each probed in
+   one stretch: HDF5's I/O concentrators, one per file).
+5. *Every concurrent pair is gated.* Milestone C gated only the pairs the alternative reorders,
+   since gating the others failed where the work was shared out differently. With the work fixed,
+   every pair of concurrent operations that could take one message is gated: in the run's order
+   in the control, so that the control is the recorded run; in the replay in the alternative's
+   order where its constraint graph forces it (a path, or an operation beyond the graph, which
+   waits for the horizon) and in the run's order elsewhere. A single topological order also
+   reorders pairs that nothing orders, among them pairs that synchronisation the trace does not
+   see orders (HDF5's pools of two files, below), and those gates never open. A receive that
+   completes beyond the horizon is pinned but not required to take its message, in the control
+   either.
+6. *Tasks and their threads (P-T7).* A gated task holds its thread: libgomp's `GOMP_taskyield`
+   does nothing and no entry point runs another task from inside one. The gates are at the
+   operations only (an MPI call, a lock attempt), never at a task's start, and a gate that times
+   out says how many threads wait at gates: as many as the team has threads is a starved team,
+   not a diverged replay. Replays of SLATE with the trace's 4 threads starve (every thread waits
+   for a task none is free to start); they run with 8 (`REPLAY_THREADS`), which leaves the tasks'
+   names unchanged (a task is named after its creator, and the team's other implicit tasks make
+   no MPI call), and the claim is then about a run of the program with a team of 8.
+7. *A truncation that the program survives* is recorded: a receive that returns
+   `MPI_ERR_TRUNCATE` under `MPI_ERRORS_RETURN` (HDF5's communicators) now carries the source and
+   tag of its status, so the replay's own trace shows which message it took (before, its message
+   was unknown and the pin counted as not taken).
+
+"Confirmed" is unchanged: every required pin taken as the replay's own trace shows, the predicted
+outcome, and a control that finishes, takes its pinned messages and synchronises as the trace; a
+misapplied pin or lock pin, a gate timeout or a divergence makes the run inconclusive.
+
+**Results** (a-p13, Open MPI 4.1.6 unless said; the merged tracer and analysis of main 5fdd932).
+
+- *Idioms 44 (a pool of three workers under a mutex and a condition variable, the shape of HDF5's
+  I/O concentrator) and 45 (two tasks drawing slots under a nest lock)*, both MPIs: an L1
+  concurrent swap with a 1a truncation, and which worker or task does what varies between runs.
+  With lock gates 10 of 10 replays (6 and 4) were confirmed (`MPI_ERR_TRUNCATE`, control
+  finished); without them (milestone C) 0 of 10: 4 gate timeouts, 3 other inconclusive runs and
+  3 wrong refutations (the replay finished without its pins, and no divergence was seen). Under
+  MPICH (idiom 44, 2 replays) the replays end with exit status 14 and no `MPI_ERR_TRUNCATE` text,
+  which `classify_rc` does not read as the predicted truncation: not confirmed (a harness limit;
+  whether their pins were taken was not checked).
+- *HDF5 Subfiling 9975eaeb2* ([experiments/subfiling](../experiments/subfiling/README.md), 4
+  ranks): 13 traced runs of each version; every `pre` trace predicts 2 to 7 alternatives at the
+  data receives, no `fix` trace one. Of the 65, 58 have a worker of one file's pool take data a
+  worker of another file's pool took: over-predictions, since the concentrators of two files run
+  one after the other, ordered by an atomic flag the tracer does not record (2.3). A sample of 16
+  of them, twice each: 0 of 32 replays took their pins (29 gate timeouts, 3 SIGSEGV), 32 of 32
+  controls finished with every pin taken. The 7 within one pool, 3 times each: in the trace of a
+  run that passed (2 alternatives, a 1264-byte write into a 96-byte receive), 4 of 6 replays took
+  every pin, the truncation recorded in the replay's trace and returned to HDF5, which went on
+  (the run finished; 1 timeout, 1 finished without its pins), and 6 of 6 controls finished with
+  every pin taken and no divergence: the race is realised as predicted, a confirmation by the
+  criterion above with the truncation read from the replay's trace instead of the run's end. In
+  the trace of the run that crashed (5 alternatives) 15 of 15 replays and 14 of 15 controls timed
+  out: a control cannot follow a run that crashed. Milestone C: 0 of 40. (Before the rebase on
+  5fdd932, with the analysis then on main, 9 of 33 alternatives of 5 other traces were within one
+  pool and 27 of 27 of their replays took every pin with 27 of 27 controls clean; the cross-pool
+  alternatives were as above.)
+- *SLATE 878439b, wide CALU* ([experiments/slate](../experiments/slate/README.md), 4
+  ranks, 1000x2000, 2x2): traced with 4 threads, replayed with 8. All 9 traced runs ended with a
+  wrong factor or `MPI_ERR_TRUNCATE` (the load of the machine; earlier sessions had right
+  factors), so every recorded run already has the race's consequence. 6 L1 1f alternatives of
+  3 traces, 3 times each: 15 of 18 replays took every pin without divergence, 3 starved (8 of 8
+  threads at gates);
+  13 of 18 controls reproduced the recorded run (pins taken, no divergence, wrong factor), 2 timed
+  out, 3 ended in `MPI_ERR_TRUNCATE`; 11 of 18 replays have both. The alternatives are realised;
+  no consequence tells a replay from its control. Two 1a alternatives (the 80 000-byte tile into a
+  36 000-byte row receive), 3 times each: 6 of 6 replays ended at a lock gate of a task waiting for
+  a task that never started (one thread at a gate: not starvation; not diagnosed), 6 of 6
+  controls reproduced the run. Milestone D: 0 of 3. A control run by hand with the trace's 4
+  threads starved (4 of 4 threads at gates).
+- *Gate* (`experiments/report_diff.py`, against main 5fdd932): the 531 single-chain traces, 38
+  CorrBench and 7 `mt_*` traces, every golden (44 of Open MPI, 26 of MPICH, idioms 44 and 45
+  among them) and the 47 idiom traces of the test run, as text, `--json` and `--full-profile
+  --json`: 2 079 outputs and exit statuses equal but for the `analysis_commit` field of the JSON.
+  The analysis is unchanged; the replay and the tracer's lock wrappers changed.
+- *Unit tests* (RUNBOOK tests step, `STRETTO_REQUIRE_TRACES=1`, idioms traced first): 567 run, 17
+  skipped, all pass, in the experiment image and in the SLATE image. Two earlier runs while the
+  campaigns ran had one failure each that passed when run alone (an Open MPI truncation whose
+  help text mpirun lost, exit 15; a misapplied pin's abort that outlasted the timeout).
+- The HDF5 and SLATE campaigns ran with the tracer before a waiting thread re-checks its turn
+  after waking (item 3). Run 7's two alternatives replayed again with the final tracer, 3 times
+  each ([replay-same-final.csv](../experiments/subfiling/replay-same-final.csv)): 4 of 6 replays
+  took every pin, 5 of 6 controls did, all finished and none diverged, 3 of 6 had both; the rest
+  was not remeasured.
