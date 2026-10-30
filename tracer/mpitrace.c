@@ -2672,11 +2672,19 @@ static void chain_start(thr *c, const vclock *from) {
     for (int i = 0; i < n; i++) pend_add(c, i, from->s[i], from->k[i], 0);
 }
 /* The chain of the calling thread; a thread this library did not see start is the main thread
-   ("0") or a thread some library started outside pthread_create's wrapper (not followed). */
+   ("0") or a thread some library started outside pthread_create's wrapper (not followed). Making
+   the chain allocates, and an allocator hook can take a lock whose wrapper asks for the chain
+   again (UCX's memory hooks take a read-write lock in sbrk and mmap; the inner call then waits
+   for the arena lock the outer one holds): meanwhile the thread is a chain that is not followed. */
+TTLS(int, t_making_chain);
+static thr g_making = {.id = -1, .untracked = 1, .parent = -1, .refs = 1, .kind = "pthread", .name = "u"};
 static thr *cur_chain(void) {
     if (t_cur) return t_cur;
+    if (t_making_chain) return &g_making;
     static int nunknown = 0;
+    t_making_chain = 1;
     thr *c = thr_new(NULL, "pthread");
+    t_making_chain = 0;
     if ((long)gettid() == (long)getpid()) snprintf(c->name, sizeof c->name, "0");
     else { snprintf(c->name, sizeof c->name, "u%d", __atomic_fetch_add(&nunknown, 1, __ATOMIC_RELAXED)); c->untracked = 1; }
     t_self = t_cur = c;
