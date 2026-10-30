@@ -1910,16 +1910,22 @@ int MPI_Irecv(void *buf, int count, MPI_Datatype dt, int src, int tag, MPI_Comm 
     if (id >= 0 && osrc != MPI_PROC_NULL) GUARD_BUF(id, "MPI_Irecv", buf, count, dt, 1, 1);
     return rc;
 }
-static inline __attribute__((always_inline)) int sendrecv_common(const void *sbuf, int scount, MPI_Datatype sdt, int dst, int stag, int rcount, MPI_Datatype rdt, int *src, int *rtag, MPI_Comm comm, int *widx, int *reqid, long siseq) {
-    /* Modelled as Isend + Recv + Wait. */
+static inline __attribute__((always_inline)) void sendrecv_send(const void *sbuf, int scount, MPI_Datatype sdt, int dst, int stag, MPI_Comm comm, int *reqid, long siseq) {
     stretto_pin_before_send();
     pthread_mutex_lock(&g_mu); *reqid = g_next_req++; pthread_mutex_unlock(&g_mu);
     { REC(b, "send"); send_fields(&b, "isend", scount, sdt, dst, stag, comm); rb_printf(&b, ",\"req\":%d", *reqid);
       rb_iseq(&b, siseq); rb_send_data(&b, dst, sbuf, scount, sdt); rb_emit(&b); }
+}
+static inline __attribute__((always_inline)) int sendrecv_recv(int rcount, MPI_Datatype rdt, int *src, int *rtag, MPI_Comm comm, int *widx) {
     int osrc = *src, otag = *rtag;
     int pinned = stretto_pin_recv(src, rtag, comm, widx);
     { REC(b, "begin"); rb_printf(&b, ",\"call\":\"recv\""); recv_args(&b, osrc, otag, comm, rcount, rdt, *widx); rb_emit(&b); }
     return pinned;
+}
+static inline __attribute__((always_inline)) int sendrecv_common(const void *sbuf, int scount, MPI_Datatype sdt, int dst, int stag, int rcount, MPI_Datatype rdt, int *src, int *rtag, MPI_Comm comm, int *widx, int *reqid, long siseq) {
+    /* Modelled as Isend + Recv + Wait. */
+    sendrecv_send(sbuf, scount, sdt, dst, stag, comm, reqid, siseq);
+    return sendrecv_recv(rcount, rdt, src, rtag, comm, widx);
 }
 static inline __attribute__((always_inline)) void sendrecv_finish(const void *rbuf, int rcount, MPI_Datatype rdt, int osrc, int otag, int src, int rtag, MPI_Comm comm, MPI_Status *st, int rc, int widx, int pinned, int reqid, long riseq) {
     if (pinned && rc == MPI_SUCCESS) stretto_pin_matched(pinned, st->MPI_SOURCE);
@@ -1942,7 +1948,36 @@ int MPI_Sendrecv(const void *sbuf, int scount, MPI_Datatype sdt, int dst, int st
     int osrc = src, otag = rtag, widx = -1, reqid, rc;
     long siseq = -1, riseq = -1;
     MPI_Status mine; if (st == MPI_STATUS_IGNORE) st = &mine;
-    int sord_ = stretto_pin_gate(STRETTO_OP_SEND, dst == MPI_PROC_NULL), rord_ = stretto_pin_gate(STRETTO_OP_RECV, src == MPI_PROC_NULL);
+    int sord_ = stretto_pin_gate(STRETTO_OP_SEND, dst == MPI_PROC_NULL), rord_;
+    if (g_issue && sord_ >= 0 && !stretto_pin_gate_open(STRETTO_OP_RECV, src == MPI_PROC_NULL)) {
+        /* a replay whose gates hold the receive back: the send is posted first, so that another
+           thread's operations can come between the two postings, as in a run of the program
+           (the two are concurrent, MPI 4.1 §3.10; Open MPI's own Sendrecv posts the receive
+           first). Two threads' Sendrecvs on one envelope swap their messages only so; held
+           under one lock, as below and in the traced run, they never do. A receive whose gates
+           are open keeps that, so that what no gate orders runs as in the traced run. */
+        MPI_Request rq[2] = {MPI_REQUEST_NULL, MPI_REQUEST_NULL};
+        iss_lock(); siseq = iss_next();
+        sendrecv_send(sbuf, scount, sdt, dst, stag, comm, &reqid, siseq);
+        rc = PMPI_Isend(sbuf, scount, sdt, dst, stag, comm, &rq[0]);
+        iss_unlock();
+        stretto_pin_posted(STRETTO_OP_SEND, sord_);
+        rord_ = stretto_pin_gate(STRETTO_OP_RECV, src == MPI_PROC_NULL);
+        int pinned = sendrecv_recv(rcount, rdt, &src, &rtag, comm, &widx);
+        iss_lock(); riseq = iss_next();
+        if (rc == MPI_SUCCESS) rc = PMPI_Irecv(rbuf, rcount, rdt, src, rtag, comm, &rq[1]);
+        iss_unlock();
+        stretto_pin_posted(STRETTO_OP_RECV, rord_);
+        if (rc == MPI_SUCCESS) {
+            MPI_Status sts[2];
+            rc = PMPI_Waitall(2, rq, sts);
+            *st = sts[1];
+            if (rc == MPI_ERR_IN_STATUS) rc = sts[0].MPI_ERROR != MPI_SUCCESS ? sts[0].MPI_ERROR : sts[1].MPI_ERROR;
+        }
+        sendrecv_finish(rbuf, rcount, rdt, osrc, otag, src, rtag, comm, st, rc, widx, pinned, reqid, riseq);
+        return rc;
+    }
+    rord_ = stretto_pin_gate(STRETTO_OP_RECV, src == MPI_PROC_NULL);
     if (g_issue) {
         /* both postings under one hold of the issue lock, then one wait */
         iss_lock(); siseq = iss_next(); riseq = iss_next();

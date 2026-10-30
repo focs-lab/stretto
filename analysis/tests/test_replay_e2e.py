@@ -437,6 +437,15 @@ class Threads(unittest.TestCase):
             self.assertIn("wrong header", ra.proc.stdout)
             self.assertNotIn("wrong header", rc.proc.stdout)
 
+    def test_two_sendrecvs_to_self_swap_their_headers(self):
+        """Idiom 47: the swap needs the other thread's send between a Sendrecv's two postings,
+        which the tracer posts together unless a gate holds the receive back."""
+        for ra, rc, required, alt in self.run_alt(47, lambda f: f.level == "L1" and any(d.startswith("concurrent swap") for d in f.detail)):
+            self.assertEqual(ra.result, "FINISHED", ra.proc.stderr[-800:])
+            self.assertTrue(C.all_matched(alt, ra.proc.stderr, required, ra.seen), ra.proc.stderr[-800:])
+            self.assertIn("wrong header", ra.proc.stdout)
+            self.assertNotIn("wrong header", rc.proc.stdout)
+
     def test_two_senders_arrive_in_the_other_order(self):
         for ra, rc, required, alt in self.run_alt(20, lambda f: f.level == "L1" and f.recv is not None):
             self.assertTrue(C.all_matched(alt, ra.proc.stderr, required, ra.seen), ra.proc.stderr[-800:])

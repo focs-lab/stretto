@@ -931,6 +931,24 @@ HIDDEN int stretto_pin_gate(int kind, int skip) {
     return ord;
 }
 
+HIDDEN int stretto_pin_gate_open(int kind, int skip) {
+    if (!g_chains_on || skip) return 1;
+    const char *name = stretto_chain_name();
+    if (!name) return 1;
+    pthread_mutex_lock(&g_gmu);
+    struct cstate *c = chain_state(name);
+    int ord = kind == STRETTO_OP_PROBE ? c->posted[kind] : c->next[kind], open = 1;
+    int lo = 0, hi = g_ngates;
+    while (lo < hi) {
+        int mid = (lo + hi) / 2;
+        if (gate_cmp(g_gates[mid].wchain, g_gates[mid].wkind, g_gates[mid].word, name, kind, ord) < 0) lo = mid + 1; else hi = mid;
+    }
+    for (int i = lo; open && i < g_ngates && gate_cmp(g_gates[i].wchain, g_gates[i].wkind, g_gates[i].word, name, kind, ord) == 0; i++)
+        open = chain_state(g_gates[i].pchain)->posted[g_gates[i].pkind] > g_gates[i].pord;
+    pthread_mutex_unlock(&g_gmu);
+    return open;
+}
+
 HIDDEN void stretto_pin_posted(int kind, int ord) {
     if (!g_chains_on || ord < 0) return;
     const char *name = stretto_chain_name();

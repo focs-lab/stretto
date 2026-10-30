@@ -156,6 +156,9 @@ void stretto_pin_matched(int h, int comm_src);
    STRETTO_PIN_CHAIN nor STRETTO_PIN_ORDER is set, after waiting for the operation's gates.
    Called outside the issue lock. */
 int  stretto_pin_gate(int kind, int skip);
+/* Would stretto_pin_gate(kind, skip) return at once, every gate of the calling thread's next
+   operation of kind open? 1 also when no gate applies. Does not count the operation. */
+int  stretto_pin_gate_open(int kind, int skip);
 /* The operation of kind with chain ordinal ord (stretto_pin_gate's) has been posted (a probe:
    has found a message): the gates that wait for it open. */
 void stretto_pin_posted(int kind, int ord);
