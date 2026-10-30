@@ -1,0 +1,61 @@
+extern "C" %{
+/*
+ * Local reshape on read, with an oracle (after tests/collections/reshape/local_read_reshape.jdf).
+ * READ_A reads each tile with [type = LOWER_TILE]: PaRSEC makes a reshaped copy of the tile
+ * (parsec_ce.reshape, an MPI_Sendrecv on a duplicate of MPI_COMM_SELF) and passes it to
+ * CHECK_A, which compares its lower triangle with the values the tile was set to (they encode
+ * the tile's indices) and counts the elements that differ. WRITE_A writes the copy back with the
+ * same type (another reshape), and the program compares the matrix with its initial values.
+ */
+#include "parsec/data_dist/matrix/matrix.h"
+#include "parsec/sys/atomic.h"
+
+static inline int reshape_check_value(int m, int n, int i, int j)
+{
+    return (m * 100 + n) * 1024 + i * 32 + j;
+}
+%}
+
+descA  [type = "parsec_tiled_matrix_t*"]
+errors [type = "int32_t*"]
+
+READ_A(m, k)  [profile = off]
+m = 0 .. descA->mt-1
+k = 0 .. descA->nt-1
+: descA(m, k)
+RW A <- descA(m, k)       [type = LOWER_TILE type_data = LOWER_TILE]
+     -> A CHECK_A(m, k)
+BODY
+{
+}
+END
+
+CHECK_A(m, k)  [profile = off]
+m = 0 .. descA->mt-1
+k = 0 .. descA->nt-1
+: descA(m, k)
+RW A <- A READ_A(m, k)
+     -> A WRITE_A(m, k)
+BODY
+{
+    int *a = (int *)A;
+    int bad = 0;
+    for(int j = 0; j < descA->nb; j++)
+        for(int i = j; i < descA->mb; i++)
+            if( a[j * descA->mb + i] != reshape_check_value(m, k, i, j) )
+                bad++;
+    if( bad )
+        parsec_atomic_fetch_add_int32(errors, bad);
+}
+END
+
+WRITE_A(m, k)  [profile = off]
+m = 0 .. descA->mt-1
+k = 0 .. descA->nt-1
+: descA(m, k)
+RW A <- A CHECK_A(m, k)
+     -> descA(m, k)       [type = LOWER_TILE type_data = LOWER_TILE]
+BODY
+{
+}
+END

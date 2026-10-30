@@ -1,0 +1,32 @@
+--- a/parsec/parsec_mpi_funnelled.c
++++ b/parsec/parsec_mpi_funnelled.c
+@@ -495,15 +495,26 @@
+                         uint64_t count_src)
+ {
+-    int rc;
++    int rc, tag = 0;
+     PARSEC_DEBUG_VERBOSE(20, parsec_comm_output_stream,
+                          "COPY LOCAL DATA from %p (%d elements of dtt %p) to %p (%d elements of dtt %p)",
+                          PARSEC_DATA_COPY_GET_PTR(src) + displ_src, count_src, layout_src,
+                          PARSEC_DATA_COPY_GET_PTR(dst) + displ_dst, count_dst, layout_dst);
++    /* With PARSEC_CONTEXT_FLAG_COMM_MT every thread reshapes on parsec_ce_mpi_self_comm, so
++     * the tag must tell the calling threads apart. es->th_id does not: it numbers the threads
++     * of one virtual process, and the communication thread's stream pretends to be thread 0
++     * of the first one. Number the computation threads across all virtual processes from 1
++     * and leave 0 to the communication thread. */
++    if( es != &parsec_comm_es ) {
++        parsec_context_t *context = es->virtual_process->parsec_context;
++        for( int p = 0; p < es->virtual_process->vp_id; p++ )
++            tag += context->virtual_processes[p]->nb_cores;
++        tag += es->th_id + 1;
++    }
+     rc = MPI_Sendrecv((char*)PARSEC_DATA_COPY_GET_PTR(src) + displ_src,
+-                      count_src, layout_src, 0, es->th_id,
++                      count_src, layout_src, 0, tag,
+                       (char*)PARSEC_DATA_COPY_GET_PTR(dst) + displ_dst,
+-                      count_dst, layout_dst, 0, es->th_id,
++                      count_dst, layout_dst, 0, tag,
+                       parsec_ce_mpi_self_comm, MPI_STATUS_IGNORE);
+     (void)ce;
+     return (MPI_SUCCESS == rc ? 0 : -1);
+ }
