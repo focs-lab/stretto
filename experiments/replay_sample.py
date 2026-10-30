@@ -51,7 +51,7 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, os.path.join(ROOT, "analysis"))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from stretto import keep, trace  # noqa: E402
-from stretto.confirm import all_matched, horizon_pins, pin_name, required_matches, run_checked  # noqa: E402
+from stretto.confirm import all_matched, horizon_pins, pin_name, required_matches, run_checked, with_sync  # noqa: E402
 from stretto.report import Finding, analyze  # noqa: E402
 from provenance import code_commit  # noqa: E402
 
@@ -126,7 +126,7 @@ def main() -> int:
                     help="with KEEP_TRACES set, keep the replays' traces under this campaign (stretto.keep; default: the table's)")
     args = ap.parse_args()
     campaign = args.keep_campaign or keep.campaign_of(args.out)
-    t = trace.load(args.tracedir)
+    t = with_sync(trace.load(args.tracedir), args.tracedir)   # the lock order, if the run recorded it
     if args.from_csv:
         with open(args.from_csv) as fh:
             earlier = list(csv.DictReader(fh))

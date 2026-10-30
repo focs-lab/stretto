@@ -121,6 +121,7 @@ def cmd_oracle(args):
 
 def cmd_confirm(args):
     t, rep = _analyze(args)
+    confirm_mod.with_sync(t, args.tracedir)          # the lock order, if the run recorded it (sync-*.txt)
     res = confirm_mod.confirm(rep, args.np or t.np, args.exe, args.args, timeout=args.timeout, mpi=args.mpi,
                               only_errors=not args.all, t=t, keep_as=tuple(args.keep) if args.keep else None)
     if args.json:
