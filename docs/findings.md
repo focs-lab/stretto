@@ -122,6 +122,15 @@ with the hunt notes, outside this repository.
   fixed with the task chains. Open: replays of task alternatives diverge (SLATE's tasks take
   locks whose order varies; a gated task holds its thread), and one wrong traced run's observed
   matching was judged infeasible (`2-buffering`, observed), not diagnosed.
+- Task runtimes other than OpenMP (30 Oct, DLA-Future on pika, PaRSEC): not followed. pika runs
+  tasks as user-level threads on worker pthreads (a chain is a worker, not a task), synchronises
+  them by atomics and spinlocks, and its MPI polling completes requests on whichever worker polls,
+  so every DLA-Future trace is degraded `threads-handoff` and its observed `2-thread-collective`
+  (an `Ibarrier` against a `Comm_free`, 7 and 13 per trace) and `2-thread-wait` (2) are false
+  alarms of unrecorded synchronisation (P-T2). PaRSEC traces are degraded `threads-cancel` (its
+  communication engine cancels its persistent wildcard receives at finalisation). Neither tool
+  path predicted the two tag races below; scans of same-envelope operations pending on two threads
+  located them (`experiments/dlaf/pending_pairs.py`, `experiments/slate/overlap.py`). Open.
 
 ## Multithreaded benchmarks (L1 only)
 
@@ -198,7 +207,47 @@ the pivot `MPI_Bcast`s in chained panel tasks; 39 tester routines (square 800, 2
 pass untraced, with no such overlap in their traces. Report drafted, not sent. Evidence:
 [experiments/slate](../experiments/slate/README.md) (`series.csv`, `series-mpich.csv`,
 `traced-cells.csv`).
-DLA-Future not built (below).
+
+**DLA-Future 09fe442 (master on 30 Oct; since release 0.2.0), `matrix::copy` between two
+distributions**, a real bug, found by reading the tags of operations posted as independent pika
+tasks through `CommunicatorPipeline::shared()`: the tag (copy.h:215-226) is meant to be a local
+tile index, but `ij.row() + ij.col() * ceil(mt / P)` uses the global row, so tiles (i + ld, j)
+and (i, j + 1) share a tag when the grid has P > 1 rows, and when both go between the same two
+ranks MPI matches them in the order the tasks found their tiles ready. Untraced (`copy_check.cpp`,
+an oracle on every element), 20 runs per cell, 2 to 6 ranks: 20 of 20 wrong on 2x1 (source rank
+shifted, or block size halved), 4x1 and 3x2; 0 of 20 on 2x2 (no colliding pair), with one pika
+thread, and with the global linear tile index as tag (one line) in every cell. The unit test
+`CopyReshuffling` has no colliding pair in its configurations. Stretto predicts nothing (pika:
+`threads-handoff`, above); `pending_pairs.py` finds 24 pending same-envelope receive pairs in a
+plain trace, 0 in a patched one. Shown safe by reading: every collective (`exclusive()`), the
+fixed-tag `exclusive()` sends, `bt_band_to_tridiag`'s `shared()` sums, `rot.h`'s serialised
+column exchanges, the permutation's tag 0 (one message per pair and call), `band_to_tridiag`'s
+four tag families. Report drafted, not sent; its reproduction block, run in an empty directory,
+gives 10 of 10 wrong copies and 10 of 10 right ones patched. Evidence:
+[experiments/dlaf](../experiments/dlaf/README.md) (`series.csv`, `series-1thread.csv`).
+
+**PaRSEC 6c49997 (master on 30 Oct), local reshapes under `MPI_THREAD_MULTIPLE`**, a real bug,
+found by reading which threads call MPI: with `COMM_MT` every computation thread reshapes
+inline by `MPI_Sendrecv` on one duplicate of `MPI_COMM_SELF` with tag `es->th_id`
+(parsec_mpi_funnelled.c:485-509), and `th_id` numbers the threads of one virtual process
+(parsec.c:396), so with two virtual processes (`runtime_vpmap hwloc` on a two-socket node,
+emulated by a synthetic hwloc topology) threads t of both share a tag and receive each other's
+tiles. Untraced, 20 runs per cell: the shipped `reshape` test fails 3 to 6 of its 7 tests in 20
+of 20 runs, a checking variant 20 of 20 (1 rank) and 15 of 20 (4 ranks); 0 with one virtual
+process, with `MPI_THREAD_SERIALIZED`, or with tags numbered across virtual processes (an
+11-line patch). Traced runs come out right (0 of 10) and are degraded `threads-cancel`;
+`overlap.py` finds 2 to 22 same-tag `Sendrecv` pairs pending on two threads in 8 of 10 plain
+traces, 0 in 5 patched. Shown safe by reading: activations (received by the communication
+thread only), data messages (communication thread, compare-and-swap tags). Side defects, not
+races: the `rr:` and `file:` vpmaps crash (vpmap.c:384, 308-327). Report drafted, not sent; its
+reproduction block, run in an empty directory, fails 6 of 7 tests in 3 of 3 runs, 0 patched.
+Evidence: [experiments/parsec](../experiments/parsec/README.md) (`series.csv`).
+
+Not built in this hunt, by cost (estimated, not measured): HPX's MPI parcelport (read only:
+headers on tag 0 with `ANY_SOURCE` carry the sender's tag from an atomic counter, so data
+messages are told apart until the counter wraps; HPX's build looks beyond the 3 GB and 6-job
+budget), ESMF (Fortran and C++, about an hour's build), Legion/Realm (needs its own interop
+driver).
 
 ## Not yet traced
 
@@ -225,8 +274,8 @@ analysable since the fix for cancelled receives above.
 Thread-level candidates for the multithreaded extension (read only; [threads.md](threads.md)): Uintah + hypre (a code comment in KokkosScheduler.cc documents
 crashes from hypre's `Iprobe` taking a Uintah message on the shared communicator, and the
 reverse hazard it leaves); Legion/Realm's MPI network in interop mode (wildcard `Irecv` with tag 1
-on `MPI_COMM_WORLD`); DLA-Future (tags reused by concurrent tasks; not built: it needs pika,
-whose build was not attempted; SLATE, above, yielded first). For Uintah a build of
+on `MPI_COMM_WORLD`); DLA-Future (tags reused by concurrent tasks; built and confirmed 30 Oct,
+above). For Uintah a build of
 Core, Schedulers, Solvers and Examples with hypre (driver `Examples/solvertest1.ups`, `sus
 -nthreads`) built in 6 minutes with 2 jobs on 30 Oct (above, [experiments/uintah](../experiments/uintah/README.md)). By reading, not a race: Realm's
 `generate_payload_tag` (am_mpi.cc:225) uses the attribute key `MPI_TAG_UB` as the tag bound.
