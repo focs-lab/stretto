@@ -1,15 +1,18 @@
 """Lock reordering (docs/threads.md, section 13): the tracer's lock events and hard
-happens-before as the loader reads them, when a rank's lock order is kept instead, and what
-level L1+L reports on a trace of two threads sending in critical sections of one mutex."""
+happens-before as the loader reads them, when a rank's lock order is kept instead, what level
+L1+L reports on a trace of two threads sending in critical sections of one mutex, and the
+analysis of several threads at L1 and L1+L against the exhaustive explorer of
+stretto.explore_threads on random programs."""
 import copy
 import os
+import random
 import sys
 import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from stretto import trace as T
+from stretto import explore_threads as X, trace as T
 from stretto.report import analyze, format_report
 
 
@@ -106,6 +109,51 @@ class C_Analysis(unittest.TestCase):
         self.assertEqual({f.cls for f in lf}, {"1f"}, format_report(t, rep))
         self.assertTrue(any("P-T8" in d for f in lf for d in f.detail))
         self.assertTrue(any("another order than in the run" in d for f in lf for d in f.detail))
+
+
+class C_Explorer(unittest.TestCase):
+    def test_lock_held_across_a_receive(self):
+        """Idiom 27 as a program: a deadlock, at every threshold, when the receiving thread takes
+        the mutex first; a finished run when the sending thread does."""
+        prog = X.TProgram([[[], [X.TOp("lock", 0), X.TOp("recv", 1, 2, 4), X.TOp("unlock", 0)],
+                            [X.TOp("lock", 0), X.TOp("send", 1, 1, 4), X.TOp("unlock", 0)]],
+                           [[X.TOp("recv", 0, 1, 4), X.TOp("send", 0, 2, 4)]]])
+        for B in (0, None):
+            dl = X.deadlocks(prog, B)
+            self.assertTrue(dl and all(X.lock_waits(prog, st) for st in dl), B)
+            self.assertTrue(X.exists(prog, B, {((1, 0, 0), (0, 2, 1))}))
+
+    def test_simulated_trace_loads(self):
+        rng = random.Random(5)
+        for _ in range(20):
+            prog = X.random_program(rng)
+            got = X.trace_of(prog, None, rng)
+            if got is None:
+                continue
+            t, where, matching = got
+            self.assertEqual(t.incomplete, [])
+            for rk, sk in t.observed.items():
+                self.assertEqual(matching[X._op_of(t, where, t.recvs[rk])], X._op_of(t, where, t.sends[sk]))
+
+
+class C_Differential(unittest.TestCase):
+    """experiments/e6_locks.py on fewer programs: every claim of L1 and L1+L on random programs of
+    several threads with locks is realised by some execution."""
+
+    def test_no_unsound_claim(self):
+        rng = random.Random(11)
+        claims = {"L1": 0, "L1+L": 0, "deadlock": 0}
+        for i in range(150):
+            prog = X.random_program(rng, nprocs=rng.choice((2, 3)))
+            got = X.trace_of(prog, None, rng)
+            if got is None:
+                continue
+            t, where, _ = got
+            for r in X.compare(prog, t, where):
+                self.assertNotEqual(r["kind"], "UNSOUND", f"program {i}: {r}\n{prog}")
+                if r["claim"]:
+                    claims["deadlock" if r["item"].startswith("deadlock") else r["level"]] += 1
+        self.assertTrue(all(claims.values()), claims)
 
 
 if __name__ == "__main__":
