@@ -1,0 +1,15 @@
+{"r":0,"seq":0,"op":"init","np":2,"thread":0,"version":3,"guard":1}
+{"r":0,"seq":1,"op":"comm","name":"world","parent":0,"id":0,"ranks":[0,1],"gord":0}
+{"r":0,"seq":2,"op":"comm","name":"self","parent":0,"id":1,"ranks":[0],"gord":0}
+{"r":0,"seq":3,"op":"site","id":0,"obj":"/w/idioms/38_irecv_write_race/bin/openmpi/main","addr":94110601401307,"base":94110601396224}
+{"r":0,"seq":4,"op":"begin","call":"coll","name":"barrier","comm":0,"root":-1,"count":0,"tsize":0,"tsig":"null","site":0}
+{"r":0,"seq":5,"op":"coll","name":"barrier","comm":0,"root":-1,"count":0,"tsize":0,"tsig":"null","site":0}
+{"r":0,"seq":6,"op":"site","id":1,"obj":"/w/idioms/38_irecv_write_race/bin/openmpi/main","addr":94110601401358,"base":94110601396224}
+{"r":0,"seq":7,"op":"irecv","src":1,"tag":1,"comm":0,"count":1000,"tsize":4,"tsig":"MPI_INT","req":0,"site":1}
+{"r":0,"seq":8,"op":"site","id":2,"obj":"/w/idioms/38_irecv_write_race/bin/openmpi/main","addr":94110601401366,"base":94110601396224}
+{"r":0,"seq":9,"op":"guard","what":"access","req":0,"kind":"write","off":0,"site":2}
+{"r":0,"seq":10,"op":"site","id":3,"obj":"/w/idioms/38_irecv_write_race/bin/openmpi/main","addr":94110601401389,"base":94110601396224}
+{"r":0,"seq":11,"op":"begin","call":"wait","kind":"wait","reqs":[0],"site":3}
+{"r":0,"seq":12,"op":"wait","kind":"wait","reqs":[0],"done":[{"req":0,"msrc":1,"mtag":1,"mcount":1000,"sum":"ebad4b848befe98f"}],"site":3}
+{"r":0,"seq":13,"op":"site","id":4,"obj":"/w/idioms/38_irecv_write_race/bin/openmpi/main","addr":94110601401594,"base":94110601396224}
+{"r":0,"seq":14,"op":"finalize","site":4}

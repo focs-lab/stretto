@@ -831,11 +831,11 @@ shaped collectives and metadata branches.
   skeleton (`payload == sender rank`) for the benchmark-shaped races. Re-execution
   (`docs/l2-auto.md`) needs none of it written down; what it lacks is probes, tests and
   communicator creation in the shim, and a proof in the paper.
-- Buffer races (family ③): request spans are in the trace; accesses are not, except the ones
+- Buffer races (family ③), §7: request spans are in the trace; accesses are not, except the ones
   the tracer's buffer guard (`STRETTO_GUARD=1`) catches in the run itself: the first access
   between MPI calls to a pending operation's buffer, a send buffer changed before its
   completion, two pending operations owning the same bytes. These are observed findings
-  (class 3-local) and outside the model: no matching changes them, and predicting one for
+  (class 3-local), with the thresholds at which they change data (§7); predicting one for
   another run would need the program's accesses, not its calls.
 - Several threads calling MPI (MPI_THREAD_MULTIPLE, SERIALIZED, or a misused FUNNELED): a
   rank's call order then depends on the threads' scheduling, not only on its results, so it
@@ -845,3 +845,47 @@ shaped collectives and metadata branches.
   analysis stops at observed findings when a rank's records come from more than one thread.
   Before 22 Oct 2026 the thread was recorded under MULTIPLE only, and a SERIALIZED rank with
   several calling threads was analysed as one deterministic sequence.
+
+## 7. Buffers
+
+An operation owns its buffer from its call (a persistent request's Start) to its completion.
+The buffer guard (`STRETTO_GUARD=1`, `tracer/mpitrace.c`) records the program touching it in
+that interval (class 3-local); whether the touch changes data depends on when MPI itself moves
+the bytes, which the standard leaves open and the protocol decides. `stretto.buffers` states it
+per threshold B, with the premises:
+
+| premise | statement | if it fails |
+|---|---|---|
+| P-B1 eager copy | a standard or ready send of at most B bytes, and a buffered send at any size, is read from the send buffer inside the call; a synchronous send is never assumed copied (MPICH over UCX read a pending 40-byte Issend after the call with its rendezvous threshold above 40 bytes) | a write the report calls harmless changes the message. Over Open MPI's TCP transport an eager 4 000-byte Isend, the first message to its peer, carried a later write, and after a warm-up exchange did not (our reading: the message waits for the connection and is then read from the buffer); a transport that runs out of fragments may queue a send likewise |
+| P-B2 rendezvous | a larger message is read after its match and before both completions, of its send and of its receive; an implementation may send a prefix with the request (Open MPI's `rndv_eager_limit`) | none for the claims of "some executions"; a write into that prefix is copied in the call |
+| P-B3 delivery | a receive's buffer is written after its match and before its completion, under any protocol (an eager message that has arrived is copied at the posting, a rendezvous one fetched at once by single-copy or RDMA, or sent after the receiver's answer) | none known |
+
+Each operation x has a transfer window: a send copied at B, its own call; a send above B, from
+its match m(r, x) to the completion of r or of x; a receive, from its match to its completion. A
+program access a, placed between the records around it (a guard record stands in its rank's
+program order where the access was, a changed send buffer between the call and the completion),
+or another operation's window, is judged against x's window in the constraint graph of the
+observed matching at B (§2): *harmless* when the window ends before a over guaranteed edges,
+*every* execution with the observed matching when a ends before the window starts over them
+(the message carries the write, the message overwrites it, a read sees the earlier content),
+*some* executions when neither order holds over any edge, unknown collectives as barriers (so
+either order is realisable, as for an accepted alternative). Reading a pending send buffer is
+allowed (MPI 3.0 on) and has no consequence. The graph loses rendezvous edges as B grows and a
+send's copy starts at its size, so each verdict holds over runs of breakpoints, found by
+bisection; the report gives the 3-local finding the thresholds at which data can change (`B <
+4000` for a write to the buffer of a pending 4 000-byte Isend, `any B` for one to a pending
+receive buffer) and a line per run of thresholds.
+
+So a write to a pending send buffer is harmless while the message is copied and changes it under
+rendezvous; a touch of a pending receive buffer is never made harmless by the protocol, and the
+protocol decides which order a run shows: a message that has arrived is in place when an eager
+receive is posted, and the write corrupts it, while a rendezvous without single-copy delivers
+after the receiver has answered, and the message overwrites the write.
+
+Confirmation (`experiments/guard/thresholds.py`, `run.sh thresholds`): the program is traced
+again with message checksums (`STRETTO_SUMS=1`: a send's at the call, a receive's of what it
+got) and the eager threshold just below and at the misused message's size, Open MPI by
+`btl_vader_eager_limit` (B + 56 bytes, the transport's header) and MPICH by UCX's rendezvous
+threshold through its netmod; a message changed when its receive's checksum differs from its
+send's. Open MPI sends up to 256 bytes inline at any limit, so smaller messages are untestable
+there. Tests: `analysis/tests/test_buffers.py` (idioms 37 and 38, both protocols).

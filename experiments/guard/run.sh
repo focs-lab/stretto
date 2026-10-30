@@ -8,6 +8,9 @@
 #              each case names the guard records it must give, and the run must finish
 #   lc         the LocalConcurrency programs of MPI-BugBench level 2 under both MPIs (Open MPI
 #              4.1.6 lacks MPI_Pready, so the two partitioned ones build with MPICH only)
+#   thresholds the guard's findings on the scenarios, the point-to-point LocalConcurrency programs
+#              and idioms 07, 37 and 38 again with the eager limit forced just below and at the
+#              misused message (experiments/guard/thresholds.py, thresholds[-cma].csv); not in "all"
 #   apps       NPB LU (S, A), HYPRE 2.10.1 ij -solver 8 -pout 0 and AMG at 4 ranks, guard off
 #              and on: the program's own check, records, guard records, classes, wall time and
 #              NPB's own timer; REPS repetitions (default 1)
@@ -26,7 +29,7 @@
 # are in the container's /tmp; with KEEP_TRACES set, each run's trace is kept as
 # guard/<step>[-cma][-payload]/<run> (stretto.keep: sc.<mpi>.<case>, lc.<mpi>.<program>,
 # app.<app>.<guard>.<rep>), an application's after its wall time is taken.
-# usage: experiments/guard/run.sh [scenarios|lc|apps|all] ...
+# usage: experiments/guard/run.sh [scenarios|lc|apps|thresholds|all] ...
 set -uo pipefail
 R="$(cd "$(dirname "$0")/../.." && pwd)"; cd "$R"
 OUT=experiments/results/guard; mkdir -p "$OUT"
@@ -114,6 +117,26 @@ step_lc() {
         done
         echo "$mpi: 3-local in $found of $built programs built"
     done
+}
+# the guard's findings again at forced eager limits (experiments/guard/thresholds.py): the
+# scenarios, MPI-BugBench's point-to-point LocalConcurrency programs and the buffer idioms, each
+# traced at the defaults and with its message just above and at the eager threshold
+step_thresholds() {
+    header "guard findings at forced eager limits: predicted and replayed data changes"
+    local cases=() mpi f n s
+    for mpi in openmpi mpich; do
+        /usr/bin/mpicc.$mpi -O1 -g -Wall -o "$W/scenarios.$mpi" experiments/guard/scenarios.c || return 1
+        for f in third_party/mpi-bugbench/scripts/gencodes/P2P/LocalConcurrency-*.c; do
+            /usr/bin/mpicc.$mpi -O0 -g -o "$W/$(basename "$f" .c).$mpi" "$f" -lm 2> /dev/null || true
+        done
+        make -s -C idioms MPI=$mpi > /dev/null || return 1
+    done
+    for s in $(seq 1 19); do cases+=("scenario-$s=2:$W/scenarios.{mpi}:$s"); done
+    for f in third_party/mpi-bugbench/scripts/gencodes/P2P/LocalConcurrency-*.c; do
+        n=$(basename "$f" .c); [ -x "$W/$n.openmpi" ] && [ -x "$W/$n.mpich" ] && cases+=("$n=2:$W/$n.{mpi}")
+    done
+    for n in 07 37 38; do cases+=("idiom-$n=2:$(ls -d idioms/${n}_*)/bin/{mpi}/main"); done
+    STRETTO_COMMIT="$COMMIT" python3 experiments/guard/thresholds.py --out "$OUT/thresholds$TAG.csv" "${cases[@]}"
 }
 npb_bin() { [ -d third_party/apps/NPB-mpich/bin ] && echo third_party/apps/NPB-mpich/bin || echo third_party/apps/NPB-mpich/NPB3.4-MPI/bin; }
 # a missing binary would give rows of failed runs without records, which read as results: every

@@ -842,6 +842,20 @@ and wrote the control's output; every control finished with the traced output. d
 also still takes a `CollectiveMutex` around both `RemotePointEvaluation` exchanges
 (`mpi_remote_point_evaluation.h`, lines 776-777 and 987-988), the fix of the 9.3.0-rc1 race.
 
+## Buffer-guard findings at forced eager limits
+
+`experiments/guard/run.sh thresholds` (not in `all`) traces the guard scenarios,
+MPI-BugBench's point-to-point LocalConcurrency programs and idioms 07, 37 and 38 with the guard
+and message checksums (`STRETTO_SUMS=1`), and runs each finding's program again with the eager
+threshold just below and at the misused message (`experiments/guard/thresholds.py`): Open MPI
+over shared memory with `btl_vader_eager_limit` B + 56 and no fast boxes (B < 256 is not
+reachable on its send paths), MPICH through UCX (`MPIR_CVAR_NOLOCAL=1`, `UCX_RNDV_THRESH` B +
+1). Measured on 30 Oct 2026 on the experiment image: a 4 000-byte message is changed by a later
+write at limit 4 055 and not at 4 056 (Open MPI), at UCX threshold 4 000 and not at 4 001
+(MPICH). Open MPI's TCP transport is not used: the first message to a peer is read from the
+buffer after the call even at an eager size. The table is
+`experiments/results/guard/thresholds.csv`.
+
 ## Keeping every trace
 
 The drivers delete the traces they record once they have analysed them (a replay's as soon as it

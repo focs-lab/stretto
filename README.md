@@ -272,7 +272,11 @@ write-protects the pages of buffers that pending nonblocking operations own and 
 first access the program makes to them, checks each send buffer's checksum at its completion,
 and checks every call's buffers against the pending ones. Stack buffers are checked by the
 checksum only, and reads only on pages that lie wholly inside a point-to-point receive buffer
-(`tracer/mpitrace.c`, "buffer guard", has the rules).
+(`tracer/mpitrace.c`, "buffer guard", has the rules). Each 3-local finding says at which eager
+thresholds the touch changes data: a write to a pending send buffer only below the message's size,
+where the library reads the buffer after the match, a touch of a pending receive buffer at any
+([`docs/model.md`](docs/model.md) §7). `-x STRETTO_SUMS=1` records a checksum of each message at
+its send and at its receive, which shows a changed message in a run.
 
 ### Replay and pins
 
@@ -339,7 +343,7 @@ describes how the runs were made.
 | 2-blocked | the run ended with a rank blocked in a call or spinning in a polling loop | observed |
 | 2-ready | the run issued a ready-mode send before the receive that takes it was posted (alternatives are then not predicted) | observed |
 | abort | a rank stopped before MPI_Finalize outside any MPI call, or called MPI_Abort | observed |
-| 3-local | the program touched a buffer that a pending nonblocking operation owns, or two pending operations own overlapping bytes (buffer guard, `STRETTO_GUARD=1`) | observed |
+| 3-local | the program touched a buffer that a pending nonblocking operation owns, or two pending operations own overlapping bytes (buffer guard, `STRETTO_GUARD=1`); with the thresholds at which the data changes | observed |
 
 L1 findings hold for every program consistent with the trace. "L1+SP" findings also assume the
 recorded call sequence does not change after the alternative, which fails on code whose control

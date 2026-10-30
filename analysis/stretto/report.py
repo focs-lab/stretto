@@ -835,12 +835,19 @@ def local_findings(t: Trace) -> List[Finding]:
     ops, starts = {}, {}
     for x in list(t.sends.values()) + list(t.recvs.values()) + t.colls:
         if x.req is not None:
-            ops[(x.rank, x.req)] = x
+            ops[(x.proc, x.req)] = x       # request ids are the process's, whichever chain touched the buffer
     for rank in {g.rank for g in t.guards}:   # an unmodelled operation the guard follows (a partitioned Start) names its request
         for rec in t.ranks[rank]:
             if rec.op == "unmodelled" and rec.raw.get("req") is not None:
                 starts[(rank, rec.raw["req"])] = rec.raw.get("call", "?").replace("Start of a ", "")
     out, seen = [], set()
+    cache = []
+
+    def orders():
+        if not cache:
+            from .buffers import Orders
+            cache.append(Orders(t))
+        return cache[0]
     for rec in t.guards:
         g = rec.raw
         what, req = g.get("what"), g.get("req")
@@ -848,7 +855,7 @@ def local_findings(t: Trace) -> List[Finding]:
         if key in seen:
             continue
         seen.add(key)
-        x = ops.get((rec.rank, req))
+        x = ops.get((t.proc.get(rec.rank, rec.rank), req))
         op = _operation(x) if x is not None else starts.get((rec.rank, req), f"operation (request {req})")
         role = "send " if isinstance(x, Send) else "receive " if isinstance(x, Recv) else ""
         where = t.site_label(rec.rank, rec.idx)
@@ -872,8 +879,33 @@ def local_findings(t: Trace) -> List[Finding]:
         if x is not None:
             at = t.site_label(x.rank, x.idx)
             detail.append(f"the operation was issued at record #{x.idx}" + (f" ({at})" if at else ""))
-        out.append(Finding("3", "3-local", "observed", title, detail, site=where))
+        cons = local_consequence(t, rec, x, ops, orders)
+        if cons is not None:
+            detail.extend(cons.detail)
+        out.append(Finding("3", "3-local", "observed", title, detail, B=cons.B if cons is not None else "", site=where))
     return out
+
+
+def local_consequence(t: Trace, rec, x, ops, orders) -> Optional["buffers.Consequence"]:
+    """What the misuse of guard record rec does to the data, by threshold (stretto.buffers),
+    or None where the model says nothing (a collective's buffer, an access by an unnamed
+    thread, an operation the trace does not have)."""
+    from . import buffers
+    g = rec.raw
+    what = g.get("what")
+    if x is None or not isinstance(x, (Send, Recv)):
+        return None
+    if what == "access":
+        pos = buffers.guard_position(t, rec)
+        if pos is None:
+            return None
+        return buffers.access_consequence(t, orders(), x, buffers.Access(pos[0], pos[1], g.get("kind") == "write"))
+    if what == "modified" and isinstance(x, Send) and x.completed and x.complete_idx is not None and not t.multi:
+        return buffers.access_consequence(t, orders(), x, buffers.Access([(x.rank, x.idx, "c")], [(x.rank, x.complete_idx, "i")], True))
+    if what == "overlap" and not t.multi:
+        y = ops.get((t.proc.get(rec.rank, rec.rank), g["with"])) if g.get("with") is not None else buffers.next_call(t, rec)
+        return buffers.overlap_consequence(t, orders(), x, y) if y is not None else None
+    return None
 
 
 class Profile(Mapping):

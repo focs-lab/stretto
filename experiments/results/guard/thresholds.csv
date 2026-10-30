@@ -1,0 +1,149 @@
+case,mpi,op,key,what,bytes,B,setting,threshold,result,outcome,predicted,verdict,commit
+scenario-2,openmpi,send,0.0,access:write,4000,B < 4000,default,,FINISHED,intact,,,8dfff4b-dirty
+scenario-2,openmpi,send,0.0,access:write,4000,B < 4000,below,3999,FINISHED,changed,some,consistent,8dfff4b-dirty
+scenario-2,openmpi,send,0.0,access:write,4000,B < 4000,at,4000,FINISHED,intact,copied,as predicted,8dfff4b-dirty
+scenario-2,mpich,send,0.0,access:write,4000,B < 4000,default,,FINISHED,intact,,,8dfff4b-dirty
+scenario-2,mpich,send,0.0,access:write,4000,B < 4000,below,3999,FINISHED,changed,some,consistent,8dfff4b-dirty
+scenario-2,mpich,send,0.0,access:write,4000,B < 4000,at,4000,FINISHED,intact,copied,as predicted,8dfff4b-dirty
+scenario-3,openmpi,recv,0.0,access:read,16384,any B,default,,FINISHED,intact,,,8dfff4b-dirty
+scenario-3,openmpi,recv,0.0,access:read,16384,any B,below,16383,FINISHED,intact,some,consistent,8dfff4b-dirty
+scenario-3,openmpi,recv,0.0,access:read,16384,any B,at,16384,FINISHED,intact,some,consistent,8dfff4b-dirty
+scenario-3,mpich,recv,0.0,access:read,16384,any B,default,,FINISHED,intact,,,8dfff4b-dirty
+scenario-3,mpich,recv,0.0,access:read,16384,any B,below,16383,FINISHED,intact,some,consistent,8dfff4b-dirty
+scenario-3,mpich,recv,0.0,access:read,16384,any B,at,16384,FINISHED,intact,some,consistent,8dfff4b-dirty
+scenario-4,openmpi,recv,0.0,access:write,40,any B,default,,FINISHED,intact,,,8dfff4b-dirty
+scenario-4,openmpi,recv,0.0,access:write,40,any B,below,39,-,-,some,untestable,8dfff4b-dirty
+scenario-4,openmpi,recv,0.0,access:write,40,any B,at,40,-,-,some,untestable,8dfff4b-dirty
+scenario-4,mpich,recv,0.0,access:write,40,any B,default,,FINISHED,intact,,,8dfff4b-dirty
+scenario-4,mpich,recv,0.0,access:write,40,any B,below,39,FINISHED,intact,some,consistent,8dfff4b-dirty
+scenario-4,mpich,recv,0.0,access:write,40,any B,at,40,FINISHED,intact,some,consistent,8dfff4b-dirty
+scenario-6,openmpi,send,0.0,modified,40,B < 40,default,,FINISHED,intact,,,8dfff4b-dirty
+scenario-6,openmpi,send,0.0,modified,40,B < 40,below,39,-,-,some,untestable,8dfff4b-dirty
+scenario-6,openmpi,send,0.0,modified,40,B < 40,at,40,-,-,copied,untestable,8dfff4b-dirty
+scenario-6,mpich,send,0.0,modified,40,B < 40,default,,FINISHED,intact,,,8dfff4b-dirty
+scenario-6,mpich,send,0.0,modified,40,B < 40,below,39,FINISHED,changed,some,consistent,8dfff4b-dirty
+scenario-6,mpich,send,0.0,modified,40,B < 40,at,40,FINISHED,intact,copied,as predicted,8dfff4b-dirty
+scenario-10,openmpi,send,0.0,access:write,40,B < 40,default,,FINISHED,no sum,,,8dfff4b-dirty
+scenario-10,openmpi,send,0.0,access:write,40,B < 40,below,39,-,-,some,untestable,8dfff4b-dirty
+scenario-10,openmpi,send,0.0,access:write,40,B < 40,at,40,-,-,copied,untestable,8dfff4b-dirty
+scenario-10,mpich,send,0.0,access:write,40,B < 40,default,,FINISHED,no sum,,,8dfff4b-dirty
+scenario-10,mpich,send,0.0,access:write,40,B < 40,below,39,FINISHED,no sum,some,not judged,8dfff4b-dirty
+scenario-10,mpich,send,0.0,access:write,40,B < 40,at,40,FINISHED,no sum,copied,not judged,8dfff4b-dirty
+scenario-15,openmpi,send,0.0,modified,64,B < 64,default,,FINISHED,intact,,,8dfff4b-dirty
+scenario-15,openmpi,send,0.0,modified,64,B < 64,below,63,-,-,some,untestable,8dfff4b-dirty
+scenario-15,openmpi,send,0.0,modified,64,B < 64,at,64,-,-,copied,untestable,8dfff4b-dirty
+scenario-15,mpich,send,0.0,modified,64,B < 64,default,,FINISHED,intact,,,8dfff4b-dirty
+scenario-15,mpich,send,0.0,modified,64,B < 64,below,63,FINISHED,changed,some,consistent,8dfff4b-dirty
+scenario-15,mpich,send,0.0,modified,64,B < 64,at,64,FINISHED,intact,copied,as predicted,8dfff4b-dirty
+scenario-16,openmpi,send,0.0,overlap,400,B < 400,default,,FINISHED,unchanged buffer,,,8dfff4b-dirty
+scenario-16,openmpi,send,0.0,overlap,400,B < 400,below,399,FINISHED,unchanged buffer,some,not judged,8dfff4b-dirty
+scenario-16,openmpi,send,0.0,overlap,400,B < 400,at,400,FINISHED,unchanged buffer,harmless,not judged,8dfff4b-dirty
+scenario-16,openmpi,send,1.0,overlap,400,B < 400,default,,FINISHED,unchanged buffer,,,8dfff4b-dirty
+scenario-16,openmpi,send,1.0,overlap,400,B < 400,below,399,FINISHED,unchanged buffer,some,not judged,8dfff4b-dirty
+scenario-16,openmpi,send,1.0,overlap,400,B < 400,at,400,FINISHED,unchanged buffer,harmless,not judged,8dfff4b-dirty
+scenario-16,mpich,send,0.0,overlap,400,B < 400,default,,FINISHED,unchanged buffer,,,8dfff4b-dirty
+scenario-16,mpich,send,0.0,overlap,400,B < 400,below,399,FINISHED,unchanged buffer,some,not judged,8dfff4b-dirty
+scenario-16,mpich,send,0.0,overlap,400,B < 400,at,400,FINISHED,unchanged buffer,harmless,not judged,8dfff4b-dirty
+scenario-16,mpich,send,1.0,overlap,400,B < 400,default,,FINISHED,unchanged buffer,,,8dfff4b-dirty
+scenario-16,mpich,send,1.0,overlap,400,B < 400,below,399,FINISHED,unchanged buffer,some,not judged,8dfff4b-dirty
+scenario-16,mpich,send,1.0,overlap,400,B < 400,at,400,FINISHED,unchanged buffer,harmless,not judged,8dfff4b-dirty
+scenario-17,openmpi,send,0.0,access:write,40,none,default,,FINISHED,intact,,,8dfff4b-dirty
+scenario-17,openmpi,send,0.0,access:write,40,none,below,39,-,-,copied,untestable,8dfff4b-dirty
+scenario-17,openmpi,send,0.0,access:write,40,none,at,40,-,-,copied,untestable,8dfff4b-dirty
+scenario-17,mpich,send,0.0,access:write,40,none,default,,FINISHED,intact,,,8dfff4b-dirty
+scenario-17,mpich,send,0.0,access:write,40,none,below,39,FINISHED,intact,copied,as predicted,8dfff4b-dirty
+scenario-17,mpich,send,0.0,access:write,40,none,at,40,FINISHED,intact,copied,as predicted,8dfff4b-dirty
+LocalConcurrency-mpi_irecv-001,openmpi,recv,0.0,overlap,40,any B,default,,FINISHED,intact,,,8dfff4b-dirty
+LocalConcurrency-mpi_irecv-001,openmpi,recv,0.0,overlap,40,any B,below,39,-,-,some,untestable,8dfff4b-dirty
+LocalConcurrency-mpi_irecv-001,openmpi,recv,0.0,overlap,40,any B,at,40,-,-,some,untestable,8dfff4b-dirty
+LocalConcurrency-mpi_irecv-001,mpich,recv,0.0,overlap,40,any B,default,,FINISHED,intact,,,8dfff4b-dirty
+LocalConcurrency-mpi_irecv-001,mpich,recv,0.0,overlap,40,any B,below,39,FINISHED,intact,some,consistent,8dfff4b-dirty
+LocalConcurrency-mpi_irecv-001,mpich,recv,0.0,overlap,40,any B,at,40,FINISHED,intact,some,consistent,8dfff4b-dirty
+LocalConcurrency-mpi_irecv-002,openmpi,recv,0.0,overlap,20,any B,default,,FINISHED,intact,,,8dfff4b-dirty
+LocalConcurrency-mpi_irecv-002,openmpi,recv,0.0,overlap,20,any B,below,19,-,-,some,untestable,8dfff4b-dirty
+LocalConcurrency-mpi_irecv-002,openmpi,recv,0.0,overlap,20,any B,at,20,-,-,some,untestable,8dfff4b-dirty
+LocalConcurrency-mpi_irecv-002,mpich,recv,0.0,overlap,20,any B,default,,FINISHED,intact,,,8dfff4b-dirty
+LocalConcurrency-mpi_irecv-002,mpich,recv,0.0,overlap,20,any B,below,19,FINISHED,intact,some,consistent,8dfff4b-dirty
+LocalConcurrency-mpi_irecv-002,mpich,recv,0.0,overlap,20,any B,at,20,FINISHED,intact,some,consistent,8dfff4b-dirty
+LocalConcurrency-receive-mpi_imrecv-001,openmpi,recv,0.0,access:write,40,any B,default,,FINISHED,changed,,,8dfff4b-dirty
+LocalConcurrency-receive-mpi_imrecv-001,openmpi,recv,0.0,access:write,40,any B,below,39,-,-,some,untestable,8dfff4b-dirty
+LocalConcurrency-receive-mpi_imrecv-001,openmpi,recv,0.0,access:write,40,any B,at,40,-,-,some,untestable,8dfff4b-dirty
+LocalConcurrency-receive-mpi_imrecv-001,mpich,recv,0.0,access:write,40,any B,default,,FINISHED,changed,,,8dfff4b-dirty
+LocalConcurrency-receive-mpi_imrecv-001,mpich,recv,0.0,access:write,40,any B,below,39,FINISHED,intact,some,consistent,8dfff4b-dirty
+LocalConcurrency-receive-mpi_imrecv-001,mpich,recv,0.0,access:write,40,any B,at,40,FINISHED,changed,some,consistent,8dfff4b-dirty
+LocalConcurrency-receive-mpi_irecv-001,openmpi,recv,0.0,access:write,40,any B,default,,FINISHED,intact,,,8dfff4b-dirty
+LocalConcurrency-receive-mpi_irecv-001,openmpi,recv,0.0,access:write,40,any B,below,39,-,-,some,untestable,8dfff4b-dirty
+LocalConcurrency-receive-mpi_irecv-001,openmpi,recv,0.0,access:write,40,any B,at,40,-,-,some,untestable,8dfff4b-dirty
+LocalConcurrency-receive-mpi_irecv-001,mpich,recv,0.0,access:write,40,any B,default,,FINISHED,intact,,,8dfff4b-dirty
+LocalConcurrency-receive-mpi_irecv-001,mpich,recv,0.0,access:write,40,any B,below,39,FINISHED,intact,some,consistent,8dfff4b-dirty
+LocalConcurrency-receive-mpi_irecv-001,mpich,recv,0.0,access:write,40,any B,at,40,FINISHED,intact,some,consistent,8dfff4b-dirty
+LocalConcurrency-receive-mpi_recv_init-001,openmpi,recv,0.0,access:write,40,any B,default,,FINISHED,intact,,,8dfff4b-dirty
+LocalConcurrency-receive-mpi_recv_init-001,openmpi,recv,0.0,access:write,40,any B,below,39,-,-,some,untestable,8dfff4b-dirty
+LocalConcurrency-receive-mpi_recv_init-001,openmpi,recv,0.0,access:write,40,any B,at,40,-,-,some,untestable,8dfff4b-dirty
+LocalConcurrency-receive-mpi_recv_init-001,mpich,recv,0.0,access:write,40,any B,default,,FINISHED,intact,,,8dfff4b-dirty
+LocalConcurrency-receive-mpi_recv_init-001,mpich,recv,0.0,access:write,40,any B,below,39,FINISHED,intact,some,consistent,8dfff4b-dirty
+LocalConcurrency-receive-mpi_recv_init-001,mpich,recv,0.0,access:write,40,any B,at,40,FINISHED,intact,some,consistent,8dfff4b-dirty
+LocalConcurrency-send-mpi_bsend_init-001,openmpi,send,1.0,access:write,40,none,default,,FINISHED,intact,,,8dfff4b-dirty
+LocalConcurrency-send-mpi_bsend_init-001,openmpi,send,1.0,access:write,40,none,below,39,-,-,copied,untestable,8dfff4b-dirty
+LocalConcurrency-send-mpi_bsend_init-001,openmpi,send,1.0,access:write,40,none,at,40,-,-,copied,untestable,8dfff4b-dirty
+LocalConcurrency-send-mpi_bsend_init-001,mpich,send,1.0,access:write,40,none,default,,FINISHED,intact,,,8dfff4b-dirty
+LocalConcurrency-send-mpi_bsend_init-001,mpich,send,1.0,access:write,40,none,below,39,FINISHED,intact,copied,as predicted,8dfff4b-dirty
+LocalConcurrency-send-mpi_bsend_init-001,mpich,send,1.0,access:write,40,none,at,40,FINISHED,intact,copied,as predicted,8dfff4b-dirty
+LocalConcurrency-send-mpi_ibsend-001,openmpi,send,1.0,access:write,40,none,default,,FINISHED,intact,,,8dfff4b-dirty
+LocalConcurrency-send-mpi_ibsend-001,openmpi,send,1.0,access:write,40,none,below,39,-,-,copied,untestable,8dfff4b-dirty
+LocalConcurrency-send-mpi_ibsend-001,openmpi,send,1.0,access:write,40,none,at,40,-,-,copied,untestable,8dfff4b-dirty
+LocalConcurrency-send-mpi_ibsend-001,mpich,send,1.0,access:write,40,none,default,,FINISHED,intact,,,8dfff4b-dirty
+LocalConcurrency-send-mpi_ibsend-001,mpich,send,1.0,access:write,40,none,below,39,FINISHED,intact,copied,as predicted,8dfff4b-dirty
+LocalConcurrency-send-mpi_ibsend-001,mpich,send,1.0,access:write,40,none,at,40,FINISHED,intact,copied,as predicted,8dfff4b-dirty
+LocalConcurrency-send-mpi_irsend-001,openmpi,send,1.0,access:write,40,B < 40,default,,FINISHED,intact,,,8dfff4b-dirty
+LocalConcurrency-send-mpi_irsend-001,openmpi,send,1.0,access:write,40,B < 40,below,39,-,-,some,untestable,8dfff4b-dirty
+LocalConcurrency-send-mpi_irsend-001,openmpi,send,1.0,access:write,40,B < 40,at,40,-,-,copied,untestable,8dfff4b-dirty
+LocalConcurrency-send-mpi_irsend-001,mpich,send,1.0,access:write,40,B < 40,default,,FINISHED,intact,,,8dfff4b-dirty
+LocalConcurrency-send-mpi_irsend-001,mpich,send,1.0,access:write,40,B < 40,below,39,FINISHED,changed,some,consistent,8dfff4b-dirty
+LocalConcurrency-send-mpi_irsend-001,mpich,send,1.0,access:write,40,B < 40,at,40,FINISHED,intact,copied,as predicted,8dfff4b-dirty
+LocalConcurrency-send-mpi_isend-001,openmpi,send,1.0,access:write,40,B < 40,default,,FINISHED,intact,,,8dfff4b-dirty
+LocalConcurrency-send-mpi_isend-001,openmpi,send,1.0,access:write,40,B < 40,below,39,-,-,some,untestable,8dfff4b-dirty
+LocalConcurrency-send-mpi_isend-001,openmpi,send,1.0,access:write,40,B < 40,at,40,-,-,copied,untestable,8dfff4b-dirty
+LocalConcurrency-send-mpi_isend-001,mpich,send,1.0,access:write,40,B < 40,default,,FINISHED,intact,,,8dfff4b-dirty
+LocalConcurrency-send-mpi_isend-001,mpich,send,1.0,access:write,40,B < 40,below,39,FINISHED,changed,some,consistent,8dfff4b-dirty
+LocalConcurrency-send-mpi_isend-001,mpich,send,1.0,access:write,40,B < 40,at,40,FINISHED,intact,copied,as predicted,8dfff4b-dirty
+LocalConcurrency-send-mpi_issend-001,openmpi,send,1.0,access:write,40,any B,default,,FINISHED,intact,,,8dfff4b-dirty
+LocalConcurrency-send-mpi_issend-001,openmpi,send,1.0,access:write,40,any B,below,39,-,-,some,untestable,8dfff4b-dirty
+LocalConcurrency-send-mpi_issend-001,openmpi,send,1.0,access:write,40,any B,at,40,-,-,some,untestable,8dfff4b-dirty
+LocalConcurrency-send-mpi_issend-001,mpich,send,1.0,access:write,40,any B,default,,FINISHED,changed,,,8dfff4b-dirty
+LocalConcurrency-send-mpi_issend-001,mpich,send,1.0,access:write,40,any B,below,39,FINISHED,changed,some,consistent,8dfff4b-dirty
+LocalConcurrency-send-mpi_issend-001,mpich,send,1.0,access:write,40,any B,at,40,FINISHED,changed,some,consistent,8dfff4b-dirty
+LocalConcurrency-send-mpi_rsend_init-001,openmpi,send,1.0,access:write,40,B < 40,default,,FINISHED,intact,,,8dfff4b-dirty
+LocalConcurrency-send-mpi_rsend_init-001,openmpi,send,1.0,access:write,40,B < 40,below,39,-,-,some,untestable,8dfff4b-dirty
+LocalConcurrency-send-mpi_rsend_init-001,openmpi,send,1.0,access:write,40,B < 40,at,40,-,-,copied,untestable,8dfff4b-dirty
+LocalConcurrency-send-mpi_rsend_init-001,mpich,,,,,,default,,TIMEOUT,,,no trace,8dfff4b-dirty
+LocalConcurrency-send-mpi_send_init-001,openmpi,send,1.0,access:write,40,B < 40,default,,FINISHED,intact,,,8dfff4b-dirty
+LocalConcurrency-send-mpi_send_init-001,openmpi,send,1.0,access:write,40,B < 40,below,39,-,-,some,untestable,8dfff4b-dirty
+LocalConcurrency-send-mpi_send_init-001,openmpi,send,1.0,access:write,40,B < 40,at,40,-,-,copied,untestable,8dfff4b-dirty
+LocalConcurrency-send-mpi_send_init-001,mpich,send,1.0,access:write,40,B < 40,default,,FINISHED,intact,,,8dfff4b-dirty
+LocalConcurrency-send-mpi_send_init-001,mpich,send,1.0,access:write,40,B < 40,below,39,FINISHED,changed,some,consistent,8dfff4b-dirty
+LocalConcurrency-send-mpi_send_init-001,mpich,send,1.0,access:write,40,B < 40,at,40,FINISHED,intact,copied,as predicted,8dfff4b-dirty
+LocalConcurrency-send-mpi_ssend_init-001,openmpi,send,1.0,access:write,40,any B,default,,FINISHED,intact,,,8dfff4b-dirty
+LocalConcurrency-send-mpi_ssend_init-001,openmpi,send,1.0,access:write,40,any B,below,39,-,-,some,untestable,8dfff4b-dirty
+LocalConcurrency-send-mpi_ssend_init-001,openmpi,send,1.0,access:write,40,any B,at,40,-,-,some,untestable,8dfff4b-dirty
+LocalConcurrency-send-mpi_ssend_init-001,mpich,send,1.0,access:write,40,any B,default,,FINISHED,changed,,,8dfff4b-dirty
+LocalConcurrency-send-mpi_ssend_init-001,mpich,send,1.0,access:write,40,any B,below,39,FINISHED,changed,some,consistent,8dfff4b-dirty
+LocalConcurrency-send-mpi_ssend_init-001,mpich,send,1.0,access:write,40,any B,at,40,FINISHED,changed,some,consistent,8dfff4b-dirty
+idiom-07,openmpi,send,0.0,modified,64,B < 64,default,,FINISHED,intact,,,8dfff4b-dirty
+idiom-07,openmpi,send,0.0,modified,64,B < 64,below,63,-,-,some,untestable,8dfff4b-dirty
+idiom-07,openmpi,send,0.0,modified,64,B < 64,at,64,-,-,copied,untestable,8dfff4b-dirty
+idiom-07,mpich,send,0.0,modified,64,B < 64,default,,FINISHED,intact,,,8dfff4b-dirty
+idiom-07,mpich,send,0.0,modified,64,B < 64,below,63,FINISHED,changed,some,consistent,8dfff4b-dirty
+idiom-07,mpich,send,0.0,modified,64,B < 64,at,64,FINISHED,intact,copied,as predicted,8dfff4b-dirty
+idiom-37,openmpi,send,0.0,access:write,4000,B < 4000,default,,FINISHED,intact,,,8dfff4b-dirty
+idiom-37,openmpi,send,0.0,access:write,4000,B < 4000,below,3999,FINISHED,changed,every,as predicted,8dfff4b-dirty
+idiom-37,openmpi,send,0.0,access:write,4000,B < 4000,at,4000,FINISHED,intact,copied,as predicted,8dfff4b-dirty
+idiom-37,mpich,send,0.0,access:write,4000,B < 4000,default,,FINISHED,intact,,,8dfff4b-dirty
+idiom-37,mpich,send,0.0,access:write,4000,B < 4000,below,3999,FINISHED,changed,every,as predicted,8dfff4b-dirty
+idiom-37,mpich,send,0.0,access:write,4000,B < 4000,at,4000,FINISHED,intact,copied,as predicted,8dfff4b-dirty
+idiom-38,openmpi,recv,0.0,access:write,4000,any B,default,,FINISHED,changed,,,8dfff4b-dirty
+idiom-38,openmpi,recv,0.0,access:write,4000,any B,below,3999,FINISHED,intact,some,consistent,8dfff4b-dirty
+idiom-38,openmpi,recv,0.0,access:write,4000,any B,at,4000,FINISHED,changed,some,consistent,8dfff4b-dirty
+idiom-38,mpich,recv,0.0,access:write,4000,any B,default,,FINISHED,changed,,,8dfff4b-dirty
+idiom-38,mpich,recv,0.0,access:write,4000,any B,below,3999,FINISHED,intact,some,consistent,8dfff4b-dirty
+idiom-38,mpich,recv,0.0,access:write,4000,any B,at,4000,FINISHED,changed,some,consistent,8dfff4b-dirty

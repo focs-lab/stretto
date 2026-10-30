@@ -131,6 +131,15 @@ with the hunt notes, outside this repository.
   communication engine cancels its persistent wildcard receives at finalisation). Neither tool
   path predicted the two tag races below; scans of same-envelope operations pending on two threads
   located them (`experiments/dlaf/pending_pairs.py`, `experiments/slate/overlap.py`). Open.
+- Buffer-guard findings said nothing of their consequence (30 Oct): a write to a pending send
+  buffer is harmless while the library copies the message in the call. The report now gives each
+  3-local finding the thresholds at which data changes (docs/model.md section 7), confirmed by
+  runs with the eager limit forced just below and at the message
+  (`experiments/results/guard/thresholds.csv`). Two premises found false there: MPICH over UCX
+  read a pending 40-byte synchronous send's buffer after the call with its rendezvous threshold
+  above the message (so synchronous sends are never taken as copied), and Open MPI's TCP
+  transport read an eager 4 000-byte message, the first to its peer, after the call (the
+  confirmations use shared memory).
 
 ## Multithreaded benchmarks (L1 only)
 
