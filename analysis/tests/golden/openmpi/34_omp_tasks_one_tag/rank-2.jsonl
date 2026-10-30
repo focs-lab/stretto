@@ -1,0 +1,5 @@
+{"r":2,"seq":0,"op":"init","np":3,"thread":3,"version":3,"issue":1}
+{"r":2,"seq":1,"op":"comm","name":"world","parent":0,"id":0,"ranks":[0,1,2],"gord":0}
+{"r":2,"seq":2,"op":"comm","name":"self","parent":0,"id":1,"ranks":[2],"gord":0}
+{"r":2,"seq":3,"op":"site","id":0,"obj":"/w/idioms/34_omp_tasks_one_tag/bin/openmpi/main","addr":94611426428234,"base":94611426422784}
+{"r":2,"seq":4,"op":"finalize","site":0}

@@ -244,6 +244,53 @@ class C_Observed(unittest.TestCase):
 GOLDEN = os.path.join(os.path.dirname(os.path.abspath(__file__)), "golden")
 
 
+class C_Tasks(unittest.TestCase):
+    """Explicit OpenMP tasks as chains (docs/threads.md, section 12): the traced idioms 34-36 of
+    both MPIs, and the record of a task the tracer does not follow."""
+
+    def golden(self, mpi, n):
+        d = os.path.join(GOLDEN, mpi)
+        name = next((x for x in sorted(os.listdir(d)) if x.startswith(f"{n}_")), None) if os.path.isdir(d) else None
+        if name is None:
+            self.skipTest(f"no golden trace of idiom {n} for {mpi}")
+        return T.load(os.path.join(d, name))
+
+    def test_unordered_tasks_swap(self):
+        """Idiom 34: two tasks without a dependence receive on one tag."""
+        for mpi in ("openmpi", "mpich"):
+            t = self.golden(mpi, 34)
+            self.assertEqual(t.thread_limits, [])
+            tasks = [c for c in t.chains[0] if c != 0]
+            self.assertEqual(len(tasks), 2)
+            self.assertTrue(all("~" in t.chain_name[c] for c in tasks), t.chain_name)
+            self.assertTrue(TH.concurrent(t, t.recvs[(tasks[0], 0)], t.recvs[(tasks[1], 0)]))
+            rep = analyze(t, with_sp=False)
+            # the concurrent swap (1f, its truncating half 1a) and, in some runs, a steal variant (1f)
+            self.assertEqual({f.cls for f in rep.findings if f.level == "L1"}, {"1a", "1f"}, format_report(t, rep))
+            self.assertTrue(any("concurrent swap" in d for f in rep.findings for d in f.detail))
+
+    def test_ordered_tasks_do_not_race(self):
+        """Idioms 35 (depend), 36 (taskgroup, taskwait, team barrier, nested task): no finding."""
+        for mpi in ("openmpi", "mpich"):
+            for n in (35, 36):
+                t = self.golden(mpi, n)
+                self.assertEqual(t.thread_limits, [])
+                rep = analyze(t, with_sp=False)
+                self.assertEqual(rep.findings, [], f"{mpi} {n}: " + format_report(t, rep))
+                recvs = [r for r in t.recvs.values() if t.proc.get(r.rank, r.rank) == 0 and r.tag == 5]
+                for a in recvs:
+                    for b in recvs:
+                        if a is not b:
+                            self.assertFalse(TH.concurrent(t, a, b), f"{mpi} {n}: {a} {b}")
+
+    def test_detached_task_degrades(self):
+        t = mkt({0: [{"op": "task", "what": "detach"}, th(0, send(1, 0)), th(1, send(1, 0))],
+                 1: [recv(0, 0, 0, 0), recv(0, 0, 0, 0)]})
+        rep = analyze(t, with_sp=False)
+        self.assertIn("threads-tasks", rep.status())
+        self.assertIn("detached", format_report(t, rep))
+
+
 def pool(seed, k=3, n=5, nonblocking=False):
     """The racy phase of MPICH's mt_* tests: k threads of rank 0 send n messages each with one
     tag, k threads of rank 1 receive n each (blocking, or nonblocking with a wait at the end),

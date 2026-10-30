@@ -1,0 +1,13 @@
+{"r":0,"seq":0,"op":"init","np":3,"thread":3,"version":3,"issue":1}
+{"r":0,"seq":1,"op":"comm","name":"world","parent":0,"id":0,"ranks":[0,1,2],"gord":0}
+{"r":0,"seq":2,"op":"comm","name":"self","parent":0,"id":1,"ranks":[0],"gord":0}
+{"r":0,"seq":3,"op":"site","id":0,"obj":"/w/idioms/34_omp_tasks_one_tag/bin/openmpi/main","addr":94847635682944,"base":94847635677184}
+{"r":0,"seq":4,"op":"chain","id":1,"name":"0~0","parent":0,"kind":"task"}
+{"r":0,"seq":5,"tid":1,"after":[[0,2,3,0]],"op":"begin","call":"recv","src":1,"tag":5,"comm":0,"count":8,"tsize":1,"tsig":"MPI_CHAR","site":0}
+{"r":0,"seq":6,"tid":1,"op":"recv","src":1,"tag":5,"comm":0,"count":8,"tsize":1,"tsig":"MPI_CHAR","msrc":1,"mtag":5,"mcount":8,"iseq":0,"site":0}
+{"r":0,"seq":7,"op":"site","id":1,"obj":"/w/idioms/34_omp_tasks_one_tag/bin/openmpi/main","addr":94847635683027,"base":94847635677184}
+{"r":0,"seq":8,"op":"chain","id":2,"name":"0~1","parent":0,"kind":"task"}
+{"r":0,"seq":9,"tid":2,"after":[[0,2,4,0]],"op":"begin","call":"recv","src":1,"tag":5,"comm":0,"count":400,"tsize":1,"tsig":"MPI_CHAR","site":1}
+{"r":0,"seq":10,"tid":2,"op":"recv","src":1,"tag":5,"comm":0,"count":400,"tsize":1,"tsig":"MPI_CHAR","msrc":1,"mtag":5,"mcount":400,"iseq":1,"site":1}
+{"r":0,"seq":11,"op":"site","id":2,"obj":"/w/idioms/34_omp_tasks_one_tag/bin/openmpi/main","addr":94847635682634,"base":94847635677184}
+{"r":0,"seq":12,"after":[[1,6,1,5],[2,10,1,5]],"op":"finalize","site":2}

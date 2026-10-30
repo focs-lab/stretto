@@ -10,20 +10,23 @@
                and point-to-point records carry iseq), [threads:0] (STRETTO_THREADS=0: the
                synchronisation between threads is not followed, no record carries after).
    Threads (format 3, section "threads" at the end of the file). A rank's records form one
-   chain per thread of control: a POSIX thread, or the implicit task of OpenMP thread j > 0
-   of a parallel region. Chain 0 is the thread that initialised MPI; the records of every
-   other chain carry tid (its chain id), and before a chain's first record a side record
-     chain     id, name, parent, kind(pthread|omp) names it: chain 0 is "0", the k-th thread
+   chain per thread of control: a POSIX thread, the implicit task of OpenMP thread j > 0
+   of a parallel region, or an explicit OpenMP task. Chain 0 is the thread that initialised
+   MPI; the records of every other chain carry tid (its chain id), and before a chain's first
+   record a side record
+     chain     id, name, parent, kind(pthread|omp|task) names it: chain 0 is "0", the k-th thread
                created by chain c is "c.k", the implicit task of thread j of the p-th parallel
-               region entered by chain c is "c/p.j" (k and p count from 0).
+               region entered by chain c is "c/p.j", the k-th explicit task created by chain c
+               is "c~k" (k and p count from 0).
    A record other than overflow, guard, unordered, chain, task and overlap (communicator
    records included: they are collectives of the model) carries after:[[c,s,kc,ka],...] when
    other chains' synchronisation now precedes it. Every chain counts the synchronisation
    operations the wrappers act on (acquires, releases, barrier waits, thread creation and end,
-   the fork and join of a parallel region), from 1; an entry says that chain c's operation
-   number kc, made after its record with seq s (and before its next record), happens before
-   this chain's operation number ka, made since this chain's previous record (ka 0: the
-   chain's start, the entries of its creator's clock at the creation or fork). Per chain c
+   the fork and join of a parallel region, task creation and end, taskwaits and taskgroup
+   ends), from 1; an entry says that chain c's operation number kc, made after its record with
+   seq s (and before its next record), happens before this chain's operation number ka, made
+   since this chain's previous record (ka 0: the chain's start, the entries of its creator's
+   clock at the creation or fork and, for a task, of the sibling tasks it depends on). Per chain c
    only the latest (s, then kc) is written. A barrier wait has one ordinal for its arrival and
    its departure. So the order of several synchronisation points between two records of one
    chain is known: a join of B after a creation of A, with no record between, has the larger
@@ -32,7 +35,8 @@
    receive half of a sendrecv, a probe that found a message) carries iseq, the order in which
    the rank posted it, among all its threads. Further side records:
      overlap   two threads were inside MPI calls at once below MPI_THREAD_MULTIPLE (once)
-     task      an MPI call was made inside an explicit OpenMP task, which is no chain (once)
+     task      what(untracked|detach): an MPI call was made inside an explicit OpenMP task that
+               is no chain (a taskloop's), or after a detached task was created (once)
      unordered call: a posting the issue lock does not order (MPI_Sendrecv_replace; once)
      overflow  with what "chain table": more than 256 chains wrote records (later chains: tid -1)
      begin     call=<recv|wait|probe|coll|send> + the call's arguments; emitted BEFORE a
@@ -185,11 +189,12 @@ typedef struct thr {
     int id;                       /* chain id, -1 until the chain writes a record */
     int untracked;                /* an MPI library thread, or a runtime's pool thread outside its tasks */
     int parent;                   /* id of the nearest creating chain with records, -1 if none */
-    int ncreated, nregions;       /* threads created and parallel regions entered so far: the children's names */
+    int ncreated, nregions, ntasks;   /* threads created, parallel regions entered and OpenMP tasks created so far: the children's names */
     int done;                     /* the thread has ended: fin holds its last clock */
+    int refs;                     /* its owner and the chains it created (thr_put) */
     long k;                       /* synchronisation operations so far */
     struct thr *up;               /* the creating chain */
-    const char *kind;             /* "pthread" or "omp" */
+    const char *kind;             /* "pthread", "omp" or "task" */
     char name[160];
     vclock vc, fin;
     long pend_s[MAXCH], pend_kc[MAXCH], pend_ka[MAXCH];   /* pending "after" entries, by component (pend_s -1: none) */
@@ -316,6 +321,7 @@ static int site_id_locked(void *ra) {
 static thr *g_poll_chain = NULL;     /* the chain of the failed poll in g_poll_body: polls fold per chain */
 static int (*g_in_explicit_task)(void) = NULL;   /* libgomp's omp_in_explicit_task, if the program has it */
 static int g_task_seen = 0;
+static int g_task_unfollowed = 0;   /* a detached task was created: task completion is not followed */
 
 /* A chain writes its first record: give it an id and describe it (not chain 0, the one that
    initialised MPI). */
@@ -354,10 +360,14 @@ static void rb_emit_kind(rec_t *b, int failed_poll) {
         g_poll_chain = c;
         int site = site_id_locked(b->site);
         chain_id_locked(c);
-        if (!g_task_seen && g_in_explicit_task && g_in_explicit_task()) {
-            /* an MPI call inside an explicit OpenMP task: tasks are not chains (format 3) */
+        const char *untask = g_task_unfollowed ? "detach"
+                             : g_in_explicit_task && strcmp(c->kind ? c->kind : "", "task") != 0 && g_in_explicit_task() ? "untracked" : NULL;
+        if (!g_task_seen && untask) {
+            /* an MPI call inside an explicit OpenMP task that is no chain (a taskloop's, or one
+               created while synchronisation was not followed), or after a detached task, whose
+               completion is not followed */
             g_task_seen = 1;
-            fprintf(g_out, "{\"r\":%d,\"seq\":%ld,\"op\":\"task\"}\n", g_rank, g_seq++);
+            fprintf(g_out, "{\"r\":%d,\"seq\":%ld,\"op\":\"task\",\"what\":\"%s\"}\n", g_rank, g_seq++, untask);
         }
         long seq = g_seq++;
         /* side records (overflow, guard, unordered) are no events: they
@@ -2496,7 +2506,8 @@ int MPI_Buffer_detach(void *buf, int *size) { GUARD; int rc = PMPI_Buffer_detach
    read-write locks, spin locks, condition variables (as the mutex they release and take
    again), barriers and semaphores of POSIX threads; and the OpenMP constructs of gcc's
    libgomp: parallel regions (an implicit task of thread j > 0 is a chain of its own), team
-   barriers, critical sections, atomic and ordered regions, OpenMP locks, and the dynamic
+   barriers, critical sections, atomic and ordered regions, OpenMP locks, explicit tasks with
+   their dependences, taskwaits and taskgroups (a task is a chain of its own), and the dynamic
    work-sharing calls whose order decides which thread runs which chunk (as a read-modify-write
    of the work share). Not seen: atomics, spin flags and anything else that does not call these
    functions (docs/threads.md, section 2.3). Ignored: calls made inside an MPI wrapper, from MPI
@@ -2526,9 +2537,21 @@ __attribute__((constructor)) static void threads_init(void) {
 static thr *thr_new(thr *up, const char *kind) {
     thr *c = calloc(1, sizeof *c);
     if (!c) { fprintf(stderr, "stretto tracer: out of memory\n"); abort(); }
-    c->id = -1; c->parent = -1; c->up = up; c->kind = kind;
+    c->id = -1; c->parent = -1; c->up = up; c->kind = kind; c->refs = 1;
+    if (up) __atomic_add_fetch(&up->refs, 1, __ATOMIC_ACQ_REL);
     memset(c->vc.s, 0xff, sizeof c->vc.s); memset(c->fin.s, 0xff, sizeof c->fin.s); memset(c->pend_s, 0xff, sizeof c->pend_s);
     return c;
+}
+/* The owner of a chain (an OpenMP implicit or explicit task) is done with it. A chain without
+   records is freed once no chain it created can still look up its name and parent through it
+   (chain_id_locked); a chain with records keeps its id and its memory. */
+static void thr_put(thr *c) {
+    while (c && __atomic_sub_fetch(&c->refs, 1, __ATOMIC_ACQ_REL) == 0 && c->id < 0) {
+        thr *up = c->up;
+        IL(&g_mu); if (g_poll_chain == c) g_poll_chain = NULL; IU(&g_mu);
+        free(c);
+        c = up;
+    }
 }
 
 /* ---- clocks: components are pairs (seq, k), ordered by seq, then by k */
@@ -2690,7 +2713,7 @@ int pthread_create(pthread_t *t, const pthread_attr_t *a, void *(*start)(void *)
     if (!b) { free(c); return EAGAIN; }
     b->start = start; b->arg = arg; b->child = c;
     int rc = r_create(t, a, thread_boot, b);
-    if (rc) { free(b); free(c); return rc; }
+    if (rc) { free(b); thr_put(c); return rc; }
     thread_put(*t, c);
     return 0;
 }
@@ -2809,10 +2832,42 @@ typedef struct region {
     unsigned bgen, barrived;
     vclock snap, acc, ordvc;
     vclock bacc[2];
+    vclock tacc[2];               /* the ends of the explicit tasks of a barrier generation, which its departures take */
     vclock *ws[64];               /* the clocks of the region's dynamic work shares, by index */
 } region;
 TTLS(region *, t_region);         /* the innermost parallel region of this thread */
 TTLS(int, t_wsidx);               /* this thread's work-sharing constructs so far in t_region */
+
+/* OpenMP explicit tasks (state; the wrappers follow the team barriers below). A task is a
+   chain of its own, named c~k: the k-th task that chain c created (from 0). */
+#define TDEP_BUCKETS 64
+typedef struct tclock { int refs; vclock vc; } tclock;            /* a task's end, for the siblings that depend on it */
+typedef struct tdepent { tclock *t; int cls; } tdepent;             /* cls: 1 in, 2 inoutset */
+typedef struct tdep { const void *addr; struct tdep *next; tclock *out; tdepent *in; int nin, capin; } tdep;
+typedef struct tgroup { int refs; struct tgroup *up; vclock acc; } tgroup;
+typedef struct tnode {            /* a task, implicit or explicit, as the parent of explicit tasks */
+    int refs;                     /* its owner and its children */
+    vclock cacc;                  /* the ends of its children: what its taskwait takes */
+    tdep *deps[TDEP_BUCKETS];     /* its children's dependences, by address: the latest out-type one and the in-type ones since */
+    tclock *all;                  /* its latest child with depend(omp_all_memory) */
+    tgroup *tg;                   /* its innermost open taskgroup */
+} tnode;
+typedef struct task {
+    thr *c;
+    tnode *parent, *node;         /* the creating task's node; its own, once it creates a task or opens a taskgroup */
+    tgroup *tg;                   /* the innermost taskgroup open at its creation */
+    region *R;
+    unsigned phase;               /* the barrier generation of R that completes it */
+    tclock *end, **pred;          /* its end; the ends of the siblings its dependences name */
+    int npred;
+    void (*fn)(void *); void (*cpyfn)(void *, void *);
+    long off;                     /* where the program's task data begins in the block libgomp copies */
+} task;
+TTLS(task *, t_task);             /* the explicit task this thread runs, NULL in an implicit task */
+TTLS(tnode *, t_node);            /* the node of the task this thread runs, NULL until it is needed */
+TTLS(task *, t_spawn);            /* the task this thread's GOMP_task is creating: run inside the call, it is undeferred */
+TTLS(int, t_spawn_ran);           /* it was */
+static void tnode_put_locked(tnode *n);
 static int (*p_thread_num)(void), (*p_num_threads)(void);
 static void omp_resolve(void) {
     if (!p_thread_num) *(void **)&p_thread_num = dlsym(RTLD_DEFAULT, "omp_get_thread_num");
@@ -2828,10 +2883,15 @@ static region *region_new(void (*fn)(void *), void *data, int nws0) {
     if (g_threads_on && !R->master->untracked) sync_op(R->master);    /* the fork: a release of the master */
     R->snap = R->master->vc;
     vc_init(&R->acc); vc_init(&R->ordvc); vc_init(&R->bacc[0]); vc_init(&R->bacc[1]);
+    vc_init(&R->tacc[0]); vc_init(&R->tacc[1]);
     return R;
 }
 static void region_end(region *R) {   /* the join of the region: an acquire of the master */
-    if (g_threads_on && !R->master->untracked) { long ka = sync_op(R->master); vc_acquire(R->master, &R->acc, ka); }
+    if (g_threads_on && !R->master->untracked) {
+        long ka = sync_op(R->master);
+        vc_acquire(R->master, &R->acc, ka);
+        vc_acquire(R->master, &R->tacc[0], ka); vc_acquire(R->master, &R->tacc[1], ka);   /* the closing barrier completes every task */
+    }
     for (int i = 0; i < 64; i++) free(R->ws[i]);
     free(R);
 }
@@ -2839,7 +2899,8 @@ static void omp_tramp(void *a) {
     region *R = a;
     int j = p_thread_num ? p_thread_num() : 0;
     thr *saved = t_cur; region *saved_r = t_region; int saved_ws = t_wsidx;
-    t_region = R; t_wsidx = R->nws0;
+    task *saved_t = t_task; tnode *saved_n = t_node;
+    t_region = R; t_wsidx = R->nws0; t_task = NULL; t_node = NULL;    /* an implicit task of R */
     if (j == 0) R->fn(R->data);
     else {
         thr *c = thr_new(R->master, "omp");
@@ -2850,12 +2911,10 @@ static void omp_tramp(void *a) {
         R->fn(R->data);
         if (g_threads_on) { sync_op(c); IL(&g_symu); vc_join(&R->acc, &c->vc); IU(&g_symu); }   /* the task's end: a release */
         t_cur = saved;
-        if (c->id < 0) {
-            IL(&g_mu); if (g_poll_chain == c) g_poll_chain = NULL; IU(&g_mu);
-            free(c);           /* a chain without records; one with records keeps its id */
-        }
+        thr_put(c);            /* freed if it has no records, once the tasks it created are */
     }
-    t_region = saved_r; t_wsidx = saved_ws;
+    if (t_node) { IL(&g_symu); tnode_put_locked(t_node); IU(&g_symu); }
+    t_region = saved_r; t_wsidx = saved_ws; t_task = saved_t; t_node = saved_n;
 }
 static vclock *ws_clock(region *R, int idx) {
     vclock **slot = &R->ws[idx & 63];
@@ -2877,11 +2936,242 @@ static unsigned team_arrive(long *k) {
     *k = sync_op(c);
     IL(&g_symu);
     unsigned g = bar_arrive(R->bacc, &R->bgen, &R->barrived, n, c);
+    if (R->bgen != g) vc_init(&R->tacc[(g + 1) & 1]);    /* every thread has left generation g - 1 */
     IU(&g_symu);
     return g;
 }
-static void team_depart(unsigned g, long k) {
-    IL(&g_symu); vc_acquire(cur_chain(), &t_region->bacc[g & 1], k); IU(&g_symu);
+static void team_depart(unsigned g, long k) {   /* a team barrier also completes the generation's explicit tasks */
+    IL(&g_symu); vc_acquire(cur_chain(), &t_region->bacc[g & 1], k); vc_acquire(cur_chain(), &t_region->tacc[g & 1], k); IU(&g_symu);
+}
+
+/* ---- OpenMP explicit tasks (GOMP_task, taskwait, taskgroups, dependences). A task's start
+   takes its creator's clock at the creation (a release of the creator) and the ends of the
+   sibling tasks its dependences name; its end is a release, which its parent's next taskwait,
+   the innermost taskgroup open at its creation and the team barrier that completes it take
+   (a task belongs to the barrier generation of its creation; a task created by a task, to its
+   creator's), and so does its creator's return from GOMP_task when libgomp ran it inside the
+   call (undeferred: if(0), a final task's child, or libgomp's bound on queued tasks). The wrapper hands libgomp a trampoline and a copy of the task's data behind a
+   pointer to its state, through the program's copy function if it has one. Dependences are
+   kept per parent and address as libgomp's gomp_task_handle_depend (gcc 14) orders them: an
+   in or inoutset dependence follows the latest earlier out, inout or mutexinoutset one of the
+   address and the earlier dependences of the other in-type since it; an out-type one follows
+   all of these; omp_all_memory follows every earlier sibling with dependences and precedes
+   every later one. They are kept whether or not the sibling has completed when the task is
+   created (libgomp then does not wait, but the program's order is the same). Not followed: the
+   tasks of taskloop, which libgomp creates inside, and detached tasks, whose end
+   omp_fulfill_event decides; an MPI call in the first or after the creation of the second
+   writes a task record (the loader degrades the trace, threads-tasks). */
+#define TASK_FLAG_DEPEND (1 << 3)     /* include/gomp-constants.h, gcc 14 */
+#define TASK_FLAG_DETACH (1 << 13)
+#define DEPEND_IN 1
+#define DEPEND_INOUTSET 5
+static void *xcalloc(size_t n) {
+    void *p = calloc(1, n);
+    if (!p) { fprintf(stderr, "stretto tracer: out of memory\n"); abort(); }
+    return p;
+}
+static tclock *tclock_new(void) { tclock *t = xcalloc(sizeof *t); t->refs = 1; vc_init(&t->vc); return t; }
+static void tclock_put_locked(tclock *t) { if (t && --t->refs == 0) free(t); }
+static void tdeps_clear_locked(tnode *n) {
+    for (int b = 0; b < TDEP_BUCKETS; b++) {
+        for (tdep *d = n->deps[b], *nx; d; d = nx) {
+            nx = d->next;
+            tclock_put_locked(d->out);
+            for (int i = 0; i < d->nin; i++) tclock_put_locked(d->in[i].t);
+            free(d->in); free(d);
+        }
+        n->deps[b] = NULL;
+    }
+}
+static void tnode_put_locked(tnode *n) {
+    if (n && --n->refs == 0) { tdeps_clear_locked(n); tclock_put_locked(n->all); free(n); }
+}
+static void tgroup_put_locked(tgroup *g) { if (g && --g->refs == 0) free(g); }
+/* the node of the running task: an implicit task's is released when its trampoline ends, an
+   explicit task's when it ends; a thread's outside parallel regions is kept */
+static tnode *cur_node(void) {
+    if (!t_node) {
+        t_node = xcalloc(sizeof *t_node); t_node->refs = 1; vc_init(&t_node->cacc);
+        if (t_task) t_task->node = t_node;
+    }
+    return t_node;
+}
+typedef struct { tclock **v; int n, cap; } tpreds;
+static void preds_add(tpreds *p, tclock *t) {
+    if (!t) return;
+    if (p->n == p->cap) { p->cap = p->cap ? 2 * p->cap : 8; p->v = xrealloc(p->v, sizeof *p->v * p->cap); }
+    p->v[p->n++] = t; t->refs++;
+}
+static tdep *tdep_get_locked(tnode *n, const void *addr) {
+    size_t h = ((uintptr_t)addr >> 3) % TDEP_BUCKETS;
+    for (tdep *d = n->deps[h]; d; d = d->next) if (d->addr == addr) return d;
+    tdep *d = xcalloc(sizeof *d);
+    d->addr = addr; d->next = n->deps[h]; n->deps[h] = d;
+    return d;
+}
+/* one dependence (cls 0 out-type, 1 in, 2 inoutset) of a new task with end clock end, or of a
+   taskwait with depend clauses (end NULL: nothing is registered) */
+static void dep_one_locked(tnode *n, const void *addr, int cls, tclock *end, tpreds *p) {
+    tdep *d = tdep_get_locked(n, addr);
+    preds_add(p, d->out);
+    for (int i = 0; i < d->nin; i++) if (cls == 0 || d->in[i].cls != cls) preds_add(p, d->in[i].t);
+    if (!end) return;
+    if (cls == 0) {
+        for (int i = 0; i < d->nin; i++) tclock_put_locked(d->in[i].t);
+        d->nin = 0;
+        tclock_put_locked(d->out); d->out = end; end->refs++;
+    } else {
+        if (d->nin == d->capin) { d->capin = d->capin ? 2 * d->capin : 4; d->in = xrealloc(d->in, sizeof *d->in * d->capin); }
+        d->in[d->nin++] = (tdepent){end, cls}; end->refs++;
+    }
+}
+/* libgomp's depend array: depend[0] != 0: depend[0] addresses from depend[2], the first
+   depend[1] of them out or inout, the rest in; depend[0] == 0: depend[1] entries from
+   depend[5], depend[2] out or inout, then depend[3] mutexinoutset, depend[4] in, then
+   omp_depend_t objects ({address, type}). A null out-type address is omp_all_memory. */
+static void deps_locked(tnode *n, void **depend, tclock *end, tpreds *p) {
+    size_t total, nout, nin, first;
+    if ((uintptr_t)depend[0]) { total = (uintptr_t)depend[0]; nout = (uintptr_t)depend[1]; nin = total - nout; first = 2; }
+    else { total = (uintptr_t)depend[1]; nout = (uintptr_t)depend[2] + (uintptr_t)depend[3]; nin = (uintptr_t)depend[4]; first = 5; }
+    int all = 0;
+    for (size_t i = 0; i < total && !all; i++) {
+        void **o = i >= nout + nin ? (void **)depend[first + i] : NULL;
+        int cls = o ? ((uintptr_t)o[1] == DEPEND_IN ? 1 : (uintptr_t)o[1] == DEPEND_INOUTSET ? 2 : 0) : i < nout ? 0 : 1;
+        all = cls == 0 && (o ? o[0] : depend[first + i]) == NULL;
+    }
+    preds_add(p, n->all);
+    if (all) {
+        for (int b = 0; b < TDEP_BUCKETS; b++)
+            for (tdep *d = n->deps[b]; d; d = d->next) { preds_add(p, d->out); for (int i = 0; i < d->nin; i++) preds_add(p, d->in[i].t); }
+        if (end) { tdeps_clear_locked(n); tclock_put_locked(n->all); n->all = end; end->refs++; }
+        return;
+    }
+    for (size_t i = 0; i < total; i++) {
+        void **o = i >= nout + nin ? (void **)depend[first + i] : NULL;
+        int cls = o ? ((uintptr_t)o[1] == DEPEND_IN ? 1 : (uintptr_t)o[1] == DEPEND_INOUTSET ? 2 : 0) : i < nout ? 0 : 1;
+        dep_one_locked(n, o ? o[0] : depend[first + i], cls, end, p);
+    }
+}
+static void task_end(task *T) {
+    thr *c = T->c;
+    sync_op(c);
+    IL(&g_symu);
+    T->end->vc = c->vc;
+    vc_join(&T->parent->cacc, &c->vc);
+    if (T->tg) vc_join(&T->tg->acc, &c->vc);
+    if (T->R) vc_join(&T->R->tacc[T->phase & 1], &c->vc);
+    tclock_put_locked(T->end); tnode_put_locked(T->parent); tnode_put_locked(T->node); tgroup_put_locked(T->tg);
+    IU(&g_symu);
+    thr_put(c);
+    free(T);
+}
+static void task_tramp(void *a) {
+    task *T = *(task **)a;
+    thr *saved = t_cur; task *saved_t = t_task, *saved_s = t_spawn; tnode *saved_n = t_node; region *saved_r = t_region;
+    int undeferred = t_spawn == T;
+    t_cur = T->c; t_task = T; t_node = NULL; t_region = T->R; t_spawn = NULL;
+    IL(&g_symu);
+    for (int i = 0; i < T->npred; i++) { vc_acquire(T->c, &T->pred[i]->vc, 0); tclock_put_locked(T->pred[i]); }   /* ordinal 0: its start */
+    IU(&g_symu);
+    free(T->pred); T->pred = NULL; T->npred = 0;
+    T->fn((char *)a + T->off);
+    task_end(T);
+    t_cur = saved; t_task = saved_t; t_node = saved_n; t_region = saved_r; t_spawn = saved_s;
+    if (undeferred) t_spawn_ran = 1;
+}
+static void task_cpy(void *dst, void *src) {
+    task *T = *(task **)src;
+    *(task **)dst = T;
+    T->cpyfn((char *)dst + T->off, (char *)src + T->off);
+}
+static void (*r_GOMP_task)(void (*)(void *), void *, void (*)(void *, void *), long, long, _Bool, unsigned, void **, int, void *);
+void GOMP_task(void (*fn)(void *), void *data, void (*cpyfn)(void *, void *), long size, long align, _Bool ifc,
+               unsigned flags, void **depend, int prio, void *detach) {
+    RESOLVE(r_GOMP_task, "GOMP_task");
+    thr *p = cur_chain();
+    if (!g_threads_on || t_mpidepth > 0 || p->untracked || (flags & TASK_FLAG_DETACH)) {
+        if (g_threads_on && (flags & TASK_FLAG_DETACH)) g_task_unfollowed = 1;
+        r_GOMP_task(fn, data, cpyfn, size, align, ifc, flags, depend, prio, detach);
+        return;
+    }
+    task *T = xcalloc(sizeof *T);
+    T->c = thr_new(p, "task");
+    snprintf(T->c->name, sizeof T->c->name, "%.120s~%d", p->name, p->ntasks++);
+    sync_op(p); chain_start(T->c, &p->vc);          /* the creation: a release of the creator */
+    tnode *n = cur_node();
+    T->end = tclock_new(); T->R = t_region; T->fn = fn; T->cpyfn = cpyfn;
+    tpreds pr = {NULL, 0, 0};
+    IL(&g_symu);
+    T->parent = n; n->refs++;
+    T->tg = n->tg; if (T->tg) T->tg->refs++;
+    T->phase = t_task ? t_task->phase : T->R ? T->R->bgen : 0;
+    if ((flags & TASK_FLAG_DEPEND) && depend) deps_locked(n, depend, T->end, &pr);
+    IU(&g_symu);
+    T->pred = pr.v; T->npred = pr.n;
+    if (align < 1) align = 1;
+    long a = align > (long)sizeof(task *) ? align : (long)sizeof(task *);
+    T->off = ((long)sizeof(task *) + align - 1) / align * align;
+    char *raw = malloc(T->off + size + a);
+    if (!raw) { fprintf(stderr, "stretto tracer: out of memory\n"); abort(); }
+    char *blk = (char *)(((uintptr_t)raw + a - 1) / a * a);
+    *(task **)blk = T;
+    if (size > 0) memcpy(blk + T->off, data, size);
+    tclock *end = T->end;
+    IL(&g_symu); end->refs++; IU(&g_symu);
+    task *saved_s = t_spawn; int saved_ran = t_spawn_ran;
+    t_spawn = T; t_spawn_ran = 0;
+    r_GOMP_task(task_tramp, blk, cpyfn ? task_cpy : NULL, T->off + size, a, ifc, flags, depend, prio, detach);
+    int ran = t_spawn_ran;
+    t_spawn = saved_s; t_spawn_ran = saved_ran;
+    free(raw);
+    IL(&g_symu);
+    if (ran) { long ka = sync_op(p); vc_acquire(p, &end->vc, ka); }   /* undeferred: the creator resumes after its end */
+    tclock_put_locked(end);
+    IU(&g_symu);
+}
+static void (*r_GOMP_taskwait)(void);
+void GOMP_taskwait(void) {
+    RESOLVE(r_GOMP_taskwait, "GOMP_taskwait");
+    r_GOMP_taskwait();
+    if (tracking() && t_node) { thr *c = cur_chain(); long ka = sync_op(c); IL(&g_symu); vc_acquire(c, &t_node->cacc, ka); IU(&g_symu); }
+}
+static void (*r_GOMP_taskwait_depend)(void **);
+void GOMP_taskwait_depend(void **depend) {
+    RESOLVE(r_GOMP_taskwait_depend, "GOMP_taskwait_depend");
+    r_GOMP_taskwait_depend(depend);
+    if (tracking() && t_node && depend) {
+        thr *c = cur_chain(); long ka = sync_op(c);
+        tpreds pr = {NULL, 0, 0};
+        IL(&g_symu);
+        deps_locked(t_node, depend, NULL, &pr);
+        for (int i = 0; i < pr.n; i++) { vc_acquire(c, &pr.v[i]->vc, ka); tclock_put_locked(pr.v[i]); }
+        IU(&g_symu);
+        free(pr.v);
+    }
+}
+static void (*r_GOMP_taskgroup_start)(void);
+void GOMP_taskgroup_start(void) {
+    RESOLVE(r_GOMP_taskgroup_start, "GOMP_taskgroup_start");
+    r_GOMP_taskgroup_start();
+    if (g_threads_on && !cur_chain()->untracked) {
+        tnode *n = cur_node();
+        tgroup *g = xcalloc(sizeof *g); g->refs = 1; vc_init(&g->acc);
+        IL(&g_symu); g->up = n->tg; n->tg = g; IU(&g_symu);
+    }
+}
+static void (*r_GOMP_taskgroup_end)(void);
+void GOMP_taskgroup_end(void) {
+    RESOLVE(r_GOMP_taskgroup_end, "GOMP_taskgroup_end");
+    r_GOMP_taskgroup_end();
+    if (g_threads_on && !cur_chain()->untracked && t_node && t_node->tg) {
+        thr *c = cur_chain(); long ka = sync_op(c);
+        IL(&g_symu);
+        tgroup *g = t_node->tg;
+        vc_acquire(c, &g->acc, ka);
+        t_node->tg = g->up; g->up = NULL;
+        tgroup_put_locked(g);
+        IU(&g_symu);
+    }
 }
 
 #define PAR_WRAP(name, NWS, PARAMS, ARGS) \

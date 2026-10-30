@@ -113,7 +113,12 @@ def split(t, folded: Dict[int, List[dict]], make_rec) -> Dict[int, list]:
             op = r.get("op")
             if op == "chain":
                 t.chain_info[(rank, r.get("id"))] = r
+            elif op == "task" and r.get("what") == "detach":
+                t.thread_limits.append(("threads-tasks", f"rank {rank} created a detached OpenMP task, whose "
+                                        "completion the tracer does not follow"))
             elif op == "task":
+                # since 30 Oct 2026 explicit tasks are chains (kind "task"); the record names a
+                # call in a task the tracer does not follow (a taskloop's), or any task before
                 t.thread_limits.append(("threads-tasks", f"rank {rank} called MPI inside an explicit OpenMP task: "
                                         "its calls are not attributed to a chain of their own"))
             elif op == "overlap":
