@@ -137,6 +137,26 @@ right run ([replay.csv](replay.csv), 3 replays, 3 controls): not confirmed; one 
 timeout, and every control gave a wrong factor on its own. The tasks take locks
 (`LockGuard` on tile nodes, `critical(slate_mpi)`) whose order varies between runs.
 
+**Replays in the trace's lock order** (milestone E, [docs/threads.md](../../docs/threads.md)
+section 14; `replay.sh`; tracer and analysis of main 5fdd932). The traced runs record their lock
+order, and each replay and control gates it; with the trace's 4 threads per rank the tasks waiting
+at gates took every thread and the control starved (by hand: 4 of 4 threads at gates), so the
+replays and controls run with 8 (`REPLAY_THREADS=8`; a task's name does not depend on the team).
+All 9 traced runs of this session ([traced-e.csv](traced-e.csv), 2x2, 1000x2000) ended with a
+wrong factor (5) or `MPI_ERR_TRUNCATE` (4): every recorded run already shows the race.
+
+| sample | replays | every pin taken, no divergence | gate timeout | controls reproducing the run (pins, no divergence, wrong factor) | both |
+|---|---|---|---|---|---|
+| 6 L1 1f alternatives of 3 traces, 3 times each ([replay-e.csv](replay-e.csv)) | 18 | 15 | 3 (8 of 8 threads at gates) | 13 (2 timed out, 3 `MPI_ERR_TRUNCATE`) | 11 |
+| 2 L1 1a alternatives of one trace, 3 times each ([replay-1a.csv](replay-1a.csv)) | 6 | 0 | 6 | 6 | 0 |
+
+The 1f alternatives are realised: the two tasks' row receives take each other's messages, and in
+11 runs the control reproduced the recorded run as well. Every replay ended with a wrong factor,
+as the recorded runs and their controls did, so no consequence tells the alternative from the run.
+The 1a replays (the 80 000-byte tile into a 36 000-byte row receive) all stopped at a lock gate of
+a task waiting for a task that never started, with one thread at a gate (not a starved team; not
+diagnosed). Not confirmed; the race itself is confirmed by the series and the fix above.
+
 **Upstream.** Not found in the issue tracker (searched 30 Oct for tntpiv, CALU, getrf, tag,
 hang): the only CALU issue, #70 (accuracy on GPUs, square matrix, closed Jan 2024), is another
 defect. Report drafted, not sent.
@@ -238,4 +258,5 @@ oracle), `series.sh`, `traced.sh`, `traced_cells.sh` (traced cells with Stretto'
 `finding_sites.py` (functions of the findings' receives), `sweep.sh`, `overlap.py`, `sites.sh`
 (call sites by gdb's `info symbol`), `typefree.c`, `tntpiv-tags.patch` (against 878439b, `git
 apply` or `patch -p1`);
-results: `series*.csv`, `traced.csv`, `traced-cells.csv`, `sweep.csv`, `sweep-d.csv`, `replay.csv`.
+`replay.sh` (replays in the lock order); results: `series*.csv`, `traced.csv`, `traced-cells.csv`,
+`sweep.csv`, `sweep-d.csv`, `replay.csv`, `traced-e.csv`, `replay-e.csv`, `replay-1a.csv`.
