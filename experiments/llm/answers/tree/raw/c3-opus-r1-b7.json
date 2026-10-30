@@ -1,0 +1,37 @@
+{"8d0015": {"findings": [
+  {
+    "location": "src/Pstream/mpi/UPstreamWrapping.txx:808",
+    "consequence": "wrong-result",
+    "conditions": "NBX size exchange enabled (pbufs.tuning>0 -> PstreamBuffers NBX_PEX, or nbx.min>1 -> Pstream::exchangeSizes), nbx.tuning=0 (no initial barrier), two consecutive exchanges on the same comm and tag (tag+1867) where ranks A and B are not coupled in between",
+    "confidence": 0.3,
+    "reasoning": "allToAllConsensus polls MPI_Iprobe(MPI_ANY_SOURCE, tag) until its local MPI_Ibarrier test succeeds. A rank B whose Ibarrier completes earlier can return, finish its eager data sends, and enter the next consensus call with the same tag (PstreamBuffers.C:189 uses tag_+1867 every time, PstreamExchange.txx:939 uses msgType()+1867). Its Issend to A can then be taken by A's still-polling previous round, which writes the next round's size into recvSizes[B]. A then posts its data Irecv from B with the wrong size. B's earlier message gets truncated (abort) or padded with junk, or A takes B's next-round data in the current round. In the next round A expects nothing from B, so that data is lost, or B's rendezvous send hangs. With the default initial barrier off, nothing prevents this."
+  },
+  {
+    "location": "src/OpenFOAM/meshes/polyMesh/mapPolyMesh/mapDistribute/mapDistributeBaseTemplates.C:855",
+    "consequence": "wrong-result",
+    "conditions": "nonBlocking distribute of a contiguous type with an order-sensitive combine op and overlapping constructMap entries from several ranks, e.g. nearestFaceAMI.C:217 reverse distribute with nearestEqOp when two ranks report equal distances",
+    "confidence": 0.25,
+    "reasoning": "In the contiguous nonBlocking branch the receives are drained with UPstream::waitSomeRequests, and each sub-field is passed to flipAndCombine in completion order, not in rank order. When several ranks contribute to the same target slot, the result depends on which message completes first. nearestEqOp keeps the first entry on a tie (strict <), so with equal distances the chosen target face index changes from run to run. For other ops, such as floating-point plusEqOp, the bits of the sum change too. The non-contiguous branch and the scheduled branch combine in a fixed order, which shows that this ordering is unintended."
+  },
+  {
+    "location": "src/OpenFOAM/meshes/polyMesh/mapPolyMesh/mapDistribute/mapDistributeBaseTemplates.C:1131",
+    "consequence": "wrong-result",
+    "conditions": "out-of-place nonBlocking distribute of a contiguous type with a non-idempotent or tie-sensitive combine op and overlapping constructMap targets",
+    "confidence": 0.15,
+    "reasoning": "This is the same pattern as the in-place variant. The waitSomeRequests completion order sets the order in which received sub-fields are combined into the shared field slots. Wherever constructMap entries from different ranks overlap, a cop such as min/nearest with ties, last-writer eqOp or FP sum gives results that depend on message arrival timing and differ between runs."
+  },
+  {
+    "location": "src/OpenFOAM/db/IOstreams/Pstreams/PstreamExchangeConsensus.txx:180",
+    "consequence": "wrong-result",
+    "conditions": "Pstream::exchangeConsensus called twice in a row with the same tag and comm, nbx.tuning=0",
+    "confidence": 0.15,
+    "reasoning": "This is the generic NBX exchange: probeMessage(nonBlocking, ANY_SOURCE, tag) is polled until the Ibarrier completes locally. As in allToAllConsensus, a peer that leaves the barrier first can start the next exchange with the same tag, and the earlier round's wildcard probe takes that message. recvBufs[proci] is then resized and filled with next-round data (an overwrite or a spurious entry), and the following round never sees it. Only an initial barrier (nbx.tuning>0) or a distinct tag per call prevents this."
+  },
+  {
+    "location": "src/Pstream/mpi/UPstreamWrapping.txx:991",
+    "consequence": "wrong-result",
+    "conditions": "sparse Map exchangeSizes / Pstream::exchange(Map) (always NBX, tag+1867) called repeatedly with the same tag, no initial barrier",
+    "confidence": 0.12,
+    "reasoning": "The Map variant of allToAllConsensus has the same ANY_SOURCE Iprobe loop, and PstreamExchange.txx:890 always uses it, with no switch. A message sent by a faster rank in the next call with the same tag can be matched here. recvBufs(proci) then takes the next-round size, which leads to a wrong-size data receive (truncation abort or junk), and the next round misses that size."
+  }
+]}}

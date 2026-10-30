@@ -1,0 +1,6 @@
+
+== c3-opus-r1: 19 answered; TP 7 FN 0 FP 7 TN 5; precision 0.50 recall 1.00
+  correct by kind: fixed 4/6, latent 4/4, new 3/3, screened-safe 1/6
+  of 7 positives called race: location within 10 lines 7, consequence right 6
+  pairs told apart (buggy race, fixed no-race): 4/15
+  per item: HYPRE/fix=ok Quantum ES/fix=XX SuperLU_DI/fix=ok Swift/T/fix=XX libsc/fix=ok libsc/fix=ok OpenFOAM/lat=ok Swift/T/lat=ok libsc/lat=ok libsc/lat=ok HYPRE/new=ok Quantum ES/new=ok SuperLU_DI/new=ok DUNE/scr=XX HYPRE/scr=XX MFEM/scr=XX PETSc/scr=XX Trilinos/Z/scr=XX deal.II/scr=ok

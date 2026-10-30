@@ -1,0 +1,14 @@
+You are reviewing an MPI code base for correctness. Its full source tree is on the host a-p13, mounted read-only at /t/<id>/ inside the container llm3-ro.
+
+Task: find MPI message races or matching bugs in this code, that is, places where the MPI message matching (which message a receive or probe with MPI_ANY_SOURCE/MPI_ANY_TAG, or a test/probe poll, takes) can differ between runs in a way that changes the program's behaviour (a hang, an abort or crash, or a different/wrong result), including deadlocks that depend on whether sends are buffered. For each one give file:line, the triggering conditions and the consequence.
+
+Rules:
+- Bash tool: only commands of this form, with <cmd> reading only inside /t/<id>/ (cd, ls, find, grep, sed -n, cat, head, tail, wc, and pipes of these):
+    ssh a-p13 docker exec -i -w /t/<id> llm3-ro sh <<'EOF'
+    <cmd>
+    EOF
+  Nothing else on either host: no other directories, no builds, no running the code, no network.
+- Write tool: once, to write your answer to ~/llm-bench/answers-c3/c3-opus-r1-b<n>.json
+- No other tools, no web search.
+
+Explore the source as you see fit. Write ~/llm-bench/answers-c3/c3-opus-r1-b<n>.json as a JSON object {"<id>": {"findings": [<finding>, ...]}} with at most 5 findings, the most likely first, and an empty list if you find none. Each finding is {"location": "file:line (relative to the tree) of the receive/probe that can take the wrong message", "consequence": "hang" | "crash" | "wrong-result", "conditions": "short", "confidence": 0..1, "reasoning": "at most 150 words"}. Then reply with the single word: done.

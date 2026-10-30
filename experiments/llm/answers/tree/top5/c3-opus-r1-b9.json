@@ -1,0 +1,8 @@
+{
+ "1bff96": {
+  "verdict": "race",
+  "confidence": 0.4,
+  "location": "src/sc_notify.c:1960",
+  "consequence": "wrong-result"
+ }
+}

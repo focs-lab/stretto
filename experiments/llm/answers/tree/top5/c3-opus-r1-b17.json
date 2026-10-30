@@ -1,0 +1,8 @@
+{
+ "3b67af": {
+  "verdict": "race",
+  "confidence": 0.6,
+  "location": "src/mat/impls/sbaij/mpi/mpisbaij.c:2797",
+  "consequence": "wrong-result"
+ }
+}

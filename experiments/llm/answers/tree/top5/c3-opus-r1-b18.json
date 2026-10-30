@@ -1,0 +1,8 @@
+{
+ "8fa246": {
+  "verdict": "race",
+  "confidence": 0.2,
+  "location": "general/communication.hpp:831",
+  "consequence": "wrong-result"
+ }
+}

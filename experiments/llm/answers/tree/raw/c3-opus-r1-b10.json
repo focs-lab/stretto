@@ -1,0 +1,23 @@
+{"65f689": {"findings": [
+  {
+    "location": "src/sc_notify.c:2513",
+    "consequence": "wrong-result",
+    "conditions": "SC_NOTIFY_SUPERSET used in two consecutive sc_notify_payload/payloadv calls on the same communicator; a fast rank A finishes call k (eager Isends complete locally) and posts call k+1's SUPER_TRUE Isend to B while B is still in call k's probe loop waiting for a slow rank, and A's call-k message to B was SUPER_EXTRA",
+    "confidence": 0.55,
+    "reasoning": "The superset loop counts a fixed number of messages with ANY_SOURCE Iprobes and has no closing synchronization (unlike NBX and NARY, which end with MPI_Barrier). Sends are plain Isend, so A can finish call k before B has received anything, start call k+1, and send SUPER_TRUE to B. The TRUE tag is probed first and differs from the EXTRA tag that A used in call k, so non-overtaking gives no protection: B matches A's call-(k+1) TRUE message inside call k. B then records A as a real sender with the next call's payload. The leftover call-k EXTRA from A, or a slow rank's message, is consumed in call k+1, so both calls return wrong sender lists or payloads. In debug builds the bsearch assertion can abort instead."
+  },
+  {
+    "location": "src/sc_notify.c:2541",
+    "consequence": "wrong-result",
+    "conditions": "Same cross-call overlap with SC_NOTIFY_SUPERSET: A sent SUPER_TRUE to B in call k (already consumed), then SUPER_EXTRA to B in call k+1 while B still waits in call k for a slow rank C",
+    "confidence": 0.35,
+    "reasoning": "The EXTRA probe also uses MPI_ANY_SOURCE, and the loop only counts messages (queue--). It does not check that each super_sender is counted once. A's call-(k+1) EXTRA can be matched in call k and count as C's message, so B leaves call k without C. C's call-k TRUE message, carrying its sender id and payload, is then taken by the next call. That gives wrong senders and payloads in both calls, or a count mismatch that leaves a later call waiting. Nothing in the routine, such as a trailing barrier, separates consecutive invocations."
+  },
+  {
+    "location": "src/sc_notify.c:2675",
+    "consequence": "wrong-result",
+    "conditions": "Back-to-back sc_notify (binary) calls with no barrier between them; the first receive at a level uses ANY_SOURCE",
+    "confidence": 0.08,
+    "reasoning": "The binary recursion takes its first message per level with an ANY_SOURCE Probe and has no closing barrier. Only peer and peer2 send with that level's tag, and each sends once per call, so per-source ordering should keep call-(k+1) messages behind call-k ones. A cross-call mismatch seems unlikely but is not excluded by any explicit synchronization. Listed as a low-confidence candidate."
+  }
+]}}

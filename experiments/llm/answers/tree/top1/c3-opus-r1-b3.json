@@ -1,0 +1,8 @@
+{
+ "77ec6a": {
+  "verdict": "race",
+  "confidence": 0.5,
+  "location": "SRC/double/pdgstrs3d.c:3903",
+  "consequence": "hang"
+ }
+}

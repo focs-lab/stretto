@@ -1,0 +1,8 @@
+{
+ "224d88": {
+  "verdict": "race",
+  "confidence": 0.15,
+  "location": "packages/zoltan/src/Utilities/Communication/comm_invert_map.c:134",
+  "consequence": "wrong-result"
+ }
+}

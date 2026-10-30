@@ -1,0 +1,8 @@
+{
+ "c869a1": {
+  "verdict": "race",
+  "confidence": 0.2,
+  "location": "src/sc_notify.c:1369",
+  "consequence": "crash"
+ }
+}

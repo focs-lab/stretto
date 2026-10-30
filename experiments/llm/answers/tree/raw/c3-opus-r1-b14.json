@@ -1,0 +1,37 @@
+{"64c6e0": {"findings": [
+  {
+    "location": "lb/code/src/adlb.c:890",
+    "consequence": "hang",
+    "conditions": "worker uses ADLB_Amget/Aget; a task with payload > PUT_INLINE_DATA_MAX is put while the worker's request is already queued, so the server redirects it (handlers.c:722)",
+    "confidence": 0.35,
+    "reasoning": "Amget pre-posts the payload receive with source xlb_s.layout.my_server and tag ADLB_TAG_WORK. Whether the task payload actually comes from the server depends on timing. If the request is queued before the put arrives, attempt_match_work/redirect_work sends a RESPONSE_GET with payload_source=putter, and the putter SSENDs the payload straight to the worker. That message never matches the posted receive, so the putter blocks in SSEND and the worker never completes the request. Alternatively, a later payload from the server lands in this request's buffer, so the data goes to the wrong request. If the put arrives first, the work is queued and sent by the server, and the run works. The outcome therefore depends on the order in which the put and the get reach the server."
+  },
+  {
+    "location": "lb/code/src/sync.c:1103",
+    "consequence": "hang",
+    "conditions": "server->server subscribe/notify with subscript longer than the inline sync data; the SYNC_SUB send is not buffered; the higher-ranked sender A targets a lower-ranked B that is itself in an accept-required sync (REQUEST/STEAL/REFCOUNT_WAIT) toward A",
+    "confidence": 0.3,
+    "reasoning": "send_subscribe_sync (sync.c:531) sends the subscript with a blocking SEND after xlb_sync2 has already returned. On B, msg_from_other_server defers a sync from a higher rank (sync.c:689) without receiving its SYNC_SUB; the receive happens only later, in xlb_handle_notify_sync/xlb_handle_subscribe_sync (sync.c:1103/964). If B is waiting for A's accept, A is stuck in the SEND and cannot accept, while B never posts the SYNC_SUB receive. That is a circular wait, and it happens only when MPI does not buffer the send eagerly. The code itself notes 'could block here'."
+  },
+  {
+    "location": "lb/code/src/sync.c:714",
+    "consequence": "wrong-result",
+    "conditions": "master's idle-check SYNC_REQUEST reaches a server's ANY_SOURCE sync ring before an in-flight NOTIFY/REFCOUNT sync from another server that was sent just before the sender reported idle",
+    "confidence": 0.15,
+    "reasoning": "Non-accept syncs (notify, refcount) complete at the sender as soon as the Isend completes, so the sender can go idle before the target has processed them. The target's ANY_SOURCE sync receives take messages in arrival order. If the master's sync is taken first, handle_check_idle reports idle, because xlb_have_pending_notifs counts only deferred entries, not messages still sitting in the ring. The notification is processed later and releases work. If the time heuristic is exceeded, the master can shut the system down with that work still unexecuted, or the server hits the assert(!xlb_server_shutting_down) in send_work."
+  },
+  {
+    "location": "lb/code/src/handlers.c:254",
+    "consequence": "crash",
+    "conditions": "a thief's steal sync is cancelled by a shutdown arriving in its sync loop after the target had already accepted and started streaming stolen work",
+    "confidence": 0.12,
+    "reasoning": "xlb_steal pre-posts the RESPONSE_STEAL_COUNT receive (steal.c:211) and cancels it if steal_sync returns SHUTDOWN. If the target accepted first, its header arrives unmatched and the main-loop Iprobe(ANY_SOURCE, ANY_TAG) (server.c:376) dispatches it to handle_steal_response, which asserts count == 0. With count > 0, the assert fails, or the RESPONSE_STEAL messages that follow have no handler ('invalid tag'). Meanwhile the target blocks in MPI_Waitall in send_steal_batch."
+  },
+  {
+    "location": "lb/code/src/server.c:376",
+    "consequence": "hang",
+    "conditions": "the oldest unexpected message from the polled source is an ADLB_TAG_SYNC_SUB whose sync header has not yet been processed (e.g. still deferred) when xlb_serve_server(source) runs",
+    "confidence": 0.08,
+    "reasoning": "xlb_poll probes with MPI_ANY_TAG and returns NOTHING whenever the probed message is a SYNC_SUB. The probe always returns the oldest matching message, so once a SYNC_SUB from that source is at the head, xlb_serve_server's loop (server.c:497) spins forever without serving the real request behind it. In the ANY_SOURCE main loop, the server likewise stops serving other requests until a sync message arrives and triggers processing of the pending queue."
+  }
+]}}

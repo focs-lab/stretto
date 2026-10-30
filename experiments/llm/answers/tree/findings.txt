@@ -1,0 +1,97 @@
+c3-opus-r1-b1.json 21631d HYPRE / ParaSails (pattern levels) (new): 5 findings
+  1. src/FEI_mv/femli/mli_fedata.cxx:3869 [crash, conf 0.45] -> outside the code under study
+  2. src/distributed_ls/ParaSails/ParaSails.c:153 [wrong-result, conf 0.35] -> own item, gold line
+  3. src/FEI_mv/fei-hypre/HYPRE_LSI_ml.c:1218 [hang, conf 0.25] -> outside the code under study
+  4. src/FEI_mv/fei-hypre/HYPRE_LSI_mlmaxwell.c:943 [hang, conf 0.2] -> outside the code under study
+  5. src/parcsr_mv/par_csr_assumed_part.c:259 [hang, conf 0.12] -> outside the code under study; also c06ed6 (screened-safe, code under study)
+c3-opus-r1-b10.json 65f689 libsc / sc_notify_payload_nbx (fixed): 3 findings
+  1. src/sc_notify.c:2513 [wrong-result, conf 0.55] -> outside the code under study
+  2. src/sc_notify.c:2541 [wrong-result, conf 0.35] -> outside the code under study
+  3. src/sc_notify.c:2675 [wrong-result, conf 0.08] -> outside the code under study
+c3-opus-r1-b11.json c869a1 libsc / sc_notify_recursive_nary (latent): 4 findings
+  1. src/sc_notify.c:2087 [hang, conf 0.6] -> outside the code under study
+  2. src/sc_notify.c:2506 [wrong-result, conf 0.45] -> outside the code under study
+  3. src/sc_notify.c:1960 [wrong-result, conf 0.35] -> outside the code under study; also 1bff96 (latent, gold line)
+  4. src/sc_notify.c:1369 [crash, conf 0.2] -> own item, gold line
+c3-opus-r1-b12.json 10a10b libsc / sc_notify_recursive_nary (fixed): 3 findings
+  1. src/sc_notify.c:2513 [wrong-result, conf 0.55] -> outside the code under study
+  2. src/sc_notify.c:2541 [wrong-result, conf 0.4] -> outside the code under study
+  3. src/sc_io.c:1838 [wrong-result, conf 0.1] -> outside the code under study
+c3-opus-r1-b13.json 61a354 Swift/T / ADLB xlb_poll / server sync (latent): 4 findings
+  1. lb/code/src/server.c:376 [crash, conf 0.45] -> own item, gold line
+  2. lb/code/src/adlb.c:890 [hang, conf 0.4] -> outside the code under study
+  3. lb/code/src/server.c:308 [crash, conf 0.25] -> own item, code under study
+  4. lb/code/src/handlers.c:254 [crash, conf 0.12] -> outside the code under study
+c3-opus-r1-b14.json 64c6e0 Swift/T / ADLB xlb_poll / server sync (fixed): 5 findings
+  1. lb/code/src/adlb.c:890 [hang, conf 0.35] -> outside the code under study
+  2. lb/code/src/sync.c:1103 [hang, conf 0.3] -> own item, code under study
+  3. lb/code/src/sync.c:714 [wrong-result, conf 0.15] -> own item, code under study
+  4. lb/code/src/handlers.c:254 [crash, conf 0.12] -> outside the code under study
+  5. lb/code/src/server.c:376 [hang, conf 0.08] -> own item, code under study
+c3-opus-r1-b15.json c06ed6 HYPRE / hypre_LocateAssumedPartition via MGR (screened-safe): 5 findings
+  1. src/parcsr_mv/par_csr_assumed_part.c:259 [hang, conf 0.3] -> own item, code under study
+  2. src/FEI_mv/femli/mli_fedata.cxx:3869 [crash, conf 0.3] -> outside the code under study
+  3. src/FEI_mv/fei-hypre/HYPRE_LSI_ml.c:1218 [hang, conf 0.25] -> outside the code under study
+  4. src/distributed_ls/pilut/trifactor.c:596 [hang, conf 0.15] -> outside the code under study
+  5. src/distributed_ls/ParaSails/ParaSails.c:153 [wrong-result, conf 0.12] -> outside the code under study; also 21631d (new, gold line)
+c3-opus-r1-b16.json 175dd3 DUNE / IndicesSyncer::sync (screened-safe): 5 findings
+  1. dune-common/dune/common/parallel/indicessyncer.hh:1028 [wrong-result, conf 0.5] -> own item, code under study
+  2. dune-common/dune/common/parallel/test/mpipacktest.cc:32 [hang, conf 0.4] -> outside the code under study
+  3. dune-common/dune/common/parallel/remoteindices.hh:1276 [hang, conf 0.25] -> outside the code under study
+  4. dune-common/dune/common/parallel/communicator.hh:1488 [wrong-result, conf 0.2] -> outside the code under study
+  5. dune-istl/dune/istl/repartition.hh:1646 [wrong-result, conf 0.1] -> outside the code under study
+c3-opus-r1-b17.json 3b67af PETSc / MatGetRowMaxAbs_MPISBAIJ (screened-safe): 3 findings
+  1. src/mat/impls/sbaij/mpi/mpisbaij.c:2797 [wrong-result, conf 0.6] -> own item, code under study
+  2. src/ksp/pc/impls/tfs/comm.c:108 [wrong-result, conf 0.12] -> outside the code under study
+  3. src/tao/leastsquares/tutorials/chwirut2.c:123 [wrong-result, conf 0.05] -> outside the code under study
+c3-opus-r1-b18.json 8fa246 MFEM / ParNCMesh::Refine (VarMessage probes) (screened-safe): 5 findings
+  1. fem/pfespace.cpp:3714 [wrong-result, conf 0.55] -> outside the code under study
+  2. fem/pfespace.cpp:4314 [crash, conf 0.45] -> outside the code under study
+  3. fem/pfespace.cpp:3749 [wrong-result, conf 0.35] -> outside the code under study
+  4. general/communication.hpp:831 [wrong-result, conf 0.2] -> own item, code under study
+  5. mesh/pmesh.cpp:3789 [crash, conf 0.1] -> outside the code under study
+c3-opus-r1-b19.json e3cf4d deal.II / RemotePointEvaluation (screened-safe): 3 findings
+  1. source/grid/grid_tools.cc:4280 [wrong-result, conf 0.3] -> outside the code under study
+  2. include/deal.II/base/mpi.h:1896 [crash, conf 0.12] -> outside the code under study
+  3. source/base/mpi.cc:350 [wrong-result, conf 0.08] -> outside the code under study
+c3-opus-r1-b2.json fc1e24 HYPRE / ParaSails (pattern levels) (fixed): 5 findings
+  1. src/FEI_mv/femli/mli_fedata.cxx:3869 [crash, conf 0.4] -> outside the code under study
+  2. src/distributed_ls/pilut/trifactor.c:596 [hang, conf 0.3] -> outside the code under study
+  3. src/FEI_mv/fei-hypre/HYPRE_LSI_ml.c:1218 [hang, conf 0.2] -> outside the code under study
+  4. src/FEI_mv/fei-hypre/HYPRE_LSI_mlmaxwell.c:943 [hang, conf 0.15] -> outside the code under study
+  5. src/parcsr_mv/par_csr_assumed_part.c:259 [wrong-result, conf 0.1] -> outside the code under study; also c06ed6 (screened-safe, code under study)
+c3-opus-r1-b20.json 224d88 Trilinos/Zoltan / Zoltan_Comm_Invert_Map (screened-safe): 5 findings
+  1. packages/zoltan/src/Utilities/Communication/comm_exchange_sizes.c:54 [hang, conf 0.35] -> outside the code under study
+  2. packages/zoltan/src/lb/low_mem_lb_migrate.c:1669 [hang, conf 0.3] -> outside the code under study
+  3. packages/zoltan/src/coloring/coloring.c:1653 [wrong-result, conf 0.2] -> outside the code under study
+  4. packages/zoltan/src/rcb/rib.c:928 [hang, conf 0.2] -> outside the code under study
+  5. packages/zoltan/src/Utilities/Communication/comm_invert_map.c:134 [wrong-result, conf 0.15] -> own item, code under study
+c3-opus-r1-b3.json 77ec6a SuperLU_DIST / pdgstrs3d_newsolve (new): 4 findings
+  1. SRC/double/pdgstrs3d.c:3903 [hang, conf 0.5] -> own item, gold line
+  2. SRC/double/pdgstrs_Bglobal.c:419 [hang, conf 0.45] -> outside the code under study
+  3. SRC/double/pdgstrs1.c:389 [hang, conf 0.4] -> outside the code under study
+  4. SRC/prec-independent/psymbfact.c:4905 [hang, conf 0.1] -> outside the code under study
+c3-opus-r1-b4.json 86c6b6 SuperLU_DIST / pdgstrs3d_newsolve (fixed): 5 findings
+  1. SRC/double/pdgstrs_Bglobal.c:415 [wrong-result, conf 0.55] -> outside the code under study
+  2. SRC/double/pdgstrs1.c:385 [wrong-result, conf 0.5] -> outside the code under study
+  3. SRC/double/pdgstrs_Bglobal.c:840 [wrong-result, conf 0.35] -> outside the code under study
+  4. SRC/complex16/pzgstrs_Bglobal.c:418 [wrong-result, conf 0.35] -> outside the code under study
+  5. SRC/prec-independent/psymbfact.c:4905 [hang, conf 0.12] -> outside the code under study
+c3-opus-r1-b5.json d9668c Quantum ESPRESSO / PHonon elph_prt (new): 3 findings
+  1. PHonon/PH/elphon.f90:1508 [wrong-result, conf 0.75] -> own item, gold line
+  2. PHonon/PH/elphon.f90:1510 [wrong-result, conf 0.55] -> own item, gold line
+  3. PHonon/PH/elphon.f90:1508 [hang, conf 0.25] -> own item, gold line
+c3-opus-r1-b6.json fd3e23 Quantum ESPRESSO / PHonon elph_prt (fixed): 2 findings
+  1. PHonon/PH/elphon.f90:1510 [wrong-result, conf 0.45] -> own item, code under study
+  2. PHonon/PH/elphon.f90:1508 [hang, conf 0.35] -> own item, code under study
+c3-opus-r1-b7.json 8d0015 OpenFOAM / Pstream::exchange(Map) / allToAllConsensus NBX (latent): 5 findings
+  1. src/Pstream/mpi/UPstreamWrapping.txx:808 [wrong-result, conf 0.3] -> outside the code under study
+  2. src/OpenFOAM/meshes/polyMesh/mapPolyMesh/mapDistribute/mapDistributeBaseTemplates.C:855 [wrong-result, conf 0.25] -> outside the code under study
+  3. src/OpenFOAM/meshes/polyMesh/mapPolyMesh/mapDistribute/mapDistributeBaseTemplates.C:1131 [wrong-result, conf 0.15] -> outside the code under study
+  4. src/OpenFOAM/db/IOstreams/Pstreams/PstreamExchangeConsensus.txx:180 [wrong-result, conf 0.15] -> outside the code under study
+  5. src/Pstream/mpi/UPstreamWrapping.txx:991 [wrong-result, conf 0.12] -> own item, gold line
+c3-opus-r1-b9.json 1bff96 libsc / sc_notify_payload_nbx (latent): 4 findings
+  1. src/sc_notify.c:2506 [wrong-result, conf 0.55] -> outside the code under study
+  2. src/sc_notify.c:1960 [wrong-result, conf 0.4] -> own item, gold line
+  3. src/sc_notify.c:2087 [hang, conf 0.45] -> outside the code under study
+  4. src/sc_notify.c:1369 [wrong-result, conf 0.2] -> outside the code under study; also c869a1 (latent, gold line)

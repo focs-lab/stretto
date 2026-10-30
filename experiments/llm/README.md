@@ -26,6 +26,9 @@ tools that built the packets.
   fixed variants as applied), `work/` (spec.json, meta.json, tree sizes, pair diff counts).
   Everything ran on a-p13 in the container `llm-prep` (scr-dev:24.04, cpus 0-3,40-43, 24 GB),
   work directory `~/llm-bench` (mounted at /w, the home read-only at /h).
+- Condition 3 (source tree only): `prompt-tree.txt`, `tools/scripts/stage3.sh` (its trees, on
+  a-p13 in `~/llm3/trees/<id>/`), `tools/c3_site.py` (findings to per-item answers),
+  `answers/tree/`.
 
 ## Items: 36
 
@@ -200,5 +203,104 @@ from fixed in 6 of 7 pairs, judged hypre MGR and dune-common safe, missed OpenFO
 Caveat for both conditions: the run descriptions name the driver and options under which each
 bug occurs (for example ParaSails with two levels, `-nk 3`, a block-diagonal matrix), which the
 hunts chose knowing the bugs. They are identical for a bug and its fixed version, so they do not
-give the answer, but they say where to look. A judge given only a code base and no run is not
-measured here.
+give the answer, but they say where to look. Condition 3 below measures a judge given only the
+source tree.
+
+## Condition 3: the source tree only (30 Oct 2026)
+
+Decided 30 Oct, because the run descriptions of conditions 1 and 2 name the configuration that
+triggers each bug. Everything is kept as in condition 2 except what the judge is told and the
+answer form.
+
+**What a judge saw.** The prompt in `prompt-tree.txt` (id and batch number filled in), and nothing
+else: no run description, no project or component name, no driver, options or process count. The
+tree was a read-only mount at `/t/<id>/` in the container `llm3-ro` on a-p13 (scr-dev:24.04,
+cpus 18,58, no network). Judges ran `ssh a-p13 docker exec -i -w /t/<id> llm3-ro sh <<'EOF' ...`
+for each command. In condition 2 they ran read-only commands on the host. The container keeps them
+inside the trees: the key copy on the host is out of reach. The tree is the condition-2 tree of
+the item, built again by `tools/scripts/stage3.sh` (which calls `stage.sh`), with three changes:
+
+- `driver/` removed: the written drivers, QE's `ph.in` and `ni.scf.in`, the SuperLU matrix and the
+  OpenFOAM application;
+- HYPRE's `src/examples/ex5_levels.c` removed (ex5 with the `-sai_levels` option);
+- every file and directory dated 2000-01-01.
+
+The 51 excerpt files of the 19 items were compared byte for byte with the condition-2 trees:
+none differs.
+
+The dates were reset after a judge (fixed HYPRE) found the one file with a newer date than the
+rest. In a staged fixed tree the patched files carry the staging date. That run was discarded and
+rerun on the reset tree. The transcripts show no other judge listing dates in a tree where they
+differed. The condition-2 trees have the same marks (on focs, `fc1e24`'s ParaSails.c is dated
+29 Oct, the rest of the tree 24 Aug). Of the 20 condition-2 judges, one listed dates: an `ls -la`
+at the root of the fixed SuperLU tree, which shows `driver/`, not the patched files.
+
+**Items: 19.** These are condition 2's 20 items without `dcaf36`, the OpenFOAM negative. That
+negative is a command line (`nbx.tuning=1`), not code. Its tree is byte-identical to `8d0015`,
+and without the run it is not a negative. Without the drivers some trees coincide:
+
+- `21631d` and `c06ed6` are both HYPRE 3.2.0;
+- `1bff96` and `c869a1` are both the buggy libsc;
+- `65f689` and `10a10b` are both the fixed libsc.
+
+Each item still had its own judge, as in condition 2, with the same batch numbers (b8 unused).
+
+**Judges.** Claude Code general-purpose subagents, model Opus (Opus 5.5), one per item, all
+started on 30 Oct within about 15 minutes. Tool calls were audited from the transcripts: each
+judge ran only the prescribed command form inside its own tree and made one Write. None used any
+other tool except the one that returns its reply. Answer form: up to 5 findings, the most likely first, each with file:line, conditions,
+consequence and confidence (`answers/tree/raw/`).
+
+**Scoring.** `tools/c3_site.py` turns the findings of a tree into `score.py`'s per-item answer. A
+finding counts for the item when it lies in the code the excerpt condition showed for that item
+(an excerpt file, a line within 10 lines of one of its ranges). The verdict is "race" if one
+does. Then `score.py` runs unchanged: a location is right within 10 lines of the gold line.
+Findings elsewhere in the tree count for nothing. The rule is applied twice:
+
+- top 5: every finding counts;
+- top 1: only the judge's most likely finding counts.
+
+Output: `answers/tree/top5/`, `top1/`, `findings.txt` (each finding and what it hits),
+`score-top*.txt`, and `judges.csv` (tokens, tool calls, time, lines of command output read).
+
+| run (same 19 items) | precision | recall | new 3 | latent 4 | fixed 6 | screened-safe 6 |
+|---|---|---|---|---|---|---|
+| condition 2, run description + tree | 0.86 | 0.86 | 3 | 3 | 6 | 5 |
+| condition 3, tree only, top 5 | 0.50 | 1.00 | 3 | 4 | 4 | 1 |
+| condition 3, tree only, top 1 | 0.43 | 0.43 | 2 | 1 | 5 | 3 |
+
+(Counts are items judged right. Condition 2's row is `answers/repo` scored without b8.)
+
+- **Positives.** All 7 bugs appear among the top-5 findings, each at the gold line:
+  - the three new bugs: SuperLU_DIST and QE as the first finding (confidence 0.5 and 0.75),
+    HYPRE ParaSails as the second (0.35);
+  - the latent bugs: Swift/T first, libsc NBX second, libsc NARY fourth, OpenFOAM fifth (0.12).
+
+  In both libsc trees the judge listed both libsc bugs. The judge of `c06ed6`, the same tree as
+  `21631d`, listed the ParaSails bug fifth.
+- **Fixed partners.** Two of 6 were flagged in the fixed code. The fixed QE was flagged at
+  elphon.f90:1510 and 1508 under band groups (`nbgrp > 1`, several senders). The fixed Swift/T
+  was flagged at sync.c and server.c:376 (low confidence). Both conditions lie outside the
+  configuration under which the key calls the fix correct. Whether either is a real race is not
+  checked. Pairs told apart: 4 of 6 with the top 5 (all but QE and Swift/T), 2 of 6 with the
+  top 1. Condition 2: 6 of these 6.
+- **Screened-safe sites.** Five of 6 were flagged among the top 5: hypre MGR, dune `sync`, PETSc
+  `MatGetRowMaxAbs_MPISBAIJ` and MFEM `RecvAll`, plus Zoltan as its fifth finding. Three were the
+  first finding (hypre, dune, PETSc). Only deal.II's RemotePointEvaluation was not named. In
+  condition 2, where the run description told the judge which caller drives the site, 5 of 6
+  were judged safe.
+- **Elsewhere.** 78 findings in all:
+  - 20 in the code under study of their own item;
+  - 5 at another known site of the same source (the three bugs above, and the hypre MGR site
+    from both HYPRE ParaSails trees);
+  - 53 elsewhere in the trees: about 40 distinct places, from HYPRE's FEI and pilut to SuperLU's
+    `pdgstrs_Bglobal`, MFEM's `pfespace.cpp` and Zoltan. None is checked: they are neither true
+    nor false positives here.
+- **Effort.** Per judge: 1,400 to 6,000 lines of command output read (mean 3,800, about 146 kB),
+  19 to 62 tool calls, 3 to 10 minutes, 88k to 164k tokens as reported by the harness (2.4M for
+  the 19). Conditions 1 and 2 did not record these. No price is computed.
+
+In short, with the tree alone the judge still puts every one of these bugs on its list of five,
+at the right line. But it puts most of the known-safe sites there too, with similar confidence.
+Its first finding is right for 3 of the 7 bugs, and wrong (a false alarm) for 4 of the 12
+negatives. Only one judge per item was run (no repetition).

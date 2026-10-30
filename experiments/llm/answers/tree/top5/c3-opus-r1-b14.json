@@ -1,0 +1,8 @@
+{
+ "64c6e0": {
+  "verdict": "race",
+  "confidence": 0.3,
+  "location": "lb/code/src/sync.c:1103; lb/code/src/sync.c:714; lb/code/src/server.c:376",
+  "consequence": "hang"
+ }
+}

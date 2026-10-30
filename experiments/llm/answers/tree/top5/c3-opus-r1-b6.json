@@ -1,0 +1,8 @@
+{
+ "fd3e23": {
+  "verdict": "race",
+  "confidence": 0.45,
+  "location": "PHonon/PH/elphon.f90:1510; PHonon/PH/elphon.f90:1508",
+  "consequence": "wrong-result"
+ }
+}

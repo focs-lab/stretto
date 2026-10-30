@@ -1,0 +1,23 @@
+{"10a10b": {"findings": [
+  {
+    "location": "src/sc_notify.c:2513",
+    "consequence": "wrong-result",
+    "conditions": "Two consecutive sc_notify_payload calls of type SC_NOTIFY_SUPERSET on the same communicator with no intervening synchronisation; a fast rank s finishes call k and posts call k+1's SUPER_TRUE Isend to r while r is still in call k's probe loop, and in call k s had sent r a SUPER_EXTRA",
+    "confidence": 0.55,
+    "reasoning": "sc_notify_payload_superset has no barrier or collective. Its loop counts num_super_senders messages, polling Iprobe(ANY_SOURCE, SUPER_TRUE) first. A rank leaves the call as soon as its own receives are done and its eager Isends complete, so its next call's SUPER_TRUE can reach r while r's loop is still running. Non-overtaking does not order messages with different tags, so r's TRUE probe can match s's next-call TRUE before s's current-call EXTRA. r then lists s as a true sender with the next call's payload. The leftover EXTRA is used up in call k+1, where s is then missing. Result: wrong senders and payloads. With SC_ENABLE_DEBUG, the bsearch assert aborts if s is not in r's superset."
+  },
+  {
+    "location": "src/sc_notify.c:2541",
+    "consequence": "wrong-result",
+    "conditions": "Same back-to-back SUPERSET calls; in call k s sent r a SUPER_TRUE (still in flight) and in call k+1 s sends r a SUPER_EXTRA that r's EXTRA probe sees first",
+    "confidence": 0.4,
+    "reasoning": "This is the mirror case of the TRUE probe. When no TRUE is pending, r runs Iprobe(ANY_SOURCE, SUPER_EXTRA). It can match s's EXTRA from the next call, because that EXTRA is not ordered behind s's still-unreceived TRUE from the current call (different tag). r decrements queue without recording s, so call k drops s from senders and loses its payload. In call k+1 the stale TRUE from call k is taken as a new true sender with old payload data, which is wrong in both calls. Nothing in the routine (no Ibarrier or barrier, unlike NBX at line 2003) separates calls."
+  },
+  {
+    "location": "src/sc_io.c:1838",
+    "consequence": "wrong-result",
+    "conditions": "Build without MPI-IO (deprecated MPI-only path), and the user communicator passed to sc_io_open (stored without dup, line 1646) has other in-flight point-to-point messages from rank-1",
+    "confidence": 0.1,
+    "reasoning": "The token-passing read uses Recv(rank-1, MPI_ANY_TAG) on the user's own communicator. The write path at line 2130 does the same. Any user message from rank-1 that is pending on that communicator can match in place of the active/errno token. The token value would then be garbage, leading to a wrong active state, an abort at SC_ABORT_NOT_REACHED, or a missed token that hangs the next rank. Within libsc alone, the token messages from one source arrive in order and are deterministic."
+  }
+]}}

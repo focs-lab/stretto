@@ -1,0 +1,8 @@
+{
+ "61a354": {
+  "verdict": "race",
+  "confidence": 0.45,
+  "location": "lb/code/src/server.c:376; lb/code/src/server.c:308",
+  "consequence": "crash"
+ }
+}

@@ -1,0 +1,8 @@
+{
+ "c06ed6": {
+  "verdict": "race",
+  "confidence": 0.3,
+  "location": "src/parcsr_mv/par_csr_assumed_part.c:259",
+  "consequence": "hang"
+ }
+}

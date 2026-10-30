@@ -1,0 +1,8 @@
+{
+ "175dd3": {
+  "verdict": "race",
+  "confidence": 0.5,
+  "location": "dune-common/dune/common/parallel/indicessyncer.hh:1028",
+  "consequence": "wrong-result"
+ }
+}

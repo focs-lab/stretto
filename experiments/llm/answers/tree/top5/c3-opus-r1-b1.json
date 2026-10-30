@@ -1,0 +1,8 @@
+{
+ "21631d": {
+  "verdict": "race",
+  "confidence": 0.35,
+  "location": "src/distributed_ls/ParaSails/ParaSails.c:153",
+  "consequence": "wrong-result"
+ }
+}

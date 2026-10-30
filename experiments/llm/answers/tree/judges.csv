@@ -1,0 +1,20 @@
+batch,id,project,kind,tokens,tool_calls,seconds,output_lines,findings,note
+b1,21631d,HYPRE,new,123683,32,345,3672,5,
+b2,fc1e24,HYPRE,fixed,160096,44,514,4849,5,rerun after the time stamps were set; the first run (123561 tokens; 27 calls; 322 s) found the patched file by its time stamp and is discarded
+b3,77ec6a,SuperLU_DIST,new,164461,46,498,4933,4,
+b4,86c6b6,SuperLU_DIST,fixed,144802,40,465,3794,5,
+b5,d9668c,Quantum ESPRESSO,new,87636,21,177,1598,3,
+b6,fd3e23,Quantum ESPRESSO,fixed,92354,20,184,1439,2,
+b7,8d0015,OpenFOAM,latent,143295,50,467,5645,5,listed file dates before they were set; every file of this git-archive tree had the same date
+b9,1bff96,libsc,latent,103210,19,242,3106,4,
+b10,65f689,libsc,fixed,112707,23,243,3854,3,
+b11,c869a1,libsc,latent,105637,23,295,2940,4,
+b12,10a10b,libsc,fixed,111560,28,256,3535,3,
+b13,61a354,Swift/T,latent,160806,33,528,5946,4,
+b14,64c6e0,Swift/T,fixed,161691,39,576,5894,5,
+b15,c06ed6,HYPRE,screened-safe,111608,22,271,3262,5,
+b16,175dd3,DUNE,screened-safe,107232,29,282,3084,5,
+b17,3b67af,PETSc,screened-safe,146005,35,337,3765,3,
+b18,8fa246,MFEM,screened-safe,98549,30,319,2646,5,
+b19,e3cf4d,deal.II,screened-safe,157309,62,594,6032,3,
+b20,224d88,Trilinos/Zoltan,screened-safe,130487,32,351,3126,5,

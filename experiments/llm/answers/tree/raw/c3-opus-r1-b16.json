@@ -1,0 +1,38 @@
+{"175dd3": {"findings": [
+  {
+    "location": "dune-common/dune/common/parallel/indicessyncer.hh:1028",
+    "consecutive_note": "",
+    "consequence": "wrong-result",
+    "conditions": "IndicesSyncer::sync with useFixedOrder=false (the default, also the AMG coarsening default), >=2 neighbours whose messages arrive in varying order",
+    "confidence": 0.5,
+    "reasoning": "recvAndUnpack probes MPI_ANY_SOURCE (tag 345) unless useFixedOrder is set, so the loop over oldNeighbours unpacks neighbour messages in arrival order. New indices are added with indexSet_.add(global, numberer(global)) while unpacking, so the local numbers handed out by the numberer (ParallelAggregateRenumberer in ParallelIndicesCoarsener::buildCoarseRemoteIndices) depend on which neighbour's message the probe takes first. The coarse-level index set, the row order of the Galerkin coarse matrix and therefore the order-dependent smoothers (SOR/GS/ILU) differ from run to run, giving non-reproducible solver iterates/results (the CHANGELOG admits that coarse indices 'may differ from run to run'). Passing hardSource (useFixedOrder) removes the race."
+  },
+  {
+    "location": "dune-common/dune/common/parallel/test/mpipacktest.cc:32",
+    "consequence": "hang",
+    "conditions": "MPI implementation does not buffer the blocking send (rendezvous/eager limit 0, MPI_Send behaving like Ssend), any number of ranks incl. 1",
+    "confidence": 0.4,
+    "reasoning": "testSync has every rank call comm.send (plain blocking MPI_Send, mpicommunication.hh:149) to (rank+1)%size before any rank posts the matching receive comm.rrecv (MPI_Mprobe/Mrecv at line 36) from (rank-1)%size. This is a cyclic send-before-receive ring: it only completes if MPI buffers the small packed message eagerly. With synchronous-mode semantics or a zero eager threshold every rank blocks in MPI_Send and the test deadlocks; with one rank the send to self also blocks forever. Whether it hangs depends solely on send buffering."
+  },
+  {
+    "location": "dune-common/dune/common/parallel/remoteindices.hh:1276",
+    "consequence": "hang",
+    "conditions": "setNeighbours used (e.g. repartition.hh:1837, matrixmarket.hh:1472) and some rank ends up with an empty neighbour set (only itself) while others have neighbours",
+    "confidence": 0.25,
+    "reasoning": "buildRemote chooses the protocol per rank: an empty neighbourIds selects the Ssend/Recv ring (lines 1234-1242), otherwise Issend to neighbours plus MPI_Probe(MPI_ANY_SOURCE, commTag_). Both use tag 333 on the same communicator. A neighbour-mode rank whose ring predecessor is in ring mode can take that ring message with the wildcard probe instead of a real neighbour's message; it counts it as a neighbour, leaves a real neighbour's Issend unmatched, so that neighbour's MPI_Waitall and the ring rank's MPI_Recv never complete (hang), or bogus remote indices are created. Which message is taken depends on arrival order."
+  },
+  {
+    "location": "dune-common/dune/common/parallel/communicator.hh:1488",
+    "consequence": "wrong-result",
+    "conditions": "BufferedCommunicator with an additive scatter (OwnerOverlapCopyCommunication::addOwnerOverlapToAll/addOwnerCopyToAll, AddGatherScatter) and an index shared by 3+ ranks, floating-point data",
+    "confidence": 0.2,
+    "reasoning": "sendRecv completes the receives with MPI_Waitany and scatters each message as soon as it arrives. With AddGatherScatter (owneroverlapcopy.hh:229, a[i] += v) an entry that receives contributions from several neighbours is summed in message-completion order, which varies between runs. Floating-point addition is not associative, so vectors (and thus scalar products, residuals, iteration counts) are not bitwise reproducible; it is a completion-order race, not a matching error, so the effect is small numerical differences."
+  },
+  {
+    "location": "dune-istl/dune/istl/repartition.hh:1646",
+    "consequence": "wrong-result",
+    "conditions": "graph repartitioning with several sending ranks; messages of tag 99 arrive in different orders",
+    "confidence": 0.1,
+    "reasoning": "The receive loop probes MPI_ANY_SOURCE with tag 99 and processes messages in arrival order, appending owner entries and calling reserveSpaceForReceiveInterface per source. Owner vertices are sorted afterwards and overlap/neighbour data go into sets, so the outcome appears order-independent; only if some later step depends on insertion order (e.g. RedistributeInterface receive lists or equal-key ordering in the non-stable std::sort) would results vary. Listed as a low-confidence wildcard-receive site."
+  }
+]}}

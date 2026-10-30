@@ -1,0 +1,12 @@
+{"fd3e23": {"findings": [
+  {"location": "PHonon/PH/elphon.f90:1510",
+   "consequence": "wrong-result",
+   "conditions": "elphsum2 with more than one sender holding the requested k point (e.g. band groups, nbgrp>1, so several band-group roots have found(ispn)), q /= 0",
+   "confidence": 0.45,
+   "reasoning": "Every root_bgrp rank that found the k point sends three messages to root_image: el_ph_mat (tag 4*nproc+ispn-1), then et(ikk) and et(ikq), both with the same tag 6*nproc+ispn-1. ionode receives them with MPI_ANY_SOURCE. Non-overtaking holds only per sender, so with two senders A and B the two tag-6n receives can take A's et(ikk) and then B's et(ikk) (or B's ikk and then A's ikq). et2(:,2) then holds k energies instead of k+q energies, and the computed linewidths and couplings are silently wrong. Which message is taken depends on arrival timing. The fix is to receive from a fixed source (the one that matched the first receive, istatus(MPI_SOURCE)) or to use distinct tags."},
+  {"location": "PHonon/PH/elphon.f90:1508",
+   "consequence": "hang",
+   "conditions": "several non-ionode band-group roots found the k point, or ionode found it itself while other band-group roots also did; el_ph_mat larger than the eager limit",
+   "confidence": 0.35,
+   "reasoning": "ionode posts exactly one MPI_ANY_SOURCE receive per tag (and none when it found the point itself), but every root_bgrp rank with found(ispn) and not ionode calls a blocking MPI_SEND of el_ph_mat (nbnd*nbnd*3*nat complex values). Only the first sender to arrive is matched. The other senders' MPI_SENDs are never matched: under rendezvous protocol they block forever (hang); with eager buffering the stale messages stay queued and can be taken by a later call of elphsum2 with the same tags (wrong data). Which sender wins, and so which matrix is used, also differs between runs."}
+]}}

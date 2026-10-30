@@ -1,0 +1,8 @@
+{
+ "d9668c": {
+  "verdict": "race",
+  "confidence": 0.75,
+  "location": "PHonon/PH/elphon.f90:1508",
+  "consequence": "wrong-result"
+ }
+}

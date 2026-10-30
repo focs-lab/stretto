@@ -1,0 +1,23 @@
+{"e3cf4d": {"findings": [
+  {
+    "location": "source/grid/grid_tools.cc:4280",
+    "consequence": "wrong-result",
+    "conditions": "communicate_indices with >1 remote rank; message larger than eager limit or MPI not copying at Isend time",
+    "confidence": 0.3,
+    "reasoning": "In DistributedComputeIntersectionLocationsInternal::communicate_indices each Isend (line ~4263) sends from a loop-local 'auto buffer' (line 4259) that is destroyed at the end of the iteration, while the request is waited only after the receive loop. Whether the receiver probed at 4280 (MPI_ANY_SOURCE, RPE tag) gets the intended bytes depends on whether the send was already buffered/copied; otherwise it reads freed or reused memory, giving garbage indices, unpack failure or wrong send_components. The function also has no CollectiveMutex while sharing the remote_point_evaluation tag with RemotePointEvaluation, so its wildcard probe relies on the surrounding consensus/RPE barriers to keep RPE traffic out."
+  },
+  {
+    "location": "include/deal.II/base/mpi.h:1896",
+    "consequence": "crash",
+    "conditions": "some_to_some interleaved with compute_point_to_point_communication_pattern (non-unique destinations) on same communicator without a fence",
+    "confidence": 0.12,
+    "reasoning": "some_to_some uses the tag compute_point_to_point_communication_pattern (the dedicated mpi_some_to_some tag is unused), and probes with MPI_ANY_SOURCE. compute_point_to_point_communication_pattern (source/base/mpi.cc:350) receives a single MPI_UNSIGNED with MPI_ANY_SOURCE on the same tag. If a fast rank's some_to_some packet reaches a rank still in the pattern loop (or vice versa), the wrong message is taken: truncation error, bogus origin, or unpack of a 4-byte id as a packed object. Both functions are currently fenced by CollectiveMutex barriers, so this only bites if that fence is absent."
+  },
+  {
+    "location": "source/base/mpi.cc:350",
+    "consequence": "wrong-result",
+    "conditions": "non-unique destinations; consecutive calls or other traffic with the same tag not separated by a barrier",
+    "confidence": 0.08,
+    "reasoning": "MPI_Recv(MPI_ANY_SOURCE, compute_point_to_point_communication_pattern tag) counts n_recv_from messages and stores whichever arrive; the origins order differs between runs and any foreign message on this tag (e.g. a some_to_some packet, which uses the same tag) would be counted as an origin or fail with truncation. The CollectiveMutex barriers currently prevent a cross-call match."
+  }
+]}}
