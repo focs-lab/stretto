@@ -591,11 +591,17 @@ static int kind_of(char c) { return c == 'r' ? 0 : c == 's' ? 1 : c == 'p' ? 2 :
 
 /* A run of several threads ends at its first gate that times out or pin that falls on another
    operation: the first thread to get there aborts, and the others wait for the abort, since two
-   threads in MPI_Abort at once can crash Open MPI's error reporting. */
+   threads in MPI_Abort at once can crash Open MPI's error reporting. The gates open first: Open
+   MPI's abort takes a mutex in a component library (mca_pmix_ext3x.so) that the tracer counts as
+   the program's, and its lock gate held the abort until the gate timed out, so that a misapplied
+   pin read as a gate timeout of the aborting chain waiting for its own attempt. */
+static int g_locks_on;
 static void threads_abort(int code) {
     static int aborting = 0;
     if (__atomic_exchange_n(&aborting, 1, __ATOMIC_ACQ_REL))
         for (;;) pause();
+    __atomic_store_n(&g_locks_on, 0, __ATOMIC_RELEASE);
+    __atomic_store_n(&g_chains_on, 0, __ATOMIC_RELEASE);
     PMPI_Abort(MPI_COMM_WORLD, code);
 }
 static void bad_token(const char *name, const char *tok) {
