@@ -53,6 +53,7 @@ and compact result tables: [experiments/latent](../experiments/latent/README.md)
 | deal.II 9.8.0 | - | 8 419 alternatives, all within one exchange; 120 replays benign |
 | openfpm_vcluster, code_saturne, KaHIP | GPU-only clash; NBX never selected; not an NBX between calls | reading |
 | MFEM master d259866 `ParFiniteElementSpace::OrderPropagation` (pfespace.cpp:3704-3751): a real race, benign | the barrier orders the Isends, not their delivery, so the `Iprobe(ANY)` drain can miss an order message, which the second drain drops; the fixpoint loop (fespace.cpp:3249) resends it | shipped miniapp `phpref -dim 2 -n 100`, np 4: ~900 flag-flip alternatives per trace; 46 of 46 replays and 10 of 10 at np 8 (3D) correct; the race also occurred unforced in 2 controls |
+| SLATE 878439b `ttmqr` (internal_ttmqr.cc:155-189): a freed tile `Isend`, then an `Irecv` into the same tile | the two are not ordered (the program cannot know when a freed send ends), but the peer sends the tile back only after receiving it, so the first transfer ends before the second starts at every eager threshold | `geqrf` tester traced with buffer ranges (`STRETTO_BUFS=1`, 2x2, 4 threads): 84 such pairs, all harmless (docs/model.md section 7) |
 
 The 26 Oct screen of 70 codes, and the 29 Oct screen of ~85 more (deal.II master, PETSc main,
 MOOSE, runtimes, climate, CFD, MD and electronic-structure codes), with their safe lists: kept

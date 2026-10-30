@@ -889,3 +889,43 @@ got) and the eager threshold just below and at the misused message's size, Open 
 threshold through its netmod; a message changed when its receive's checksum differs from its
 send's. Open MPI sends up to 256 bytes inline at any limit, so smaller messages are untestable
 there. Tests: `analysis/tests/test_buffers.py` (idioms 37 and 38, both protocols).
+
+### Prediction (L1)
+
+An operation is a read (a send) or a write (a receive) of its buffer over its interval, from its
+call to its completion; a freed send's interval ends at the completion of the receive that took
+it, the earliest point at which the program can know its buffer is free (MPI 4.1 §3.7.3). Two
+operations of a process race when their buffers share bytes, one of them writes, and no
+happens-before orders their intervals: the constraint graph of the observed matching (§2) with
+the chains' synchronisation (docs/threads.md, milestones A-D: threads, OpenMP tasks), all its
+edges, unknown collectives as barriers, at B = ∞, where it has the fewest. Then some execution
+with the observed matching has both pending at once (T1-T: the graph with the reversed order
+acyclic is a schedule). One chain orders its own operations, so a race needs two chains; a
+single thread that reorders is not one. The consequence is judged as above on the two transfer
+windows, per threshold: a race whose windows are ordered at every B (a reply sent after the
+first message was received) is harmless and counted in a note; the others are findings of class
+3-race at L1, with the thresholds at which data can change.
+
+| premise | statement | if it fails |
+|---|---|---|
+| P-B4 addresses | the records' address ranges (`STRETTO_BUFS=1`: the first and last byte of each point-to-point operation's message, dense when its type is contiguous) name the memory the operations use, and memory is not freed and reused between two of them without a recorded synchronisation | two operations on reused memory (an allocation freed and returned again) look like a race: a false positive. A range of a type with holes only bounds the bytes, and the finding says so |
+| P-T1, P-T2 | as for message races (docs/threads.md §2.3) | an order the tracer does not record (a spin flag, an atomic) makes a race that cannot happen |
+
+Program accesses enter the same way: a guard access record carries its chain and, with several
+chains or `STRETTO_BUFS=1`, its place in the chain (the seq of its last record and its count of
+synchronisation operations), and with `STRETTO_BUFS=1` the faults of threads that never call MPI
+are recorded too, so an access by a worker thread or task is judged against the operation over
+happens-before. The guard sees only accesses while the operation is pending (it is off under
+`MPI_THREAD_MULTIPLE`, where another thread's call lifts the protection), so for accesses this
+version judges what the run showed; an access outside the interval that could fall inside it
+needs the buffer watched after the completion, which is not built (cost: one fault per page and
+call while watched).
+
+Cost: the ranges add two numbers to each point-to-point record; the pairs are found by a sweep
+over the ranges sorted per process, and each pair costs two reachability queries. On SLATE's
+`geqrf` tester (4 ranks, 4 threads, 800 by 800) the 84 racing pairs, every one a freed `Isend`
+of a tile and the `Irecv` of the same tile with the same tag on one chain (the shape of
+`internal_ttmqr.cc:155-189`, by elimination: the only freed sends `geqrf` reaches), are
+harmless at every threshold: the peer sends the tile back after receiving it. Idioms 39 (two
+threads, no synchronisation: a 3-race at every B) and 40 (the same with a condition variable:
+none); `analysis/tests/test_buffers.py`, `Races`.

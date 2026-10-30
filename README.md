@@ -276,7 +276,9 @@ checksum only, and reads only on pages that lie wholly inside a point-to-point r
 thresholds the touch changes data: a write to a pending send buffer only below the message's size,
 where the library reads the buffer after the match, a touch of a pending receive buffer at any
 ([`docs/model.md`](docs/model.md) §7). `-x STRETTO_SUMS=1` records a checksum of each message at
-its send and at its receive, which shows a changed message in a run.
+its send and at its receive, which shows a changed message in a run; `-x STRETTO_BUFS=1` records
+the address range of every point-to-point buffer, from which the analysis predicts buffer races
+between threads and tasks (class 3-race).
 
 ### Replay and pins
 
@@ -344,6 +346,7 @@ describes how the runs were made.
 | 2-ready | the run issued a ready-mode send before the receive that takes it was posted (alternatives are then not predicted) | observed |
 | abort | a rank stopped before MPI_Finalize outside any MPI call, or called MPI_Abort | observed |
 | 3-local | the program touched a buffer that a pending nonblocking operation owns, or two pending operations own overlapping bytes (buffer guard, `STRETTO_GUARD=1`); with the thresholds at which the data changes | observed |
+| 3-race | two operations of a process on shared buffer bytes, one a receive, that no happens-before orders (`STRETTO_BUFS=1`), with the thresholds at which the data can change | L1 |
 
 L1 findings hold for every program consistent with the trace. "L1+SP" findings also assume the
 recorded call sequence does not change after the alternative, which fails on code whose control

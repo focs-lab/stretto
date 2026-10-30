@@ -45,4 +45,4 @@ classify_rc() {
 need_lib() { [ -f "$1" ] || { echo "missing $1: build it with make -C $2 MPI=$MPI" >&2; exit 1; }; }
 
 idiom_dir() { ls -d "$ROOT"/idioms/"$1"_* 2>/dev/null | head -1; }
-idiom_np()  { case "$1" in 03|07|37|38) echo 2;; 10|12|13|14) echo 4;; *) echo 3;; esac; }
+idiom_np()  { case "$1" in 03|07|37|38|39|40) echo 2;; 10|12|13|14) echo 4;; *) echo 3;; esac; }

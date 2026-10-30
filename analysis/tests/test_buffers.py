@@ -171,8 +171,65 @@ class Report(unittest.TestCase):
         self.assertIn("[B < 400]", str(f[0]))
 
 
+
+
+
+def ranged(rec, lo, hi):
+    d = dict(rec)
+    d["buf"], d["dense"] = [lo, hi], 1
+    return d
+
+
+class Races(unittest.TestCase):
+    """L1 buffer races from the records' address ranges (STRETTO_BUFS=1): two operations of a
+    process on shared bytes, one a receive, whose intervals no happens-before orders."""
+
+    def _trace(self, ordered, base2=0x1000):
+        from test_threads import mkt, th
+        return mkt({0: [th(0, ranged(irecv(1, 1, 0, count=N), 0x1000, 0x1190), "r"),
+                        th(0, {"op": "wait", "kind": "wait", "reqs": [0], "done": [{"req": 0, "msrc": 1, "mtag": 1, "mcount": N}]}, "w"),
+                        th(1, ranged(send(1, 2, N, mode="isend", req=1), base2, base2 + 0x190), after=["w"] if ordered else ()),
+                        th(1, wait((1, None, None)))],
+                    1: [send(0, 1, N), recv(0, 2, 0, 2, count=N)]})
+
+    def test_threads_without_synchronisation_race(self):
+        t = self._trace(ordered=False)
+        found, harmless = buffers.races(t)
+        self.assertEqual((len(found), harmless), (1, 0))
+        self.assertEqual(found[0].consequence.B, "any B")
+        f = [x for x in analyze(t, with_sp=False).findings if x.cls == "3-race"]
+        self.assertEqual([x.level for x in f], ["L1"])
+
+    def test_synchronised_threads_do_not_race(self):
+        self.assertEqual(buffers.races(self._trace(ordered=True)), ([], 0))
+
+    def test_disjoint_buffers_do_not_race(self):
+        self.assertEqual(buffers.races(self._trace(ordered=False, base2=0x2000)), ([], 0))
+
+    def test_freed_send_then_receive_of_the_reply_is_harmless(self):
+        """SLATE ttmqr's shape: an Isend freed at once, then an Irecv into the same tile, whose
+        message the peer sends after receiving the tile. The intervals overlap (the program cannot
+        know when the freed send ends), but the reply is sent after the first message has been
+        received, so its transfer starts after the first one ends, at every threshold."""
+        t = mk({0: [ranged(send(1, 1, N, mode="isend", req=0), 0x1000, 0x1190), {"op": "reqfree", "req": 0},
+                    ranged(irecv(1, 1, 1, count=N), 0x1000, 0x1190), {"op": "wait", "kind": "wait", "reqs": [1], "done": [{"req": 1, "msrc": 1, "mtag": 1, "mcount": N}]}],
+                1: [recv(0, 1, 0, 1, count=N), send(0, 1, N)]})
+        self.assertEqual(buffers.races(t), ([], 1))
+        rep = analyze(t, with_sp=False)
+        self.assertFalse([x for x in rep.findings if x.cls == "3-race"])
+        self.assertTrue(any("harmless" in n for n in rep.notes), rep.notes)
+
+    def test_freed_send_then_receive_from_a_third_rank_races_below_the_size(self):
+        t = mk({0: [ranged(send(1, 1, N, mode="isend", req=0), 0x1000, 0x1190), {"op": "reqfree", "req": 0},
+                    ranged(irecv(2, 1, 1, count=N), 0x1000, 0x1190), wait((1, 2, 1))],
+                1: [recv(0, 1, 0, 1, count=N)], 2: [send(0, 1, N)]})
+        found, _ = buffers.races(t)
+        self.assertEqual([r.consequence.B for r in found], ["B < 400"])
+
+
 class Idioms(unittest.TestCase):
-    """Idioms 37 and 38, traced with the guard and message sums (their file env)."""
+    """Idioms 37 and 38, traced with the guard and message sums, and 39 and 40, traced with the
+    buffer ranges (their files env)."""
 
     def _finding(self, n):
         from stretto import trace
@@ -195,6 +252,20 @@ class Idioms(unittest.TestCase):
         _, f = self._finding(38)
         self.assertEqual(f.B, "any B")
         self.assertTrue(any("some executions" in d for d in f.detail), f.detail)
+
+
+    def _races(self, n):
+        from stretto import trace
+        from test_idioms import need_trace
+        t = trace.load(need_trace(self, n))
+        return [x for x in analyze(t, with_sp=False).findings if x.cls == "3-race"]
+
+    def test_39_threads_race_on_a_buffer(self):
+        f = self._races(39)
+        self.assertEqual([(x.level, x.B) for x in f], [("L1", "any B")])
+
+    def test_40_synchronised_threads_do_not(self):
+        self.assertEqual(self._races(40), [])
 
 
 class Replays(unittest.TestCase):

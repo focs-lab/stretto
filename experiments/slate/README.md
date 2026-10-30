@@ -153,8 +153,10 @@ defect. Report drafted, not sent.
 - Not examined: the build option `SLATE_HAVE_MT_BCAST` (`INSTALL.md`; not on by default), which
   turns `listBcastMT` into a `taskloop`; in `he2hb` it would broadcast one tile (i0, k) to several
   sets concurrently (`he2hb.cc:262-268`). `ttmqr`'s `MPI_Isend` + `MPI_Request_free` followed by
-  an `MPI_Irecv` into the same tile (`internal_ttmqr.cc:155-189`) is a buffer reuse, outside the
-  thread analysis.
+  an `MPI_Irecv` into the same tile (`internal_ttmqr.cc:155-189`) is a buffer reuse; examined 30
+  Oct with buffer ranges (`STRETTO_BUFS=1`, docs/model.md section 7): in a traced `geqrf` run the 84
+  pairs of a freed tile send and the receive of that tile are not ordered, and harmless at every
+  eager threshold, since the peer sends the tile back only after receiving it.
 
 **Sweep** (`sweep.sh`, [sweep.csv](sweep.csv)): 39 tester routines (BLAS 3, Cholesky, LU in
 three variants, QR/LQ, least squares, Hermitian indefinite and eigenvalue, SVD, band), square

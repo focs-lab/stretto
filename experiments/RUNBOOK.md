@@ -842,7 +842,7 @@ and wrote the control's output; every control finished with the traced output. d
 also still takes a `CollectiveMutex` around both `RemotePointEvaluation` exchanges
 (`mpi_remote_point_evaluation.h`, lines 776-777 and 987-988), the fix of the 9.3.0-rc1 race.
 
-## Buffer-guard findings at forced eager limits
+## Buffer-guard findings at forced eager limits, and buffer races
 
 `experiments/guard/run.sh thresholds` (not in `all`) traces the guard scenarios,
 MPI-BugBench's point-to-point LocalConcurrency programs and idioms 07, 37 and 38 with the guard
@@ -864,6 +864,10 @@ by rendezvous, and just below and at the largest misused message. Results in
 `experiments/results/dealii13206/`. In the campaign of 30 Oct the installed tree of another copy
 was mounted read-only at `/w/third_party/apps/dealii`, its build prefix, with `EXTRAPOLATE_DIR`
 outside it.
+
+Buffer races between threads and tasks (class 3-race) need `-x STRETTO_BUFS=1` at tracing
+time; idioms 39 and 40 trace with it (their file `env`). SLATE's `geqrf` tester was traced with
+it on 30 Oct in SLATE's image (`experiments/slate`, 2x2, 4 threads, 800 by 800, nb 100).
 
 ## Keeping every trace
 

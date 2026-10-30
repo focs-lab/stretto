@@ -20,7 +20,7 @@ from .reads import _cidx, erroneous, witness_respects
 
 # classes that make a program's verdict ERROR (the warnings 1b, 1f, probe-alt, the flag flips and
 # waitany-order do not); experiments/mbi/score.py uses the same set
-ERROR_CLASSES = frozenset({"1a", "1c", "1d", "2-buffering", "2-collective", "2-blocked", "2-ready", "3-local", "abort",
+ERROR_CLASSES = frozenset({"1a", "1c", "1d", "2-buffering", "2-collective", "2-blocked", "2-ready", "3-local", "3-race", "abort",
                            "2-thread-collective", "2-thread-wait", "2-thread-finalize", "2-thread-level"})
 
 
@@ -234,6 +234,13 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
         rep.notes.append(f"the buffer guard was asked for but off on ranks {off} (MPI_THREAD_MULTIPLE): "
                          "no local-concurrency findings from them")
         rep.degrade("guard-off", f"the buffer guard was off on ranks {off}")
+
+    # ---- buffer races, predicted at L1 from the operations' address ranges (STRETTO_BUFS=1):
+    # two operations of a process on shared bytes, one a receive, that no happens-before orders
+    # (stretto.buffers, docs/model.md section 7); not from a trace whose threads were not followed
+    if (any(x.buf is not None for x in t.recvs.values()) and not t.incomplete
+            and not [rank for rank, n in t.threads.items() if n > 1 and rank not in t.chains]):
+        rep.findings.extend(race_findings(t, rep))
 
     # ---- family 2: observed collective ordering
     untraced = 0
@@ -1369,3 +1376,26 @@ def format_report(t: Trace, rep: Report, show_infeasible: bool = False) -> str:
         for d, why in rep.infeasible:
             lines.append(f"  x {d}: {why}")
     return "\n".join(lines)
+
+
+def race_findings(t: Trace, rep: Report) -> List[Finding]:
+    """L1 findings of class 3-race from stretto.buffers.races, and a note for the racing pairs
+    whose transfers are ordered at every threshold."""
+    from . import buffers
+    found, harmless = buffers.races(t)
+    out = []
+    for r in found:
+        x, y = r.x, r.y
+        where = (f"chains {x.rank} and {y.rank}" if x.rank != y.rank
+                 else f"chain {x.rank}")
+        detail = [f"{x} (record #{x.idx}) and {y} (record #{y.idx}), {where}: no happens-before orders their "
+                  "intervals from the call to the completion, so both can be pending at once",
+                  f"buffer bytes {x.buf[0]:#x}-{x.buf[1]:#x} and {y.buf[0]:#x}-{y.buf[1]:#x}"
+                  + ("" if r.exact else " (bounds of a type with holes: the bytes themselves may not be shared)")]
+        detail.extend(r.consequence.detail)
+        out.append(Finding("3", "3-race", "L1", f"rank {x.proc}: {_operation(x)} and {_operation(y)} share buffer bytes "
+                           "and are not ordered", detail, B=r.consequence.B, site=t.site_label(y.rank, y.idx)))
+    if harmless:
+        rep.notes.append(f"{harmless} pair(s) of operations on shared buffer bytes are not ordered, but at every threshold "
+                         "one transfer ends before the other starts (harmless, stretto.buffers)")
+    return out

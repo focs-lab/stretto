@@ -36,12 +36,14 @@ Node = Tuple[int, int, str]
 # verdicts, from harmless to certain
 HARMLESS, ORDERED, SOME, EVERY, COPIED = "harmless", "ordered", "some", "every", "copied"
 
+
 def copied(s: Send, B: Optional[int]) -> bool:
     """P-B1: the library copies the message out of the buffer in the call: a buffered send
     always, a standard or ready one whose message fits the threshold. A synchronous send is
     never taken to be copied: MPICH over UCX read a pending 40-byte Issend's buffer after the
     call with its rendezvous threshold above the message (experiments/results/guard/thresholds.csv)."""
     return s.never_blocks or (not s.rendezvous_always and (B is None or s.bytes <= B))
+
 
 @dataclass
 class Window:
@@ -52,6 +54,7 @@ class Window:
     writes: bool
     what: str = ""
 
+
 @dataclass
 class Access:
     """A program access after every node of lo and before every node of hi, in program order
@@ -61,6 +64,7 @@ class Access:
     lo: List[Node]
     hi: List[Node]
     writes: bool
+
 
 class Orders:
     """Reachability in the observed constraint graph per threshold, guaranteed edges only
@@ -84,6 +88,7 @@ class Orders:
             r = self._reach[key] = g.reach_set(a)
         return b in r
 
+
 def completion(x) -> Optional[Node]:
     """The completion node of x, on the chain that completed it (a request may be completed by
     another thread than the one that started it)."""
@@ -92,9 +97,11 @@ def completion(x) -> Optional[Node]:
         return (x.complete_chain, x.complete_idx, "c")
     return c
 
+
 def receive_of(t: Trace, s: Send) -> Optional[Recv]:
     rk = next((rk for rk, sk in t.observed.items() if sk == s.key), None)
     return t.recvs.get(rk) if rk is not None else None
+
 
 def window(t: Trace, x, B: Optional[int]) -> Window:
     """The transfer window of operation x (a Send or a Recv) at threshold B."""
@@ -112,8 +119,10 @@ def window(t: Trace, x, B: Optional[int]) -> Window:
         return Window([match_node(x)], ends, True, "written after the match")
     return Window([(x.rank, x.idx, "i")], ends, True, "written before the completion")
 
+
 def _before(o: Orders, B, strong: bool, ends: List[Node], starts: List[Node]) -> bool:
     return any(o.reaches(B, strong, e, s) for e in ends for s in starts)
+
 
 def verdict(o: Orders, B: Optional[int], w: Window, a) -> str:
     """How access or window a relates to window w at B: HARMLESS (w ends before a in every
@@ -128,6 +137,7 @@ def verdict(o: Orders, B: Optional[int], w: Window, a) -> str:
     if (w.ends and _before(o, B, False, w.ends, a_starts)) or (a_ends and _before(o, B, False, a_ends, w.starts)):
         return ORDERED
     return SOME
+
 
 def profile(t: Trace, o: Orders, judge: Callable[[Optional[int]], str]) -> List[Tuple[Optional[int], str]]:
     """judge at every breakpoint ({0} U message sizes U {inf}), as (B, verdict). The verdict
@@ -156,6 +166,7 @@ def profile(t: Trace, o: Orders, judge: Callable[[Optional[int]], str]) -> List[
     fill(0, len(bps) - 1)
     return [(bps[i], out[i]) for i in range(len(bps))]
 
+
 def ranges(prof: List[Tuple[Optional[int], str]]) -> List[Tuple[str, str]]:
     """Runs of one verdict as (range text, verdict): the verdict at breakpoint b holds for B
     in [b, next breakpoint)."""
@@ -182,11 +193,13 @@ def ranges(prof: List[Tuple[Optional[int], str]]) -> List[Tuple[str, str]]:
         i = j + 1
     return out
 
+
 @dataclass
 class Consequence:
     B: str                                   # the thresholds at which data can change ("" if at none)
     profile: List[Tuple[Optional[int], str]] = field(default_factory=list)   # (breakpoint, verdict)
     detail: List[str] = field(default_factory=list)
+
 
 SEND_TEXT = {COPIED: "harmless: the message is copied in the call (eager), before the write",
              HARMLESS: "harmless: the library has read the message before the write",
@@ -199,12 +212,14 @@ RECV_TEXT = {HARMLESS: "harmless: the message was in place before the access",
              SOME: "the message may arrive before or after the access (some executions each way)",
              ORDERED: "the order of the message and the access depends on collectives of unknown shape"}
 
+
 def _summary(prof, texts) -> Consequence:
     harm = [B for B, v in prof if v in (EVERY, SOME)]
     rs = ranges(prof)
     detail = [f"at {r}: {texts[v]}" for r, v in rs]
     B = ", ".join(r for r, v in rs if v in (EVERY, SOME)) if harm else ""
     return Consequence(B, prof, detail)
+
 
 def access_consequence(t: Trace, o: Orders, x, a: Access) -> Optional[Consequence]:
     """What a program access a to the buffer of the pending operation x does to the data, by
@@ -234,6 +249,7 @@ def access_consequence(t: Trace, o: Orders, x, a: Access) -> Optional[Consequenc
         return cons
     return None
 
+
 def overlap_consequence(t: Trace, o: Orders, x, y) -> Optional[Consequence]:
     """Two operations on overlapping memory, x pending when y was called: what y's transfer and
     x's do to each other, by threshold. None unless both are sends or receives of the model."""
@@ -254,6 +270,7 @@ def overlap_consequence(t: Trace, o: Orders, x, y) -> Optional[Consequence]:
              SOME: "the two transfers can interleave (some executions each way)",
              ORDERED: "the order of the two transfers depends on collectives of unknown shape"}
     return _summary(prof, texts)
+
 
 def guard_position(t: Trace, rec) -> Optional[Tuple[List[Node], List[Node]]]:
     """(lo, hi) of the access of a guard access record: the record itself stands in its chain's
@@ -281,6 +298,7 @@ def guard_position(t: Trace, rec) -> Optional[Tuple[List[Node], List[Node]]]:
             hi.append((b, ib, "i"))
     return lo, hi
 
+
 def next_call(t: Trace, rec):
     """The send or receive whose call follows guard record rec on its rank (the blocking call
     whose buffer an overlap record names), or None."""
@@ -293,3 +311,81 @@ def next_call(t: Trace, rec):
             return x
     return None
 
+
+# ------------------------------------------------------------------ prediction (L1)
+# Two operations of one process whose buffers share bytes, one of them a receive, race when their
+# intervals [call, completion] are not ordered by happens-before: in some execution with the
+# observed matching both are pending at once (docs/model.md, section 7, "Prediction"). A freed
+# send's interval ends at the completion of the receive that took it, the earliest point at which
+# the program can know that its buffer is free again. The addresses come from the records
+# (STRETTO_BUFS=1); a pair whose ranges are only bounds (a type with holes) is named as such.
+
+@dataclass
+class Race:
+    x: object
+    y: object
+    exact: bool                   # both ranges dense: the bytes are shared, not only the bounds
+    consequence: Consequence
+
+
+def interval_ends(t: Trace, x) -> List[Node]:
+    if isinstance(x, Send) and not x.completed:
+        r = receive_of(t, x)
+        return [completion(r)] if r is not None and completion(r) is not None else []
+    c = completion(x)
+    return [c] if c is not None else []
+
+
+def unordered(o: Orders, t: Trace, x, y) -> bool:
+    """Neither interval ends before the other starts in the observed constraint graph, all its
+    edges (unknown collectives as barriers), at B = inf, where it has the fewest."""
+    for a, b in ((x, y), (y, x)):
+        if any(o.reaches(None, False, e, (b.rank, b.idx, "i")) for e in interval_ends(t, a)):
+            return False
+    return True
+
+
+def races(t: Trace, o: Optional[Orders] = None) -> Tuple[List[Race], int]:
+    """The racing pairs whose data can change at some threshold, and the number of racing pairs
+    whose transfers are ordered at every threshold (harmless: a send's message is read before the
+    other operation's data can arrive). Pairs on one chain whose ranks have the guard on are the
+    guard's (an observed overlap), and left out."""
+    o = o or Orders(t)
+    ops = [x for x in list(t.sends.values()) + list(t.recvs.values()) if x.buf is not None and x.buf[1] > x.buf[0]]
+    by_proc: Dict[int, list] = {}
+    for x in ops:
+        by_proc.setdefault(x.proc, []).append(x)
+    out, harmless = [], 0
+    for proc, xs in by_proc.items():
+        xs.sort(key=lambda x: x.buf[0])
+        for i, x in enumerate(xs):
+            for y in xs[i + 1:]:
+                if y.buf[0] >= x.buf[1]:
+                    break
+                if isinstance(x, Send) and isinstance(y, Send):
+                    continue                  # two reads
+                if x.rank == y.rank and t.guard.get(proc):
+                    continue
+                a, b = (x, y) if (x.rank, x.idx) <= (y.rank, y.idx) else (y, x)
+                if not unordered(o, t, a, b):
+                    continue
+                cons = pair_consequence(t, o, a, b)
+                if cons.B:
+                    out.append(Race(a, b, a.dense and b.dense, cons))
+                else:
+                    harmless += 1
+    return out, harmless
+
+
+def pair_consequence(t: Trace, o: Orders, x, y) -> Consequence:
+    """What two unordered transfers on shared bytes do, by threshold: harmless when one window
+    ends before the other starts in every execution, else they can interleave."""
+    def judge(B):
+        wx, wy = window(t, x, B), window(t, y, B)
+        if HARMLESS in (verdict(o, B, wx, wy), verdict(o, B, wy, wx)):
+            return HARMLESS
+        return SOME
+    texts = {HARMLESS: "harmless: one transfer ends before the other starts in every execution with the observed matching",
+             SOME: "the transfers can interleave: a receive's data can land in a send's message, or two receives "
+                   "write the bytes in either order"}
+    return _summary(profile(t, o, judge), texts)
