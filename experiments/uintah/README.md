@@ -87,6 +87,58 @@ run takes under a second with Open MPI and about 4.5 s with MPICH (UCX start-up)
 run killed after 30 s. Three fixed runs at 4 ranks with 4 threads print the same iterations and
 residuals in every time step as the MPI scheduler. The shipped solvertest1 (1 patch) cannot run
 on more than one rank ("Number of patches (1) must >= the number of processes"), hence the 8
-patches. Uintah's nightly suite runs hypre under the Unified scheduler on 2 ranks
-(`R_Tester/ARCHES.py`, `multibox_rmcrt_coal_*_threaded`, `-nthreads 8`); ARCHES was not built.
-Upstream report drafted 30 Oct, not sent.
+patches. Uintah's nightly suite runs hypre under the Unified scheduler on 2 ranks; it does not
+hit the conflict (next section). Upstream report drafted 30 Oct, not sent.
+
+## Uintah's nightly threaded tests (30 Oct 2026)
+
+`R_Tester/ARCHES.py` runs `multibox_rmcrt_coal_{1L,2L,DO}_threaded`
+(`ARCHES/RMCRT/multibox_rmcrt_coal_*.ups`, 2 ranks, `sus -nthreads 8`, 10 time steps, the
+pressure solved by hypre CG/PFMG through `HypreSolver2`). `build.sh` with
+`COMPONENTS=--enable-arches CLEAN=1` builds the plain and the fixed `sus` with ARCHES (the
+image now has BLAS and LAPACK, which ARCHES links): 3-4 minutes each with 8 jobs, 38 MB each
+once the object files are deleted. `nightly.sh` alternates the two over the three inputs
+(`mpirun --bind-to none`); `trace-nightly.sh` traces one run of each and lists every concurrent
+pair of collectives with `pairs.py`. a-p13, CPUs 0-7,40-47, Open MPI 4.1.6, hypre 2.33.0.
+
+**Untraced** ([nightly.csv](nightly.csv)): 30 of 30 pass for each input and build at 2 ranks
+with `-nthreads 8`, 180 runs; every run reports `Provided: 3` and ends at time step 10 with the
+same delT in the plain and the fixed build (1.65271e-05, 1.64993e-05, 1.65226e-05 for 1L, 2L,
+DO); a run takes 23-58 s. At 4 ranks with `-nthreads 4` (16 threads, as many as the
+processors) a run of the shipped input took 162 s, so `MAXSTEPS=3` cuts `max_Timesteps` from 10
+to 3 in a copy of each input (the only change): 10 of 10 pass for each input and build, 60 runs,
+56 s on average, again with equal delT in both builds.
+
+**Why they cannot fail this way.** In ARCHES' time-step graph the hypre task (`Hypre:Matrix
+solve`) is in phase 3 and `reduceSystemVars` in phase 4 or 5 (`SCI_DEBUG=TaskGraphPhases:+`,
+rank 0's graph of 1L), and, unlike in solvertest1, the second depends on the first on each
+rank: `ExplicitSolver::computeStableTimeStep`, which computes the delT that `reduceSystemVars`
+reduces, requires the velocities `[uvw]VelocitySPBC` (`ExplicitSolver.cc:938-960`), which the
+projection task modifies from the pressure solve's result (`MomentumSolver.cc:328-333`). So on
+every rank hypre's collectives return before the delT
+reduction is called, whatever the thread schedule. The traces agree: none of hypre's world
+`MPI_Allreduce`s (1420 on the two ranks in the plain 1L trace, 1210 of them on worker threads)
+is concurrent with another collective.
+
+**Other collectives on `MPI_COMM_WORLD`.** In the traces the only world-communicator
+collectives on worker threads are hypre's and those of `reduceMPI` with communicator -1 (delT
+and the application reduction variables of `reduceSystemVars`); the reductions of
+`Task::Reduction` tasks use the duplicated communicators of `setGlobalComm`. `pairs.py` lists
+every pair the analysis finds concurrent, not only the first per process and communicator that
+`stretto analyze` reports (`2-thread-collective`). Plain build, 1L, 2L, DO: 6, 6 and 12 pairs;
+fixed build: 12, 6 and 12. Every pair, in all six traces, is one worker thread's delT
+`MPI_Allreduce` (1 double, `OnDemandDataWarehouse::reduceMPI`, once per trace on one or both
+processes) against one of the main thread's time-step statistics collectives that follow
+`execute()`: the `MPI_Allreduce` and `MPI_Reduce`s of 29 values
+(`libCCA_Components_SimulationController.so`) and the two `MPI_Reduce`s of 6 values
+(`libCCA_Components_Schedulers.so`). They do not involve hypre, so the patch leaves them, as
+the fixed traces show. They are not a race: after its own `runTasks` the main thread spins in
+`thread_fence` until every worker thread has left `runTasks` and set its state to `Inactive`
+(`UnifiedScheduler.cc:140-146, 165-176, 577-583`), a volatile flag the tracer does not record
+(docs/threads.md 2.3, atomics and spin flags), so the analysis lacks that edge. Each trace also
+has two `2-thread-wait`s (two threads completing one request); Uintah's lock-free
+`CommRequestPool` most likely hands each request to one thread by an atomic, the same tracer
+limit (a guess: not checked in the code). No new pair, so no new diagnosis. A side effect seen
+here: `Trace.site_of` looks a chain's site ids up under the chain's id, while the tracer numbers
+sites per process, so records of worker threads get no site (`pairs.py` looks them up under the
+process).
