@@ -131,7 +131,9 @@ def matching_order_ok(t: Trace, M, kept_recv, ranks: Optional[Set[int]] = None,
             return f"{r} does not accept {s}"
         for s2 in t.earlier_sends(r, s):
             r2k = matched_send.get(s2.key)
-            if r2k is None or before(t, r, t.recvs[r2k]):
+            # its receive takes it first only if posted inside the horizon: on another chain, after
+            # its own cut, it is not posted, and the message waits for r
+            if r2k is None or not kept_recv(r2k) or before(t, r, t.recvs[r2k]):
                 return f"non-overtaking: {s2} would reach {r} before {s}"
         if unmatched_before(r, s):
             return f"receiver order: an earlier receive of rank {r.proc} accepts {s} and has no message in this matching"
@@ -153,7 +155,7 @@ def matching_order_ok(t: Trace, M, kept_recv, ranks: Optional[Set[int]] = None,
             s = t.sends[sk]
             for s2 in t.earlier_sends(q, s):
                 r2k = matched_send.get(s2.key)
-                if r2k is None or before(t, q, t.recvs[r2k]):
+                if r2k is None or not kept_recv(r2k) or before(t, q, t.recvs[r2k]):
                     return f"probe order: {s2} would be reported by {q} before {s}"
             if unmatched_before(q, s):
                 return f"probe order: an earlier receive of rank {q.proc} accepts {s} and has no message in this matching"
