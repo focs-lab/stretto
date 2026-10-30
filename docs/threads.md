@@ -4,7 +4,8 @@ Status: designed 29 Oct 2026; milestone A (tracer, loader, analysis at L1, the o
 classes, tests) implemented the same day, section 9 says how it differs from the design; section
 10 says how milestone B made the check scale and what it found in HDF5's Subfiling VFD; section 11
 says how milestone C replays alternatives of several threads, section 12 how milestone D follows
-OpenMP tasks (both 30 Oct 2026). Decided
+OpenMP tasks (both 30 Oct 2026), section 13 how level L1+L reorders critical sections (30 Oct
+2026). Decided
 29 Oct 2026: Stretto is extended to programs in which several threads of an MPI process call MPI
 on shared communicators (`MPI_THREAD_MULTIPLE`, and `MPI_THREAD_SERIALIZED` with several calling
 threads). Before, such a trace was analysed for observed findings only (`docs/model.md` §6). This
@@ -240,7 +241,8 @@ What is lost, and in which direction:
   L1 predicts exactly what the single-threaded analysis of the observed interleaving would
   predict, and none of the thread-order races; for a program whose threads communicate without
   locks around the calls (the common MULTIPLE style; of the eight CorrBench message-race programs
-  of section 6, all but `deadlock_probe.c`), it loses nothing.
+  of section 6, all but `deadlock_probe.c`), it loses nothing. Since 30 Oct 2026 level L1+L
+  (section 13) predicts these where both critical sections contain an MPI call.
 - **Work-share order preserved** (dynamic loop schedules, sections, single): the assignment of
   chunks to threads is the observed one; another assignment is a different set of chains'
   calls, which the trace does not contain. Under-prediction.
@@ -665,7 +667,8 @@ the checker can be trusted (the E6 comparison), so it moves before step 3 (c).
 ## 8. Decisions (29 Oct 2026)
 
 1. L1 keeps lock order (sync-preserving); lock reordering comes at L1+SP-T, a later milestone. No
-   static analysis of critical sections now.
+   static analysis of critical sections now. (Since 30 Oct 2026 level L1+L, section 13, reorders
+   critical sections that contain MPI calls, as an extension of L1 under premise P-T8.)
 2. The issue lock and the blocking rewrite under MULTIPLE, as designed, switchable by
    `STRETTO_THREADS=0`, with their perturbation measured.
 3. OpenMP through libgomp's entry points in v1; no clang or libomp image now.
@@ -1044,3 +1047,181 @@ recorded the happens-before already gives concurrency where it holds.
   `threads-tasks` stays).
 - Unit tests (RUNBOOK tests step, `STRETTO_REQUIRE_TRACES=1`, idioms traced first): 525 run, 17
   skipped, all pass, in the experiment image and in the SLATE image.
+
+## 13. Lock reordering, level L1+L (30 Oct 2026)
+
+Decided 30 Oct 2026: two critical sections of one lock may run in the other order than in the
+run where both contain an MPI call of their thread, under a new premise about shared state; the
+rest of the model stays L1's. This is an extension of L1, not the threads analogue of L1+SP
+that section 2.4 planned (L1+SP-T): the horizon, its rules and the constraint graph are L1's,
+the changed receives still cut their chains (rule 1), and nothing is assumed about what a chain
+does with the results of its receives. What changes is the happens-before (the hard one below)
+and one more condition on a horizon: its critical sections must fit in some order of each lock.
+Code: `analysis/stretto/locks.py`; the tracer's section "critical sections"; the loader in
+`chains.py`; the explorer `explore_threads.py`.
+
+### 13.1 What the trace records
+
+- **Lock events.** Mutual-exclusion locks are pthread mutexes (lock, trylock, timedlock), spin
+  locks, OpenMP locks and critical constructs. Each acquire and release of one is a lock event
+  `[lid, n, k, type]` on the chain's next record (`locks`), or, after its last record, on a
+  side record `{"op": "locks"}` written when the chain ends: `lid` numbers the lock per process,
+  `n` its critical sections in the order they were entered, `k` is the chain's ordinal of the
+  operation, `type` 0 an acquire, 1 a soft acquire, 2 a release. Read-write locks, semaphores,
+  nest locks, `ordered`, `atomic` and work shares keep every edge as before.
+- **Soft edges.** The edge from critical section n-1 to n is *soft* when both contain a record
+  of their chain and the chains differ. The acquire keeps the lock's clock aside until its chain
+  writes a record (the edge stays out) or synchronises otherwise first (it is taken in, type 0).
+  The acquire that ends a condition-variable wait keeps its edge: the wait returned because the
+  previous critical section changed the state it waits for.
+- **Hard happens-before.** Every clock has a second half without the soft edges; its deltas are
+  `hafter`, written where they differ from `after`. When a chain raises one component twice
+  before its next record, the earlier point is written too, with its own acquire ordinal (in
+  `after` only the latest is), so that the operations of a gap need only what precedes them.
+  Init records carry `lockorder: 1`.
+- **Where the order is kept.** A rank whose lock events do not determine its critical sections
+  keeps its full happens-before as the hard one (`Trace.lock_limits`, a note in the report): a
+  lock with a soft edge whose sections are not all recorded with both ends (a thread without
+  records took it, or one held it at the end), nested sections of a lock on one chain (a
+  recursive lock), more than 4 096 lock events of a chain between two records, or a chain that
+  synchronised with others after a lock operation and before its first record (its points are
+  in no clock, so an edge from there is not recorded). The loader also keeps the edge into a
+  critical section that its chain enters right after leaving an empty one of the same lock (a
+  polling loop: what the section does may depend on what the empty ones read).
+
+### 13.2 Model
+
+**Hard happens-before HB⁻**: program order on each chain and the recorded synchronisation edges
+but the soft ones. A critical section without an MPI call keeps the edges into and out of it,
+so a lock-protected flag that orders the communication (idiom 41) or a polled one (42) orders
+it in HB⁻ too.
+
+**Lock-feasible schedule** of a horizon H at B: a linear order of the nodes of the constraint
+graph of the alternative over HB⁻ (section 3.4 with HB⁻ in place of HB) and of the
+synchronisation operations in the gaps between a chain's records, in which (i) every graph edge
+holds; (ii) every recorded hard edge holds from the release's ordinal to the acquire's (an edge
+without ordinals from the end of the source gap to the start of the target gap); (iii) a
+critical section whose edge from the previous one is hard follows it; (iv) the critical sections
+of each lock are disjoint, and one whose release lies beyond its chain's cut holds the lock to
+the end of H; (v) a chain cut by rule 1 performs nothing after its last record in H; (vi) each
+process issues its collectives on a communicator in σ's order (the graph pairs the k-th with the
+others' k-th; a deadlock is not claimed where a thread has reached a collective that this order
+holds back).
+
+**Premise P-T8 (lock-protected state decides no call).** Every two conflicting accesses (one a
+write) to a shared-memory location that some read deciding a call of a chain in H accesses are
+ordered by HB⁻. It is P-T1 with HB⁻ in place of HB and implies P-T1. It fails where two critical
+sections that both contain an MPI call also exchange state a call depends on (a flag set in one
+and tested in the other, outside a polling loop), or where such a pair is the only order between
+unprotected data written before one and read after the other. P-T2 extends to the lock events.
+
+**Theorem T1-L (soundness of L1+L).** Premises of T1-T with P-T8 for P-T1. If `feasible.check`
+over HB⁻ accepts M' at B with horizon H and H has a lock-feasible schedule, then for every
+program consistent with σ on H there is an execution at B in which every operation of H is
+issued and the matching agrees with M' on the judged receives. *Sketch.* Run the chains in the
+schedule's order (P-T3). Each chain issues its records: its results on H are σ's but at the
+changed receives, which end their chains in H (rule 1, condition (v)). A read that decides a
+call reads in σ a write w that precedes it in HB⁻, and every other conflicting write is HB⁻-
+ordered with both (P-T8); the schedule respects HB⁻ ((i)-(iii); a wait is placed at its ordinal
+with every point of the gap the tracer keeps, a release point at its ordinal), so w is still the
+last such write before the read, and the chain reads σ's value. (iv) makes the schedule an
+execution of the locks whatever order of critical sections it takes. Postings and issues reach
+MPI in the schedule's order, and the graph makes FIFO on that order give M' (3.2). Where the
+schedule keeps every critical section in σ's order it respects HB, and T1-T's premises suffice
+(the report says "premise P-T8 is not needed").
+
+**Theorem T7-L (lock-order deadlocks).** If a schedule as above over the whole trace with M₀
+enters critical section y before x (x before y in σ) and stops, and the chains it stops form a
+set D in which every chain stops at an MPI operation only chains of D or terminated chains could
+complete, at the acquire of a lock a chain of D holds, or at a wait for a point of a chain of D
+whose ordinals the trace gives, with x's chain at the acquire y's chain holds, then under the
+premises of T1-L some execution of every program consistent with σ deadlocks. *Sketch.* The
+stopped prefix is an execution with σ's results (T1-L with M₀); a chain that passed the gap
+before its next record reaches that call in every continuation, so a send there counts as
+issued; T7-T's closure argument then holds with the two new stops, since a lock held by a chain
+that never returns is never released and a point of such a chain never reached. The claim is
+"some execution": the deadlock needs the other order of x and y, a scheduling choice.
+
+**Collectives ordered by a lock.** Two collectives a, b of a process on one communicator, inside
+critical sections of one lock on two chains, ordered by HB but not by HB⁻: if a schedule enters
+b's section before a's and issues b as the process's k-th collective on the communicator (every
+process having issued its collectives before b in σ's order, so their pairing is σ's),
+another process's k-th collective in σ has other arguments (name, root, count, type size or
+signature) than b, and §12.6.2 makes the program erroneous (class `2-thread-collective`, level
+L1+L). Two identical calls are not reported (CorrBench's `correct/two_collectives_5` and `_6`).
+
+**What the paper's theorems would need** (the paper is not edited): T1 gains T1-L as a variant
+under P-T8, whose proof is T1-T's with HB⁻ and the schedule; T7 gains stops at lock acquires
+and at waits with ordinals; T2 (monotonicity in B) is not claimed for L1+L, which is judged at
+B = 0 and B = inf only; T6 (completeness) is not claimed: the schedule search is bounded, and
+deciding lock-feasibility is NP-hard in general (*The Complexity of Dynamic Data Race
+Prediction*, LICS 2020, for the analogous question about traces with locks). In the related-work
+terms of 2.4: L1 is sync-preserving (SyncP's ideal); L1+L reorders critical sections as WCP and
+M2 do, with the absence of conflicts a premise (P-T8) instead of a check on accesses the trace
+does not have, restricted to sections that contain an MPI call; its deadlocks are the MPI
+counterpart of sync-preserving deadlock prediction (*Sound Dynamic Deadlock Prediction in Linear
+Time*, PLDI 2023), with cycles that pass through MPI waits and the run's matching as its
+reads-from.
+
+### 13.3 Analysis
+
+- **Alternatives** (`locks.alternatives`): the candidates of section 3.3 over HB⁻ that L1 did
+  not accept, judged at B = 0 and B = inf by `feasible.check` over HB⁻ and a schedule search
+  (`locks._Sim`): critical sections without a record and gaps of the run are taken as they
+  come; entering one with a record is a choice, tried in the run's order first, then depth first
+  within a budget of 400 states. Where every schedule tried stops with chains waiting for a lock
+  that a chain holds to the end of H, those chains are cut before the acquire (`check(...,
+  caps=...)`, horizon rule caps) and the alternative judged again, up to 4 rounds: a smaller
+  horizon, closed under the same rules.
+- **Deadlocks** (`locks.lock_deadlocks`): per lock, pairs (y, x) of sections with records on two
+  chains, x one of the 4 entered before y, y's acquire not after x's release in HB⁻ (64 pairs per
+  lock, 512 per trace); a schedule with σ's matching that enters y first and every other section
+  in σ's order where it can, stopped; T7-L's set D.
+- **Report**: level `L1+L`, the premise in every finding, the critical sections taken in another
+  order, the thresholds judged. Class `2-lock-order` (an error class) for the deadlocks.
+
+Not covered, where L1+L under-predicts: alternatives that need a critical section *without* an
+MPI call reordered (by design: their edges are hard); condition-variable handshakes, read-write
+locks, semaphores; probe alternatives and flips beyond the ones of 3.3; contained deadlocks (1d)
+of L1+L alternatives; thresholds other than 0 and infinity; the replay (no lock gates, section 11).
+
+### 13.4 Results (30 Oct 2026, a-p13, the experiment image)
+
+- **Idioms** (both MPIs, golden traces): 22 (senders in a mutex) L1+L 1f, the second thread's
+  message first; 23 (probe and receive in one critical section) L1+L probe-alt; 27 (a mutex held
+  across a receive) L1+L 2-lock-order at B = 0 and inf; 43 (two_collectives_9's shape) L1+L
+  2-thread-collective on each rank; 21 (condition variable), 41 (flag in empty critical sections)
+  and 42 (flag polled in the section that sends): nothing.
+- **Explorer differential** (`experiments/e6_locks.py`, seeds 2 and 4, 3 000 random programs
+  each, 2 or 3 processes, up to two worker threads each, one lock per process): no unsound claim
+  among 4 983 L1 claims, 1 214 L1+L alternatives and 161 lock-order deadlocks. Upper bounds of
+  what is missed: 372 rejected L1+L alternatives whose changed pair some execution realises, and
+  149 deadlocks with a thread waiting at a lock that no claim names (the rows of seed 2's first
+  1 000 programs: [results/e6_locks.csv](../experiments/results/e6_locks.csv)). The first version
+  of the differential found one unsound L1 acceptance (an earlier message waiting for a receive
+  beyond its thread's cut; fixed, `threads.matching_order_ok`) and one unsound lock-order deadlock
+  of this level (lock ids of two processes taken for one lock). Two more false deadlocks of this
+  level were found on idiom 22 at B = 0 (a thread held back before a send it had reached by an orientation of
+  the run's matching: it now counts as issued) and on CorrBench's `correct/two_collectives` (a swap
+  that reorders a process's collectives, after which the run's pairing of collectives no longer
+  holds: schedules keep each process's collectives in the run's order). All fixed before these
+  runs.
+- **MPI-CorrBench** (a05644b, OpenMP ordering, Open MPI, 2 ranks of 2 threads, all 38 retraced):
+  16 of 23 erroneous programs found (13 before), the new ones at L1+L: `dependant/deadlock_probe`
+  (2-lock-order), `two_collectives_8` (2 findings) and `_9` (1), 2-thread-collective. Missed: the
+  task deadlock (P-T7), the handle-lifetime programs, the buffer race and the one that overflows the
+  chain table. Of the 15 correct programs 3 get an error class; the new one,
+  `correct/dependant/deadlock_probe`, deadlocks when the thread with the tag-2 Mprobe takes the
+  mutex first (its source expects that under `USE_DISTURBED_THREAD_ORDER`): a real deadlock that
+  the suite's label does not count.
+- **MPICH `mt_*`** (16 iterations, retraced): reports equal to main's on the same traces (the
+  tests' critical sections, MTest's thread barrier, contain no MPI call).
+- **Gate** (`experiments/report_diff.py` against main 8dfff4b, text, `--json`, `--full-profile
+  --json`): the 531 single-chain traces and idiom 32, 1 596 comparisons, 0 differences; the 84
+  multithreaded traces of milestone B (traced without lock events), 252 comparisons, 9 differences,
+  all from the L1 fix: 22 findings of `mt_sendrecv`, `mt_probe_sendrecv` and `mt_iprobe_sendrecv`
+  hold at B = 0 only instead of every B.
+- **Tracer**: a thread the tracer did not see start could hang in `MPI_Init_thread` (UCX's memory
+  hooks take a lock whose wrapper allocated the thread's chain again inside that allocation;
+  every OpenMP idiom under MPICH once the chain structure grew); fixed. The hard clock doubles the
+  clocks (8 KiB each at 256 chains).

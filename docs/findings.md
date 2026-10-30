@@ -124,6 +124,17 @@ with the hunt notes, outside this repository.
   fixed with the task chains. Open: replays of task alternatives diverge (SLATE's tasks take
   locks whose order varies; a gated task holds its thread), and one wrong traced run's observed
   matching was judged infeasible (`2-buffering`, observed), not diagnosed.
+- Lock order (milestone A, [threads.md](threads.md) §9): an alternative that needs two critical
+  sections of one lock in the other order was never predicted (CorrBench `deadlock_probe`,
+  `two_collectives_8`, `_9`). Fixed 30 Oct (level L1+L, §13, under premise P-T8); checked against
+  a new exhaustive explorer of threaded programs with locks (E6 for threads: 6 000 random programs,
+  no unsound claim). Found on the way: L1 of several threads accepted a receive taking a message
+  while an earlier one of its channel waited for a receive beyond its thread's cut (1 random
+  program of 3 000); fixed, which narrows 22 findings of three MPICH `mt_*` traces to B = 0. The
+  tracer hung every OpenMP idiom in `MPI_Init_thread` under MPICH once its chain structure grew:
+  UCX's memory hooks take a lock whose wrapper allocated the chain again inside the allocation;
+  fixed. Main's analysis reads the new `locks` side records as calls (spurious
+  `2-thread-finalize`): traces with lock events need this analysis.
 - Task runtimes other than OpenMP (30 Oct, DLA-Future on pika, PaRSEC): not followed. pika runs
   tasks as user-level threads on worker pthreads (a chain is a worker, not a task), synchronises
   them by atomics and spinlocks, and its MPI polling completes requests on whichever worker polls,
@@ -143,17 +154,22 @@ with the hunt notes, outside this repository.
   transport read an eager 4 000-byte message, the first to its peer, after the call (the
   confirmations use shared memory).
 
-## Multithreaded benchmarks (L1 only)
+## Multithreaded benchmarks (L1, and L1+L since 30 Oct)
 
 MPICH fb003aa `test/mpi/threads/pt2pt` `mt_*` (16 iterations): every finding is in the racy
 phase (one communicator and tag), none in the two control phases. MPI-CorrBench a05644b OpenMP
 ordering: 8 of 23 erroneous programs found (4 deadlocks observed, 2 concurrent collectives,
-request reuse, Probe-then-Recv as 1f); 2 need lock reordering (L1+SP-T, not built); task
+request reuse, Probe-then-Recv as 1f); 2 need lock reordering (built 30 Oct, below); task
 programs were degraded; 0 of 15 correct programs get an error class. With tasks followed (30 Oct,
 [threads.md](threads.md) §12): 5 more found (`two_collectives_3` to `_7`), `_8` needs lock
 reordering, `nondeterministic_deadlock` overflows the tracer's 256-chain table; 2 programs
 labelled correct now get an error class, and both are erroneous as built (concurrent barriers;
-4 broadcasts on one rank against 2).
+4 broadcasts on one rank against 2). With lock reordering (level L1+L, 30 Oct,
+[threads.md](threads.md) §13; all 38 retraced): 16 of 23 found, the 3 new ones at L1+L
+(`dependant/deadlock_probe` 2-lock-order, `two_collectives_8` and `_9` 2-thread-collective); 3 of
+15 correct programs get an error class, the new one `correct/dependant/deadlock_probe`
+(2-lock-order: the Mprobe fix keeps the mutex held across the probe, and its source expects the
+deadlock under the other thread order); the 7 `mt_*` reports are unchanged.
 
 At 1 024 iterations (milestone B, [threads.md](threads.md) §10) the same holds for the three
 receive tests: 5, 39 and 49 L1 1f findings, all on the racy phase's threads.

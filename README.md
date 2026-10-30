@@ -253,7 +253,7 @@ JSON. The reasons:
 | `tracer-overflow` | a table of the tracer filled up: later records of its kind may be incomplete |
 | `unmatched-completions` | a receive completed from a send the trace does not have (an untraced caller, such as Fortran under Open MPI) |
 | `guard-off` | the buffer guard was asked for and off (MPI_THREAD_MULTIPLE) |
-| `threads` | several threads called MPI and the tracer did not follow them (`STRETTO_THREADS=0`, or a trace older than format 3): no alternative is predicted. Followed threads are analysed at L1 only ([docs/threads.md](docs/threads.md)) |
+| `threads` | several threads called MPI and the tracer did not follow them (`STRETTO_THREADS=0`, or a trace older than format 3): no alternative is predicted. Followed threads are analysed at L1, and at L1+L where two critical sections that contain MPI calls may run in the other order ([docs/threads.md](docs/threads.md) §13) |
 | `threads-tasks`, `threads-unordered`, `threads-handoff`, `threads-cancel` | a followed thread called MPI inside an OpenMP task the tracer does not follow (a `taskloop`'s, or after a detached task was created; other explicit tasks are threads of their own since 30 Oct 2026), issued a call whose posting the tracer does not order or completed another thread's request, or a receive was withdrawn by a successful cancel: observed findings only |
 | `unmodelled` | a call outside the modelled fragment (one-sided, neighbourhood collectives, ...): no alternative is predicted |
 | `ready-send` | the run issued a ready send before its receive: no alternative is predicted |
@@ -345,10 +345,13 @@ describes how the runs were made.
 | 2-blocked | the run ended with a rank blocked in a call or spinning in a polling loop | observed |
 | 2-ready | the run issued a ready-mode send before the receive that takes it was posted (alternatives are then not predicted) | observed |
 | abort | a rank stopped before MPI_Finalize outside any MPI call, or called MPI_Abort | observed |
+| 2-lock-order | a thread blocks in MPI inside a critical section that another thread must enter before it can send what the first waits for | L1+L (threads: premise P-T8, docs/threads.md §13) |
 | 3-local | the program touched a buffer that a pending nonblocking operation owns, or two pending operations own overlapping bytes (buffer guard, `STRETTO_GUARD=1`); with the thresholds at which the data changes | observed |
 | 3-race | two operations of a process on shared buffer bytes, one a receive, that no happens-before orders (`STRETTO_BUFS=1`), with the thresholds at which the data can change | L1 |
 
-L1 findings hold for every program consistent with the trace. "L1+SP" findings also assume the
+L1 findings hold for every program consistent with the trace. "L1+L" findings (several threads)
+also assume that the state a thread's calls depend on is not exchanged between critical sections
+that contain MPI calls (premise P-T8). "L1+SP" findings also assume the
 recorded call sequence does not change after the alternative, which fails on code whose control
 flow depends on received data (idioms 01 and 06 show it); level L2 checks such code against a
 skeleton of its data dependence. The skeleton is written by hand, or it is the program itself: a

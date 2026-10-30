@@ -55,6 +55,12 @@ sites and free sets are those of the maps they replace, which had none (`reanaly
 ... --reads-unchecked` accepts such a map as it is). The HYPRE map
 (`hypre-2.10.1-parasails.json`) predates the hashes; it has no free site.
 
+E6 for several threads with locks is outside that sequence: `experiments/e6_locks.py --programs
+3000 --seed S` (stretto.explore_threads: random programs of worker threads and mutexes, each run
+once and traced as the tracer would, every L1 and L1+L claim checked against every interleaving;
+about 35 s on one processor) writes `experiments/results/e6_locks.csv` and exits with status 1 on
+an unsound row ([docs/threads.md](../docs/threads.md) §13.4).
+
 E6 and its runs with read bounds were redone on 22 Oct 2026 (`run_remaining.sh e6 e6reads`, two
 containers on 8 processors, about 10 and 20 minutes, with the idiom traces and the traces of the
 last corpus run mounted read-only at `traces/` and `experiments/results/{mbi,mbb}/`): the
