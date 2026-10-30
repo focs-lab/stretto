@@ -44,13 +44,13 @@
                record; an unpaired begin means the rank was killed inside that call.
      send      mode(std|ssend|bsend|rsend|isend|issend|ibsend|irsend), dst, tag, comm,
                count, tsize, tsig (a named type's name, or a derived type flattened into
-               "MPI_INT*4,MPI_DOUBLE*2"), [req], [procnull], [persistent], [data]
+               "MPI_INT*4,MPI_DOUBLE*2"), [req], [procnull], [persistent], [data], [sum], [buf, dense]
      recv      src, tag, comm, count, tsize, tsig, [anysrc], [anytag], [procnull], [widx],
-               msrc, mtag, mcount (null when unknown), [cancelled], [pinned]
+               msrc, mtag, mcount (null when unknown), [cancelled], [pinned], [sum], [buf, dense]
      irecv     same arguments plus req ([mrecv] on both: Mrecv/Imrecv of a probed message;
                [persistent] for a Start, whose [pinned] receive ran as a shadow request)
      wait      kind(wait|waitall|waitany|waitsome|test|testall|testany|testsome), [idx],
-               reqs:[ids], done:[{req, [msrc, mtag, mcount, cancelled]}]; a send request that
+               reqs:[ids], done:[{req, [msrc, mtag, mcount, cancelled, sum, sumc]}]; a send request that
                was cancelled carries cancelled:0|1 (did the cancel succeed)
      pollrepeat n: the previous record (a failed Test* or Iprobe/Improbe) repeated n more
                times; busy-polling loops are summarised instead of written per iteration
@@ -96,7 +96,10 @@
                address); what=modified: a send buffer's checksum at the completion differs from
                the one at the call; what=overlap: the buffer of call (an MPI function name, with
                its request id if it has one) overlaps the operation's, and one of the two
-               writes to it. The init record carries guard:1 when the guard is on, guard:0 when
+               writes to it; an access record of a chain other than 0 carries its tid, and with
+               several chains or STRETTO_BUFS=1 at:[s, k], the seq of the faulting chain's last
+               record and its count of synchronisation operations at the fault (with STRETTO_BUFS=1
+               the faults of threads that never call MPI are recorded too). The init record carries guard:1 when the guard is on, guard:0 when
                it was asked for and is off (MPI_THREAD_MULTIPLE).
    A record of kind wait with kind getstatus (MPI_Request_get_status) leaves its request to a
    later completion call; with flag 1 the operation has completed, and a receive's record
@@ -218,7 +221,7 @@ static void *xrealloc(void *p, size_t n) {
     return q;
 }
 
-typedef struct { MPI_Request req; int id; int kind; long rsize; int persistent; int active; int cancel_req; int pin1; MPI_Request *slot; } reqent; /* rsize: a receive's type size, taken at the posting (status_fields), -1 if none; kind: 0 send, 1 recv, 2 coll, 3 idup, 4 partitioned (guard only); pin1: the handle stretto_pin_recv gave a pinned receive (replay/pin.h), 0 if none; slot: where the program received the handle */
+typedef struct { MPI_Request req; int id; int kind; long rsize; int persistent; int active; int cancel_req; int pin1; MPI_Request *slot; uintptr_t sbase; long sbytes; } reqent; /* sbase: where a receive's or a send's message begins, for its sum (STRETTO_SUMS), 0 if none; sbytes: a send's message size; rsize: a receive's type size, taken at the posting (status_fields), -1 if none; kind: 0 send, 1 recv, 2 coll, 3 idup, 4 partitioned (guard only); pin1: the handle stretto_pin_recv gave a pinned receive (replay/pin.h), 0 if none; slot: where the program received the handle */
 static reqent *g_reqs = NULL;
 static int g_nreqs = 0, g_capreqs = 0, g_next_req = 0;
 
@@ -448,11 +451,12 @@ __attribute__((visibility("hidden"))) const char *stretto_chain_name(void) {
 typedef struct { const void *buf; long count; MPI_Datatype dt; int write, p2p; } gbuf;   /* write: MPI writes it; p2p: a point-to-point receive */
 typedef struct { uintptr_t lo, hi, base; uint64_t sum; int req; unsigned char write, p2p, prot, flags; } gspan;   /* flags: 1 access recorded, 2 overlap */
 typedef struct { uintptr_t lo, hi; int prot; } grun;
-typedef struct { int what, req, kind, with; long off; uintptr_t pc; const char *call; int ready; } gnote;
+typedef struct { int what, req, kind, with, chain; long off, cseq, ck; uintptr_t pc; const char *call; int ready; } gnote;   /* chain, cseq, ck: where the faulting chain was (its last record and its synchronisation count), chain -1 if unknown */
 typedef struct { void *ra; int outer; } gctx;    /* outer: the program's own call, not one MPI makes inside it */
 enum { G_ACCESS, G_MODIFIED, G_OVERLAP };
 
 static int g_guard = 0, g_guard_asked = 0;
+static int g_bufs;                              /* STRETTO_BUFS: buffer ranges in the records, faults of every thread recorded */
 static long g_pagesize = 4096;
 static gspan *g_spans; static int g_nspans;     /* sorted by lo */
 static grun *g_runs; static int g_nruns;        /* the page runs protected outside MPI calls, sorted */
@@ -479,7 +483,11 @@ static void guard_note(int what, int req, int kind, long off, uintptr_t pc, int 
     int i = __atomic_fetch_add(&g_nnotes, 1, __ATOMIC_ACQ_REL);
     if (i >= GUARD_NOTES) return;
     gnote *x = &g_notes[i];
-    x->what = what; x->req = req; x->kind = kind; x->with = with; x->off = off; x->pc = pc; x->call = call;
+    x->what = what; x->req = req; x->kind = kind; x->with = with; x->off = off; x->pc = pc; x->call = call; x->chain = -1;
+#ifndef STRETTO_PIN_ONLY
+    thr *c = what == G_ACCESS ? t_cur : NULL;      /* the faulting thread's chain, read from its own TLS in the handler */
+    if (c && c->id >= 0) { x->chain = c->id; x->cseq = c->vc.s[c->id]; x->ck = c->k; }
+#endif
     __atomic_store_n(&x->ready, 1, __ATOMIC_RELEASE);
 }
 static void guard_flush(void) {
@@ -492,6 +500,10 @@ static void guard_flush(void) {
         rec_t b; rb_init(&b); b.site = (void *)x->pc;
         rb_printf(&b, "\"op\":\"guard\",\"what\":\"%s\",\"req\":%d", what[x->what], x->req);
         if (x->what == G_ACCESS) rb_printf(&b, ",\"kind\":\"%s\",\"off\":%ld", x->kind ? "write" : "read", x->off);
+        if (x->what == G_ACCESS && x->chain >= 0 && (g_bufs || g_nch > 1)) {   /* the faulting chain, and where it was: after its record cseq and ck synchronisations */
+            if (x->chain > 0) rb_printf(&b, ",\"tid\":%d", x->chain);
+            rb_printf(&b, ",\"at\":[%ld,%ld]", x->cseq, x->ck);
+        }
         if (x->what == G_OVERLAP) { rb_printf(&b, ",\"call\":\"%s\"", x->call); if (x->with >= 0) rb_printf(&b, ",\"with\":%d", x->with); }
         rb_emit(&b);
         x->ready = 0;
@@ -876,7 +888,7 @@ static void guard_segv(int sig, siginfo_t *si, void *ctx) {
         return;
     }
     t_lastfault = 0;
-    if (k >= 0 && t_gcaller && t_gdepth == 0 && !(span.flags & 1) && !guard_by_mpi(uc)) {
+    if (k >= 0 && (t_gcaller || g_bufs) && t_gdepth == 0 && !(span.flags & 1) && !guard_by_mpi(uc)) {
         __atomic_fetch_or(&g_spans[k].flags, 1, __ATOMIC_RELAXED);
         guard_note(G_ACCESS, span.req, (uc->uc_mcontext.gregs[REG_ERR] & 2) != 0, (long)(a - span.base),
                    uc->uc_mcontext.gregs[REG_RIP], -1, NULL);
@@ -1155,8 +1167,56 @@ static void rb_payload(rec_t *b, const char *key, const void *buf, int count, MP
     }
     free(packed);
 }
+/* Message sums (STRETTO_SUMS=1): a send record carries sum, a checksum of the message when the
+   call returns, and the completion of a receive (its recv record, or its entry in the done list
+   of a wait record) the checksum of the bytes it received, so that a run shows whether a
+   message carried what its send buffer held at the call (docs/model.md, "Buffers"); the
+   completion of a nonblocking send carries sumc, the checksum of its buffer then. Only
+   contiguous messages, whose type's elements are dense and tile its extent, have one. */
+static int g_sums = 0;
+static int type_dense(MPI_Datatype dt, MPI_Aint *tlb, MPI_Aint *ext, MPI_Aint *size);
+static uint64_t guard_sum(uintptr_t lo, uintptr_t hi);
+/* The address of the message's first byte (*esize: the size of one element), 0 if none is taken. */
+static uintptr_t sum_base(const void *buf, MPI_Datatype dt, MPI_Aint *esize) {
+    MPI_Aint tlb, ext, size;
+    if (!g_sums || buf == MPI_IN_PLACE || dt == MPI_DATATYPE_NULL || type_dense(dt, &tlb, &ext, &size) != 1 || ext != size) return 0;
+    if (esize) *esize = size;
+    return (uintptr_t)buf + tlb;
+}
+static void rb_sum(rec_t *b, uintptr_t base, long bytes) {
+    if (base && bytes >= 0) rb_printf(b, ",\"sum\":\"%016llx\"", (unsigned long long)guard_sum(base, base + bytes));
+}
+static void rb_send_sum(rec_t *b, int dst, const void *buf, int count, MPI_Datatype dt) {
+    MPI_Aint esize = 0;
+    uintptr_t base = dst != MPI_PROC_NULL && count >= 0 ? sum_base(buf, dt, &esize) : 0;
+    rb_sum(b, base, (long)count * esize);
+}
+static void rb_recv_sum(rec_t *b, uintptr_t base, MPI_Status *st, int ok) {
+    int cancelled = 0;
+    MPI_Count n = 0;
+    if (!base || !ok || !st || st->MPI_SOURCE == MPI_PROC_NULL) return;
+    PMPI_Test_cancelled(st, &cancelled);
+    if (cancelled || PMPI_Get_elements_x(st, MPI_BYTE, &n) != MPI_SUCCESS || n == MPI_UNDEFINED) return;
+    rb_sum(b, base, (long)n);
+}
+/* Buffer ranges (STRETTO_BUFS=1): a point-to-point record carries buf:[lo,hi], the addresses
+   of the first byte of its message and of the byte after its last (lo = hi when it moves
+   nothing), with dense:1 when the bytes between are all the message's (a contiguous type), so
+   that the analysis can tell which operations share memory (docs/model.md, "Buffers"). */
+static int g_bufs = 0;   /* declared with the guard's state */
+static void rb_bufrange(rec_t *b, const void *buf, int count, MPI_Datatype dt) {
+    MPI_Aint tlb, ext, size, lb, tex;
+    if (!g_bufs || buf == MPI_IN_PLACE || count < 0 || dt == MPI_DATATYPE_NULL) return;
+    int d = type_dense(dt, &tlb, &ext, &size);
+    if (d < 0 || PMPI_Type_get_true_extent(dt, &lb, &tex) != MPI_SUCCESS) return;
+    uintptr_t lo = (uintptr_t)buf + tlb, hi = count && size ? lo + (uintptr_t)((count - 1) * ext + tex) : lo;
+    rb_printf(b, ",\"buf\":[%lu,%lu]", (unsigned long)lo, (unsigned long)hi);
+    if (d == 1 && ext == size) rb_printf(b, ",\"dense\":1");
+}
 static void rb_send_data(rec_t *b, int dst, const void *buf, int count, MPI_Datatype dt) {
     if (dst != MPI_PROC_NULL) rb_payload(b, "data", buf, count, dt);
+    rb_send_sum(b, dst, buf, count, dt);
+    if (dst != MPI_PROC_NULL) rb_bufrange(b, buf, count, dt);
 }
 
 /* ------------------------------------------------------------- comm table */
@@ -1266,7 +1326,7 @@ __attribute__((visibility("hidden"))) void *stretto_call_site(void) { return t_c
    received the handle in (slot), which it hands back at the completion, and else by age:
    the oldest entry of the handle goes first. A new request in the slot and with the handle
    of a pending one replaces it, since the program can no longer name the old one. */
-static int req_add(MPI_Request *slot, int kind, MPI_Datatype dt, int persistent) {
+static int req_add(MPI_Request *slot, int kind, MPI_Datatype dt, int persistent, const void *buf) {   /* buf: a receive's buffer */
     MPI_Request r = *slot;
     int dropped = -1;
     reqent *e = NULL;
@@ -1279,7 +1339,7 @@ static int req_add(MPI_Request *slot, int kind, MPI_Datatype dt, int persistent)
         e = &g_reqs[g_nreqs++];
     }
     int id = g_next_req++;
-    *e = (reqent){r, id, kind, kind == 1 ? recv_size(dt) : -1, persistent, !persistent, 0, 0, slot};
+    *e = (reqent){r, id, kind, kind == 1 ? recv_size(dt) : -1, persistent, !persistent, 0, 0, slot, kind == 1 ? sum_base(buf, dt, NULL) : 0, 0};
     pthread_mutex_unlock(&g_mu);
     guard_done(dropped, 0);
     return id;
@@ -1295,6 +1355,13 @@ static reqent *req_find_locked(MPI_Request r, MPI_Request *slot) {
     return oldest;
 }
 /* A pinned nonblocking receive reports its match when the completion call returns it. */
+/* A nonblocking send's message, whose checksum its completion records (STRETTO_SUMS). */
+static void req_set_sendsum(MPI_Request *slot, const void *buf, int count, MPI_Datatype dt) {
+    MPI_Aint esize = 0;
+    uintptr_t base = count >= 0 ? sum_base(buf, dt, &esize) : 0;
+    if (!base) return;
+    pthread_mutex_lock(&g_mu); reqent *e = req_find_locked(*slot, slot); if (e) { e->sbase = base; e->sbytes = (long)count * esize; } pthread_mutex_unlock(&g_mu);
+}
 static void req_set_pin(MPI_Request *slot, int h) {   /* h: the pin handle of stretto_pin_recv, 0 none */
     pthread_mutex_lock(&g_mu); reqent *e = req_find_locked(*slot, slot); if (e) e->pin1 = h; pthread_mutex_unlock(&g_mu);
 }
@@ -1326,6 +1393,10 @@ static void open_trace(int provided) {
     if (dladdr((void *)open_trace, &self)) g_self_base = self.dli_fbase;
     const char *payload = getenv("STRETTO_PAYLOAD");
     if (payload) g_payload = atol(payload);
+    const char *sums = getenv("STRETTO_SUMS");
+    g_sums = sums && atoi(sums) > 0;
+    const char *bufs = getenv("STRETTO_BUFS");
+    g_bufs = bufs && atoi(bufs) > 0;
     const char *dir = getenv("STRETTO_TRACE_DIR");
     if (!dir) dir = "traces";
     mkdir(dir, 0777);
@@ -1477,7 +1548,8 @@ int NAME(const void *buf, int count, MPI_Datatype dt, int dst, int tag, MPI_Comm
     int sord_ = stretto_pin_gate(STRETTO_OP_SEND, dst == MPI_PROC_NULL); \
     iss_lock(); long iseq = iss_next(); int rc = P##NAME(buf, count, dt, dst, tag, comm, req); iss_unlock(); \
     stretto_pin_posted(STRETTO_OP_SEND, sord_); \
-    int id = rc == MPI_SUCCESS ? req_add(req, 0, dt, 0) : -1; \
+    int id = rc == MPI_SUCCESS ? req_add(req, 0, dt, 0, NULL) : -1; \
+    if (id >= 0 && g_sums && dst != MPI_PROC_NULL) req_set_sendsum(req, buf, count, dt); \
     REC(b, "send"); send_fields(&b, MODE, count, dt, dst, tag, comm); if (id >= 0) rb_printf(&b, ",\"req\":%d", id); \
     rb_iseq(&b, iseq); rb_send_data(&b, dst, buf, count, dt); rb_emit(&b); \
     if (id >= 0 && dst != MPI_PROC_NULL) GUARD_BUF(id, #NAME, buf, count, dt, 0, 0); \
@@ -1534,7 +1606,7 @@ static gbuf part_buf(const partent *p, int i) {
 #define PERSISTENT_SEND(NAME, MODE) \
 int NAME(const void *buf, int count, MPI_Datatype dt, int dst, int tag, MPI_Comm comm, MPI_Request *req) { \
     GUARD; int rc = P##NAME(buf, count, dt, dst, tag, comm, req); if (rc != MPI_SUCCESS) return rc; \
-    req_add(req, 0, dt, 1); pers_add(*req, count, dt, dst, tag, comm, MODE, (void *)buf); return rc; }
+    req_add(req, 0, dt, 1, NULL); pers_add(*req, count, dt, dst, tag, comm, MODE, (void *)buf); return rc; }
 PERSISTENT_SEND(MPI_Send_init,  "isend")
 PERSISTENT_SEND(MPI_Ssend_init, "issend")
 PERSISTENT_SEND(MPI_Bsend_init, "ibsend")
@@ -1542,7 +1614,7 @@ PERSISTENT_SEND(MPI_Rsend_init, "irsend")
 int MPI_Recv_init(void *buf, int count, MPI_Datatype dt, int src, int tag, MPI_Comm comm, MPI_Request *req) {
     GUARD;
     int rc = PMPI_Recv_init(buf, count, dt, src, tag, comm, req); if (rc != MPI_SUCCESS) return rc;
-    req_add(req, 1, dt, 1); pers_add(*req, count, dt, src, tag, comm, "irecv", buf); return rc;
+    req_add(req, 1, dt, 1, buf); pers_add(*req, count, dt, src, tag, comm, "irecv", buf); return rc;
 }
 /* A pinned Start of a persistent wildcard receive cannot change the request's source, so
    it starts a shadow request created with the pinned source instead: the caller's handle
@@ -1593,7 +1665,9 @@ static inline __attribute__((always_inline)) void start_one(MPI_Request *rp, voi
     if (kind == 0) {
         stretto_pin_before_send();
         REC(b, "send"); send_fields(&b, copy.mode, copy.count, copy.dt, copy.peer, copy.tag, copy.comm);
-        rb_printf(&b, ",\"req\":%d,\"persistent\":1", id); rb_iseq(&b, iseq); rb_emit(&b);
+        rb_printf(&b, ",\"req\":%d,\"persistent\":1", id); rb_iseq(&b, iseq); rb_send_sum(&b, copy.peer, copy.buf, copy.count, copy.dt);
+        if (copy.peer != MPI_PROC_NULL) rb_bufrange(&b, copy.buf, copy.count, copy.dt);
+        rb_emit(&b);
         if (id >= 0 && copy.peer != MPI_PROC_NULL) guard_buffers(id, "MPI_Start", &gb, 1, ra);
     } else {
         int src = copy.peer, tag = copy.tag, widx = -1;
@@ -1606,14 +1680,14 @@ static inline __attribute__((always_inline)) void start_one(MPI_Request *rp, voi
             if (PMPI_Recv_init(copy.buf, copy.count, copy.dt, src, tag, copy.comm, &shadow) == MPI_SUCCESS) {
                 pthread_mutex_lock(&g_mu);
                 if (g_nreqs == g_capreqs) { g_capreqs = g_capreqs ? g_capreqs * 2 : 64; g_reqs = xrealloc(g_reqs, sizeof *g_reqs * g_capreqs); }
-                g_reqs[g_nreqs++] = (reqent){shadow, id, 1, recv_size(copy.dt), 1, 1, 0, pinned, rp};
+                g_reqs[g_nreqs++] = (reqent){shadow, id, 1, recv_size(copy.dt), 1, 1, 0, pinned, rp, sum_base(copy.buf, copy.dt, NULL), 0};
                 pthread_mutex_unlock(&g_mu);
                 shadow_add(shadow, r);
                 *rp = shadow;
             } else pinned = 0;
         }
         REC(b, "irecv"); rb_src(&b, copy.peer); rb_tag(&b, copy.tag); rb_printf(&b, ",\"comm\":%d", comm_id(copy.comm));
-        rb_type(&b, copy.count, copy.dt); rb_printf(&b, ",\"req\":%d,\"persistent\":1", id); rb_iseq(&b, iseq);
+        rb_type(&b, copy.count, copy.dt); rb_printf(&b, ",\"req\":%d,\"persistent\":1", id); rb_iseq(&b, iseq); rb_bufrange(&b, copy.buf, copy.count, copy.dt);
         if (widx >= 0) rb_printf(&b, ",\"widx\":%d", widx);
         if (pinned) rb_printf(&b, ",\"pinned\":{\"src\":%d,\"tag\":%d}", src, tag);
         rb_emit(&b);
@@ -1681,8 +1755,8 @@ int MPI_Recv(void *buf, int count, MPI_Datatype dt, int src, int tag, MPI_Comm c
         if (rc == MPI_SUCCESS) rc = PMPI_Wait(&r_, st);
     } else { stretto_pin_posted(STRETTO_OP_RECV, rord_); rc = PMPI_Recv(buf, count, dt, src, tag, comm, st); }
     if (pinned && rc == MPI_SUCCESS) stretto_pin_matched(pinned, st->MPI_SOURCE);
-    REC(b, "recv"); recv_args(&b, osrc, otag, comm, count, dt, widx);
-    status_fields(&b, st, recv_size(dt), rc == MPI_SUCCESS);
+    REC(b, "recv"); recv_args(&b, osrc, otag, comm, count, dt, widx); if (src != MPI_PROC_NULL) rb_bufrange(&b, buf, count, dt);
+    status_fields(&b, st, recv_size(dt), rc == MPI_SUCCESS); rb_recv_sum(&b, sum_base(buf, dt, NULL), st, rc == MPI_SUCCESS);
     if (pinned) rb_printf(&b, ",\"pinned\":{\"src\":%d,\"tag\":%d}", src, tag);
     rb_iseq(&b, iseq);
     rb_emit(&b);
@@ -1695,9 +1769,10 @@ int MPI_Irecv(void *buf, int count, MPI_Datatype dt, int src, int tag, MPI_Comm 
     int pinned = stretto_pin_recv(&src, &tag, comm, &widx);
     iss_lock(); long iseq = iss_next(); int rc = PMPI_Irecv(buf, count, dt, src, tag, comm, req); iss_unlock();
     stretto_pin_posted(STRETTO_OP_RECV, rord_);
-    int id = rc == MPI_SUCCESS ? req_add(req, 1, dt, 0) : -1;
+    int id = rc == MPI_SUCCESS ? req_add(req, 1, dt, 0, buf) : -1;
     if (pinned && id >= 0) req_set_pin(req, pinned);
     REC(b, "irecv"); recv_args(&b, osrc, otag, comm, count, dt, widx); if (id >= 0) rb_printf(&b, ",\"req\":%d", id);
+    if (osrc != MPI_PROC_NULL) rb_bufrange(&b, buf, count, dt);
     if (pinned) rb_printf(&b, ",\"pinned\":{\"src\":%d,\"tag\":%d}", src, tag);
     rb_iseq(&b, iseq);
     rb_emit(&b);
@@ -1715,9 +1790,10 @@ static inline __attribute__((always_inline)) int sendrecv_common(const void *sbu
     { REC(b, "begin"); rb_printf(&b, ",\"call\":\"recv\""); recv_args(&b, osrc, otag, comm, rcount, rdt, *widx); rb_emit(&b); }
     return pinned;
 }
-static inline __attribute__((always_inline)) void sendrecv_finish(int rcount, MPI_Datatype rdt, int osrc, int otag, int src, int rtag, MPI_Comm comm, MPI_Status *st, int rc, int widx, int pinned, int reqid, long riseq) {
+static inline __attribute__((always_inline)) void sendrecv_finish(const void *rbuf, int rcount, MPI_Datatype rdt, int osrc, int otag, int src, int rtag, MPI_Comm comm, MPI_Status *st, int rc, int widx, int pinned, int reqid, long riseq) {
     if (pinned && rc == MPI_SUCCESS) stretto_pin_matched(pinned, st->MPI_SOURCE);
     { REC(b, "recv"); recv_args(&b, osrc, otag, comm, rcount, rdt, widx); status_fields(&b, st, recv_size(rdt), rc == MPI_SUCCESS);
+      rb_recv_sum(&b, sum_base(rbuf, rdt, NULL), st, rc == MPI_SUCCESS); if (osrc != MPI_PROC_NULL) rb_bufrange(&b, rbuf, rcount, rdt);
       if (pinned) rb_printf(&b, ",\"pinned\":{\"src\":%d,\"tag\":%d}", src, rtag);
       rb_iseq(&b, riseq);
       rb_emit(&b); }
@@ -1751,13 +1827,13 @@ int MPI_Sendrecv(const void *sbuf, int scount, MPI_Datatype sdt, int dst, int st
             *st = sts[1];
             if (rc == MPI_ERR_IN_STATUS) rc = sts[0].MPI_ERROR != MPI_SUCCESS ? sts[0].MPI_ERROR : sts[1].MPI_ERROR;
         }
-        sendrecv_finish(rcount, rdt, osrc, otag, src, rtag, comm, st, rc, widx, pinned, reqid, riseq);
+        sendrecv_finish(rbuf, rcount, rdt, osrc, otag, src, rtag, comm, st, rc, widx, pinned, reqid, riseq);
         return rc;
     }
     int pinned = sendrecv_common(sbuf, scount, sdt, dst, stag, rcount, rdt, &src, &rtag, comm, &widx, &reqid, -1);
     stretto_pin_posted(STRETTO_OP_SEND, sord_); stretto_pin_posted(STRETTO_OP_RECV, rord_);
     rc = PMPI_Sendrecv(sbuf, scount, sdt, dst, stag, rbuf, rcount, rdt, src, rtag, comm, st);
-    sendrecv_finish(rcount, rdt, osrc, otag, src, rtag, comm, st, rc, widx, pinned, reqid, -1);
+    sendrecv_finish(rbuf, rcount, rdt, osrc, otag, src, rtag, comm, st, rc, widx, pinned, reqid, -1);
     return rc;
 }
 int MPI_Sendrecv_replace(void *buf, int count, MPI_Datatype dt, int dst, int stag, int src, int rtag, MPI_Comm comm, MPI_Status *st) {
@@ -1770,7 +1846,7 @@ int MPI_Sendrecv_replace(void *buf, int count, MPI_Datatype dt, int dst, int sta
     MPI_Status mine; if (st == MPI_STATUS_IGNORE) st = &mine;
     stretto_pin_posted(STRETTO_OP_SEND, sord_); stretto_pin_posted(STRETTO_OP_RECV, rord_);
     int rc = PMPI_Sendrecv_replace(buf, count, dt, dst, stag, src, rtag, comm, st);
-    sendrecv_finish(count, dt, osrc, otag, src, rtag, comm, st, rc, widx, pinned, reqid, -1);
+    sendrecv_finish(buf, count, dt, osrc, otag, src, rtag, comm, st, rc, widx, pinned, reqid, -1);
     return rc;
 }
 
@@ -1788,6 +1864,8 @@ static void done_entry(rec_t *b, int first, MPI_Request before, MPI_Request *slo
     int id = e ? e->id : -1, kind = e ? e->kind : -1, persistent = e ? e->persistent : 0, cancel_req = e ? e->cancel_req : 0;
     int pin1 = e ? e->pin1 : 0;
     long rsize = e ? e->rsize : -1;
+    uintptr_t sbase = e ? e->sbase : 0;
+    long sbytes = e ? e->sbytes : 0;
     if (e && !persistent) { *e = g_reqs[--g_nreqs]; }
     else if (e) { e->active = 0; e->cancel_req = 0; }
     pthread_mutex_unlock(&g_mu);
@@ -1795,7 +1873,9 @@ static void done_entry(rec_t *b, int first, MPI_Request before, MPI_Request *slo
     if (kind == 3) idup_complete(before, id);
     if (id < 0) { rb_printf(b, "%s{\"req\":null}", first ? "" : ","); return; }
     rb_printf(b, "%s{\"req\":%d", first ? "" : ",", id);
-    if (kind == 1) status_fields(b, st, rsize, ok);
+    if (kind == 1) { status_fields(b, st, rsize, ok); rb_recv_sum(b, sbase, st, ok); }
+    if (kind == 0 && sbase && guard_mapped(sbase) && (!sbytes || guard_mapped(sbase + sbytes - 1)))   /* the send buffer at the completion */
+        rb_printf(b, ",\"sumc\":\"%016llx\"", (unsigned long long)guard_sum(sbase, sbase + sbytes));
     if (kind == 1 && pin1 && ok && st) {
         int cancelled = 0; PMPI_Test_cancelled(st, &cancelled);
         if (!cancelled) stretto_pin_matched(pin1, st->MPI_SOURCE);
@@ -2093,17 +2173,17 @@ int MPI_Mrecv(void *buf, int count, MPI_Datatype dt, MPI_Message *msg, MPI_Statu
     int comm = 0, src = -1, tag = -1; msg_take(*msg, &comm, &src, &tag);
     int rc = PMPI_Mrecv(buf, count, dt, msg, st);
     if (rc == MPI_SUCCESS) { src = st->MPI_SOURCE; tag = st->MPI_TAG; }
-    REC(b, "recv"); rb_printf(&b, ",\"src\":%d,\"tag\":%d,\"comm\":%d,\"mrecv\":1", src, tag, comm); rb_type(&b, count, dt);
+    REC(b, "recv"); rb_printf(&b, ",\"src\":%d,\"tag\":%d,\"comm\":%d,\"mrecv\":1", src, tag, comm); rb_type(&b, count, dt); if (!noproc) rb_bufrange(&b, buf, count, dt);
     if (noproc && rc != MPI_SUCCESS) rb_printf(&b, ",\"procnull\":1");   /* else the status says so */
-    status_fields(&b, st, recv_size(dt), rc == MPI_SUCCESS); rb_emit(&b);
+    status_fields(&b, st, recv_size(dt), rc == MPI_SUCCESS); rb_recv_sum(&b, sum_base(buf, dt, NULL), st, rc == MPI_SUCCESS); rb_emit(&b);
     return rc;
 }
 int MPI_Imrecv(void *buf, int count, MPI_Datatype dt, MPI_Message *msg, MPI_Request *req) {
     GUARD;
     int comm = 0, src = -1, tag = -1, noproc = *msg == MPI_MESSAGE_NO_PROC; msg_take(*msg, &comm, &src, &tag);
     int rc = PMPI_Imrecv(buf, count, dt, msg, req);
-    int id = rc == MPI_SUCCESS ? req_add(req, 1, dt, 0) : -1;
-    REC(b, "irecv"); rb_printf(&b, ",\"src\":%d,\"tag\":%d,\"comm\":%d,\"mrecv\":1", src, tag, comm); rb_type(&b, count, dt);
+    int id = rc == MPI_SUCCESS ? req_add(req, 1, dt, 0, buf) : -1;
+    REC(b, "irecv"); rb_printf(&b, ",\"src\":%d,\"tag\":%d,\"comm\":%d,\"mrecv\":1", src, tag, comm); rb_type(&b, count, dt); if (!noproc) rb_bufrange(&b, buf, count, dt);
     if (noproc) rb_printf(&b, ",\"procnull\":1");
     if (id >= 0) rb_printf(&b, ",\"req\":%d", id);
     rb_emit(&b);
@@ -2142,7 +2222,7 @@ static int coll_me(MPI_Comm comm, int *np) {
     GUARD_COLL(-1, #NAME, gc); \
     coll_rec(name, comm, root, count, dt, -1, 1, NULL); int rc = call; coll_rec(name, comm, root, count, dt, -1, 0, D); return rc;
 #define NBL(NAME, name, root, count, dt, call, gc) \
-    GUARD; int rc = call; int id_ = rc == MPI_SUCCESS ? req_add(req, 2, dt, 0) : -1; coll_rec(name, comm, root, count, dt, id_, 0, NULL); \
+    GUARD; int rc = call; int id_ = rc == MPI_SUCCESS ? req_add(req, 2, dt, 0, NULL) : -1; coll_rec(name, comm, root, count, dt, id_, 0, NULL); \
     if (id_ >= 0) GUARD_COLL(id_, #NAME, gc); \
     return rc;
 /* the payload of a fixed-size collective: D is the cdata, built from me and np */
@@ -2314,13 +2394,13 @@ int MPI_Isendrecv_replace(void *buf, int n, MPI_Datatype dt, int dst, int stag, 
 int MPI_Psend_init(const void *buf, int parts, MPI_Count n, MPI_Datatype dt, int dst, int tag, MPI_Comm comm, MPI_Info info, MPI_Request *req) {
     GUARD; unmodelled("Psend_init");
     int rc = PMPI_Psend_init(buf, parts, n, dt, dst, tag, comm, info, req);
-    if (rc == MPI_SUCCESS && g_guard && dst != MPI_PROC_NULL) { req_add(req, 4, dt, 1); part_add(*req, buf, parts, n, dt, 0); }
+    if (rc == MPI_SUCCESS && g_guard && dst != MPI_PROC_NULL) { req_add(req, 4, dt, 1, NULL); part_add(*req, buf, parts, n, dt, 0); }
     return rc;
 }
 int MPI_Precv_init(void *buf, int parts, MPI_Count n, MPI_Datatype dt, int src, int tag, MPI_Comm comm, MPI_Info info, MPI_Request *req) {
     GUARD; unmodelled("Precv_init");
     int rc = PMPI_Precv_init(buf, parts, n, dt, src, tag, comm, info, req);
-    if (rc == MPI_SUCCESS && g_guard && src != MPI_PROC_NULL) { req_add(req, 4, dt, 1); part_add(*req, buf, parts, n, dt, 1); }
+    if (rc == MPI_SUCCESS && g_guard && src != MPI_PROC_NULL) { req_add(req, 4, dt, 1, NULL); part_add(*req, buf, parts, n, dt, 1); }
     return rc;
 }
 /* partitions [lo, hi) of a partitioned send (or those in list) become MPI's */
@@ -2454,7 +2534,7 @@ int MPI_Win_create_c(void *base, MPI_Aint size, MPI_Aint disp_unit, MPI_Info inf
 typedef struct { MPI_Request req; MPI_Comm parent; MPI_Comm *out; } idupent;
 static idupent *g_idups = NULL; static int g_nidups = 0, g_capidups = 0;
 static int idup_start(MPI_Comm c, MPI_Comm *n, MPI_Request *req) {
-    int id = req_add(req, 3, MPI_DATATYPE_NULL, 0);
+    int id = req_add(req, 3, MPI_DATATYPE_NULL, 0, NULL);
     pthread_mutex_lock(&g_mu);
     if (g_nidups == g_capidups) { g_capidups = g_capidups ? g_capidups * 2 : 4; g_idups = xrealloc(g_idups, sizeof *g_idups * g_capidups); }
     g_idups[g_nidups++] = (idupent){*req, c, n};

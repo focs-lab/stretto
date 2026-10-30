@@ -86,6 +86,11 @@ class Send:
     proc: Optional[int] = None       # the process (world rank); rank is the chain (docs/threads.md)
     iseq: Optional[int] = None       # the order in which MPI saw the send, when the tracer numbered it
     reserved_fn: Optional[object] = None   # several chains: can a receive still take it after its Mprobe
+    sum: Optional[str] = None        # checksum of the message when the call returned (STRETTO_SUMS)
+    sumc: Optional[str] = None       # checksum of its buffer at the completion of a nonblocking send
+    buf: Optional[Tuple[int, int]] = None   # the addresses of its message's first byte and the byte after its last (STRETTO_BUFS)
+    dense: bool = False              # every byte of buf is the message's
+    complete_chain: Optional[int] = None   # the chain of its completion, when another than its own completed it
 
     def __post_init__(self):
         if self.proc is None:
@@ -151,6 +156,10 @@ class Recv:
     proc: Optional[int] = None       # the process (world rank); rank is the chain (docs/threads.md)
     iseq: Optional[int] = None       # the order in which MPI saw the posting, when the tracer numbered it
     cancel_idx: Optional[int] = None  # the record of the first MPI_Cancel of its request (see Trace.withdrawn)
+    sum: Optional[str] = None        # checksum of the bytes it received (STRETTO_SUMS)
+    buf: Optional[Tuple[int, int]] = None   # the address range of its buffer, as a send's (STRETTO_BUFS)
+    dense: bool = False
+    complete_chain: Optional[int] = None
 
     def __post_init__(self):
         if self.proc is None:
@@ -727,7 +736,8 @@ def _build(t: Trace, raw_ranks: Dict[int, List[dict]]) -> None:
                 ch = rec.rank
                 s = Send((ch, nsend.get(ch, 0)), ch, rec.idx, world(rank, raw["comm"], raw["dst"]), raw["tag"], comm,
                          raw["count"], raw["tsize"], not nb, mode, raw.get("req"), tsig=raw.get("tsig"),
-                         data=raw.get("data"), proc=rank, iseq=raw.get("iseq"))
+                         data=raw.get("data"), proc=rank, iseq=raw.get("iseq"), sum=raw.get("sum"),
+                         buf=tuple(raw["buf"]) if raw.get("buf") else None, dense=bool(raw.get("dense")))
                 nsend[ch] = nsend.get(ch, 0) + 1
                 if blocked:
                     s.completed = False
@@ -745,13 +755,14 @@ def _build(t: Trace, raw_ranks: Dict[int, List[dict]]) -> None:
                 r = Recv((ch, nrecv.get(ch, 0)), ch, rec.idx, world(rank, raw["comm"], src_of(raw)), tag_of(raw), comm,
                          raw["count"], raw["tsize"], not nb, raw.get("req"),
                          widx=raw.get("widx"), tsig=raw.get("tsig"), mrecv=bool(raw.get("mrecv")),
-                         proc=rank, iseq=raw.get("iseq"))
+                         proc=rank, iseq=raw.get("iseq"), buf=tuple(raw["buf"]) if raw.get("buf") else None,
+                         dense=bool(raw.get("dense")))
                 nrecv[ch] = nrecv.get(ch, 0) + 1
                 if blocked:
                     r.completed = False
                 elif not nb:
                     r.msrc = world(rank, raw["comm"], raw.get("msrc"))
-                    r.mtag, r.mcount = raw.get("mtag"), raw.get("mcount")
+                    r.mtag, r.mcount, r.sum = raw.get("mtag"), raw.get("mcount"), raw.get("sum")
                     r.cancelled = bool(raw.get("cancelled"))
                     if r.msrc is None or r.cancelled:
                         r.completed = r.completed and not r.cancelled
@@ -788,12 +799,16 @@ def _build(t: Trace, raw_ranks: Dict[int, List[dict]]) -> None:
                         t.thread_limits.append(("threads-handoff", f"rank {rank}: a request of chain {obj.rank} "
                                                 f"completed by chain {st['chain'] if st is not None else rec.rank}"))
                     obj.complete_idx = rec.idx if st is None else st["idx"]
+                    if (st["chain"] if st is not None else rec.rank) != obj.rank:
+                        obj.complete_chain = st["chain"] if st is not None else rec.rank
                     obj.completed = True
+                    if isinstance(obj, Send):
+                        obj.sumc = d.get("sumc")
                     if isinstance(obj, Send) and "cancelled" in d:
                         obj.cancelled = bool(d["cancelled"])       # the completion status is authoritative
                     if isinstance(obj, Recv):
                         obj.msrc = worldg(obj.comm, d.get("msrc"), rank)
-                        obj.mtag, obj.mcount = d.get("mtag"), d.get("mcount")
+                        obj.mtag, obj.mcount, obj.sum = d.get("mtag"), d.get("mcount"), d.get("sum")
                         obj.cancelled = bool(d.get("cancelled"))
                         if obj.msrc is None or obj.cancelled:
                             obj.completed = False
