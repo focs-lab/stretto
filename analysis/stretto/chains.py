@@ -21,7 +21,7 @@ from bisect import bisect_left, bisect_right
 from typing import Dict, List, Optional, Tuple
 
 # side records of the tracer's thread support: no calls of the program
-THREAD_SIDE = ("chain", "task", "overlap", "unordered")
+THREAD_SIDE = ("chain", "task", "overlap", "unordered", "locks")
 
 
 class Chain(int):
@@ -61,6 +61,9 @@ class HB:
         # release on A and the acquire on B (trace entries of four elements), to order the
         # synchronisation points between two records of a chain
         self.kinfo: Dict[Tuple[int, int, int, int], Tuple[int, int]] = {}
+        # the same, every pair: the hard happens-before (stretto.locks) keeps for one edge the earlier
+        # points of the gap with their own ordinals
+        self.kall: Dict[Tuple[int, int, int, int], List[Tuple[int, int]]] = {}
 
     def last_before(self, b_chain: int, b_idx: int, a_chain: int) -> int:
         if a_chain == b_chain:
@@ -161,43 +164,163 @@ def split(t, folded: Dict[int, List[dict]], make_rec) -> Dict[int, list]:
                 seqs[ch].append(seqs[ch][-1] if seqs[ch] else -1)
         proc_recs[rank] = out
         # happens-before from the deltas
-        hb = t.hb
-        for ch in cmap.values():
-            vc: Dict[int, int] = {}
-            lastk: Dict[int, int] = {}       # per predecessor chain, the ordinal of its latest release seen
-            rows: Dict[int, array] = {}
-            n = len(t.ranks[ch])
-            for rec in t.ranks[ch]:
-                for entry in rec.raw.get("after", ()) or ():
-                    try:
-                        c, q = int(entry[0]), int(entry[1])
-                        k = (int(entry[2]), int(entry[3])) if len(entry) >= 4 else None
-                    except (TypeError, ValueError, IndexError):
-                        continue
-                    a = cmap.get(c)
-                    if a is None or a == ch:
-                        continue
-                    ia = bisect_right(seqs[a], q) - 1
-                    later_k = k is not None and ia == vc.get(a, -1) and k[0] > lastk.get(a, -1)
-                    if ia < 0 or (ia <= vc.get(a, -1) and not later_k):
-                        continue                 # nothing new (a later synchronisation point in the same gap is new)
-                    vc[a] = ia
-                    if a not in rows:
-                        rows[a] = array("i", [-1]) * n
-                    hb.edges.append((a, ia, ch, rec.idx))
-                    if k is not None:
-                        hb.kinfo[(a, ia, ch, rec.idx)] = k
-                        lastk[a] = k[0]
-                    hb.out.setdefault(a, []).append((ia, ch, rec.idx))
-                for a, row in rows.items():
-                    row[rec.idx] = vc[a]
-            for a, row in rows.items():
-                hb.pos[(ch, a)] = row
-        for a in list(hb.out):
-            hb.out[a].sort()
+        _clocks(t.hb, t, cmap, seqs, lambda raw: raw.get("after", ()))
+        if init.get("lockorder"):
+            # the hard happens-before: hafter where a record has it (stretto.trace folds a begin's)
+            if t.hb_hard is None:
+                t.hb_hard = HB()
+            why = _critical_sections(t, rank, cmap, side)
+            if why is None:
+                _clocks(t.hb_hard, t, cmap, seqs, lambda raw: raw.get("hafter", raw.get("after", ())))
+            else:
+                t.lock_limits.append((rank, why))
+                t.locks.pop(rank, None)
+                _clocks(t.hb_hard, t, cmap, seqs, lambda raw: raw.get("after", ()))
+    for hb in (t.hb, t.hb_hard):
+        if hb is not None:
+            for a in list(hb.out):
+                hb.out[a].sort()
     for rank in proc_recs:
         t.proc.setdefault(rank, rank)
     return proc_recs
+
+
+def _clocks(hb: HB, t, cmap: Dict[int, int], seqs: Dict[int, List[int]], entries) -> None:
+    """Add the happens-before of one split rank to hb, from the deltas entries(raw) of each of
+    its records."""
+    for ch in cmap.values():
+        vc: Dict[int, int] = {}
+        lastk: Dict[int, int] = {}       # per predecessor chain, the ordinal of its latest release seen
+        rows: Dict[int, array] = {}
+        n = len(t.ranks[ch])
+        for rec in t.ranks[ch]:
+            for entry in entries(rec.raw) or ():
+                try:
+                    c, q = int(entry[0]), int(entry[1])
+                    k = (int(entry[2]), int(entry[3])) if len(entry) >= 4 else None
+                except (TypeError, ValueError, IndexError):
+                    continue
+                a = cmap.get(c)
+                if a is None or a == ch:
+                    continue
+                ia = bisect_right(seqs[a], q) - 1
+                later_k = k is not None and ia == vc.get(a, -1) and k[0] > lastk.get(a, -1)
+                if ia < 0 or (ia <= vc.get(a, -1) and not later_k):
+                    continue                 # nothing new (a later synchronisation point in the same gap is new)
+                vc[a] = ia
+                if a not in rows:
+                    rows[a] = array("i", [-1]) * n
+                key = (a, ia, ch, rec.idx)
+                if key not in hb.kall:
+                    hb.edges.append(key)
+                    hb.out.setdefault(a, []).append((ia, ch, rec.idx))
+                    hb.kall[key] = []
+                if k is not None:
+                    hb.kinfo[key] = k
+                    hb.kall[key].append(k)
+                    lastk[a] = k[0]
+            for a, row in rows.items():
+                row[rec.idx] = vc[a]
+        for a, row in rows.items():
+            hb.pos[(ch, a)] = row
+
+
+class CS:
+    """A critical section of a mutual-exclusion lock of one process (docs/threads.md, section
+    13): the n-th entered of lock lid, on chain. Its acquire and its release lie in gaps of the
+    chain (acq, rel: the index of the chain's record before it, -1 for its start), at ordinals
+    ka and kr among the chain's synchronisation operations. soft: the edge from critical section
+    n-1 is not in the hard happens-before (both contain a record of their chain); empty: the
+    section contains no record (acquire and release in one gap)."""
+    __slots__ = ("proc", "lid", "n", "chain", "acq", "ka", "rel", "kr", "soft")
+
+    def __init__(self, proc: int, lid: int, n: int):
+        self.proc, self.lid, self.n = proc, lid, n
+        self.chain = self.acq = self.ka = self.rel = self.kr = None
+        self.soft = False
+
+    @property
+    def empty(self) -> bool:
+        return self.rel == self.acq
+
+    def __repr__(self) -> str:
+        return f"cs{self.lid}.{self.n}@{self.chain}[{self.acq}:{self.ka}..{self.rel}:{self.kr}]{'s' if self.soft else ''}"
+
+
+def _critical_sections(t, rank: int, cmap: Dict[int, int], side: List[dict]) -> Optional[str]:
+    """Read the lock events of a split rank into t.locks[rank] (the locks with a soft edge);
+    the reason the rank's lock order must be kept instead (its hard happens-before is then the
+    full one), or None. A rank without a soft edge keeps nothing and loses nothing."""
+    by: Dict[int, Dict[int, CS]] = {}
+    bad: Dict[int, str] = {}             # per lock, what makes its critical sections unknown
+    limits: List[str] = []               # what makes the rank's lock order unknown
+
+    def event(ch: int, gap: int, ev) -> None:
+        try:
+            lid, n, k, typ = (int(x) for x in ev[:4])
+        except (TypeError, ValueError):
+            limits.append("a malformed lock event")
+            return
+        if lid == -2:
+            limits.append("a thread synchronised with others after a lock operation and before its first record, "
+                          "where the tracer records no edge from it")
+            return
+        if lid < 0:
+            limits.append("a thread made more lock operations between two records than the tracer keeps")
+            return
+        cs = by.setdefault(lid, {}).setdefault(n, CS(rank, lid, n))
+        if typ == 2:
+            if cs.rel is not None or (cs.chain is not None and cs.chain != ch):
+                bad.setdefault(lid, f"lock {lid}: critical section {n} released twice or by another thread")
+            cs.chain, cs.rel, cs.kr = ch, gap, k
+        else:
+            if cs.acq is not None or (cs.chain is not None and cs.chain != ch):
+                bad.setdefault(lid, f"lock {lid}: critical section {n} entered twice or by another thread")
+            cs.chain, cs.acq, cs.ka, cs.soft = ch, gap, k, typ == 1
+
+    for tid, ch in cmap.items():
+        for rec in t.ranks[ch]:
+            for ev in rec.raw.get("locks", ()) or ():
+                event(ch, rec.idx - 1, ev)
+    for r in side:
+        if r.get("op") == "locks":
+            ch = cmap.get(r.get("tid") or 0)
+            if ch is None:
+                limits.append("lock events of a thread without records")
+                continue
+            for ev in r.get("locks", ()) or ():
+                event(ch, len(t.ranks[ch]) - 1, ev)
+    out: Dict[int, list] = {}
+    for lid, css in by.items():
+        if not any(cs.soft for cs in css.values()):
+            continue                         # every edge of the lock is in the hard happens-before
+        if lid in bad:
+            return bad[lid]
+        n = max(css)
+        for i in range(1, n + 1):
+            cs = css.get(i)
+            if cs is None or cs.acq is None or cs.rel is None:
+                return (f"lock {lid}: critical section {i} is not recorded in full (a thread without records "
+                        "took the lock, or it was still held at the end of the trace)")
+            if (cs.rel, cs.kr) < (cs.acq, cs.ka):
+                return f"lock {lid}: critical section {i} is released before it is entered"
+            prev = css.get(i - 1)
+            if prev is not None and prev.chain == cs.chain and (cs.acq, cs.ka) < (prev.rel, prev.kr):
+                return f"lock {lid}: critical sections {i - 1} and {i} are nested (a recursive lock)"
+        lst = [css[i] for i in range(1, n + 1)]
+        # a critical section its chain enters right after leaving an empty one of the same lock (no
+        # record between: a loop that polls lock-protected state until another thread changes it)
+        # keeps its edge: what it does may depend on what it read (stretto.locks orders it)
+        empty_at = {(cs.chain, cs.acq) for cs in lst if cs.empty}
+        for cs in lst:
+            if cs.soft and (cs.chain, cs.acq) in empty_at:
+                cs.soft = False
+        out[lid] = lst
+    if out and limits:
+        return limits[0]
+    if out:
+        t.locks[rank] = out
+    return None
 
 
 def physical_key(t, x) -> Tuple[int, int]:

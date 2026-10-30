@@ -250,6 +250,7 @@ class Coll:
     din: Optional[str] = None    # what this rank contributed, packed, in hexadecimal (STRETTO_PAYLOAD)
     dout: Optional[str] = None   # what it received
     proc: Optional[int] = None   # the process (world rank), the member; rank is the chain (docs/threads.md)
+    sig: Optional[tuple] = None   # (count, type size, type signature) of the call, as recorded
 
     def __post_init__(self):
         if self.proc is None:
@@ -302,6 +303,13 @@ class Trace:
     chain_name: Dict[int, str] = field(default_factory=dict)
     chain_info: Dict[Tuple[int, int], dict] = field(default_factory=dict)
     hb: object = None
+    # lock reordering (docs/threads.md, section 13): hb_hard is the happens-before without the
+    # edges between critical sections that both contain a record (chains.HB, the full one on a
+    # process whose lock order is not known), locks per rank and lock id its critical sections
+    # (chains.CS) where some edge is left out, lock_limits (rank, why) where the order is kept
+    hb_hard: object = None
+    locks: Dict[int, Dict[int, list]] = field(default_factory=dict)
+    lock_limits: List[Tuple[int, str]] = field(default_factory=list)
     fpos: Dict[Tuple[int, int], int] = field(default_factory=dict)   # (chain, idx) -> place in its rank's file
     issue_order: bool = False        # the tracer numbered the postings (MPI_THREAD_MULTIPLE)
     thread_limits: List[Tuple[str, str]] = field(default_factory=list)   # (reason, detail): what chains cannot be analysed
@@ -629,9 +637,14 @@ def _fold_begins(raw: List[dict]) -> List[dict]:
             continue
         nxt = following[i]
         if nxt is not None and nxt.get("op") == r.get("call") and nxt.get("op") != "begin":
+            if "hafter" in r or "hafter" in nxt:
+                # the hard happens-before is the full one where a record has no hafter
+                nxt["hafter"] = list(r.get("hafter", r.get("after", ()))) + list(nxt.get("hafter", nxt.get("after", ())))
             if "after" in r:
                 # the begin's happens-before predecessors are the call's (stretto.chains)
                 nxt["after"] = list(r["after"]) + list(nxt.get("after", ()))
+            if "locks" in r:
+                nxt["locks"] = list(r["locks"]) + list(nxt.get("locks", ()))
             continue
         b = dict(r)
         b["op"] = "blocked"
@@ -858,6 +871,7 @@ def _build(t: Trace, raw_ranks: Dict[int, List[dict]]) -> None:
                 root = raw.get("root")
                 root = None if root is None or root < 0 else world(rank, raw["comm"], root)
                 c = Coll(rec.rank, rec.idx, raw["name"], comm, k, root, raw.get("req"), din=raw.get("din"), dout=raw.get("dout"),
+                         sig=(raw.get("count"), raw.get("tsize"), raw.get("tsig")),
                          proc=rank)
                 if blocked:
                     c.completed = False
