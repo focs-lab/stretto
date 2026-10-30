@@ -1,0 +1,23 @@
+--- a/include/dlaf/matrix/copy.h
++++ b/include/dlaf/matrix/copy.h
+@@ -215,13 +215,13 @@
+   auto tag = [dist = src_retiled.distribution()](GlobalTileIndex ij) -> comm::IndexT_MPI {
+     // Note:
+     // Source distribution is used as reference for both sending and receiving side.
+-    // The tag is computed as a function of local tile index, in order to keep its value as small as
+-    // possible. Moreover, since the local size of the matrix might change on different ranks, linear
+-    // local tile index is computed using a rank-independent ld.
+-    const auto size = dist.commGridSize();
+-    const LocalTileIndex source_ij_lc{ij.row() / size.rows(), ij.col() / size.cols()};
+-    const SizeType ld = dlaf::util::ceilDiv(dist.nrTiles().rows(), to_SizeType(size.rows()));
+-    return to_int(ij.row() + ij.col() * ld);
++    // All the sends and receives are posted at once, in the order in which their tiles become
++    // ready, so two tiles exchanged between the same two ranks must not share a tag. The global
++    // linear tile index is unique. (The row index plus the column index times the local leading
++    // dimension, ceilDiv(nrTiles().rows(), grid rows), used before, repeats when the grid has more
++    // than one row: tiles (i + ld, j) and (i, j + 1) got the same tag, and with a suitable grid
++    // and distributions they are sent between the same two ranks.)
++    return to_int(ij.row() + ij.col() * dist.nrTiles().rows());
+   };
+
+   for (const LocalTileIndex ij_lc : common::iterate_range2d(src_retiled.distribution().localNrTiles())) {
