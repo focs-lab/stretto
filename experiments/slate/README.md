@@ -122,7 +122,10 @@ control. Those handoffs are a tracer defect (below), not SLATE's: `permuteRows` 
 request in the task that posted it. 4 wrong 2x2 traces have an observed `2-buffering` (the
 observed matching judged infeasible; one of the 5 earlier 2x2 traces) and fewer L1 findings (1
 to 22); in another such trace, of a diagnostic run, the cycle runs through four tasks on ranks 2
-and 3 that exchange rows (35 200 bytes, tags 21 and 23) with each other. Not diagnosed.
+and 3 that exchange rows (35 200 bytes, tags 21 and 23) with each other. Diagnosed later that
+day: a defect of the analysis's reduced orientation edges, which gave a task's send the place of
+its namesake receive in the run (docs/threads.md section 15.2); fixed, and with it such traces
+report 41 to 70 L1 findings (remeasurement below).
 
 Before these changes (the tracer and analysis of 30 Oct morning, CPUs 8-15,48-55) the same cells
 gave: 2x2 plain 4 wrong and 1 aborted, findings in 4 of 5 (4 to 86); 4x1 plain 3 wrong and 2
@@ -136,6 +139,31 @@ right run ([replay.csv](replay.csv), 3 replays, 3 controls): not confirmed; one 
 `MPI_ERR_TRUNCATE` with its pins unmatched and its synchronisation diverged, two at a gate
 timeout, and every control gave a wrong factor on its own. The tasks take locks
 (`LockGuard` on tile nodes, `critical(slate_mpi)`) whose order varies between runs.
+
+**Remeasured on 16 processors with milestone F** (docs/threads.md section 15: the request-handle
+fix of the tracer, the orientation fix of the analysis, hand-offs modelled; branch on main
+ba9e3c8; CPUs 10-17,50-57 of a-p13, so 16 threads on 16 processors as in the series that had
+right factors; [traced-cells-16.csv](traced-cells-16.csv)). `traced_cells.sh` with its default
+cells, 5 runs each, then 10 more plain runs of each wide cell and 12 more of 4x1 (those analysed
+four at a time, `EVERY=4`):
+
+| cell (4 ranks, 4 threads, nb 100) | runs (factor) | traces with findings | L1 findings per trace | L1+L | in `permuteRows` |
+|---|---|---|---|---|---|
+| 1000x2000, 2x2, plain (15 runs) | 14 wrong, 1 right | 15 of 15 | 36 to 79 (1a in 5) | 0 | all |
+| 1000x2000, 4x1, plain (27 runs) | 20 wrong, 6 right, 1 aborted | 27 of 27 | 15 to 109 (1a in 2) | 0 | all but one of the aborted run's 15 |
+| 1000x2000, 2x2 and 4x1, patched | 10 right | 0 of 10 | 0 | 0 | |
+| 1000x1000 (square), 900x2000, partial pivoting, plain | 15 right | 0 of 15 | 0 | 0 | |
+
+Every trace is analysed completely: none is degraded (`threads-handoff` and `reconstruction`
+before) and none has an observed `2-buffering`. *Runs whose factor came out right:* 7 of 42 plain
+wide runs (1 of 15 on 2x2, 6 of 27 on 4x1; the target was 10, not reached in this session), and
+all 7 traces predict the race at L1: 36 (2x2, two of them 1a), 46, 56 (one 1a), 108, 59, 40 and
+85 (4x1) concurrent swaps or steals, every one at a receive in `permuteRows`. So Stretto predicts
+the collision, and its truncation, from runs in which it did not happen. The share of right
+factors remains low on this host (1 in 15 on 2x2; untraced the series gives 0 of 40 on 2x2 and
+12 of 40 on 4x1); whether the load or the tracer's lock events decide it is a guess, not checked.
+Not done: a lock-gated replay of a right-factor trace (section 14), which needs traces recorded
+with `STRETTO_SYNC_ORDER=1` (`replay.sh`) and, at these rates, about seven runs per right one.
 
 **Replays in the trace's lock order** (milestone E, [docs/threads.md](../../docs/threads.md)
 section 14; `replay.sh`; tracer and analysis of main 5fdd932). The traced runs record their lock
@@ -238,17 +266,23 @@ is the defect's (two tasks, each named as completing the other's request).
   named `u` of kind `pthread` (untracked): libgomp runs deferred tasks in the region's closing
   barrier, after the outlined function has returned and the tracer's `omp_tramp` has restored
   the pool thread's chain. Each task now runs on a chain of its own, `0~k`.
-- **Defect, open: request handles reused across threads.** In a degraded square control of 30 Oct
-  (`threads-handoff`, "a request of chain 1.10 completed by chain 1.11") task 10 posts an
-  `MPI_Isend` (request id 24) and enters `MPI_Waitall` on it; task 11 then posts an `MPI_Isend`
-  (id 27) and its `MPI_Waitall` is recorded as completing id 24, and task 10's wait ends with an
-  unknown request (`null`). Open MPI completed and freed task 10's request inside its wait and
-  gave the same handle to task 11 before the tracer's wrapper in task 10 had dropped its entry;
-  `req_find_locked` (`tracer/mpitrace.c`), finding no entry for that handle with task 11's slot,
-  returns the oldest one with the handle, task 10's. The mechanism is read from the records and
-  the code, not checked in a debugger. 1 of 5 diagnostic square runs shows it; 2 of the 35
-  traces of the cells were degraded with the same pattern (two chains, each named as completing
-  the other's request; their traces were deleted before this was read).
+- **Defect, fixed 30 Oct (milestone F, docs/threads.md section 15.1): request handles reused
+  across threads.** A diagnostic build of the tracer confirmed the reading below: in 6 of 10
+  traced square runs (16 processors) a task's `Isend` got a handle another task's pending entry
+  still held, freed inside that task's `MPI_Waitall`; the age rule picked the wrong entry when
+  the newer task completed first. The tracer now keeps each entry with the task that posted it
+  and claims the entries of a completion call before it calls MPI. Before the fix: in a
+  degraded square control of 30 Oct (`threads-handoff`, "a request of chain 1.10 completed by
+  chain 1.11") task 10 posts an `MPI_Isend` (request id 24) and enters `MPI_Waitall` on it;
+  task 11 then posts an `MPI_Isend` (id 27) and its `MPI_Waitall` is recorded as completing id
+  24, and task 10's wait ends with an unknown request (`null`). Open MPI completed and freed task
+  10's request inside its wait and gave the same handle to task 11 before the tracer's wrapper
+  in task 10 had dropped its entry; `req_find_locked` (`tracer/mpitrace.c`), finding no entry
+  for that handle with task 11's slot, returned the oldest one with the handle, task 10's. The
+  mechanism was read from the records and the code, and the diagnostic build above confirmed
+  it. 1 of 5 diagnostic square runs showed it; 2 of the 35 traces of the cells were degraded
+  with the same pattern (two chains, each named as completing the other's request; their traces
+  were deleted before this was read).
 
 ## Files
 
@@ -259,4 +293,5 @@ oracle), `series.sh`, `traced.sh`, `traced_cells.sh` (traced cells with Stretto'
 (call sites by gdb's `info symbol`), `typefree.c`, `tntpiv-tags.patch` (against 878439b, `git
 apply` or `patch -p1`);
 `replay.sh` (replays in the lock order); results: `series*.csv`, `traced.csv`, `traced-cells.csv`,
-`sweep.csv`, `sweep-d.csv`, `replay.csv`, `traced-e.csv`, `replay-e.csv`, `replay-1a.csv`.
+`traced-cells-16.csv`, `sweep.csv`, `sweep-d.csv`, `replay.csv`, `traced-e.csv`, `replay-e.csv`,
+`replay-1a.csv`.

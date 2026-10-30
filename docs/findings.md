@@ -266,6 +266,11 @@ in `permuteRows` but one at the colliding tile broadcast's receive (1a in 5 trac
 sweep. No traced run of the remeasurement had a right factor (16 wrong, 2 aborted); before it,
 17 of 18 plain traces had findings (4 to 105), 10 of them from runs whose factor came out right
 (37 to 90 each), so the prediction from runs without the error rests on the earlier traces.
+Remeasured again with milestone F's fixes on 16 processors (30 Oct, `traced-cells-16.csv`): all
+42 plain wide traces (15 on 2x2, 27 on 4x1) are analysed completely and report 15 to 109
+concurrent swaps and steals at `permuteRows` receives (1a in 7), none degraded, none with an
+observed 2-buffering; 7 of these runs had a right factor (1 on 2x2, 6 on 4x1) and each of their
+traces predicts the race (36 to 108 alternatives); 0 findings in 25 patched and control traces.
 Replayed in the trace's lock order with 8 threads (§14): 15 of 18 replays of six 1f alternatives
 took their pins, with a control reproducing the run in 11, but the traced runs of that session
 all had the race already, so no consequence tells them apart; two 1a alternatives stopped at a

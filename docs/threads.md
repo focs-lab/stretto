@@ -1505,3 +1505,10 @@ the fast checks and read bounds are single-chain only, as before.
   fix changes no report of these traces.
 - *Unit tests* (RUNBOOK tests step, `STRETTO_REQUIRE_TRACES=1`, idioms of both MPIs traced
   first): 572 run, 17 skipped, all pass, in the experiment image and in the SLATE image.
+- *SLATE 878439b, wide CALU, on 16 processors* ([experiments/slate](../experiments/slate/README.md),
+  `traced-cells-16.csv`): 42 plain wide traced runs (15 on 2x2, 27 on 4x1), every trace analysed
+  completely with 15 to 109 L1 swaps or steals at `permuteRows` receives (1a in 7), none
+  degraded, none with an observed 2-buffering; 7 runs had a right factor (1 on 2x2, 6 on 4x1)
+  and each of their traces predicts the race (36 to 108); 0 findings in 10 patched and 15 control
+  traces. The target of 10 right-factor runs was not reached (right factors are rare on this
+  host: 1 in 15 on 2x2).
