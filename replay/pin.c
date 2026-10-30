@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <unistd.h>
 
 #define HIDDEN __attribute__((visibility("hidden")))
 
@@ -210,7 +211,7 @@ HIDDEN void stretto_pin_init(int rank) {
     const char *what = "replay library";
 #else
     int announce = getenv("STRETTO_PIN") || getenv("STRETTO_PIN_PROBE") || getenv("STRETTO_PIN_FLIP") || getenv("STRETTO_SEND_DELAY_MS")
-                   || getenv("STRETTO_PIN_CHAIN") || getenv("STRETTO_PIN_ORDER")
+                   || getenv("STRETTO_PIN_CHAIN") || getenv("STRETTO_PIN_ORDER") || getenv("STRETTO_PIN_LOCK")
                    || getenv("STRETTO_RECV_DELAY_MS") || getenv("STRETTO_DELAY_AT");
     const char *what = "tracer";
 #endif
@@ -588,9 +589,239 @@ static int by_waiter(const void *a, const void *b) {
 }
 static int kind_of(char c) { return c == 'r' ? 0 : c == 's' ? 1 : c == 'p' ? 2 : -1; }
 
+/* A run of several threads ends at its first gate that times out or pin that falls on another
+   operation: the first thread to get there aborts, and the others wait for the abort, since two
+   threads in MPI_Abort at once can crash Open MPI's error reporting. */
+static void threads_abort(int code) {
+    static int aborting = 0;
+    if (__atomic_exchange_n(&aborting, 1, __ATOMIC_ACQ_REL))
+        for (;;) pause();
+    PMPI_Abort(MPI_COMM_WORLD, code);
+}
 static void bad_token(const char *name, const char *tok) {
     fprintf(stderr, "[stretto-pin] rank %d: %s: token '%s' does not parse\n", g_rank, name, tok);
     PMPI_Abort(MPI_COMM_WORLD, 3);
+}
+
+
+/* ---- lock gates (STRETTO_PIN_LOCK; docs/threads.md, section 14). The tracer numbers each
+   chain's attempts to take a lock (its sync log's ordinals) and asks before each one
+   (stretto_pin_lock) and after it (stretto_pin_locked). An attempt a token names waits until
+   the attempt before it in the token has taken the lock; one no token names waits, if its lock
+   is one a token names, until all of that lock's listed acquisitions have happened. */
+struct lacq { int chain; long n; int lock, pos, pchain; long pn; char flag; };
+struct lseq { int len, done; const void *addr; };
+static struct lacq *g_lacq = NULL;           /* by (chain, n) */
+static int g_nlacq = 0;
+static struct lseq *g_lseq = NULL;
+static int g_nlseq = 0;
+static char (*g_lname)[CHAIN_NAME] = NULL;   /* the chains the tokens name */
+static long *g_ldone = NULL;                 /* per such chain: attempts finished (the latest ordinal + 1) */
+static int g_nlname = 0, g_caplname = 0;
+static struct { const void *addr; int lock; } *g_laddr = NULL;   /* address -> lock, open addressing */
+static int g_laddr_cap = 0;
+static int g_locks_on = 0, g_nwaiting = 0;
+
+static int lname_find(const char *name) {
+    for (int i = 0; i < g_nlname; i++) if (strcmp(g_lname[i], name) == 0) return i;
+    return -1;
+}
+static int lname_add(const char *name) {
+    static int last = -1;
+    if (last >= 0 && strcmp(g_lname[last], name) == 0) return last;
+    int i = lname_find(name);
+    if (i < 0) {
+        if (g_nlname == g_caplname) {
+            g_caplname = g_caplname ? 2 * g_caplname : 64;
+            g_lname = realloc(g_lname, sizeof *g_lname * g_caplname);
+            g_ldone = realloc(g_ldone, sizeof *g_ldone * g_caplname);
+        }
+        i = g_nlname++;
+        snprintf(g_lname[i], CHAIN_NAME, "%s", name);
+        g_ldone[i] = 0;
+    }
+    return last = i;
+}
+/* the calling thread's chain among them (-1: none), cached per thread by the name's address */
+static int lname_cur(void) {
+    static __thread const char *t_name = NULL;
+    static __thread int t_idx = -1;
+    const char *name = stretto_chain_name();
+    if (!name) return -1;
+    if (name != t_name || t_idx < 0 || strcmp(g_lname[t_idx], name) != 0) {
+        t_name = name;
+        t_idx = lname_find(name);
+        if (t_idx < 0) { t_name = NULL; return -1; }
+    }
+    return t_idx;
+}
+static int by_lacq(const void *a, const void *b) {
+    const struct lacq *x = a, *y = b;
+    return x->chain != y->chain ? (x->chain < y->chain ? -1 : 1) : x->n < y->n ? -1 : x->n > y->n;
+}
+static struct lacq *lacq_find(int chain, long n) {
+    int lo = 0, hi = g_nlacq;
+    while (lo < hi) {
+        int mid = (lo + hi) / 2;
+        if (g_lacq[mid].chain < chain || (g_lacq[mid].chain == chain && g_lacq[mid].n < n)) lo = mid + 1; else hi = mid;
+    }
+    return lo < g_nlacq && g_lacq[lo].chain == chain && g_lacq[lo].n == n ? &g_lacq[lo] : NULL;
+}
+static size_t laddr_slot(const void *addr) {
+    size_t i = ((uintptr_t)addr >> 3) & (g_laddr_cap - 1);
+    while (g_laddr[i].addr && g_laddr[i].addr != addr) i = (i + 1) & (g_laddr_cap - 1);
+    return i;
+}
+
+/* "name#n", "name#nt" or "name#n!" at s: the chain, the ordinal and the flag */
+static int parse_lacq(char *s, struct lacq *a) {
+    char *hash = strrchr(s, '#'), *end = NULL;
+    if (!hash || hash == s) return 0;
+    *hash = '\0';
+    a->n = strtol(hash + 1, &end, 10);
+    if (end == hash + 1 || (*end && ((*end != 't' && *end != '!') || end[1]))) return 0;
+    a->flag = *end;
+    a->chain = lname_add(s);
+    return 1;
+}
+static void locks_init(int rank) {
+    char *spec = pin_spec("STRETTO_PIN_LOCK", rank), *save = NULL;
+    int cap = 0;
+    g_nlacq = g_nlseq = 0;
+    for (char *tok = spec ? strtok_r(spec, ", \n", &save) : NULL; tok; tok = strtok_r(NULL, ", \n", &save)) {
+        char *colon = strchr(tok, ':');
+        if (!colon) bad_token("STRETTO_PIN_LOCK", tok);
+        if (atoi(tok) != rank) continue;
+        int lock = g_nlseq++, pos = 0;
+        g_lseq = realloc(g_lseq, sizeof *g_lseq * g_nlseq);
+        memset(&g_lseq[lock], 0, sizeof g_lseq[lock]);
+        char *s2 = NULL;
+        for (char *seg = strtok_r(colon + 1, ">", &s2); seg; seg = strtok_r(NULL, ">", &s2), pos++) {
+            struct lacq a;
+            memset(&a, 0, sizeof a);
+            if (!parse_lacq(seg, &a) || (a.flag == '!' && pos > 0)) bad_token("STRETTO_PIN_LOCK", seg);
+            a.lock = a.flag == '!' ? -1 : lock;
+            a.pos = pos;
+            a.pchain = pos ? g_lacq[g_nlacq - 1].chain : -1;
+            a.pn = pos ? g_lacq[g_nlacq - 1].n : -1;
+            if (g_nlacq == cap) { cap = cap ? 2 * cap : 64; g_lacq = realloc(g_lacq, sizeof *g_lacq * cap); }
+            g_lacq[g_nlacq++] = a;
+        }
+        g_lseq[lock].len = g_lacq[g_nlacq - 1].flag == '!' ? 0 : pos;
+    }
+    free(spec);
+    if (g_nlacq > 1) qsort(g_lacq, g_nlacq, sizeof *g_lacq, by_lacq);
+    for (g_laddr_cap = 16; g_laddr_cap < 2 * g_nlseq + 16; g_laddr_cap *= 2) {}
+    g_laddr = calloc(g_laddr_cap, sizeof *g_laddr);
+    g_locks_on = g_nlacq > 0;
+    if (g_locks_on)
+        fprintf(stderr, "[stretto-pin] rank %d: %d lock gate(s) on %d lock(s) active\n", rank, g_nlacq, g_nlseq);
+}
+
+HIDDEN int stretto_pin_locks_on(void) { return g_locks_on; }
+
+/* the deadline of a wait that starts now */
+static struct timespec deadline(void) {
+    struct timespec until;
+    clock_gettime(CLOCK_REALTIME, &until);
+    until.tv_sec += g_gate_ms / 1000;
+    until.tv_nsec += (g_gate_ms % 1000) * 1000000L;
+    if (until.tv_nsec >= 1000000000L) { until.tv_sec++; until.tv_nsec -= 1000000000L; }
+    return until;
+}
+/* a gate of the calling chain stayed closed (caller holds g_gmu): the run ends */
+static void lock_timeout(const char *name, long n, const char *what) {
+    fprintf(stderr, "[stretto-pin] rank %d chain %s: gate timed out: lock attempt a#%ld %s; %d thread(s) wait at gates\n",
+            g_rank, name, n, what, g_nwaiting);
+    fflush(stderr);
+    pthread_mutex_unlock(&g_gmu);
+    threads_abort(STRETTO_PIN_GATE_TIMEOUT);
+}
+
+HIDDEN int stretto_pin_lock(long n, const void *key, int is_try, int poll) {
+    static __thread long t_pn = -1;               /* a polled attempt: when its polling began */
+    static __thread struct timespec t_pdl;
+    if (!g_locks_on) return STRETTO_LOCK_GO;
+    int ci = lname_cur();
+    const char *name = stretto_chain_name();
+    pthread_mutex_lock(&g_gmu);
+    struct lacq *e = ci >= 0 ? lacq_find(ci, n) : NULL;
+    if (e && e->flag == '!') {
+        pthread_mutex_unlock(&g_gmu);
+        return is_try ? STRETTO_LOCK_FAIL : STRETTO_LOCK_GO;
+    }
+    struct lseq *L = NULL;
+    if (e) L = &g_lseq[e->lock];
+    else {
+        int li = g_laddr[laddr_slot(key)].addr ? g_laddr[laddr_slot(key)].lock : -1;
+        if (li < 0 || g_lseq[li].done >= g_lseq[li].len) { pthread_mutex_unlock(&g_gmu); return STRETTO_LOCK_GO; }
+        L = &g_lseq[li];
+    }
+    /* ready: the token's previous acquisition has happened (for an attempt no token names, all of them) */
+#define LOCK_READY() (e ? e->pos == 0 || g_ldone[e->pchain] > e->pn : L->done >= L->len)
+    if (!LOCK_READY()) {
+        if (poll) {
+            if (t_pn != n) { t_pn = n; t_pdl = deadline(); }
+            struct timespec now;
+            clock_gettime(CLOCK_REALTIME, &now);
+            if (now.tv_sec > t_pdl.tv_sec || (now.tv_sec == t_pdl.tv_sec && now.tv_nsec >= t_pdl.tv_nsec)) {
+                char what[CHAIN_NAME + 64];
+                if (e) snprintf(what, sizeof what, "waits for a#%ld of chain %s, which has finished %ld", e->pn, g_lname[e->pchain], g_ldone[e->pchain]);
+                else snprintf(what, sizeof what, "(beyond the gates) waits for %d of its lock's %d listed acquisitions", L->len - L->done, L->len);
+                lock_timeout(name, n, what);
+            }
+            pthread_mutex_unlock(&g_gmu);
+            return STRETTO_LOCK_NOTYET;
+        }
+        struct timespec until = deadline();
+        g_nwaiting++;
+        while (!LOCK_READY())
+            if (pthread_cond_timedwait(&g_gcv, &g_gmu, &until) != 0 && !LOCK_READY()) {
+                char what[CHAIN_NAME + 64];
+                if (e) snprintf(what, sizeof what, "waits for a#%ld of chain %s, which has finished %ld", e->pn, g_lname[e->pchain], g_ldone[e->pchain]);
+                else snprintf(what, sizeof what, "(beyond the gates) waits for %d of its lock's %d listed acquisitions", L->len - L->done, L->len);
+                lock_timeout(name, n, what);
+            }
+        g_nwaiting--;
+    }
+#undef LOCK_READY
+    t_pn = -1;
+    if (e && e->pos == 0) {                       /* the lock's first acquisition names its address */
+        L->addr = key;
+        size_t i = laddr_slot(key);
+        g_laddr[i].addr = key;
+        g_laddr[i].lock = e->lock;
+    } else if (e && L->addr != key) {
+        fprintf(stderr, "[stretto-pin] rank %d chain %s: lock pin a#%ld misapplied: it takes another lock than a#%ld of chain %s\n",
+                g_rank, name, n, e->pn, g_lname[e->pchain]);
+        fflush(stderr);
+        pthread_mutex_unlock(&g_gmu);
+        threads_abort(STRETTO_PIN_MISAPPLIED);
+    }
+    pthread_mutex_unlock(&g_gmu);
+    if (e && e->flag == 't') return STRETTO_LOCK_TIMEDOUT;
+    return e && is_try ? STRETTO_LOCK_BLOCK : STRETTO_LOCK_GO;
+}
+
+HIDDEN void stretto_pin_locked(long n, int ok) {
+    if (!g_locks_on) return;
+    int ci = lname_cur();
+    if (ci < 0) return;
+    pthread_mutex_lock(&g_gmu);
+    if (g_ldone[ci] < n + 1) g_ldone[ci] = n + 1;
+    struct lacq *e = lacq_find(ci, n);
+    if (e && e->lock >= 0 && ok) g_lseq[e->lock].done++;
+    pthread_cond_broadcast(&g_gcv);
+    pthread_mutex_unlock(&g_gmu);
+}
+
+static void locks_finalize(void) {
+    if (!g_locks_on) return;
+    int reached = 0, listed = 0;
+    pthread_mutex_lock(&g_gmu);
+    for (int i = 0; i < g_nlseq; i++) { reached += g_lseq[i].done; listed += g_lseq[i].len; }
+    pthread_mutex_unlock(&g_gmu);
+    fprintf(stderr, "[stretto-pin] rank %d: lock gates: %d of %d listed acquisitions reached\n", g_rank, reached, listed);
 }
 
 static void chains_init(int rank) {
@@ -632,9 +863,11 @@ static void chains_init(int rank) {
     if (g_ngates > 1) qsort(g_gates, g_ngates, sizeof *g_gates, by_waiter);
     const char *ms = getenv("STRETTO_GATE_TIMEOUT_MS");
     if (ms) g_gate_ms = atol(ms);
-    g_chains_on = g_ncpins > 0 || g_ngates > 0 || getenv("STRETTO_PIN_CHAIN") || getenv("STRETTO_PIN_ORDER");
+    locks_init(rank);
+    g_chains_on = g_ncpins > 0 || g_ngates > 0 || g_locks_on || getenv("STRETTO_PIN_CHAIN") || getenv("STRETTO_PIN_ORDER")
+                  || getenv("STRETTO_PIN_LOCK");
     if (g_chains_on && !stretto_chain_name()) {
-        fprintf(stderr, "[stretto-pin] rank %d: STRETTO_PIN_CHAIN and STRETTO_PIN_ORDER need the tracer's chain names: "
+        fprintf(stderr, "[stretto-pin] rank %d: STRETTO_PIN_CHAIN, STRETTO_PIN_ORDER and STRETTO_PIN_LOCK need the tracer's chain names: "
                 "preload libstretto-trace.so, not the replay library\n", rank);
         PMPI_Abort(MPI_COMM_WORLD, 3);
     }
@@ -678,14 +911,18 @@ HIDDEN int stretto_pin_gate(int kind, int skip) {
             struct cstate *p = chain_state(g->pchain);
             c = chain_state(name);               /* chain_state may move the table */
             if (p->posted[g->pkind] > g->pord) break;
-            if (pthread_cond_timedwait(&g_gcv, &g_gmu, &until) != 0) {
+            g_nwaiting++;
+            int rc = pthread_cond_timedwait(&g_gcv, &g_gmu, &until);
+            g_nwaiting--;
+            if (rc != 0) {
                 p = chain_state(g->pchain);
                 if (p->posted[g->pkind] > g->pord) break;
-                fprintf(stderr, "[stretto-pin] rank %d chain %s: gate timed out: %c#%d waits for %c#%d of chain %s, which has posted %d\n",
-                        g_rank, name, KIND[kind], ord, KIND[g->pkind], g->pord, g->pchain, p->posted[g->pkind]);
+                fprintf(stderr, "[stretto-pin] rank %d chain %s: gate timed out: %c#%d waits for %c#%d of chain %s, which has posted %d; "
+                        "%d thread(s) wait at gates\n",
+                        g_rank, name, KIND[kind], ord, KIND[g->pkind], g->pord, g->pchain, p->posted[g->pkind], g_nwaiting);
                 fflush(stderr);
                 pthread_mutex_unlock(&g_gmu);
-                PMPI_Abort(MPI_COMM_WORLD, STRETTO_PIN_GATE_TIMEOUT);
+                threads_abort(STRETTO_PIN_GATE_TIMEOUT);
             }
         }
     }
@@ -735,7 +972,7 @@ static int chain_pin_recv(int *src, int *tag, MPI_Comm comm, int cord) {
         fprintf(stderr, "[stretto-pin] rank %d chain %s: pin ridx=%d misapplied: the run's operation has%s, the trace's id=%s\n",
                 g_rank, name, cord, seen_ident(p, seen, sizeof seen), want);
         fflush(stderr);
-        PMPI_Abort(MPI_COMM_WORLD, STRETTO_PIN_MISAPPLIED);
+        threads_abort(STRETTO_PIN_MISAPPLIED);
     }
     if (*src == MPI_ANY_SOURCE) {
         int cr = to_comm_rank(comm, p->src);
@@ -762,6 +999,7 @@ static void chain_pin_matched(int i, int comm_src) {
 }
 
 static void chains_finalize(void) {
+    locks_finalize();
     for (int i = 0; i < g_ncpins; i++)
         if (!g_cpins[i].used) {
             pthread_mutex_lock(&g_gmu);

@@ -208,6 +208,7 @@ typedef struct thr {
     int done;                     /* the thread has ended: fin holds its last clock */
     int refs;                     /* its owner and the chains it created (thr_put) */
     long k;                       /* synchronisation operations so far */
+    long nacq;                    /* lock acquisitions attempted so far (the ordinal of the sync log and of the lock gates) */
     struct thr *up;               /* the creating chain */
     const char *kind;             /* "pthread", "omp" or "task" */
     char name[160];
@@ -226,6 +227,8 @@ static int g_chain_over __attribute__((unused)) = 0;      /* more than MAXCH cha
 static int g_threads_on = 1;      /* STRETTO_THREADS != "0": follow synchronisation */
 static int g_issue = 0;           /* MPI_THREAD_MULTIPLE with g_threads_on: issue lock and blocking rewrite */
 static int g_level = -1;          /* the provided thread level, -1 before MPI_Init */
+static FILE *g_sync __attribute__((unused)) = NULL;   /* STRETTO_SYNC_ORDER=1: the rank's lock acquisitions, in order (section "lock order") */
+static int g_lockgates __attribute__((unused)) = 0;   /* the replay gates lock acquisitions (STRETTO_PIN_LOCK) */
 #define TTLS(type, name) static __thread type name __attribute__((tls_model("initial-exec"), unused))
 TTLS(thr *, t_cur);               /* the chain this thread runs now */
 TTLS(thr *, t_self);              /* the thread's own chain (t_cur differs inside an OpenMP implicit task) */
@@ -234,6 +237,7 @@ TTLS(int, t_mpidepth);            /* MPI wrappers of this thread in progress */
 static thr *cur_chain(void);
 static void lk_resolve_soft(thr *c);
 static void lk_push(thr *c, long lid, long n, long k, long type, int *at);
+static void sync_log_close(void), sync_log_flush(void);
 #endif
 
 static void *xrealloc(void *p, size_t n) {
@@ -1473,6 +1477,15 @@ static void open_trace(int provided) {
         pthread_mutex_unlock(&g_mu);
         g_issue = g_threads_on && provided == MPI_THREAD_MULTIPLE;
         g_in_explicit_task = (int (*)(void))dlsym(RTLD_DEFAULT, "omp_in_explicit_task");
+        const char *so = getenv("STRETTO_SYNC_ORDER");
+        if (g_threads_on && so && strcmp(so, "0") != 0) {
+            snprintf(path, sizeof path, "%s/sync-%d.txt", dir, g_rank);
+            FILE *f = fopen(path, "w");
+            if (!f) { fprintf(stderr, "stretto tracer: rank %d: cannot write %s: ", g_rank, path); perror(NULL); }
+            else fprintf(f, "# stretto sync order 1: lock chain ordinal seq [f]\n");
+            __atomic_store_n(&g_sync, f, __ATOMIC_RELEASE);   /* other threads may lock already */
+        }
+        g_lockgates = g_threads_on && stretto_pin_locks_on();
     }
 #endif
     guard_init(provided);
@@ -1535,6 +1548,9 @@ int MPI_Finalize(void) {
     cancelled_outcomes();
     stretto_pin_finalize();
     REC(b, "finalize"); if (g_truncated) rb_printf(&b, ",\"truncated\":1"); rb_emit(&b);
+#ifndef STRETTO_PIN_ONLY
+    sync_log_close();
+#endif
     pthread_mutex_lock(&g_mu);
     if (g_out && (ferror(g_out) | fclose(g_out)))
         fprintf(stderr, "stretto tracer: rank %d: writing the trace failed; it is incomplete\n", g_rank);
@@ -1547,6 +1563,9 @@ int MPI_Abort(MPI_Comm comm, int code) {
     guard_finish();
     REC(b, "abort"); rb_printf(&b, ",\"code\":%d", code); rb_emit(&b);
     pthread_mutex_lock(&g_mu); if (g_out) fflush(g_out); pthread_mutex_unlock(&g_mu);
+#ifndef STRETTO_PIN_ONLY
+    sync_log_flush();
+#endif
     return PMPI_Abort(comm, code);
 }
 
@@ -2803,6 +2822,10 @@ static int ra_classify(void *ra) {
     static const char *libs[] = {"libmpi", "libopen-", "libpmix", "libprrte", "libuc", "libevent", "libhwloc",
                                  "libfabric", "libpsm", "libgomp", "libomp", "ld-linux", "libc.so", "libgcc_s", NULL};
     for (int i = 0; libs[i]; i++) if (strncmp(p, libs[i], strlen(libs[i])) == 0) return 1;
+    /* numerical libraries' own locks (OpenBLAS's buffer allocator) are followed as synchronisation
+       but not replayed: their order is the library's business, and it differs between runs */
+    static const char *numeric[] = {"libopenblas", "libblas", "liblapack", "libmkl", "libgfortran", NULL};
+    for (int i = 0; numeric[i]; i++) if (strncmp(p, numeric[i], strlen(numeric[i])) == 0) return 2;
     return 0;
 }
 static int ra_skipped(void *ra) {
@@ -2834,6 +2857,7 @@ typedef struct sobj {
        record of its chain and which chain held it, the holder's records and ordinal at the
        acquire, its lock event, and the clock its acquire has not taken into the hard half yet */
     long lid, ncs, hold_nrec, hold_ka; int last_rec, hold_ev; struct thr *last_holder; vclock *dv;
+    long slid;                    /* its number in the sync log (acq_log), 0 until its first attempt there */
     vclock vc;
 } sobj;
 #define SOBJ_BUCKETS 8192
@@ -2849,7 +2873,9 @@ static sobj *sobj_get_locked(const void *key) {
     return s;
 }
 static inline int tracking(void) { return g_threads_on && t_mpidepth == 0 && !cur_chain()->untracked; }
-static inline int tracked_call(void *ra) { return tracking() && !ra_skipped(ra); }
+static inline int tracked_call(void *ra) { return tracking() && ra_skipped(ra) != 1; }
+/* a lock attempt of the program that the sync log and the lock gates follow (section "lock order") */
+static inline int gated_call(void *ra) { return tracking() && ra_skipped(ra) == 0; }
 static void sync_acquire(const void *key) {
     thr *c = cur_chain(); long ka = sync_op(c);
     IL(&g_symu); vc_acquire(c, &sobj_get_locked(key)->vc, ka); IU(&g_symu);
@@ -2951,6 +2977,62 @@ static void lk_end(thr *c) {
     IU(&g_mu);
 }
 
+/* ---- lock order for replays (docs/threads.md, section 14). Every tracked attempt to take a
+   lock (a mutex, read-write or spin lock, a semaphore's wait, the mutex a condition wait takes
+   again, an OpenMP critical section, atomic region, lock or nest lock, a single construct) gets
+   the next ordinal of its chain. With STRETTO_SYNC_ORDER=1 the rank's file sync-<r>.txt lists
+   the attempts, each lock's in the order the lock was taken: "lock chain ordinal seq", seq the
+   chain's last record before the attempt (-1: none), " f" after a try that failed, " t" after a
+   condition wait that timed out, " l" for a thread that lost a single construct. The lock
+   events of the trace (section "critical sections") cover mutual-exclusion locks only, which
+   leaves out the nest locks of SLATE's tiles and the work a single construct hands out. A lock
+   is numbered at its first attempt and again after pthread_*_init, *_destroy or
+   omp_*_destroy at its address. In a replay the lock gates (STRETTO_PIN_LOCK, replay/pin.h)
+   make an attempt wait for the trace's previous acquisition of its lock, fail where the trace's
+   try failed, and block where it succeeded. */
+static void acq_log(const void *key, thr *c, long n, const char *flag) {
+    IL(&g_symu);
+    FILE *f = __atomic_load_n(&g_sync, __ATOMIC_ACQUIRE);
+    if (f) {
+        sobj *s = sobj_get_locked(key);
+        static long nlid = 0;
+        if (!s->slid) s->slid = ++nlid;
+        fprintf(f, "%ld %s %ld %ld%s\n", s->slid, c->name, n, c->id >= 0 ? c->vc.s[c->id] : -1L, flag);
+    }
+    IU(&g_symu);
+}
+/* before a tracked attempt: its ordinal, and in *what what the replay's gates say to do */
+static inline long acq_begin(const void *key, int is_try, int *what) {
+    long n = cur_chain()->nacq++;
+    *what = g_lockgates ? stretto_pin_lock(n, key, is_try, 0) : STRETTO_LOCK_GO;
+    return n;
+}
+static inline void acq_end(const void *key, long n, int ok) {
+    if (__atomic_load_n(&g_sync, __ATOMIC_RELAXED)) acq_log(key, cur_chain(), n, ok ? "" : " f");
+    if (g_lockgates) stretto_pin_locked(n, ok);
+}
+/* a condition wait took its mutex again (rc: the wait's result) */
+static inline void acq_end_cond(const void *key, long n, int rc) {
+    if (__atomic_load_n(&g_sync, __ATOMIC_RELAXED)) acq_log(key, cur_chain(), n, rc == ETIMEDOUT ? " t" : "");
+    if (g_lockgates) stretto_pin_locked(n, 1);
+}
+/* a lock is initialised or destroyed at key: its next acquisition starts a new lock */
+static void acq_renew(const void *key) {
+    if (!__atomic_load_n(&g_sync, __ATOMIC_RELAXED)) return;
+    IL(&g_symu);
+    size_t h = ((uintptr_t)key >> 3) % SOBJ_BUCKETS;
+    for (sobj *s = g_sobj[h]; s; s = s->next) if (s->key == key) s->slid = 0;
+    IU(&g_symu);
+}
+static void sync_log_close(void) {
+    IL(&g_symu);
+    FILE *f = g_sync;
+    __atomic_store_n(&g_sync, NULL, __ATOMIC_RELEASE);
+    if (f) fclose(f);
+    IU(&g_symu);
+}
+static void sync_log_flush(void) { IL(&g_symu); if (g_sync) fflush(g_sync); IU(&g_symu); }
+
 /* ---- POSIX threads */
 #define TSLOTS 4096
 static struct { pthread_t t; thr *c; int used; } g_ttab[TSLOTS];
@@ -2986,7 +3068,7 @@ int pthread_create(pthread_t *t, const pthread_attr_t *a, void *(*start)(void *)
     RESOLVE(r_create, "pthread_create");
     thr *p = cur_chain();
     thr *c = thr_new(p, "pthread");
-    c->untracked = p->untracked || t_mpidepth > 0 || ra_skipped(RA);
+    c->untracked = p->untracked || t_mpidepth > 0 || ra_skipped(RA) == 1;
     if (!c->untracked) {
         snprintf(c->name, sizeof c->name, "%.120s.%d", p->name, p->ncreated++);
         if (g_threads_on) { sync_op(p); chain_start(c, &p->vc); }   /* the creation is a release of the creator */
@@ -3019,61 +3101,127 @@ void pthread_exit(void *ret) {
     __builtin_unreachable();
 }
 
-#define WRAP_ACQ(name, T) \
+/* An acquisition the program asked to wait for: the lock gates first (acq_begin), then the
+   call, then the clock (F: sync_acquire, or sync_lock_soft for mutual exclusion, whose critical
+   sections are lock events) and the sync log (acq_end). A try or a timed wait that failed is no
+   acquisition; in a replay it fails where the trace's failed (FAIL, the call's error) and takes
+   the blocking form where the trace's succeeded, since the gate has already waited for the
+   acquisition before it. */
+static inline void sync_lock_soft(const void *key) { sync_lock(key, 0); }
+#define ACQ_AFTER(o, rc, F) if (t && (rc) == 0) F((const void *)(o)); if (g) acq_end((const void *)(o), n, (rc) == 0);
+#define WRAP_ACQ(name, T, F) \
 static int (*r_##name)(T *); \
-int name(T *o) { RESOLVE(r_##name, #name); int rc = r_##name(o); if (rc == 0 && tracked_call(RA)) sync_acquire((const void *)o); return rc; }
-#define WRAP_REL(name, T) \
+int name(T *o) { RESOLVE(r_##name, #name); int t = tracked_call(RA), g = gated_call(RA), w = 0; long n = g ? acq_begin((const void *)o, 0, &w) : -1; \
+    int rc = r_##name(o); ACQ_AFTER(o, rc, F) return rc; }
+#define WRAP_TRY(name, T, BLOCKING, FAIL, F) \
+static int (*r_##name)(T *); static int (*rb_##name)(T *); \
+int name(T *o) { RESOLVE(r_##name, #name); int t = tracked_call(RA), g = gated_call(RA), w = 0; long n = g ? acq_begin((const void *)o, 1, &w) : -1, rc; \
+    if (w == STRETTO_LOCK_FAIL) rc = (FAIL); \
+    else if (w == STRETTO_LOCK_BLOCK) { RESOLVE(rb_##name, BLOCKING); rc = rb_##name(o); } \
+    else rc = r_##name(o); \
+    ACQ_AFTER(o, rc, F) return rc; }
+#define WRAP_REL(name, T, F) \
 static int (*r_##name)(T *); \
-int name(T *o) { RESOLVE(r_##name, #name); if (tracked_call(RA)) sync_release((const void *)o); return r_##name(o); }
-#define WRAP_TACQ(name, T) \
-static int (*r_##name)(T *, const struct timespec *); \
-int name(T *o, const struct timespec *ts) { RESOLVE(r_##name, #name); int rc = r_##name(o, ts); if (rc == 0 && tracked_call(RA)) sync_acquire((const void *)o); return rc; }
+int name(T *o) { RESOLVE(r_##name, #name); if (tracked_call(RA)) F((const void *)o); return r_##name(o); }
+#define WRAP_TACQ(name, T, BLOCKING, FAIL, F) \
+static int (*r_##name)(T *, const struct timespec *); static int (*rb_##name)(T *); \
+int name(T *o, const struct timespec *ts) { RESOLVE(r_##name, #name); int t = tracked_call(RA), g = gated_call(RA), w = 0; long n = g ? acq_begin((const void *)o, 1, &w) : -1, rc; \
+    if (w == STRETTO_LOCK_FAIL) rc = (FAIL); \
+    else if (w == STRETTO_LOCK_BLOCK) { RESOLVE(rb_##name, BLOCKING); rc = rb_##name(o); } \
+    else rc = r_##name(o, ts); \
+    ACQ_AFTER(o, rc, F) return rc; }
 
-#define WRAP_LOCK(name, T) \
-static int (*r_##name)(T *); \
-int name(T *o) { RESOLVE(r_##name, #name); int rc = r_##name(o); if (rc == 0 && tracked_call(RA)) sync_lock((const void *)o, 0); return rc; }
-#define WRAP_TLOCK(name, T) \
-static int (*r_##name)(T *, const struct timespec *); \
-int name(T *o, const struct timespec *ts) { RESOLVE(r_##name, #name); int rc = r_##name(o, ts); if (rc == 0 && tracked_call(RA)) sync_lock((const void *)o, 0); return rc; }
-#define WRAP_UNLOCK(name, T) \
-static int (*r_##name)(T *); \
-int name(T *o) { RESOLVE(r_##name, #name); if (tracked_call(RA)) sync_unlock((const void *)o); return r_##name(o); }
 /* mutual exclusion (critical sections, sync_lock); read-write locks and semaphores are not */
-int pthread_mutex_lock(pthread_mutex_t *m) { int rc = stretto_real_lock(m); if (rc == 0 && tracked_call(RA)) sync_lock(m, 0); return rc; }
+int pthread_mutex_lock(pthread_mutex_t *m) {
+    int t = tracked_call(RA), g = gated_call(RA), w = 0; long n = g ? acq_begin(m, 0, &w) : -1;
+    int rc = stretto_real_lock(m); ACQ_AFTER(m, rc, sync_lock_soft) return rc;
+}
 int pthread_mutex_unlock(pthread_mutex_t *m) { if (tracked_call(RA)) sync_unlock(m); return stretto_real_unlock(m); }
-WRAP_LOCK(pthread_mutex_trylock, pthread_mutex_t)
-WRAP_TLOCK(pthread_mutex_timedlock, pthread_mutex_t)
-WRAP_ACQ(pthread_rwlock_rdlock, pthread_rwlock_t)
-WRAP_ACQ(pthread_rwlock_wrlock, pthread_rwlock_t)
-WRAP_ACQ(pthread_rwlock_tryrdlock, pthread_rwlock_t)
-WRAP_ACQ(pthread_rwlock_trywrlock, pthread_rwlock_t)
-WRAP_TACQ(pthread_rwlock_timedrdlock, pthread_rwlock_t)
-WRAP_TACQ(pthread_rwlock_timedwrlock, pthread_rwlock_t)
-WRAP_REL(pthread_rwlock_unlock, pthread_rwlock_t)
-WRAP_LOCK(pthread_spin_lock, pthread_spinlock_t)
-WRAP_LOCK(pthread_spin_trylock, pthread_spinlock_t)
-WRAP_UNLOCK(pthread_spin_unlock, pthread_spinlock_t)
-WRAP_ACQ(sem_wait, sem_t)
-WRAP_ACQ(sem_trywait, sem_t)
-WRAP_TACQ(sem_timedwait, sem_t)
-WRAP_REL(sem_post, sem_t)
+WRAP_TRY(pthread_mutex_trylock, pthread_mutex_t, "pthread_mutex_lock", EBUSY, sync_lock_soft)
+WRAP_TACQ(pthread_mutex_timedlock, pthread_mutex_t, "pthread_mutex_lock", ETIMEDOUT, sync_lock_soft)
+WRAP_ACQ(pthread_rwlock_rdlock, pthread_rwlock_t, sync_acquire)
+WRAP_ACQ(pthread_rwlock_wrlock, pthread_rwlock_t, sync_acquire)
+WRAP_TRY(pthread_rwlock_tryrdlock, pthread_rwlock_t, "pthread_rwlock_rdlock", EBUSY, sync_acquire)
+WRAP_TRY(pthread_rwlock_trywrlock, pthread_rwlock_t, "pthread_rwlock_wrlock", EBUSY, sync_acquire)
+WRAP_TACQ(pthread_rwlock_timedrdlock, pthread_rwlock_t, "pthread_rwlock_rdlock", ETIMEDOUT, sync_acquire)
+WRAP_TACQ(pthread_rwlock_timedwrlock, pthread_rwlock_t, "pthread_rwlock_wrlock", ETIMEDOUT, sync_acquire)
+WRAP_REL(pthread_rwlock_unlock, pthread_rwlock_t, sync_release)
+WRAP_ACQ(pthread_spin_lock, pthread_spinlock_t, sync_lock_soft)
+WRAP_TRY(pthread_spin_trylock, pthread_spinlock_t, "pthread_spin_lock", EBUSY, sync_lock_soft)
+WRAP_REL(pthread_spin_unlock, pthread_spinlock_t, sync_unlock)
+WRAP_ACQ(sem_wait, sem_t, sync_acquire)
+WRAP_TRY(sem_trywait, sem_t, "sem_wait", (errno = EAGAIN, -1), sync_acquire)
+WRAP_TACQ(sem_timedwait, sem_t, "sem_wait", (errno = ETIMEDOUT, -1), sync_acquire)
+WRAP_REL(sem_post, sem_t, sync_release)
+/* a lock initialised or destroyed: the sync log numbers the next one at its address anew */
+#define WRAP_RENEW1(name, T) \
+static int (*r_##name)(T *); \
+int name(T *o) { RESOLVE(r_##name, #name); acq_renew((const void *)o); return r_##name(o); }
+#define WRAP_RENEW2(name, T, A) \
+static int (*r_##name)(T *, A); \
+int name(T *o, A a) { RESOLVE(r_##name, #name); acq_renew((const void *)o); return r_##name(o, a); }
+WRAP_RENEW2(pthread_mutex_init, pthread_mutex_t, const pthread_mutexattr_t *)
+WRAP_RENEW1(pthread_mutex_destroy, pthread_mutex_t)
+WRAP_RENEW2(pthread_rwlock_init, pthread_rwlock_t, const pthread_rwlockattr_t *)
+WRAP_RENEW1(pthread_rwlock_destroy, pthread_rwlock_t)
+WRAP_RENEW2(pthread_spin_init, pthread_spinlock_t, int)
+WRAP_RENEW1(pthread_spin_destroy, pthread_spinlock_t)
+WRAP_RENEW1(sem_destroy, sem_t)
+static int (*r_sem_init)(sem_t *, int, unsigned);
+int sem_init(sem_t *o, int pshared, unsigned v) { RESOLVE(r_sem_init, "sem_init"); acq_renew(o); return r_sem_init(o, pshared, v); }
 
+/* A condition wait releases its mutex and takes it again: an acquisition, whose sync log entry
+   says " t" when the wait timed out. In a replay whose gates make the trace's acquisition
+   before this one another chain's, the wait returns once that acquisition has happened and not
+   before, whether a signal came or not (a spurious wakeup, as POSIX allows; the program then
+   reads what it read in the trace), with the trace's result; it waits in short slices, since a
+   signal may wake another waiter than in the trace. Otherwise it waits as the program asked,
+   and on waking asks again: a wait the gates do not list may have begun before its lock's first
+   listed acquisition named the lock, and must not take the mutex before the listed ones. */
 static int (*r_cond_wait)(pthread_cond_t *, pthread_mutex_t *);
+static int (*r_cond_timedwait)(pthread_cond_t *, pthread_mutex_t *, const struct timespec *);
+/* wait in slices until attempt n's turn (w the gates' first answer); the trace's result in *rc */
+static void cond_turn(pthread_cond_t *c, pthread_mutex_t *m, long n, int w, int *rc) {
+    while (w == STRETTO_LOCK_NOTYET) {
+        struct timespec until;
+        clock_gettime(CLOCK_MONOTONIC, &until);
+        until.tv_nsec += 2000000L;
+        if (until.tv_nsec >= 1000000000L) { until.tv_sec++; until.tv_nsec -= 1000000000L; }
+        pthread_cond_clockwait(c, m, CLOCK_MONOTONIC, &until);
+        w = stretto_pin_lock(n, m, 0, 1);
+        if (w != STRETTO_LOCK_NOTYET) *rc = w == STRETTO_LOCK_TIMEDOUT ? ETIMEDOUT : 0;
+    }
+}
 int pthread_cond_wait(pthread_cond_t *c, pthread_mutex_t *m) {
     RESOLVE(r_cond_wait, "pthread_cond_wait");
-    int t = tracked_call(RA);
+    int t = tracked_call(RA), g = gated_call(RA) && g_lockgates, rc = 0;
+    long n = -1;
     if (t) sync_unlock(m);
-    int rc = r_cond_wait(c, m);
+    if (gated_call(RA)) n = cur_chain()->nacq++;
+    int w = g ? stretto_pin_lock(n, m, 0, 1) : STRETTO_LOCK_GO;
+    if (w == STRETTO_LOCK_NOTYET) cond_turn(c, m, n, w, &rc);
+    else {
+        rc = r_cond_wait(c, m);
+        if (g) cond_turn(c, m, n, stretto_pin_lock(n, m, 0, 1), &rc);
+    }
     if (t) sync_lock(m, 1);
+    if (gated_call(RA)) acq_end_cond(m, n, rc);
     return rc;
 }
-static int (*r_cond_timedwait)(pthread_cond_t *, pthread_mutex_t *, const struct timespec *);
 int pthread_cond_timedwait(pthread_cond_t *c, pthread_mutex_t *m, const struct timespec *ts) {
     RESOLVE(r_cond_timedwait, "pthread_cond_timedwait");
-    int t = tracked_call(RA);
+    int t = tracked_call(RA), g = gated_call(RA) && g_lockgates, rc = 0;
+    long n = -1;
     if (t) sync_unlock(m);
-    int rc = r_cond_timedwait(c, m, ts);
+    if (gated_call(RA)) n = cur_chain()->nacq++;
+    int w = g ? stretto_pin_lock(n, m, 0, 1) : STRETTO_LOCK_GO;
+    if (w == STRETTO_LOCK_NOTYET) cond_turn(c, m, n, w, &rc);
+    else {
+        rc = r_cond_timedwait(c, m, ts);
+        if (g) cond_turn(c, m, n, stretto_pin_lock(n, m, 0, 1), &rc);
+    }
     if (t) sync_lock(m, 1);
+    if (gated_call(RA)) acq_end_cond(m, n, rc);
     return rc;
 }
 
@@ -3505,15 +3653,24 @@ BAR_WRAP(GOMP_loop_end_cancel, _Bool, =)
 BAR_WRAP(GOMP_sections_end_cancel, _Bool, =)
 
 static int g_crit_key, g_atomic_key;
+/* critical sections, atomic regions and OpenMP locks are acquisitions as the POSIX locks are
+   (acq_begin, acq_end, section "lock order"); SYNC follows the program's synchronisation */
 #define LOCK_WRAP0(name, KEY, ACQ, SYNC) \
 static void (*r_##name)(void); \
-void name(void) { RESOLVE(r_##name, #name); if (ACQ) { r_##name(); if (tracking()) SYNC; } else { if (tracking()) SYNC; r_##name(); } }
+void name(void) { RESOLVE(r_##name, #name); \
+    if (ACQ) { int t = tracking(), w = 0; long n = t ? acq_begin(KEY, 0, &w) : -1; r_##name(); if (t) { SYNC; acq_end(KEY, n, 1); } } \
+    else { if (tracking()) SYNC; r_##name(); } }
 LOCK_WRAP0(GOMP_critical_start, &g_crit_key, 1, sync_lock(&g_crit_key, 0))
 LOCK_WRAP0(GOMP_critical_end, &g_crit_key, 0, sync_unlock(&g_crit_key))
 LOCK_WRAP0(GOMP_atomic_start, &g_atomic_key, 1, sync_acquire(&g_atomic_key))
 LOCK_WRAP0(GOMP_atomic_end, &g_atomic_key, 0, sync_release(&g_atomic_key))
 static void (*r_GOMP_critical_name_start)(void **);
-void GOMP_critical_name_start(void **p) { RESOLVE(r_GOMP_critical_name_start, "GOMP_critical_name_start"); r_GOMP_critical_name_start(p); if (tracking()) sync_lock(p, 0); }
+void GOMP_critical_name_start(void **p) {
+    RESOLVE(r_GOMP_critical_name_start, "GOMP_critical_name_start");
+    int t = tracking(), w = 0; long n = t ? acq_begin(p, 0, &w) : -1;
+    r_GOMP_critical_name_start(p);
+    if (t) { sync_lock(p, 0); acq_end(p, n, 1); }
+}
 static void (*r_GOMP_critical_name_end)(void **);
 void GOMP_critical_name_end(void **p) { RESOLVE(r_GOMP_critical_name_end, "GOMP_critical_name_end"); if (tracking()) sync_unlock(p); r_GOMP_critical_name_end(p); }
 static void (*r_GOMP_ordered_start)(void);
@@ -3524,21 +3681,52 @@ void GOMP_ordered_end(void) { RESOLVE(r_GOMP_ordered_end, "GOMP_ordered_end"); i
 /* OpenMP locks, by the lock's address (omp_lock_t and omp_nest_lock_t, OMP_3.0) */
 #define OLOCK(name, ACQ, SYNC) \
 static void (*r_##name)(void *); \
-void name(void *l) { RESOLVE(r_##name, #name); if (ACQ) { r_##name(l); if (tracking()) SYNC; } else { if (tracking()) SYNC; r_##name(l); } }
+void name(void *l) { RESOLVE(r_##name, #name); \
+    if (ACQ) { int t = tracking(), w = 0; long n = t ? acq_begin(l, 0, &w) : -1; r_##name(l); if (t) { SYNC; acq_end(l, n, 1); } } \
+    else { if (tracking()) SYNC; r_##name(l); } }
 OLOCK(omp_set_lock, 1, sync_lock(l, 0))
 OLOCK(omp_unset_lock, 0, sync_unlock(l))
 OLOCK(omp_set_nest_lock, 1, sync_lock(l, 1))
 OLOCK(omp_unset_nest_lock, 0, sync_unlock(l))
-static int (*r_omp_test_lock)(void *);
-int omp_test_lock(void *l) { RESOLVE(r_omp_test_lock, "omp_test_lock"); int v = r_omp_test_lock(l); if (v && tracking()) sync_lock(l, 0); return v; }
-static int (*r_omp_test_nest_lock)(void *);
-int omp_test_nest_lock(void *l) { RESOLVE(r_omp_test_nest_lock, "omp_test_nest_lock"); int v = r_omp_test_nest_lock(l); if (v && tracking()) sync_lock(l, 1); return v; }
+/* a test that succeeded in the trace takes the lock in a replay (omp_set_*: the nesting count of
+   a nest lock is then 1, since the trace's acquisition before it was another chain's) */
+#define OTEST(name, SET, HARD) \
+static int (*r_##name)(void *); static void (*rs_##name)(void *); \
+int name(void *l) { RESOLVE(r_##name, #name); int t = tracking(), w = 0; long n = t ? acq_begin(l, 1, &w) : -1, v; \
+    if (w == STRETTO_LOCK_FAIL) v = 0; \
+    else if (w == STRETTO_LOCK_BLOCK) { RESOLVE(rs_##name, SET); rs_##name(l); v = 1; } \
+    else v = r_##name(l); \
+    if (t) { if (v) sync_lock(l, HARD); acq_end(l, n, v != 0); } return v; }
+OTEST(omp_test_lock, "omp_set_lock", 0)
+OTEST(omp_test_nest_lock, "omp_set_nest_lock", 1)
+#define ORENEW(name) \
+static void (*r_##name)(void *); \
+void name(void *l) { RESOLVE(r_##name, #name); acq_renew(l); r_##name(l); }
+ORENEW(omp_init_lock)
+ORENEW(omp_destroy_lock)
+ORENEW(omp_init_nest_lock)
+ORENEW(omp_destroy_nest_lock)
 
 /* Dynamic work sharing: which thread gets which chunk, section or single is decided by the order
    of these calls, kept as a read-modify-write of the work share's clock (after the call: an
    approximation of their order that only adds edges). */
+/* A single construct is won by the thread that calls first: an acquisition of the work share,
+   whose sync log entry says " l" for a thread that lost (the replay's lock gates let the
+   trace's winner call first, so that the tasks it creates are named after the same chain). */
 static _Bool (*r_GOMP_single_start)(void);
-_Bool GOMP_single_start(void) { RESOLVE(r_GOMP_single_start, "GOMP_single_start"); _Bool v = r_GOMP_single_start(); ws_rmw(1); return v; }
+_Bool GOMP_single_start(void) {
+    RESOLVE(r_GOMP_single_start, "GOMP_single_start");
+    int t = omp_tracking(), w = 0;
+    const void *key = t ? ws_clock(t_region, t_wsidx + 1) : NULL;
+    long n = t ? acq_begin(key, 0, &w) : -1;
+    _Bool v = r_GOMP_single_start();
+    ws_rmw(1);
+    if (t) {
+        if (__atomic_load_n(&g_sync, __ATOMIC_RELAXED)) acq_log(key, cur_chain(), n, v ? "" : " l");
+        if (g_lockgates) stretto_pin_locked(n, 1);
+    }
+    return v;
+}
 static unsigned (*r_GOMP_sections_start)(unsigned);
 unsigned GOMP_sections_start(unsigned n) { RESOLVE(r_GOMP_sections_start, "GOMP_sections_start"); unsigned v = r_GOMP_sections_start(n); ws_rmw(1); return v; }
 static unsigned (*r_GOMP_sections2_start)(unsigned, uintptr_t *, void **);

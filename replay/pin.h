@@ -100,7 +100,27 @@
                                            STRETTO_GATE_TIMEOUT_MS (default 10000) ends the run
                                            with STRETTO_PIN_GATE_TIMEOUT, naming the gate: the
                                            replay diverged, or the order needs synchronisation
-                                           the trace does not record. */
+                                           the trace does not record.
+   STRETTO_PIN_LOCK="rank:A#n>B#m>...,rank:A#n!,..."  lock gates (docs/threads.md, section 14):
+                                           a token lists one lock's acquisitions in the order
+                                           of the trace's sync log (the tracer's
+                                           STRETTO_SYNC_ORDER=1), each named by its chain and
+                                           the ordinal of the attempt among the chain's
+                                           attempts to take a lock (mutexes, read-write and
+                                           spin locks, semaphore waits, condition waits, OpenMP
+                                           critical sections, atomic regions, locks and single
+                                           constructs the program reaches). An attempt waits
+                                           until the one before it in the token has taken the
+                                           lock, and must take the lock the token's first one
+                                           took ("lock pin a#n misapplied" ends the run
+                                           otherwise); a try listed there takes the lock with
+                                           the blocking call. "A#n!" is a try that failed in the
+                                           trace: it fails without trying; "A#nt" a condition
+                                           wait that timed out, which returns ETIMEDOUT. An
+                                           attempt no token names, on a lock a token names,
+                                           waits until every listed acquisition of that lock has
+                                           happened (they are the horizon's). Timeouts as for
+                                           STRETTO_PIN_ORDER. */
 #ifndef STRETTO_PIN_H
 #define STRETTO_PIN_H
 #include <mpi.h>
@@ -139,6 +159,20 @@ int  stretto_pin_gate(int kind, int skip);
 /* The operation of kind with chain ordinal ord (stretto_pin_gate's) has been posted (a probe:
    has found a message): the gates that wait for it open. */
 void stretto_pin_posted(int kind, int ord);
+/* Lock gates (STRETTO_PIN_LOCK): what the tracer does with an attempt to take a lock. */
+#define STRETTO_LOCK_GO 0          /* call as the program asked */
+#define STRETTO_LOCK_FAIL 1        /* a try that failed in the trace: fail without calling */
+#define STRETTO_LOCK_BLOCK 2       /* a try that succeeded in the trace: take the lock with the blocking call */
+#define STRETTO_LOCK_NOTYET 3      /* (poll) the trace's acquisition before it has not happened yet */
+#define STRETTO_LOCK_TIMEDOUT 4    /* a condition wait that timed out in the trace: return ETIMEDOUT */
+/* Are lock gates set for this rank? (after stretto_pin_init) */
+int  stretto_pin_locks_on(void);
+/* Before attempt n of the calling thread's chain on the lock at key (the tracer's ordinal):
+   waits for its gate, unless poll, which returns STRETTO_LOCK_NOTYET instead (a condition
+   wait, which must release its mutex while it waits). is_try: a try or timed call. */
+int  stretto_pin_lock(long n, const void *key, int is_try, int poll);
+/* Attempt n has returned, ok if it took the lock: the gates that wait for it open. */
+void stretto_pin_locked(long n, int ok);
 /* The receive ordinal the next stretto_pin_recv of this thread applies chain pins to, for a
    call that gates several receives before posting them (MPI_Startall). */
 void stretto_pin_use_ord(int ord);
