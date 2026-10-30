@@ -745,6 +745,37 @@ class ChainPins(unittest.TestCase):
         self.assertEqual(parse_pins([pin]), ({}, {}))
 
 
+class Handoffs(unittest.TestCase):
+    """A receive posted by one thread and completed by another (a hand-off, docs/threads.md
+    section 15): its completion, and the cut rule 1 makes after it, lie on the completing chain."""
+
+    def test_the_completion_is_judged_on_the_completing_chain(self):
+        from test_threads import chain_of, mkt, th
+        # chain 1 posts an Irecv that chain 2 completes after three sends of its own; chain 3
+        # receives on the same envelope; chain 2 takes a lock right after its wait
+        t = mkt({0: [th(1, irecv(1, 5, 10)), th(3, recv(1, 5, 1, 5))] + [th(2, send(2, 9)) for _ in range(3)]
+                 + [th(2, wait((10, 1, 5)))],
+                 1: [send(0, 5), send(0, 5)], 2: [recv(0, 9, 0, 9) for _ in range(3)]})
+        c1, c2 = chain_of(t, 0, 1), chain_of(t, 0, 2)
+        r = t.recvs[(c1, 0)]
+        self.assertEqual(r.complete_at(), (c2, 3))
+        t.__dict__["_stretto_seq"] = {(ch, i): (rec.raw or {}).get("seq", -1) for ch, recs in t.ranks.items()
+                                    for i, rec in enumerate(recs)}
+        t.__dict__["_stretto_sync"] = {0: [(0, C.chain_label(t, c2), 0, t.ranks[c2][3].raw["seq"], "")]}
+        f = next(f for f in analyze(t, with_sp=False).findings
+                 if f.level == "L1" and any(d.startswith("concurrent swap") for d in f.detail))
+        alt, ctl = horizon_pins(t, f)
+        # the receive completes inside the horizon (on chain 2, cut after the wait), so the
+        # replay must show its message, and its pin is no posting-only pin
+        self.assertIn(("crecv", 0, C.chain_label(t, c1), 0), required_matches(t, f))
+        tok = next(k for k in C.pin_tokens(alt) if k.kind == "crecv" and k.chain == C.chain_label(t, c1))
+        self.assertNotEqual(tok.want.split("|")[0], "-")
+        # rule 1 cuts chain 2 right after the changed receive's completion: its lock attempt
+        # there lies beyond the horizon, in the replay and in the control
+        for pins in (alt, ctl):
+            self.assertFalse(any(x.startswith("STRETTO_PIN_LOCK=") for x in pins), pins)
+
+
 class LockGates(unittest.TestCase):
     """The trace's lock order (docs/threads.md, section 14): a trace recorded with
     STRETTO_SYNC_ORDER=1 is replayed with lock gates (STRETTO_PIN_LOCK) over the horizon, the

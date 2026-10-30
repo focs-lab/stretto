@@ -778,8 +778,15 @@ def _chain_specs(t, M, chk, keep, B, probe_alt):
     # pairs whose order synchronisation the trace does not see decides (HDF5's I/O
     # concentrators, one after another, end on an atomic flag)
     # a changed receive, or one rule 6 left without its message, cuts the synchronisation after it
-    stops = {(r.rank, _cidx(r) + 1) for r in t.recvs.values()
-             if r.key in chk.deprived or (r.key in Md and Md.get(r.key) != t.observed.get(r.key))}
+    # on the chain that completed it, which is another than the posting chain where a thread
+    # completed another's request (a hand-off, section 15: rule 1 cuts the completing chain)
+    stops = {(ch, ci + 1) for ch, ci in (r.complete_at() for r in t.recvs.values()
+             if r.key in chk.deprived or (r.key in Md and Md.get(r.key) != t.observed.get(r.key)))}
+
+    def done_inside(r) -> bool:
+        """Does receive r complete inside the horizon, on the chain that completed it?"""
+        ch, ci = r.complete_at()
+        return r.completed and ci < cut[ch]
     locks = lock_gates(t, cut, stops)
     pa: list = []
     pc: list = []
@@ -808,9 +815,9 @@ def _chain_specs(t, M, chk, keep, B, probe_alt):
                 continue
             # with lock gates (section 14) a receive that completes beyond the horizon is not
             # required to take its message in the control either
-            posted_only = locks is not None and not (r.completed and _cidx(r) < cut[r.rank])
+            posted_only = locks is not None and not done_inside(r)
             rtok.append(chain_pin_token(t, r, t.sends[sk], posted_only))
-            if alternative and r.completed and _cidx(r) < cut[r.rank]:
+            if alternative and done_inside(r):
                 required.add(("crecv",) + of[("r", r.key)])
         for q in sorted(t.probes.values(), key=lambda q: (q.proc, q.idx)):
             if q.pidx is None or not q.flag or q.idx >= cut[q.rank] or (q.proc not in pinnable and q.key not in env_ok) \

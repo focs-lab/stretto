@@ -1459,9 +1459,10 @@ completion, which is where `contained_deadlock` looks.
 reasons: every hand-off and every successful cancel of a receive is modelled. A successful cancel
 of a send and a cancel whose outcome the trace lacks stay `unmodelled`, as for one chain. P-T10
 cannot be checked from the trace; the report counts the requests completed by another chain
-and names the premises. Not adapted: the replay harness (`confirm.py`, another track's) still
-places a completion on the posting chain, so replays of traces with hand-offs are not validated;
-the fast checks and read bounds are single-chain only, as before.
+and names the premises. The replay harness (`confirm.py`) reads a completion on the completing
+chain too (since 30 Oct, section 16: before, whether a handed-off receive had to show its
+message was decided by its posting chain's cut, and rule 1's stop of the lock gates fell on the
+posting chain); the fast checks and read bounds are single-chain only, as before.
 
 ### 15.4 Results (30 Oct 2026, a-p13, Open MPI 4.1.6 unless said)
 
