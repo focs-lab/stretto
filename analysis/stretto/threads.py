@@ -472,12 +472,15 @@ def _thread_edges_reduced(t: Trace, M, node_set, mnode: Dict[Key, tuple], probe_
     which stays above as the reference."""
     edges: List[Tuple[tuple, tuple]] = [((a, ia, "c"), (b, ib, "i")) for a, ia, b, ib in t.hb.edges]
     recv_of = {sk: rk for rk, sk in M.items()}
-    pkey = {}
+    # by object: a send and a receive of one chain share their key (chain, ordinal), and before
+    # 30 Oct 2026 the cache by key gave a send its namesake receive's place (PaRSEC's and SLATE's
+    # observed 2-buffering: orientations against the run's physical order, closing a cycle)
+    pkey: Dict[int, Tuple[int, int]] = {}
 
     def phys(x):
-        k = pkey.get(x.key if isinstance(x, (Recv, Send)) else id(x))
+        k = pkey.get(id(x))
         if k is None:
-            k = pkey[x.key if isinstance(x, (Recv, Send)) else id(x)] = physical_key(t, x)
+            k = pkey[id(x)] = physical_key(t, x)
         return k
 
     def recv_items(x, s: Send, c: int, classify):

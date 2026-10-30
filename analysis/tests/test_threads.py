@@ -361,7 +361,25 @@ def thread_traces():
     for seed in range(4):
         out.append((f"pool {seed}", pool(seed)))
         out.append((f"pool {seed} nonblocking", pool(seed, nonblocking=True)))
+        out.append((f"self pool {seed}", self_pool(seed)))
     return out
+
+
+def self_pool(seed, k=3, n=4):
+    """PaRSEC's reshape (experiments/parsec): k threads of one process each run n
+    MPI_Sendrecv to the process itself on one tag (Isend, Recv, Wait), interleaved at random, so
+    a chain both sends and receives and its n-th send and n-th receive share a key."""
+    import random
+    rnd = random.Random(seed)
+    chains = [[r for i in range(n) for r in (th(tid, send(0, 0, mode="isend", req=100 * tid + i)),
+                                             th(tid, recv(0, 0, 0, 0)),
+                                             th(tid, wait((100 * tid + i, None, None))))] for tid in range(k)]
+    out, pos = [], [0] * k
+    while any(p < len(c) for p, c in zip(pos, chains)):
+        i = rnd.choice([i for i, c in enumerate(chains) if pos[i] < len(c)])
+        out.append(chains[i][pos[i]])
+        pos[i] += 1
+    return mkt({0: out})
 
 
 class C_Scale(unittest.TestCase):
