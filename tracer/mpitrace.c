@@ -7,7 +7,8 @@
    Record kinds (all carry "r" and "seq"):
      init      np, thread (provided level), version (of this format, TRACE_VERSION),
                [issue:1] (MPI_THREAD_MULTIPLE: the issue lock and the blocking rewrite are on,
-               and point-to-point records carry iseq), [threads:0] (STRETTO_THREADS=0: the
+               and point-to-point records carry iseq), [lockorder:1] (records carry hafter and
+               locks where they apply), [threads:0] (STRETTO_THREADS=0: the
                synchronisation between threads is not followed, no record carries after).
    Threads (format 3, section "threads" at the end of the file). A rank's records form one
    chain per thread of control: a POSIX thread, the implicit task of OpenMP thread j > 0
@@ -30,7 +31,11 @@
    only the latest (s, then kc) is written. A barrier wait has one ordinal for its arrival and
    its departure. So the order of several synchronisation points between two records of one
    chain is known: a join of B after a creation of A, with no record between, has the larger
-   ordinal on the joining chain. Under
+   ordinal on the joining chain. Since 30 Oct 2026 (init lockorder:1) a record also carries
+   hafter, the same deltas of the hard happens-before (without the edges between two critical
+   sections of one lock that both contain a record; written only where they differ from
+   after), and locks:[[lid,n,k,type],...], the lock events of the chain since its previous
+   record (section "critical sections"). Under
    issue:1 every posting of a point-to-point operation (send, recv, irecv, a Start, the
    receive half of a sendrecv, a probe that found a message) carries iseq, the order in which
    the rank posted it, among all its threads. Further side records:
@@ -38,6 +43,7 @@
      task      what(untracked|detach): an MPI call was made inside an explicit OpenMP task that
                is no chain (a taskloop's), or after a detached task was created (once)
      unordered call: a posting the issue lock does not order (MPI_Sendrecv_replace; once)
+     locks     locks: a chain's lock events after its last record, written when the chain ends
      overflow  with what "chain table": more than 256 chains wrote records (later chains: tid -1)
      begin     call=<recv|wait|probe|coll|send> + the call's arguments; emitted BEFORE a
                potentially blocking call. The loader drops a begin followed by its
@@ -185,9 +191,15 @@ static pthread_mutex_t g_mu = PTHREAD_MUTEX_INITIALIZER;
    c's ordinal k of that operation. Synchronisation objects keep clocks too (TSan's scheme at
    the granularity of records). An acquire that raises a component leaves a pending entry
    (component, seq, k there, ordinal of the acquire here), and the chain's next record carries
-   its pending entries ("after"). */
+   its pending entries ("after").
+   Every clock has a second, hard half (hs, hk): the same happens-before without the edges
+   between two critical sections of one lock that both contain a record of their chain (section
+   "critical sections" below). Its deltas are "hafter", written when they differ from "after". */
 #define MAXCH 256
-typedef struct { long s[MAXCH], k[MAXCH]; } vclock;
+typedef struct { long s[MAXCH], k[MAXCH], hs[MAXCH], hk[MAXCH]; } vclock;
+#define HELD_MAX 8
+#define HX_MAX 1024
+typedef struct { long lid, n, k, type; } lkev;    /* a lock event: lock id, its critical section, the chain's ordinal, type */
 typedef struct thr {
     int id;                       /* chain id, -1 until the chain writes a record */
     int untracked;                /* an MPI library thread, or a runtime's pool thread outside its tasks */
@@ -201,6 +213,13 @@ typedef struct thr {
     char name[160];
     vclock vc, fin;
     long pend_s[MAXCH], pend_kc[MAXCH], pend_ka[MAXCH];   /* pending "after" entries, by component (pend_s -1: none) */
+    long hpend_s[MAXCH], hpend_kc[MAXCH], hpend_ka[MAXCH];   /* the same of the hard half ("hafter") */
+    long nrec;                    /* records written */
+    lkev *lk; int nlk, caplk;     /* lock events since the chain's last record ("locks") */
+    struct sobj *deferred[HELD_MAX]; int ndeferred;   /* locks whose edge waits for a record of this critical section */
+    lkev *hx; int nhx, caphx;     /* hard entries of this gap replaced by a later point of their chain ([i, s, kc, ka]) */
+    int lkover;                   /* a list above overflowed: the loader keeps the lock order of the process */
+    int lkseen;                   /* the chain has made a lock operation (sync_lock, sync_unlock) */
 } thr;
 static int g_nch __attribute__((unused)) = 0;             /* chain ids handed out */
 static int g_chain_over __attribute__((unused)) = 0;      /* more than MAXCH chains wrote records */
@@ -213,6 +232,8 @@ TTLS(thr *, t_self);              /* the thread's own chain (t_cur differs insid
 TTLS(int, t_mpidepth);            /* MPI wrappers of this thread in progress */
 #ifndef STRETTO_PIN_ONLY
 static thr *cur_chain(void);
+static void lk_resolve_soft(thr *c);
+static void lk_push(thr *c, long lid, long n, long k, long type, int *at);
 #endif
 
 static void *xrealloc(void *p, size_t n) {
@@ -380,8 +401,14 @@ static void rb_emit_kind(rec_t *b, int failed_poll) {
         fprintf(g_out, "{\"r\":%d,\"seq\":%ld,", g_rank, seq);
         if (c->id != 0) fprintf(g_out, "\"tid\":%d,", c->id);
         if (g_threads_on && !side) {
-            int n = __atomic_load_n(&g_nch, __ATOMIC_ACQUIRE), first = 1;
+            int n = __atomic_load_n(&g_nch, __ATOMIC_ACQUIRE), first = 1, differ = c->nhx > 0;
             if (n > MAXCH) n = MAXCH;
+            lk_resolve_soft(c);       /* the critical sections this record lies in contain a record */
+            for (int i = 0; i < n; i++) {
+                if (i == c->id) continue;
+                if (c->pend_s[i] != c->hpend_s[i] || (c->pend_s[i] >= 0 && (c->pend_kc[i] != c->hpend_kc[i] || c->pend_ka[i] != c->hpend_ka[i])))
+                    differ = 1;
+            }
             for (int i = 0; i < n; i++) {
                 if (c->pend_s[i] < 0) continue;
                 if (i != c->id) {
@@ -391,8 +418,33 @@ static void rb_emit_kind(rec_t *b, int failed_poll) {
                 c->pend_s[i] = -1;
             }
             if (!first) fputs("],", g_out);
+            if (differ) {
+                first = 1;
+                fputs("\"hafter\":[", g_out);
+                for (int i = 0; i < c->nhx; i++) {          /* the earlier points first */
+                    fprintf(g_out, "%s[%ld,%ld,%ld,%ld]", first ? "" : ",", c->hx[i].lid, c->hx[i].n, c->hx[i].k, c->hx[i].type);
+                    first = 0;
+                }
+                c->nhx = 0;
+                for (int i = 0; i < n; i++) {
+                    if (c->hpend_s[i] < 0 || i == c->id) continue;
+                    fprintf(g_out, "%s[%d,%ld,%ld,%ld]", first ? "" : ",", i, c->hpend_s[i], c->hpend_kc[i], c->hpend_ka[i]);
+                    first = 0;
+                }
+                fputs("],", g_out);
+            }
+            for (int i = 0; i < n; i++) c->hpend_s[i] = -1;
+            if (c->lkover) { lk_push(c, -1, 0, 0, 0, NULL); c->lkover = 0; }
+            if (c->nlk) {
+                fputs("\"locks\":[", g_out);
+                for (int i = 0; i < c->nlk; i++)
+                    fprintf(g_out, "%s[%ld,%ld,%ld,%ld]", i ? "," : "", c->lk[i].lid, c->lk[i].n, c->lk[i].k, c->lk[i].type);
+                fputs("],", g_out);
+                c->nlk = 0;
+            }
         }
-        if (c->id >= 0 && !side) { c->vc.s[c->id] = seq; c->vc.k[c->id] = c->k; }
+        if (!side) c->nrec++;
+        if (c->id >= 0 && !side) { c->vc.s[c->id] = c->vc.hs[c->id] = seq; c->vc.k[c->id] = c->vc.hk[c->id] = c->k; }
         fwrite(b->p, 1, b->len, g_out);
         if (site >= 0) fprintf(g_out, ",\"site\":%d", site);
         fwrite("}\n", 1, 2, g_out);
@@ -1427,6 +1479,7 @@ static void open_trace(int provided) {
     int np; PMPI_Comm_size(MPI_COMM_WORLD, &np);
     REC(b, "init"); rb_printf(&b, ",\"np\":%d,\"thread\":%d,\"version\":%d", np, provided, TRACE_VERSION);
     if (g_issue) rb_printf(&b, ",\"issue\":1");
+    if (g_threads_on) rb_printf(&b, ",\"lockorder\":1");
     if (!g_threads_on) rb_printf(&b, ",\"threads\":0");
     if (g_guard_asked) rb_printf(&b, ",\"guard\":%d", g_guard);
     rb_emit(&b);
@@ -2614,12 +2667,13 @@ __attribute__((constructor)) static void threads_init(void) {
     if (dladdr((void *)threads_init, &d)) g_tself_base = d.dli_fbase;
 }
 
+static void vc_init(vclock *v);
 static thr *thr_new(thr *up, const char *kind) {
     thr *c = calloc(1, sizeof *c);
     if (!c) { fprintf(stderr, "stretto tracer: out of memory\n"); abort(); }
     c->id = -1; c->parent = -1; c->up = up; c->kind = kind; c->refs = 1;
     if (up) __atomic_add_fetch(&up->refs, 1, __ATOMIC_ACQ_REL);
-    memset(c->vc.s, 0xff, sizeof c->vc.s); memset(c->fin.s, 0xff, sizeof c->fin.s); memset(c->pend_s, 0xff, sizeof c->pend_s);
+    vc_init(&c->vc); vc_init(&c->fin); memset(c->pend_s, 0xff, sizeof c->pend_s); memset(c->hpend_s, 0xff, sizeof c->hpend_s);
     return c;
 }
 /* The owner of a chain (an OpenMP implicit or explicit task) is done with it. A chain without
@@ -2636,12 +2690,20 @@ static void thr_put(thr *c) {
 
 /* ---- clocks: components are pairs (seq, k), ordered by seq, then by k */
 static inline int vc_n(void) { int n = __atomic_load_n(&g_nch, __ATOMIC_ACQUIRE); return n > MAXCH ? MAXCH : n; }
-static void vc_init(vclock *v) { memset(v->s, 0xff, sizeof v->s); memset(v->k, 0, sizeof v->k); }
+static void vc_init(vclock *v) {
+    memset(v->s, 0xff, sizeof v->s); memset(v->k, 0, sizeof v->k); memset(v->hs, 0xff, sizeof v->hs); memset(v->hk, 0, sizeof v->hk);
+}
 static inline int vc_above(long s1, long k1, long s2, long k2) { return s1 > s2 || (s1 == s2 && k1 > k2); }
-static inline void vc_join(vclock *dst, const vclock *src) {
+static inline void vc_join_full(vclock *dst, const vclock *src) {
     int n = vc_n();
     for (int i = 0; i < n; i++)
         if (vc_above(src->s[i], src->k[i], dst->s[i], dst->k[i])) { dst->s[i] = src->s[i]; dst->k[i] = src->k[i]; }
+}
+static inline void vc_join(vclock *dst, const vclock *src) {
+    int n = vc_n();
+    vc_join_full(dst, src);
+    for (int i = 0; i < n; i++)
+        if (vc_above(src->hs[i], src->hk[i], dst->hs[i], dst->hk[i])) { dst->hs[i] = src->hs[i]; dst->hk[i] = src->hk[i]; }
 }
 /* a pending "after" entry of chain c: component i's point (s, kc) precedes c's operation ka;
    per component the latest point is kept */
@@ -2649,8 +2711,24 @@ static inline void pend_add(thr *c, int i, long s, long kc, long ka) {
     if (s < 0 || i == c->id) return;
     if (vc_above(s, kc, c->pend_s[i], c->pend_kc[i])) { c->pend_s[i] = s; c->pend_kc[i] = kc; c->pend_ka[i] = ka; }
 }
+/* a hard entry that a later point of the same chain replaces before the record keeps its own
+   ordinal: the operations of the gap before ka need only the earlier point (the full half keeps
+   the latest only, as before) */
+static inline void hpend_add(thr *c, int i, long s, long kc, long ka) {
+    if (s < 0 || i == c->id) return;
+    if (vc_above(s, kc, c->hpend_s[i], c->hpend_kc[i])) {
+        if (c->hpend_s[i] >= 0 && c->hpend_ka[i] != ka) {
+            if (c->nhx == HX_MAX) c->lkover = 1;
+            else {
+                if (c->nhx == c->caphx) { c->caphx = c->caphx ? 2 * c->caphx : 8; c->hx = xrealloc(c->hx, c->caphx * sizeof *c->hx); }
+                c->hx[c->nhx++] = (lkev){i, c->hpend_s[i], c->hpend_kc[i], c->hpend_ka[i]};
+            }
+        }
+        c->hpend_s[i] = s; c->hpend_kc[i] = kc; c->hpend_ka[i] = ka;
+    }
+}
 /* chain c takes src at its operation with ordinal ka: every component src raises is pending */
-static inline void vc_acquire(thr *c, const vclock *src, long ka) {
+static inline void vc_acquire_full(thr *c, const vclock *src, long ka) {
     int n = vc_n();
     for (int i = 0; i < n; i++)
         if (vc_above(src->s[i], src->k[i], c->vc.s[i], c->vc.k[i])) {
@@ -2658,18 +2736,39 @@ static inline void vc_acquire(thr *c, const vclock *src, long ka) {
             pend_add(c, i, src->s[i], src->k[i], ka);
         }
 }
+static inline void vc_acquire_hard(thr *c, const vclock *src, long ka) {
+    int n = vc_n();
+    for (int i = 0; i < n; i++)
+        if (vc_above(src->hs[i], src->hk[i], c->vc.hs[i], c->vc.hk[i])) {
+            c->vc.hs[i] = src->hs[i]; c->vc.hk[i] = src->hk[i];
+            hpend_add(c, i, src->hs[i], src->hk[i], ka);
+        }
+}
+static inline void vc_acquire(thr *c, const vclock *src, long ka) { vc_acquire_full(c, src, ka); vc_acquire_hard(c, src, ka); }
+static void lk_flush_hard(thr *c);
 /* a synchronisation operation of chain c begins: its ordinal (from 1); the chain's own
-   component carries it from here on, so that a release made by the operation does */
-static inline long sync_op(thr *c) {
+   component carries it from here on, so that a release made by the operation does. A
+   critical section whose acquire waits for a record (sync_lock) has none before this
+   operation: its edge stays in the hard half */
+static inline long sync_op_k(thr *c, int lockop) {
+    if (c->ndeferred) lk_flush_hard(c);
+    if (lockop) c->lkseen = 1;
+    else if (c->lkseen == 1 && c->id < 0) {
+        /* the chain has no record yet, so its synchronisation points are in no clock: an edge from
+           this one is not recorded, and one of its lock operations before it may order others */
+        c->lkseen = 2;
+        lk_push(c, -2, 0, 0, 0, NULL);
+    }
     long k = ++c->k;
-    if (c->id >= 0) c->vc.k[c->id] = k;
+    if (c->id >= 0) c->vc.k[c->id] = c->vc.hk[c->id] = k;
     return k;
 }
+static inline long sync_op(thr *c) { return sync_op_k(c, 0); }
 /* a chain starts from its creator's clock: every component precedes its start (ordinal 0) */
 static void chain_start(thr *c, const vclock *from) {
     c->vc = *from;
     int n = vc_n();
-    for (int i = 0; i < n; i++) pend_add(c, i, from->s[i], from->k[i], 0);
+    for (int i = 0; i < n; i++) { pend_add(c, i, from->s[i], from->k[i], 0); hpend_add(c, i, from->hs[i], from->hk[i], 0); }
 }
 /* The chain of the calling thread; a thread this library did not see start is the main thread
    ("0") or a thread some library started outside pthread_create's wrapper (not followed). Making
@@ -2729,7 +2828,14 @@ static int ra_skipped(void *ra) {
 }
 
 /* ---- vector clocks of synchronisation objects, by address */
-typedef struct sobj { const void *key; struct sobj *next; unsigned count, gen, arrived; vclock *bacc; vclock vc; } sobj;
+typedef struct sobj {
+    const void *key; struct sobj *next; unsigned count, gen, arrived; vclock *bacc;
+    /* a lock (sync_lock): its id, its critical sections so far, whether the last one contained a
+       record of its chain and which chain held it, the holder's records and ordinal at the
+       acquire, its lock event, and the clock its acquire has not taken into the hard half yet */
+    long lid, ncs, hold_nrec, hold_ka; int last_rec, hold_ev; struct thr *last_holder; vclock *dv;
+    vclock vc;
+} sobj;
 #define SOBJ_BUCKETS 8192
 static sobj *g_sobj[SOBJ_BUCKETS];
 static pthread_mutex_t g_symu = PTHREAD_MUTEX_INITIALIZER;
@@ -2757,6 +2863,94 @@ static void sync_rmw(vclock *obj) {
     IL(&g_symu); vc_acquire(c, obj, ka); vc_join(obj, &c->vc); IU(&g_symu);
 }
 
+/* ---- critical sections (docs/threads.md, section 13). A mutual-exclusion lock (a mutex, a
+   spin lock, an OpenMP lock or critical construct) is an object of sync_lock and sync_unlock:
+   numbered per process (lid, from 1), its critical sections numbered in the order they were
+   entered (n, from 1). Every acquire and release is a lock event [lid, n, k, type] (k the
+   chain's ordinal; type 0 an acquire, 1 an acquire whose edge from the previous critical
+   section is not in the hard half, 2 a release), written as "locks" on the chain's next
+   record, or at its end as a side record {"op":"locks"}. The edge from critical section n-1
+   to n is left out of the hard half when both contain a record of their chain and the chains
+   differ: the acquire keeps the lock's clock aside until the chain writes a record (then the
+   edge stays out) or performs another synchronisation operation first (then it is taken in,
+   type 0). The acquire after a condition-variable wait keeps its edge (hard): the wait
+   returned because the previous critical section changed the state it waits for. */
+static long g_nlock = 0;
+#define LK_MAX 4096
+static void lk_push(thr *c, long lid, long n, long k, long type, int *at) {
+    if (c->nlk >= LK_MAX) {             /* a record would carry too many: the loader drops the lock order of the process */
+        if (at) *at = -1;
+        c->lk[LK_MAX - 1] = (lkev){-1, 0, 0, 0};
+        return;
+    }
+    if (c->nlk == c->caplk) { c->caplk = c->caplk ? 2 * c->caplk : 8; c->lk = xrealloc(c->lk, c->caplk * sizeof *c->lk); }
+    if (at) *at = c->nlk;
+    c->lk[c->nlk++] = (lkev){lid, n, k, type};
+}
+/* the critical sections of c whose acquire waits contain this record: their edges stay out */
+static void lk_resolve_soft(thr *c) {
+    for (int i = 0; i < c->ndeferred; i++) { free(c->deferred[i]->dv); c->deferred[i]->dv = NULL; }
+    c->ndeferred = 0;
+}
+/* c synchronises before any record in them: their edges are taken into the hard half */
+static void lk_flush_hard(thr *c) {
+    for (int i = 0; i < c->ndeferred; i++) {
+        sobj *s = c->deferred[i];
+        vc_acquire_hard(c, s->dv, s->hold_ka);
+        free(s->dv); s->dv = NULL;
+        if (s->hold_ev >= 0) c->lk[s->hold_ev].type = 0;
+    }
+    c->ndeferred = 0;
+}
+static void sync_lock(const void *key, int hard) {
+    thr *c = cur_chain(); long ka = sync_op_k(c, 1);
+    IL(&g_symu);
+    sobj *s = sobj_get_locked(key);
+    if (!s->lid) s->lid = ++g_nlock;
+    long n = ++s->ncs, lid = s->lid;
+    int defer = !hard && s->last_rec && s->last_holder != c && c->ndeferred < HELD_MAX;
+    vc_acquire_full(c, &s->vc, ka);
+    if (defer && !(s->dv = malloc(sizeof(vclock)))) defer = 0;
+    if (defer) *s->dv = s->vc;
+    else vc_acquire_hard(c, &s->vc, ka);
+    s->hold_nrec = c->nrec; s->hold_ka = ka;
+    IU(&g_symu);
+    int at;
+    lk_push(c, lid, n, ka, defer, &at);
+    if (defer) { s->hold_ev = at; c->deferred[c->ndeferred++] = s; }
+}
+static void sync_unlock(const void *key) {
+    thr *c = cur_chain(); long k = sync_op_k(c, 1);   /* a critical section without a record keeps its edge */
+    IL(&g_symu);
+    sobj *s = sobj_get_locked(key);
+    if (!s->lid) s->lid = ++g_nlock;
+    long n = s->ncs, lid = s->lid;
+    s->last_rec = c->nrec > s->hold_nrec;
+    s->last_holder = c;
+    vc_join_full(&s->vc, &c->vc);
+    memcpy(s->vc.hs, c->vc.hs, sizeof s->vc.hs); memcpy(s->vc.hk, c->vc.hk, sizeof s->vc.hk);   /* the last release only */
+    IU(&g_symu);
+    lk_push(c, lid, n, k, 2, NULL);
+}
+/* the chain ends: its lock events since its last record as a side record */
+static void lk_end(thr *c) {
+    if (c->ndeferred) lk_flush_hard(c);
+    if (!c->nlk) return;
+    IL(&g_mu);
+    if (g_out && c->id >= 0) {
+        flush_poll_locked();
+        fprintf(g_out, "{\"r\":%d,\"seq\":%ld,", g_rank, g_seq++);
+        if (c->id != 0) fprintf(g_out, "\"tid\":%d,", c->id);
+        fputs("\"op\":\"locks\",\"locks\":[", g_out);
+        for (int i = 0; i < c->nlk; i++)
+            fprintf(g_out, "%s[%ld,%ld,%ld,%ld]", i ? "," : "", c->lk[i].lid, c->lk[i].n, c->lk[i].k, c->lk[i].type);
+        fputs("]}\n", g_out);
+        fflush(g_out);
+    }
+    c->nlk = 0;
+    IU(&g_mu);
+}
+
 /* ---- POSIX threads */
 #define TSLOTS 4096
 static struct { pthread_t t; thr *c; int used; } g_ttab[TSLOTS];
@@ -2774,7 +2968,7 @@ static thr *thread_take(pthread_t t) {
 }
 static void thread_end(thr *c) {       /* the thread's end is a release, which a join takes */
     if (!c) return;
-    if (g_threads_on && !c->untracked) sync_op(c);
+    if (g_threads_on && !c->untracked) { sync_op(c); lk_end(c); }
     c->fin = c->vc;
     __atomic_store_n(&c->done, 1, __ATOMIC_RELEASE);
 }
@@ -2835,10 +3029,20 @@ int name(T *o) { RESOLVE(r_##name, #name); if (tracked_call(RA)) sync_release((c
 static int (*r_##name)(T *, const struct timespec *); \
 int name(T *o, const struct timespec *ts) { RESOLVE(r_##name, #name); int rc = r_##name(o, ts); if (rc == 0 && tracked_call(RA)) sync_acquire((const void *)o); return rc; }
 
-int pthread_mutex_lock(pthread_mutex_t *m) { int rc = stretto_real_lock(m); if (rc == 0 && tracked_call(RA)) sync_acquire(m); return rc; }
-int pthread_mutex_unlock(pthread_mutex_t *m) { if (tracked_call(RA)) sync_release(m); return stretto_real_unlock(m); }
-WRAP_ACQ(pthread_mutex_trylock, pthread_mutex_t)
-WRAP_TACQ(pthread_mutex_timedlock, pthread_mutex_t)
+#define WRAP_LOCK(name, T) \
+static int (*r_##name)(T *); \
+int name(T *o) { RESOLVE(r_##name, #name); int rc = r_##name(o); if (rc == 0 && tracked_call(RA)) sync_lock((const void *)o, 0); return rc; }
+#define WRAP_TLOCK(name, T) \
+static int (*r_##name)(T *, const struct timespec *); \
+int name(T *o, const struct timespec *ts) { RESOLVE(r_##name, #name); int rc = r_##name(o, ts); if (rc == 0 && tracked_call(RA)) sync_lock((const void *)o, 0); return rc; }
+#define WRAP_UNLOCK(name, T) \
+static int (*r_##name)(T *); \
+int name(T *o) { RESOLVE(r_##name, #name); if (tracked_call(RA)) sync_unlock((const void *)o); return r_##name(o); }
+/* mutual exclusion (critical sections, sync_lock); read-write locks and semaphores are not */
+int pthread_mutex_lock(pthread_mutex_t *m) { int rc = stretto_real_lock(m); if (rc == 0 && tracked_call(RA)) sync_lock(m, 0); return rc; }
+int pthread_mutex_unlock(pthread_mutex_t *m) { if (tracked_call(RA)) sync_unlock(m); return stretto_real_unlock(m); }
+WRAP_LOCK(pthread_mutex_trylock, pthread_mutex_t)
+WRAP_TLOCK(pthread_mutex_timedlock, pthread_mutex_t)
 WRAP_ACQ(pthread_rwlock_rdlock, pthread_rwlock_t)
 WRAP_ACQ(pthread_rwlock_wrlock, pthread_rwlock_t)
 WRAP_ACQ(pthread_rwlock_tryrdlock, pthread_rwlock_t)
@@ -2846,9 +3050,9 @@ WRAP_ACQ(pthread_rwlock_trywrlock, pthread_rwlock_t)
 WRAP_TACQ(pthread_rwlock_timedrdlock, pthread_rwlock_t)
 WRAP_TACQ(pthread_rwlock_timedwrlock, pthread_rwlock_t)
 WRAP_REL(pthread_rwlock_unlock, pthread_rwlock_t)
-WRAP_ACQ(pthread_spin_lock, pthread_spinlock_t)
-WRAP_ACQ(pthread_spin_trylock, pthread_spinlock_t)
-WRAP_REL(pthread_spin_unlock, pthread_spinlock_t)
+WRAP_LOCK(pthread_spin_lock, pthread_spinlock_t)
+WRAP_LOCK(pthread_spin_trylock, pthread_spinlock_t)
+WRAP_UNLOCK(pthread_spin_unlock, pthread_spinlock_t)
 WRAP_ACQ(sem_wait, sem_t)
 WRAP_ACQ(sem_trywait, sem_t)
 WRAP_TACQ(sem_timedwait, sem_t)
@@ -2858,18 +3062,18 @@ static int (*r_cond_wait)(pthread_cond_t *, pthread_mutex_t *);
 int pthread_cond_wait(pthread_cond_t *c, pthread_mutex_t *m) {
     RESOLVE(r_cond_wait, "pthread_cond_wait");
     int t = tracked_call(RA);
-    if (t) sync_release(m);
+    if (t) sync_unlock(m);
     int rc = r_cond_wait(c, m);
-    if (t) sync_acquire(m);
+    if (t) sync_lock(m, 1);
     return rc;
 }
 static int (*r_cond_timedwait)(pthread_cond_t *, pthread_mutex_t *, const struct timespec *);
 int pthread_cond_timedwait(pthread_cond_t *c, pthread_mutex_t *m, const struct timespec *ts) {
     RESOLVE(r_cond_timedwait, "pthread_cond_timedwait");
     int t = tracked_call(RA);
-    if (t) sync_release(m);
+    if (t) sync_unlock(m);
     int rc = r_cond_timedwait(c, m, ts);
-    if (t) sync_acquire(m);
+    if (t) sync_lock(m, 1);
     return rc;
 }
 
@@ -2997,7 +3201,7 @@ static void omp_tramp(void *a) {
         if (g_threads_on) chain_start(c, &R->snap);
         t_cur = c;
         R->fn(R->data);
-        if (g_threads_on) { sync_op(c); IL(&g_symu); vc_join(&R->acc, &c->vc); IU(&g_symu); }   /* the task's end: a release */
+        if (g_threads_on) { sync_op(c); IL(&g_symu); vc_join(&R->acc, &c->vc); IU(&g_symu); lk_end(c); }   /* the task's end: a release */
         t_cur = saved;
         thr_put(c);            /* freed if it has no records, once the tasks it created are */
     }
@@ -3142,7 +3346,7 @@ static void deps_locked(tnode *n, void **depend, tclock *end, tpreds *p) {
 }
 static void task_end(task *T) {
     thr *c = T->c;
-    sync_op(c);
+    sync_op(c); lk_end(c);
     IL(&g_symu);
     T->end->vc = c->vc;
     vc_join(&T->parent->cacc, &c->vc);
@@ -3301,34 +3505,34 @@ BAR_WRAP(GOMP_loop_end_cancel, _Bool, =)
 BAR_WRAP(GOMP_sections_end_cancel, _Bool, =)
 
 static int g_crit_key, g_atomic_key;
-#define LOCK_WRAP0(name, KEY, ACQ) \
+#define LOCK_WRAP0(name, KEY, ACQ, SYNC) \
 static void (*r_##name)(void); \
-void name(void) { RESOLVE(r_##name, #name); if (ACQ) { r_##name(); if (tracking()) sync_acquire(KEY); } else { if (tracking()) sync_release(KEY); r_##name(); } }
-LOCK_WRAP0(GOMP_critical_start, &g_crit_key, 1)
-LOCK_WRAP0(GOMP_critical_end, &g_crit_key, 0)
-LOCK_WRAP0(GOMP_atomic_start, &g_atomic_key, 1)
-LOCK_WRAP0(GOMP_atomic_end, &g_atomic_key, 0)
+void name(void) { RESOLVE(r_##name, #name); if (ACQ) { r_##name(); if (tracking()) SYNC; } else { if (tracking()) SYNC; r_##name(); } }
+LOCK_WRAP0(GOMP_critical_start, &g_crit_key, 1, sync_lock(&g_crit_key, 0))
+LOCK_WRAP0(GOMP_critical_end, &g_crit_key, 0, sync_unlock(&g_crit_key))
+LOCK_WRAP0(GOMP_atomic_start, &g_atomic_key, 1, sync_acquire(&g_atomic_key))
+LOCK_WRAP0(GOMP_atomic_end, &g_atomic_key, 0, sync_release(&g_atomic_key))
 static void (*r_GOMP_critical_name_start)(void **);
-void GOMP_critical_name_start(void **p) { RESOLVE(r_GOMP_critical_name_start, "GOMP_critical_name_start"); r_GOMP_critical_name_start(p); if (tracking()) sync_acquire(p); }
+void GOMP_critical_name_start(void **p) { RESOLVE(r_GOMP_critical_name_start, "GOMP_critical_name_start"); r_GOMP_critical_name_start(p); if (tracking()) sync_lock(p, 0); }
 static void (*r_GOMP_critical_name_end)(void **);
-void GOMP_critical_name_end(void **p) { RESOLVE(r_GOMP_critical_name_end, "GOMP_critical_name_end"); if (tracking()) sync_release(p); r_GOMP_critical_name_end(p); }
+void GOMP_critical_name_end(void **p) { RESOLVE(r_GOMP_critical_name_end, "GOMP_critical_name_end"); if (tracking()) sync_unlock(p); r_GOMP_critical_name_end(p); }
 static void (*r_GOMP_ordered_start)(void);
 void GOMP_ordered_start(void) { RESOLVE(r_GOMP_ordered_start, "GOMP_ordered_start"); r_GOMP_ordered_start(); if (omp_tracking()) { thr *c = cur_chain(); long ka = sync_op(c); IL(&g_symu); vc_acquire(c, &t_region->ordvc, ka); IU(&g_symu); } }
 static void (*r_GOMP_ordered_end)(void);
 void GOMP_ordered_end(void) { RESOLVE(r_GOMP_ordered_end, "GOMP_ordered_end"); if (omp_tracking()) { thr *c = cur_chain(); sync_op(c); IL(&g_symu); vc_join(&t_region->ordvc, &c->vc); IU(&g_symu); } r_GOMP_ordered_end(); }
 
 /* OpenMP locks, by the lock's address (omp_lock_t and omp_nest_lock_t, OMP_3.0) */
-#define OLOCK(name, ACQ) \
+#define OLOCK(name, ACQ, SYNC) \
 static void (*r_##name)(void *); \
-void name(void *l) { RESOLVE(r_##name, #name); if (ACQ) { r_##name(l); if (tracking()) sync_acquire(l); } else { if (tracking()) sync_release(l); r_##name(l); } }
-OLOCK(omp_set_lock, 1)
-OLOCK(omp_unset_lock, 0)
-OLOCK(omp_set_nest_lock, 1)
-OLOCK(omp_unset_nest_lock, 0)
+void name(void *l) { RESOLVE(r_##name, #name); if (ACQ) { r_##name(l); if (tracking()) SYNC; } else { if (tracking()) SYNC; r_##name(l); } }
+OLOCK(omp_set_lock, 1, sync_lock(l, 0))
+OLOCK(omp_unset_lock, 0, sync_unlock(l))
+OLOCK(omp_set_nest_lock, 1, sync_lock(l, 1))
+OLOCK(omp_unset_nest_lock, 0, sync_unlock(l))
 static int (*r_omp_test_lock)(void *);
-int omp_test_lock(void *l) { RESOLVE(r_omp_test_lock, "omp_test_lock"); int v = r_omp_test_lock(l); if (v && tracking()) sync_acquire(l); return v; }
+int omp_test_lock(void *l) { RESOLVE(r_omp_test_lock, "omp_test_lock"); int v = r_omp_test_lock(l); if (v && tracking()) sync_lock(l, 0); return v; }
 static int (*r_omp_test_nest_lock)(void *);
-int omp_test_nest_lock(void *l) { RESOLVE(r_omp_test_nest_lock, "omp_test_nest_lock"); int v = r_omp_test_nest_lock(l); if (v && tracking()) sync_acquire(l); return v; }
+int omp_test_nest_lock(void *l) { RESOLVE(r_omp_test_nest_lock, "omp_test_nest_lock"); int v = r_omp_test_nest_lock(l); if (v && tracking()) sync_lock(l, 1); return v; }
 
 /* Dynamic work sharing: which thread gets which chunk, section or single is decided by the order
    of these calls, kept as a read-modify-write of the work share's clock (after the call: an
