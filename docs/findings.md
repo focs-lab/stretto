@@ -106,13 +106,20 @@ with the hunt notes, outside this repository.
   a lock) 10 of 10 replays confirmed against 0 of 10 without lock gates, whose replays
   included 3 wrong refutations. Still open: alternatives across HDF5's pools of two files
   (an atomic flag orders them; over-predictions) and SLATE replays that need more threads
-  than the trace's team (P-T7).
+  than the trace's team (P-T7; on 31 Oct teams of 8 and of 16 still starved in 8 of 28 SLATE
+  replays, §16).
   Gating every concurrent pair instead of the reordered ones timed out on the same pools; fixed
   30 Oct. The reduced orientation edges shared one cache between receive and send views and ended
   the analysis of a Uintah trace; fixed 30 Oct (84 multithreaded reports unchanged).
   Records of chains other than a rank's first had no call site (`Trace.site_of` looked the
   process's site ids up under the chain), so `stretto sites` and the report's grouping missed
   worker threads' records; found on Uintah's ARCHES traces, fixed 30 Oct.
+- Replay harness on the races of milestone F (30-31 Oct, [threads.md](threads.md) §16): a
+  handed-off receive was judged by its posting chain's cut (fixed, `test_confirm.Handoffs`);
+  the tracer posted a `Sendrecv`'s send and receive under one hold of its issue lock, so no
+  replay could swap two threads' `Sendrecv`s (PaRSEC; fixed: a gate that holds the receive back
+  splits them, idiom 47); a replay that aborted on a misapplied pin hung at a lock gate inside
+  Open MPI's abort and read as a gate timeout (DLA-Future; fixed).
 - MPI inside OpenMP tasks (SLATE, 30 Oct): every trace with messages was degraded
   `threads-tasks`, and with it the observed thread classes were skipped, so the traces of runs
   in which SLATE's tag race happened reported nothing; `experiments/slate/overlap.py` located the
@@ -274,7 +281,13 @@ traces predicts the race (36 to 108 alternatives); 0 findings in 25 patched and 
 Replayed in the trace's lock order with 8 threads (§14): 15 of 18 replays of six 1f alternatives
 took their pins, with a control reproducing the run in 11, but the traced runs of that session
 all had the race already, so no consequence tells them apart; two 1a alternatives stopped at a
-gate (6 of 6, not diagnosed). The tester checks `getrf` only on square matrices.
+gate (6 of 6, not diagnosed). Forced replays of right-factor runs (31 Oct, [threads.md](threads.md)
+§16): of 5 right 4x1 traces, 16 of 20 1f replays took every pin and gave a wrong factor, 3 of
+them beside a right control (confirmed); the other controls went wrong too (the run beyond the
+horizon is free) or starved (P-T7); the 1a truncation was forced from a right run in 2 of 2
+replays with right controls, and on 2x2 from a wrong run in 1 of 6 with the truncation shown at
+the changed receive. The milestone E stall was not seen again once a replay's abort opened its
+gates. The tester checks `getrf` only on square matrices.
 Shown safe by reading: partial-pivoting `getrf` (tag = column, chained by `column[j]`),
 `potrf`, `gemmA`/`gemmC`/`herk` (chained broadcasts), `geqrf` and `ttmqr` (disjoint column
 ranges), `getrf_nopiv` (shared tags, but row and column process sets meet in one rank), `he2hb`,
@@ -300,7 +313,10 @@ steals of two receives with one colliding tag (34 to 206 per trace), 0 of 15 pat
 of 20 controls (2x2 without a colliding pair, one pika thread), plain or patched; every trace
 with several workers keeps the false alarms of pika's unrecorded synchronisation, and every one
 `waitany-order` warnings of pika's polling (`experiments/dlaf/traced.csv`). All plain traced runs
-of the colliding cells were wrong. Shown safe by reading: every collective (`exclusive()`), the
+of the colliding cells were wrong. Not confirmable by forced replay (30 Oct, [threads.md](threads.md)
+§16): 0 of 24 replays and 0 of 24 controls of 12 alternatives ran their course, all ending on a
+misapplied lock or chain pin, since pika's workers take other tasks in every run (lock-free
+queues, work stealing; P-T5 fails for workers). Shown safe by reading: every collective (`exclusive()`), the
 fixed-tag `exclusive()` sends, `bt_band_to_tridiag`'s `shared()` sums, `rot.h`'s serialised
 column exchanges, the permutation's tag 0 (one message per pair and call), `band_to_tridiag`'s
 four tag families. Report drafted, not sent; its reproduction block, run in an empty directory,
@@ -323,6 +339,11 @@ runs without it: 10 of 10 new plain traces with two virtual processes (1 rank an
 15 to 20 swaps or steals of two threads' reshape receives on a self duplicate, at the shared
 tag; 0 of 10 patched and 0 of 20 controls (`MPI_THREAD_SERIALIZED`, one virtual process); all 40
 runs right (`experiments/parsec/traced.csv`). The 10 earlier plain traces give 15 or 17 each.
+Confirmed by forced replay (30 Oct, [threads.md](threads.md) §16): of 10 new right runs, 3
+alternatives each, twice, 53 of 60 replays (27 of 30 alternatives) took every pin and failed the
+check (one or two tiles exchanged) while their controls came out right with every pin taken; 7
+inconclusive (gate and control timeouts). It needed the tracer to let a gate come between a
+`Sendrecv`'s two postings (idiom 47).
 Shown safe by reading: activations (received by the communication
 thread only), data messages (communication thread, compare-and-swap tags). Side defects, not
 races: the `rr:` and `file:` vpmaps crash (vpmap.c:384, 308-327). Report drafted, not sent; its

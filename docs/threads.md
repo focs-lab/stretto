@@ -6,7 +6,8 @@ classes, tests) implemented the same day, section 9 says how it differs from the
 says how milestone C replays alternatives of several threads, section 12 how milestone D follows
 OpenMP tasks (both 30 Oct 2026), section 13 how level L1+L reorders critical sections, section 14
 how milestone E replays pools of threads and tasks in the trace's lock order, section 15 how
-milestone F analyses requests handed between threads and cancelled receives (30 Oct 2026).
+milestone F analyses requests handed between threads and cancelled receives (30 Oct 2026),
+section 16 what forced replays of its three races showed (30-31 Oct 2026).
 Decided
 29 Oct 2026: Stretto is extended to programs in which several threads of an MPI process call MPI
 on shared communicators (`MPI_THREAD_MULTIPLE`, and `MPI_THREAD_SERIALIZED` with several calling
@@ -1513,3 +1514,65 @@ posting chain); the fast checks and read bounds are single-chain only, as before
   and each of their traces predicts the race (36 to 108); 0 findings in 10 patched and 15 control
   traces. The target of 10 right-factor runs was not reached (right factors are rare on this
   host: 1 in 15 on 2x2).
+
+## 16. Forced replays of the three races (30-31 Oct 2026)
+
+The three races of milestone F (SLATE's CALU tags, DLA-Future's `matrix::copy` tags, PaRSEC's
+reshape tags) were predicted at L1 but confirmed only by series and fixes. A forced replay
+confirms a prediction when every required pin is taken (the replay's own trace shows it), the
+replay shows the predicted outcome, and its control reproduces the recorded run (its pins taken,
+no divergence, the recorded result); anything else is inconclusive. Each campaign records new
+traces with the lock order (`STRETTO_SYNC_ORDER=1`) and replays alternatives of them with
+`experiments/replay_sample.py --threads`; `experiments/replay_verdicts.py` gives each row its
+verdict.
+
+**Harness and tracer changes.**
+
+- *Hand-offs* (`confirm.py`): whether a receive's completion lies in the horizon, and so whether
+  a replay must show its message, is read on the chain that completed it, and rule 1's stop of
+  the lock gates falls there; before, both were read on the posting chain (section 15.3). Test
+  `test_confirm.Handoffs`.
+- *A gate between a `Sendrecv`'s postings* (tracer): the tracer posts a `Sendrecv`'s send and
+  receive under one hold of its issue lock, so two threads' `Sendrecv`s on one envelope could
+  never swap their messages in a replay (the swap needs the other thread's send between one
+  call's two postings; Open MPI's own `Sendrecv` posts the receive first and swaps them freely).
+  When the receive's gates would block, the send is now posted first and the receive waits;
+  otherwise the two are posted together as in the traced run, so that what no gate orders runs as
+  recorded (posting every `Sendrecv` in two steps made PaRSEC's controls race beyond the horizon:
+  both the trial replay and its control came out wrong). Idiom 47 has PaRSEC's shape; its swap
+  replays with both threads reading the other's header, which the earlier tracer could not.
+- *An abort held at a lock gate* (replay library): Open MPI's `MPI_Abort` takes a mutex in
+  `mca_pmix_ext3x.so`, which the tracer counts as the program's, so a replay ending on a
+  misapplied pin (exit 86) hung at that lock's gate and was reported as a gate timeout (87) of the
+  aborting chain waiting for its own attempt. The aborting thread now opens the gates first.
+  Milestone E's undiagnosed stall of SLATE's 1a replays ("a task waiting for a task that never
+  started", one thread at a gate) has this shape; that it was this is a guess.
+- `replay_sample.py`: `--env` passes the traced run's `-x` variables to the replays,
+  `--keep-output` keeps each run's output, `--cls` samples by class, and the column `shown` says
+  whether a 1a replay ended in its changed receive (`truncation_shown`).
+
+**PaRSEC 6c49997** ([experiments/parsec](../experiments/parsec/README.md), `replay-*.csv`): 10
+traced runs, all right, 3 alternatives per trace, each replayed twice with its control. 53 of 60
+replays confirmed (27 of 30 alternatives): every pin taken, the driver's check failing with one or
+two tiles exchanged, the control right with every pin taken; 7 inconclusive (6 gate timeouts and
+1 control timeout, all on 1 rank with 6 computation threads). The race is confirmed from runs in
+which it did not happen.
+
+**DLA-Future 09fe442** ([experiments/dlaf](../experiments/dlaf/README.md), `replay-*.csv`): every
+traced run of a colliding cell copies wrongly; 6 traces (3 with lock gates, 3 without), 2
+alternatives each, twice: 0 of 24 replays and 0 of 24 controls ran their course, every one ending
+on a misapplied lock pin (with lock gates) or chain pin (without). pika hands tasks to its
+workers through lock-free queues and work stealing, so a worker (a chain) does other work in
+every run: P-T5 fails for pika's workers, and no control can rebuild the recorded run.
+Inconclusive by construction; it would need the tasks as chains (a hook in pika's scheduler).
+
+**SLATE 878439b** ([experiments/slate](../experiments/slate/README.md), `replay-4x1.csv`,
+`replay-2x2-1a.csv`; 8 threads per rank in the replays unless said): of 16 traced 4x1 runs 5 had
+a right factor; of their 10 1f alternatives, 16 of 20 replays took every pin and gave a wrong
+factor, but 13 of those 16 controls gave a wrong factor too, the part beyond the horizon being
+free (and run with 8 threads instead of 4): 3 replays confirmed (2 alternatives), 4 starved (8 of
+8 threads at gates). The one 1a alternative of a right run truncated in 2 of 2 replays with right
+controls (recorded before the column `shown`). On 2x2, 9 more runs (all wrong), 3 with a 1a: 1 of
+6 replays confirmed with the truncation shown at the changed receive and a control reproducing
+the run, 1 truncated without it, 4 starved (with teams of 8 and of 16). Confirmed, narrowly;
+what limits it is the free continuation beyond the horizon and P-T7, not the pins.
