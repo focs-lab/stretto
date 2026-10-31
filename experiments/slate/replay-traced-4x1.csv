@@ -1,0 +1,17 @@
+run,result,stretto_rc,l1_collision,l1_collision_1a
+1,WRONG,,,
+2,WRONG,,,
+3,WRONG,,,
+4,WRONG,,,
+5,WRONG,,,
+6,ok,1,44,1
+7,WRONG,,,
+8,WRONG,,,
+9,WRONG,,,
+10,ok,0,42,0
+11,WRONG,,,
+12,WRONG,,,
+13,WRONG,,,
+14,ok,0,63,0
+15,ok,0,13,0
+16,ok,0,26,0

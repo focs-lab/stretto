@@ -162,8 +162,7 @@ all 7 traces predict the race at L1: 36 (2x2, two of them 1a), 46, 56 (one 1a), 
 the collision, and its truncation, from runs in which it did not happen. The share of right
 factors remains low on this host (1 in 15 on 2x2; untraced the series gives 0 of 40 on 2x2 and
 12 of 40 on 4x1); whether the load or the tracer's lock events decide it is a guess, not checked.
-Not done: a lock-gated replay of a right-factor trace (section 14), which needs traces recorded
-with `STRETTO_SYNC_ORDER=1` (`replay.sh`) and, at these rates, about seven runs per right one.
+Lock-gated replays of right-factor traces (section 14) followed on 31 Oct (below).
 
 **Replays in the trace's lock order** (milestone E, [docs/threads.md](../../docs/threads.md)
 section 14; `replay.sh`; tracer and analysis of main 5fdd932). The traced runs record their lock
@@ -184,6 +183,46 @@ as the recorded runs and their controls did, so no consequence tells the alterna
 The 1a replays (the 80 000-byte tile into a 36 000-byte row receive) all stopped at a lock gate of
 a task waiting for a task that never started, with one thread at a gate (not a starved team; not
 diagnosed). Not confirmed; the race itself is confirmed by the series and the fix above.
+
+**Forced replays of right-factor runs (31 Oct, [docs/threads.md](../../docs/threads.md) section
+16; `replay.sh` with `GRID="4 1" RIGHT_ONLY=1 CLASSES="1a 1f"`, 8 threads in the replays;
+CPUs 0-7,40-47 of a-p13, 16 processors).** 16 traced runs with the lock order recorded, 5 with a
+right factor ([replay-traced-4x1.csv](replay-traced-4x1.csv): runs 6, 10, 14, 15, 16; 13 to 63
+L1 alternatives in the collision range each, one 1a in run 6), the 11 wrong ones recorded and not
+analysed; per right trace up to 2 alternatives of each class, each replayed twice with its
+control ([replay-4x1.csv](replay-4x1.csv), verdicts by `experiments/replay_verdicts.py`):
+
+| class | alternatives | replays | every pin taken, wrong factor | control right, pins taken (confirmed) | inconclusive |
+|---|---|---|---|---|---|
+| 1f | 10 of 5 traces | 20 | 16 | 3 (2 alternatives, runs 14 and 15) | 17: 13 controls with a wrong factor, 4 starved (8 of 8 threads at gates, run 16) |
+| 1a | 1 (run 6) | 2 | 2 ended in `MPI_ERR_TRUNCATE` | 2 | where the truncation happened was not recorded (the column `shown` came after) |
+
+Every replay that ran took its pins and ended with the alternative's consequence: a wrong factor
+(1f) or the 80 000-byte tile's truncation in a 40 800-byte row receive (1a), from runs whose
+factor was right. The controls mostly did not reproduce the run: what lies beyond the horizon
+(after the changed receives, rule 1) is not gated, runs with 8 threads instead of the trace's 4,
+and races there too (13 of 16 controls of 1f alternatives came out wrong). So a 1f replay's
+wrong factor is evidence only next to a right control (3 rows); the 1a truncation happens at
+the changed receive itself, inside the horizon, and its two controls finished right.
+
+A 1a replay is decisive whatever the recorded factor, since no recorded run or control
+truncates; so 9 more runs on 2x2 (`GRID="2 2" CLASSES=1a`, every finished run analysed;
+[replay-traced-2x2.csv](replay-traced-2x2.csv)), all with a wrong factor, 3 of them with one 1a
+alternative (runs 3, 8, 9), replayed twice each ([replay-2x2-1a.csv](replay-2x2-1a.csv); 8
+threads in the replays of run 3, 16 in those of runs 8 and 9). Run 8: both replays ended in
+`MPI_ERR_TRUNCATE` and both controls reproduced the run (pins taken, no divergence, wrong
+factor); in one the replay's own trace shows the truncation at the changed receive with every
+other required pin taken (`shown`): confirmed; in the other it does not: inconclusive. Runs 3
+and 9: 4 of 4 replays and 3 of 4 controls starved (8 of 8, or 15 to 16 of 16, threads at gates):
+a larger team does not help, since libgomp starts more tasks, which wait at their gates too.
+The milestone E stall of the 1a replays did not recur as such: with the abort fix the replays
+end in a truncation or in a starved team, both reported for what they are.
+
+So the collision is confirmed by forced replay from runs in which it did not happen (3 1f
+replays with right controls; a 1a truncation from a right run, 2 of 2, its controls right),
+and its truncation from a wrong run with the replay's trace showing where (1 replay), but most
+replays are inconclusive: the part beyond the horizon races freely in the controls, and teams
+starve at gates (P-T7).
 
 **Upstream.** Not found in the issue tracker (searched 30 Oct for tntpiv, CALU, getrf, tag,
 hang): the only CALU issue, #70 (accuracy on GPUs, square matrix, closed Jan 2024), is another
@@ -294,4 +333,5 @@ oracle), `series.sh`, `traced.sh`, `traced_cells.sh` (traced cells with Stretto'
 apply` or `patch -p1`);
 `replay.sh` (replays in the lock order); results: `series*.csv`, `traced.csv`, `traced-cells.csv`,
 `traced-cells-16.csv`, `sweep.csv`, `sweep-d.csv`, `replay.csv`, `traced-e.csv`, `replay-e.csv`,
-`replay-1a.csv`.
+`replay-1a.csv`, `replay-4x1.csv`, `replay-traced-4x1.csv`, `replay-2x2-1a.csv`,
+`replay-traced-2x2.csv`.
