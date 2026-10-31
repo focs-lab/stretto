@@ -51,15 +51,18 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, os.path.join(ROOT, "analysis"))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from stretto import keep, trace  # noqa: E402
-from stretto.confirm import all_matched, horizon_pins, pin_name, required_matches, run_checked, with_sync  # noqa: E402
+from stretto.confirm import (_reported, all_matched, changed_pin, horizon_pins, pin_name, required_matches, run_checked,  # noqa: E402
+                            truncation_shown, with_sync)
 from stretto.report import Finding, analyze  # noqa: E402
 from provenance import code_commit  # noqa: E402
 
 KEYS = ["finding", "cls", "pin", "site", "pins", "replay", "matched", "run_valid", "violation", "control", "control_matched",
         "control_valid", "control_violation", "commit"]
 # --threads: the repetitions, the pins and gates that did not apply, the synchronisation of the
-# replay against the trace's (stretto.confirm.sync_divergence) and the lines --grep matches
-THREAD_KEYS = ["repeat", "misapplied", "diverged", "control_misapplied", "control_diverged", "hits", "control_hits"]
+# replay against the trace's (stretto.confirm.sync_divergence), the lines --grep matches, and for a
+# 1a finding whether a replay that ended in MPI_ERR_TRUNCATE ended in its changed receive with every
+# other required pin taken or pending there (stretto.confirm.truncation_shown, as confirm judges it)
+THREAD_KEYS = ["repeat", "misapplied", "diverged", "control_misapplied", "control_diverged", "hits", "control_hits", "shown"]
 
 _PROBE = re.compile(r"^(?:i?m?probe)\((\d+), (\d+)\) .*? could observe send\((\d+), (\d+)\)")
 _RECV = re.compile(r"^recv\((\d+), (\d+)\) .*? <- send\((\d+), (\d+)\)")
@@ -155,7 +158,7 @@ def main() -> int:
         pool = len(pool)
         del rep
     # every pin first; then the trace goes, before the replays' own traces are read
-    planned = [(f, horizon_pins(t, f), required_matches(t, f)) for f in sample]
+    planned = [(f, horizon_pins(t, f), required_matches(t, f), changed_pin(t, f) if f.cls == "1a" else None) for f in sample]
     del t
     gc.collect()
     rows = []
@@ -175,7 +178,7 @@ def main() -> int:
         os.makedirs(args.fresh_cwd)
         return args.fresh_cwd
 
-    for k, (f, hp, required) in enumerate(planned, 1):
+    for k, (f, hp, required, changed) in enumerate(planned, 1):
         row = {"finding": f.title[:160], "cls": f.cls, "pin": f.pin, "site": f.site, "commit": code_commit()}
         if hp is None:
             rows.append({**row, "replay": "no horizon"})
@@ -199,7 +202,9 @@ def main() -> int:
                          "control_valid": rc.valid, "control_violation": rc.why[:300],
                          "repeat": rep_k, "misapplied": "; ".join(ra.misapplied)[:300],
                          "diverged": "; ".join(ra.diverged)[:300], "control_misapplied": "; ".join(rc.misapplied)[:300],
-                         "control_diverged": "; ".join(rc.diverged)[:300], "hits": hits(ra), "control_hits": hits(rc)})
+                         "control_diverged": "; ".join(rc.diverged)[:300], "hits": hits(ra), "control_hits": hits(rc),
+                         "shown": "" if f.cls != "1a" else ra.result == "MPI-ERROR:MPI_ERR_TRUNCATE" and truncation_shown(
+                             changed, alt, ra.proc.stderr, required, _reported(ra.proc.stderr, alt) | ra.seen, ra.ended)})
             r = rows[-1]
             print(f"[{k}/{len(planned)}{f'.{rep_k}' if args.repeat > 1 else ''}] {r['replay']} matched={r['matched']} valid={ra.valid} "
                   f"control={r['control']} valid={rc.valid} {f.title[:90]}"
