@@ -115,6 +115,31 @@ happen. No other finding in any of the 40 traces. Before the fix of 15.2, 6 of t
 plain traces (below) also had an observed `2-buffering` and 5 instead of 15 alternatives; with
 it, those 10 traces give 15 or 17 alternatives each, the 5 patched ones none.
 
+**Forced replays (30 Oct, [docs/threads.md](../../docs/threads.md) section 16; `replay.sh`).** 5
+new traced runs per cell with the lock order recorded (`STRETTO_SYNC_ORDER=1`), all right; per
+trace 3 of its L1 alternatives, each replayed twice with the chain pins, order gates and lock
+gates of its horizon and twice as its control; the oracle is the driver's own check. The swap
+needs the other thread's send between one `Sendrecv`'s two postings, which the tracer posted
+under one hold of its issue lock: the replays became possible only once a gate may hold a
+`Sendrecv`'s receive back (section 16). Tables `replay-1rank.csv`, `replay-4ranks.csv` (their
+traced runs `replay-traced-1rank.csv`, `replay-traced-4ranks.csv`); verdicts by
+`experiments/replay_verdicts.py`:
+
+| cell | traces (alternatives each) | replays | every pin taken, check failed, control right with its pins | inconclusive |
+|---|---|---|---|---|
+| 1 rank, 6 threads in 2 virtual processes | 5 (15 or 17) | 30 (15 alternatives) | 23 (12 alternatives) | 7: 6 replays at a gate timeout (4 with 5 threads waiting at gates, 2 with none), 1 control timeout |
+| 4 ranks, 2 threads each in 2 virtual processes | 5 (20) | 30 (15 alternatives) | 30 (15) | 0 |
+
+Every control finished with a right result, its pins taken and its synchronisation the trace's,
+but one that timed out (59 controls: 0 wrong elements); no replay or control diverged or
+misapplied a pin. Each confirmed replay failed the check with 45 or 90 wrong elements, the lower
+triangles of one or two tiles (two 4-rank replays exited with status 0 although the driver's
+summary line counted the wrong taskpool; not examined). So the
+race is confirmed from runs in which it did not happen: forcing the predicted interleaving of
+two threads' reshapes makes the same program, unpatched, compute a wrong result while its
+control does not. The rows' commit column was 82c88b0, a commit later amended with an unused
+option only (`--cls`); it is written as 35d94ee here.
+
 Before milestone F: traced `reshape_check` runs (1 rank, 2 virtual processes, `-m 1`, one taskpool): 10 plain runs
 and 5 patched, all with correct results (the tracer's issue lock serialises the postings).
 Stretto: every trace degraded `threads-cancel` ("a receive withdrawn by a successful cancel:
@@ -129,5 +154,7 @@ same-envelope pairs pending on two threads at once, on the self communicator wit
 
 `Dockerfile`, `build.sh`, `reshape_check.jdf`, `testing_reshape_check.c`, `self-tags.patch`
 (against 6c49997, `patch -p1`), `series.sh`, `traced.sh` (traced runs and Stretto's reports; its
-CSV by `../dlaf/traced_csv.py`), `clean-room.sh` (the upstream report's reproduction block, run
-verbatim in an empty directory); results `series.csv`, `traced.csv`.
+CSV by `../dlaf/traced_csv.py`), `replay.sh` (forced replays), `clean-room.sh` (the upstream
+report's reproduction block, run verbatim in an empty directory); results `series.csv`,
+`traced.csv`, `replay-1rank.csv`, `replay-4ranks.csv`, `replay-traced-1rank.csv`,
+`replay-traced-4ranks.csv`.
