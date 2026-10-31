@@ -13,7 +13,9 @@
 // Rank 0 first prints how many pairs of tiles copy.h sends between the same two ranks with the
 // same tag ("colliding pairs"), computed here from the two distributions and copy.h's tag formula.
 // Per repetition it prints the wrong elements and tiles over all ranks, and for the first wrong
-// element the global index whose value it holds.
+// element the global index whose value it holds. With COPY_CHECK_TILES set, each rank also prints
+// every wrong destination tile it owns with the global index whose value its first element holds
+// (which tile's data it received: the oracle of the replays, experiments/dlaf/replay.sh).
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
@@ -92,6 +94,7 @@ static int run(pika::program_options::variables_map& vm) {
                 pika::get_os_thread_count(), colliding_pairs(ds, dd, P));
 
   std::mt19937 rng(std::random_device{}() + unsigned(rank));
+  const bool tiles = std::getenv("COPY_CHECK_TILES") != nullptr;
   long bad_reps = 0;
   for (long rep = 0; rep < reps; ++rep) {
     Matrix<T, Device::CPU> src(ds);
@@ -126,6 +129,11 @@ static int run(pika::program_options::variables_map& vm) {
             first[2] = long(got) / 100000, first[3] = long(got) % 100000;
           }
         }
+      }
+      if (bad > 0 && tiles) {
+        const T got = tile(TileElementIndex{0, 0});
+        std::printf("rank %d rep %ld tile (%ld,%ld) holds (%ld,%ld)\n", rank, rep, long(ij.row()),
+                    long(ij.col()), long(got) / 100000, long(got) % 100000);
       }
       wrong[0] += bad;
       wrong[1] += bad > 0;

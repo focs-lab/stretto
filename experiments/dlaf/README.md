@@ -141,6 +141,28 @@ happens-before), which pika's continuations, scheduled through atomics, do not g
 The two traces of the paragraph below, analysed again, give the same picture (60 alternatives,
 none patched).
 
+**Forced replays (30 Oct, [docs/threads.md](../../docs/threads.md) section 16; `replay.sh`;
+results `replay-sync.csv`, `replay-nosync.csv` and their traced runs `replay-traced-sync.csv`,
+`replay-traced-nosync.csv`).** The harness first had to read a hand-off's completion on the
+chain that completed it (section 16; before, a handed-off receive was required or not by its
+posting chain's cut). Every traced run of the colliding cells copies wrongly, so the oracle
+would be which tiles a replay moves against its control, which `copy_check` now prints
+(`COPY_CHECK_TILES=1`). The 2x1 cell (2 ranks, 4 pika threads), 3 traced runs with the lock
+order recorded and 3 without, all wrong (119 to 192 L1 alternatives each), 2 alternatives per
+trace replayed twice with their controls: 0 of 24 replays and 0 of 24 controls ran their
+course. With lock gates every replay and control ended with a misapplied lock pin (exit 86: a
+worker's k-th lock attempt takes another lock than in the trace); without them, with chain pins
+and the reordered pairs gated as in milestone C, every one ended with a misapplied chain pin (a
+worker's first receive is another tile's, its tag in the identity). pika hands tasks to its
+workers through lock-free queues and work stealing, which the trace does not record and no
+gate fixes, so a chain (a worker) does other work in every run: premise P-T5 does not hold for
+pika's workers, and the replay cannot rebuild the recorded run, let alone the alternative.
+Inconclusive by construction; the race itself stays confirmed by the series and the fix.
+Replaying it would need the tasks as chains (pika's task identities, which a hook in its
+scheduler could give), not the workers. The first attempts misread the misapplied lock pins as
+gate timeouts of a worker waiting for its own attempt; that was the replay library's abort
+(fixed, section 16).
+
 Before milestone F: traced copies (2x1, 4 threads, one copy; the plain run gave a wrong copy,
 the patched one a right one): both traces are degraded `threads-handoff`, so Stretto predicts
 nothing. pika's MPI
@@ -165,6 +187,7 @@ trace.
 
 `Dockerfile`, `build.sh`, `copy_check.cpp` (driver and oracle), `copy-tags.patch` (against
 09fe442, `patch -p1`), `series.sh`, `traced.sh` and `traced_csv.py` (traced runs and Stretto's
-reports), `pending_pairs.py`, `clean-room.sh` and `CMakeLists.txt` (the upstream report's
-reproduction block, run verbatim in an empty directory); results `series.csv`,
-`series-1thread.csv`, `traced.csv`.
+reports), `replay.sh` (forced replays), `pending_pairs.py`, `clean-room.sh` and `CMakeLists.txt`
+(the upstream report's reproduction block, run verbatim in an empty directory); results
+`series.csv`, `series-1thread.csv`, `traced.csv`, `replay-sync.csv`, `replay-nosync.csv`,
+`replay-traced-sync.csv`, `replay-traced-nosync.csv`.

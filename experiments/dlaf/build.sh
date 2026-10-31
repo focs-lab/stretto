@@ -50,18 +50,22 @@ for step in "${steps[@]}"; do
   driver)
     # copy_check.cpp is compiled and linked like the redistribution miniapp (its flags.make and
     # link.txt), once with DLA-Future's headers and once with a copy patched by copy-tags.patch
-    # (the fix is header-only, so libDLAF.so is the same).
+    # (the fix is header-only, so libDLAF.so is the same). DRIVER_OUT (default the build trees)
+    # takes the two executables, REPO (default /h/repo) is the repository whose driver is built,
+    # VARIANTS (default "plain fixed") narrows them.
+    O=${DRIVER_OUT:-$B} R=${REPO:-/h/repo}
     d=$B/dlaf/miniapp/CMakeFiles/miniapp_redistribution.dir
     flags() { sed -n "s/^$1 = //p" $d/flags.make; }
     link=$(sed 's/^\([^ ]*\) .* -o miniapp_redistribution //' $d/link.txt | sed "s|\.\./src/|$B/dlaf/src/|")
-    rm -rf $B/dlaf-fixed-include && cp -r $S/dlaf/include $B/dlaf-fixed-include
-    patch -s -d $B/dlaf-fixed-include -p2 < /h/repo/experiments/dlaf/copy-tags.patch
-    for v in plain fixed; do
-      inc=$(flags CXX_INCLUDES); exe=$B/copy_check
-      [ $v = fixed ] && inc=${inc/-I\/h\/src\/dlaf\/include/-I$B/dlaf-fixed-include} && exe=$B/copy_check_fixed
+    mkdir -p "$O"
+    rm -rf $O/dlaf-fixed-include && cp -r $S/dlaf/include $O/dlaf-fixed-include
+    patch -s -d $O/dlaf-fixed-include -p2 < $R/experiments/dlaf/copy-tags.patch
+    for v in ${VARIANTS:-plain fixed}; do
+      inc=$(flags CXX_INCLUDES); exe=$O/copy_check
+      [ $v = fixed ] && inc=${inc/-I\/h\/src\/dlaf\/include/-I$O/dlaf-fixed-include} && exe=$O/copy_check_fixed
       # shellcheck disable=SC2046
       /usr/bin/g++ $(flags CXX_DEFINES) $inc $(flags CXX_FLAGS) -Wno-sign-conversion -c \
-        /h/repo/experiments/dlaf/copy_check.cpp -o $exe.o
+        $R/experiments/dlaf/copy_check.cpp -o $exe.o
       /usr/bin/g++ -g1 -O3 -pthread $exe.o -o $exe $link
       rm -f $exe.o
     done ;;
