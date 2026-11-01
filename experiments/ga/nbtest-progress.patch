@@ -1,0 +1,24 @@
+--- a/comex/src-mpi-pt/comex.c
++++ b/comex/src-mpi-pt/comex.c
+@@ -1360,6 +1360,21 @@
+                 g_state.rank);
+     }
+ 
++    /* retire the requests that have completed, in order, without blocking:
++     * only nb_wait_for_send1 and nb_wait_for_recv1 empty the lists */
++    while (NULL != nb->send_head) {
++        int flag = 0;
++        MPI_Request_get_status(nb->send_head->request, &flag, MPI_STATUS_IGNORE);
++        if (!flag) break;
++        nb_wait_for_send1(nb);
++    }
++    while (NULL != nb->recv_head) {
++        int flag = 0;
++        MPI_Request_get_status(nb->recv_head->request, &flag, MPI_STATUS_IGNORE);
++        if (!flag) break;
++        nb_wait_for_recv1(nb);
++    }
++
+     if (NULL == nb->send_head && NULL == nb->recv_head) {
+         COMEX_ASSERT(0 == nb->send_size);
+         COMEX_ASSERT(0 == nb->recv_size);
