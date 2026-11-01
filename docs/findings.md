@@ -350,6 +350,33 @@ races: the `rr:` and `file:` vpmaps crash (vpmap.c:384, 308-327). Report drafted
 reproduction block, run in an empty directory, fails 6 of 7 tests in 3 of 3 runs, 0 patched.
 Evidence: [experiments/parsec](../experiments/parsec/README.md) (`series.csv`).
 
+**MUST-vc against Stretto (1 Nov 2026, [experiments/mustvc](../experiments/mustvc/README.md)).**
+MUST's vector-clock checks for MPI+OpenMP (SC-W 2024 artifact, MUST v1.9-omp-checks, its Debian
+12 / MPICH 4.0.2 / clang 15 environment) run on everything above. Its own suite reproduces its
+table (clock layout: 115 of 115 erroneous runs flagged, 5 of 135 correct runs, all
+`concurrent_communicator_transitive`). Of the four thread bugs it reports one: SLATE's CALU
+collision, the culprit receives in 10 of 10 plain runs and nothing in 10 fixed ones, but only
+after a 2-line SLATE change (its static initialisers start OpenMP before `MPI_Init`, and
+MUST-vc then crashes in 10 of 10 runs). PaRSEC, Uintah and DLA-Future run threads of their own,
+and its checks run only inside OpenMP regions: PaRSEC 0 reports in 10 runs; Uintah 0 reports,
+each of 12 runs stalling before the first time step; DLA-Future crashes natively under MPICH
+4.0.2 and, rebuilt for Open MPI, under MUST-vc in 20 of 20 runs. On MPI-CorrBench's 103 OpenMP programs as published it flags none: clang starts the
+OpenMP runtime at the entry of `main` when it has a `num_threads` clause, which MUST does not
+support (300 of 309 runs warn); without the clause 14 erroneous programs. Stretto flags 26 in
+every run and 4 in some, and alone finds the critical-section and lock-order cases
+(`two_collectives_8`, `_9`, `deadlock_probe`, idiom 43), the request completed by another thread
+(`request_reuse`, idiom 26), and all pthreads idioms. Three programs MUST-vc's suite labels
+correct deadlock natively (`two_collectives_4` 7 of 10 runs with MPICH and libomp,
+`ThreadLevel_serialized` 6 of 10 and `concurrent_communicator_tasking_locks` 8 of 10 with Open MPI
+and libgomp); Stretto reports them (`2-lock-order`, `2-thread-collective` at L1+L, observed
+hangs), MUST-vc does not. Where Stretto is behind: a probe that a concurrent receive leaves
+without a message (MUST-vc's two `RecvProbe` programs, 0 of 10), `MPI_THREAD_SERIALIZED`
+violations by local calls such as `MPI_Comm_size` (not traced; 3 programs, 0 of 15), task
+programs beyond the tracer's 256 chains (degraded, false observed classes on 2 correct
+programs), and the transitive program, which both tools flag. Side defect found on the way:
+PaRSEC's `MPI_Allreduce(MPI_BYTE, MPI_SUM)` (parsec.c:2833) is undefined in MPI, and MPICH
+rejects it, so PaRSEC on several ranks aborts at start under MPICH.
+
 Not built in this hunt, by cost (estimated, not measured): HPX's MPI parcelport (read only:
 headers on tag 0 with `ANY_SOURCE` carry the sender's tag from an atomic counter, so data
 messages are told apart until the counter wraps; HPX's build looks beyond the 3 GB and 6-job
