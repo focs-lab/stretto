@@ -53,6 +53,8 @@ and compact result tables: [experiments/latent](../experiments/latent/README.md)
 | deal.II 9.8.0 | - | 8 419 alternatives, all within one exchange; 120 replays benign |
 | openfpm_vcluster, code_saturne, KaHIP | GPU-only clash; NBX never selected; not an NBX between calls | reading |
 | MFEM master d259866 `ParFiniteElementSpace::OrderPropagation` (pfespace.cpp:3704-3751): a real race, benign | the barrier orders the Isends, not their delivery, so the `Iprobe(ANY)` drain can miss an order message, which the second drain drops; the fixpoint loop (fespace.cpp:3249) resends it | shipped miniapp `phpref -dim 2 -n 100`, np 4: ~900 flag-flip alternatives per trace; 46 of 46 replays and 10 of 10 at np 8 (3D) correct; the race also occurred unforced in 2 controls |
+| GA bd1149f ComEx `mpi-pt` progress thread, `MPI_Recv(ANY_SOURCE)` of request headers (comex.c:2445) and the put handler's named data receive (:2564) | each handler receives the rest of a request from its sender by name, replies go on another communicator, a fence is acknowledged after the sender's earlier requests; requests of different ranks are unordered in GA's model | blind scan: steals in every test with remote traffic; read after the pre-registration; 74 of 74 forced replays pass like their controls |
+| GA bd1149f `threadsafec`, the main threads' reply receives (comex.c:4027, 4102, 3937) | GA's own mutex holds each request with its preposted reply receive, so replies from a node arrive in the order of the receives | no candidate at L1; at L1+L 12 800 candidates in 12 traces, all rejected (`targeted.csv`) |
 | SLATE 878439b `ttmqr` (internal_ttmqr.cc:155-189): a freed tile `Isend`, then an `Irecv` into the same tile | the two are not ordered (the program cannot know when a freed send ends), but the peer sends the tile back only after receiving it, so the first transfer ends before the second starts at every eager threshold | `geqrf` tester traced with buffer ranges (`STRETTO_BUFS=1`, 2x2, 4 threads): 84 such pairs, all harmless (docs/model.md section 7) |
 
 The 26 Oct screen of 70 codes, and the 29 Oct screen of ~85 more (deal.II master, PETSc main,
@@ -187,6 +189,20 @@ with the hunt notes, outside this repository.
   above the message (so synchronous sends are never taken as copied), and Open MPI's TCP
   transport read an eager 4 000-byte message, the first to its peer, after the call (the
   confirmations use shared memory).
+
+- An observed `2-buffering` on a cycle through a wildcard receive is not a deadlock of the
+  program (1 Nov, GA's progress thread, [experiments/ga](../experiments/ga/README.md)): the
+  class says the observed matching is infeasible below B, and with `ANY_SOURCE` on the cycle a
+  rendezvous run takes another message first. 3 of 36 traces of GA's `testc`, `ga-mpi` and
+  `mtest` reported it (below 400 bytes, and 9 608 with MPICH); 0 of 60 plain runs at 0
+  buffered bytes hung. Not changed (the class is scored on the corpora); a report could demote
+  it to a warning when a wildcard receive on the cycle has another candidate.
+- Two analysis costs on GA's traces (1 Nov): a signature of one basic type was flattened copy by
+  copy (2 MB `MPI_CHAR` receives: 280 s to 16 s on a 2 700-record trace once merged at once,
+  8a05eff), and the check for two threads waiting on one request compared every pair of a
+  rank's waits (4 600 per rank in `threadsafec`, over an hour; grouped by request, 37643dc).
+  Both give the same reports. Still beyond reach: traces above 60 MB, and `threadsafec`'s 20 000
+  candidates per trace at the progress thread's receive for the generic check.
 
 ## Multithreaded benchmarks (L1, and L1+L since 30 Oct)
 
@@ -376,6 +392,32 @@ programs beyond the tracer's 256 chains (degraded, false observed classes on 2 c
 programs), and the transitive program, which both tools flag. Side defect found on the way:
 PaRSEC's `MPI_Allreduce(MPI_BYTE, MPI_SUM)` (parsec.c:2833) is undefined in MPI, and MPICH
 rejects it, so PaRSEC on several ranks aborts at start under MPICH.
+
+**Global Arrays bd1149f (master on 1 Nov), ComEx's progress-thread port (`--with-mpi-pt`)**,
+the first blind scan: the shipped tests traced and analysed, the findings committed (d68b241,
+1 Nov 18:39 +08) before ComEx's communication code was read. 359 traced runs of 30 C tests, 4
+ranks, one or two ranks per node (nodes emulated by answering `gethostname`/`gethostid` to
+ComEx only), Open MPI and MPICH. No new bug that the tool found first. Its predictions: steals
+at the progress thread's `MPI_Recv(ANY_SOURCE)` of request headers (comex.c:2445; 2 to 1 397
+per trace, every test with remote traffic) and once at the put handler's data receive; no
+alternative at any receive of a main thread at L1, and at L1+L in `threadsafec` (OpenMP threads
+calling GA) none of 12 800 candidates accepted. Read after: harmless by design (each handler
+receives the rest of a request from its sender by name, replies travel on another
+communicator, a fence is acknowledged after the sender's earlier requests; GA's own mutex holds
+each request with its preposted reply receive), and 74 of 74 forced replays of the steals (six
+tests, both MPIs) took every pin and passed like their controls. A real bug, deterministic,
+that the scan's observed classes surfaced rather than predicted: `nbtestc` hangs in every run
+(rank 0 outside MPI, its puts never received), because `comex_test` (comex.c:1346-1374) never
+retires a completed request, so `NGA_NbTest` on a pending operation loops forever. Untraced,
+20 runs per cell, Open MPI and MPICH, one node and emulated nodes: 120 of 120 plain runs hang,
+0 of 120 with a 15-line patch (control `testc`: 2 of 240 runs past the 30 s limit, one per
+variant, MPICH, slow); GA's CI builds no `mpi-pt`; report drafted, not sent, its reproduction
+block 3 of 3 hangs and 3 of 3 passes patched. Tool false alarm: an observed `2-buffering` in 3
+of 36 traces of three tests (tool limits, above). Also by reading, not by the tool: `pnga_lock`
+derives the ComEx mutex from `num_mutexes` instead of its argument, so all GA mutexes are one,
+and a process holding one that asks for another waits for itself (a driver: 20 of 20 hang, 20
+of 20 pass with a 6-line fix). Test defects: `read_only` and `cache_test` call `MPI_Init`,
+which this port rejects. Evidence: [experiments/ga](../experiments/ga/README.md).
 
 Not built in this hunt, by cost (estimated, not measured): HPX's MPI parcelport (read only:
 headers on tag 0 with `ANY_SOURCE` carry the sender's tag from an atomic counter, so data
