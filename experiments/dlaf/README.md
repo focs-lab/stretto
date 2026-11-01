@@ -183,6 +183,33 @@ receive pairs on the two ranks of the plain trace (tags 4 to 31, all posted on t
 0 in the patched one; whether a pair's postings were unordered comes from the code, not the
 trace.
 
+## With pika's atomics recorded (1 Nov 2026)
+
+[docs/threads.md](../../docs/threads.md) section 17. `build.sh` with `TSAN=1` compiles pika,
+DLA-Future and the driver with clang 18's ThreadSanitizer instrumentation of atomic operations
+(the dependencies stay gcc's), linked against the tracer's stub runtime, in the image of
+[experiments/atomics](../atomics/Dockerfile); `traced.sh` with `ATOMICS=0` traces the same
+binaries without recording them. 5 traced runs per cell, variant and setting, a-p13, CPUs
+8-15,48-55 ([traced-atomics.csv](traced-atomics.csv), [traced-atomics-off.csv](traced-atomics-off.csv)):
+
+| cell | plain: wrong, L1 receive alternatives per trace (off / recorded) | observed `2-thread-collective` per trace (off / recorded) | `2-thread-wait` (off / recorded) |
+|---|---|---|---|
+| 2x1, 4 threads | 5 of 5, 60-67 / 8-17 | up to 15 / 0 | 2 / 0 |
+| 4x1, 2 threads | 5 of 5, 134-210 / 19-40 | up to 12 / 0 | 4 / 0 |
+| 3x2, 2 threads | 5 of 5, 39-49 / 5-12 | up to 7 / 0 | 6 / 0 |
+| 2x2, 2 threads (control) | 0 of 5, 0 / 0 | up to 10 / 0 | 4 / 0 |
+| 2x1, 1 thread (control) | 0 of 5, 0 / 0 | 0 / 0 | 0 / 0 |
+
+Patched: 0 alternatives in all 50 traces of either setting. With the atomics recorded, every one
+of the 15 plain traces of the colliding cells still predicts the race at colliding tags, with a
+fifth to a quarter of the alternatives (the rest assumed continuations that pika schedules
+through its queues, premise P-T10), and no trace has an observed thread finding left: the
+`Ibarrier` against `Comm_free` pairs and the requests two workers seemed to complete at once are
+ordered by pika's atomics. Rank 0 of a 2x1 run records about 2 900 atomic locations, 92 000
+acquires (470 of them raising its clock) and 42 000 releases. The `waitany-order` warnings stay
+(43 to 2 026 per trace recorded, 58 to 2 324 off): a `Testsome` that could complete another of
+its requests first, whatever the threads' order.
+
 ## Files
 
 `Dockerfile`, `build.sh`, `copy_check.cpp` (driver and oracle), `copy-tags.patch` (against
@@ -190,4 +217,4 @@ trace.
 reports), `replay.sh` (forced replays), `pending_pairs.py`, `clean-room.sh` and `CMakeLists.txt`
 (the upstream report's reproduction block, run verbatim in an empty directory); results
 `series.csv`, `series-1thread.csv`, `traced.csv`, `replay-sync.csv`, `replay-nosync.csv`,
-`replay-traced-sync.csv`, `replay-traced-nosync.csv`.
+`replay-traced-sync.csv`, `replay-traced-nosync.csv`, `traced-atomics.csv`, `traced-atomics-off.csv`.

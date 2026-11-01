@@ -5,10 +5,12 @@
 # Run inside a container of the image built from Dockerfile here, after build.sh:
 #   experiments/dlaf/traced.sh BUILD WORK OUT.csv
 # BUILD holds copy_check and copy_check_fixed; the traces and reports stay under WORK. RUNS
-# (traced runs per cell and variant, 5), JOBS (analyses at once, 4).
+# (traced runs per cell and variant, 5), JOBS (analyses at once, 4), ATOMICS (0: the tracer does
+# not record the atomics of a build instrumented for it, build.sh TSAN=1; docs/threads.md section
+# 17), ONLY (the names of the cells to run; default all).
 set -u
 B=${1:?usage: traced.sh BUILD WORK OUT.csv}; W=${2:?}; OUT=${3:?}
-RUNS=${RUNS:-5}; JOBS=${JOBS:-4}
+RUNS=${RUNS:-5}; JOBS=${JOBS:-4}; ATOMICS=${ATOMICS:-1}
 REPO=$(cd "$(dirname "$0")/../.." && pwd)
 export PYTHONPATH=$REPO/analysis OMPI_MCA_rmaps_base_oversubscribe=1 OMPI_MCA_btl_vader_single_copy_mechanism=none OPENBLAS_NUM_THREADS=1
 T=$REPO/tracer/bin/openmpi/libstretto-trace.so
@@ -16,6 +18,7 @@ T=$REPO/tracer/bin/openmpi/libstretto-trace.so
 CELLS="2x1-offset-jitter:2:4:512:512:64:64:64:64:2:1:0:0:1:0:200 4x1-offset-jitter:4:2:1024:1024:64:64:64:64:4:1:0:0:1:0:200
 3x2-offset-jitter:6:2:576:576:64:64:64:64:3:2:0:0:1:0:200 2x2-offset-jitter:4:2:512:512:64:64:64:64:2:2:0:0:1:1:200
 2x1-offset-1thread:2:1:512:512:64:64:64:64:2:1:0:0:1:0:200"
+[ -n "${ONLY:-}" ] && CELLS=$(for c in $CELLS; do case " $ONLY " in *" ${c%%:*} "*) echo "$c" ;; esac; done)
 mkdir -p "$W"
 for i in $(seq 1 "$RUNS"); do
   for c in $CELLS; do
@@ -23,7 +26,7 @@ for i in $(seq 1 "$RUNS"); do
     for v in plain fixed; do
       d=$W/$name-$v-$i; rm -rf "$d"; mkdir -p "$d/trace"
       exe=$B/copy_check; [ $v = fixed ] && exe=$B/copy_check_fixed
-      timeout 300 mpirun --bind-to none -np "$np" -x STRETTO_TRACE_DIR="$d/trace" -x LD_PRELOAD="$T" "$exe" "$m" "$n" "$mbs" "$nbs" \
+      timeout 300 mpirun --bind-to none -np "$np" -x STRETTO_ATOMICS="$ATOMICS" -x STRETTO_ATOMICS_STATS=1 -x STRETTO_TRACE_DIR="$d/trace" -x LD_PRELOAD="$T" "$exe" "$m" "$n" "$mbs" "$nbs" \
         "$mbd" "$nbd" "$p" "$q" "$sr" "$sc" "$dr" "$dc" 1 "$jit" --pika:threads="$t" --pika:bind=none > "$d/log" 2>&1
       rc=$?
       w=$(sed -n 's/^summary reps [0-9]* wrong \([0-9]*\)$/\1/p' "$d/log")

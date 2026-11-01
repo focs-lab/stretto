@@ -142,3 +142,29 @@ limit (a guess: not checked in the code). No new pair, so no new diagnosis. A si
 here: `Trace.site_of` looks a chain's site ids up under the chain's id, while the tracer numbers
 sites per process, so records of worker threads get no site (`pairs.py` looks them up under the
 process).
+
+## With the scheduler's atomics and volatile flags recorded (1 Nov 2026)
+
+[docs/threads.md](../../docs/threads.md) section 17. `build.sh` with `TSAN=1` builds the plain
+`sus` with ARCHES and then compiles the scheduler library again (`CCA/Components/Schedulers`)
+with clang 18's ThreadSanitizer instrumentation of atomics and volatile accesses, linked against
+the tracer's stub runtime (Uintah compiled whole by clang rejects the nightly inputs in its
+boundary-condition reader). `trace-nightly.sh`, one traced run of each nightly input with each
+build, a-p13, the image of [experiments/atomics](../atomics/Dockerfile):
+
+| build | runs | concurrent collective pairs (`pairs.py`) | observed `2-thread-collective` | observed `2-thread-wait` |
+|---|---|---|---|---|
+| gcc (the plain build of the section above) | 1L, 2L, DO: all pass | 12, 12, 12 | 2, 2, 2 | 2, 2, 2 |
+| scheduler instrumented | 1L, 2L, DO: all pass, the same delT | 0, 0, 0 | 0, 0, 0 | 2, 2, 2 |
+
+The pairs of the worker's delT reduction and the main thread's statistics collectives are gone:
+the volatile `Inactive` state a worker writes after `runTasks` now precedes the main thread's
+exit from `thread_fence`. The two `2-thread-wait`s per trace stay, and rightly so under C++'s
+memory model: each is a send request that the main thread and a worker both test
+(`Uintah::MPI::Test` from `CommRequest::test`, called by `CommRequestPool::find_any`), and the
+lock-free pool claims and releases an entry with relaxed read-modify-writes (`and_block` and
+`or_block` of `Core/Lockfree/impl/Lockfree_Bits.hpp`, `memory_order_relaxed` by default), which
+exclude two threads from one entry at a time but order nothing between them. The tracer records
+relaxed operations as no synchronisation; an acquire claim and a release release would give the
+edge. Each trace also keeps the observed `2-buffering` and four probe alternatives between hypre
+messages, as the gcc build's traces do.

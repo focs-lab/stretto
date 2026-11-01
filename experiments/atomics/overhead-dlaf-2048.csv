@@ -1,0 +1,16 @@
+app,mode,rep,seconds,rc
+dlaf,untraced,1,.920707956,0
+dlaf,traced-atomics-off,1,1.133953855,0
+dlaf,traced-atomics-on,1,1.208990345,0
+dlaf,untraced,2,.923785732,0
+dlaf,traced-atomics-off,2,1.058804247,0
+dlaf,traced-atomics-on,2,1.181973372,0
+dlaf,untraced,3,.955244254,0
+dlaf,traced-atomics-off,3,1.049130582,0
+dlaf,traced-atomics-on,3,1.184175462,0
+dlaf,untraced,4,.912337593,0
+dlaf,traced-atomics-off,4,1.089452686,0
+dlaf,traced-atomics-on,4,1.249670938,0
+dlaf,untraced,5,.925553808,0
+dlaf,traced-atomics-off,5,1.075119823,0
+dlaf,traced-atomics-on,5,1.230173807,0

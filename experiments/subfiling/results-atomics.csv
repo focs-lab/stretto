@@ -1,0 +1,40 @@
+build,version,run,test_rc,passed,records,l1_data_tag,l1_data_tag_1a,within_one_pool,across_pools,findings_by_class
+gcc,pre,1,0,12,6886,4,0,2,2,1f:L1=4 2-thread-finalize:observed=1 probe-alt:L1=165
+gcc,pre,2,0,12,3055,4,0,0,4,1f:L1=4 2-thread-finalize:observed=1 probe-alt:L1=171
+gcc,pre,3,0,12,2997,2,0,0,2,1f:L1=2 2-thread-finalize:observed=1 probe-alt:L1=172
+gcc,pre,4,0,12,3005,2,0,0,2,1f:L1=2 2-thread-finalize:observed=1 probe-alt:L1=169
+gcc,pre,5,0,12,2816,4,0,0,4,1f:L1=4 2-thread-finalize:observed=1 probe-alt:L1=171
+gcc,pre,6,0,12,3185,4,0,0,4,1f:L1=4 2-thread-finalize:observed=1 probe-alt:L1=166
+gcc,pre,7,0,12,6688,6,0,0,6,1f:L1=6 2-thread-finalize:observed=1 probe-alt:L1=168
+gcc,pre,8,0,12,2754,4,0,0,4,1f:L1=4 2-thread-finalize:observed=1 probe-alt:L1=171
+gcc,pre,9,0,12,3336,6,0,0,6,1f:L1=6 2-thread-finalize:observed=1 probe-alt:L1=167
+gcc,pre,10,0,12,7022,4,2,2,2,1a:L1=2 1f:L1=2 2-thread-finalize:observed=1 probe-alt:L1=172
+gcc,pre,11,0,12,3199,4,0,0,4,1f:L1=4 2-thread-finalize:observed=1 probe-alt:L1=173
+gcc,pre,12,0,12,3219,8,1,0,8,1a:L1=1 1f:L1=7 2-thread-finalize:observed=1 probe-alt:L1=169
+gcc,pre,13,0,12,3252,8,0,0,8,1f:L1=8 2-thread-finalize:observed=1 probe-alt:L1=173
+clang-tsan,pre,1,0,12,3219,0,0,0,0,2-thread-finalize:observed=1 probe-alt:L1=173
+clang-tsan,pre,2,0,12,3229,3,1,3,0,1a:L1=1 1f:L1=2 2-thread-finalize:observed=1 probe-alt:L1=174
+clang-tsan,pre,3,0,12,3179,0,0,0,0,2-thread-finalize:observed=1 probe-alt:L1=172
+clang-tsan,pre,4,0,12,3133,0,0,0,0,2-thread-finalize:observed=1 probe-alt:L1=174
+clang-tsan,pre,5,0,12,7173,0,0,0,0,2-thread-finalize:observed=1 probe-alt:L1=171
+clang-tsan,pre,6,0,12,3477,0,0,0,0,2-thread-finalize:observed=1 probe-alt:L1=173
+clang-tsan,pre,7,0,12,3873,0,0,0,0,2-thread-finalize:observed=1 probe-alt:L1=173
+clang-tsan,pre,8,0,12,3444,0,0,0,0,2-thread-finalize:observed=1 probe-alt:L1=173
+clang-tsan,pre,9,0,12,3343,0,0,0,0,2-thread-finalize:observed=1 probe-alt:L1=174
+clang-tsan,pre,10,0,12,3287,0,0,0,0,2-thread-finalize:observed=1 probe-alt:L1=174
+clang-tsan,pre,11,0,12,3318,0,0,0,0,2-thread-finalize:observed=1 probe-alt:L1=170
+clang-tsan,pre,12,0,12,8413,0,0,0,0,2-thread-finalize:observed=1 probe-alt:L1=172
+clang-tsan,pre,13,0,12,3533,2,2,2,0,1a:L1=2 2-thread-finalize:observed=1 probe-alt:L1=172
+clang-tsan,fix,1,0,12,8229,0,0,0,0,2-thread-finalize:observed=1 probe-alt:L1=231
+clang-tsan,fix,2,0,12,7172,0,0,0,0,2-thread-finalize:observed=1 probe-alt:L1=241
+clang-tsan,fix,3,0,12,7817,0,0,0,0,2-thread-finalize:observed=1 probe-alt:L1=219
+clang-tsan,fix,4,0,12,3677,0,0,0,0,2-thread-finalize:observed=1 probe-alt:L1=228
+clang-tsan,fix,5,0,12,3490,0,0,0,0,2-thread-finalize:observed=1 probe-alt:L1=252
+clang-tsan,fix,6,0,12,3707,0,0,0,0,2-thread-finalize:observed=1 probe-alt:L1=231
+clang-tsan,fix,7,0,12,5361,0,0,0,0,2-thread-finalize:observed=1 probe-alt:L1=235
+clang-tsan,fix,8,0,12,3526,0,0,0,0,2-thread-finalize:observed=1 probe-alt:L1=249
+clang-tsan,fix,9,0,12,3811,0,0,0,0,2-thread-finalize:observed=1 probe-alt:L1=226
+clang-tsan,fix,10,0,12,3763,0,0,0,0,2-thread-finalize:observed=1 probe-alt:L1=225
+clang-tsan,fix,11,0,12,6325,0,0,0,0,2-thread-finalize:observed=1 probe-alt:L1=238
+clang-tsan,fix,12,0,12,3938,0,0,0,0,2-thread-finalize:observed=1 probe-alt:L1=243
+clang-tsan,fix,13,0,12,3633,0,0,0,0,2-thread-finalize:observed=1 probe-alt:L1=243

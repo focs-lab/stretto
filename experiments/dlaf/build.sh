@@ -10,13 +10,27 @@
 # Umpire uses Ubuntu's fmt, as pika and spdlog do (its bundled fmt 10 would mix with fmt 9).
 # Versions: blaspp and lapackpp 2024.10.26, Umpire v2024.07.0, pika and DLA-Future as cloned
 # in /h/src (their commits are printed).
+# TSAN=1 compiles pika, DLA-Future and the driver with clang 18's ThreadSanitizer instrumentation
+# of atomic operations (no memory accesses, no function entry and exit) and links them against
+# the tracer's libstretto-tsan.so from REPO (docs/threads.md section 17; the image of
+# experiments/atomics/Dockerfile), so that the tracer records pika's lock-free queues, spin
+# locks and the atomics its continuations are scheduled through. The dependencies stay gcc's.
 set -euo pipefail
-JOBS=${JOBS:-6}
+JOBS=${JOBS:-6}; TSAN=${TSAN:-0}
 S=/h/src B=/h/build P=/h/install
 mkdir -p "$S" "$B" "$P"
 steps=("$@"); [ ${#steps[@]} = 0 ] && steps=(deps pika dlaf driver)
+CC_=/usr/bin/gcc CXX_=/usr/bin/g++ TF= LF= LFA=()
+if [ "$TSAN" = 1 ]; then
+  R=${REPO:-/h/repo}
+  make -s -C "$R/tracer" stub
+  CC_=/usr/bin/clang-18 CXX_=/usr/bin/clang++-18
+  TF="-fsanitize=thread -fno-sanitize-link-runtime -mllvm -tsan-instrument-memory-accesses=0 -mllvm -tsan-instrument-func-entry-exit=0 -mllvm -tsan-instrument-memintrinsics=0 -Wno-unused-command-line-argument"
+  LF="-Wl,--no-as-needed -L$R/tracer/bin -lstretto-tsan -Wl,-rpath,$R/tracer/bin"
+  LFA=(-DCMAKE_EXE_LINKER_FLAGS="$LF" -DCMAKE_SHARED_LINKER_FLAGS="$LF")
+fi
 cm() { cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$P \
-         -DCMAKE_PREFIX_PATH=$P -DCMAKE_C_COMPILER=/usr/bin/gcc -DCMAKE_CXX_COMPILER=/usr/bin/g++ "$@"; }
+         -DCMAKE_PREFIX_PATH=$P -DCMAKE_C_COMPILER=$CC_ -DCMAKE_CXX_COMPILER=$CXX_ ${LFA[@]+"${LFA[@]}"} "$@"; }
 for step in "${steps[@]}"; do
   case $step in
   deps)
@@ -37,14 +51,14 @@ for step in "${steps[@]}"; do
     git -C $S/pika log -1 --format='pika %h %cd'
     cm -S $S/pika -B $B/pika -DPIKA_WITH_MPI=ON -DPIKA_WITH_MALLOC=system \
        -DPIKA_WITH_EXAMPLES=OFF -DPIKA_WITH_TESTS=OFF -DPIKA_WITH_COMPILER_WARNINGS=OFF \
-       -DCMAKE_CXX_FLAGS=-g1
+       -DCMAKE_CXX_FLAGS="-g1 $TF"
     cmake --build $B/pika -j "$JOBS" --target install
     rm -rf $B/pika ;;
   dlaf)
     git -C $S/dlaf log -1 --format='DLA-Future %h %cd'
     cm -S $S/dlaf -B $B/dlaf -DDLAF_BUILD_TESTING=ON -DDLAF_BUILD_MINIAPPS=ON \
        -DDLAF_WITH_OPENMP=OFF -DDLAF_LAPACK_LIBRARY=/usr/lib/x86_64-linux-gnu/libopenblas.so \
-       -DMPIEXEC_PREFLAGS="--oversubscribe" -DCMAKE_CXX_FLAGS=-g1
+       -DMPIEXEC_PREFLAGS="--oversubscribe" -DCMAKE_CXX_FLAGS="-g1 $TF"
     cmake --build $B/dlaf -j "$JOBS" --target test_matrix miniapp_redistribution
     find $B/dlaf -name '*.o' -delete ;;
   driver)
@@ -64,9 +78,9 @@ for step in "${steps[@]}"; do
       inc=$(flags CXX_INCLUDES); exe=$O/copy_check
       [ $v = fixed ] && inc=${inc/-I\/h\/src\/dlaf\/include/-I$O/dlaf-fixed-include} && exe=$O/copy_check_fixed
       # shellcheck disable=SC2046
-      /usr/bin/g++ $(flags CXX_DEFINES) $inc $(flags CXX_FLAGS) -Wno-sign-conversion -c \
+      $CXX_ $(flags CXX_DEFINES) $inc $(flags CXX_FLAGS) -Wno-sign-conversion -c \
         $R/experiments/dlaf/copy_check.cpp -o $exe.o
-      /usr/bin/g++ -g1 -O3 -pthread $exe.o -o $exe $link
+      $CXX_ -g1 -O3 -pthread $exe.o -o $exe $LF $link
       rm -f $exe.o
     done ;;
   esac

@@ -150,6 +150,23 @@ receives at finalisation, so no alternative is predicted, and the reports have n
 same-envelope pairs pending on two threads at once, on the self communicator with tags 0 and 2
 (threads 0 and 2 of the two virtual processes); 0 in the 5 patched traces.
 
+## With PaRSEC's atomics recorded (1 Nov 2026)
+
+[docs/threads.md](../../docs/threads.md) section 17. `build.sh` with `TSAN=1` compiles PaRSEC
+(C11 atomics) with clang 18's ThreadSanitizer instrumentation of atomic operations, linked
+against the tracer's stub runtime, in the image of [experiments/atomics](../atomics/Dockerfile);
+`traced.sh` on those builds, 5 runs per cell and variant, a-p13 ([traced-atomics.csv](traced-atomics.csv)):
+all 40 runs right; 10 of 10 plain traces with two virtual processes predict the swaps and steals
+of reshape receives at the shared tags, 740 to 764 per trace on 1 rank and 486 to 627 on 4 ranks
+(15 to 20 before); 0 in the 10 patched traces and the 20 controls. The race is the same; the
+count grows because the analysis is less incomplete: a trace of the 1-rank cell, instrumented build,
+traced again with `STRETTO_ATOMICS=0`, has 4 356 of its 4 752 pairs of tag-0 reshape receives on
+the two threads concurrent and 17 alternatives, the other 764 candidates rejected by constraint
+cycles of the orientation picks (section 3.2) between operations that PaRSEC's scheduler in fact
+orders; with the atomics, 110 of 3 840 such pairs are concurrent and 731 alternatives are
+accepted, none rejected. Rank 0 records about 5 600 atomic locations, 52 500 acquires (650
+raising its clock) and 52 500 releases.
+
 ## Files
 
 `Dockerfile`, `build.sh`, `reshape_check.jdf`, `testing_reshape_check.c`, `self-tags.patch`
@@ -157,4 +174,4 @@ same-envelope pairs pending on two threads at once, on the self communicator wit
 CSV by `../dlaf/traced_csv.py`), `replay.sh` (forced replays), `clean-room.sh` (the upstream
 report's reproduction block, run verbatim in an empty directory); results `series.csv`,
 `traced.csv`, `replay-1rank.csv`, `replay-4ranks.csv`, `replay-traced-1rank.csv`,
-`replay-traced-4ranks.csv`.
+`replay-traced-4ranks.csv`, `traced-atomics.csv`.

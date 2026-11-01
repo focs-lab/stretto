@@ -1,0 +1,51 @@
+cell,variant,run,result,colliding_pairs,stretto_status,l1_receive_findings,l1_receive_tags,waitany_order,observed_2_thread_collective,observed_2_thread_wait,observed_other
+2x1-offset-1thread,fixed,1,ok,28,complete,0,,559,0,0,0
+2x1-offset-1thread,fixed,2,ok,28,complete,0,,204,0,0,0
+2x1-offset-1thread,fixed,3,ok,28,complete,0,,177,0,0,0
+2x1-offset-1thread,fixed,4,ok,28,complete,0,,183,0,0,0
+2x1-offset-1thread,fixed,5,ok,28,complete,0,,208,0,0,0
+2x1-offset-1thread,plain,1,ok,28,complete,0,,245,0,0,0
+2x1-offset-1thread,plain,2,ok,28,complete,0,,183,0,0,0
+2x1-offset-1thread,plain,3,ok,28,complete,0,,198,0,0,0
+2x1-offset-1thread,plain,4,ok,28,complete,0,,185,0,0,0
+2x1-offset-1thread,plain,5,ok,28,complete,0,,203,0,0,0
+2x1-offset-jitter,fixed,1,ok,28,complete,0,,58,0,0,0
+2x1-offset-jitter,fixed,2,ok,28,complete,0,,78,0,0,0
+2x1-offset-jitter,fixed,3,ok,28,complete,0,,71,0,0,0
+2x1-offset-jitter,fixed,4,ok,28,complete,0,,51,0,0,0
+2x1-offset-jitter,fixed,5,ok,28,complete,0,,43,0,0,0
+2x1-offset-jitter,plain,1,wrong,28,complete,11,4 5 6 7 10 11 22 23 30,73,0,0,0
+2x1-offset-jitter,plain,2,wrong,28,complete,17,4 5 7 10 13 14 17 18 31,131,0,0,0
+2x1-offset-jitter,plain,3,wrong,28,complete,11,4 5 9 12 13 17 22 24,109,0,0,0
+2x1-offset-jitter,plain,4,wrong,28,complete,8,4 5 8 12 28,56,0,0,0
+2x1-offset-jitter,plain,5,wrong,28,complete,8,4 8 9 13 28,89,0,0,0
+2x2-offset-jitter,fixed,1,ok,0,complete,0,,105,0,0,0
+2x2-offset-jitter,fixed,2,ok,0,complete,0,,139,0,0,0
+2x2-offset-jitter,fixed,3,ok,0,complete,0,,192,0,0,0
+2x2-offset-jitter,fixed,4,ok,0,complete,0,,86,0,0,0
+2x2-offset-jitter,fixed,5,ok,0,complete,0,,186,0,0,0
+2x2-offset-jitter,plain,1,ok,0,complete,0,,191,0,0,0
+2x2-offset-jitter,plain,2,ok,0,complete,0,,106,0,0,0
+2x2-offset-jitter,plain,3,ok,0,complete,0,,121,0,0,0
+2x2-offset-jitter,plain,4,ok,0,complete,0,,149,0,0,0
+2x2-offset-jitter,plain,5,ok,0,complete,0,,214,0,0,0
+3x2-offset-jitter,fixed,1,ok,21,complete,0,,221,0,0,0
+3x2-offset-jitter,fixed,2,ok,21,complete,0,,301,0,0,0
+3x2-offset-jitter,fixed,3,ok,21,complete,0,,224,0,0,0
+3x2-offset-jitter,fixed,4,ok,21,complete,0,,354,0,0,0
+3x2-offset-jitter,fixed,5,ok,21,complete,0,,211,0,0,0
+3x2-offset-jitter,plain,1,wrong,21,complete,12,6 9 19 21 24 25 26,219,0,0,0
+3x2-offset-jitter,plain,2,wrong,21,complete,9,8 11 20 21 23,233,0,0,0
+3x2-offset-jitter,plain,3,wrong,21,complete,7,13 17 21,290,0,0,0
+3x2-offset-jitter,plain,4,wrong,21,complete,5,6 19 20,205,0,0,0
+3x2-offset-jitter,plain,5,wrong,21,complete,6,8 18 20,218,0,0,0
+4x1-offset-jitter,fixed,1,ok,344,complete,0,,1635,0,0,0
+4x1-offset-jitter,fixed,2,ok,344,complete,0,,1066,0,0,0
+4x1-offset-jitter,fixed,3,ok,344,complete,0,,1164,0,0,0
+4x1-offset-jitter,fixed,4,ok,344,complete,0,,2026,0,0,0
+4x1-offset-jitter,fixed,5,ok,344,complete,0,,1944,0,0,0
+4x1-offset-jitter,plain,1,wrong,344,complete,25,11 12 16 19 20 22 23 24 26 30 32 33 50 52 54 55,1337,0,0,0
+4x1-offset-jitter,plain,2,wrong,344,complete,19,5 7 13 15 16 20 23 24 27 28 32 35 36 40,916,0,0,0
+4x1-offset-jitter,plain,3,wrong,344,complete,19,4 5 8 9 12 13 16 24 25 29 33 60 64,926,0,0,0
+4x1-offset-jitter,plain,4,wrong,344,complete,30,5 6 8 9 10 13 14 17 18 20 22 23 24 27 30 40,1443,0,0,0
+4x1-offset-jitter,plain,5,wrong,344,complete,40,6 10 14 17 21 34 38 42 46 50 54 58 62 64 66 70,1600,0,0,0

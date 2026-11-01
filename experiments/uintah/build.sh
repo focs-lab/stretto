@@ -10,10 +10,18 @@
 # Settings: JOBS (build jobs, 4); COMPONENTS (configure's component options, "--enable-examples";
 # "--enable-arches" for the ARCHES tests); CLEAN (1: delete the object files of each build once
 # sus links, which keeps an ARCHES build small). With 4 jobs hypre takes about a minute and each
-# Examples build three; the Examples builds are about 60 MB each.
+# Examples build three; the Examples builds are about 60 MB each. VARIANTS ("plain fix") narrows
+# the builds. TSAN=1 builds into plain-tsan/ and fix-tsan/ with the scheduler library
+# (CCA/Components/Schedulers: the Unified scheduler's volatile thread states, the spin flag of
+# thread_fence, its atomics and lock-free pools) compiled by clang 18 with ThreadSanitizer's
+# instrumentation of atomics and volatile accesses and linked against the tracer's
+# libstretto-tsan.so (docs/threads.md section 17; the image of experiments/atomics/Dockerfile;
+# Open MPI only); the rest stays gcc's (Uintah compiled whole by clang rejects the nightly
+# inputs: "The Ellipse BC geometry on face y- was not correctly specified").
 set -u
 W=${1:?usage: build.sh WORK UINTAH_SRC [openmpi|mpich]}; U=${2:?UINTAH_SRC}; MPI=${3:-openmpi}
-JOBS=${JOBS:-4}; COMPONENTS=${COMPONENTS:---enable-examples}; CLEAN=${CLEAN:-0}
+JOBS=${JOBS:-4}; COMPONENTS=${COMPONENTS:---enable-examples}; CLEAN=${CLEAN:-0}; TSAN=${TSAN:-0}
+VARIANTS=${VARIANTS:-plain fix}
 HERE=$(cd "$(dirname "$0")" && pwd)
 case $MPI in
   openmpi) CC=/usr/bin/mpicc.openmpi CXX=/usr/bin/mpicxx.openmpi F77=/usr/bin/mpif77.openmpi ;;
@@ -36,12 +44,28 @@ if [ ! -d src-fix ]; then
   done
   (cd src-fix && patch -p1 < "$HERE/hypre-comm.patch" > /dev/null) || { echo "patch failed"; exit 1; }
 fi
-for b in plain fix; do
+REPO=$(cd "$HERE/../.." && pwd)
+T="-fsanitize=thread -fno-sanitize-link-runtime -mllvm -tsan-instrument-func-entry-exit=0 -mllvm -tsan-instrument-memintrinsics=0 -Wno-unused-command-line-argument"
+L="-Wl,--no-as-needed -L$REPO/tracer/bin -lstretto-tsan -Wl,-rpath,$REPO/tracer/bin"
+for v in $VARIANTS; do
+  b=$v; [ "$TSAN" = 1 ] && b=$v-tsan
   [ -x $b/StandAlone/sus ] && continue
-  src=$U/src; [ $b = fix ] && src=$W/src-fix/src
-  mkdir -p $b && (cd $b && "$src/configure" --enable-optimize="-O2" $COMPONENTS --with-hypre="$W/hypre" \
-     --with-mpi=built-in CC=$CC CXX=$CXX F77=$F77 > "$W/$b.cfg.log" 2>&1 \
-     && make -j"$JOBS" sus > "$W/$b.make.log" 2>&1) || { echo "Uintah build ($b) failed: $W/$b.*.log"; exit 1; }
+  src=$U/src; [ $v = fix ] && src=$W/src-fix/src
+  if [ "$TSAN" = 1 ]; then
+    # configVars.mk appends the environment's CXXFLAGS, which the link lines use too: the
+    # scheduler's objects are deleted after a gcc build and made again by clang
+    make -s -C "$REPO/tracer" stub || exit 1
+    (mkdir -p $b && cd $b && "$src/configure" --enable-optimize="-O2" $COMPONENTS --with-hypre="$W/hypre" \
+       --with-mpi=built-in CC=$CC CXX=$CXX F77=$F77 > "$W/$b.cfg.log" 2>&1 \
+     && make -j"$JOBS" sus > "$W/$b.make.log" 2>&1 \
+     && find CCA/Components/Schedulers -name '*.o' -delete && rm -f lib/libCCA_Components_Schedulers.so \
+     && OMPI_CXX=/usr/bin/clang++-18 CXXFLAGS="$T -mllvm -tsan-distinguish-volatile=1 $L" make -j"$JOBS" sus >> "$W/$b.make.log" 2>&1) \
+      || { echo "Uintah build ($b) failed: $W/$b.*.log"; exit 1; }
+  else
+    mkdir -p $b && (cd $b && "$src/configure" --enable-optimize="-O2" $COMPONENTS --with-hypre="$W/hypre" \
+       --with-mpi=built-in CC=$CC CXX=$CXX F77=$F77 > "$W/$b.cfg.log" 2>&1 \
+       && make -j"$JOBS" sus > "$W/$b.make.log" 2>&1) || { echo "Uintah build ($b) failed: $W/$b.*.log"; exit 1; }
+  fi
   [ "$CLEAN" = 1 ] && find $b -name '*.o' -delete
+  echo "built: $W/$b/StandAlone/sus"
 done
-echo "built: $W/plain/StandAlone/sus $W/fix/StandAlone/sus"

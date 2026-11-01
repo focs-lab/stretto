@@ -22,9 +22,14 @@
 # replay.sh; docs/threads.md section 14). Writes WORK/results.csv:
 # version, run, the test's exit status and passes, records, and the L1 findings on receives of
 # tag WRITE_INDEP_DATA (0xd8da02), with the other findings by class.
+# TSAN=1 builds HDF5 with clang 18's ThreadSanitizer instrumentation linked against the tracer's
+# libstretto-tsan.so (docs/threads.md section 17; the image of experiments/atomics/Dockerfile),
+# so that the tracer records the concentrator's atomic and volatile flags: build and run
+# directories and the version column get the suffix -tsan. VERSIONS ("pre fix") narrows the
+# versions, OUT (WORK/results.csv) names the table.
 set -u
 W=${1:?usage: run.sh WORK}
-JOBS=${JOBS:-4}; RUNS=${RUNS:-5}; NP=${NP:-4}
+JOBS=${JOBS:-4}; RUNS=${RUNS:-5}; NP=${NP:-4}; TSAN=${TSAN:-0}; VERSIONS=${VERSIONS:-pre fix}
 REPO=$(cd "$(dirname "$0")/../.." && pwd)
 LIB=$REPO/tracer/bin/openmpi/libstretto-trace.so
 SRC=${HDF5_SRC:-$W/hdf5}
@@ -32,24 +37,37 @@ mkdir -p "$W"
 [ -d "$SRC/.git" ] || git clone -q --filter=blob:none https://github.com/HDFGroup/hdf5.git "$SRC"
 git -C "$SRC" fetch -q origin pull/1464/head:pr1464 2>/dev/null || true
 export OMPI_MCA_rmaps_base_oversubscribe=1
-echo "version,run,test_rc,passed,records,l1_data_tag,l1_data_tag_1a,findings_by_class" > "$W/results.csv"
+OUT=${OUT:-$W/results.csv}
+sfx=; cflags=(); xenv=()
+if [ "$TSAN" = 1 ]; then
+  # atomics and volatile accesses (the shutdown flag is written as a volatile int in H5FDioc.c,
+  # the work items' flags are volatile); plain accesses become calls that do nothing
+  make -s -C "$REPO/tracer" stub || exit 1
+  export OMPI_CC=/usr/bin/clang-18
+  # (clang 18 rejects some of the 2021 sources' implicit conversions, which gcc 13 accepts)
+  t="-fsanitize=thread -fno-sanitize-link-runtime -mllvm -tsan-instrument-func-entry-exit=0 -mllvm -tsan-instrument-memintrinsics=0 -mllvm -tsan-distinguish-volatile=1 -Wno-error=int-conversion -Wno-error=incompatible-function-pointer-types -Wno-error=implicit-function-declaration"
+  l="-Wl,--no-as-needed -L$REPO/tracer/bin -lstretto-tsan -Wl,-rpath,$REPO/tracer/bin"
+  sfx=-tsan; cflags=(-DCMAKE_C_FLAGS="$t" -DCMAKE_EXE_LINKER_FLAGS="$l" -DCMAKE_SHARED_LINKER_FLAGS="$l"); xenv=(-x STRETTO_ATOMICS_STATS=1)
+fi
+echo "version,run,test_rc,passed,records,l1_data_tag,l1_data_tag_1a,findings_by_class" > "$OUT"
 for v in pre:9975eaeb2 fix:ffc254983; do
   name=${v%%:*}; commit=${v#*:}
-  tree=$W/hdf5-$name; build=$W/build-$name
+  case " $VERSIONS " in *" $name "*) ;; *) continue ;; esac
+  tree=$W/hdf5-$name; build=$W/build-$name$sfx
   [ -d "$tree" ] || git -C "$SRC" worktree add --detach "$tree" "$commit" >/dev/null
   if [ ! -x "$build/bin/t_subfiling_vfd" ]; then
     cmake -S "$tree" -B "$build" -DCMAKE_C_COMPILER=/usr/bin/mpicc -DCMAKE_BUILD_TYPE=RelWithDebInfo \
       -DHDF5_ENABLE_PARALLEL=ON -DHDF5_BUILD_SUBFILING=ON -DBUILD_TESTING=ON -DHDF5_BUILD_TOOLS=OFF \
       -DHDF5_BUILD_EXAMPLES=OFF -DHDF5_BUILD_CPP_LIB=OFF -DHDF5_BUILD_FORTRAN=OFF -DHDF5_BUILD_HL_LIB=OFF \
-      -DHDF5_ENABLE_Z_LIB_SUPPORT=OFF -DHDF5_ENABLE_SZIP_SUPPORT=OFF > "$W/build-$name.cfg.log" 2>&1 \
-      && make -C "$build" -j"$JOBS" t_subfiling_vfd > "$W/build-$name.make.log" 2>&1 \
-      || { echo "build of $name failed: $W/build-$name.*.log"; exit 1; }
+      -DHDF5_ENABLE_Z_LIB_SUPPORT=OFF -DHDF5_ENABLE_SZIP_SUPPORT=OFF ${cflags[@]+"${cflags[@]}"} > "$build.cfg.log" 2>&1 \
+      && make -C "$build" -j"$JOBS" t_subfiling_vfd > "$build.make.log" 2>&1 \
+      || { echo "build of $name failed: $build.*.log"; exit 1; }
   fi
   for i in $(seq 1 "$RUNS"); do
-    d=$W/runs/$name/run$i; rm -rf "$d"; mkdir -p "$d/trace"
+    d=$W/runs/$name$sfx/run$i; rm -rf "$d"; mkdir -p "$d/trace"
     # the single-copy transport needs ptrace across processes, which the container does not allow
     run=${SCRATCH:-$d}; mkdir -p "$run"
-    (cd "$run" && timeout -k 5 300 /usr/bin/mpirun.openmpi -np "$NP" --mca btl_vader_single_copy_mechanism none -x STRETTO_SYNC_ORDER=1 \
+    (cd "$run" && timeout -k 5 300 /usr/bin/mpirun.openmpi -np "$NP" --mca btl_vader_single_copy_mechanism none -x STRETTO_SYNC_ORDER=1 ${xenv[@]+"${xenv[@]}"} \
        -x STRETTO_TRACE_DIR="$d/trace" -x LD_PRELOAD="$LIB" "$build/bin/t_subfiling_vfd" > "$d/out.log" 2>&1)
     rc=$?
     # the test's files (subfiles of up to 128 MB each, several GB per run) are not needed
@@ -59,7 +77,7 @@ for v in pre:9975eaeb2 fix:ffc254983; do
     data=$(echo "$f" | grep ' L1 ' | grep -c 'tag=14211586')
     data1a=$(echo "$f" | grep ' L1 ' | grep 'tag=14211586' | grep -c '^\[ *1a\]')
     classes=$(echo "$f" | sed -E 's/^\[ *([^]]*)\] *([A-Za-z0-9]+).*/\1 \2/' | sort | uniq -c | awk '{printf "%s%s:%s=%s", (NR > 1 ? " " : ""), $2, $3, $1}')
-    echo "$name,$i,$rc,$(grep -c PASSED "$d/out.log"),$(cat "$d"/trace/rank-*.jsonl | wc -l),$data,$data1a,$classes" >> "$W/results.csv"
+    echo "$name$sfx,$i,$rc,$(grep -c PASSED "$d/out.log"),$(cat "$d"/trace/rank-*.jsonl | wc -l),$data,$data1a,$classes" >> "$OUT"
   done
 done
-cat "$W/results.csv"
+cat "$OUT"

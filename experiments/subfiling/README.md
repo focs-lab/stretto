@@ -116,3 +116,27 @@ The campaigns above ran before the tracer made a waiting thread check its turn a
 (docs/threads.md section 14, item 3). Run 7's two alternatives replayed again with the final
 tracer, 3 times each ([replay-same-final.csv](replay-same-final.csv)): 4 of 6 replays took every
 pin, 5 of 6 controls did, all finished without divergence, and 3 of 6 had both.
+
+## With the atomics recorded (1 Nov 2026)
+
+[docs/threads.md](../../docs/threads.md) section 17. `run.sh` with `TSAN=1` builds HDF5 with clang
+18's ThreadSanitizer instrumentation (atomics and volatile accesses: the concentrator's
+`sf_shutdown_flag` is an `atomic_int` that `H5FDioc.c` writes as a `volatile int`, and the
+workers count down `sf_work_pending`) linked against the tracer's stub runtime, in the image of
+[experiments/atomics](../atomics/Dockerfile). Same session, a-p13, Open MPI 4.1.6, 13 traced runs
+per build and version, the analysis of this branch ([results-atomics.csv](results-atomics.csv);
+`within_one_pool` and `across_pools` from `instances.py`):
+
+| build | version | runs passed | traces with data alternatives | alternatives | within one pool | across pools |
+|---|---|---|---|---|---|---|
+| gcc (atomics unseen) | `pre` | 13 of 13 | 13 of 13 | 60 | 4 | 56 |
+| clang, instrumented | `pre` | 13 of 13 | 2 of 13 | 5 (3 of them 1a) | 5 | 0 |
+| clang, instrumented | `fix` | 13 of 13 | 0 of 13 | 0 | 0 | 0 |
+
+The cross-pool over-predictions are gone: a worker's last `sf_work_pending` decrement now
+precedes the concentrator's exit from its loop, which precedes the main thread's join and the
+next file's threads. The within-pool alternatives (the bug the fix removes) stay, in 2 of 13
+runs (in 2 of 13 of the gcc build too, with 4): the 1a ones are a 96-byte receive taking an
+800-byte or a 128 MiB write. Per trace rank 0 records 31 atomic locations, 157 releases and
+5 500 to 6 900 acquires, 8 of which raise its clock. The observed `2-thread-finalize` stays in
+every trace (a concentrator's records are not ordered before `MPI_Finalize`; not examined).
