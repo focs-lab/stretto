@@ -18,7 +18,10 @@
      chain     id, name, parent, kind(pthread|omp|task) names it: chain 0 is "0", the k-th thread
                created by chain c is "c.k", the implicit task of thread j of the p-th parallel
                region entered by chain c is "c/p.j", the k-th explicit task created by chain c
-               is "c~k" (k and p count from 0).
+               is "c~k" (k and p count from 0). With STRETTO_OMP_CHAINS=thread the implicit
+               tasks of thread j > 0 in all the parallel regions chain c enters are one chain,
+               "c/t.j" (the regions' fork and join order them already; a code that enters a
+               region per time step otherwise makes a chain per region and step).
    A record other than overflow, guard, unordered, chain, task and overlap (communicator
    records included: they are collectives of the model) carries after:[[c,s,kc,ka],...] when
    other chains' synchronisation now precedes it. Every chain counts the synchronisation
@@ -221,10 +224,12 @@ typedef struct thr {
     lkev *hx; int nhx, caphx;     /* hard entries of this gap replaced by a later point of their chain ([i, s, kc, ka]) */
     int lkover;                   /* a list above overflowed: the loader keeps the lock order of the process */
     int lkseen;                   /* the chain has made a lock operation (sync_lock, sync_unlock) */
+    struct thr **kids; int nkids; /* STRETTO_OMP_CHAINS=thread: the chain of thread j of its parallel regions, by j */
 } thr;
 static int g_nch __attribute__((unused)) = 0;             /* chain ids handed out */
 static int g_chain_over __attribute__((unused)) = 0;      /* more than MAXCH chains wrote records */
 static int g_threads_on = 1;      /* STRETTO_THREADS != "0": follow synchronisation */
+static int g_omp_merge __attribute__((unused)) = 0;   /* STRETTO_OMP_CHAINS=thread: one chain per thread of a chain's parallel regions */
 static int g_issue = 0;           /* MPI_THREAD_MULTIPLE with g_threads_on: issue lock and blocking rewrite */
 static int g_level = -1;          /* the provided thread level, -1 before MPI_Init */
 static FILE *g_sync __attribute__((unused)) = NULL;   /* STRETTO_SYNC_ORDER=1: the rank's lock acquisitions, in order (section "lock order") */
@@ -2787,6 +2792,8 @@ static void *g_tself_base = NULL;     /* this library's load address */
 __attribute__((constructor)) static void threads_init(void) {
     const char *e = getenv("STRETTO_THREADS");
     g_threads_on = !(e && strcmp(e, "0") == 0);
+    e = getenv("STRETTO_OMP_CHAINS");
+    g_omp_merge = e && strcmp(e, "thread") == 0;
     Dl_info d;
     if (dladdr((void *)threads_init, &d)) g_tself_base = d.dli_fbase;
 }
@@ -3440,6 +3447,32 @@ static void region_end(region *R) {   /* the join of the region: an acquire of t
     for (int i = 0; i < 64; i++) free(R->ws[i]);
     free(R);
 }
+/* the chain of thread j > 0 in region R: a new one, or with STRETTO_OMP_CHAINS=thread the
+   one thread j had in the master's earlier regions (*again), which the master's table keeps.
+   The master enters its regions one at a time, and thread j alone touches its slot. */
+static thr *omp_chain(region *R, int j, int *again) {
+    thr *m = R->master, *c = NULL;
+    if (g_omp_merge) {
+        IL(&g_symu);
+        if (j >= m->nkids) {
+            int n = j + 8;
+            m->kids = xrealloc(m->kids, n * sizeof *m->kids);
+            memset(m->kids + m->nkids, 0, (n - m->nkids) * sizeof *m->kids);
+            m->nkids = n;
+        }
+        c = m->kids[j];
+        IU(&g_symu);
+        if (c) { __atomic_add_fetch(&c->refs, 1, __ATOMIC_ACQ_REL); *again = 1; return c; }
+    }
+    c = thr_new(m, "omp");
+    c->untracked = m->untracked;
+    if (g_omp_merge) {
+        snprintf(c->name, sizeof c->name, "%.120s/t.%d", m->name, j);
+        __atomic_add_fetch(&c->refs, 1, __ATOMIC_ACQ_REL);    /* the master's table */
+        IL(&g_symu); m->kids[j] = c; IU(&g_symu);
+    } else snprintf(c->name, sizeof c->name, "%.120s/%d.%d", m->name, R->pidx, j);
+    return c;
+}
 static void omp_tramp(void *a) {
     region *R = a;
     int j = p_thread_num ? p_thread_num() : 0;
@@ -3448,10 +3481,12 @@ static void omp_tramp(void *a) {
     t_region = R; t_wsidx = R->nws0; t_task = NULL; t_node = NULL;    /* an implicit task of R */
     if (j == 0) R->fn(R->data);
     else {
-        thr *c = thr_new(R->master, "omp");
-        c->untracked = R->master->untracked;
-        snprintf(c->name, sizeof c->name, "%.120s/%d.%d", R->master->name, R->pidx, j);
-        if (g_threads_on) chain_start(c, &R->snap);
+        int again = 0;
+        thr *c = omp_chain(R, j, &again);
+        if (g_threads_on) {
+            if (again) { long ka = sync_op(c); vc_acquire(c, &R->snap, ka); }   /* the fork, after the chain's end in an earlier region */
+            else chain_start(c, &R->snap);
+        }
         t_cur = c;
         R->fn(R->data);
         if (g_threads_on) { sync_op(c); IL(&g_symu); vc_join(&R->acc, &c->vc); IU(&g_symu); lk_end(c); }   /* the task's end: a release */

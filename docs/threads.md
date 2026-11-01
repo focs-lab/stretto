@@ -7,7 +7,8 @@ says how milestone C replays alternatives of several threads, section 12 how mil
 OpenMP tasks (both 30 Oct 2026), section 13 how level L1+L reorders critical sections, section 14
 how milestone E replays pools of threads and tasks in the trace's lock order, section 15 how
 milestone F analyses requests handed between threads and cancelled receives (30 Oct 2026),
-section 16 what forced replays of its three races showed (30-31 Oct 2026).
+section 16 what forced replays of its three races showed (30-31 Oct 2026), section 17 a
+tracer setting for codes that enter a parallel region per time step (1 Nov 2026).
 Decided
 29 Oct 2026: Stretto is extended to programs in which several threads of an MPI process call MPI
 on shared communicators (`MPI_THREAD_MULTIPLE`, and `MPI_THREAD_SERIALIZED` with several calling
@@ -1576,3 +1577,22 @@ controls (recorded before the column `shown`). On 2x2, 9 more runs (all wrong), 
 6 replays confirmed with the truncation shown at the changed receive and a control reproducing
 the run, 1 truncated without it, 4 starved (with teams of 8 and of 16). Confirmed, narrowly;
 what limits it is the free continuation beyond the horizon and P-T7, not the pins.
+
+## 17. Codes with a parallel region per time step (1 Nov 2026)
+
+A tracer setting, off by default (traces and reports without it are unchanged), found
+necessary by the first traced run of Smilei (experiments/smilei), a particle-in-cell code whose
+OpenMP threads post their own patch exchanges and which writes its diagnostics through parallel
+HDF5:
+
+- `STRETTO_OMP_CHAINS=thread`: the implicit tasks of thread j > 0 in all the parallel regions a
+  chain c enters are one chain, `c/t.j`, instead of one chain `c/p.j` per region. Smilei enters
+  a few regions with MPI calls per time step, so a 1D benchmark with 2 threads made several
+  thousand chains per rank and overflowed the tracer's table of 256 (`tracer-overflow`) within
+  its first steps; with the setting each rank has 2 chains. Nothing is lost: the region's fork
+  orders thread j's start after the master's earlier records, which follow the previous
+  region's join, which follows thread j's end there, so the edge from one region's task to the
+  next is in the happens-before already. At each region after the first, the chain takes the
+  fork's clock as an acquire. The names stay deterministic under P-T5 (the replay names chains
+  with the same code). Test: `test_replay_e2e.OmpChainsPerThread` (301 regions, 2 chains per
+  rank, the one race found, the earlier regions ordered; without the setting, the overflow).

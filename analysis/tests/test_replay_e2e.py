@@ -407,6 +407,83 @@ class CancelOutcome(unittest.TestCase):
             self.assertEqual(report.analyze(t, with_sp=False).status(), "complete")
 
 
+REGIONS_C = r"""
+#include <mpi.h>
+#include <omp.h>
+#include <stdio.h>
+/* 300 parallel regions of two threads, each thread exchanging with the other rank on a tag of
+   its own (no race), then one region whose two threads of rank 1 receive from rank 0 on one
+   tag (a race between the threads). */
+int main(int argc, char **argv) {
+    int p, rank;
+    MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &p);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    for (int step = 0; step < 300; step++) {
+#pragma omp parallel num_threads(2)
+        {
+            int j = omp_get_thread_num(), x = step, y;
+            MPI_Sendrecv(&x, 1, MPI_INT, 1 - rank, j, &y, 1, MPI_INT, 1 - rank, j, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        }
+    }
+#pragma omp parallel num_threads(2)
+    {
+        int j = omp_get_thread_num(), x = j, y;
+        if (rank == 0) MPI_Send(&x, 1, MPI_INT, 1, 99, MPI_COMM_WORLD);
+        else MPI_Recv(&y, 1, MPI_INT, 0, 99, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    }
+    MPI_Finalize();
+    return 0;
+}
+"""
+
+
+class OmpChainsPerThread(unittest.TestCase):
+    """STRETTO_OMP_CHAINS=thread (tracer): the implicit tasks of thread j > 0 in a chain's
+    successive parallel regions are one chain, so a code that enters a region per time step
+    does not overflow the tracer's chain table; the regions' fork and join still order them."""
+
+    def trace(self, d, merge):
+        from stretto import trace
+        mpicc = f"/usr/bin/mpicc.{MPI}"
+        if not (os.path.exists(TRACER) and os.path.exists(mpicc)):
+            if REQUIRE:
+                self.fail(f"not built: {TRACER} {mpicc}")
+            self.skipTest("tracer or MPI compiler missing")
+        src, exe = os.path.join(d, "regions.c"), os.path.join(d, "regions")
+        if not os.path.exists(exe):
+            with open(src, "w") as fh:
+                fh.write(REGIONS_C)
+            subprocess.run([mpicc, "-O0", "-g", "-fopenmp", "-o", exe, src], check=True)
+        tdir = os.path.join(d, f"trace-{merge}")
+        os.mkdir(tdir)
+        env = ["-x", "STRETTO_OMP_CHAINS=thread"] if merge else []
+        r = subprocess.run(["/usr/bin/mpirun.openmpi", "--oversubscribe", "-np", "2", "-x", f"LD_PRELOAD={TRACER}",
+                            "-x", f"STRETTO_TRACE_DIR={tdir}", *env, exe], capture_output=True, text=True, timeout=120)
+        self.assertEqual(r.returncode, 0, r.stderr[-2000:])
+        return trace.load(tdir)
+
+    def test_one_chain_per_thread(self):
+        from stretto import report
+        from stretto import threads as TH
+        with tempfile.TemporaryDirectory() as d:
+            t = self.trace(d, True)
+            self.assertEqual(t.incomplete, [])
+            for rank in (0, 1):
+                self.assertEqual(sorted(t.chain_name[c] for c in t.chains[rank]), ["0", "0/t.1"])
+            rep = report.analyze(t, with_sp=False)
+            l1 = [f for f in rep.findings if f.level == "L1"]
+            self.assertTrue(l1, [f.title for f in rep.findings])
+            self.assertTrue(all(f.recv is not None and t.recvs[f.recv].tag == 99 for f in l1), [str(f.title) for f in l1])
+            # the regions order the chains: thread 1's first exchange precedes thread 0's last
+            c0, c1 = t.chains[1]
+            first1 = min((r for r in t.recvs.values() if r.rank == c1 and r.tag == 1), key=lambda r: r.idx)
+            last0 = max((r for r in t.recvs.values() if r.rank == c0 and r.tag == 0), key=lambda r: r.idx)
+            self.assertFalse(TH.concurrent(t, first1, last0))
+            # without the setting the 301 regions make more chains than the tracer's table holds
+            t2 = self.trace(d, False)
+            self.assertIn("tracer-overflow", {why for why, _ in t2.incomplete})
+
+
 class Threads(unittest.TestCase):
     """Several threads (docs/threads.md, section 11): the alternatives of the thread idioms are
     forced by chain pins and order gates under the tracer, every required pin is taken as the
