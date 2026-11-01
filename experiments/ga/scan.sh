@@ -8,9 +8,10 @@
 #   docker run --shm-size 4g ... ga-exp:24.04 /h/repo/experiments/ga/scan.sh WORK
 # Settings: MPI (openmpi), VARIANT (plain), TESTS (paths under the build tree), PPNS (1 2),
 # RUNS (3), NP (4), JOBS (analyses at once, 4), TIMEOUT (seconds per run, 300), ATIMEOUT
-# (seconds per analysis, 3600), MAXMB (traces larger than this many MB are not analysed; their
-# report.rc says "size"). Each run leaves WORK/<test>-<mpi>-ppn<p>-<i>/ with log, result,
-# report.json, report.rc, report.err, sites.txt and the trace.
+# (seconds per analysis, 3600), MAXMB (a trace larger than this many MB is deleted after its run
+# and not analysed; its report.rc says "size", trace.mb its size). Each run leaves
+# WORK/<test>-<mpi>-ppn<p>-<i>/ with log, result, report.json, report.rc, report.err, sites.txt
+# and the trace. An analysis killed by a signal stops xargs and with it the script.
 set -u
 W=${1:?usage: scan.sh WORK}
 MPI=${MPI:-openmpi}; VARIANT=${VARIANT:-plain}; PPNS=${PPNS:-1 2}; RUNS=${RUNS:-3}; NP=${NP:-4}
@@ -43,11 +44,12 @@ for t in $TESTS; do
       res=pass; [ $rc = 124 ] && res=hang; [ $rc != 0 ] && [ $rc != 124 ] && res=fail
       grep -v 'Error=0\.0*$' "$d/log" | grep -qiE 'fail|error|wrong' && [ $res = pass ] && res=suspect
       echo "$res $rc" > "$d/result"
+      m=$(du -sm "$d/trace" | cut -f1)    # a trace not analysed is not kept
+      if [ "$m" -gt "$MAXMB" ]; then echo "$m" > "$d/trace.mb"; echo size > "$d/report.rc"; rm -rf "$d/trace"; fi
     done
   done
 done
 ls -d "$W"/*/trace | xargs -P "$JOBS" -I{} sh -c '
   d=$(dirname {}); [ -f "$d/report.json" ] && exit 0
-  if [ $(du -sm {} | cut -f1) -gt '"$MAXMB"' ]; then echo size > "$d/report.rc"; exit 0; fi
   timeout '"$ATIMEOUT"' python3 -m stretto analyze --json {} > "$d/report.json" 2> "$d/report.err"; echo $? > "$d/report.rc"
   python3 -m stretto sites {} > "$d/sites.txt" 2>> "$d/report.err"'
