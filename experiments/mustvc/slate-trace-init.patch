@@ -1,0 +1,19 @@
+diff --git a/src/auxiliary/Trace.cc b/src/auxiliary/Trace.cc
+index 6732888..b3f959c 100644
+--- a/src/auxiliary/Trace.cc
++++ b/src/auxiliary/Trace.cc
+@@ -177,12 +177,12 @@ double Trace::vscale_ = 50;
+ double Trace::hscale_ = 100;
+ 
+ bool Trace::tracing_ = false;
+-int Trace::num_threads_ = omp_get_max_threads();
++int Trace::num_threads_ = 1;  // not omp_get_max_threads(): see experiments/mustvc/README.md
+ 
+ std::string comment_;
+ 
+ std::vector<std::vector<Event>> Trace::events_ =
+-    std::vector<std::vector<Event>>(omp_get_max_threads());
++    std::vector<std::vector<Event>>(1);
+ 
+ std::map<std::string, Color> function_color_ = {
+ 

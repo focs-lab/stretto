@@ -4,14 +4,17 @@
 #   experiments/slate/build-lib.sh SLATE_SRC BUILD LIBDIR DRIVER MPI
 # SLATE_SRC is a clone with its submodules and without the patch (the script applies it, builds,
 # and reverses it); MPI is openmpi or mpich. LIBDIR gets plain/libslate.so.2 and
-# fixed/libslate.so.2, DRIVER the wide_lu binary. Settings: JOBS (8).
+# fixed/libslate.so.2, DRIVER the wide_lu binary. Settings: JOBS (8); SLATE_CC and SLATE_CXX,
+# the compilers (/usr/bin/gcc, /usr/bin/g++; experiments/mustvc builds with clang 15, whose
+# OpenMP runtime has OMPT, and MPICH's wrappers then compile the driver with the compiler
+# MPICH_CXX names).
 set -eu
 S=${1:?usage: build-lib.sh SLATE_SRC BUILD LIBDIR DRIVER MPI}; B=${2:?}; L=${3:?}; D=${4:?}; M=${5:?}
 JOBS=${JOBS:-8}
 HERE=$(cd "$(dirname "$0")" && pwd)
 mkdir -p "$B" "$L/plain" "$L/fixed" "$(dirname "$D")"
-cmake -S "$S" -B "$B" -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=/usr/bin/gcc \
-  -DCMAKE_CXX_COMPILER=/usr/bin/g++ -DCMAKE_CXX_FLAGS="-O2" \
+cmake -S "$S" -B "$B" -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER="${SLATE_CC:-/usr/bin/gcc}" \
+  -DCMAKE_CXX_COMPILER="${SLATE_CXX:-/usr/bin/g++}" -DCMAKE_CXX_FLAGS="-O2" \
   -DMPI_CXX_COMPILER=/usr/bin/mpicxx.$M -DMPI_C_COMPILER=/usr/bin/mpicc.$M \
   -Dgpu_backend=none -Dblas=openblas -Dblas_threaded=false -Dbuild_tests=no -Dc_api=no \
   -Dcolor=no > "$B/cmake.log" 2>&1
