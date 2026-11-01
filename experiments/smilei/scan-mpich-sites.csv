@@ -1,0 +1,16 @@
+test,mpi,run,site,location,counts,commit
+tst3d_10_em_propagation_external_field_tabulated,mpich,1,-,,observed:abort=4,2436eb9
+tst3d_10_em_propagation_external_field_tabulated,mpich,2,-,,observed:abort=4,2436eb9
+tst3d_10_em_propagation_external_field_tabulated,mpich,3,-,,observed:abort=4,2436eb9
+tst3d_24_envelope_Laguerre_Gauss_from_xmin,mpich,1,-,,observed:1c=79 observed:2-blocked=6 observed:2-buffering=1 observed:abort=1,2436eb9
+tst3d_24_envelope_Laguerre_Gauss_from_xmin,mpich,1,smilei+0x498250,"Patch::initExchange(Field*, int, SmileiMPI*, bool) at src/Patch/Patch.cpp:944",L1:1f=31,2436eb9
+tst3d_24_envelope_Laguerre_Gauss_from_xmin,mpich,2,-,,observed:1c=79 observed:2-blocked=6 observed:2-buffering=1 observed:abort=1,2436eb9
+tst3d_24_envelope_Laguerre_Gauss_from_xmin,mpich,2,smilei+0x498250,"Patch::initExchange(Field*, int, SmileiMPI*, bool) at src/Patch/Patch.cpp:944",L1:1f=31,2436eb9
+tst3d_24_envelope_Laguerre_Gauss_from_xmin,mpich,3,-,,observed:1c=79 observed:2-blocked=6 observed:2-buffering=1 observed:abort=1,2436eb9
+tst3d_24_envelope_Laguerre_Gauss_from_xmin,mpich,3,smilei+0x498250,"Patch::initExchange(Field*, int, SmileiMPI*, bool) at src/Patch/Patch.cpp:944",L1:1f=31,2436eb9
+tst3d_25_envelope_Hermite_Gauss_from_xmin_reduced_dispersion,mpich,1,-,,observed:1c=79 observed:2-blocked=6 observed:2-buffering=1 observed:abort=1,2436eb9
+tst3d_25_envelope_Hermite_Gauss_from_xmin_reduced_dispersion,mpich,1,smilei+0x498250,"Patch::initExchange(Field*, int, SmileiMPI*, bool) at src/Patch/Patch.cpp:944",L1:1f=31,2436eb9
+tst3d_25_envelope_Hermite_Gauss_from_xmin_reduced_dispersion,mpich,2,-,,observed:1c=79 observed:2-blocked=6 observed:2-buffering=1 observed:abort=1,2436eb9
+tst3d_25_envelope_Hermite_Gauss_from_xmin_reduced_dispersion,mpich,2,smilei+0x498250,"Patch::initExchange(Field*, int, SmileiMPI*, bool) at src/Patch/Patch.cpp:944",L1:1f=31,2436eb9
+tst3d_25_envelope_Hermite_Gauss_from_xmin_reduced_dispersion,mpich,3,-,,observed:1c=79 observed:2-blocked=6 observed:2-buffering=1 observed:abort=1,2436eb9
+tst3d_25_envelope_Hermite_Gauss_from_xmin_reduced_dispersion,mpich,3,smilei+0x498250,"Patch::initExchange(Field*, int, SmileiMPI*, bool) at src/Patch/Patch.cpp:944",L1:1f=31,2436eb9

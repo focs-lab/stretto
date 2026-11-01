@@ -1,0 +1,174 @@
+bench,result,rc,trace_mb,seconds,scan,commit
+tst1d_00_em_propagation,pass,0,62,6,openmpi+mpich,85fe6cd-dirty
+tst1d_01_clb_explosion,pass,0,36,6,openmpi+mpich,85fe6cd-dirty
+tst1d_02_two_str_instability,pass,0,513,16,no (trace above 400 MB),85fe6cd-dirty
+tst1d_03_thermal_expansion,pass,0,795,51,no (trace above 400 MB),85fe6cd-dirty
+tst1d_04_radiation_pressure_acc,killed,1,1627,70,no (trace above 400 MB),85fe6cd-dirty
+tst1d_05_tunnel_ionisation,pass,0,431,133,no (trace above 400 MB),85fe6cd-dirty
+tst1d_06_profiles,pass,0,19,12,openmpi+mpich,85fe6cd-dirty
+tst1d_07_cir_plane_wave_rela,pass,0,780,41,no (trace above 400 MB),85fe6cd-dirty
+tst1d_08_cir_plane_wave_clas,pass,0,691,36,no (trace above 400 MB),85fe6cd-dirty
+tst1d_09_rad_electron_laser_collision,pass,0,438,11,no (trace above 400 MB),85fe6cd-dirty
+tst1d_10_pair_electron_laser_collision,pass,0,345,21,openmpi,85fe6cd-dirty
+tst1d_11_ionization_from_rate,pass,0,455,26,no (trace above 400 MB),85fe6cd-dirty
+tst1d_12_envelope_propagation,pass,0,25,6,openmpi+mpich,85fe6cd-dirty
+tst1d_13_envelope_wake,pass,0,41,6,openmpi+mpich,85fe6cd-dirty
+tst1d_15_particle_injection,pass,0,24,5,openmpi+mpich,85fe6cd-dirty
+tst1d_16_tunnel_ionisation_frozen_ions,pass,0,62,6,openmpi+mpich,85fe6cd-dirty
+tst1d_17_thermal_plasma_particle_merging,pass,0,10,11,openmpi+mpich,85fe6cd-dirty
+tst1d_18_envelope_propagation_reduced_dispersion,pass,0,25,5,openmpi+mpich,85fe6cd-dirty
+tst1d_18_radiation_spectrum_chi0.1,pass,0,320,88,openmpi,85fe6cd-dirty
+tst1d_19_envelope_wake_reduced_dispersion,pass,0,41,6,openmpi+mpich,85fe6cd-dirty
+tst1d_22_em_dispersion_m4,pass,0,36,6,openmpi+mpich,85fe6cd-dirty
+tst1d_23_interpolation_wt2,pass,0,282,5,openmpi,85fe6cd-dirty
+tst1d_23_interpolation_wt4,pass,0,282,11,openmpi,85fe6cd-dirty
+tst1d_24_cir_plane_wave_BTIS3,pass,0,521,19,no (trace above 400 MB),85fe6cd-dirty
+tst1d_25_envelope_wake_laser_from_xmin,pass,0,39,6,openmpi+mpich,85fe6cd-dirty
+tst1d_26_envelope_wake_reduced_dispersion_laser_from_xmin,pass,0,39,5,openmpi+mpich,85fe6cd-dirty
+tst2d_00_em_propagation,pass,0,316,31,openmpi,85fe6cd-dirty
+tst2d_01_plasma_mirror,pass,0,1010,176,no (trace above 400 MB),85fe6cd-dirty
+tst2d_02_radiation_pressure_acc,pass,0,1164,92,no (trace above 400 MB),85fe6cd-dirty
+tst2d_04_laser_wake,pass,0,668,76,no (trace above 400 MB),85fe6cd-dirty
+tst2d_04_laser_wake_sdmd,pass,0,623,66,no (trace above 400 MB),85fe6cd-dirty
+tst2d_05_antenna_wall,pass,0,55,5,openmpi+mpich,85fe6cd-dirty
+tst2d_06_profiles,pass,0,5,6,openmpi+mpich,85fe6cd-dirty
+tst2d_07_friedman_filter,pass,0,1109,101,no (trace above 400 MB),85fe6cd-dirty
+tst2d_08_synchrotron_chi1,pass,0,1059,26,no (trace above 400 MB),85fe6cd-dirty
+tst2d_09_synchrotron_chi0.1,pass,0,1093,26,no (trace above 400 MB),85fe6cd-dirty
+tst2d_11_laser_offset,pass,0,491,31,no (trace above 400 MB),85fe6cd-dirty
+tst2d_12_envelope_propagation,pass,0,156,6,openmpi,85fe6cd-dirty
+tst2d_13_envelope_wake,pass,0,359,11,openmpi,85fe6cd-dirty
+tst2d_14_particle_injection_x,pass,0,113,26,openmpi+mpich,85fe6cd-dirty
+tst2d_14_particle_injection_y,pass,0,113,26,openmpi+mpich,85fe6cd-dirty
+tst2d_15_qed_cascade_particle_merging,pass,0,1414,41,no (trace above 400 MB),85fe6cd-dirty
+tst2d_16_envelope_propagation_reduced_dispersion,pass,0,156,6,openmpi,85fe6cd-dirty
+tst2d_17_envelope_wake_reduced_dispersion,pass,0,360,10,openmpi,85fe6cd-dirty
+tst2d_18_bouchard_solver,fail,134,1,5,no (the run failed),85fe6cd-dirty
+tst2d_18_em_pml,pass,0,152,6,openmpi,85fe6cd-dirty
+tst2d_20_y_em_propagation,pass,0,175,16,openmpi,85fe6cd-dirty
+tst2d_21_y_laser_offset,pass,0,403,36,no (trace above 400 MB),85fe6cd-dirty
+tst2d_22_em_dispersion_m4,pass,0,95,5,openmpi+mpich,85fe6cd-dirty
+tst2d_23_interpolation_wt2,pass,0,1074,21,no (trace above 400 MB),85fe6cd-dirty
+tst2d_23_interpolation_wt4,pass,0,1073,26,no (trace above 400 MB),85fe6cd-dirty
+tst2d_24_envelope_wake_laser_from_xmin,pass,0,372,11,openmpi,85fe6cd-dirty
+tst2d_25_envelope_wake_reduced_dispersion_laser_from_xmin,pass,0,371,10,openmpi,85fe6cd-dirty
+tst2d_gpu_o2_beam_plasma,fail,134,1,5,no (the run failed),85fe6cd-dirty
+tst2d_s_o2_laser_wake_higuera,pass,0,638,76,no (trace above 400 MB),85fe6cd-dirty
+tst2d_s_o2_laser_wake_vay,pass,0,642,81,no (trace above 400 MB),85fe6cd-dirty
+tst2d_s_o2_multiphoton_Breit_Wheeler,pass,0,67,5,openmpi+mpich,85fe6cd-dirty
+tst2d_s_o4_em_propagation,pass,0,317,36,openmpi,85fe6cd-dirty
+tst2d_s_o4_laser_wake_vay,pass,0,959,226,no (trace above 400 MB),85fe6cd-dirty
+tst2d_s_o4_multiphoton_Breit_Wheeler,pass,0,67,10,openmpi+mpich,85fe6cd-dirty
+tst2d_s_o4_radiation_pressure_acc,pass,0,1180,147,no (trace above 400 MB),85fe6cd-dirty
+tst2d_tasks_01_pair_production,killed,1,1541,201,no (trace above 400 MB),85fe6cd-dirty
+tst2d_tasks_01_radiation_pressure_acc,pass,0,1307,111,no (trace above 400 MB),85fe6cd-dirty
+tst2d_v_04_laser_wake,pass,0,641,65,no (trace above 400 MB),85fe6cd-dirty
+tst2d_v_09_synchrotron_chi0.1,pass,0,1097,91,no (trace above 400 MB),85fe6cd-dirty
+tst2d_v_23_interpolation_wt2,pass,0,1070,26,no (trace above 400 MB),85fe6cd-dirty
+tst2d_v_23_interpolation_wt4,pass,0,1070,31,no (trace above 400 MB),85fe6cd-dirty
+tst2d_v_o2_beam_plasma,fail,134,1,5,no (the run failed),85fe6cd-dirty
+tst2d_v_o2_laser_wake_higuera,pass,0,642,66,no (trace above 400 MB),85fe6cd-dirty
+tst2d_v_o2_laser_wake_vay,pass,0,644,66,no (trace above 400 MB),85fe6cd-dirty
+tst2d_v_o2_multiphoton_Breit_Wheeler,pass,0,68,11,openmpi+mpich,85fe6cd-dirty
+tst2d_v_o2_plasma_mirror,pass,0,1010,156,no (trace above 400 MB),85fe6cd-dirty
+tst2d_v_o2_qed_cascade_vranic_cartesian,pass,0,1410,41,no (trace above 400 MB),85fe6cd-dirty
+tst2d_v_o2_radiation_pressure_acc,invalid,0,1159,117,no (trace above 400 MB),85fe6cd-dirty
+tst2d_v_o4_em_propagation,pass,0,316,46,openmpi,85fe6cd-dirty
+tst2d_v_o4_laser_wake_vay,pass,0,959,226,no (trace above 400 MB),85fe6cd-dirty
+tst2d_v_o4_multiphoton_Breit_Wheeler,pass,0,68,11,openmpi+mpich,85fe6cd-dirty
+tst2d_v_o4_radiation_pressure_acc,pass,0,1177,176,no (trace above 400 MB),85fe6cd-dirty
+tst3d_00_em_propagation,pass,0,67,56,openmpi+mpich,85fe6cd-dirty
+tst3d_02_diags,pass,0,101,37,openmpi+mpich,85fe6cd-dirty
+tst3d_04_laser_wake,pass,0,1185,362,no (trace above 400 MB),85fe6cd-dirty
+tst3d_04_laser_wake_lehe,pass,0,1178,371,no (trace above 400 MB),85fe6cd-dirty
+tst3d_04_laser_wake_sdmd,pass,0,513,206,no (trace above 400 MB),85fe6cd-dirty
+tst3d_06_profiles,pass,0,14,21,openmpi+mpich,85fe6cd-dirty
+tst3d_07_envelope_propagation,pass,0,1212,60,no (trace above 400 MB),85fe6cd-dirty
+tst3d_08_envelope_wake,killed,1,1581,90,no (trace above 400 MB),85fe6cd-dirty
+tst3d_09_relativistic_cylindrical_bunch,pass,0,229,21,openmpi,85fe6cd-dirty
+tst3d_10_em_propagation_external_field_tabulated,pass,0,64,101,openmpi+mpich,85fe6cd-dirty
+tst3d_11_laser_offset,killed,0,1536,95,no (trace above 400 MB),85fe6cd-dirty
+tst3d_12_relativistic_electron_beam_field_initialization,pass,0,294,36,openmpi,85fe6cd-dirty
+tst3d_13_particle_injection_x,pass,0,67,31,openmpi+mpich,85fe6cd-dirty
+tst3d_13_particle_injection_y,pass,0,67,36,openmpi+mpich,85fe6cd-dirty
+tst3d_13_particle_injection_z,pass,0,67,35,openmpi+mpich,85fe6cd-dirty
+tst3d_14_electron_sphere_field_initialization,pass,0,78,15,openmpi+mpich,85fe6cd-dirty
+tst3d_16_envelope_propagation_reduced_dispersion,pass,0,1214,56,no (trace above 400 MB),85fe6cd-dirty
+tst3d_17_envelope_wake_reduced_dispersion,killed,1,1560,90,no (trace above 400 MB),85fe6cd-dirty
+tst3d_18_synchrotron_analytical,pass,0,8,31,openmpi+mpich,85fe6cd-dirty
+tst3d_20_y_em_propagation,pass,0,67,15,openmpi+mpich,85fe6cd-dirty
+tst3d_21_z_laser_offset,pass,0,1227,120,no (trace above 400 MB),85fe6cd-dirty
+tst3d_22_em_dispersion_m4,pass,0,98,6,openmpi+mpich,85fe6cd-dirty
+tst3d_23_interpolation_wt2,pass,0,71,26,openmpi+mpich,85fe6cd-dirty
+tst3d_23_interpolation_wt4,pass,0,71,75,openmpi+mpich,85fe6cd-dirty
+tst3d_24_envelope_Laguerre_Gauss_from_xmin,hang,124,7,902,openmpi+mpich,85fe6cd-dirty
+tst3d_25_envelope_Hermite_Gauss_from_xmin_reduced_dispersion,hang,124,7,901,openmpi+mpich,85fe6cd-dirty
+tst3d_26_em_dispersion_bouchard,pass,0,297,81,openmpi,85fe6cd-dirty
+tst3d_a_o2_laser_wake,pass,0,1232,226,no (trace above 400 MB),85fe6cd-dirty
+tst3d_gpu_o2_thermal_plasma,fail,134,1,5,no (the run failed),85fe6cd-dirty
+tst3d_gpu_o2_thermal_plasma_medium,fail,134,1,5,no (the run failed),85fe6cd-dirty
+tst3d_gpu_o2_thermal_plasma_short,fail,134,1,5,no (the run failed),85fe6cd-dirty
+tst3d_gpu_o2_thin_foil,fail,134,1,5,no (the run failed),85fe6cd-dirty
+tst3d_s_o2_laser_wake_yee_higuera,pass,0,1237,211,no (trace above 400 MB),85fe6cd-dirty
+tst3d_s_o2_laser_wake_yee_vay,pass,0,1237,216,no (trace above 400 MB),85fe6cd-dirty
+tst3d_s_o2_synchrotron_radiation_chi1,killed,1,1529,60,no (trace above 400 MB),85fe6cd-dirty
+tst3d_s_o2_thermal_plasma,pass,0,303,21,openmpi,85fe6cd-dirty
+tst3d_s_o4_em_propagation,pass,0,363,51,openmpi,85fe6cd-dirty
+tst3d_s_o4_thermal_plasma,pass,0,300,60,openmpi,85fe6cd-dirty
+tst3d_tasks_01_laser_wakefield_envelope,killed,1,1518,286,no (trace above 400 MB),85fe6cd-dirty
+tst3d_tasks_v_01_plasma_expansion,killed,1,1517,211,no (trace above 400 MB),85fe6cd-dirty
+tst3d_v_08_envelope_wake,killed,1,1620,80,no (trace above 400 MB),85fe6cd-dirty
+tst3d_v_23_interpolation_wt2,pass,0,71,26,openmpi+mpich,85fe6cd-dirty
+tst3d_v_23_interpolation_wt4,pass,0,71,156,openmpi+mpich,85fe6cd-dirty
+tst3d_v_o2_laser_wake_yee_boris,pass,0,1199,662,no (trace above 400 MB),85fe6cd-dirty
+tst3d_v_o2_magnetic_shower_particle_merging,pass,0,45,51,openmpi+mpich,85fe6cd-dirty
+tst3d_v_o2_magnetic_shower_vranic_cartesian,pass,0,46,35,openmpi+mpich,85fe6cd-dirty
+tst3d_v_o2_particle_injection_x,pass,0,34,26,openmpi+mpich,85fe6cd-dirty
+tst3d_v_o2_plasma_relaxation_dyn,pass,0,51,16,openmpi+mpich,85fe6cd-dirty
+tst3d_v_o2_synchrotron_analytical,pass,0,8,21,openmpi+mpich,85fe6cd-dirty
+tst3d_v_o2_thermal_plasma,pass,0,299,21,openmpi,85fe6cd-dirty
+tst3d_v_o2_thermal_plasma_medium,fail,134,1,5,no (the run failed),85fe6cd-dirty
+tst3d_v_o2_thermal_plasma_short,fail,134,1,5,no (the run failed),85fe6cd-dirty
+tst3d_v_o2_thin_foil,fail,134,1,5,no (the run failed),85fe6cd-dirty
+tst3d_v_o4_laser_wake_boris,hang,124,1016,902,no (trace above 400 MB),85fe6cd-dirty
+tst3d_v_o4_magnetic_shower_particle_merging,pass,0,46,16,openmpi+mpich,85fe6cd-dirty
+tst3d_v_o4_particle_injection_x,pass,0,44,116,openmpi+mpich,85fe6cd-dirty
+tst3d_v_o4_plasma_relaxation_dyn,pass,0,53,21,openmpi+mpich,85fe6cd-dirty
+tst3d_v_o4_synchrotron_analytical,pass,0,8,36,openmpi+mpich,85fe6cd-dirty
+tst3d_v_o4_thermal_plasma,pass,0,297,76,openmpi,85fe6cd-dirty
+tstAM_00_em_propagation,pass,0,245,16,openmpi,85fe6cd-dirty
+tstAM_04_laser_propagation,killed,1,1504,777,no (trace above 400 MB),85fe6cd-dirty
+tstAM_04_laser_propagation_sdmd,killed,1,1519,150,no (trace above 400 MB),85fe6cd-dirty
+tstAM_04_v_laser_propagation,fail,134,1,5,no (the run failed),85fe6cd-dirty
+tstAM_04b_laser_propagation_numpy,invalid,0,1014,206,no (trace above 400 MB),85fe6cd-dirty
+tstAM_04c_laser_propagation_file,fail,134,1,5,no (the run failed),85fe6cd-dirty
+tstAM_04d_laser_propagation_Order1,killed,1,1515,636,no (trace above 400 MB),85fe6cd-dirty
+tstAM_05_envelope_propagation,pass,0,130,6,openmpi+mpich,85fe6cd-dirty
+tstAM_06_envelope_wake,pass,0,673,46,no (trace above 400 MB),85fe6cd-dirty
+tstAM_07_envelope_propagation_reduced_dispersion,pass,0,130,6,openmpi+mpich,85fe6cd-dirty
+tstAM_08_envelope_wake_reduced_dispersion,pass,0,1128,76,no (trace above 400 MB),85fe6cd-dirty
+tstAM_12_relativistic_electron_beam_field_initialization,pass,0,1165,21,no (trace above 400 MB),85fe6cd-dirty
+tstAM_13_electron_sphere_field_initialization,pass,0,1040,21,no (trace above 400 MB),85fe6cd-dirty
+tstAM_14_envelope_ionization_linear_polarization,killed,1,1540,95,no (trace above 400 MB),85fe6cd-dirty
+tstAM_15_envelope_ionization_circular_polarization,killed,1,1538,90,no (trace above 400 MB),85fe6cd-dirty
+tstAM_16_multiple_envelopes_wake,pass,0,826,81,no (trace above 400 MB),85fe6cd-dirty
+tstAM_17_plasma_channel_terzani,killed,1,1517,816,no (trace above 400 MB),85fe6cd-dirty
+tstAM_18_Laguerre_Gauss_envelope_from_xmin,pass,0,1034,487,no (trace above 400 MB),85fe6cd-dirty
+tstAM_19_flattened_gaussian_envelope_from_xmin_reduced_dispersion,killed,1,1576,145,no (trace above 400 MB),85fe6cd-dirty
+tstAM_picsar_04_laser_wake,fail,134,1,5,no (the run failed),85fe6cd-dirty
+tstAM_tasks_01_laser_wakefield_ionization,killed,1,1528,250,no (trace above 400 MB),85fe6cd-dirty
+tstAM_tasks_02_envelope_ionization,killed,1,1532,210,no (trace above 400 MB),85fe6cd-dirty
+tstAM_v_04_laser_propagation,killed,1,1518,721,no (trace above 400 MB),85fe6cd-dirty
+tst_collisions1_beam_relaxation,pass,0,4,6,openmpi+mpich,85fe6cd-dirty
+tst_collisions2_ionization_rate,pass,0,25,12,openmpi+mpich,85fe6cd-dirty
+tst_collisions3_AM_uniformity,pass,0,2,6,openmpi+mpich,85fe6cd-dirty
+tst_collisions3_uniformity,pass,0,2,5,openmpi+mpich,85fe6cd-dirty
+tst_collisions4_DD_fusion_rate,pass,0,16,11,openmpi+mpich,85fe6cd-dirty
+tst_collisions5_debye_length,pass,0,2,5,openmpi+mpich,85fe6cd-dirty
+tst_ionization_current_1d_order2,pass,0,227,11,openmpi,85fe6cd-dirty
+tst_ionization_current_1d_order4,pass,0,227,11,openmpi,85fe6cd-dirty
+tst_ionization_current_2d_order2,pass,0,448,66,no (trace above 400 MB),85fe6cd-dirty
+tst_ionization_current_2d_order4,pass,0,453,91,no (trace above 400 MB),85fe6cd-dirty
+tst_ionization_current_3d_order2,pass,0,267,61,openmpi,85fe6cd-dirty
+tst_ionization_current_3d_order4,pass,0,289,130,openmpi,85fe6cd-dirty
+tst_quick_1d,pass,0,7,6,openmpi+mpich,85fe6cd-dirty

@@ -87,8 +87,13 @@ analyser() {
 }
 mkdir -p "$W"; rm -f "$W/.runs-done-$MPI"
 [ "$ANALYSE" = 1 ] && { analyser & apid=$!; }
+pending() {  # MB of this MPI's traces still to be analysed
+  local t s=0
+  for t in "$W"/*-"$MPI"-*/trace; do [ -d "$t" ] && [ ! -e "$(dirname "$t")/report.rc" ] && s=$((s + $(du -sm "$t" | cut -f1))); done
+  echo $s
+}
 for b in $BENCHES; do
-  while [ "$(du -smc "$W"/*-"$MPI"-*/trace 2>/dev/null | tail -1 | cut -f1)" -gt "$PENDMB" ]; do sleep 10; done
+  while [ "$(pending)" -gt "$PENDMB" ]; do sleep 10; done
   for i in $(seq 1 "$RUNS"); do echo "$b $i"; done | xargs -P "$PAR" -n 2 bash -c 'one "$0" "$1"'
 done
 touch "$W/.runs-done-$MPI"
