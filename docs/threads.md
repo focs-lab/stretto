@@ -7,7 +7,8 @@ says how milestone C replays alternatives of several threads, section 12 how mil
 OpenMP tasks (both 30 Oct 2026), section 13 how level L1+L reorders critical sections, section 14
 how milestone E replays pools of threads and tasks in the trace's lock order, section 15 how
 milestone F analyses requests handed between threads and cancelled receives (30 Oct 2026),
-section 16 what forced replays of its three races showed (30-31 Oct 2026).
+section 16 what forced replays of its three races showed (30-31 Oct 2026), section 17 how the
+tracer records synchronisation through atomics (1 Nov 2026).
 Decided
 29 Oct 2026: Stretto is extended to programs in which several threads of an MPI process call MPI
 on shared communicators (`MPI_THREAD_MULTIPLE`, and `MPI_THREAD_SERIALIZED` with several calling
@@ -235,8 +236,10 @@ What is lost, and in which direction:
   unsound in the sense of T1 (premise P-T1 fails). The replay catches the first kind: the gate
   that forces b's side first never opens, so the replay times out as inconclusive and is never
   a confirmation; the second kind ends as misapplied when the chain reaches a pinned index with
-  another call. A small annotation API (`stretto_hb_release(addr)`, `stretto_hb_acquire(addr)`,
-  in the style of the dynamic annotations TSan understands) lets a user add such edges.
+  another call. A small annotation API (`stretto_happens_before(addr)`, `stretto_happens_after(addr)`,
+  in the style of the dynamic annotations TSan understands) lets a user add such edges. Since 1 Nov
+  2026 both are built: the tracer records the atomics, fences and volatile accesses of code
+  compiled with ThreadSanitizer's instrumentation, and the annotations (section 17).
 - **A mutex not recorded** (statically linked, a home-made spinlock): the same as an atomic.
 - **Locks recorded but not reordered** (L1 is sync-preserving): every alternative that needs
   two critical sections of one lock in the other order is missed: under-prediction. Its size:
@@ -1576,3 +1579,181 @@ controls (recorded before the column `shown`). On 2x2, 9 more runs (all wrong), 
 6 replays confirmed with the truncation shown at the changed receive and a control reproducing
 the run, 1 truncated without it, 4 starved (with teams of 8 and of 16). Confirmed, narrowly;
 what limits it is the free continuation beyond the horizon and P-T7, not the pins.
+
+## 17. Synchronisation through atomics (1 Nov 2026)
+
+Premises P-T1, P-T2 and P-T10 fail wherever threads synchronise without a call the tracer wraps:
+spin flags, atomic counters, lock-free queues (2.3, atomics). Measured before this step: of 65
+alternatives of HDF5 Subfiling's 13 `pre` traces, 58 had a worker of one file's pool take
+another pool's data (section 14); DLA-Future's patched traces kept up to 13 observed
+`2-thread-collective`, 6 `2-thread-wait` and 2 443 `waitany-order` per trace (section 15.4);
+Uintah's ARCHES traces kept 6 to 12 concurrent collective pairs, all ordered by a volatile spin
+flag (experiments/uintah, nightly tests).
+
+### 17.1 Design as built
+
+**Instrumentation without ThreadSanitizer's runtime.** The code that synchronises (the program,
+or a runtime library such as pika or HDF5) is compiled with the system compiler's
+ThreadSanitizer instrumentation, which turns every atomic operation into a call
+`__tsan_atomicN_<op>(addr, ..., order)` and every fence into `__tsan_atomic_thread_fence`, and
+is linked against `tracer/bin/libstretto-tsan.so` instead of libtsan. clang 18 does both:
+`-fsanitize=thread -fno-sanitize-link-runtime` drops the runtime from the link, and
+`-mllvm -tsan-instrument-memory-accesses=0 -mllvm -tsan-instrument-func-entry-exit=0 -mllvm
+-tsan-instrument-memintrinsics=0` leave only the atomics (functions marked
+`no_sanitize("thread")`, as pika's lock-free queue is, keep their atomics instrumented: the pass
+instruments atomics in every function). `-mllvm -tsan-distinguish-volatile=1` makes volatile
+accesses calls too, but only with memory accesses instrumented, whose calls then do nothing. gcc
+13 instruments every memory access (no parameter turns that off) and links libtsan when
+`-fsanitize=thread` is on the link line; compiled with it and linked without it, the program
+works the same, at a call per access (the idioms and the tracer tests use gcc, so they build in
+the experiment image). Neither needs libclang-rt or libtsan installed.
+
+**Two definitions of one interface** (`tracer/tsan_rt.c`). Built alone it is
+`libstretto-tsan.so`: every operation is performed with its memory order and nothing is
+recorded, so an instrumented program runs untraced and under the replay library. Included in
+the tracer, the same entry points call the tracer's hooks; the tracer is preloaded, so its
+definitions interpose the stub's. The rest of the interface (plain accesses, function entry,
+mutex and fiber annotations, `__tsan_memcpy`) is present and does nothing but the copy.
+
+**Clocks per location, not a log of versions.** The design considered logging each release and
+acquire with an address and a version counter and pairing them offline. The tracer already
+keeps vector clocks per chain and per synchronisation object and writes their deltas as `after`
+(section 2.2, item 2), so an atomic location is one more object: a recorded release puts the
+chain's clock into the location's, a recorded acquire takes it, and the edge reaches the trace
+in the next record's `after`, closed transitively, with the release's and the acquire's ordinals
+(section 9). The trace grows with the MPI calls, not with the atomic operations; the loader,
+the horizon, rule 8 and the replay read the edges as they read a mutex's; and an acquire knows
+which release it read because the operation and the clock update are made under one spin lock of
+the location's bucket (2^20 buckets by address), which gives the version-counter design's
+precision without its log. A location gets a clock at its first recorded release (4 longs per
+chain); past `STRETTO_ATOMICS_MAX` locations (2^22) no new one gets a clock and an overflow
+record degrades the trace (`tracer-overflow`).
+
+**What is recorded** (memory orders as the compilers pass them):
+
+| operation | recorded as |
+|---|---|
+| load, failed compare-exchange, read of a read-modify-write, with consume, acquire, acq_rel or seq_cst | acquire of the location's clock |
+| store with release or seq_cst | the location's clock set to the chain's |
+| read-modify-write or successful compare-exchange with release, acq_rel or seq_cst | the chain's clock joined into the location's (a release sequence keeps every releasing RMW) |
+| relaxed load, store or RMW | nothing (a relaxed RMW leaves the location's clock: the release sequence goes on); after a release fence of the thread, a relaxed store or RMW is a release |
+| acquire or seq_cst fence | acquires of the locations of the thread's relaxed loads since its previous acquire fence (the last 32) |
+| volatile write | a release store |
+| volatile read | an acquire, taken at the thread's next recorded operation or record (the call comes before the read) |
+| `__tsan_acquire`/`__tsan_release`, `AnnotateHappensAfter`/`Before`, `stretto_happens_after`/`before` | acquire, release (join) |
+
+A clock taken later than its operation (a volatile read, a fence's release) adds only edges
+from releases made before in real time, so it never makes the observed run look impossible.
+A release adds a synchronisation point (an ordinal) to its chain unless the chain's previous
+operation was a release with no record between; an acquire that raises no component of the
+chain's clock is not an operation at all. Atomic edges are hard (both halves of section 13):
+an atomic is no critical section that L1+L reorders, and an atomic operation inside a critical
+section takes its soft edge in, as any synchronisation does. The tracer skips operations inside
+MPI calls and of untracked threads, as for locks. `STRETTO_ATOMICS=0` turns the recording off
+(the operations are still performed), `STRETTO_ATOMICS_VOLATILE=0` that of volatile accesses,
+`STRETTO_ATOMICS_STATS=1` prints counts per rank at `MPI_Finalize`. The init record carries
+`atomics:1` when instrumented code ran and the recording is on; the report then says so in a
+note.
+
+**Annotations (step 3.2).** `tracer/stretto_sync.h` declares `stretto_happens_before(addr)` and
+`stretto_happens_after(addr)` weak, with macros that call them when they are defined: the
+tracer defines them, so a program needs neither the instrumentation nor a library to order a
+hand-off the tracer cannot see (a pipe, a raw futex, plain memory with fences in assembly).
+
+**Analysis.** Nothing changes in the happens-before: the edges arrive in `after` and `hafter`.
+The loader reads `atomics:1` (`Trace.atomics`) for the note. P-T2 now reads: every
+synchronisation that orders such accesses is one of the table of 2.2, an atomic operation,
+fence, volatile access or annotation of code compiled with the instrumentation (or annotated).
+What still escapes: atomics of code not compiled so (libstdc++'s and libgomp's own, Boost and
+the MPI library, all of which are skipped or prebuilt), inline assembly, raw `futex` calls, an
+acquire fence after more than 32 relaxed loads, and a relaxed store that ends a release sequence
+(kept: an over-approximation of happens-before, which loses alternatives, never adds one). New
+premise **P-T12 volatile as synchronisation**: where volatile accesses are instrumented they
+are taken as release stores and acquire loads, which is what a spin flag written before C11
+assumes; a volatile access that orders nothing adds edges, and loses alternatives.
+
+### 17.2 Results (1 Nov 2026, a-p13, Open MPI 4.1.6 unless said)
+
+- **Idioms 48-53** (both MPIs, golden traces; compiled by gcc's instrumentation): 48 (a spin flag
+  orders two threads' sends) and 49 (an acq_rel fetch-add and an acquire compare-exchange hand
+  two receives over) nothing; 50 and 51 (the same atomics placed before the first call) the L1
+  sender-side alternative and the concurrent swap, as idioms 20 and 15; 52 (Uintah's shape: a
+  volatile state flag and a seq_cst fence order two threads' `MPI_Allreduce`) nothing; 53 (a pipe
+  annotated with `stretto_happens_before`/`after`, no instrumentation) nothing. With
+  `STRETTO_ATOMICS=0`, 48, 49 and 53 give the alternatives of 20 and 15 and 52 an observed
+  `2-thread-collective` on each rank.
+- **Tracer tests** (`analysis/tests/test_atomics.py`): nine patterns of two threads on one rank,
+  compiled by gcc and by clang 18, edge or not from the record before the release to the record
+  after the acquire: release store and acquire load, relaxed store and load (no edge), release
+  fence and relaxed store with relaxed load and acquire fence, release RMW, a release sequence
+  continued by a third thread's relaxed RMW, seq_cst store and compare-exchange, volatile write
+  and read, the annotations, a 16-byte compare-exchange; no edge with `STRETTO_ATOMICS=0`; every
+  pattern runs to its end untraced on the stub.
+- **HDF5 Subfiling** ([experiments/subfiling](../experiments/subfiling/README.md),
+  `results-atomics.csv`; 13 traced runs per build and version): the gcc build (atomics unseen)
+  predicts 60 data-receive alternatives in 13 of 13 `pre` traces, 56 of them across two files'
+  pools; HDF5 compiled with the instrumentation of atomics and volatile accesses predicts 5 in 2 of
+  13, all within one pool (3 of them 1a, a 96-byte receive taking an 800-byte or a 128 MiB write),
+  and 0 in 13 `fix` traces. 39 of 39 runs passed.
+- **Uintah ARCHES nightly tests** ([experiments/uintah](../experiments/uintah/README.md); the
+  scheduler library instrumented, atomics and volatile accesses; one traced run per input and
+  build, 2 ranks of 8 threads): concurrent collective pairs 12, 12, 12 with the gcc build, 0, 0, 0
+  instrumented, and the observed `2-thread-collective` 2 per trace to 0; every run passes with
+  the gcc build's delT. The two `2-thread-wait`s per trace stay: a send request tested by the
+  main thread and a worker through `CommRequestPool::find_any`, whose lock-free pool claims and
+  releases an entry with relaxed read-modify-writes, which give mutual exclusion but no
+  happens-before; the tracer records that correctly.
+- **DLA-Future** ([experiments/dlaf](../experiments/dlaf/README.md), `traced-atomics.csv`,
+  `traced-atomics-off.csv`; pika, DLA-Future and the driver instrumented; 5 runs per cell and
+  variant, recorded and with `STRETTO_ATOMICS=0` on the same binaries): every plain run of the
+  three colliding cells copies wrongly and 15 of 15 traces predict the race at colliding tags,
+  8-17, 19-40 and 5-12 alternatives per trace on 2x1, 4x1 and 3x2 (60-67, 134-210 and 39-49
+  without the atomics); 0 in the 15 patched traces and the 20 controls. Observed thread findings:
+  `2-thread-collective` 0 in all 50 traces (up to 15 per trace without), `2-thread-wait` 0 (2 to
+  6). The `waitany-order` warnings stay (43 to 2 026 per trace; 58 to 2 324 without): a
+  `Testsome` could complete another request first, which no synchronisation of the threads
+  decides.
+- **PaRSEC** ([experiments/parsec](../experiments/parsec/README.md), `traced-atomics.csv`; PaRSEC
+  instrumented, 5 runs per cell and variant): 10 of 10 plain traces with two virtual processes
+  predict the reshape race, 740 to 764 alternatives per trace on 1 rank and 486 to 627 on 4 ranks
+  (15 to 20 before); 0 in 10 patched traces and 20 controls; all 40 runs right. More alternatives
+  because fewer are rejected: without the atomics 4 356 of 4 752 pairs of tag-0 reshape receives
+  on the two threads are concurrent and the orientation picks (3.2) between them close cycles that
+  reject 764 candidates (17 accepted); with them 110 of 3 840 pairs are concurrent and 731
+  candidates are accepted, none rejected (one trace of the 1-rank cell, traced both ways).
+- **SLATE** (not instrumented, gcc and libgomp: the tracer change alone;
+  `experiments/slate/traced-cells-atomics.csv`, a subset of the 42 plain traces of section
+  15.4, `traced_cells.sh` with the libraries and driver of then, 16 processors): 10 of 10 plain
+  wide traces (5 on 2x2, 5 on 4x1) predict 20 to 109 L1 swaps or steals, all at `permuteRows`
+  receives, one of them from a run whose factor came out right (63); 0 in 10 patched traces.
+- **Gate** (`experiments/report_diff.py` against main ac02b15, text, `--json` and
+  `--full-profile --json`): the 531 single-chain traces of the earlier gates and idiom 32, 1 596
+  comparisons, 0 differences; the 94 multithreaded traces (every golden trace of both MPIs, 48-53
+  included, and HDF5's 10 of section 10), 282 comparisons, 30 differences, all the new note on
+  the 10 traces of idioms 48-52.
+- **Unit tests** (RUNBOOK tests step, `STRETTO_REQUIRE_TRACES=1`, the idioms of both MPIs traced
+  first, experiment image): 581 run, 18 skipped (the clang tests among them), all pass;
+  `test_atomics` in the first-read image (clang 18) passes with its clang tests too.
+- **Overhead** (`experiments/atomics/overhead.sh`, wall time of mpirun, 5 runs per mode,
+  interleaved, CPUs 8-15,48-55 otherwise idle; mean, min-max): DLA-Future's 2x1 cell, 10 copies
+  of 2048x2048 (pika instrumented): untraced 0.93 s (0.91-0.96), traced with
+  `STRETTO_ATOMICS=0` 1.08 s (1.05-1.13), traced with the atomics recorded 1.21 s (1.18-1.25):
+  recording pika's atomics adds 12 % to the traced run; one copy of 512x512 0.65, 0.65 and 0.66
+  s. HDF5 `t_subfiling_vfd` (4 ranks): gcc build untraced 1.18 s, traced 1.21; instrumented build
+  untraced 1.27, traced without and with the atomics 1.27 and 1.28 s (the instrumentation's
+  calls per memory access, there for the volatile flags, cost 7 % untraced).
+
+### 17.3 What remains
+
+- **The replay.** Lock gates (section 14) do not order atomics: a replay of an instrumented
+  program is free in the order of its atomics, and where the trace's happens-before has atomic
+  edges a replay whose atomics went another way can be judged `sync_divergence`. Not measured.
+- **Instrumentation is per build.** The program or library that synchronises must be rebuilt with
+  clang (or gcc, at a call per access); prebuilt libraries (libstdc++'s own atomics, the MPI
+  library, OpenMP runtimes) are not covered, and OpenMP programs whose tasks the tracer follows
+  through libgomp cannot be built by clang against libgomp. Uintah, compiled whole by clang, rejects
+  its nightly inputs (a boundary-condition check that compares floating-point origins), so only its
+  scheduler library is.
+- **Cost of a release.** Every recorded release copies a clock of 4 longs per chain; with many
+  chains and hot atomics (pika's queues) it is the main cost (17.2, overhead).
+- **`waitany-order`** warnings of pika's polling are not synchronisation; they stay.

@@ -106,8 +106,9 @@ with the hunt notes, outside this repository.
   tracer records the lock order (`STRETTO_SYNC_ORDER=1`) and the replay gates it, so a chain's
   ordinals name the trace's work; on idioms 44 and 45 (a worker pool, tasks taking roles under
   a lock) 10 of 10 replays confirmed against 0 of 10 without lock gates, whose replays
-  included 3 wrong refutations. Still open: alternatives across HDF5's pools of two files
-  (an atomic flag orders them; over-predictions) and SLATE replays that need more threads
+  included 3 wrong refutations. Alternatives across HDF5's pools of two files (an atomic flag
+  orders them; over-predictions) closed 1 Nov by recording atomics (§17). Still open: SLATE
+  replays that need more threads
   than the trace's team (P-T7; on 31 Oct teams of 8 and of 16 still starved in 8 of 28 SLATE
   replays, §16).
   Gating every concurrent pair instead of the reordered ones timed out on the same pools; fixed
@@ -168,7 +169,22 @@ with the hunt notes, outside this repository.
   located them (`experiments/dlaf/pending_pairs.py`, `experiments/slate/overlap.py`). Closed 30
   Oct (milestone F, [threads.md](threads.md) §15): a request completed by another thread is
   modelled (premises P-T9, P-T10), and so is a receive cancelled by another thread (P-T11); both
-  races are predicted at L1 (below). The false alarms of pika's unrecorded synchronisation stay.
+  races are predicted at L1 (below). The false alarms of pika's unrecorded synchronisation
+  stayed until pika was compiled for the tracer's atomics (1 Nov, next entry).
+- Synchronisation through atomics (1 Nov, [threads.md](threads.md) §17): spin flags, atomic
+  counters and pika's lock-free queues were invisible (P-T1, P-T2, P-T10 failed). The tracer now
+  records the atomics, fences and volatile accesses of code compiled with clang's
+  ThreadSanitizer instrumentation and linked against a stub runtime of its own
+  (`tracer/tsan_rt.c`), as clocks per location, so the edges reach `after` like a mutex's; an
+  annotation API (`tracer/stretto_sync.h`) covers the rest. On the real cases
+  ([experiments/atomics](../experiments/atomics/README.md)): HDF5 Subfiling's cross-pool
+  alternatives 56 of 60 to 0 of 5 (the 5 left are the real race); DLA-Future's observed
+  `2-thread-collective` and `2-thread-wait` 0 in all 50 traces (up to 15 and 6 unrecorded); Uintah
+  ARCHES with its scheduler instrumented: concurrent collective pairs 12 per trace to 0 (its two
+  `2-thread-wait`s stay: a lock-free pool that claims requests with relaxed atomics, which order
+  nothing). The confirmed races stay: DLA-Future 15 of 15 plain traces, PaRSEC 10 of 10, SLATE
+  (not instrumented) 10 of 10 re-traced, 0 on the patched and control traces. `waitany-order`
+  warnings stay (Testsome completion order, which no synchronisation decides).
 - Request handles reused across threads (30 Oct, SLATE): the tracer credited one thread's
   completion with another thread's request when the library shared a handle between them (a
   send completed at once) or freed one inside a thread's wait and handed it to another thread's
@@ -244,7 +260,9 @@ reproducing the run: confirmed with the truncation as the outcome (HDF5 returns 
 on, so the run itself finishes); those of a run that crashed could not be replayed (15 of 15
 timed out). Evidence:
 [experiments/subfiling](../experiments/subfiling/README.md) (`replay.csv`, `results-e.csv`,
-`replay-e.csv`, `replay-same.csv`).
+`replay-e.csv`, `replay-same.csv`). With HDF5 compiled for the tracer's atomics (1 Nov, §17,
+`results-atomics.csv`): 5 alternatives in 2 of 13 `pre` traces, all within one pool, against 60
+(56 across pools) for the gcc build in the same session; 0 in 13 `fix` traces.
 
 **Uintah 493d2b5 (master on 30 Oct) + hypre 2.33.0, Unified scheduler** (`sus -nthreads`,
 Examples/solvertest1, 8 patches), a real bug, observed: every trace shows the `MPI_Allreduce` of
@@ -263,7 +281,8 @@ hit it: 180 of 180 runs pass, plain and fixed alike (60 of 60 at 4 ranks, 3 time
 since there delT needs the velocities the pressure solve produces, which orders the two
 reductions on each rank. Their traces (plain and fixed) show no other conflicting collective:
 every observed pair is a worker's delT reduction against the main thread's statistics after
-`execute()`, ordered by a spin flag the tracer does not record. Report drafted, not sent.
+`execute()`, ordered by a spin flag the tracer did not record (with the scheduler compiled for
+the tracer's atomics, 1 Nov, 0 such pairs: [threads.md](threads.md) §17). Report drafted, not sent.
 Evidence:
 [experiments/uintah](../experiments/uintah/README.md) (`series.csv`, `nightly.csv`).
 
@@ -327,7 +346,8 @@ pairs in a plain trace, 0 in a patched one. Since then (30 Oct, 5 traced runs pe
 variant): 15 of 15 plain traces of the three colliding cells (2x1, 4x1, 3x2) predict L1 swaps or
 steals of two receives with one colliding tag (34 to 206 per trace), 0 of 15 patched ones and 0
 of 20 controls (2x2 without a colliding pair, one pika thread), plain or patched; every trace
-with several workers keeps the false alarms of pika's unrecorded synchronisation, and every one
+with several workers keeps the false alarms of pika's unrecorded synchronisation (none once pika is
+compiled for the tracer's atomics, 1 Nov, §17, where 15 of 15 still predict the race), and every one
 `waitany-order` warnings of pika's polling (`experiments/dlaf/traced.csv`). All plain traced runs
 of the colliding cells were wrong. Not confirmable by forced replay (30 Oct, [threads.md](threads.md)
 §16): 0 of 24 replays and 0 of 24 controls of 12 alternatives ran their course, all ending on a
@@ -364,7 +384,10 @@ Shown safe by reading: activations (received by the communication
 thread only), data messages (communication thread, compare-and-swap tags). Side defects, not
 races: the `rr:` and `file:` vpmaps crash (vpmap.c:384, 308-327). Report drafted, not sent; its
 reproduction block, run in an empty directory, fails 6 of 7 tests in 3 of 3 runs, 0 patched.
-Evidence: [experiments/parsec](../experiments/parsec/README.md) (`series.csv`).
+With PaRSEC compiled for the tracer's atomics (1 Nov, [threads.md](threads.md) §17): 10 of 10 plain
+traces still predict it (486 to 764 alternatives: fewer pairs are concurrent, so fewer are
+rejected by orientation cycles), 0 of 30 patched and controls.
+Evidence: [experiments/parsec](../experiments/parsec/README.md) (`series.csv`, `traced-atomics.csv`).
 
 **MUST-vc against Stretto (1 Nov 2026, [experiments/mustvc](../experiments/mustvc/README.md)).**
 MUST's vector-clock checks for MPI+OpenMP (SC-W 2024 artifact, MUST v1.9-omp-checks, its Debian
