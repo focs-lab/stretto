@@ -339,6 +339,26 @@ class C_Observed(unittest.TestCase):
         rep = analyze(t, with_sp=False)
         self.assertIn("2-thread-finalize", {f.cls for f in rep.findings}, format_report(t, rep))
 
+    def test_double_wait_only_compares_waits_of_one_request(self):
+        # the pairs found by request agree with the pairs of every wait (GA's threadsafec has
+        # thousands of waits per rank, each on a request of its own)
+        import random
+        rng = random.Random(7)
+        found = 0
+        for _ in range(20):
+            recs = {0: [], 1: []}
+            for k in range(40):
+                recs[0].append(th(rng.choice([0, 1]), wait(reqs=[k] + ([k + 1] if rng.random() < 0.03 else []))))
+            t = mkt(recs)
+            waits = [rec for c in t.chains[0] for rec in t.ranks[c] if rec.op == "wait" and rec.raw is not None]
+            reqs_of = lambda rec: {q for q in rec.raw.get("reqs", []) if q is not None and q >= 0}
+            brute = next(((a, b) for i, a in enumerate(waits) for b in waits[i + 1:]
+                          if a.rank != b.rank and reqs_of(a) & reqs_of(b) and TH.concurrent(t, a, b)), None)
+            self.assertEqual(TH._double_wait(t, waits, reqs_of), brute)
+            found += brute is not None
+        self.assertGreater(found, 0)
+        self.assertLess(found, 20)
+
     def test_funneled_violation(self):
         t = mkt({0: [th(1, send(1, 0), "s")], 1: [recv(0, 0, 0, 0)]}, level=1, issue=False)
         rep = analyze(t, with_sp=False)

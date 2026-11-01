@@ -1052,6 +1052,24 @@ def probe_candidates(t: Trace) -> List[Tuple[Probe, Send]]:
 
 # --------------------------------------------------------------- observed thread findings
 
+def _double_wait(t: Trace, waits: list, reqs_of) -> Optional[tuple]:
+    """The first pair (a, b) of waits, in the order of the list, on two chains, sharing a request
+    and concurrent; None if there is none. Only waits that share a request are compared: the
+    pairs of every wait (tens of thousands on a rank of GA's threadsafec) were quadratic."""
+    by_req: Dict[int, List[int]] = {}
+    reqs = [reqs_of(w) for w in waits]
+    for i, rs in enumerate(reqs):
+        for q in rs:
+            by_req.setdefault(q, []).append(i)
+    for i, a in enumerate(waits):
+        later = sorted({j for q in reqs[i] for j in by_req[q] if j > i})
+        for j in later:
+            b = waits[j]
+            if a.rank != b.rank and concurrent(t, a, b):
+                return a, b
+    return None
+
+
 def observed_findings(t: Trace, tasks: bool = False) -> List[tuple]:
     """(class, title, details) of the errors §12.6.2 and §12.2.1 of MPI 4.1 name, read from the
     chains and their happens-before (docs/threads.md 3.7). tasks: MPI was called inside OpenMP
@@ -1078,14 +1096,7 @@ def observed_findings(t: Trace, tasks: bool = False) -> List[tuple]:
         # two waits or tests on one request that neither precedes
         waits = [rec for c in chs for rec in t.ranks[c] if rec.op == "wait" and rec.raw is not None]
         reqs_of = lambda rec: {q for q in rec.raw.get("reqs", []) if q is not None and q >= 0}
-        found = None
-        for i, a in enumerate(waits):
-            for b in waits[i + 1:]:
-                if a.rank != b.rank and reqs_of(a) & reqs_of(b) and concurrent(t, a, b):
-                    found = (a, b)
-                    break
-            if found:
-                break
+        found = _double_wait(t, waits, reqs_of)
         if found:
             a, b = found
             out.append(("2-thread-wait", f"rank {rank}: chains {a.rank} and {b.rank} complete request "
