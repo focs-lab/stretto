@@ -1,0 +1,30 @@
+--- a/global/src/base.c
++++ b/global/src/base.c
+@@ -5123,10 +5123,10 @@
+ int m,p;
+ 
+    if(GAnproc == 1) return;
+-   if(num_mutexes< mutex)pnga_error("invalid mutex",mutex);
++   if(mutex < 0 || num_mutexes <= mutex)pnga_error("invalid mutex",mutex);
+ 
+-   p = num_mutexes/chunk_mutex -1;
+-   m = num_mutexes%chunk_mutex;
++   p = mutex/chunk_mutex;
++   m = mutex%chunk_mutex;
+ 
+    ARMCI_Lock(m,p);
+ }
+@@ -5143,10 +5143,10 @@
+ int m,p;
+ 
+    if(GAnproc == 1) return;
+-   if(num_mutexes< mutex)pnga_error("invalid mutex",mutex);
++   if(mutex < 0 || num_mutexes <= mutex)pnga_error("invalid mutex",mutex);
+    
+-   p = num_mutexes/chunk_mutex -1;
+-   m = num_mutexes%chunk_mutex;
++   p = mutex/chunk_mutex;
++   m = mutex%chunk_mutex;
+ 
+    ARMCI_Unlock(m,p);
+ }              
