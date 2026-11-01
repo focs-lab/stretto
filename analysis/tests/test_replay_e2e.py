@@ -484,6 +484,73 @@ class OmpChainsPerThread(unittest.TestCase):
             self.assertIn("tracer-overflow", {why for why, _ in t2.incomplete})
 
 
+MPIIO_C = r"""
+#include <mpi.h>
+#include <stdio.h>
+/* Collective writes to a file around a wildcard receive with two candidate senders. */
+int main(int argc, char **argv) {
+    int rank, np, x = 0;
+    MPI_File f;
+    MPI_Init(&argc, &argv);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &np);
+    MPI_File_open(MPI_COMM_WORLD, argv[1], MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &f);
+    MPI_File_set_view(f, 0, MPI_INT, MPI_INT, "native", MPI_INFO_NULL);
+    MPI_File_write_at_all(f, rank, &rank, 1, MPI_INT, MPI_STATUS_IGNORE);
+    if (rank == 0) {
+        MPI_Recv(&x, 1, MPI_INT, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        MPI_Recv(&x, 1, MPI_INT, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    } else MPI_Send(&rank, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
+    MPI_File_sync(f);
+    MPI_File_close(&f);
+    MPI_Finalize();
+    return 0;
+}
+"""
+
+
+class MpiioCollectives(unittest.TestCase):
+    """STRETTO_MPIIO=coll (tracer): MPI-IO's collective calls are recorded as collectives on a
+    duplicate of the file's communicator, so a program that writes a file through MPI gets its
+    alternatives predicted; without it the trace is degraded (unmodelled), as before."""
+
+    def trace(self, d, coll):
+        from stretto import trace
+        mpicc = f"/usr/bin/mpicc.{MPI}"
+        if not (os.path.exists(TRACER) and os.path.exists(mpicc)):
+            if REQUIRE:
+                self.fail(f"not built: {TRACER} {mpicc}")
+            self.skipTest("tracer or MPI compiler missing")
+        src, exe = os.path.join(d, "io.c"), os.path.join(d, "io")
+        if not os.path.exists(exe):
+            with open(src, "w") as fh:
+                fh.write(MPIIO_C)
+            subprocess.run([mpicc, "-O0", "-g", "-o", exe, src], check=True)
+        tdir = os.path.join(d, f"trace-{coll}")
+        os.mkdir(tdir)
+        env = ["-x", "STRETTO_MPIIO=coll"] if coll else []
+        r = subprocess.run(["/usr/bin/mpirun.openmpi", "--oversubscribe", "-np", "3", "-x", f"LD_PRELOAD={TRACER}",
+                            "-x", f"STRETTO_TRACE_DIR={tdir}", *env, exe, os.path.join(d, f"out-{coll}")],
+                           capture_output=True, text=True, timeout=120)
+        self.assertEqual(r.returncode, 0, r.stderr[-2000:])
+        return trace.load(tdir)
+
+    def test_file_collectives_are_modelled(self):
+        from stretto import report
+        with tempfile.TemporaryDirectory() as d:
+            t = self.trace(d, True)
+            self.assertEqual(t.unmodelled, [])
+            names = [c.name for c in t.colls]
+            for n in ("file_set_view", "file_write_at_all", "file_sync", "file_close"):
+                self.assertEqual(names.count(n), 3, names)
+            rep = report.analyze(t, with_sp=False)
+            self.assertNotIn("unmodelled", rep.status())
+            self.assertTrue(any(f.level == "L1" for f in rep.findings), [f.title for f in rep.findings])
+            t2 = self.trace(d, False)
+            self.assertIn("File_open", {c for _, c in t2.unmodelled})
+            self.assertIn("unmodelled", report.analyze(t2, with_sp=False).status())
+
+
 class Threads(unittest.TestCase):
     """Several threads (docs/threads.md, section 11): the alternatives of the thread idioms are
     forced by chain pins and order gates under the tracer, every required pin is taken as the

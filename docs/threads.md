@@ -7,8 +7,9 @@ says how milestone C replays alternatives of several threads, section 12 how mil
 OpenMP tasks (both 30 Oct 2026), section 13 how level L1+L reorders critical sections, section 14
 how milestone E replays pools of threads and tasks in the trace's lock order, section 15 how
 milestone F analyses requests handed between threads and cancelled receives (30 Oct 2026),
-section 16 what forced replays of its three races showed (30-31 Oct 2026), section 17 a
-tracer setting for codes that enter a parallel region per time step (1 Nov 2026).
+section 16 what forced replays of its three races showed (30-31 Oct 2026), section 17 two
+tracer settings for codes that enter a parallel region per time step and write through MPI-IO
+(1 Nov 2026).
 Decided
 29 Oct 2026: Stretto is extended to programs in which several threads of an MPI process call MPI
 on shared communicators (`MPI_THREAD_MULTIPLE`, and `MPI_THREAD_SERIALIZED` with several calling
@@ -1578,9 +1579,9 @@ controls (recorded before the column `shown`). On 2x2, 9 more runs (all wrong), 
 the run, 1 truncated without it, 4 starved (with teams of 8 and of 16). Confirmed, narrowly;
 what limits it is the free continuation beyond the horizon and P-T7, not the pins.
 
-## 17. Codes with a parallel region per time step (1 Nov 2026)
+## 17. Codes with a parallel region per time step, and MPI-IO (1 Nov 2026)
 
-A tracer setting, off by default (traces and reports without it are unchanged), found
+Two tracer settings, both off by default (traces and reports without them are unchanged), found
 necessary by the first traced run of Smilei (experiments/smilei), a particle-in-cell code whose
 OpenMP threads post their own patch exchanges and which writes its diagnostics through parallel
 HDF5:
@@ -1596,3 +1597,13 @@ HDF5:
   fork's clock as an acquire. The names stay deterministic under P-T5 (the replay names chains
   with the same code). Test: `test_replay_e2e.OmpChainsPerThread` (301 regions, 2 chains per
   rank, the one race found, the earlier regions ordered; without the setting, the overflow).
+- `STRETTO_MPIIO=coll`: MPI-IO's collective calls on a file (open, close, set_view, set_size,
+  preallocate, set_atomicity, sync, the blocking `_all` reads and writes) are recorded as
+  collectives instead of `unmodelled` calls, which make the report observed-only: `File_open`
+  as the creation of a duplicate of its communicator (the tracer makes one, as the file's own
+  context), the later ones as collectives on it under names the analysis does not know, so
+  that they synchronise every member like a barrier (`matching.coll_shape`). The premise: an
+  implementation may synchronise there (ROMIO's and OMPIO's do), and the library's own messages
+  travel on the file's context, which no receive of the program accepts. The nonblocking,
+  split, ordered and shared-pointer calls stay unmodelled. Test:
+  `test_replay_e2e.MpiioCollectives`.

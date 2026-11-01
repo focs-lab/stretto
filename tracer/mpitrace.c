@@ -88,7 +88,9 @@
      overflow  what: a fixed table filled up and later records may be incomplete
      unmodelled call: a call whose communication the analysis does not model (one-sided
                windows, neighbourhood collectives, dynamic processes, generalised requests,
-               MPI-IO, MPI-4 Isendrecv, partitioned, large-count and session calls, the Start of
+               MPI-IO (with STRETTO_MPIIO=coll only its nonblocking, split, ordered and shared
+               pointer calls: section "outside the model"), MPI-4 Isendrecv, partitioned,
+               large-count and session calls, the Start of
                a persistent collective); the analysis then reports observed findings only. The Start of
                a partitioned request the guard follows carries its req.
      site      id, obj, addr, base: a call site met for the first time, written just before
@@ -2515,18 +2517,76 @@ int MPI_Grequest_start(MPI_Grequest_query_function *q, MPI_Grequest_free_functio
    pointer accesses) synchronise in the implementations and through the file's shared state, and
    the library communicates underneath. Every use of a file starts with MPI_File_open, so a
    program that does any I/O through MPI is marked; the independent reads and writes are not. */
-int MPI_File_open(MPI_Comm comm, const char *name, int amode, MPI_Info info, MPI_File *fh) { UNMODELLED("File_open", PMPI_File_open(comm, name, amode, info, fh)); }
-int MPI_File_close(MPI_File *fh) { UNMODELLED("File_close", PMPI_File_close(fh)); }
-int MPI_File_set_view(MPI_File fh, MPI_Offset disp, MPI_Datatype etype, MPI_Datatype ftype, const char *rep, MPI_Info info) { UNMODELLED("File_set_view", PMPI_File_set_view(fh, disp, etype, ftype, rep, info)); }
-int MPI_File_set_size(MPI_File fh, MPI_Offset size) { UNMODELLED("File_set_size", PMPI_File_set_size(fh, size)); }
-int MPI_File_preallocate(MPI_File fh, MPI_Offset size) { UNMODELLED("File_preallocate", PMPI_File_preallocate(fh, size)); }
-int MPI_File_set_atomicity(MPI_File fh, int flag) { UNMODELLED("File_set_atomicity", PMPI_File_set_atomicity(fh, flag)); }
-int MPI_File_sync(MPI_File fh) { UNMODELLED("File_sync", PMPI_File_sync(fh)); }
+/* With STRETTO_MPIIO=coll the collective calls that every use of a file makes (open, close,
+   views, sizes, sync, the blocking _all reads and writes) are collectives of the model instead:
+   MPI_File_open writes a comm record "file_open" of a duplicate of its communicator, made for
+   the purpose (the file's own context, as the library keeps one), and each later collective on
+   the file a coll record on that duplicate, whose name the analysis does not know, so that it
+   synchronises every member like a barrier (matching.coll_shape). An implementation may
+   synchronise there, and the library's own messages travel on the file's context, which no
+   receive of the program accepts. The other file calls stay unmodelled. */
+static int g_mpiio = -1;
+static int mpiio_coll(void) {
+    if (g_mpiio < 0) { const char *e = getenv("STRETTO_MPIIO"); g_mpiio = e && strcmp(e, "coll") == 0; }
+    return g_mpiio;
+}
+typedef struct { MPI_File f; MPI_Comm c; } fileent;
+static fileent *g_files = NULL;
+static int g_nfiles = 0, g_capfiles = 0;
+static MPI_Comm file_comm(MPI_File f, int take) {
+    MPI_Comm c = MPI_COMM_NULL;
+    pthread_mutex_lock(&g_mu);
+    for (int i = 0; i < g_nfiles; i++)
+        if (g_files[i].f == f) { c = g_files[i].c; if (take) g_files[i] = g_files[--g_nfiles]; break; }
+    pthread_mutex_unlock(&g_mu);
+    return c;
+}
+static int comm_release(const char *how, MPI_Comm *c);
+#define FILE_COLL(NAME, name, call) \
+    if (!mpiio_coll()) { UNMODELLED(NAME, call); } \
+    else { GUARD; MPI_Comm fc_ = file_comm(fh, 0); \
+        if (fc_ == MPI_COMM_NULL) { unmodelled(NAME); return call; } \
+        coll_rec(name, fc_, -1, 0, MPI_DATATYPE_NULL, -1, 1, NULL); int rc = call; \
+        coll_rec(name, fc_, -1, 0, MPI_DATATYPE_NULL, -1, 0, NULL); return rc; }
+int MPI_File_open(MPI_Comm comm, const char *name, int amode, MPI_Info info, MPI_File *fh) {
+    if (!mpiio_coll()) { UNMODELLED("File_open", PMPI_File_open(comm, name, amode, info, fh)); }
+    else {
+        GUARD;
+        int rc = PMPI_File_open(comm, name, amode, info, fh);
+        MPI_Comm fc = MPI_COMM_NULL;
+        if (rc != MPI_SUCCESS || PMPI_Comm_dup(comm, &fc) != MPI_SUCCESS) { unmodelled("File_open"); return rc; }
+        comm_register("file_open", comm, fc, -1);
+        pthread_mutex_lock(&g_mu);
+        if (g_nfiles == g_capfiles) { g_capfiles = g_capfiles ? 2 * g_capfiles : 16; g_files = xrealloc(g_files, sizeof *g_files * g_capfiles); }
+        g_files[g_nfiles++] = (fileent){*fh, fc};
+        pthread_mutex_unlock(&g_mu);
+        return rc;
+    }
+}
+int MPI_File_close(MPI_File *fh) {
+    if (!mpiio_coll()) { UNMODELLED("File_close", PMPI_File_close(fh)); }
+    else {
+        GUARD;
+        MPI_Comm fc = file_comm(*fh, 1);
+        if (fc == MPI_COMM_NULL) { unmodelled("File_close"); return PMPI_File_close(fh); }
+        coll_rec("file_close", fc, -1, 0, MPI_DATATYPE_NULL, -1, 1, NULL);
+        int rc = PMPI_File_close(fh);
+        coll_rec("file_close", fc, -1, 0, MPI_DATATYPE_NULL, -1, 0, NULL);
+        comm_release("free", &fc);
+        PMPI_Comm_free(&fc);
+        return rc;
+    }
+}
+int MPI_File_set_view(MPI_File fh, MPI_Offset disp, MPI_Datatype etype, MPI_Datatype ftype, const char *rep, MPI_Info info) { FILE_COLL("File_set_view", "file_set_view", PMPI_File_set_view(fh, disp, etype, ftype, rep, info)) }
+int MPI_File_set_size(MPI_File fh, MPI_Offset size) { FILE_COLL("File_set_size", "file_set_size", PMPI_File_set_size(fh, size)) }
+int MPI_File_preallocate(MPI_File fh, MPI_Offset size) { FILE_COLL("File_preallocate", "file_preallocate", PMPI_File_preallocate(fh, size)) }
+int MPI_File_set_atomicity(MPI_File fh, int flag) { FILE_COLL("File_set_atomicity", "file_set_atomicity", PMPI_File_set_atomicity(fh, flag)) }
+int MPI_File_sync(MPI_File fh) { FILE_COLL("File_sync", "file_sync", PMPI_File_sync(fh)) }
 int MPI_File_seek_shared(MPI_File fh, MPI_Offset off, int whence) { UNMODELLED("File_seek_shared", PMPI_File_seek_shared(fh, off, whence)); }
-int MPI_File_read_all(MPI_File fh, void *buf, int n, MPI_Datatype dt, MPI_Status *st) { UNMODELLED("File_read_all", PMPI_File_read_all(fh, buf, n, dt, st)); }
-int MPI_File_write_all(MPI_File fh, const void *buf, int n, MPI_Datatype dt, MPI_Status *st) { UNMODELLED("File_write_all", PMPI_File_write_all(fh, buf, n, dt, st)); }
-int MPI_File_read_at_all(MPI_File fh, MPI_Offset off, void *buf, int n, MPI_Datatype dt, MPI_Status *st) { UNMODELLED("File_read_at_all", PMPI_File_read_at_all(fh, off, buf, n, dt, st)); }
-int MPI_File_write_at_all(MPI_File fh, MPI_Offset off, const void *buf, int n, MPI_Datatype dt, MPI_Status *st) { UNMODELLED("File_write_at_all", PMPI_File_write_at_all(fh, off, buf, n, dt, st)); }
+int MPI_File_read_all(MPI_File fh, void *buf, int n, MPI_Datatype dt, MPI_Status *st) { FILE_COLL("File_read_all", "file_read_all", PMPI_File_read_all(fh, buf, n, dt, st)) }
+int MPI_File_write_all(MPI_File fh, const void *buf, int n, MPI_Datatype dt, MPI_Status *st) { FILE_COLL("File_write_all", "file_write_all", PMPI_File_write_all(fh, buf, n, dt, st)) }
+int MPI_File_read_at_all(MPI_File fh, MPI_Offset off, void *buf, int n, MPI_Datatype dt, MPI_Status *st) { FILE_COLL("File_read_at_all", "file_read_at_all", PMPI_File_read_at_all(fh, off, buf, n, dt, st)) }
+int MPI_File_write_at_all(MPI_File fh, MPI_Offset off, const void *buf, int n, MPI_Datatype dt, MPI_Status *st) { FILE_COLL("File_write_at_all", "file_write_at_all", PMPI_File_write_at_all(fh, off, buf, n, dt, st)) }
 int MPI_File_iread_all(MPI_File fh, void *buf, int n, MPI_Datatype dt, MPI_Request *req) { UNMODELLED("File_iread_all", PMPI_File_iread_all(fh, buf, n, dt, req)); }
 int MPI_File_iwrite_all(MPI_File fh, const void *buf, int n, MPI_Datatype dt, MPI_Request *req) { UNMODELLED("File_iwrite_all", PMPI_File_iwrite_all(fh, buf, n, dt, req)); }
 int MPI_File_iread_at_all(MPI_File fh, MPI_Offset off, void *buf, int n, MPI_Datatype dt, MPI_Request *req) { UNMODELLED("File_iread_at_all", PMPI_File_iread_at_all(fh, off, buf, n, dt, req)); }
