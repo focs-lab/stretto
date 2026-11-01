@@ -1,0 +1,7 @@
+suite,group,label,program,threads,run,result,seconds,status,errors,warnings,classes,analysis_seconds,commit
+artifact-Own,ConComm,correct,own_checks/ConComm/correct/concurrent_communicator_tasking_depend.cpp,4,0,FINISHED,0.59,,,,,,549036d
+artifact-Own,ConComm,correct,own_checks/ConComm/correct/concurrent_communicator_tasking_depend.cpp,4,1,FINISHED,0.80,degraded:tracer-overflow,50,0,2-blocked@observed*27;2-collective@observed*13;2-thread-collective@observed*8;2-thread-finalize@observed*2,1.0,549036d
+artifact-Own,ConComm,correct,own_checks/ConComm/correct/concurrent_communicator_tasking_depend.cpp,4,2,FINISHED,1.11,degraded:tracer-overflow,94,0,2-blocked@observed*63;2-collective@observed*21;2-thread-collective@observed*8;2-thread-finalize@observed*2,1.2,549036d
+artifact-Own,ConComm,correct,own_checks/ConComm/correct/concurrent_communicator_tasking_depend.cpp,4,3,TIMEOUT,61.02,degraded:tracer-overflow,4,0,2-blocked@observed*2;abort@observed*2,1.1,549036d
+artifact-Own,ConComm,correct,own_checks/ConComm/correct/concurrent_communicator_tasking_depend.cpp,4,4,FINISHED,0.69,degraded:tracer-overflow,14,0,2-blocked@observed*2;2-collective@observed*4;2-thread-collective@observed*6;2-thread-finalize@observed*2,1.2,549036d
+artifact-Own,ConComm,correct,own_checks/ConComm/correct/concurrent_communicator_tasking_depend.cpp,4,5,FINISHED,0.58,degraded:tracer-overflow,33,0,2-blocked@observed*14;2-collective@observed*9;2-thread-collective@observed*8;2-thread-finalize@observed*2,1.2,549036d

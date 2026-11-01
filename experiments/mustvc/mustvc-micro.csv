@@ -1,0 +1,501 @@
+suite,group,label,test,analysis,rep,lit,verdict,errors,warnings,messages,seconds,commit
+COBE,ordering,correct,deadlock_probe_2,counter,1,PASS,TN,0,0,,27.2,549036d
+COBE,ordering,correct,probe,counter,1,PASS,TN,0,0,,2.3,549036d
+COBE,ordering,correct,two_collectives,counter,1,PASS,TN,0,0,,2.4,549036d
+COBE,ordering,correct,two_collectives_2,counter,1,PASS,TN,0,0,,2.3,549036d
+COBE,ordering,correct,two_collectives_3,counter,1,PASS,TN,0,0,,2.2,549036d
+COBE,ordering,correct,two_collectives_4,counter,1,PASS,TN,0,0,,2.0,549036d
+COBE,ordering,correct,two_collectives_5,counter,1,PASS,TN,0,0,,1.9,549036d
+COBE,ordering,correct,two_collectives_6,counter,1,PASS,TN,0,0,,2.1,549036d
+COBE,ordering,correct,two_collectives_7,counter,1,PASS,TN,0,0,,2.3,549036d
+COBE,ordering,erroneous,deadlock_probe_2,counter,1,FAIL,FN,0,0,,6.1,549036d
+COBE,ordering,erroneous,probe,counter,1,FAIL,FN,0,0,,2.0,549036d
+COBE,ordering,erroneous,two_collectives,counter,1,FAIL,FN,0,0,,1.8,549036d
+COBE,ordering,erroneous,two_collectives_2,counter,1,FAIL,FN,0,0,,1.8,549036d
+COBE,ordering,erroneous,two_collectives_3,counter,1,FAIL,FN,0,0,,1.8,549036d
+COBE,ordering,erroneous,two_collectives_4,counter,1,FAIL,FN,0,0,,1.9,549036d
+COBE,ordering,erroneous,two_collectives_5,counter,1,FAIL,FN,0,0,,2.0,549036d
+COBE,ordering,erroneous,two_collectives_6,counter,1,FAIL,FN,0,0,,1.9,549036d
+COBE,ordering,erroneous,two_collectives_7,counter,1,FAIL,FN,0,0,,1.8,549036d
+COBE,threading,correct,threading_level_3,counter,1,PASS,TN,0,0,,2.0,549036d
+COBE,threading,erroneous,wrong_threading_level_3,counter,1,FAIL,FN,0,0,,6.1,549036d
+Own,ConComm,correct,concurrent_communicator,counter,1,PASS,TN,0,0,,2.0,549036d
+Own,ConComm,correct,concurrent_communicator_for_dynamic,counter,1,PASS,TN,0,0,,2.2,549036d
+Own,ConComm,correct,concurrent_communicator_for_nowait,counter,1,PASS,TN,0,0,,2.2,549036d
+Own,ConComm,correct,concurrent_communicator_sections,counter,1,PASS,TN,0,0,,2.3,549036d
+Own,ConComm,correct,concurrent_communicator_single,counter,1,PASS,TN,0,0,,2.9,549036d
+Own,ConComm,correct,concurrent_communicator_task_nesting,counter,1,PASS,TN,0,0,,2.2,549036d
+Own,ConComm,correct,concurrent_communicator_tasking_depend,counter,1,PASS,TN,0,0,,2.2,549036d
+Own,ConComm,correct,concurrent_communicator_tasking_locks,counter,1,PASS,TN,4,0,Operating on an uninitialized lock*4,2.7,549036d
+Own,ConComm,correct,concurrent_communicator_transitive,counter,1,PASS,TN,0,0,,2.6,549036d
+Own,ConComm,erroneous,concurrent_communicator_error,counter,1,FAIL,FN,0,0,,2.4,549036d
+Own,ConComm,erroneous,concurrent_communicator_for_dynamic_nowait_error,counter,1,FAIL,FN,0,0,,2.8,549036d
+Own,ConComm,erroneous,concurrent_communicator_sections_error,counter,1,FAIL,FN,0,0,,2.4,549036d
+Own,ConComm,erroneous,concurrent_communicator_task_nesting_error,counter,1,FAIL,FN,0,0,,2.7,549036d
+Own,ConComm,erroneous,concurrent_communicator_tasking_error,counter,1,FAIL,FN,0,0,,2.5,549036d
+Own,ConRecv,correct,concurrent_recv,counter,1,PASS,TN,0,0,,2.7,549036d
+Own,ConRecv,erroneous,concurrent_recv_any_tag_error,counter,1,FAIL,FN,0,0,,2.7,549036d
+Own,ConRecv,erroneous,concurrent_recv_error,counter,1,FAIL,FN,0,0,,2.9,549036d
+Own,RecvProbe,correct,concurrent_recv_probe,counter,1,PASS,TN,0,0,,2.6,549036d
+Own,RecvProbe,correct,concurrent_recv_probe_any_tag,counter,1,PASS,TN,0,0,,2.9,549036d
+Own,RecvProbe,erroneous,concurrent_recv_probe_any_tag_error,counter,1,FAIL,FN,0,0,,3.6,549036d
+Own,RecvProbe,erroneous,concurrent_recv_probe_error,counter,1,FAIL,FN,0,0,,3.4,549036d
+Own,ThreadLevel,correct,ThreadLevel_serialized,counter,1,PASS,TN,0,0,,3.1,549036d
+Own,ThreadLevel,correct,ThreadLevel_serialized_single,counter,1,PASS,TN,0,0,,3.2,549036d
+Own,ThreadLevel,correct,ThreadLevel_serialized_tasking_depend,counter,1,PASS,TN,0,0,,2.3,549036d
+Own,ThreadLevel,correct,ThreadLevel_serialized_tasking_locks,counter,1,PASS,TN,0,0,,2.2,549036d
+Own,ThreadLevel,correct,ThreadLevel_serialized_taskwait,counter,1,PASS,TN,0,0,,2.5,549036d
+Own,ThreadLevel,erroneous,ThreadLevel_serialized_error,counter,1,FAIL,FN,0,0,,2.8,549036d
+Own,ThreadLevel,erroneous,ThreadLevel_serialized_few_tasks_error,counter,1,FAIL,FN,0,0,,2.5,549036d
+Own,ThreadLevel,erroneous,ThreadLevel_serialized_many_tasks_error,counter,1,PASS,TP,3,0,Multiple threads call MPI functions simultaneously while you required MPI_THREAD_SERIALIZED*3,2.6,549036d
+Own,ThreadLevel,erroneous,ThreadLevel_serialized_sections_error,counter,1,FAIL,FN,0,0,,2.5,549036d
+COBE,ordering,correct,deadlock_probe_2,clock,1,PASS,TN,0,0,,28.9,549036d
+COBE,ordering,correct,probe,clock,1,PASS,TN,0,0,,2.3,549036d
+COBE,ordering,correct,two_collectives,clock,1,PASS,TN,0,0,,2.5,549036d
+COBE,ordering,correct,two_collectives_2,clock,1,PASS,TN,0,0,,2.4,549036d
+COBE,ordering,correct,two_collectives_3,clock,1,PASS,TN,0,0,,2.3,549036d
+COBE,ordering,correct,two_collectives_4,clock,1,PASS,TN,0,0,,2.5,549036d
+COBE,ordering,correct,two_collectives_5,clock,1,PASS,TN,0,0,,2.5,549036d
+COBE,ordering,correct,two_collectives_6,clock,1,PASS,TN,0,0,,2.6,549036d
+COBE,ordering,correct,two_collectives_7,clock,1,PASS,TN,0,0,,2.6,549036d
+COBE,ordering,erroneous,deadlock_probe_2,clock,1,PASS,TP,0,2,[MUST-REPORT] Warning: from: call MPI_Recv@1: Found concurrent MPI receive and probe calls that use the same communciator  tag 0  and source 0*1;[MUST-REPORT] Warning: from: call MPI_Recv@1: Found concurrent MPI receives that use the same communciator  tag 0  and source 0*1,6.5,549036d
+COBE,ordering,erroneous,probe,clock,1,PASS,TP,0,2,[MUST-REPORT] Warning: from: call MPI_Recv@1: Found concurrent MPI receive and probe calls that use the same communciator  tag 0  and source 0*1;[MUST-REPORT] Warning: from: call MPI_Recv@1: Found concurrent MPI receives that use the same communciator  tag 0  and source 0*1,2.5,549036d
+COBE,ordering,erroneous,two_collectives,clock,1,PASS,TP,6,0,Found concurrent MPI collectives that use the same communicator*6,2.2,549036d
+COBE,ordering,erroneous,two_collectives_2,clock,1,PASS,TP,1,0,Found concurrent MPI collectives that use the same communicator*1,2.4,549036d
+COBE,ordering,erroneous,two_collectives_3,clock,1,PASS,TP,6,0,Found concurrent MPI collectives that use the same communicator*6,2.4,549036d
+COBE,ordering,erroneous,two_collectives_4,clock,1,PASS,TP,14,0,Found concurrent MPI collectives that use the same communicator*14,2.4,549036d
+COBE,ordering,erroneous,two_collectives_5,clock,1,PASS,TP,3,0,Found concurrent MPI collectives that use the same communicator*3,2.4,549036d
+COBE,ordering,erroneous,two_collectives_6,clock,1,PASS,TP,14,0,Found concurrent MPI collectives that use the same communicator*14,2.4,549036d
+COBE,ordering,erroneous,two_collectives_7,clock,1,PASS,TP,14,0,Found concurrent MPI collectives that use the same communicator*14,2.5,549036d
+COBE,threading,correct,threading_level_3,clock,1,PASS,TN,0,0,,2.3,549036d
+COBE,threading,erroneous,wrong_threading_level_3,clock,1,PASS,TP,2,0,Found concurrent mpi calls while MPI_THREAD_SERIALIZED was requested*2,6.5,549036d
+Own,ConComm,correct,concurrent_communicator,clock,1,PASS,TN,0,0,,2.4,549036d
+Own,ConComm,correct,concurrent_communicator_for_dynamic,clock,1,PASS,TN,0,0,,2.6,549036d
+Own,ConComm,correct,concurrent_communicator_for_nowait,clock,1,PASS,TN,0,0,,2.6,549036d
+Own,ConComm,correct,concurrent_communicator_sections,clock,1,PASS,TN,0,0,,2.6,549036d
+Own,ConComm,correct,concurrent_communicator_single,clock,1,PASS,TN,0,0,,3.4,549036d
+Own,ConComm,correct,concurrent_communicator_task_nesting,clock,1,PASS,TN,0,0,,2.7,549036d
+Own,ConComm,correct,concurrent_communicator_tasking_depend,clock,1,PASS,TN,0,0,,2.8,549036d
+Own,ConComm,correct,concurrent_communicator_tasking_locks,clock,1,PASS,TN,0,0,,2.7,549036d
+Own,ConComm,correct,concurrent_communicator_transitive,clock,1,FAIL,FP,1,0,Found concurrent MPI collectives that use the same communicator*1,2.5,549036d
+Own,ConComm,erroneous,concurrent_communicator_error,clock,1,PASS,TP,6,0,Found concurrent MPI collectives that use the same communicator*6,2.2,549036d
+Own,ConComm,erroneous,concurrent_communicator_for_dynamic_nowait_error,clock,1,PASS,TP,8,0,Found concurrent MPI collectives that use the same communicator*8,2.6,549036d
+Own,ConComm,erroneous,concurrent_communicator_sections_error,clock,1,PASS,TP,6,0,Found concurrent MPI collectives that use the same communicator*6,2.4,549036d
+Own,ConComm,erroneous,concurrent_communicator_task_nesting_error,clock,1,PASS,TP,3,0,Found concurrent MPI collectives that use the same communicator*3,2.7,549036d
+Own,ConComm,erroneous,concurrent_communicator_tasking_error,clock,1,PASS,TP,8,0,Found concurrent MPI collectives that use the same communicator*8,2.6,549036d
+Own,ConRecv,correct,concurrent_recv,clock,1,PASS,TN,0,0,,2.7,549036d
+Own,ConRecv,erroneous,concurrent_recv_any_tag_error,clock,1,PASS,TP,0,2,[MUST-REPORT] Warning: from: call MPI_Recv@0: Found concurrent MPI receives that use the same communciator  tag -1  and source 1*1;[MUST-REPORT] Warning: from: call MPI_Recv@1: Found concurrent MPI receives that use the same communciator  tag -1  and source 0*1,2.7,549036d
+Own,ConRecv,erroneous,concurrent_recv_error,clock,1,PASS,TP,0,2,[MUST-REPORT] Warning: from: call MPI_Recv@0: Found concurrent MPI receives that use the same communciator  tag 0  and source 1*1;[MUST-REPORT] Warning: from: call MPI_Recv@1: Found concurrent MPI receives that use the same communciator  tag 0  and source 0*1,2.8,549036d
+Own,RecvProbe,correct,concurrent_recv_probe,clock,1,PASS,TN,0,0,,2.7,549036d
+Own,RecvProbe,correct,concurrent_recv_probe_any_tag,clock,1,PASS,TN,0,0,,2.9,549036d
+Own,RecvProbe,erroneous,concurrent_recv_probe_any_tag_error,clock,1,PASS,TP,0,2,[MUST-REPORT] Warning: from: call MPI_Recv@0: Found concurrent MPI receive and probe calls that use the same communciator  tag -1  and source 1*1;[MUST-REPORT] Warning: from: call MPI_Recv@1: Found concurrent MPI receive and probe calls that use the same communciator  tag -1  and source 0*1,3.6,549036d
+Own,RecvProbe,erroneous,concurrent_recv_probe_error,clock,1,PASS,TP,0,2,[MUST-REPORT] Warning: from: call MPI_Recv@0: Found concurrent MPI receive and probe calls that use the same communciator  tag 0  and source 1*1;[MUST-REPORT] Warning: from: call MPI_Recv@1: Found concurrent MPI receive and probe calls that use the same communciator  tag 0  and source 0*1,3.8,549036d
+Own,ThreadLevel,correct,ThreadLevel_serialized,clock,1,PASS,TN,0,0,,3.3,549036d
+Own,ThreadLevel,correct,ThreadLevel_serialized_single,clock,1,PASS,TN,0,0,,3.5,549036d
+Own,ThreadLevel,correct,ThreadLevel_serialized_tasking_depend,clock,1,PASS,TN,0,0,,2.6,549036d
+Own,ThreadLevel,correct,ThreadLevel_serialized_tasking_locks,clock,1,PASS,TN,0,0,,2.7,549036d
+Own,ThreadLevel,correct,ThreadLevel_serialized_taskwait,clock,1,PASS,TN,0,0,,2.4,549036d
+Own,ThreadLevel,erroneous,ThreadLevel_serialized_error,clock,1,PASS,TP,21,0,Found concurrent mpi calls while MPI_THREAD_SERIALIZED was requested*21,2.6,549036d
+Own,ThreadLevel,erroneous,ThreadLevel_serialized_few_tasks_error,clock,1,PASS,TP,20,0,Found concurrent mpi calls while MPI_THREAD_SERIALIZED was requested*20,2.6,549036d
+Own,ThreadLevel,erroneous,ThreadLevel_serialized_many_tasks_error,clock,1,PASS,TP,15,0,Found concurrent mpi calls while MPI_THREAD_SERIALIZED was requested*15,3.0,549036d
+Own,ThreadLevel,erroneous,ThreadLevel_serialized_sections_error,clock,1,PASS,TP,2,0,Found concurrent mpi calls while MPI_THREAD_SERIALIZED was requested*2,2.4,549036d
+COBE,ordering,correct,deadlock_probe_2,counter,2,PASS,TN,0,0,,2.3,549036d
+COBE,ordering,correct,probe,counter,2,PASS,TN,0,0,,2.4,549036d
+COBE,ordering,correct,two_collectives,counter,2,PASS,TN,0,0,,2.5,549036d
+COBE,ordering,correct,two_collectives_2,counter,2,PASS,TN,0,0,,2.4,549036d
+COBE,ordering,correct,two_collectives_3,counter,2,PASS,TN,0,0,,2.4,549036d
+COBE,ordering,correct,two_collectives_4,counter,2,PASS,TN,0,0,,2.4,549036d
+COBE,ordering,correct,two_collectives_5,counter,2,PASS,TN,0,0,,2.5,549036d
+COBE,ordering,correct,two_collectives_6,counter,2,PASS,TN,0,0,,2.6,549036d
+COBE,ordering,correct,two_collectives_7,counter,2,PASS,TN,0,0,,2.6,549036d
+COBE,ordering,erroneous,deadlock_probe_2,counter,2,FAIL,FN,0,0,,6.5,549036d
+COBE,ordering,erroneous,probe,counter,2,FAIL,FN,0,0,,6.6,549036d
+COBE,ordering,erroneous,two_collectives,counter,2,FAIL,FN,0,0,,2.1,549036d
+COBE,ordering,erroneous,two_collectives_2,counter,2,FAIL,FN,0,0,,2.4,549036d
+COBE,ordering,erroneous,two_collectives_3,counter,2,FAIL,FN,0,0,,2.4,549036d
+COBE,ordering,erroneous,two_collectives_4,counter,2,FAIL,FN,0,0,,2.4,549036d
+COBE,ordering,erroneous,two_collectives_5,counter,2,FAIL,FN,0,0,,2.4,549036d
+COBE,ordering,erroneous,two_collectives_6,counter,2,FAIL,FN,0,0,,2.4,549036d
+COBE,ordering,erroneous,two_collectives_7,counter,2,FAIL,FN,0,0,,2.4,549036d
+COBE,threading,correct,threading_level_3,counter,2,PASS,TN,0,0,,2.3,549036d
+COBE,threading,erroneous,wrong_threading_level_3,counter,2,FAIL,FN,0,0,,6.6,549036d
+Own,ConComm,correct,concurrent_communicator,counter,2,PASS,TN,0,0,,2.4,549036d
+Own,ConComm,correct,concurrent_communicator_for_dynamic,counter,2,PASS,TN,0,0,,2.5,549036d
+Own,ConComm,correct,concurrent_communicator_for_nowait,counter,2,PASS,TN,0,0,,2.6,549036d
+Own,ConComm,correct,concurrent_communicator_sections,counter,2,PASS,TN,0,0,,2.6,549036d
+Own,ConComm,correct,concurrent_communicator_single,counter,2,PASS,TN,0,0,,3.3,549036d
+Own,ConComm,correct,concurrent_communicator_task_nesting,counter,2,PASS,TN,0,0,,2.5,549036d
+Own,ConComm,correct,concurrent_communicator_tasking_depend,counter,2,PASS,TN,0,0,,2.6,549036d
+Own,ConComm,correct,concurrent_communicator_tasking_locks,counter,2,PASS,TN,4,0,Operating on an uninitialized lock*4,2.6,549036d
+Own,ConComm,correct,concurrent_communicator_transitive,counter,2,PASS,TN,0,0,,2.5,549036d
+Own,ConComm,erroneous,concurrent_communicator_error,counter,2,FAIL,FN,0,0,,2.4,549036d
+Own,ConComm,erroneous,concurrent_communicator_for_dynamic_nowait_error,counter,2,FAIL,FN,0,0,,2.5,549036d
+Own,ConComm,erroneous,concurrent_communicator_sections_error,counter,2,FAIL,FN,0,0,,2.5,549036d
+Own,ConComm,erroneous,concurrent_communicator_task_nesting_error,counter,2,FAIL,FN,0,0,,2.6,549036d
+Own,ConComm,erroneous,concurrent_communicator_tasking_error,counter,2,FAIL,FN,0,0,,2.2,549036d
+Own,ConRecv,correct,concurrent_recv,counter,2,PASS,TN,0,0,,2.5,549036d
+Own,ConRecv,erroneous,concurrent_recv_any_tag_error,counter,2,FAIL,FN,0,0,,2.6,549036d
+Own,ConRecv,erroneous,concurrent_recv_error,counter,2,FAIL,FN,0,0,,2.8,549036d
+Own,RecvProbe,correct,concurrent_recv_probe,counter,2,PASS,TN,0,0,,2.7,549036d
+Own,RecvProbe,correct,concurrent_recv_probe_any_tag,counter,2,PASS,TN,0,0,,2.8,549036d
+Own,RecvProbe,erroneous,concurrent_recv_probe_any_tag_error,counter,2,FAIL,FN,0,0,,3.6,549036d
+Own,RecvProbe,erroneous,concurrent_recv_probe_error,counter,2,FAIL,FN,0,0,,3.8,549036d
+Own,ThreadLevel,correct,ThreadLevel_serialized,counter,2,PASS,TN,0,0,,3.7,549036d
+Own,ThreadLevel,correct,ThreadLevel_serialized_single,counter,2,PASS,TN,0,0,,3.2,549036d
+Own,ThreadLevel,correct,ThreadLevel_serialized_tasking_depend,counter,2,PASS,TN,0,0,,2.3,549036d
+Own,ThreadLevel,correct,ThreadLevel_serialized_tasking_locks,counter,2,PASS,TN,0,0,,2.3,549036d
+Own,ThreadLevel,correct,ThreadLevel_serialized_taskwait,counter,2,PASS,TN,0,0,,2.5,549036d
+Own,ThreadLevel,erroneous,ThreadLevel_serialized_error,counter,2,FAIL,FN,0,0,,2.4,549036d
+Own,ThreadLevel,erroneous,ThreadLevel_serialized_few_tasks_error,counter,2,FAIL,FN,0,0,,2.0,549036d
+Own,ThreadLevel,erroneous,ThreadLevel_serialized_many_tasks_error,counter,2,PASS,TP,8,0,Multiple threads call MPI functions simultaneously while you required MPI_THREAD_SERIALIZED*8,2.0,549036d
+Own,ThreadLevel,erroneous,ThreadLevel_serialized_sections_error,counter,2,FAIL,FN,0,0,,1.9,549036d
+COBE,ordering,correct,deadlock_probe_2,clock,2,PASS,TN,0,0,,1.9,549036d
+COBE,ordering,correct,probe,clock,2,PASS,TN,0,0,,1.9,549036d
+COBE,ordering,correct,two_collectives,clock,2,PASS,TN,0,0,,2.1,549036d
+COBE,ordering,correct,two_collectives_2,clock,2,PASS,TN,0,0,,1.9,549036d
+COBE,ordering,correct,two_collectives_3,clock,2,PASS,TN,0,0,,1.9,549036d
+COBE,ordering,correct,two_collectives_4,clock,2,PASS,TN,0,0,,1.9,549036d
+COBE,ordering,correct,two_collectives_5,clock,2,PASS,TN,0,0,,1.9,549036d
+COBE,ordering,correct,two_collectives_6,clock,2,PASS,TN,0,0,,2.2,549036d
+COBE,ordering,correct,two_collectives_7,clock,2,PASS,TN,0,0,,2.2,549036d
+COBE,ordering,erroneous,deadlock_probe_2,clock,2,PASS,TP,0,2,[MUST-REPORT] Warning: from: call MPI_Recv@1: Found concurrent MPI receive and probe calls that use the same communciator  tag 0  and source 0*1;[MUST-REPORT] Warning: from: call MPI_Recv@1: Found concurrent MPI receives that use the same communciator  tag 0  and source 0*1,6.1,549036d
+COBE,ordering,erroneous,probe,clock,2,PASS,TP,0,2,[MUST-REPORT] Warning: from: call MPI_Recv@1: Found concurrent MPI receive and probe calls that use the same communciator  tag 0  and source 0*1;[MUST-REPORT] Warning: from: call MPI_Recv@1: Found concurrent MPI receives that use the same communciator  tag 0  and source 0*1,2.1,549036d
+COBE,ordering,erroneous,two_collectives,clock,2,PASS,TP,6,0,Found concurrent MPI collectives that use the same communicator*6,1.8,549036d
+COBE,ordering,erroneous,two_collectives_2,clock,2,PASS,TP,1,0,Found concurrent MPI collectives that use the same communicator*1,1.8,549036d
+COBE,ordering,erroneous,two_collectives_3,clock,2,PASS,TP,6,0,Found concurrent MPI collectives that use the same communicator*6,2.5,549036d
+COBE,ordering,erroneous,two_collectives_4,clock,2,PASS,TP,14,0,Found concurrent MPI collectives that use the same communicator*14,2.1,549036d
+COBE,ordering,erroneous,two_collectives_5,clock,2,PASS,TP,3,0,Found concurrent MPI collectives that use the same communicator*3,1.9,549036d
+COBE,ordering,erroneous,two_collectives_6,clock,2,PASS,TP,13,0,Found concurrent MPI collectives that use the same communicator*13,2.0,549036d
+COBE,ordering,erroneous,two_collectives_7,clock,2,PASS,TP,11,0,Found concurrent MPI collectives that use the same communicator*11,2.0,549036d
+COBE,threading,correct,threading_level_3,clock,2,PASS,TN,0,0,,1.9,549036d
+COBE,threading,erroneous,wrong_threading_level_3,clock,2,PASS,TP,2,0,Found concurrent mpi calls while MPI_THREAD_SERIALIZED was requested*2,6.2,549036d
+Own,ConComm,correct,concurrent_communicator,clock,2,PASS,TN,0,0,,2.1,549036d
+Own,ConComm,correct,concurrent_communicator_for_dynamic,clock,2,PASS,TN,0,0,,2.2,549036d
+Own,ConComm,correct,concurrent_communicator_for_nowait,clock,2,PASS,TN,0,0,,2.4,549036d
+Own,ConComm,correct,concurrent_communicator_sections,clock,2,PASS,TN,0,0,,2.2,549036d
+Own,ConComm,correct,concurrent_communicator_single,clock,2,PASS,TN,0,0,,3.0,549036d
+Own,ConComm,correct,concurrent_communicator_task_nesting,clock,2,PASS,TN,0,0,,2.5,549036d
+Own,ConComm,correct,concurrent_communicator_tasking_depend,clock,2,PASS,TN,0,0,,2.6,549036d
+Own,ConComm,correct,concurrent_communicator_tasking_locks,clock,2,PASS,TN,0,0,,2.3,549036d
+Own,ConComm,correct,concurrent_communicator_transitive,clock,2,FAIL,FP,1,0,Found concurrent MPI collectives that use the same communicator*1,2.1,549036d
+Own,ConComm,erroneous,concurrent_communicator_error,clock,2,PASS,TP,6,0,Found concurrent MPI collectives that use the same communicator*6,1.9,549036d
+Own,ConComm,erroneous,concurrent_communicator_for_dynamic_nowait_error,clock,2,PASS,TP,8,0,Found concurrent MPI collectives that use the same communicator*8,2.3,549036d
+Own,ConComm,erroneous,concurrent_communicator_sections_error,clock,2,PASS,TP,6,0,Found concurrent MPI collectives that use the same communicator*6,2.0,549036d
+Own,ConComm,erroneous,concurrent_communicator_task_nesting_error,clock,2,PASS,TP,3,0,Found concurrent MPI collectives that use the same communicator*3,2.4,549036d
+Own,ConComm,erroneous,concurrent_communicator_tasking_error,clock,2,PASS,TP,8,0,Found concurrent MPI collectives that use the same communicator*8,2.3,549036d
+Own,ConRecv,correct,concurrent_recv,clock,2,PASS,TN,0,0,,2.3,549036d
+Own,ConRecv,erroneous,concurrent_recv_any_tag_error,clock,2,PASS,TP,0,2,[MUST-REPORT] Warning: from: call MPI_Recv@0: Found concurrent MPI receives that use the same communciator  tag -1  and source 1*1;[MUST-REPORT] Warning: from: call MPI_Recv@1: Found concurrent MPI receives that use the same communciator  tag -1  and source 0*1,2.4,549036d
+Own,ConRecv,erroneous,concurrent_recv_error,clock,2,PASS,TP,0,2,[MUST-REPORT] Warning: from: call MPI_Recv@0: Found concurrent MPI receives that use the same communciator  tag 0  and source 1*1;[MUST-REPORT] Warning: from: call MPI_Recv@1: Found concurrent MPI receives that use the same communciator  tag 0  and source 0*1,2.5,549036d
+Own,RecvProbe,correct,concurrent_recv_probe,clock,2,PASS,TN,0,0,,2.4,549036d
+Own,RecvProbe,correct,concurrent_recv_probe_any_tag,clock,2,PASS,TN,0,0,,2.4,549036d
+Own,RecvProbe,erroneous,concurrent_recv_probe_any_tag_error,clock,2,PASS,TP,0,2,[MUST-REPORT] Warning: from: call MPI_Recv@0: Found concurrent MPI receive and probe calls that use the same communciator  tag -1  and source 1*1;[MUST-REPORT] Warning: from: call MPI_Recv@1: Found concurrent MPI receive and probe calls that use the same communciator  tag -1  and source 0*1,3.2,549036d
+Own,RecvProbe,erroneous,concurrent_recv_probe_error,clock,2,PASS,TP,0,2,[MUST-REPORT] Warning: from: call MPI_Recv@0: Found concurrent MPI receive and probe calls that use the same communciator  tag 0  and source 1*1;[MUST-REPORT] Warning: from: call MPI_Recv@1: Found concurrent MPI receive and probe calls that use the same communciator  tag 0  and source 0*1,3.3,549036d
+Own,ThreadLevel,correct,ThreadLevel_serialized,clock,2,PASS,TN,0,0,,3.1,549036d
+Own,ThreadLevel,correct,ThreadLevel_serialized_single,clock,2,PASS,TN,0,0,,3.0,549036d
+Own,ThreadLevel,correct,ThreadLevel_serialized_tasking_depend,clock,2,PASS,TN,0,0,,2.2,549036d
+Own,ThreadLevel,correct,ThreadLevel_serialized_tasking_locks,clock,2,PASS,TN,0,0,,2.3,549036d
+Own,ThreadLevel,correct,ThreadLevel_serialized_taskwait,clock,2,PASS,TN,0,0,,2.0,549036d
+Own,ThreadLevel,erroneous,ThreadLevel_serialized_error,clock,2,PASS,TP,22,0,Found concurrent mpi calls while MPI_THREAD_SERIALIZED was requested*22,2.4,549036d
+Own,ThreadLevel,erroneous,ThreadLevel_serialized_few_tasks_error,clock,2,PASS,TP,22,0,Found concurrent mpi calls while MPI_THREAD_SERIALIZED was requested*22,2.7,549036d
+Own,ThreadLevel,erroneous,ThreadLevel_serialized_many_tasks_error,clock,2,PASS,TP,18,0,Found concurrent mpi calls while MPI_THREAD_SERIALIZED was requested*18,3.1,549036d
+Own,ThreadLevel,erroneous,ThreadLevel_serialized_sections_error,clock,2,PASS,TP,2,0,Found concurrent mpi calls while MPI_THREAD_SERIALIZED was requested*2,2.5,549036d
+COBE,ordering,correct,deadlock_probe_2,counter,3,PASS,TN,0,0,,2.3,549036d
+COBE,ordering,correct,probe,counter,3,PASS,TN,0,0,,2.4,549036d
+COBE,ordering,correct,two_collectives,counter,3,PASS,TN,0,0,,2.6,549036d
+COBE,ordering,correct,two_collectives_2,counter,3,PASS,TN,0,0,,2.4,549036d
+COBE,ordering,correct,two_collectives_3,counter,3,PASS,TN,0,0,,2.4,549036d
+COBE,ordering,correct,two_collectives_4,counter,3,PASS,TN,0,0,,2.4,549036d
+COBE,ordering,correct,two_collectives_5,counter,3,PASS,TN,0,0,,2.4,549036d
+COBE,ordering,correct,two_collectives_6,counter,3,PASS,TN,0,0,,2.7,549036d
+COBE,ordering,correct,two_collectives_7,counter,3,PASS,TN,0,0,,2.6,549036d
+COBE,ordering,erroneous,deadlock_probe_2,counter,3,FAIL,FN,0,0,,6.5,549036d
+COBE,ordering,erroneous,probe,counter,3,FAIL,FN,0,0,,2.5,549036d
+COBE,ordering,erroneous,two_collectives,counter,3,FAIL,FN,0,0,,2.3,549036d
+COBE,ordering,erroneous,two_collectives_2,counter,3,FAIL,FN,0,0,,2.4,549036d
+COBE,ordering,erroneous,two_collectives_3,counter,3,FAIL,FN,0,0,,2.4,549036d
+COBE,ordering,erroneous,two_collectives_4,counter,3,FAIL,FN,0,0,,6.6,549036d
+COBE,ordering,erroneous,two_collectives_5,counter,3,FAIL,FN,0,0,,2.4,549036d
+COBE,ordering,erroneous,two_collectives_6,counter,3,FAIL,FN,0,0,,2.4,549036d
+COBE,ordering,erroneous,two_collectives_7,counter,3,FAIL,FN,0,0,,2.5,549036d
+COBE,threading,correct,threading_level_3,counter,3,PASS,TN,0,0,,2.4,549036d
+COBE,threading,erroneous,wrong_threading_level_3,counter,3,FAIL,FN,0,0,,6.5,549036d
+Own,ConComm,correct,concurrent_communicator,counter,3,PASS,TN,0,0,,2.4,549036d
+Own,ConComm,correct,concurrent_communicator_for_dynamic,counter,3,PASS,TN,0,0,,2.6,549036d
+Own,ConComm,correct,concurrent_communicator_for_nowait,counter,3,PASS,TN,0,0,,2.7,549036d
+Own,ConComm,correct,concurrent_communicator_sections,counter,3,PASS,TN,0,0,,2.8,549036d
+Own,ConComm,correct,concurrent_communicator_single,counter,3,PASS,TN,0,0,,3.5,549036d
+Own,ConComm,correct,concurrent_communicator_task_nesting,counter,3,PASS,TN,0,0,,2.8,549036d
+Own,ConComm,correct,concurrent_communicator_tasking_depend,counter,3,PASS,TN,0,0,,2.7,549036d
+Own,ConComm,correct,concurrent_communicator_tasking_locks,counter,3,PASS,TN,4,0,Operating on an uninitialized lock*4,2.8,549036d
+Own,ConComm,correct,concurrent_communicator_transitive,counter,3,PASS,TN,0,0,,2.4,549036d
+Own,ConComm,erroneous,concurrent_communicator_error,counter,3,FAIL,FN,0,0,,1.9,549036d
+Own,ConComm,erroneous,concurrent_communicator_for_dynamic_nowait_error,counter,3,FAIL,FN,0,0,,2.7,549036d
+Own,ConComm,erroneous,concurrent_communicator_sections_error,counter,3,FAIL,FN,0,0,,2.3,549036d
+Own,ConComm,erroneous,concurrent_communicator_task_nesting_error,counter,3,FAIL,FN,0,0,,2.3,549036d
+Own,ConComm,erroneous,concurrent_communicator_tasking_error,counter,3,FAIL,FN,0,0,,2.0,549036d
+Own,ConRecv,correct,concurrent_recv,counter,3,PASS,TN,0,0,,2.4,549036d
+Own,ConRecv,erroneous,concurrent_recv_any_tag_error,counter,3,FAIL,FN,0,0,,2.4,549036d
+Own,ConRecv,erroneous,concurrent_recv_error,counter,3,FAIL,FN,0,0,,2.4,549036d
+Own,RecvProbe,correct,concurrent_recv_probe,counter,3,PASS,TN,0,0,,2.8,549036d
+Own,RecvProbe,correct,concurrent_recv_probe_any_tag,counter,3,PASS,TN,0,0,,3.0,549036d
+Own,RecvProbe,erroneous,concurrent_recv_probe_any_tag_error,counter,3,FAIL,FN,0,0,,3.5,549036d
+Own,RecvProbe,erroneous,concurrent_recv_probe_error,counter,3,FAIL,FN,0,0,,3.8,549036d
+Own,ThreadLevel,correct,ThreadLevel_serialized,counter,3,PASS,TN,0,0,,3.3,549036d
+Own,ThreadLevel,correct,ThreadLevel_serialized_single,counter,3,PASS,TN,0,0,,3.5,549036d
+Own,ThreadLevel,correct,ThreadLevel_serialized_tasking_depend,counter,3,PASS,TN,0,0,,2.7,549036d
+Own,ThreadLevel,correct,ThreadLevel_serialized_tasking_locks,counter,3,PASS,TN,0,0,,2.8,549036d
+Own,ThreadLevel,correct,ThreadLevel_serialized_taskwait,counter,3,PASS,TN,0,0,,2.6,549036d
+Own,ThreadLevel,erroneous,ThreadLevel_serialized_error,counter,3,FAIL,FN,0,0,,2.7,549036d
+Own,ThreadLevel,erroneous,ThreadLevel_serialized_few_tasks_error,counter,3,PASS,TP,1,0,Multiple threads call MPI functions simultaneously while you required MPI_THREAD_SERIALIZED*1,2.6,549036d
+Own,ThreadLevel,erroneous,ThreadLevel_serialized_many_tasks_error,counter,3,PASS,TP,10,0,Multiple threads call MPI functions simultaneously while you required MPI_THREAD_SERIALIZED*10,2.7,549036d
+Own,ThreadLevel,erroneous,ThreadLevel_serialized_sections_error,counter,3,FAIL,FN,0,0,,2.5,549036d
+COBE,ordering,correct,deadlock_probe_2,clock,3,PASS,TN,0,0,,2.3,549036d
+COBE,ordering,correct,probe,clock,3,PASS,TN,0,0,,2.4,549036d
+COBE,ordering,correct,two_collectives,clock,3,PASS,TN,0,0,,2.6,549036d
+COBE,ordering,correct,two_collectives_2,clock,3,PASS,TN,0,0,,2.4,549036d
+COBE,ordering,correct,two_collectives_3,clock,3,PASS,TN,0,0,,2.5,549036d
+COBE,ordering,correct,two_collectives_4,clock,3,PASS,TN,0,0,,2.4,549036d
+COBE,ordering,correct,two_collectives_5,clock,3,PASS,TN,0,0,,2.4,549036d
+COBE,ordering,correct,two_collectives_6,clock,3,PASS,TN,0,0,,2.6,549036d
+COBE,ordering,correct,two_collectives_7,clock,3,PASS,TN,0,0,,2.7,549036d
+COBE,ordering,erroneous,deadlock_probe_2,clock,3,PASS,TP,0,1,[MUST-REPORT] Warning: from: call MPI_Recv@1: Found concurrent MPI receive and probe calls that use the same communciator  tag 0  and source 0*1,6.7,549036d
+COBE,ordering,erroneous,probe,clock,3,PASS,TP,0,1,[MUST-REPORT] Warning: from: call MPI_Recv@1: Found concurrent MPI receive and probe calls that use the same communciator  tag 0  and source 0*1,2.5,549036d
+COBE,ordering,erroneous,two_collectives,clock,3,PASS,TP,6,0,Found concurrent MPI collectives that use the same communicator*6,2.3,549036d
+COBE,ordering,erroneous,two_collectives_2,clock,3,PASS,TP,1,0,Found concurrent MPI collectives that use the same communicator*1,1.9,549036d
+COBE,ordering,erroneous,two_collectives_3,clock,3,PASS,TP,6,0,Found concurrent MPI collectives that use the same communicator*6,2.5,549036d
+COBE,ordering,erroneous,two_collectives_4,clock,3,PASS,TP,12,0,Found concurrent MPI collectives that use the same communicator*12,6.7,549036d
+COBE,ordering,erroneous,two_collectives_5,clock,3,PASS,TP,3,0,Found concurrent MPI collectives that use the same communicator*3,2.4,549036d
+COBE,ordering,erroneous,two_collectives_6,clock,3,PASS,TP,14,0,Found concurrent MPI collectives that use the same communicator*14,2.4,549036d
+COBE,ordering,erroneous,two_collectives_7,clock,3,PASS,TP,12,0,Found concurrent MPI collectives that use the same communicator*12,2.5,549036d
+COBE,threading,correct,threading_level_3,clock,3,PASS,TN,0,0,,2.4,549036d
+COBE,threading,erroneous,wrong_threading_level_3,clock,3,PASS,TP,2,0,Found concurrent mpi calls while MPI_THREAD_SERIALIZED was requested*2,6.1,549036d
+Own,ConComm,correct,concurrent_communicator,clock,3,PASS,TN,0,0,,2.3,549036d
+Own,ConComm,correct,concurrent_communicator_for_dynamic,clock,3,PASS,TN,0,0,,2.6,549036d
+Own,ConComm,correct,concurrent_communicator_for_nowait,clock,3,PASS,TN,0,0,,2.6,549036d
+Own,ConComm,correct,concurrent_communicator_sections,clock,3,PASS,TN,0,0,,2.5,549036d
+Own,ConComm,correct,concurrent_communicator_single,clock,3,PASS,TN,0,0,,3.4,549036d
+Own,ConComm,correct,concurrent_communicator_task_nesting,clock,3,PASS,TN,0,0,,2.6,549036d
+Own,ConComm,correct,concurrent_communicator_tasking_depend,clock,3,PASS,TN,0,0,,2.7,549036d
+Own,ConComm,correct,concurrent_communicator_tasking_locks,clock,3,PASS,TN,0,0,,2.7,549036d
+Own,ConComm,correct,concurrent_communicator_transitive,clock,3,FAIL,FP,1,0,Found concurrent MPI collectives that use the same communicator*1,2.4,549036d
+Own,ConComm,erroneous,concurrent_communicator_error,clock,3,PASS,TP,6,0,Found concurrent MPI collectives that use the same communicator*6,2.3,549036d
+Own,ConComm,erroneous,concurrent_communicator_for_dynamic_nowait_error,clock,3,PASS,TP,8,0,Found concurrent MPI collectives that use the same communicator*8,2.6,549036d
+Own,ConComm,erroneous,concurrent_communicator_sections_error,clock,3,PASS,TP,6,0,Found concurrent MPI collectives that use the same communicator*6,2.3,549036d
+Own,ConComm,erroneous,concurrent_communicator_task_nesting_error,clock,3,PASS,TP,3,0,Found concurrent MPI collectives that use the same communicator*3,2.7,549036d
+Own,ConComm,erroneous,concurrent_communicator_tasking_error,clock,3,PASS,TP,8,0,Found concurrent MPI collectives that use the same communicator*8,2.6,549036d
+Own,ConRecv,correct,concurrent_recv,clock,3,PASS,TN,0,0,,2.6,549036d
+Own,ConRecv,erroneous,concurrent_recv_any_tag_error,clock,3,PASS,TP,0,2,[MUST-REPORT] Warning: from: call MPI_Recv@0: Found concurrent MPI receives that use the same communciator  tag -1  and source 1*1;[MUST-REPORT] Warning: from: call MPI_Recv@1: Found concurrent MPI receives that use the same communciator  tag -1  and source 0*1,2.6,549036d
+Own,ConRecv,erroneous,concurrent_recv_error,clock,3,PASS,TP,0,2,[MUST-REPORT] Warning: from: call MPI_Recv@0: Found concurrent MPI receives that use the same communciator  tag 0  and source 1*1;[MUST-REPORT] Warning: from: call MPI_Recv@1: Found concurrent MPI receives that use the same communciator  tag 0  and source 0*1,2.7,549036d
+Own,RecvProbe,correct,concurrent_recv_probe,clock,3,PASS,TN,0,0,,2.5,549036d
+Own,RecvProbe,correct,concurrent_recv_probe_any_tag,clock,3,PASS,TN,0,0,,2.7,549036d
+Own,RecvProbe,erroneous,concurrent_recv_probe_any_tag_error,clock,3,PASS,TP,0,2,[MUST-REPORT] Warning: from: call MPI_Recv@0: Found concurrent MPI receive and probe calls that use the same communciator  tag -1  and source 1*1;[MUST-REPORT] Warning: from: call MPI_Recv@1: Found concurrent MPI receive and probe calls that use the same communciator  tag -1  and source 0*1,3.5,549036d
+Own,RecvProbe,erroneous,concurrent_recv_probe_error,clock,3,PASS,TP,0,2,[MUST-REPORT] Warning: from: call MPI_Recv@0: Found concurrent MPI receive and probe calls that use the same communciator  tag 0  and source 1*1;[MUST-REPORT] Warning: from: call MPI_Recv@1: Found concurrent MPI receive and probe calls that use the same communciator  tag 0  and source 0*1,3.7,549036d
+Own,ThreadLevel,correct,ThreadLevel_serialized,clock,3,PASS,TN,0,0,,3.0,549036d
+Own,ThreadLevel,correct,ThreadLevel_serialized_single,clock,3,PASS,TN,0,0,,3.5,549036d
+Own,ThreadLevel,correct,ThreadLevel_serialized_tasking_depend,clock,3,PASS,TN,0,0,,2.6,549036d
+Own,ThreadLevel,correct,ThreadLevel_serialized_tasking_locks,clock,3,PASS,TN,0,0,,2.5,549036d
+Own,ThreadLevel,correct,ThreadLevel_serialized_taskwait,clock,3,PASS,TN,0,0,,2.5,549036d
+Own,ThreadLevel,erroneous,ThreadLevel_serialized_error,clock,3,PASS,TP,22,0,Found concurrent mpi calls while MPI_THREAD_SERIALIZED was requested*22,2.6,549036d
+Own,ThreadLevel,erroneous,ThreadLevel_serialized_few_tasks_error,clock,3,PASS,TP,17,0,Found concurrent mpi calls while MPI_THREAD_SERIALIZED was requested*17,2.5,549036d
+Own,ThreadLevel,erroneous,ThreadLevel_serialized_many_tasks_error,clock,3,PASS,TP,16,0,Found concurrent mpi calls while MPI_THREAD_SERIALIZED was requested*16,2.8,549036d
+Own,ThreadLevel,erroneous,ThreadLevel_serialized_sections_error,clock,3,PASS,TP,2,0,Found concurrent mpi calls while MPI_THREAD_SERIALIZED was requested*2,2.3,549036d
+COBE,ordering,correct,deadlock_probe_2,counter,4,PASS,TN,0,0,,2.1,549036d
+COBE,ordering,correct,probe,counter,4,PASS,TN,0,0,,2.3,549036d
+COBE,ordering,correct,two_collectives,counter,4,PASS,TN,0,0,,2.4,549036d
+COBE,ordering,correct,two_collectives_2,counter,4,PASS,TN,0,0,,2.3,549036d
+COBE,ordering,correct,two_collectives_3,counter,4,PASS,TN,0,0,,2.2,549036d
+COBE,ordering,correct,two_collectives_4,counter,4,PASS,TN,0,0,,2.3,549036d
+COBE,ordering,correct,two_collectives_5,counter,4,PASS,TN,0,0,,2.3,549036d
+COBE,ordering,correct,two_collectives_6,counter,4,PASS,TN,0,0,,2.4,549036d
+COBE,ordering,correct,two_collectives_7,counter,4,PASS,TN,0,0,,2.5,549036d
+COBE,ordering,erroneous,deadlock_probe_2,counter,4,FAIL,FN,0,0,,6.7,549036d
+COBE,ordering,erroneous,probe,counter,4,FAIL,FN,0,0,,2.4,549036d
+COBE,ordering,erroneous,two_collectives,counter,4,FAIL,FN,0,0,,2.1,549036d
+COBE,ordering,erroneous,two_collectives_2,counter,4,FAIL,FN,0,0,,2.2,549036d
+COBE,ordering,erroneous,two_collectives_3,counter,4,FAIL,FN,0,0,,2.3,549036d
+COBE,ordering,erroneous,two_collectives_4,counter,4,FAIL,FN,0,0,,6.7,549036d
+COBE,ordering,erroneous,two_collectives_5,counter,4,FAIL,FN,0,0,,2.3,549036d
+COBE,ordering,erroneous,two_collectives_6,counter,4,FAIL,FN,0,0,,2.4,549036d
+COBE,ordering,erroneous,two_collectives_7,counter,4,FAIL,FN,0,0,,2.3,549036d
+COBE,threading,correct,threading_level_3,counter,4,PASS,TN,0,0,,2.2,549036d
+COBE,threading,erroneous,wrong_threading_level_3,counter,4,FAIL,FN,0,0,,6.7,549036d
+Own,ConComm,correct,concurrent_communicator,counter,4,PASS,TN,0,0,,2.4,549036d
+Own,ConComm,correct,concurrent_communicator_for_dynamic,counter,4,PASS,TN,0,0,,2.6,549036d
+Own,ConComm,correct,concurrent_communicator_for_nowait,counter,4,PASS,TN,0,0,,2.6,549036d
+Own,ConComm,correct,concurrent_communicator_sections,counter,4,PASS,TN,0,0,,2.6,549036d
+Own,ConComm,correct,concurrent_communicator_single,counter,4,PASS,TN,0,0,,3.4,549036d
+Own,ConComm,correct,concurrent_communicator_task_nesting,counter,4,PASS,TN,0,0,,2.6,549036d
+Own,ConComm,correct,concurrent_communicator_tasking_depend,counter,4,PASS,TN,0,0,,2.6,549036d
+Own,ConComm,correct,concurrent_communicator_tasking_locks,counter,4,PASS,TN,4,0,Operating on an uninitialized lock*4,2.6,549036d
+Own,ConComm,correct,concurrent_communicator_transitive,counter,4,PASS,TN,0,0,,2.3,549036d
+Own,ConComm,erroneous,concurrent_communicator_error,counter,4,FAIL,FN,0,0,,2.2,549036d
+Own,ConComm,erroneous,concurrent_communicator_for_dynamic_nowait_error,counter,4,FAIL,FN,0,0,,2.6,549036d
+Own,ConComm,erroneous,concurrent_communicator_sections_error,counter,4,FAIL,FN,0,0,,2.4,549036d
+Own,ConComm,erroneous,concurrent_communicator_task_nesting_error,counter,4,FAIL,FN,0,0,,2.6,549036d
+Own,ConComm,erroneous,concurrent_communicator_tasking_error,counter,4,FAIL,FN,0,0,,2.4,549036d
+Own,ConRecv,correct,concurrent_recv,counter,4,PASS,TN,0,0,,2.5,549036d
+Own,ConRecv,erroneous,concurrent_recv_any_tag_error,counter,4,FAIL,FN,0,0,,2.6,549036d
+Own,ConRecv,erroneous,concurrent_recv_error,counter,4,FAIL,FN,0,0,,2.7,549036d
+Own,RecvProbe,correct,concurrent_recv_probe,counter,4,PASS,TN,0,0,,2.6,549036d
+Own,RecvProbe,correct,concurrent_recv_probe_any_tag,counter,4,PASS,TN,0,0,,2.7,549036d
+Own,RecvProbe,erroneous,concurrent_recv_probe_any_tag_error,counter,4,FAIL,FN,0,0,,3.5,549036d
+Own,RecvProbe,erroneous,concurrent_recv_probe_error,counter,4,FAIL,FN,0,0,,3.7,549036d
+Own,ThreadLevel,correct,ThreadLevel_serialized,counter,4,PASS,TN,0,0,,3.0,549036d
+Own,ThreadLevel,correct,ThreadLevel_serialized_single,counter,4,PASS,TN,0,0,,3.4,549036d
+Own,ThreadLevel,correct,ThreadLevel_serialized_tasking_depend,counter,4,PASS,TN,0,0,,2.5,549036d
+Own,ThreadLevel,correct,ThreadLevel_serialized_tasking_locks,counter,4,PASS,TN,0,0,,2.6,549036d
+Own,ThreadLevel,correct,ThreadLevel_serialized_taskwait,counter,4,PASS,TN,0,0,,2.4,549036d
+Own,ThreadLevel,erroneous,ThreadLevel_serialized_error,counter,4,FAIL,FN,0,0,,2.5,549036d
+Own,ThreadLevel,erroneous,ThreadLevel_serialized_few_tasks_error,counter,4,FAIL,FN,0,0,,2.5,549036d
+Own,ThreadLevel,erroneous,ThreadLevel_serialized_many_tasks_error,counter,4,PASS,TP,8,0,Multiple threads call MPI functions simultaneously while you required MPI_THREAD_SERIALIZED*8,2.5,549036d
+Own,ThreadLevel,erroneous,ThreadLevel_serialized_sections_error,counter,4,FAIL,FN,0,0,,2.4,549036d
+COBE,ordering,correct,deadlock_probe_2,clock,4,PASS,TN,0,0,,2.2,549036d
+COBE,ordering,correct,probe,clock,4,PASS,TN,0,0,,2.3,549036d
+COBE,ordering,correct,two_collectives,clock,4,PASS,TN,0,0,,2.5,549036d
+COBE,ordering,correct,two_collectives_2,clock,4,PASS,TN,0,0,,2.3,549036d
+COBE,ordering,correct,two_collectives_3,clock,4,PASS,TN,0,0,,2.2,549036d
+COBE,ordering,correct,two_collectives_4,clock,4,PASS,TN,0,0,,2.4,549036d
+COBE,ordering,correct,two_collectives_5,clock,4,PASS,TN,0,0,,2.3,549036d
+COBE,ordering,correct,two_collectives_6,clock,4,PASS,TN,0,0,,2.5,549036d
+COBE,ordering,correct,two_collectives_7,clock,4,PASS,TN,0,0,,2.5,549036d
+COBE,ordering,erroneous,deadlock_probe_2,clock,4,PASS,TP,0,2,[MUST-REPORT] Warning: from: call MPI_Recv@1: Found concurrent MPI receive and probe calls that use the same communciator  tag 0  and source 0*1;[MUST-REPORT] Warning: from: call MPI_Recv@1: Found concurrent MPI receives that use the same communciator  tag 0  and source 0*1,6.7,549036d
+COBE,ordering,erroneous,probe,clock,4,PASS,TP,0,2,[MUST-REPORT] Warning: from: call MPI_Recv@1: Found concurrent MPI receive and probe calls that use the same communciator  tag 0  and source 0*1;[MUST-REPORT] Warning: from: call MPI_Recv@1: Found concurrent MPI receives that use the same communciator  tag 0  and source 0*1,2.4,549036d
+COBE,ordering,erroneous,two_collectives,clock,4,PASS,TP,6,0,Found concurrent MPI collectives that use the same communicator*6,2.2,549036d
+COBE,ordering,erroneous,two_collectives_2,clock,4,PASS,TP,1,0,Found concurrent MPI collectives that use the same communicator*1,2.2,549036d
+COBE,ordering,erroneous,two_collectives_3,clock,4,PASS,TP,4,0,Found concurrent MPI collectives that use the same communicator*4,2.3,549036d
+COBE,ordering,erroneous,two_collectives_4,clock,4,PASS,TP,14,0,Found concurrent MPI collectives that use the same communicator*14,2.4,549036d
+COBE,ordering,erroneous,two_collectives_5,clock,4,PASS,TP,2,0,Found concurrent MPI collectives that use the same communicator*2,2.3,549036d
+COBE,ordering,erroneous,two_collectives_6,clock,4,PASS,TP,12,0,Found concurrent MPI collectives that use the same communicator*12,2.4,549036d
+COBE,ordering,erroneous,two_collectives_7,clock,4,PASS,TP,11,0,Found concurrent MPI collectives that use the same communicator*11,2.2,549036d
+COBE,threading,correct,threading_level_3,clock,4,PASS,TN,0,0,,2.3,549036d
+COBE,threading,erroneous,wrong_threading_level_3,clock,4,PASS,TP,2,0,Found concurrent mpi calls while MPI_THREAD_SERIALIZED was requested*2,6.7,549036d
+Own,ConComm,correct,concurrent_communicator,clock,4,PASS,TN,0,0,,2.4,549036d
+Own,ConComm,correct,concurrent_communicator_for_dynamic,clock,4,PASS,TN,0,0,,2.7,549036d
+Own,ConComm,correct,concurrent_communicator_for_nowait,clock,4,PASS,TN,0,0,,2.7,549036d
+Own,ConComm,correct,concurrent_communicator_sections,clock,4,PASS,TN,0,0,,2.6,549036d
+Own,ConComm,correct,concurrent_communicator_single,clock,4,PASS,TN,0,0,,3.4,549036d
+Own,ConComm,correct,concurrent_communicator_task_nesting,clock,4,PASS,TN,0,0,,2.7,549036d
+Own,ConComm,correct,concurrent_communicator_tasking_depend,clock,4,PASS,TN,0,0,,2.6,549036d
+Own,ConComm,correct,concurrent_communicator_tasking_locks,clock,4,PASS,TN,0,0,,2.6,549036d
+Own,ConComm,correct,concurrent_communicator_transitive,clock,4,FAIL,FP,1,0,Found concurrent MPI collectives that use the same communicator*1,2.5,549036d
+Own,ConComm,erroneous,concurrent_communicator_error,clock,4,PASS,TP,6,0,Found concurrent MPI collectives that use the same communicator*6,2.2,549036d
+Own,ConComm,erroneous,concurrent_communicator_for_dynamic_nowait_error,clock,4,PASS,TP,8,0,Found concurrent MPI collectives that use the same communicator*8,2.6,549036d
+Own,ConComm,erroneous,concurrent_communicator_sections_error,clock,4,PASS,TP,6,0,Found concurrent MPI collectives that use the same communicator*6,2.5,549036d
+Own,ConComm,erroneous,concurrent_communicator_task_nesting_error,clock,4,PASS,TP,2,0,Found concurrent MPI collectives that use the same communicator*2,2.6,549036d
+Own,ConComm,erroneous,concurrent_communicator_tasking_error,clock,4,PASS,TP,10,0,Found concurrent MPI collectives that use the same communicator*10,2.6,549036d
+Own,ConRecv,correct,concurrent_recv,clock,4,PASS,TN,0,0,,2.6,549036d
+Own,ConRecv,erroneous,concurrent_recv_any_tag_error,clock,4,PASS,TP,0,2,[MUST-REPORT] Warning: from: call MPI_Recv@0: Found concurrent MPI receives that use the same communciator  tag -1  and source 1*1;[MUST-REPORT] Warning: from: call MPI_Recv@1: Found concurrent MPI receives that use the same communciator  tag -1  and source 0*1,2.6,549036d
+Own,ConRecv,erroneous,concurrent_recv_error,clock,4,PASS,TP,0,2,[MUST-REPORT] Warning: from: call MPI_Recv@0: Found concurrent MPI receives that use the same communciator  tag 0  and source 1*1;[MUST-REPORT] Warning: from: call MPI_Recv@1: Found concurrent MPI receives that use the same communciator  tag 0  and source 0*1,2.8,549036d
+Own,RecvProbe,correct,concurrent_recv_probe,clock,4,PASS,TN,0,0,,2.6,549036d
+Own,RecvProbe,correct,concurrent_recv_probe_any_tag,clock,4,PASS,TN,0,0,,2.7,549036d
+Own,RecvProbe,erroneous,concurrent_recv_probe_any_tag_error,clock,4,PASS,TP,0,2,[MUST-REPORT] Warning: from: call MPI_Recv@0: Found concurrent MPI receive and probe calls that use the same communciator  tag -1  and source 1*1;[MUST-REPORT] Warning: from: call MPI_Recv@1: Found concurrent MPI receive and probe calls that use the same communciator  tag -1  and source 0*1,3.4,549036d
+Own,RecvProbe,erroneous,concurrent_recv_probe_error,clock,4,PASS,TP,0,2,[MUST-REPORT] Warning: from: call MPI_Recv@0: Found concurrent MPI receive and probe calls that use the same communciator  tag 0  and source 1*1;[MUST-REPORT] Warning: from: call MPI_Recv@1: Found concurrent MPI receive and probe calls that use the same communciator  tag 0  and source 0*1,3.6,549036d
+Own,ThreadLevel,correct,ThreadLevel_serialized,clock,4,PASS,TN,0,0,,3.0,549036d
+Own,ThreadLevel,correct,ThreadLevel_serialized_single,clock,4,PASS,TN,0,0,,3.4,549036d
+Own,ThreadLevel,correct,ThreadLevel_serialized_tasking_depend,clock,4,PASS,TN,0,0,,2.6,549036d
+Own,ThreadLevel,correct,ThreadLevel_serialized_tasking_locks,clock,4,PASS,TN,0,0,,2.6,549036d
+Own,ThreadLevel,correct,ThreadLevel_serialized_taskwait,clock,4,PASS,TN,0,0,,2.4,549036d
+Own,ThreadLevel,erroneous,ThreadLevel_serialized_error,clock,4,PASS,TP,21,0,Found concurrent mpi calls while MPI_THREAD_SERIALIZED was requested*21,2.6,549036d
+Own,ThreadLevel,erroneous,ThreadLevel_serialized_few_tasks_error,clock,4,PASS,TP,20,0,Found concurrent mpi calls while MPI_THREAD_SERIALIZED was requested*20,2.5,549036d
+Own,ThreadLevel,erroneous,ThreadLevel_serialized_many_tasks_error,clock,4,PASS,TP,20,0,Found concurrent mpi calls while MPI_THREAD_SERIALIZED was requested*20,2.8,549036d
+Own,ThreadLevel,erroneous,ThreadLevel_serialized_sections_error,clock,4,PASS,TP,2,0,Found concurrent mpi calls while MPI_THREAD_SERIALIZED was requested*2,2.4,549036d
+COBE,ordering,correct,deadlock_probe_2,counter,5,PASS,TN,0,0,,2.2,549036d
+COBE,ordering,correct,probe,counter,5,PASS,TN,0,0,,2.3,549036d
+COBE,ordering,correct,two_collectives,counter,5,PASS,TN,0,0,,2.4,549036d
+COBE,ordering,correct,two_collectives_2,counter,5,PASS,TN,0,0,,2.2,549036d
+COBE,ordering,correct,two_collectives_3,counter,5,PASS,TN,0,0,,2.3,549036d
+COBE,ordering,correct,two_collectives_4,counter,5,PASS,TN,0,0,,2.3,549036d
+COBE,ordering,correct,two_collectives_5,counter,5,PASS,TN,0,0,,2.3,549036d
+COBE,ordering,correct,two_collectives_6,counter,5,PASS,TN,0,0,,2.5,549036d
+COBE,ordering,correct,two_collectives_7,counter,5,PASS,TN,0,0,,2.5,549036d
+COBE,ordering,erroneous,deadlock_probe_2,counter,5,FAIL,FN,0,0,,6.7,549036d
+COBE,ordering,erroneous,probe,counter,5,FAIL,FN,0,0,,2.4,549036d
+COBE,ordering,erroneous,two_collectives,counter,5,FAIL,FN,0,0,,2.2,549036d
+COBE,ordering,erroneous,two_collectives_2,counter,5,FAIL,FN,0,0,,2.3,549036d
+COBE,ordering,erroneous,two_collectives_3,counter,5,FAIL,FN,0,0,,2.3,549036d
+COBE,ordering,erroneous,two_collectives_4,counter,5,FAIL,FN,0,0,,6.8,549036d
+COBE,ordering,erroneous,two_collectives_5,counter,5,FAIL,FN,0,0,,2.3,549036d
+COBE,ordering,erroneous,two_collectives_6,counter,5,FAIL,FN,0,0,,2.3,549036d
+COBE,ordering,erroneous,two_collectives_7,counter,5,FAIL,FN,0,0,,2.3,549036d
+COBE,threading,correct,threading_level_3,counter,5,PASS,TN,0,0,,2.3,549036d
+COBE,threading,erroneous,wrong_threading_level_3,counter,5,FAIL,FN,0,0,,6.7,549036d
+Own,ConComm,correct,concurrent_communicator,counter,5,PASS,TN,0,0,,2.4,549036d
+Own,ConComm,correct,concurrent_communicator_for_dynamic,counter,5,PASS,TN,0,0,,2.5,549036d
+Own,ConComm,correct,concurrent_communicator_for_nowait,counter,5,PASS,TN,0,0,,2.5,549036d
+Own,ConComm,correct,concurrent_communicator_sections,counter,5,PASS,TN,0,0,,2.6,549036d
+Own,ConComm,correct,concurrent_communicator_single,counter,5,PASS,TN,0,0,,3.4,549036d
+Own,ConComm,correct,concurrent_communicator_task_nesting,counter,5,PASS,TN,0,0,,2.7,549036d
+Own,ConComm,correct,concurrent_communicator_tasking_depend,counter,5,PASS,TN,0,0,,2.6,549036d
+Own,ConComm,correct,concurrent_communicator_tasking_locks,counter,5,PASS,TN,4,0,Operating on an uninitialized lock*4,2.6,549036d
+Own,ConComm,correct,concurrent_communicator_transitive,counter,5,PASS,TN,0,0,,2.3,549036d
+Own,ConComm,erroneous,concurrent_communicator_error,counter,5,FAIL,FN,0,0,,2.2,549036d
+Own,ConComm,erroneous,concurrent_communicator_for_dynamic_nowait_error,counter,5,FAIL,FN,0,0,,2.5,549036d
+Own,ConComm,erroneous,concurrent_communicator_sections_error,counter,5,FAIL,FN,0,0,,2.3,549036d
+Own,ConComm,erroneous,concurrent_communicator_task_nesting_error,counter,5,FAIL,FN,0,0,,2.6,549036d
+Own,ConComm,erroneous,concurrent_communicator_tasking_error,counter,5,FAIL,FN,0,0,,2.4,549036d
+Own,ConRecv,correct,concurrent_recv,counter,5,PASS,TN,0,0,,2.6,549036d
+Own,ConRecv,erroneous,concurrent_recv_any_tag_error,counter,5,FAIL,FN,0,0,,2.6,549036d
+Own,ConRecv,erroneous,concurrent_recv_error,counter,5,FAIL,FN,0,0,,2.8,549036d
+Own,RecvProbe,correct,concurrent_recv_probe,counter,5,PASS,TN,0,0,,2.5,549036d
+Own,RecvProbe,correct,concurrent_recv_probe_any_tag,counter,5,PASS,TN,0,0,,2.7,549036d
+Own,RecvProbe,erroneous,concurrent_recv_probe_any_tag_error,counter,5,FAIL,FN,0,0,,3.5,549036d
+Own,RecvProbe,erroneous,concurrent_recv_probe_error,counter,5,FAIL,FN,0,0,,3.6,549036d
+Own,ThreadLevel,correct,ThreadLevel_serialized,counter,5,PASS,TN,0,0,,3.0,549036d
+Own,ThreadLevel,correct,ThreadLevel_serialized_single,counter,5,PASS,TN,0,0,,3.3,549036d
+Own,ThreadLevel,correct,ThreadLevel_serialized_tasking_depend,counter,5,PASS,TN,0,0,,2.5,549036d
+Own,ThreadLevel,correct,ThreadLevel_serialized_tasking_locks,counter,5,PASS,TN,0,0,,2.5,549036d
+Own,ThreadLevel,correct,ThreadLevel_serialized_taskwait,counter,5,PASS,TN,0,0,,2.5,549036d
+Own,ThreadLevel,erroneous,ThreadLevel_serialized_error,counter,5,FAIL,FN,0,0,,2.6,549036d
+Own,ThreadLevel,erroneous,ThreadLevel_serialized_few_tasks_error,counter,5,FAIL,FN,0,0,,2.5,549036d
+Own,ThreadLevel,erroneous,ThreadLevel_serialized_many_tasks_error,counter,5,PASS,TP,6,0,Multiple threads call MPI functions simultaneously while you required MPI_THREAD_SERIALIZED*6,2.5,549036d
+Own,ThreadLevel,erroneous,ThreadLevel_serialized_sections_error,counter,5,FAIL,FN,0,0,,2.4,549036d
+COBE,ordering,correct,deadlock_probe_2,clock,5,PASS,TN,0,0,,2.1,549036d
+COBE,ordering,correct,probe,clock,5,PASS,TN,0,0,,2.3,549036d
+COBE,ordering,correct,two_collectives,clock,5,PASS,TN,0,0,,2.4,549036d
+COBE,ordering,correct,two_collectives_2,clock,5,PASS,TN,0,0,,2.3,549036d
+COBE,ordering,correct,two_collectives_3,clock,5,PASS,TN,0,0,,2.2,549036d
+COBE,ordering,correct,two_collectives_4,clock,5,PASS,TN,0,0,,2.3,549036d
+COBE,ordering,correct,two_collectives_5,clock,5,PASS,TN,0,0,,2.3,549036d
+COBE,ordering,correct,two_collectives_6,clock,5,PASS,TN,0,0,,2.5,549036d
+COBE,ordering,correct,two_collectives_7,clock,5,PASS,TN,0,0,,2.5,549036d
+COBE,ordering,erroneous,deadlock_probe_2,clock,5,PASS,TP,0,2,[MUST-REPORT] Warning: from: call MPI_Recv@1: Found concurrent MPI receive and probe calls that use the same communciator  tag 0  and source 0*1;[MUST-REPORT] Warning: from: call MPI_Recv@1: Found concurrent MPI receives that use the same communciator  tag 0  and source 0*1,6.7,549036d
+COBE,ordering,erroneous,probe,clock,5,PASS,TP,0,2,[MUST-REPORT] Warning: from: call MPI_Recv@1: Found concurrent MPI receive and probe calls that use the same communciator  tag 0  and source 0*1;[MUST-REPORT] Warning: from: call MPI_Recv@1: Found concurrent MPI receives that use the same communciator  tag 0  and source 0*1,2.6,549036d
+COBE,ordering,erroneous,two_collectives,clock,5,PASS,TP,6,0,Found concurrent MPI collectives that use the same communicator*6,2.2,549036d
+COBE,ordering,erroneous,two_collectives_2,clock,5,PASS,TP,1,0,Found concurrent MPI collectives that use the same communicator*1,2.2,549036d
+COBE,ordering,erroneous,two_collectives_3,clock,5,PASS,TP,4,0,Found concurrent MPI collectives that use the same communicator*4,6.8,549036d
+COBE,ordering,erroneous,two_collectives_4,clock,5,PASS,TP,14,0,Found concurrent MPI collectives that use the same communicator*14,2.4,549036d
+COBE,ordering,erroneous,two_collectives_5,clock,5,PASS,TP,1,0,Found concurrent MPI collectives that use the same communicator*1,2.3,549036d
+COBE,ordering,erroneous,two_collectives_6,clock,5,PASS,TP,10,0,Found concurrent MPI collectives that use the same communicator*10,2.4,549036d
+COBE,ordering,erroneous,two_collectives_7,clock,5,PASS,TP,13,0,Found concurrent MPI collectives that use the same communicator*13,2.4,549036d
+COBE,threading,correct,threading_level_3,clock,5,PASS,TN,0,0,,2.2,549036d
+COBE,threading,erroneous,wrong_threading_level_3,clock,5,PASS,TP,2,0,Found concurrent mpi calls while MPI_THREAD_SERIALIZED was requested*2,6.6,549036d
+Own,ConComm,correct,concurrent_communicator,clock,5,PASS,TN,0,0,,2.4,549036d
+Own,ConComm,correct,concurrent_communicator_for_dynamic,clock,5,PASS,TN,0,0,,2.6,549036d
+Own,ConComm,correct,concurrent_communicator_for_nowait,clock,5,PASS,TN,0,0,,2.6,549036d
+Own,ConComm,correct,concurrent_communicator_sections,clock,5,PASS,TN,0,0,,2.6,549036d
+Own,ConComm,correct,concurrent_communicator_single,clock,5,PASS,TN,0,0,,3.5,549036d
+Own,ConComm,correct,concurrent_communicator_task_nesting,clock,5,PASS,TN,0,0,,2.6,549036d
+Own,ConComm,correct,concurrent_communicator_tasking_depend,clock,5,PASS,TN,0,0,,2.6,549036d
+Own,ConComm,correct,concurrent_communicator_tasking_locks,clock,5,PASS,TN,0,0,,2.6,549036d
+Own,ConComm,correct,concurrent_communicator_transitive,clock,5,FAIL,FP,1,0,Found concurrent MPI collectives that use the same communicator*1,2.4,549036d
+Own,ConComm,erroneous,concurrent_communicator_error,clock,5,PASS,TP,6,0,Found concurrent MPI collectives that use the same communicator*6,2.3,549036d
+Own,ConComm,erroneous,concurrent_communicator_for_dynamic_nowait_error,clock,5,PASS,TP,8,0,Found concurrent MPI collectives that use the same communicator*8,2.6,549036d
+Own,ConComm,erroneous,concurrent_communicator_sections_error,clock,5,PASS,TP,6,0,Found concurrent MPI collectives that use the same communicator*6,2.4,549036d
+Own,ConComm,erroneous,concurrent_communicator_task_nesting_error,clock,5,PASS,TP,3,0,Found concurrent MPI collectives that use the same communicator*3,2.7,549036d
+Own,ConComm,erroneous,concurrent_communicator_tasking_error,clock,5,PASS,TP,9,0,Found concurrent MPI collectives that use the same communicator*9,2.5,549036d
+Own,ConRecv,correct,concurrent_recv,clock,5,PASS,TN,0,0,,2.6,549036d
+Own,ConRecv,erroneous,concurrent_recv_any_tag_error,clock,5,PASS,TP,0,2,[MUST-REPORT] Warning: from: call MPI_Recv@0: Found concurrent MPI receives that use the same communciator  tag -1  and source 1*1;[MUST-REPORT] Warning: from: call MPI_Recv@1: Found concurrent MPI receives that use the same communciator  tag -1  and source 0*1,2.6,549036d
+Own,ConRecv,erroneous,concurrent_recv_error,clock,5,PASS,TP,0,2,[MUST-REPORT] Warning: from: call MPI_Recv@0: Found concurrent MPI receives that use the same communciator  tag 0  and source 1*1;[MUST-REPORT] Warning: from: call MPI_Recv@1: Found concurrent MPI receives that use the same communciator  tag 0  and source 0*1,2.8,549036d
+Own,RecvProbe,correct,concurrent_recv_probe,clock,5,PASS,TN,0,0,,2.5,549036d
+Own,RecvProbe,correct,concurrent_recv_probe_any_tag,clock,5,PASS,TN,0,0,,2.7,549036d
+Own,RecvProbe,erroneous,concurrent_recv_probe_any_tag_error,clock,5,PASS,TP,0,2,[MUST-REPORT] Warning: from: call MPI_Recv@0: Found concurrent MPI receive and probe calls that use the same communciator  tag -1  and source 1*1;[MUST-REPORT] Warning: from: call MPI_Recv@1: Found concurrent MPI receive and probe calls that use the same communciator  tag -1  and source 0*1,3.5,549036d
+Own,RecvProbe,erroneous,concurrent_recv_probe_error,clock,5,PASS,TP,0,2,[MUST-REPORT] Warning: from: call MPI_Recv@0: Found concurrent MPI receive and probe calls that use the same communciator  tag 0  and source 1*1;[MUST-REPORT] Warning: from: call MPI_Recv@1: Found concurrent MPI receive and probe calls that use the same communciator  tag 0  and source 0*1,3.6,549036d
+Own,ThreadLevel,correct,ThreadLevel_serialized,clock,5,PASS,TN,0,0,,3.1,549036d
+Own,ThreadLevel,correct,ThreadLevel_serialized_single,clock,5,PASS,TN,0,0,,3.4,549036d
+Own,ThreadLevel,correct,ThreadLevel_serialized_tasking_depend,clock,5,PASS,TN,0,0,,2.6,549036d
+Own,ThreadLevel,correct,ThreadLevel_serialized_tasking_locks,clock,5,PASS,TN,0,0,,2.6,549036d
+Own,ThreadLevel,correct,ThreadLevel_serialized_taskwait,clock,5,PASS,TN,0,0,,2.5,549036d
+Own,ThreadLevel,erroneous,ThreadLevel_serialized_error,clock,5,PASS,TP,22,0,Found concurrent mpi calls while MPI_THREAD_SERIALIZED was requested*22,2.6,549036d
+Own,ThreadLevel,erroneous,ThreadLevel_serialized_few_tasks_error,clock,5,PASS,TP,21,0,Found concurrent mpi calls while MPI_THREAD_SERIALIZED was requested*21,2.5,549036d
+Own,ThreadLevel,erroneous,ThreadLevel_serialized_many_tasks_error,clock,5,PASS,TP,18,0,Found concurrent mpi calls while MPI_THREAD_SERIALIZED was requested*18,2.8,549036d
+Own,ThreadLevel,erroneous,ThreadLevel_serialized_sections_error,clock,5,PASS,TP,2,0,Found concurrent mpi calls while MPI_THREAD_SERIALIZED was requested*2,2.3,549036d
