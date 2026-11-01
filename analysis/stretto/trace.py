@@ -38,7 +38,7 @@ import os
 from array import array
 from bisect import bisect_left
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 
 from .chains import HB, THREAD_SIDE, add_edges, split
 
@@ -330,6 +330,9 @@ class Trace:
     chain_name: Dict[int, str] = field(default_factory=dict)
     chain_info: Dict[Tuple[int, int], dict] = field(default_factory=dict)
     hb: object = None
+    # ranks whose init record says the tracer recorded synchronisation through atomics
+    # (atomics:1, docs/threads.md section 17: the process has code compiled with the instrumentation)
+    atomics: Set[int] = field(default_factory=set)
     # lock reordering (docs/threads.md, section 13): hb_hard is the happens-before without the
     # edges between critical sections that both contain a record (chains.HB, the full one on a
     # process whose lock order is not known), locks per rank and lock id its critical sections
@@ -712,6 +715,8 @@ def _build(t: Trace, raw_ranks: Dict[int, List[dict]]) -> None:
                 t.thread_level = max(t.thread_level, r.get("thread", 0))
                 if "guard" in r:
                     t.guard[rank] = r["guard"]
+                if r.get("atomics"):
+                    t.atomics.add(rank)
             elif r["op"] == "overflow":
                 what = r.get("what")
                 if what in ("site table", "guard table"):

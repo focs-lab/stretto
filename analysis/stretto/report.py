@@ -282,6 +282,12 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
         if any(w.proc in t.chains for w in t.withdrawn()):
             rep.notes.append("several threads: receives withdrawn by a successful cancel are posted until their cancel "
                              "and ordered against concurrent receives and probes of their process (premise P-T11)")
+        # since 1 Nov 2026 the tracer records synchronisation through the atomics of code compiled
+        # with ThreadSanitizer's instrumentation (docs/threads.md section 17)
+        at = sorted(r for r in t.chains if r in t.atomics)
+        if at:
+            rep.notes.append(f"several threads: synchronisation through atomics recorded on ranks {', '.join(map(str, at))} "
+                             "(instrumented code only: the atomics of other code are not, premise P-T2)")
         limits = t.thread_limits
         if limits:
             for reason, detail in limits:
