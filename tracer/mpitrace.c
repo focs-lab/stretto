@@ -8,7 +8,9 @@
      init      np, thread (provided level), version (of this format, TRACE_VERSION),
                [issue:1] (MPI_THREAD_MULTIPLE: the issue lock and the blocking rewrite are on,
                and point-to-point records carry iseq), [lockorder:1] (records carry hafter and
-               locks where they apply), [threads:0] (STRETTO_THREADS=0: the
+               locks where they apply), [atomics:1] (code compiled with ThreadSanitizer's
+               instrumentation ran and its atomics are recorded, section "atomics": their edges
+               are in after and hafter), [threads:0] (STRETTO_THREADS=0: the
                synchronisation between threads is not followed, no record carries after).
    Threads (format 3, section "threads" at the end of the file). A rank's records form one
    chain per thread of control: a POSIX thread, the implicit task of OpenMP thread j > 0
@@ -44,7 +46,8 @@
                is no chain (a taskloop's), or after a detached task was created (once)
      unordered call: a posting the issue lock does not order (MPI_Sendrecv_replace; once)
      locks     locks: a chain's lock events after its last record, written when the chain ends
-     overflow  with what "chain table": more than 256 chains wrote records (later chains: tid -1)
+     overflow  with what "chain table": more than 256 chains wrote records (later chains: tid -1);
+               "atomics table": STRETTO_ATOMICS_MAX atomic locations have clocks (later ones: none)
      begin     call=<recv|wait|probe|coll|send> + the call's arguments; emitted BEFORE a
                potentially blocking call. The loader drops a begin followed by its
                record; an unpaired begin means the rank was killed inside that call.
@@ -221,6 +224,7 @@ typedef struct thr {
     lkev *hx; int nhx, caphx;     /* hard entries of this gap replaced by a later point of their chain ([i, s, kc, ka]) */
     int lkover;                   /* a list above overflowed: the loader keeps the lock order of the process */
     int lkseen;                   /* the chain has made a lock operation (sync_lock, sync_unlock) */
+    long at_relk, at_relrec;      /* k and nrec at the chain's last atomic release (section "atomics"), -1 none */
 } thr;
 static int g_nch __attribute__((unused)) = 0;             /* chain ids handed out */
 static int g_chain_over __attribute__((unused)) = 0;      /* more than MAXCH chains wrote records */
@@ -233,11 +237,24 @@ static int g_lockgates __attribute__((unused)) = 0;   /* the replay gates lock a
 TTLS(thr *, t_cur);               /* the chain this thread runs now */
 TTLS(thr *, t_self);              /* the thread's own chain (t_cur differs inside an OpenMP implicit task) */
 TTLS(int, t_mpidepth);            /* MPI wrappers of this thread in progress */
+/* atomics (section "atomics"): recording on, volatile accesses too, an instrumented module seen */
+static int g_at_on __attribute__((unused)) = 1, g_at_volatile __attribute__((unused)) = 1, g_at_seen __attribute__((unused)) = 0;
+static long g_at_max __attribute__((unused)) = 1L << 22;   /* STRETTO_ATOMICS_MAX */
+#define AT_RING 32                /* relaxed loads an acquire fence takes */
+#define AT_VPEND 64               /* volatile reads whose acquire waits */
+TTLS(int, t_at_busy);             /* inside the atomics' bookkeeping: operations are not recorded */
+TTLS(int, t_at_nvpend);
+TTLS(const volatile void *, t_at_vpend[AT_VPEND]);
+TTLS(int, t_at_nring);
+TTLS(const volatile void *, t_at_ring[AT_RING]);
+TTLS(int, t_at_fence_rel);        /* the thread made a release fence */
+TTLS(long, t_at_st[4]);
 #ifndef STRETTO_PIN_ONLY
 static thr *cur_chain(void);
 static void lk_resolve_soft(thr *c);
 static void lk_push(thr *c, long lid, long n, long k, long type, int *at);
 static void sync_log_close(void), sync_log_flush(void);
+static void at_vflush(void), at_stats(void);
 #endif
 
 static void *xrealloc(void *p, size_t n) {
@@ -374,6 +391,7 @@ static void rb_emit_kind(rec_t *b, int failed_poll) {
     stretto_pin_record(b->p, failed_poll);     /* both builds: the flip pins count the calls between failed polls */
 #ifndef STRETTO_PIN_ONLY
     thr *c = cur_chain();
+    if (t_at_nvpend) at_vflush();
     pthread_mutex_lock(&g_mu);
     if (g_out) {
         if (failed_poll && g_poll_body && g_poll_chain == c && strcmp(g_poll_body, b->p) == 0) {
@@ -1541,6 +1559,9 @@ static void open_trace(int provided) {
     REC(b, "init"); rb_printf(&b, ",\"np\":%d,\"thread\":%d,\"version\":%d", np, provided, TRACE_VERSION);
     if (g_issue) rb_printf(&b, ",\"issue\":1");
     if (g_threads_on) rb_printf(&b, ",\"lockorder\":1");
+#ifndef STRETTO_PIN_ONLY
+    if (g_threads_on && g_at_on && g_at_seen) rb_printf(&b, ",\"atomics\":1");
+#endif
     if (!g_threads_on) rb_printf(&b, ",\"threads\":0");
     if (g_guard_asked) rb_printf(&b, ",\"guard\":%d", g_guard);
     rb_emit(&b);
@@ -1598,6 +1619,7 @@ int MPI_Finalize(void) {
     REC(b, "finalize"); if (g_truncated) rb_printf(&b, ",\"truncated\":1"); rb_emit(&b);
 #ifndef STRETTO_PIN_ONLY
     sync_log_close();
+    at_stats();
 #endif
     pthread_mutex_lock(&g_mu);
     if (g_out && (ferror(g_out) | fclose(g_out)))
@@ -2787,6 +2809,12 @@ static void *g_tself_base = NULL;     /* this library's load address */
 __attribute__((constructor)) static void threads_init(void) {
     const char *e = getenv("STRETTO_THREADS");
     g_threads_on = !(e && strcmp(e, "0") == 0);
+    e = getenv("STRETTO_ATOMICS");
+    g_at_on = !(e && strcmp(e, "0") == 0);
+    e = getenv("STRETTO_ATOMICS_VOLATILE");
+    g_at_volatile = !(e && strcmp(e, "0") == 0);
+    e = getenv("STRETTO_ATOMICS_MAX");
+    if (e && atol(e) > 0) g_at_max = atol(e);
     Dl_info d;
     if (dladdr((void *)threads_init, &d)) g_tself_base = d.dli_fbase;
 }
@@ -2795,7 +2823,7 @@ static void vc_init(vclock *v);
 static thr *thr_new(thr *up, const char *kind) {
     thr *c = calloc(1, sizeof *c);
     if (!c) { fprintf(stderr, "stretto tracer: out of memory\n"); abort(); }
-    c->id = -1; c->parent = -1; c->up = up; c->kind = kind; c->refs = 1;
+    c->id = -1; c->parent = -1; c->up = up; c->kind = kind; c->refs = 1; c->at_relk = c->at_relrec = -1;
     if (up) __atomic_add_fetch(&up->refs, 1, __ATOMIC_ACQ_REL);
     vc_init(&c->vc); vc_init(&c->fin); memset(c->pend_s, 0xff, sizeof c->pend_s); memset(c->hpend_s, 0xff, sizeof c->hpend_s);
     return c;
@@ -2875,6 +2903,7 @@ static void lk_flush_hard(thr *c);
    critical section whose acquire waits for a record (sync_lock) has none before this
    operation: its edge stays in the hard half */
 static inline long sync_op_k(thr *c, int lockop) {
+    if (t_at_nvpend && !t_at_busy) at_vflush();    /* a volatile read before this operation acquires first */
     if (c->ndeferred) lk_flush_hard(c);
     if (lockop) c->lkseen = 1;
     else if (c->lkseen == 1 && c->id < 0) {
@@ -2993,6 +3022,163 @@ static void sync_rmw(vclock *obj) {
     thr *c = cur_chain(); long ka = sync_op(c);
     IL(&g_symu); vc_acquire(c, obj, ka); vc_join(obj, &c->vc); IU(&g_symu);
 }
+
+/* ---- atomics (docs/threads.md, section 17). The program, or the library that synchronises
+   its threads, is compiled with ThreadSanitizer's instrumentation and links libstretto-tsan.so
+   (tsan_rt.c, which this file includes below for the entry points): every atomic operation is
+   a call, and the tracer's definitions interpose the library's. An atomic location that a
+   recorded release touched has a clock (atloc: per chain s, k, hs, hk, as a vclock's
+   components), kept in a table of buckets by address with a spin lock per bucket, under which
+   the operation and its clock update are done. A release adds a synchronisation point to its
+   chain (sync_op), except right after another release with no record or other
+   synchronisation between: those are one point. An acquire that raises no component is not
+   recorded at all. Atomic edges are hard (both halves): an atomic is no critical section that
+   L1+L may reorder. Locations are never freed; past STRETTO_ATOMICS_MAX of them (default 2^22)
+   no new one gets a clock, and an overflow record ("atomics table") degrades the trace.
+   STRETTO_ATOMICS=0 turns the recording off (the operations are still performed),
+   STRETTO_ATOMICS_VOLATILE=0 that of volatile accesses, STRETTO_ATOMICS_STATS=1 prints counts
+   to stderr at MPI_Finalize. */
+typedef struct atloc {
+    const volatile void *a; struct atloc *next;
+    thr *who; long whok, whorec;  /* the chain whose clock this is, at its (k, nrec) then: a release with nothing new copies nothing */
+    int n; long v[];              /* 4 per chain: s, k, hs, hk */
+} atloc;
+#define AT_BUCKETS (1u << 20)
+static struct { int lk; atloc *head; } g_atb[AT_BUCKETS];
+static long g_at_nloc = 0;
+static int g_at_over = 0;
+static long g_at_st[4];           /* recorded acquires, of them raising, releases, volatile reads (t_at_st of ended threads) */
+static inline int at_on(void) { return g_at_on && !t_at_busy && tracking(); }
+static inline unsigned at_hash(const volatile void *a) {
+    return (unsigned)((((uintptr_t)a >> 3) * 0x9E3779B97F4A7C15ull) >> 44);
+}
+static inline unsigned at_lock0(const volatile void *a) {
+    unsigned h = at_hash(a);
+    t_at_busy = 1;
+    for (int n = 0; __atomic_exchange_n(&g_atb[h].lk, 1, __ATOMIC_ACQUIRE); )
+        while (__atomic_load_n(&g_atb[h].lk, __ATOMIC_RELAXED)) { if (++n % 256 == 0) sched_yield(); else __builtin_ia32_pause(); }
+    return h;
+}
+static inline unsigned at_lock(const volatile void *a) {
+    if (t_at_nvpend) at_vflush();     /* the volatile reads before this operation come first */
+    return at_lock0(a);
+}
+static inline void at_unlock(unsigned h) { __atomic_store_n(&g_atb[h].lk, 0, __ATOMIC_RELEASE); t_at_busy = 0; }
+static inline atloc **at_find(unsigned h, const volatile void *a) {
+    atloc **p = &g_atb[h].head;
+    while (*p && (*p)->a != a) p = &(*p)->next;
+    return p;
+}
+static void at_acquire_locked(unsigned h, const volatile void *a) {
+    atloc *e = *at_find(h, a);
+    t_at_st[0]++;
+    if (!e) return;
+    thr *c = cur_chain();
+    int n = e->n, m = vc_n(), i;
+    if (n > m) n = m;
+    const long *v = e->v;
+    for (i = 0; i < n; i++, v += 4)
+        if (vc_above(v[0], v[1], c->vc.s[i], c->vc.k[i]) || vc_above(v[2], v[3], c->vc.hs[i], c->vc.hk[i])) break;
+    if (i == n) return;
+    t_at_st[1]++;
+    long ka = sync_op(c);
+    for (; i < n; i++, v += 4) {
+        if (vc_above(v[0], v[1], c->vc.s[i], c->vc.k[i])) { c->vc.s[i] = v[0]; c->vc.k[i] = v[1]; pend_add(c, i, v[0], v[1], ka); }
+        if (vc_above(v[2], v[3], c->vc.hs[i], c->vc.hk[i])) { c->vc.hs[i] = v[2]; c->vc.hk[i] = v[3]; hpend_add(c, i, v[2], v[3], ka); }
+    }
+}
+static void at_release_locked(unsigned h, const volatile void *a, int join) {
+    thr *c = cur_chain();
+    t_at_st[2]++;
+    if (c->k != c->at_relk || c->nrec != c->at_relrec) { sync_op(c); c->at_relk = c->k; c->at_relrec = c->nrec; }
+    int m = vc_n();
+    atloc **p = at_find(h, a), *e = *p;
+    if (e && e->who == c && e->whok == c->k && e->whorec == c->nrec) return;   /* already this clock */
+    if (!e || e->n < m) {
+        if (!e && __atomic_add_fetch(&g_at_nloc, 1, __ATOMIC_RELAXED) > g_at_max) {
+            if (!__atomic_exchange_n(&g_at_over, 1, __ATOMIC_ACQ_REL)) {
+                IL(&g_mu);
+                if (g_out) fprintf(g_out, "{\"r\":%d,\"seq\":%ld,\"op\":\"overflow\",\"what\":\"atomics table\"}\n", g_rank, g_seq++);
+                IU(&g_mu);
+            }
+            return;
+        }
+        int from = e ? e->n : 0;
+        atloc *x = realloc(e, sizeof *x + 4 * (size_t)m * sizeof(long));
+        if (!x) { fprintf(stderr, "stretto tracer: out of memory\n"); abort(); }
+        for (int i = from; i < m; i++) { x->v[4 * i] = -1; x->v[4 * i + 1] = 0; x->v[4 * i + 2] = -1; x->v[4 * i + 3] = 0; }
+        if (!e) { x->a = a; x->who = NULL; x->next = g_atb[h].head; g_atb[h].head = x; }
+        else *p = x;
+        x->n = m; e = x;
+    }
+    long *v = e->v;
+    int mine = 1;                 /* the location's clock is now the chain's */
+    if (!join)
+        for (int i = 0; i < m; i++, v += 4) { v[0] = c->vc.s[i]; v[1] = c->vc.k[i]; v[2] = c->vc.hs[i]; v[3] = c->vc.hk[i]; }
+    else
+        for (int i = 0; i < m; i++, v += 4) {
+            if (vc_above(c->vc.s[i], c->vc.k[i], v[0], v[1])) { v[0] = c->vc.s[i]; v[1] = c->vc.k[i]; }
+            else if (v[0] != c->vc.s[i] || v[1] != c->vc.k[i]) mine = 0;
+            if (vc_above(c->vc.hs[i], c->vc.hk[i], v[2], v[3])) { v[2] = c->vc.hs[i]; v[3] = c->vc.hk[i]; }
+            else if (v[2] != c->vc.hs[i] || v[3] != c->vc.hk[i]) mine = 0;
+        }
+    e->who = mine ? c : NULL; e->whok = c->k; e->whorec = c->nrec;
+}
+/* volatile reads: their acquires wait for the thread's next recorded operation (at_lock), MPI
+   record (rb_emit_kind) or other synchronisation (sync_op_k) */
+static void at_vflush(void) {
+    int n = t_at_nvpend;
+    if (!n || t_at_busy) return;
+    const volatile void *p[AT_VPEND];
+    memcpy(p, t_at_vpend, n * sizeof *p);
+    t_at_nvpend = 0;
+    for (int i = 0; i < n; i++) { unsigned h = at_lock0(p[i]); at_acquire_locked(h, p[i]); at_unlock(h); }
+}
+static inline int at_fence_released(void) { return t_at_fence_rel; }
+static inline void at_note_relaxed(const volatile void *a) {
+    int n = t_at_nring;
+    if (n && t_at_ring[(n - 1) % AT_RING] == a) return;
+    t_at_ring[n % AT_RING] = a;
+    t_at_nring = n + 1;
+}
+static void at_fence(int acq, int rel) {
+    if (acq && t_at_nring) {
+        int n = t_at_nring < AT_RING ? t_at_nring : AT_RING;
+        const volatile void *p[AT_RING];
+        memcpy(p, t_at_ring, sizeof p);
+        t_at_nring = 0;
+        for (int i = 0; i < n; i++) { unsigned h = at_lock(p[i]); at_acquire_locked(h, p[i]); at_unlock(h); }
+    }
+    if (rel) t_at_fence_rel = 1;      /* every later relaxed store or RMW of the thread releases */
+}
+static void at_volatile_read(const volatile void *a) {
+    if (!g_at_volatile) return;
+    t_at_st[3]++;
+    if (t_at_nvpend) {
+        if (t_at_vpend[t_at_nvpend - 1] == a) return;
+        if (t_at_nvpend == AT_VPEND) at_vflush();
+    }
+    t_at_vpend[t_at_nvpend++] = a;
+}
+static void at_volatile_write(const volatile void *a) {
+    if (!g_at_volatile) return;
+    unsigned h = at_lock(a); at_release_locked(h, a, 0); at_unlock(h);
+}
+static void at_annotate(const volatile void *a, int release) {
+    unsigned h = at_lock(a);
+    if (release) at_release_locked(h, a, 1); else at_acquire_locked(h, a);
+    at_unlock(h);
+}
+static void at_seen(void) { g_at_seen = 1; }
+static void at_stats(void) {
+    const char *e = getenv("STRETTO_ATOMICS_STATS");
+    if (!e || strcmp(e, "1") != 0) return;
+    for (int i = 0; i < 4; i++) __atomic_add_fetch(&g_at_st[i], t_at_st[i], __ATOMIC_RELAXED);
+    fprintf(stderr, "stretto tracer: rank %d: atomics: instrumented %d, recording %d, locations %ld, acquires %ld (raising %ld), "
+            "releases %ld, volatile reads %ld\n", g_rank, g_at_seen, g_at_on && g_threads_on, g_at_nloc, g_at_st[0], g_at_st[1],
+            g_at_st[2], g_at_st[3]);
+}
+#include "tsan_rt.c"
 
 /* ---- critical sections (docs/threads.md, section 13). A mutual-exclusion lock (a mutex, a
    spin lock, an OpenMP lock or critical construct) is an object of sync_lock and sync_unlock:
@@ -3153,8 +3339,13 @@ static thr *thread_take(pthread_t t) {
     IU(&g_symu);
     return c;
 }
+static void at_stats_fold(void) {
+    for (int i = 0; i < 4; i++) { __atomic_add_fetch(&g_at_st[i], t_at_st[i], __ATOMIC_RELAXED); t_at_st[i] = 0; }
+}
 static void thread_end(thr *c) {       /* the thread's end is a release, which a join takes */
     if (!c) return;
+    at_vflush();
+    at_stats_fold();
     if (g_threads_on && !c->untracked) { sync_op(c); lk_end(c); }
     c->fin = c->vc;
     __atomic_store_n(&c->done, 1, __ATOMIC_RELEASE);
