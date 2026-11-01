@@ -30,6 +30,8 @@ def flatten(sig: Optional[str], count: int) -> Optional[List[Tuple[str, int]]]:
             items.append((name, k))
     if not items:
         return None
+    if len(items) == 1:        # one basic type: one run, without walking count copies (2 MB of MPI_CHAR)
+        return [(items[0][0], items[0][1] * count)] if count > 0 else []
     out: List[Tuple[str, int]] = []
     for _ in range(count):
         for name, k in items:

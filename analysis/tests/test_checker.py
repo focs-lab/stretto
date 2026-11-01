@@ -892,6 +892,16 @@ class C_TypeSignatures(unittest.TestCase):
         self.assertTrue(types.compatible("MPI_INT", 2, "MPI_INT", 4))          # a shorter message fits
         self.assertTrue(types.compatible("MPI_INT*2,MPI_DOUBLE", 1, "MPI_INT,MPI_INT,MPI_DOUBLE*3", 1))
 
+    def test_one_basic_type_is_one_run_whatever_the_count(self):
+        # GA's ComEx posts 2 MB MPI_CHAR receives; flattening walked every copy
+        self.assertEqual(types.flatten("MPI_CHAR", 1 << 21), [("MPI_CHAR", 1 << 21)])
+        self.assertEqual(types.flatten("MPI_INT*4", 3), [("MPI_INT", 12)])
+        self.assertEqual(types.flatten("MPI_INT,MPI_INT", 2), [("MPI_INT", 4)])
+        self.assertEqual(types.flatten("MPI_INT", 0), [])
+        self.assertEqual(types.flatten("MPI_INT,MPI_DOUBLE", 2),
+                         [("MPI_INT", 1), ("MPI_DOUBLE", 1), ("MPI_INT", 1), ("MPI_DOUBLE", 1)])
+        self.assertTrue(types.compatible("MPI_CHAR", 32, "MPI_CHAR", 1 << 30))
+
     def test_mismatch_and_unknown(self):
         self.assertFalse(types.compatible("MPI_INT*4", 1, "MPI_DOUBLE", 4))
         self.assertFalse(types.compatible("MPI_INT,MPI_DOUBLE", 1, "MPI_INT", 2))
