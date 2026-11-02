@@ -67,7 +67,7 @@ def _analyze(args):
     return t, report.analyze(t, with_sp=not args.no_sp, sp_max_events=args.sp_max_events,
                              max_states=args.max_states, generic=args.generic, full_profile=args.full_profile,
                              changes=args.changes, twin=twin, twin_label=label, reads=read_bounds(args, t),
-                             cross_check=args.cross_check)
+                             cross_check=args.cross_check, order=not getattr(args, "no_order", False))
 
 
 def read_bounds(args, t=None):
@@ -164,6 +164,8 @@ def cmd_sites(args):
 
 def _analysis_options(a):
     a.add_argument("--no-sp", action="store_true", help="skip the single-path explorer")
+    a.add_argument("--no-order", action="store_true",
+                   help="count the completion-order alternatives (Waitany/Testsome index, test flips) instead of judging them")
     a.add_argument("--sp-max-events", type=int, default=2000, help="skip the explorer on traces with more events")
     a.add_argument("--max-states", type=int, default=300_000, help="explorer state cap per forced alternative")
     a.add_argument("--full-profile", action="store_true",

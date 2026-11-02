@@ -68,6 +68,7 @@ class Report:
         tracer-overflow, unmatched-completions, creation-unknown, guard-off, threads, unmodelled,
         ready-send, explorer-skipped, explorer-incomplete, unconfirmed-rejections."""
         return "complete" if not self.degraded else "degraded:" + ",".join(r for r, _ in self.degraded)
+    # order-not-judged: completion-order alternatives counted, not judged (analyze(order=False))
 
     def by_class(self, cls: str) -> List[Finding]:
         return [f for f in self.findings if f.cls == cls]
@@ -134,7 +135,7 @@ def classify(r: Recv, s: Send, s_obs: Optional[Send]) -> Tuple[str, str]:
 
 def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_events: int = 2000,
             generic: bool = False, full_profile: bool = False, twin=None, changes: int = 1,
-            twin_label: str = "twin", reads=None, cross_check: bool = False) -> Report:
+            twin_label: str = "twin", reads=None, cross_check: bool = False, order: bool = True) -> Report:
     """Alternatives are judged by the indexed checker (stretto.fast), each profiled at the
     two ends of the B range and bisected between them (exact by theorem T2); full_profile=True
     judges every breakpoint, generic=True uses the generic checker (feasible.check) instead
@@ -154,6 +155,7 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
     finding when one of its witness executions respects the bounds (reads.witness_respects)."""
     rep = Report()
     rep.notes.extend(t.warnings)
+    chains_hb = False                    # the trace's ranks are split into chains (below)
     # what makes the trace an incomplete record of the run's communication (trace.Trace.incomplete:
     # missing-ranks, unmatched-completions, the message table's tracer-overflow, ...); no
     # alternative is predicted from it, below
@@ -298,6 +300,7 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
         rep.notes.append("several threads: alternatives are judged by the generic check without the single-path "
                          "explorer, read bounds or flag flips, and without replay pins (docs/threads.md)")
         generic, with_sp, reads, twin, changes = True, False, None, None, 1
+        chains_hb = True
     if multi:
         if t.thread_level >= 3:
             rep.notes.append(f"MPI_THREAD_MULTIPLE with several calling threads on ranks {multi}: per-rank program order is not total, alternatives are not predicted (observed findings only)")
@@ -340,11 +343,26 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
     # probe, completion order) judged at each threshold, threshold-major so that one
     # Observed(t, B) serves every check at B (stretto.fast), or the generic checker on request
     ob_inf = fast.Observed(t, None) if not generic else None     # also the profiles' B = inf
-    hb = ob_inf.reaches if not generic else observed_hb(t)
+    # with chains, the observed happens-before by vector clocks (threads.observed_reaches): the
+    # graph's own search per query took hours on the completion alternatives of the 70 000
+    # Testsome records of a MADNESS trace (experiments/madness)
+    hb = ob_inf.reaches if not generic else threads.observed_reaches(t) if chains_hb else observed_hb(t)
     alts, pruned = candidates_full(t, hb)
     rep.infeasible.extend((d, why) for d, why in pruned)
     probes = probe_items(t, hb)
     waits = wait_items(t, hb)
+    if not order and waits:
+        # completion order left out (--no-order): a communication thread that tests the same
+        # preposted receives in every Testsome (MADNESS) has hundreds of thousands, each a
+        # generic check of its own; receive and probe alternatives are judged as always
+        per = {}
+        for rec, j, _, _ in waits:
+            per[rec.rank] = per.get(rec.rank, 0) + 1
+        rep.notes.append(f"completion order not judged (--no-order): {len(waits)} candidate(s) of another index "
+                         "first or a test finding its receive done, by chain: "
+                         + ", ".join(f"{c} {n}" for c, n in sorted(per.items(), key=lambda x: str(x[0]))))
+        rep.degrade("order-not-judged", f"{len(waits)} completion-order candidates counted, not judged")
+        waits = []
     pr = _profiles_generic(t, alts, probes, waits, reads) if generic else \
         _profiles_fast(t, alts, probes, waits, full_profile, reads, ob_inf, cross_check)
     rep.notes.extend(pr.notes)

@@ -1055,18 +1055,21 @@ def probe_candidates(t: Trace) -> List[Tuple[Probe, Send]]:
 def _double_wait(t: Trace, waits: list, reqs_of) -> Optional[tuple]:
     """The first pair (a, b) of waits, in the order of the list, on two chains, sharing a request
     and concurrent; None if there is none. Only waits that share a request are compared: the
-    pairs of every wait (tens of thousands on a rank of GA's threadsafec) were quadratic."""
+    pairs of every wait (tens of thousands on a rank of GA's threadsafec) were quadratic, and so
+    are those of a request that one chain alone tests over and over (MADNESS's communication
+    thread tests the same receives in each of 70 000 waits): a request waited on by one chain
+    only is left out, as are the pairs of one chain."""
     by_req: Dict[int, List[int]] = {}
     reqs = [reqs_of(w) for w in waits]
     for i, rs in enumerate(reqs):
         for q in rs:
             by_req.setdefault(q, []).append(i)
+    by_req = {q: ix for q, ix in by_req.items() if len({waits[i].rank for i in ix}) > 1}
     for i, a in enumerate(waits):
-        later = sorted({j for q in reqs[i] for j in by_req[q] if j > i})
+        later = sorted({j for q in reqs[i] if q in by_req for j in by_req[q] if j > i and waits[j].rank != a.rank})
         for j in later:
-            b = waits[j]
-            if a.rank != b.rank and concurrent(t, a, b):
-                return a, b
+            if concurrent(t, a, waits[j]):
+                return a, waits[j]
     return None
 
 

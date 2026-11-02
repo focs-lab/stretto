@@ -651,6 +651,21 @@ class C_ProbeAndCompletionOrder(unittest.TestCase):
         self.assertTrue(w[0].title.startswith("waitsome at rank 0"))
         self.assertEqual((w[0].B, w[0].pin, w[0].level), ("any B", None, "L1"))
 
+    def test_completion_order_counted_not_judged(self):
+        """analyze(order=False), --no-order: the completion-order candidates are counted in a
+        note and the report says it is degraded; the other alternatives are judged as before."""
+        t = mk({0: [irecv(1, 1, 0), irecv(2, 1, 1), wait((0, 1, 1), kind="waitsome", reqs=[0, 1]), wait((1, 2, 1)),
+                    recv(T.ANY, 2, 3, 2), recv(T.ANY, 2, 4, 2)],
+                1: [send(0, 1)], 2: [send(0, 1)], 3: [send(0, 2)], 4: [send(0, 2)]})
+        full, part = analyze(t, with_sp=False), analyze(t, with_sp=False, order=False)
+        self.assertEqual(len(full.by_class("waitany-order")), 1)
+        self.assertEqual(part.by_class("waitany-order"), [])
+        self.assertEqual(part.status(), "degraded:order-not-judged")
+        self.assertTrue(any("completion order not judged" in n and "0 1" in n for n in part.notes), part.notes)
+        others = lambda r: sorted((f.cls, f.title) for f in r.findings if f.cls != "waitany-order")
+        self.assertTrue(others(full))
+        self.assertEqual(others(full), others(part))
+
 
 class C_CancelAndMprobe(unittest.TestCase):
     def test_cancelled_send_is_not_a_candidate(self):
@@ -1274,6 +1289,26 @@ class C_DeprivedIrecv(unittest.TestCase):
         fast_equals_generic(self, t)
         closure_equals_fixpoint(self, t)
         closure_orders_agree(self, t)
+
+
+    def test_long_chain_of_deprived_receives(self):
+        """A receive left without its message deprives the next of the same envelope, which
+        deprives the next, and so on (MADNESS's communication thread preposts tens of thousands
+        of them): rule 6 runs on an explicit stack, so 1 500 in a row (3 000 calls deep as a
+        recursion, past Python's default limit) are all deprived, as the reference finds."""
+        from stretto.horizon import compute_cut, compute_cut_fixpoint
+        n = 1500
+        t = mk({0: [irecv(1, 0, q) for q in range(n + 1)] + [wait(*[(q, 1, 0) for q in range(n + 1)], kind="waitall")],
+                1: [send(0, 0) for _ in range(n + 1)]})
+        r0 = t.recvs[(0, 0)]
+        M = {rk: sk for rk, sk in t.observed.items() if rk != r0.key}
+        res = []
+        for f in (compute_cut, compute_cut_fixpoint):
+            deprived = set()
+            cut = f(t, M, {r0.key}, None, "L1", deprived=deprived)
+            res.append((cut, deprived))
+        self.assertEqual(res[0], res[1])
+        self.assertEqual(len(res[0][1]), n)
 
 
 class C_MatchNodes(unittest.TestCase):
