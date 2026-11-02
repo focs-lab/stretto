@@ -144,6 +144,21 @@ class MbiWithReexecution(unittest.TestCase):
         c = score.confusion(rs, score.l2_verdict)
         self.assertEqual((c["tp"], c["fp"], c["fn"], c["tn"], c["crash"]), (2, 0, 0, 1, 1))
 
+    def test_the_summary_scores_the_same_run_without_l2(self):
+        """An L2 deadlock is class 1d: without L2 the row keeps only the other levels' classes."""
+        summ = module("experiments/mbi/l2_summary.py", "l2_summary_under_test")
+        rs = [{"name": "a", "expect": "ERROR", "build": "ok", "classes": "1d 1f", "levels": "L1:1f L2:1d", "l2": "deadlock",
+               "commit": "c"},
+              {"name": "b", "expect": "ERROR", "build": "ok", "classes": "1d 1f", "levels": "L1+SP:1d L1:1f L2:1d",
+               "l2": "deadlock", "commit": "c"},
+              {"name": "c", "expect": "ERROR", "build": "ok", "classes": "1e 1f", "levels": "L1:1f L2:1e", "l2": "abort",
+               "commit": "c"},
+              {"name": "d", "expect": "OK", "build": "ok", "classes": "1f", "levels": "L1:1f", "l2": "", "commit": "c"}]
+        self.assertEqual(summ.without_l2(rs[0])["classes"], "1f")
+        s = summ.summary(rs)
+        self.assertEqual((s["reported"], s["reported_l2"], s["false_alarms"], s["false_alarms_l2"]), (1, 3, 0, 0))
+        self.assertEqual(s["only_l2"], "a c")
+
     def test_run_mbi_rerun_reports_the_payload_check(self):
         """The E7 program MessageRace_Recv_Send_nok (rank 0 aborts unless the last payload is
         3), traced in a run that finished, with Python ranks for the shim (test_rerun): L1 flags

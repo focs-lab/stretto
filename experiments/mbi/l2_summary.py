@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """MBI with level L2 by re-execution, over repeated traced runs: one row per table of
-run_mbi.py --rerun (experiments/results/l2auto/mbi-<k>.csv), scored with score.verdict (the
-union, as the corpus table is scored) and score.l2_verdict (the union and the L2 aborts) on
-the same traced run. Columns: labelled errors reported and false alarms on the correct programs
+run_mbi.py --rerun (experiments/results/l2auto/mbi-<k>.csv), scored on the same traced run
+without L2 (score.verdict, as the corpus table is scored, of the findings of the other levels)
+and with it (score.l2_verdict: also the L2 deadlocks and aborts). Columns: labelled errors reported and false alarms on the correct programs
 by each, the errors only L2 reports and those neither reports, the re-executions and the
 seconds of analysis summed over the programs, and the commits of the rows. A last row, "mean",
 averages the counts over the runs.
@@ -22,14 +22,22 @@ KEYS = ["run", "programs", "errors", "correct", "reported", "false_alarms", "rep
         "only_l2", "missed_l2", "crash", "rerun_runs", "rerun_seconds", "commit"]
 
 
+def without_l2(r: dict) -> dict:
+    """The row as an analysis without a twin would have written it: no L2 class (an L2
+    deadlock is class 1d, which other levels have too) and no L2 column."""
+    lv = [x for x in r.get("levels", "").split() if not x.startswith("L2:")]
+    return {**r, "levels": " ".join(lv), "classes": " ".join(sorted({x.split(":", 1)[1] for x in lv})), "l2": ""}
+
+
 def summary(rows) -> dict:
     rs = score.compiled(rows)
-    a, b = score.confusion(rs, score.verdict), score.confusion(rs, score.l2_verdict)
-    err = [r for r in rs if r["expect"] == "ERROR"]
+    base = [without_l2(r) for r in rs]
+    a, b = score.confusion(base, score.verdict), score.confusion(rs, score.l2_verdict)
+    err = [(r, x) for r, x in zip(rs, base) if r["expect"] == "ERROR"]
     return {"programs": len(rs), "errors": len(err), "correct": len(rs) - len(err),
             "reported": a["tp"], "false_alarms": a["fp"], "reported_l2": b["tp"], "false_alarms_l2": b["fp"],
-            "only_l2": " ".join(r["name"] for r in err if score.verdict(r) == "OK" and score.l2_verdict(r) == "ERROR"),
-            "missed_l2": " ".join(r["name"] for r in err if score.l2_verdict(r) == "OK"),
+            "only_l2": " ".join(r["name"] for r, x in err if score.verdict(x) == "OK" and score.l2_verdict(r) == "ERROR"),
+            "missed_l2": " ".join(r["name"] for r, _ in err if score.l2_verdict(r) == "OK"),
             "crash": a["crash"],
             "rerun_runs": sum(int(r.get("rerun_runs") or 0) for r in rs),
             "rerun_seconds": f"{sum(float(r.get('rerun_seconds') or 0) for r in rs):.0f}",
