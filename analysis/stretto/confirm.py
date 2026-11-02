@@ -185,13 +185,14 @@ def _ident_text(ident: Ident, n: Optional[int] = None) -> str:
 
 def _pin_kind(name: str) -> str:
     return {"STRETTO_PIN_PROBE": "probe", "STRETTO_PIN_FLIP": "flip", "STRETTO_PIN_CHAIN": "crecv",
-            "STRETTO_PIN_ORDER": "order", "STRETTO_PIN_LOCK": "order"}.get(name, "recv")
+            "STRETTO_PIN_ORDER": "order", "STRETTO_PIN_LOCK": "order", "STRETTO_PIN_TASKS": "order"}.get(name, "recv")
 
 
 def pin_tokens(pins) -> List[PinToken]:
     """The tokens of "STRETTO_PIN=...", "STRETTO_PIN_PROBE=...", "STRETTO_PIN_FLIP=..." and
     "STRETTO_PIN_CHAIN=..." assignments (one, a list, or None), in both formats. The order
-    and lock gates (STRETTO_PIN_ORDER, STRETTO_PIN_LOCK) pin no operation and give no token."""
+    and lock gates (STRETTO_PIN_ORDER, STRETTO_PIN_LOCK) and the task priorities
+    (STRETTO_PIN_TASKS) pin no operation and give no token."""
     out = []
     for a in ([pins] if isinstance(pins, str) else (pins or [])):
         name, _, spec = a.partition("=")
@@ -745,6 +746,9 @@ def _envelope_pinnable(t) -> Set:
 # horizon as well (the chains the alternative leaves as they were go on as recorded); "none"
 # leaves both free beyond the horizon, as before. STRETTO_REPLAY_TAILS sets the default.
 TAILS = os.environ.get("STRETTO_REPLAY_TAILS", "control")
+# whether replays give libgomp the trace's task start order as priorities (task_tokens);
+# STRETTO_REPLAY_TASKS=0 turns it off
+TASK_ORDER = os.environ.get("STRETTO_REPLAY_TASKS", "1") != "0"
 
 
 def _chain_specs(t, M, chk, keep, B, probe_alt, tails: Optional[str] = None):
@@ -840,6 +844,7 @@ def _chain_specs(t, M, chk, keep, B, probe_alt, tails: Optional[str] = None):
                 have_a = set(alt_gates)
                 alt_gates = alt_gates + [x + "~" for x, (_, (_, b)) in zip(gf, pf)
                                          if x not in have_a and b.idx >= cut[b.rank] and b.key not in keep]
+    tasks = task_tokens(t) if TASK_ORDER else []
     pinnable = _probe_pinnable(t)
     # with the lock order fixed, a probe is also pinned by its envelope ordinal where the probes of
     # its envelope follow one another
@@ -879,6 +884,8 @@ def _chain_specs(t, M, chk, keep, B, probe_alt, tails: Optional[str] = None):
             out.append("STRETTO_PIN_ORDER=" + ",".join(gates))
         if lk:
             out.append("STRETTO_PIN_LOCK=" + ",".join(lk))
+        if tasks and locks is not None:
+            out.append("STRETTO_PIN_TASKS=" + ",".join(tasks))
         return out
 
     return specs(True), specs(False), required
@@ -952,6 +959,7 @@ def with_sync(t, tracedir: str):
                 seq[(ch, i)] = place[k] if k < len(place) else -1
     t.__dict__["_stretto_sync"] = sync
     t.__dict__["_stretto_seq"] = seq
+    t.__dict__["_stretto_tasks"] = read_tasks(tracedir)
     return t
 
 
@@ -1046,6 +1054,36 @@ def lock_tokens(t, cut, stops=frozenset(), tail: bool = False, tail_fails: bool 
             out.append(f"{proc}:{text}")
     return out
 
+
+def read_tasks(tracedir: str) -> Optional[Dict[int, List[str]]]:
+    """The task start logs of the trace in tracedir (tasks-<r>.txt, STRETTO_SYNC_ORDER=1): per
+    rank, the OpenMP task chains in the order they started; None when the run wrote none."""
+    out: Dict[int, List[str]] = {}
+    try:
+        names = [f for f in os.listdir(tracedir) if f.startswith("tasks-") and f.endswith(".txt")]
+    except OSError:
+        return None
+    for f in names:
+        with open(os.path.join(tracedir, f)) as fh:
+            rows = [ln.strip() for ln in fh if ln.strip() and not ln.startswith("#")]
+        if rows:
+            out[int(f[len("tasks-"):-len(".txt")])] = rows
+    return out or None
+
+
+def task_tokens(t) -> List[str]:
+    """The STRETTO_PIN_TASKS tokens of trace t: every task chain with its place in its rank's
+    start order ("proc:name#pos"), which the replay gives libgomp as priorities so that among
+    ready tasks a free thread starts the one the trace started first (docs/threads.md, section
+    19; premise P-T7)."""
+    out = []
+    for proc, names in sorted((t.__dict__.get("_stretto_tasks") or {}).items()):
+        seen = set()
+        for i, n in enumerate(names):
+            if n not in seen:
+                seen.add(n)
+                out.append(f"{proc}:{n}#{i}")
+    return out
 
 def sync_divergence(t, pins) -> List[str]:
     """The chain pins whose receive, in a replay's own trace t, has another happens-before on
@@ -1805,6 +1843,10 @@ def run_checked(np: int, exe: str, args: List[str], pin, timeout: int = 20, mpi:
         # one that stays closed while nothing moves gives way first (docs/threads.md, section 19)
         extra_env = {"STRETTO_GATE_TIMEOUT_MS": str(int(timeout * 800)), "STRETTO_GATE_YIELD_MS": str(GATE_YIELD_MS),
                      **(extra_env or {})}
+    tasks = next((a for a in assignments if a.startswith("STRETTO_PIN_TASKS=")), None)
+    if tasks:
+        # libgomp clamps a task's priority to OMP_MAX_TASK_PRIORITY
+        extra_env = {"OMP_MAX_TASK_PRIORITY": str(tasks.count(",") + 2), **(extra_env or {})}
     if not os.path.exists(tracer):
         r = run_pinned(np, exe, args, pin, timeout, mpi, mpirun_args, extra_env, cwd)
         res = classify_rc(r.returncode, r.stderr, r.elapsed, timeout)

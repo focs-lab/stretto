@@ -666,5 +666,25 @@ class Yields(unittest.TestCase):
         self.assertEqual(C.gates_yielded(r.proc.stderr), (0, 1), r.proc.stderr[-800:])
 
 
+class TaskOrder(unittest.TestCase):
+    """The trace's task start order (tasks-<r>.txt) is given to libgomp as priorities in the
+    replay and the control of idiom 45's tasks (docs/threads.md, section 19)."""
+
+    def test_the_tasks_get_the_trace_order(self):
+        from stretto import report, trace
+        exe, tdir = idiom(self, 45)
+        t = C.with_sync(trace.load(tdir), tdir)
+        self.assertTrue(C.read_tasks(tdir), tdir)
+        f = next(f for f in report.analyze(t, with_sp=False).findings if f.cls == "1a" and f.level == "L1")
+        alt, ctl = C.horizon_pins(t, f)
+        for pins in (alt, ctl):
+            self.assertTrue(any(x.startswith("STRETTO_PIN_TASKS=") for x in pins), pins)
+        r = C.run_checked(3, exe, [], ctl, 30)
+        self.assertEqual(r.result, "FINISHED", r.proc.stderr[-800:])
+        m = re.search(r"(\d+) task priorities active \(OpenMP's maximum (\d+)\)", r.proc.stderr)
+        self.assertTrue(m, r.proc.stderr[-800:])
+        self.assertGreaterEqual(int(m.group(2)), int(m.group(1)))
+
+
 if __name__ == "__main__":
     unittest.main()

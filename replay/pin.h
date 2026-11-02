@@ -134,7 +134,13 @@
                                            STRETTO_GATE_SOFT_MS (default STRETTO_GATE_YIELD_MS) of
                                            waiting in any case, and the soft gates that wait for
                                            the same chain (lock) are then open. At MPI_Finalize:
-                                           "gates yielded: H hard, S soft". */
+                                           "gates yielded: H hard, S soft".
+   STRETTO_PIN_TASKS="rank:name#pos,..."   the trace's start order of the OpenMP tasks (the
+                                           tracer's tasks-<r>.txt): the task chain created as
+                                           name gets libgomp priority (max pos + 1 - pos), so that
+                                           among ready tasks a free thread starts the one the
+                                           trace started first. Needs OMP_MAX_TASK_PRIORITY at
+                                           least the number of tasks. */
 #ifndef STRETTO_PIN_H
 #define STRETTO_PIN_H
 #include <mpi.h>
@@ -190,6 +196,9 @@ int  stretto_pin_locks_on(void);
 int  stretto_pin_lock(long n, const void *key, int is_try, int poll);
 /* Attempt n has returned, ok if it took the lock: the gates that wait for it open. */
 void stretto_pin_locked(long n, int ok);
+/* The priority libgomp is to give the task chain created as name (STRETTO_PIN_TASKS), or -1:
+   none (the program's own). */
+int  stretto_pin_task_priority(const char *name);
 /* The receive ordinal the next stretto_pin_recv of this thread applies chain pins to, for a
    call that gates several receives before posting them (MPI_Startall). */
 void stretto_pin_use_ord(int ord);

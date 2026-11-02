@@ -879,7 +879,7 @@ class LockGates(unittest.TestCase):
 
 
 class LockTokens(unittest.TestCase):
-    """lock_tokens and the report lines (docs/threads.md, section 19): the soft tail
+    """lock_tokens, task tokens and the report lines (docs/threads.md, section 19): the soft tail
     beyond the horizon and failed tries beyond it."""
 
     def trace(self):
@@ -907,6 +907,20 @@ class LockTokens(unittest.TestCase):
         self.assertEqual(C.lock_tokens(t, none), [])
         self.assertEqual(C.lock_tokens(t, none, tail=True), [f"0:~{a}#{na}>{b}#{nb}>{a}#{na + 1}"])
         self.assertEqual(C.lock_tokens(t, none, tail=True, tail_fails=True)[0], f"0:{b}#{nb + 1}!")
+
+    def test_task_tokens(self):
+        with tempfile.TemporaryDirectory() as d:
+            with open(os.path.join(d, "tasks-0.txt"), "w") as fh:
+                fh.write("# stretto task starts 1: chain\n0~0\n0~1\n")
+            with open(os.path.join(d, "tasks-1.txt"), "w") as fh:
+                fh.write("# stretto task starts 1: chain\n")
+            self.assertEqual(C.read_tasks(d), {0: ["0~0", "0~1"]})
+            t = T.load(os.path.join(GOLDEN, "openmpi", "45_omp_tasks_lock_roles"))
+            t.__dict__["_stretto_tasks"] = C.read_tasks(d)
+            self.assertEqual(C.task_tokens(t), ["0:0~0#0", "0:0~1#1"])
+        # task priorities pin nothing: a control that has them and nothing else took every pin
+        self.assertTrue(C.all_matched(["STRETTO_PIN_LOCK=0:0~0#0", "STRETTO_PIN_TASKS=0:0~0#0,0:0~1#1"], ""))
+        self.assertEqual(C.pin_tokens(["STRETTO_PIN_TASKS=0:0~0#0"]), [])
 
     def test_yield_lines(self):
         err = ("[stretto-pin] rank 0 chain 0.1: gate yielded after 1000 ms: r#0 waits for r#3 of chain 0.0, which has posted 1; "

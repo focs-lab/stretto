@@ -969,6 +969,49 @@ static void locks_finalize(void) {
                 g_rank, treached, tlisted, g_ltails_dead);
 }
 
+/* ---- task priorities (STRETTO_PIN_TASKS; docs/threads.md, section 19). A gated task holds its
+   thread, and libgomp starts whichever ready task a free thread finds first: a replay whose
+   threads started tasks that come later in the trace fills the team with tasks that wait at
+   their gates for tasks no thread is free to start (premise P-T7). The trace's start order of
+   the tasks (the tracer's tasks-<r>.txt) is given to libgomp as priorities, the earliest task
+   the highest, so that among the ready tasks a free thread starts the one the trace started
+   first, and the team's threads hold the tasks the trace ran at that point. A task the tokens
+   do not name keeps its own priority. libgomp clamps priorities to OMP_MAX_TASK_PRIORITY, which
+   the harness sets. */
+struct tprio { char name[CHAIN_NAME]; int prio; };
+static struct tprio *g_tprio = NULL;         /* by name */
+static int g_ntprio = 0;
+static int by_tname(const void *a, const void *b) { return strcmp(((const struct tprio *)a)->name, ((const struct tprio *)b)->name); }
+static void tasks_init(int rank) {
+    char *spec = pin_spec("STRETTO_PIN_TASKS", rank), *save = NULL;
+    int cap = 0, maxpos = -1;
+    g_ntprio = 0;
+    for (char *tok = spec ? strtok_r(spec, ", \n", &save) : NULL; tok; tok = strtok_r(NULL, ", \n", &save)) {
+        char *colon = strchr(tok, ':'), *hash = strrchr(tok, '#');
+        if (!colon || !hash || hash < colon) bad_token("STRETTO_PIN_TASKS", tok);
+        if (atoi(tok) != rank) continue;
+        if (g_ntprio == cap) { cap = cap ? 2 * cap : 64; g_tprio = realloc(g_tprio, sizeof *g_tprio * cap); }
+        struct tprio *t = &g_tprio[g_ntprio++];
+        snprintf(t->name, sizeof t->name, "%.*s", (int)(hash - colon - 1), colon + 1);
+        t->prio = atoi(hash + 1);              /* the position for now */
+        if (t->prio > maxpos) maxpos = t->prio;
+    }
+    free(spec);
+    for (int i = 0; i < g_ntprio; i++) g_tprio[i].prio = maxpos + 1 - g_tprio[i].prio;
+    if (g_ntprio > 1) qsort(g_tprio, g_ntprio, sizeof *g_tprio, by_tname);
+    if (g_ntprio) {
+        int (*maxp)(void) = (int (*)(void))dlsym(RTLD_DEFAULT, "omp_get_max_task_priority");
+        int m = maxp ? maxp() : -1;
+        fprintf(stderr, "[stretto-pin] rank %d: %d task priorities active (OpenMP's maximum %d)\n", rank, g_ntprio, m);
+    }
+}
+HIDDEN int stretto_pin_task_priority(const char *name) {
+    if (!g_ntprio || !name) return -1;
+    int lo = 0, hi = g_ntprio;
+    while (lo < hi) { int mid = (lo + hi) / 2; if (strcmp(g_tprio[mid].name, name) < 0) lo = mid + 1; else hi = mid; }
+    return lo < g_ntprio && strcmp(g_tprio[lo].name, name) == 0 ? g_tprio[lo].prio : -1;
+}
+
 static void chains_init(int rank) {
     char *spec = pin_spec("STRETTO_PIN_CHAIN", rank), *save = NULL;
     int cap = 0;
@@ -1014,6 +1057,7 @@ static void chains_init(int rank) {
     if ((ms = getenv("STRETTO_GATE_SOFT_MS"))) g_soft_ms = atol(ms);
     progress_locked();
     locks_init(rank);
+    tasks_init(rank);
     g_chains_on = g_ncpins > 0 || g_ngates > 0 || g_locks_on || getenv("STRETTO_PIN_CHAIN") || getenv("STRETTO_PIN_ORDER")
                   || getenv("STRETTO_PIN_LOCK");
     if (g_chains_on && !stretto_chain_name()) {

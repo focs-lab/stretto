@@ -239,6 +239,7 @@ static int g_omp_merge __attribute__((unused)) = 0;   /* STRETTO_OMP_CHAINS=thre
 static int g_issue = 0;           /* MPI_THREAD_MULTIPLE with g_threads_on: issue lock and blocking rewrite */
 static int g_level = -1;          /* the provided thread level, -1 before MPI_Init */
 static FILE *g_sync __attribute__((unused)) = NULL;   /* STRETTO_SYNC_ORDER=1: the rank's lock acquisitions, in order (section "lock order") */
+static FILE *g_tasks __attribute__((unused)) = NULL;  /* STRETTO_SYNC_ORDER=1: the rank's OpenMP tasks in the order they started */
 static int g_lockgates __attribute__((unused)) = 0;   /* the replay gates lock acquisitions (STRETTO_PIN_LOCK) */
 #define TTLS(type, name) static __thread type name __attribute__((tls_model("initial-exec"), unused))
 TTLS(thr *, t_cur);               /* the chain this thread runs now */
@@ -1557,6 +1558,11 @@ static void open_trace(int provided) {
             if (!f) { fprintf(stderr, "stretto tracer: rank %d: cannot write %s: ", g_rank, path); perror(NULL); }
             else fprintf(f, "# stretto sync order 1: lock chain ordinal seq [f]\n");
             __atomic_store_n(&g_sync, f, __ATOMIC_RELEASE);   /* other threads may lock already */
+            snprintf(path, sizeof path, "%s/tasks-%d.txt", dir, g_rank);
+            FILE *ft = fopen(path, "w");
+            if (!ft) { fprintf(stderr, "stretto tracer: rank %d: cannot write %s: ", g_rank, path); perror(NULL); }
+            else fprintf(ft, "# stretto task starts 1: chain\n");
+            __atomic_store_n(&g_tasks, ft, __ATOMIC_RELEASE);
         }
         g_lockgates = g_threads_on && stretto_pin_locks_on();
     }
@@ -3384,12 +3390,23 @@ static void acq_renew(const void *key) {
 }
 static void sync_log_close(void) {
     IL(&g_symu);
-    FILE *f = g_sync;
+    FILE *f = g_sync, *ft = g_tasks;
     __atomic_store_n(&g_sync, NULL, __ATOMIC_RELEASE);
+    __atomic_store_n(&g_tasks, NULL, __ATOMIC_RELEASE);
     if (f) fclose(f);
+    if (ft) fclose(ft);
     IU(&g_symu);
 }
-static void sync_log_flush(void) { IL(&g_symu); if (g_sync) fflush(g_sync); IU(&g_symu); }
+static void sync_log_flush(void) { IL(&g_symu); if (g_sync) fflush(g_sync); if (g_tasks) fflush(g_tasks); IU(&g_symu); }
+/* A task started (task_tramp): with STRETTO_SYNC_ORDER=1 the rank's file tasks-<r>.txt lists
+   the task chains in the order they started, which a replay gives libgomp as priorities
+   (STRETTO_PIN_TASKS, docs/threads.md section 19). */
+static void task_start_log(const thr *c) {
+    if (!__atomic_load_n(&g_tasks, __ATOMIC_RELAXED)) return;
+    IL(&g_symu);
+    if (g_tasks) fprintf(g_tasks, "%s\n", c->name);
+    IU(&g_symu);
+}
 
 /* ---- POSIX threads */
 #define TSLOTS 4096
@@ -3793,6 +3810,7 @@ static void team_depart(unsigned g, long k) {   /* a team barrier also completes
    omp_fulfill_event decides; an MPI call in the first or after the creation of the second
    writes a task record (the loader degrades the trace, threads-tasks). */
 #define TASK_FLAG_DEPEND (1 << 3)     /* include/gomp-constants.h, gcc 14 */
+#define TASK_FLAG_PRIORITY (1 << 4)
 #define TASK_FLAG_DETACH (1 << 13)
 #define DEPEND_IN 1
 #define DEPEND_INOUTSET 5
@@ -3901,6 +3919,7 @@ static void task_tramp(void *a) {
     thr *saved = t_cur; task *saved_t = t_task, *saved_s = t_spawn; tnode *saved_n = t_node; region *saved_r = t_region;
     int undeferred = t_spawn == T;
     t_cur = T->c; t_task = T; t_node = NULL; t_region = T->R; t_spawn = NULL;
+    task_start_log(T->c);
     IL(&g_symu);
     for (int i = 0; i < T->npred; i++) { vc_acquire(T->c, &T->pred[i]->vc, 0); tclock_put_locked(T->pred[i]); }   /* ordinal 0: its start */
     IU(&g_symu);
@@ -3951,6 +3970,11 @@ void GOMP_task(void (*fn)(void *), void *data, void (*cpyfn)(void *, void *), lo
     IL(&g_symu); end->refs++; IU(&g_symu);
     task *saved_s = t_spawn; int saved_ran = t_spawn_ran;
     t_spawn = T; t_spawn_ran = 0;
+    /* a replay starts the ready tasks in the trace's start order (STRETTO_PIN_TASKS); only the
+       tasks of implicit tasks: libgomp 14.2 crashes in GOMP_taskwait when the children of an
+       explicit task have different priorities (docs/threads.md, section 19) */
+    int tp = t_task ? -1 : stretto_pin_task_priority(T->c->name);
+    if (tp >= 0) { flags |= TASK_FLAG_PRIORITY; prio = tp; }
     r_GOMP_task(task_tramp, blk, cpyfn ? task_cpy : NULL, T->off + size, a, ifc, flags, depend, prio, detach);
     int ran = t_spawn_ran;
     t_spawn = saved_s; t_spawn_ran = saved_ran;
