@@ -6,6 +6,7 @@ setting of experiments/run_remaining.sh tests, which builds and traces first).
    cd analysis && python3 -m unittest tests.test_replay_e2e"""
 import glob
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -623,6 +624,111 @@ class Threads(unittest.TestCase):
                     self.assertIn("STRETTO_PIN_LOCK=", c.pin)
                     self.assertEqual(c.verdict, "confirmed", (n, c))
                     self.assertEqual(c.control, "FINISHED")
+
+
+class LockOrder(unittest.TestCase):
+    """L1+L findings replayed (docs/threads.md, sections 13 and 19): the replay enters the
+    critical sections the alternative reorders in its order, reports each moved acquisition
+    taken, and shows the consequence; the control, in the run's lock order, does not. Two runs
+    each."""
+
+    def horizon(self, n, pick):
+        from stretto import report, trace
+        exe, tdir = idiom(self, n)
+        t = C.with_sync(trace.load(tdir), tdir)
+        f = next(f for f in report.analyze(t, with_sp=False).findings if f.level == "L1+L" and pick(f))
+        return exe, t, f, C._horizon(t, f)
+
+    def test_the_senders_take_the_mutex_in_the_other_order(self):
+        exe, t, f, (alt, ctl, required) = self.horizon(22, lambda f: f.recv is not None)
+        self.assertTrue(any(k[0] == "lock" for k in required))
+        for _ in range(2):
+            ra, rc = C.run_checked(3, exe, [], alt, 60), C.run_checked(3, exe, [], ctl, 60)
+            self.assertEqual(ra.misapplied + rc.misapplied + rc.diverged, [])
+            self.assertTrue(C.all_matched(alt, ra.proc.stderr, required, ra.seen), ra.proc.stderr[-800:])
+            self.assertIn("wrong order", ra.proc.stdout)
+            self.assertEqual(rc.result, "FINISHED")
+            self.assertNotIn("wrong order", rc.proc.stdout)
+
+    def test_the_lock_order_deadlock_hangs(self):
+        from stretto import report, trace
+        exe, tdir = idiom(self, 27)
+        t = C.with_sync(trace.load(tdir), tdir)
+        for _ in range(2):
+            res = [c for c in C.confirm(report.analyze(t, with_sp=False), 3, exe, timeout=20, t=t) if c.finding.cls == "2-lock-order"]
+            self.assertTrue(res)
+            for c in res:
+                self.assertIn("*", c.pin)
+                self.assertEqual((c.verdict, c.result, c.control), ("confirmed", "TIMEOUT", "FINISHED"), c)
+
+    def test_a_reordered_broadcast_is_entered_first(self):
+        exe, t, f, (alt, ctl, required) = self.horizon(43, lambda f: f.cls == "2-thread-collective")
+        ra, rc = C.run_checked(3, exe, [], alt, 60), C.run_checked(3, exe, [], ctl, 60)
+        self.assertEqual(ra.misapplied + rc.misapplied + rc.diverged, [])
+        self.assertTrue(C.all_matched(alt, ra.proc.stderr, required, ra.seen), ra.proc.stderr[-800:])
+        self.assertIn("taken in the forced order", ra.proc.stderr)
+        self.assertEqual(rc.result, "FINISHED")
+        self.assertNotIn("taken in the forced order", rc.proc.stderr)
+
+
+class Yields(unittest.TestCase):
+    """A gate that cannot open (docs/threads.md, section 19): without STRETTO_GATE_YIELD_MS it
+    ends the run at its timeout (exit 87); with it the gate gives way once nothing on its rank
+    moves, the run goes on, and the line says so; a soft gate gives way after
+    STRETTO_GATE_SOFT_MS whatever moves. Idiom 20's replay with a gate on a receive its other
+    thread never posts."""
+
+    def pins(self):
+        from stretto import report, trace
+        exe, tdir = idiom(self, 20)
+        t = trace.load(tdir)
+        f = next(f for f in report.analyze(t, with_sp=False).findings if f.level == "L1" and f.recv is not None)
+        alt, _, required = C._horizon(t, f)
+        return exe, alt, required
+
+    def with_gate(self, alt, gate):
+        out = [x + "," + gate if x.startswith("STRETTO_PIN_ORDER=") else x for x in alt]
+        return out if any(x.startswith("STRETTO_PIN_ORDER=") for x in alt) else out + ["STRETTO_PIN_ORDER=" + gate]
+
+    def test_a_stalled_gate_gives_way(self):
+        exe, alt, required = self.pins()
+        pins = self.with_gate(alt, "0:0.1#r#50<0.0#s#0")
+        stuck = C.run_checked(3, exe, [], pins, 30, extra_env={"STRETTO_GATE_YIELD_MS": "0", "STRETTO_GATE_TIMEOUT_MS": "2000"})
+        # the gate times out and ends the run (Open MPI's abort can outlast the run's timeout)
+        self.assertIn("gate timed out", stuck.proc.stderr, stuck.proc.stderr[-800:])
+        self.assertIn(stuck.result, (f"APP-ERROR:{C.GATE_TIMEOUT}", "TIMEOUT"), stuck.proc.stderr[-800:])
+        r = C.run_checked(3, exe, [], pins, 30, extra_env={"STRETTO_GATE_YIELD_MS": "300"})
+        self.assertEqual(r.result, "FINISHED", r.proc.stderr[-800:])
+        hard, soft = C.gates_yielded(r.proc.stderr)
+        self.assertEqual((hard >= 1, soft), (True, 0), r.proc.stderr[-800:])
+        self.assertEqual(r.misapplied, [])
+
+    def test_a_soft_gate_gives_way_after_its_bound(self):
+        exe, alt, required = self.pins()
+        pins = self.with_gate(alt, "0:0.1#r#50<0.0#s#0~")
+        r = C.run_checked(3, exe, [], pins, 30, extra_env={"STRETTO_GATE_YIELD_MS": "0", "STRETTO_GATE_SOFT_MS": "300"})
+        self.assertEqual(r.result, "FINISHED", r.proc.stderr[-800:])
+        self.assertEqual(C.gates_yielded(r.proc.stderr), (0, 1), r.proc.stderr[-800:])
+
+
+class TaskOrder(unittest.TestCase):
+    """The trace's task start order (tasks-<r>.txt) is given to libgomp as priorities in the
+    replay and the control of idiom 45's tasks (docs/threads.md, section 19)."""
+
+    def test_the_tasks_get_the_trace_order(self):
+        from stretto import report, trace
+        exe, tdir = idiom(self, 45)
+        t = C.with_sync(trace.load(tdir), tdir)
+        self.assertTrue(C.read_tasks(tdir), tdir)
+        f = next(f for f in report.analyze(t, with_sp=False).findings if f.cls == "1a" and f.level == "L1")
+        alt, ctl = C.horizon_pins(t, f)
+        for pins in (alt, ctl):
+            self.assertTrue(any(x.startswith("STRETTO_PIN_TASKS=") for x in pins), pins)
+        r = C.run_checked(3, exe, [], ctl, 30)
+        self.assertEqual(r.result, "FINISHED", r.proc.stderr[-800:])
+        m = re.search(r"(\d+) task priorities active \(OpenMP's maximum (\d+)\)", r.proc.stderr)
+        self.assertTrue(m, r.proc.stderr[-800:])
+        self.assertGreaterEqual(int(m.group(2)), int(m.group(1)))
 
 
 if __name__ == "__main__":

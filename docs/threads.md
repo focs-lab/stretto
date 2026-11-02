@@ -1192,7 +1192,8 @@ reads-from.
 Not covered, where L1+L under-predicts: alternatives that need a critical section *without* an
 MPI call reordered (by design: their edges are hard); condition-variable handshakes, read-write
 locks, semaphores; probe alternatives and flips beyond the ones of 3.3; contained deadlocks (1d)
-of L1+L alternatives; thresholds other than 0 and infinity; the replay (no lock gates, section 11).
+of L1+L alternatives; thresholds other than 0 and infinity; the replay (no lock gates, section
+11; replayed since 2 Nov, section 19).
 
 ### 13.4 Results (30 Oct 2026, a-p13, the experiment image)
 
@@ -1749,7 +1750,8 @@ assumes; a volatile access that orders nothing adds edges, and loses alternative
 
 - **The replay.** Lock gates (section 14) do not order atomics: a replay of an instrumented
   program is free in the order of its atomics, and where the trace's happens-before has atomic
-  edges a replay whose atomics went another way can be judged `sync_divergence`. Not measured.
+  edges a replay whose atomics went another way can be judged `sync_divergence`. Measured 2 Nov
+  (section 19.2, PaRSEC).
 - **Instrumentation is per build.** The program or library that synchronises must be rebuilt with
   clang (or gcc, at a call per access); prebuilt libraries (libstdc++'s own atomics, the MPI
   library, OpenMP runtimes) are not covered, and OpenMP programs whose tasks the tracer follows
@@ -1788,3 +1790,168 @@ HDF5:
   travel on the file's context, which no receive of the program accepts. The nonblocking,
   split, ordered and shared-pointer calls stay unmodelled. Test:
   `test_replay_e2e.MpiioCollectives`.
+
+## 19. Forced replays of several threads, made reliable (2 Nov 2026)
+
+Section 16 left four problems: gates that starve the team (P-T7: SLATE 4x1, 4 of 20 replays
+starved with 8 threads, and a control at the trace's 4 starved too; PaRSEC, 7 of 60 at a gate
+timeout); a free run beyond the last pin, so that SLATE's controls raced on their own (13 of 16
+wrong); no replay of the L1+L findings, whose alternative needs two critical sections in the
+other order; and lock gates that do not order atomics. Code: `replay/pin.c` (gates),
+`tracer/mpitrace.c` (task log, priorities), `analysis/stretto/confirm.py` (`lock_tokens`,
+`_chain_specs`, `_lock_horizon`), `experiments/replay_sample.py`, `experiments/replay_verdicts.py`,
+`experiments/replay_modes.sh`.
+
+### 19.1 Design as built
+
+- **Gates that give way** (`STRETTO_GATE_YIELD_MS`, 1000 ms in every replay the harness runs).
+  A gate (an order gate or a lock gate) that stays closed while for that long no chain of its
+  rank posts an operation or takes a lock gives way: the thread that has waited longest goes on
+  as if its gate had opened, the others wait on, and the period starts again; the run says so
+  ("gate yielded after N ms: ..."). The run is not ended: the pins the replay's own trace shows
+  taken stay the evidence, and a replay whose synchronisation then differs from the trace's is
+  still judged inconclusive (`sync_divergence`). A gate still closed after the hard timeout (80 %
+  of the run's) ends the run as before.
+- **The trace's task start order** (`tasks-<r>.txt`, recorded with `STRETTO_SYNC_ORDER=1`;
+  `STRETTO_PIN_TASKS` in the replay and its control): the tracer gives each task that an
+  implicit task creates the libgomp priority of its place in the trace's start order, the
+  earliest the highest (`OMP_MAX_TASK_PRIORITY` set by the harness), so that among ready tasks a
+  free thread starts the one the trace started first. Tasks created by explicit tasks keep the
+  program's priority: libgomp 14.2 crashes in `GOMP_taskwait` when the children of an explicit
+  task have different priorities (a program of 10 lines: 400 tasks, each fifth with four
+  children of priorities 0 and 1 and a taskwait, SIGSEGV in 3 of 3 runs; with one priority for
+  the children, 0 of 3).
+- **Beyond the horizon** (`STRETTO_REPLAY_TAILS`, `control` by default). The control is gated
+  over the whole trace: its lock tokens list every acquisition of the trace, those beyond the
+  horizon as a soft tail (`...>~chain#n>...`), and every concurrent pair of the trace is gated in
+  the run's order, those beyond the horizon as soft gates (`...~`). A soft gate follows the run
+  where the run still does: it waits as a hard one, gives way after `STRETTO_GATE_SOFT_MS`
+  (default the yield period) whether anything moves or not, and then stops following the chain
+  (lock) it waited for; a soft lock entry on another lock than its token's ends the following of
+  that lock ("lock tail abandoned"), not the run. `both` gives the replay the same tail beyond its
+  horizon (its soft gates only where the waiting operation lies beyond the horizon, so that
+  nothing of the horizon waits for what the alternative may not do).
+- **L1+L alternatives** (`confirm._lock_horizon`). The schedule that `locks.judge` (a receive or
+  probe alternative), `locks.lock_deadlocks` (a 2-lock-order deadlock: y entered before x, the
+  schedule stuck) or `locks.lock_collectives` (a 2-thread-collective: b's section entered before
+  a's) found gives the replay its lock order: each critical section of the lock events is mapped
+  to its acquisition in the sync log (`_cs_entries`: the lock whose acquisitions are made by the
+  same chains after the same records), and for each lock the schedule's acquisitions are the
+  horizon's, in its order, the rest a soft tail. An acquisition that comes before one the trace
+  made earlier is marked (`chain#n*`); the replay reports it taken ("lock a#n taken in the forced
+  order"), and that report is a required pin (`("lock", rank, chain, n)`). Operations are gated
+  in the schedule's order. The replay's chain pins carry no happens-before (its critical sections
+  are not the run's, so neither is its synchronisation); the control is the run's. Outcomes: a
+  2-lock-order replay must hang (expected TIMEOUT); a 2-thread-collective replay that took its
+  forced acquisition has issued the process's collectives in the other order, an erroneous
+  execution (MPI 4.1 §12.6.2) whatever it prints.
+- **A harness defect found on the way.** A lock acquisition before a record the horizon issues
+  without completing it (a blocking send, `check`'s `issued`) lay outside the horizon, so the
+  mutex around idiom 22's sends was not gated; it lies in the horizon now.
+
+### 19.2 Results (2 Nov 2026, a-p13, CPUs 8-15,48-55, Open MPI 4.1.6)
+
+Each replay script now runs each sampled alternative once per mode (`experiments/replay_modes.sh`):
+`before` (section 16: no gate gives way, no task priorities, nothing gated beyond the horizon),
+`yield` (gates give way, task priorities), `after` (the default: also the control gated beyond the
+horizon) and `both` (the replay too), so that the same alternatives of the same traces are
+replayed each way. Verdicts by `experiments/replay_verdicts.py`; the `commit` column of every
+table names the code.
+
+- **L1+L findings** ([experiments/mustvc](../experiments/mustvc/README.md), `lock-replays.csv`,
+  commit c8b0f52; 2 finished traced runs per program, every L1+L finding replayed twice): of 108
+  replays of 54 findings, 71 confirmed, 19 realised and 18 inconclusive. Idiom 22's senders in
+  a mutex (4 of 4 print "wrong order", the controls none), idiom 27's mutex held across a
+  receive (4 of 4 hang), CorrBench's `two_collectives_8` and `_9` and idiom 43 (40 of 40 take the
+  moved acquisition: the collectives are issued in the other order) and MUST-vc's own
+  `two_collectives_4` (8 of 8; 2 of them hang, a barrier paired with a broadcast) are confirmed
+  in every replay; idiom 23's probe alternative is realised in 4 of 4 (no consequence to show).
+  CorrBench's two `deadlock_probe` copies: 6 of 8 replays hang, but the controls of one copy
+  hung too (its own probe race, which no pin holds beyond the deadlock's horizon): 3 confirmed.
+  MUST-vc's `ThreadLevel_serialized` (20 deadlocks): 12 replays hang, 15 finish although every
+  moved acquisition was taken (each rank's lock order is gated, the two ranks' sections against
+  each other only through their messages; not diagnosed further), 13 end at a gate timeout. In a
+  first campaign (`lock-replays-yield.csv`, c466813) the hang replays had gates that gave way,
+  and 24 of the 27 replays of `ThreadLevel_serialized` that finished had one, against 3 of the 21
+  that hung: a gate that gives way inside a deadlock releases a chain the deadlock keeps waiting.
+  Since c8b0f52 the replay of a predicted hang has no gate give way (`confirm.replay_env`), and
+  a finished one with a gate that gave way is inconclusive.
+- **PaRSEC** (1 rank, 6 threads in 2 virtual processes; [experiments/parsec](../experiments/parsec/README.md),
+  `replay-modes-1rank.csv`, c466813; 5 traces, 3 alternatives each, twice per mode): `before` 28 of
+  30 confirmed, the other 2 (one alternative) at a gate timeout with 6 of 6 threads at gates;
+  `after` 28 of 30 confirmed, the same alternative's 2 replays finished after 1 and 2 gates gave
+  way, without their pins. Every control (60) finished right with its pins. The gates of that
+  alternative form a cycle with synchronisation this build's trace does not record (PaRSEC's
+  atomics, section 17): giving way ends the cycle but not in the alternative's order, which the
+  replay's own trace shows, so it stays inconclusive, now without waiting for the timeout.
+- **SLATE 878439b at the trace's 4 threads** ([experiments/slate](../experiments/slate/README.md),
+  `replay-modes-4x1.csv`, commit 258758f; wide CALU 1000x2000 on 4x1; 16 traced runs, 5 with a
+  right factor; per right trace one alternative of each class it has, 5 1f and 2 1a in all, each
+  twice per mode: 14 replays and 14 controls per mode). `before`: 13 of 14 replays and 13 of 14
+  controls starved at a gate timeout, 0 confirmed. `yield`: no gate timeout; 13 replays took every
+  pin and showed the consequence (10 wrong factors, 3 truncations at the changed receive), but
+  only 9 controls came out right (the race beyond the horizon struck in the other 5), 4
+  confirmed. `after`: 12 replays with every pin and the consequence (10, 2), 14 of 14 controls
+  right with every pin taken, 7 confirmed (5 1f, 2 1a). `both`: 12 and 14 of 14, but 6 of 10 1f
+  replays diverged (3 in `after`), 3 confirmed. Gates gave way in 12 to 14 of 14 replays per
+  mode: the team still starves among the tasks of tasks, which get no priority, and a replay or
+  control whose gate gave way may then synchronise otherwise than the trace (3 to 6 of 10 1f
+  replays diverged per mode), which leaves it inconclusive. So (a) the starvation no longer ends
+  the replays at the trace's team size, and (b) following the run beyond the horizon makes the
+  controls reproduce the recorded result, 9 of 14 without it and 14 of 14 with it (on 31 Oct, with
+  8 threads and nothing beyond the horizon: 3 of 16). The collision is confirmed from right runs
+  at the trace's team size in 7 of 14 replays (5 wrong factors, 2 truncations of the 80 000-byte
+  tile in a 40 800-byte receive), each beside a control that came out right with the trace's
+  synchronisation.
+- **Atomics in replays** (PaRSEC's instrumented build of section 17, `replay-atomics*.csv`,
+  c466813; 5 traces per setting, 3 alternatives, twice): with the atomics recorded 27 of 30
+  replays took every pin and failed the check and 30 of 30 controls were right with every pin, but
+  every replay and every control synchronised otherwise than its trace (`sync_divergence`, 60 of
+  60), each pinned receive with one `Sendrecv` of another thread more or less before it (202 of
+  202 differences are of two operations): which release an atomic acquire of the scheduler reads
+  differs between runs, and the lock gates do not fix it. 0 confirmed. With `STRETTO_ATOMICS=0`
+  on the same binaries, traced and replayed, 30 of 30 are confirmed and none diverges. Not fixed,
+  since neither remedy is cheap: ordering atomics needs the order of every atomic operation per
+  location, which the tracer does not log (one clock per location, 17.1), and judging the
+  synchronisation without atomic edges needs a third half of every clock (as `hafter` keeps one
+  without the soft lock edges). A confirmation can be taken from a trace recorded without the
+  atomics, whose analysis predicts from the coarser happens-before (15 to 23 alternatives per
+  trace against 718 to 765). DLA-Future is not replayable for another reason (section 16: pika's
+  work stealing breaks P-T5), which no gate changes.
+- **Gate** (`experiments/report_diff.py` against main 3b7abb5, text, `--json`, `--full-profile
+  --json`): the 532 single-chain traces of the earlier gates (idiom 32 among them), 1 596
+  comparisons, 0 differences. The analysis is unchanged; the harness, the replay library and the
+  tracer's task log changed.
+- **Single-thread replays** (MBI, `experiments/mbi/run_mbi.py --confirm` on the 12 programs of
+  `experiments/results/mbi/replays.csv`, retraced; `experiments/results/mbi/replays-2nov.csv`,
+  c466813): 72 replays, 56 confirmed, 14 inconclusive, 2 n/a (the earlier table: 76, 60, 14, 2).
+  On the 51 alternatives both runs replayed, result, pins taken and validity are equal in every
+  row; the verdict differs in 14, all of them the control (`MessageRace_Loop_*`'s controls hang
+  in some runs and not in others: 10 hung in the earlier run and finished now, 4 the reverse).
+  The 11 headline bugs' campaigns were not rerun (their applications are not built on a-p13);
+  their replays use no gate, task token or tail, and the single-chain path of the replay library
+  and harness is the one these MBI replays and the unit tests' single-thread replays exercise.
+- **Unit tests** (the experiment image, idioms traced first, `python3 -m unittest discover -s
+  tests`): 596 run, 20 skipped, all pass; new: `test_confirm.LockTokens`,
+  `test_confirm.LockOrderAlternatives`, `test_replay_e2e.LockOrder` (idioms 22, 27, 43),
+  `test_replay_e2e.Yields`, `test_replay_e2e.TaskOrder`.
+
+### 19.3 What remains
+
+- **Tasks of tasks (P-T7).** Only the tasks of implicit tasks get the trace's start order
+  (libgomp's crash above); SLATE's tasks wait at gates for tasks of tasks no thread is free to
+  start, and the gates that give way then change the synchronisation the replay is judged on.
+  Running the task waiting at a gate on another task would need a scheduling point libgomp does
+  not offer (`GOMP_taskyield` does nothing, `taskwait` runs only the waiting task's children).
+- **Other processes' order.** Lock gates order each process's critical sections; the deadlocks of
+  `ThreadLevel_serialized` need the two ranks' sections against each other, which only their
+  messages order (15 of 40 replays took the moved acquisitions and finished).
+- **Atomics.** Not ordered in a replay; a trace with atomic edges is judged diverged by whichever
+  releases its acquires read (PaRSEC: 60 of 60). Remedies above, none cheap.
+- **Probes.** A probe pin of several threads names the message's source only (idiom 23's two
+  messages share it): the probe alternative is realised by the lock order, its message not
+  checked. A control's probes beyond the horizon are free (`deadlock_probe`'s controls hung on
+  their own probe race).
+- **Cycles with unrecorded synchronisation.** An alternative whose gates contradict
+  synchronisation the trace lacks (PaRSEC's gcc build) holds every thread at a gate; giving way
+  ends the run sooner, inconclusive as before.

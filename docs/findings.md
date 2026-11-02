@@ -109,10 +109,15 @@ with the hunt notes, outside this repository.
   ordinals name the trace's work; on idioms 44 and 45 (a worker pool, tasks taking roles under
   a lock) 10 of 10 replays confirmed against 0 of 10 without lock gates, whose replays
   included 3 wrong refutations. Alternatives across HDF5's pools of two files (an atomic flag
-  orders them; over-predictions) closed 1 Nov by recording atomics (§17). Still open: SLATE
-  replays that need more threads
-  than the trace's team (P-T7; on 31 Oct teams of 8 and of 16 still starved in 8 of 28 SLATE
-  replays, §16).
+  orders them; over-predictions) closed 1 Nov by recording atomics (§17). SLATE replays that
+  needed more threads than the trace's team (P-T7; on 31 Oct teams of 8 and of 16 still starved in
+  8 of 28 SLATE replays, §16): since 2 Nov (§19) a gate that stays closed while nothing on its rank
+  moves gives way, tasks start in the trace's order, and the control follows the run beyond the
+  horizon; at the trace's 4 threads 0 of 14 replays starve (13 of 14 before), 14 of 14 controls
+  come out right (9 of 14 without the part beyond the horizon), and 7 of 14 replays are confirmed
+  (0 before). Still open: the tasks of tasks get no priority (libgomp 14.2 crashes in
+  `GOMP_taskwait` when an explicit task's children have different priorities), so gates still
+  give way there, and a replay whose gate gave way may synchronise otherwise than its trace.
   Gating every concurrent pair instead of the reordered ones timed out on the same pools; fixed
   30 Oct. The reduced orientation edges shared one cache between receive and send views and ended
   the analysis of a Uintah trace; fixed 30 Oct (84 multithreaded reports unchanged).
@@ -125,6 +130,14 @@ with the hunt notes, outside this repository.
   replay could swap two threads' `Sendrecv`s (PaRSEC; fixed: a gate that holds the receive back
   splits them, idiom 47); a replay that aborted on a misapplied pin hung at a lock gate inside
   Open MPI's abort and read as a gate timeout (DLA-Future; fixed).
+- Replay harness, 2 Nov ([threads.md](threads.md) §19): a lock taken before a send that the
+  horizon issues without completing it lay outside the horizon, so idiom 22's mutex was not gated
+  (fixed); a gate that gave way inside a predicted lock-order deadlock released a chain the
+  deadlock keeps waiting (24 of the 27 `ThreadLevel_serialized` replays that finished; fixed: a
+  replay of a predicted hang keeps its gates); L1+L findings could not be replayed at all (built:
+  the schedule's lock order, 71 of 108 replays confirmed); replays of an instrumented program are
+  judged diverged by the order of its atomics (PaRSEC: 60 of 60 replays and controls; open, no
+  cheap remedy).
 - MPI inside OpenMP tasks (SLATE, 30 Oct): every trace with messages was degraded
   `threads-tasks`, and with it the observed thread classes were skipped, so the traces of runs
   in which SLATE's tag race happened reported nothing; `experiments/slate/overlap.py` located the
@@ -251,7 +264,12 @@ labelled correct now get an error class, and both are erroneous as built (concur
 (`dependant/deadlock_probe` 2-lock-order, `two_collectives_8` and `_9` 2-thread-collective); 3 of
 15 correct programs get an error class, the new one `correct/dependant/deadlock_probe`
 (2-lock-order: the Mprobe fix keeps the mutex held across the probe, and its source expects the
-deadlock under the other thread order); the 7 `mt_*` reports are unchanged.
+deadlock under the other thread order); the 7 `mt_*` reports are unchanged. Forced by replay
+(2 Nov, [threads.md](threads.md) §19.2, `experiments/mustvc/lock-replays.csv`): the replay enters
+the critical sections in the analysis's order; `two_collectives_8`, `_9`, idiom 43 and MUST-vc's
+`two_collectives_4` 48 of 48 replays take the reordering, idioms 22 and 27 8 of 8 show their
+consequence, `deadlock_probe`'s deadlock hangs 6 of 8 replays (3 confirmed: one copy's controls
+hung on its probe race), `ThreadLevel_serialized` 12 of 40.
 
 At 1 024 iterations (milestone B, [threads.md](threads.md) §10) the same holds for the three
 receive tests: 5, 39 and 49 L1 1f findings, all on the racy phase's threads.

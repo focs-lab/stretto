@@ -120,7 +120,30 @@
                                            attempt no token names, on a lock a token names,
                                            waits until every listed acquisition of that lock has
                                            happened (they are the horizon's). Timeouts as for
-                                           STRETTO_PIN_ORDER. */
+                                           STRETTO_PIN_ORDER.
+   Beyond the horizon (docs/threads.md, section 19): an order gate whose token ends in '~', and
+   the entries of a lock token from one that starts with '~' on ("A#1>B#2>~C#3>D#4"), are soft:
+   they follow the trace's order where the run still does, and give way where it does not. A soft
+   lock entry on another lock than its token's abandons the rest of that token ("lock tail
+   abandoned"), not the run; an attempt no token names waits only for the hard entries. A lock
+   entry that ends in '*' is one the alternative moved before an earlier acquisition of the trace
+   (L1+L): its acquisition is reported as "[stretto-pin] rank R chain C: lock a#n taken in the
+   forced order".
+   STRETTO_GATE_YIELD_MS=ms                a gate (order or lock) that stays closed while for ms no
+                                           operation is posted and no lock taken on the rank gives
+                                           way: the thread that has waited longest goes on
+                                           ("gate yielded after N ms: ..."), the others wait on.
+                                           0 (the default): never. A soft gate gives way after
+                                           STRETTO_GATE_SOFT_MS (default STRETTO_GATE_YIELD_MS) of
+                                           waiting in any case, and the soft gates that wait for
+                                           the same chain (lock) are then open. At MPI_Finalize:
+                                           "gates yielded: H hard, S soft".
+   STRETTO_PIN_TASKS="rank:name#pos,..."   the trace's start order of the OpenMP tasks (the
+                                           tracer's tasks-<r>.txt): the task chain created as
+                                           name gets libgomp priority (max pos + 1 - pos), so that
+                                           among ready tasks a free thread starts the one the
+                                           trace started first. Needs OMP_MAX_TASK_PRIORITY at
+                                           least the number of tasks. */
 #ifndef STRETTO_PIN_H
 #define STRETTO_PIN_H
 #include <mpi.h>
@@ -176,6 +199,9 @@ int  stretto_pin_locks_on(void);
 int  stretto_pin_lock(long n, const void *key, int is_try, int poll);
 /* Attempt n has returned, ok if it took the lock: the gates that wait for it open. */
 void stretto_pin_locked(long n, int ok);
+/* The priority libgomp is to give the task chain created as name (STRETTO_PIN_TASKS), or -1:
+   none (the program's own). */
+int  stretto_pin_task_priority(const char *name);
 /* The receive ordinal the next stretto_pin_recv of this thread applies chain pins to, for a
    call that gates several receives before posting them (MPI_Startall). */
 void stretto_pin_use_ord(int ord);
