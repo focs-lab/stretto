@@ -500,6 +500,33 @@ messages are told apart until the counter wraps; HPX's build looks beyond the 3 
 budget), ESMF (Fortran and C++, about an hour's build), Legion/Realm (needs its own interop
 driver).
 
+## Labelled benchmarks: MBI's value checks without hand-written twins (2 Nov)
+
+The headline MBI score of one traced run (62 of 65, no false alarm) misses value-check programs:
+`MessageRace_{Recv,Irecv}_{Send,Isend}_nok`, where rank 0 aborts unless its last payload is 3.
+L1 flags their racing receive (1f). The E7 twins, written by hand knowing the labels, are not
+counted. Two methods that use no twin were measured in the experiment image on the
+experiment machine (Open MPI 4.1.6), at commit f6367f4:
+
+- **With automatic L2** (re-execution, `run_mbi.py --rerun`, every rank live): 65 of 65 in each
+  of 11 traced runs of the 115 programs, 0 false alarms on the 50 correct programs in every run.
+  The same runs score 61 to 64 without L2 (63.27 on average). L2 finds the abort in 44 of 44
+  runs of the four programs: in 19 of them the run finished cleanly, and in the other 25 it
+  aborted by itself. No correct program gets any L2 claim. Of their L2 judgements, 1 422 are
+  dismissed and 396 undetermined. All 396 are in the 6 correct `Allgatherv`, `Alltoall` and
+  `Alltoallv` templates, where the reproduction check rejects a rank's re-execution
+  (docs/l2-auto.md §5). Cost: 760 re-executions and 212 s of analysis
+  per pass, summed over the programs. Evidence: `experiments/results/l2auto/mbi-<k>.csv` and
+  `summary.csv` (`experiments/mbi/l2_summary.py`).
+- **L1 plus forced replay** (`experiments/replay_sample.py --cls 1f --repeat 5`, on pass 1's clean
+  traces): 3 of 3 of the programs the corpus run misses are confirmed. In each, the alternative
+  where rank 0's second receive takes rank 3's message aborts (SIGNAL:6) in 5 of 5 replays, with
+  every pin matched and each replay a valid run. Its control finishes in 5 of 5. Over all
+  alternatives, 10, 7 and 11 of 15 replay-control pairs abort where the control finishes. A
+  control pins only the horizon, so 4 of 15 controls of `Irecv_Send` aborted too. This is an L1
+  prediction whose consequence a replay shows, not an L2 claim. Evidence:
+  `experiments/results/l2auto/replay-<program>.csv`.
+
 ## Not yet traced
 
 PFLOTRAN (perturbation inversion, needs three or more process groups) and SPECFEM3D (HDF5 I/O

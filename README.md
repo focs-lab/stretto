@@ -209,6 +209,43 @@ Full tables: [`docs/results.md`](docs/results.md). Every bug found, latent bugs,
 the tool's own defects: [`docs/findings.md`](docs/findings.md).
 <!-- results:end -->
 
+### MBI's value checks without hand-written twins
+
+The MBI errors that one traced run can miss are the four `MessageRace_{Recv,Irecv}_{Send,Isend}_nok`
+programs: rank 0 aborts unless the last message it received carries the value 3. L1 flags the
+racing receive (1f), but the abort depends on the value. The L2 twins of the E7 table encode that
+check by hand, knowing the labels, so the headline numbers above do not count them. Two ways
+need no twin. Both were measured on 2 Nov 2026 on the experiment machine, in the experiment image
+(Open MPI 4.1.6, 6 hardware threads):
+
+- **Automatic L2 by re-execution** ([`docs/l2-auto.md`](docs/l2-auto.md)). The whole corpus was traced
+  11 times with payloads, and each run was analysed with every rank re-executable.
+  It found **65 of 65** labelled errors in each of the 11 runs, with **0 false alarms on the 50
+  correct programs** in every run. Without L2, the same runs score 61 to 64 (63.27 on average).
+  The four value-check programs get the L2 abort in 44 of 44 runs. No correct program gets any
+  L2 claim. The cost per pass is 760 re-executions and 212 s of analysis, summed over the
+  programs (3.7 s per value-check program).
+- **L1 plus forced replay.** Each L1 alternative of the 3 programs that the corpus run misses
+  was replayed 5 times with its horizon pins, next to a control. **3 of 3** are shown: in each,
+  the alternative where rank 0's second receive takes rank 3's message aborts in 5 of 5 replays,
+  every pin matched, while 5 of 5 controls finish. This claim differs from L2's: it is an L1
+  prediction whose consequence a replay shows.
+
+```bash
+# in the experiment container, with tracer/, rerun/ and replay/ built for Open MPI and the environment
+# of experiments/run_remaining.sh (PYTHONPATH=analysis, Open MPI oversubscribed and unbound)
+for k in $(seq 1 11); do
+  python3 experiments/mbi/run_mbi.py --corpus mbi --rerun --jobs 3 --timeout 60 --max-states 30000 \
+      --sp-max-events 600 --out experiments/results/l2auto/mbi-$k.csv --work experiments/results/l2auto/mbi-$k
+done
+python3 experiments/mbi/l2_summary.py          # experiments/results/l2auto/summary.csv
+for p in MessageRace_Irecv_Isend_nok MessageRace_Irecv_Send_nok MessageRace_Recv_Send_nok; do
+  d=experiments/results/l2auto/mbi-1/$p
+  python3 experiments/replay_sample.py --out experiments/results/l2auto/replay-$p.csv --sample 1000 --cls 1f \
+      --repeat 5 --timeout 60 --grep MBI_MSG_RACE $d/trace 4 $d/main      # pass 1's traces: all 3 runs finished
+done
+```
+
 ## Quick start
 
 On Ubuntu 24.04 (or in the experiment image, `experiments/container/Dockerfile`):
