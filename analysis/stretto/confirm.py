@@ -1872,6 +1872,16 @@ def expected_outcomes(f: Finding) -> set:
     return set()   # 1b, 1f, probe-alt, waitany-order, 2-thread-collective: any outcome is consistent (info only)
 
 
+def replay_env(f: Finding) -> Dict[str, str]:
+    """The variables a replay of finding f runs with besides its pins: none, but for a finding
+    whose predicted outcome is a hang no gate gives way (STRETTO_GATE_YIELD_MS=0). A predicted
+    deadlock stops chains that others wait for at their gates, and a gate that gave way there
+    would release a chain the deadlock keeps waiting: 24 of 27 replays of MUST-vc's
+    ThreadLevel_serialized that finished instead of hanging had a gate give way (docs/threads.md,
+    section 19). A gate that does not open then ends the run at its timeout, inconclusive."""
+    return {"STRETTO_GATE_YIELD_MS": "0"} if "TIMEOUT" in expected_outcomes(f) else {}
+
+
 def _applied(stderr: str, pins) -> Set[tuple]:
     """("recv", rank, widx) of every receive pin the replay library reported applied, on an
     operation of the pin's identity; ("crecv", rank, chain, ridx) of every such chain pin."""
@@ -2162,7 +2172,8 @@ def confirm(rep: Report, np: int, exe: str, args: List[str] = (), timeout: int =
         if key in seen:
             continue
         seen.add(key)
-        rp = run_checked(np, exe, list(args), pins, timeout, mpi, keep_as=kept(f, pin, "replay"))
+        rp = run_checked(np, exe, list(args), pins, timeout, mpi, extra_env=replay_env(f) or None,
+                         keep_as=kept(f, pin, "replay"))
         r, res = rp.proc, rp.result
         applied = all(pins_applied(x, r.stderr) for x in pins)
         want = expected_outcomes(f)

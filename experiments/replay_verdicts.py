@@ -42,6 +42,8 @@ def verdict(r: dict, recorded_wrong: bool) -> str:
         if r.get("control") != "FINISHED" or r.get("control_matched") != "True" or r.get("matched") != "True":
             return "inconclusive"
         if r.get("cls") == "2-lock-order":
+            if r.get("replay") != "TIMEOUT" and int(r.get("yields") or 0) > 0:
+                return "inconclusive"     # a gate gave way, releasing a chain the deadlock keeps waiting
             return "confirmed" if r.get("replay") == "TIMEOUT" else "realised"
         if r.get("cls") == "2-thread-collective":
             return "confirmed"

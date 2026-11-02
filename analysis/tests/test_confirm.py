@@ -1000,6 +1000,9 @@ class LockOrderAlternatives(unittest.TestCase):
         t, fs = self.load("27_threads_lock_held_deadlock")
         f = next(f for f in fs if f.cls == "2-lock-order")
         self.assertEqual(expected_outcomes(f), {"TIMEOUT"})
+        # no gate gives way in the replay of a predicted hang
+        self.assertEqual(C.replay_env(f), {"STRETTO_GATE_YIELD_MS": "0"})
+        self.assertEqual(C.replay_env(Finding("1", "1f", "L1", "x")), {})
         alt, ctl, req = C._horizon(t, f)
         y = self.locks_of(alt).split(":", 1)[1].split(">")[0]
         self.assertTrue(y.endswith("*"), alt)

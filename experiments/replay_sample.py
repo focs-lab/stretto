@@ -55,8 +55,8 @@ sys.path.insert(0, os.path.join(ROOT, "analysis"))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from stretto import keep, trace  # noqa: E402
 from stretto import confirm as confirm_mod  # noqa: E402
-from stretto.confirm import (_reported, all_matched, changed_pin, gates_yielded, horizon_pins, pin_name, required_matches,  # noqa: E402
-                            run_checked, truncation_shown, with_sync)
+from stretto.confirm import (_reported, all_matched, changed_pin, gates_yielded, horizon_pins, pin_name, replay_env,  # noqa: E402
+                            required_matches, run_checked, truncation_shown, with_sync)
 from stretto.report import Finding, analyze  # noqa: E402
 from provenance import code_commit  # noqa: E402
 
@@ -200,8 +200,9 @@ def main() -> int:
         alt, ctl = hp
         for rep_k in range(1, args.repeat + 1):
             name = f"{k:02d}-{f.cls}-{pin_name(f.pin)}" + (f"-{rep_k}" if args.repeat > 1 else "")
-            ra = run_checked(args.np, args.exe, args.args, alt, args.timeout, mpi=args.mpi, extra_env=env, cwd=fresh(),
-                             keep_as=(campaign, name + "-replay"))
+            # a replay of a predicted hang has no gate give way (stretto.confirm.replay_env)
+            ra = run_checked(args.np, args.exe, args.args, alt, args.timeout, mpi=args.mpi, extra_env={**env, **replay_env(f)},
+                             cwd=fresh(), keep_as=(campaign, name + "-replay"))
             rc = run_checked(args.np, args.exe, args.args, ctl, args.timeout, mpi=args.mpi, extra_env=env, cwd=fresh(),
                              keep_as=(campaign, name + "-control"))
             if args.keep_output:
