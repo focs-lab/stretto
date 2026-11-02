@@ -1,0 +1,17 @@
+run,result,stretto_rc,l1_collision,l1_collision_1a,commit
+1,ok,1,5,1,258758f
+2,WRONG,,,,258758f
+3,WRONG,,,,258758f
+4,WRONG,,,,258758f
+5,WRONG,,,,258758f
+6,ok,1,31,1,258758f
+7,WRONG,,,,258758f
+8,ok,0,49,0,258758f
+9,ok,0,66,0,258758f
+10,WRONG,,,,258758f
+11,ok,0,70,0,258758f
+12,WRONG,,,,258758f
+13,WRONG,,,,258758f
+14,WRONG,,,,258758f
+15,WRONG,,,,258758f
+16,WRONG,,,,258758f

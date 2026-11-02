@@ -224,6 +224,38 @@ and its truncation from a wrong run with the replay's trace showing where (1 rep
 replays are inconclusive: the part beyond the horizon races freely in the controls, and teams
 starve at gates (P-T7).
 
+**Replays at the trace's 4 threads (2 Nov, [docs/threads.md](../../docs/threads.md) section 19;
+`replay.sh` with `GRID="4 1" RIGHT_ONLY=1 CLASSES="1a 1f" THREADS=4 RUNS=16 SAMPLE=1 REPEAT=2
+MODES="before yield after both"`, a-p13 CPUs 8-15,48-55, 16 processors).** 16 traced runs, 5
+with a right factor (runs 1, 6, 8, 9, 11: 5 to 70 L1 alternatives in the collision range; a 1a in
+runs 1 and 6; [replay-modes-traced-4x1.csv](replay-modes-traced-4x1.csv)); per right trace one
+alternative of each class it has, each replayed twice in each mode with its control, the
+replays and controls with the trace's 4 threads ([replay-modes-4x1.csv](replay-modes-4x1.csv)).
+`before` is section 16's replay (no gate gives way, no task priorities, nothing gated beyond the
+horizon); `yield` lets gates give way after 1 s without progress and starts tasks in the trace's
+order; `after` (the default) also gates the control beyond the horizon in the run's order;
+`both` the replay too. 14 replays per mode (10 of 5 1f alternatives, 4 of 2 1a ones):
+
+| mode | replay and control at a gate timeout | replays with every pin taken and the consequence | controls finished right, every pin taken | controls also without divergence | confirmed |
+|---|---|---|---|---|---|
+| before | 13 and 13 of 14 | 1 | 0 | 0 | 0 |
+| yield | 0 and 0 | 13 (10 wrong factors, 3 truncations at the changed receive) | 9 | 7 | 4 (3 1f, 1 1a) |
+| after | 0 and 0 | 12 (10, 2) | 14 | 10 | 7 (5, 2) |
+| both | 0 and 0 | 12 (10, 2) | 14 | 10 | 3 (2, 1) |
+
+Gates gave way in most replays (14, 12 and 13 of 14 in `yield`, `after` and `both`): at the
+trace's 4 threads the team still starves, among the tasks of tasks, which get no priority
+(libgomp crashes when they do, section 19.1), and giving way ends it. A replay or control whose
+gate gave way may synchronise otherwise than the trace: 3 to 6 of the 10 1f replays per mode
+diverged, and with them the verdict. Following the run beyond the horizon is what makes
+the controls reproduce the recorded run: 9 of 14 right factors without it (yield; the race beyond
+the horizon struck in the other 5, as in 13 of 16 controls on 31 Oct), 14 of 14 with it (after,
+both). Gating the replay beyond its horizon too (`both`) did not help it: 6 of 10 1f replays
+diverged against 3 of 10 in `after`. So at the trace's team size the collision is confirmed by
+forced replay from runs with a right factor in 7 of 14 replays (5 wrong factors, 2 truncations
+of the 80 000-byte tile in a 40 800-byte receive), each beside a control that came out right with
+the trace's synchronisation; before, every replay but one starved.
+
 **Upstream.** Not found in the issue tracker (searched 30 Oct for tntpiv, CALU, getrf, tag,
 hang): the only CALU issue, #70 (accuracy on GPUs, square matrix, closed Jan 2024), is another
 defect. Report drafted, not sent.
@@ -334,4 +366,4 @@ apply` or `patch -p1`);
 `replay.sh` (replays in the lock order); results: `series*.csv`, `traced.csv`, `traced-cells.csv`,
 `traced-cells-16.csv`, `sweep.csv`, `sweep-d.csv`, `replay.csv`, `traced-e.csv`, `replay-e.csv`,
 `replay-1a.csv`, `replay-4x1.csv`, `replay-traced-4x1.csv`, `replay-2x2-1a.csv`,
-`replay-traced-2x2.csv`.
+`replay-traced-2x2.csv`, `replay-modes-4x1.csv`, `replay-modes-traced-4x1.csv`.
