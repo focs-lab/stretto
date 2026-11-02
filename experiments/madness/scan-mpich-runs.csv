@@ -1,0 +1,163 @@
+test,mpi,np,run,result,rc,trace_mb,status,findings,classes,summary,analysis_commit,commit
+test_ar,mpich,2,1,pass,0,1,complete,0,,trace: 2 ranks; 20 sends; 276 receives; 256 wildcard receives; 0 probes; 10 collective records; 4 communicators,4256eda,7fdfcb7
+test_ar,mpich,2,2,pass,0,1,complete,0,,trace: 2 ranks; 20 sends; 276 receives; 256 wildcard receives; 0 probes; 10 collective records; 4 communicators,4256eda,7fdfcb7
+test_ar,mpich,2,3,pass,0,1,complete,0,,trace: 2 ranks; 20 sends; 276 receives; 256 wildcard receives; 0 probes; 10 collective records; 4 communicators,4256eda,7fdfcb7
+test_ar,mpich,4,1,pass,0,1,complete,0,,trace: 4 ranks; 60 sends; 572 receives; 512 wildcard receives; 0 probes; 20 collective records; 6 communicators,4256eda,7fdfcb7
+test_ar,mpich,4,2,pass,0,1,complete,0,,trace: 4 ranks; 60 sends; 572 receives; 512 wildcard receives; 0 probes; 20 collective records; 6 communicators,4256eda,7fdfcb7
+test_ar,mpich,4,3,pass,0,1,complete,0,,trace: 4 ranks; 60 sends; 572 receives; 512 wildcard receives; 0 probes; 20 collective records; 6 communicators,4256eda,7fdfcb7
+test_atomicint,mpich,2,1,pass,0,21,complete,0,,trace: 2 ranks; 4 sends; 260 receives; 256 wildcard receives; 0 probes; 10 collective records; 4 communicators,4256eda,7fdfcb7
+test_atomicint,mpich,2,2,pass,0,11,complete,0,,trace: 2 ranks; 4 sends; 260 receives; 256 wildcard receives; 0 probes; 10 collective records; 4 communicators,4256eda,7fdfcb7
+test_atomicint,mpich,2,3,pass,0,4,complete,0,,trace: 2 ranks; 4 sends; 260 receives; 256 wildcard receives; 0 probes; 10 collective records; 4 communicators,4256eda,7fdfcb7
+test_atomicint,mpich,4,1,pass,0,29,complete,0,,trace: 4 ranks; 12 sends; 524 receives; 512 wildcard receives; 0 probes; 20 collective records; 6 communicators,4256eda,7fdfcb7
+test_atomicint,mpich,4,2,pass,0,26,complete,0,,trace: 4 ranks; 12 sends; 524 receives; 512 wildcard receives; 0 probes; 20 collective records; 6 communicators,4256eda,7fdfcb7
+test_atomicint,mpich,4,3,pass,0,42,complete,0,,trace: 4 ranks; 12 sends; 524 receives; 512 wildcard receives; 0 probes; 20 collective records; 6 communicators,4256eda,7fdfcb7
+test_binsorter,mpich,2,1,pass,0,2,degraded:order-not-judged,0,,trace: 2 ranks; 1842 sends; 2098 receives; 2076 wildcard receives; 0 probes; 14 collective records; 4 communicators,4256eda,7fdfcb7
+test_binsorter,mpich,2,2,pass,0,2,degraded:order-not-judged,0,,trace: 2 ranks; 1838 sends; 2094 receives; 2076 wildcard receives; 0 probes; 14 collective records; 4 communicators,4256eda,7fdfcb7
+test_binsorter,mpich,2,3,pass,0,2,degraded:order-not-judged,0,,trace: 2 ranks; 1854 sends; 2110 receives; 2076 wildcard receives; 0 probes; 14 collective records; 4 communicators,4256eda,7fdfcb7
+test_binsorter,mpich,4,1,pass,0,10,analysis stopped at its time limit,,,,,7fdfcb7
+test_binsorter,mpich,4,2,pass,0,10,analysis stopped at its time limit,,,,,7fdfcb7
+test_binsorter,mpich,4,3,pass,0,10,analysis stopped at its time limit,,,,,7fdfcb7
+test_cloud,mpich,2,1,pass,0,41,degraded:order-not-judged,1,observed:2-buffering=1,trace: 2 ranks; 6749 sends; 7005 receives; 1053 wildcard receives; 0 probes; 1048 collective records; 82 communicators,4256eda,7fdfcb7
+test_cloud,mpich,2,2,pass,0,40,degraded:order-not-judged,1,observed:2-buffering=1,trace: 2 ranks; 6773 sends; 7029 receives; 1053 wildcard receives; 0 probes; 1048 collective records; 82 communicators,4256eda,7fdfcb7
+test_cloud,mpich,2,3,pass,0,41,degraded:order-not-judged,1,observed:2-buffering=1,trace: 2 ranks; 6769 sends; 7025 receives; 1053 wildcard receives; 0 probes; 1048 collective records; 82 communicators,4256eda,7fdfcb7
+test_cloud,mpich,4,1,pass,0,96,analysis stopped at its time limit,,,,,7fdfcb7
+test_cloud,mpich,4,2,pass,0,94,analysis stopped at its time limit,,,,,7fdfcb7
+test_cloud,mpich,4,3,pass,0,95,analysis stopped at its time limit,,,,,7fdfcb7
+test_dc,mpich,2,1,pass,0,155,degraded:order-not-judged,1,observed:2-buffering=1,trace: 2 ranks; 41876 sends; 42132 receives; 41994 wildcard receives; 0 probes; 14 collective records; 4 communicators,9af5d63,7fdfcb7
+test_dc,mpich,2,2,pass,0,165,degraded:order-not-judged,1,observed:2-buffering=1,trace: 2 ranks; 41890 sends; 42146 receives; 41994 wildcard receives; 0 probes; 14 collective records; 4 communicators,9af5d63,7fdfcb7
+test_dc,mpich,2,3,pass,0,162,degraded:order-not-judged,1,observed:2-buffering=1,trace: 2 ranks; 41870 sends; 42126 receives; 41994 wildcard receives; 0 probes; 14 collective records; 4 communicators,9af5d63,7fdfcb7
+test_dc,mpich,4,1,pass,0,435,not analysed (trace of 435 MB),,,,,7fdfcb7
+test_dc,mpich,4,2,pass,0,423,not analysed (trace of 423 MB),,,,,7fdfcb7
+test_dc,mpich,4,3,pass,0,365,not analysed (trace of 365 MB),,,,,7fdfcb7
+test_eval,mpich,2,1,killed,1,600,run killed (trace above 600 MB),,,,,7fdfcb7
+test_eval,mpich,2,2,killed,1,600,run killed (trace above 600 MB),,,,,7fdfcb7
+test_eval,mpich,2,3,killed,1,600,run killed (trace above 600 MB),,,,,7fdfcb7
+test_eval,mpich,4,1,killed,1,600,run killed (trace above 600 MB),,,,,7fdfcb7
+test_eval,mpich,4,2,killed,1,600,run killed (trace above 600 MB),,,,,7fdfcb7
+test_eval,mpich,4,3,killed,1,600,run killed (trace above 600 MB),,,,,7fdfcb7
+test_future,mpich,2,1,pass,0,1,complete,0,,trace: 2 ranks; 4 sends; 260 receives; 256 wildcard receives; 0 probes; 14 collective records; 4 communicators,9af5d63,7fdfcb7
+test_future,mpich,2,2,pass,0,1,complete,0,,trace: 2 ranks; 4 sends; 260 receives; 256 wildcard receives; 0 probes; 14 collective records; 4 communicators,9af5d63,7fdfcb7
+test_future,mpich,2,3,pass,0,1,complete,0,,trace: 2 ranks; 4 sends; 260 receives; 256 wildcard receives; 0 probes; 14 collective records; 4 communicators,9af5d63,7fdfcb7
+test_future,mpich,4,1,pass,0,1,complete,0,,trace: 4 ranks; 12 sends; 524 receives; 512 wildcard receives; 0 probes; 28 collective records; 6 communicators,9af5d63,7fdfcb7
+test_future,mpich,4,2,pass,0,1,complete,0,,trace: 4 ranks; 12 sends; 524 receives; 512 wildcard receives; 0 probes; 28 collective records; 6 communicators,9af5d63,7fdfcb7
+test_future,mpich,4,3,pass,0,1,complete,0,,trace: 4 ranks; 12 sends; 524 receives; 512 wildcard receives; 0 probes; 28 collective records; 6 communicators,9af5d63,7fdfcb7
+test_future2,mpich,2,1,pass,0,8,degraded:order-not-judged,0,,trace: 2 ranks; 10056 sends; 10312 receives; 10296 wildcard receives; 0 probes; 14 collective records; 4 communicators,9af5d63,7fdfcb7
+test_future2,mpich,2,2,pass,0,11,degraded:order-not-judged,0,,trace: 2 ranks; 10054 sends; 10310 receives; 10296 wildcard receives; 0 probes; 14 collective records; 4 communicators,9af5d63,7fdfcb7
+test_future2,mpich,2,3,pass,0,11,degraded:order-not-judged,0,,trace: 2 ranks; 10056 sends; 10312 receives; 10296 wildcard receives; 0 probes; 14 collective records; 4 communicators,9af5d63,7fdfcb7
+test_future2,mpich,4,1,pass,0,14,analysis stopped at its time limit,,,,,7fdfcb7
+test_future2,mpich,4,2,pass,0,14,analysis stopped at its time limit,,,,,7fdfcb7
+test_future2,mpich,4,3,pass,0,14,analysis stopped at its time limit,,,,,7fdfcb7
+test_future3,mpich,2,1,pass,0,1,complete,0,,trace: 2 ranks; 24 sends; 280 receives; 272 wildcard receives; 0 probes; 14 collective records; 4 communicators,4256eda,7fdfcb7
+test_future3,mpich,2,2,pass,0,1,complete,0,,trace: 2 ranks; 24 sends; 280 receives; 272 wildcard receives; 0 probes; 14 collective records; 4 communicators,4256eda,7fdfcb7
+test_future3,mpich,2,3,pass,0,1,complete,0,,trace: 2 ranks; 26 sends; 282 receives; 272 wildcard receives; 0 probes; 14 collective records; 4 communicators,4256eda,7fdfcb7
+test_future3,mpich,4,1,pass,0,1,complete,51,L1:1f=51,trace: 4 ranks; 126 sends; 638 receives; 608 wildcard receives; 0 probes; 28 collective records; 6 communicators,4256eda,7fdfcb7
+test_future3,mpich,4,2,pass,0,1,complete,59,L1:1f=59,trace: 4 ranks; 126 sends; 638 receives; 608 wildcard receives; 0 probes; 28 collective records; 6 communicators,4256eda,7fdfcb7
+test_future3,mpich,4,3,pass,0,1,complete,65,L1:1f=65,trace: 4 ranks; 126 sends; 638 receives; 608 wildcard receives; 0 probes; 28 collective records; 6 communicators,4256eda,7fdfcb7
+test_halo,mpich,2,1,pass,0,394,not analysed (trace of 394 MB),,,,,7fdfcb7
+test_halo,mpich,2,2,pass,0,393,not analysed (trace of 393 MB),,,,,7fdfcb7
+test_halo,mpich,2,3,pass,0,397,not analysed (trace of 397 MB),,,,,7fdfcb7
+test_halo,mpich,4,1,pass,0,549,not analysed (trace of 549 MB),,,,,7fdfcb7
+test_halo,mpich,4,2,pass,0,546,not analysed (trace of 546 MB),,,,,7fdfcb7
+test_halo,mpich,4,3,pass,0,544,not analysed (trace of 544 MB),,,,,7fdfcb7
+test_hashdc,mpich,2,1,pass,0,1,complete,0,,trace: 2 ranks; 15 sends; 271 receives; 261 wildcard receives; 0 probes; 14 collective records; 4 communicators,9af5d63,7fdfcb7
+test_hashdc,mpich,2,2,pass,0,1,complete,0,,trace: 2 ranks; 15 sends; 271 receives; 261 wildcard receives; 0 probes; 14 collective records; 4 communicators,9af5d63,7fdfcb7
+test_hashdc,mpich,2,3,pass,0,1,complete,0,,trace: 2 ranks; 15 sends; 271 receives; 261 wildcard receives; 0 probes; 14 collective records; 4 communicators,9af5d63,7fdfcb7
+test_hashdc,mpich,4,1,pass,0,1,complete,10,L1:1f=10,trace: 4 ranks; 45 sends; 557 receives; 527 wildcard receives; 0 probes; 28 collective records; 6 communicators,9af5d63,7fdfcb7
+test_hashdc,mpich,4,2,pass,0,1,complete,7,L1:1f=7,trace: 4 ranks; 45 sends; 557 receives; 527 wildcard receives; 0 probes; 28 collective records; 6 communicators,9af5d63,7fdfcb7
+test_hashdc,mpich,4,3,pass,0,1,complete,10,L1:1f=9 observed:2-buffering=1,trace: 4 ranks; 45 sends; 557 receives; 527 wildcard receives; 0 probes; 28 collective records; 6 communicators,9af5d63,7fdfcb7
+test_hashthreaded,mpich,2,1,pass,0,37,complete,0,,trace: 2 ranks; 4 sends; 260 receives; 256 wildcard receives; 0 probes; 10 collective records; 4 communicators,4256eda,7fdfcb7
+test_hashthreaded,mpich,2,2,pass,0,97,complete,0,,trace: 2 ranks; 4 sends; 260 receives; 256 wildcard receives; 0 probes; 10 collective records; 4 communicators,4256eda,7fdfcb7
+test_hashthreaded,mpich,2,3,pass,0,17,complete,0,,trace: 2 ranks; 4 sends; 260 receives; 256 wildcard receives; 0 probes; 10 collective records; 4 communicators,4256eda,7fdfcb7
+test_hashthreaded,mpich,4,1,hang,124,88,complete,7,observed:1c=2 observed:2-blocked=2 observed:2-buffering=1 observed:abort=2,trace: 4 ranks; 2 sends; 514 receives; 512 wildcard receives; 0 probes; 16 collective records; 6 communicators,4256eda,7fdfcb7
+test_hashthreaded,mpich,4,2,hang,124,2,complete,4,observed:2-blocked=1 observed:abort=3,trace: 4 ranks; 0 sends; 514 receives; 512 wildcard receives; 0 probes; 16 collective records; 6 communicators,4256eda,7fdfcb7
+test_hashthreaded,mpich,4,3,hang,124,31,complete,4,observed:2-blocked=1 observed:abort=3,trace: 4 ranks; 0 sends; 513 receives; 512 wildcard receives; 0 probes; 16 collective records; 6 communicators,4256eda,7fdfcb7
+test_hello,mpich,2,1,pass,0,1,complete,0,,trace: 2 ranks; 4 sends; 260 receives; 256 wildcard receives; 0 probes; 10 collective records; 4 communicators,9af5d63,7fdfcb7
+test_hello,mpich,2,2,pass,0,1,complete,0,,trace: 2 ranks; 4 sends; 260 receives; 256 wildcard receives; 0 probes; 10 collective records; 4 communicators,9af5d63,7fdfcb7
+test_hello,mpich,2,3,pass,0,1,complete,0,,trace: 2 ranks; 4 sends; 260 receives; 256 wildcard receives; 0 probes; 10 collective records; 4 communicators,9af5d63,7fdfcb7
+test_hello,mpich,4,1,pass,0,1,complete,0,,trace: 4 ranks; 12 sends; 524 receives; 512 wildcard receives; 0 probes; 20 collective records; 6 communicators,9af5d63,7fdfcb7
+test_hello,mpich,4,2,pass,0,1,complete,0,,trace: 4 ranks; 12 sends; 524 receives; 512 wildcard receives; 0 probes; 20 collective records; 6 communicators,9af5d63,7fdfcb7
+test_hello,mpich,4,3,pass,0,1,complete,0,,trace: 4 ranks; 12 sends; 524 receives; 512 wildcard receives; 0 probes; 20 collective records; 6 communicators,9af5d63,7fdfcb7
+test_memory_measurement,mpich,2,1,pass,0,4,complete,0,,trace: 2 ranks; 1258 sends; 1514 receives; 367 wildcard receives; 0 probes; 30 collective records; 10 communicators,4256eda,7fdfcb7
+test_memory_measurement,mpich,2,2,pass,0,4,complete,0,,trace: 2 ranks; 1278 sends; 1534 receives; 367 wildcard receives; 0 probes; 30 collective records; 10 communicators,4256eda,7fdfcb7
+test_memory_measurement,mpich,2,3,pass,0,4,complete,0,,trace: 2 ranks; 1274 sends; 1530 receives; 367 wildcard receives; 0 probes; 30 collective records; 10 communicators,4256eda,7fdfcb7
+test_memory_measurement,mpich,4,1,pass,0,10,analysis stopped at its time limit,,,,,7fdfcb7
+test_memory_measurement,mpich,4,2,pass,0,10,analysis stopped at its time limit,,,,,7fdfcb7
+test_memory_measurement,mpich,4,3,pass,0,10,analysis stopped at its time limit,,,,,7fdfcb7
+test_mul_sparse,mpich,2,1,pass,0,404,not analysed (trace of 404 MB),,,,,7fdfcb7
+test_mul_sparse,mpich,2,2,pass,0,412,not analysed (trace of 412 MB),,,,,7fdfcb7
+test_mul_sparse,mpich,2,3,pass,0,405,not analysed (trace of 405 MB),,,,,7fdfcb7
+test_mul_sparse,mpich,4,1,pass,0,557,not analysed (trace of 557 MB),,,,,7fdfcb7
+test_mul_sparse,mpich,4,2,pass,0,560,not analysed (trace of 560 MB),,,,,7fdfcb7
+test_mul_sparse,mpich,4,3,pass,0,561,not analysed (trace of 561 MB),,,,,7fdfcb7
+test_prof,mpich,2,1,pass,0,1,complete,0,,trace: 2 ranks; 76 sends; 332 receives; 256 wildcard receives; 0 probes; 14 collective records; 4 communicators,4256eda,7fdfcb7
+test_prof,mpich,2,2,pass,0,1,complete,0,,trace: 2 ranks; 76 sends; 332 receives; 256 wildcard receives; 0 probes; 14 collective records; 4 communicators,4256eda,7fdfcb7
+test_prof,mpich,2,3,pass,0,1,complete,0,,trace: 2 ranks; 76 sends; 332 receives; 256 wildcard receives; 0 probes; 14 collective records; 4 communicators,4256eda,7fdfcb7
+test_prof,mpich,4,1,pass,0,1,complete,0,,trace: 4 ranks; 228 sends; 740 receives; 512 wildcard receives; 0 probes; 28 collective records; 6 communicators,4256eda,7fdfcb7
+test_prof,mpich,4,2,pass,0,1,complete,0,,trace: 4 ranks; 228 sends; 740 receives; 512 wildcard receives; 0 probes; 28 collective records; 6 communicators,4256eda,7fdfcb7
+test_prof,mpich,4,3,pass,0,1,complete,0,,trace: 4 ranks; 228 sends; 740 receives; 512 wildcard receives; 0 probes; 28 collective records; 6 communicators,4256eda,7fdfcb7
+test_queue,mpich,2,1,pass,0,5,complete,0,,trace: 2 ranks; 4 sends; 260 receives; 256 wildcard receives; 0 probes; 14 collective records; 4 communicators,4256eda,7fdfcb7
+test_queue,mpich,2,2,pass,0,6,complete,0,,trace: 2 ranks; 4 sends; 260 receives; 256 wildcard receives; 0 probes; 14 collective records; 4 communicators,4256eda,7fdfcb7
+test_queue,mpich,2,3,pass,0,5,complete,0,,trace: 2 ranks; 4 sends; 260 receives; 256 wildcard receives; 0 probes; 14 collective records; 4 communicators,4256eda,7fdfcb7
+test_queue,mpich,4,1,pass,0,38,complete,0,,trace: 4 ranks; 12 sends; 524 receives; 512 wildcard receives; 0 probes; 28 collective records; 6 communicators,4256eda,7fdfcb7
+test_queue,mpich,4,2,pass,0,119,complete,0,,trace: 4 ranks; 12 sends; 524 receives; 512 wildcard receives; 0 probes; 28 collective records; 6 communicators,4256eda,7fdfcb7
+test_queue,mpich,4,3,pass,0,81,complete,0,,trace: 4 ranks; 12 sends; 524 receives; 512 wildcard receives; 0 probes; 28 collective records; 6 communicators,4256eda,7fdfcb7
+test_replication,mpich,2,1,pass,0,3,complete,0,,trace: 2 ranks; 1020 sends; 1276 receives; 278 wildcard receives; 0 probes; 10 collective records; 4 communicators,4256eda,7fdfcb7
+test_replication,mpich,2,2,pass,0,3,complete,0,,trace: 2 ranks; 1024 sends; 1280 receives; 278 wildcard receives; 0 probes; 10 collective records; 4 communicators,4256eda,7fdfcb7
+test_replication,mpich,2,3,pass,0,3,complete,0,,trace: 2 ranks; 1018 sends; 1274 receives; 278 wildcard receives; 0 probes; 10 collective records; 4 communicators,4256eda,7fdfcb7
+test_replication,mpich,4,1,pass,0,9,analysis stopped at its time limit,,,,,7fdfcb7
+test_replication,mpich,4,2,pass,0,9,analysis stopped at its time limit,,,,,7fdfcb7
+test_replication,mpich,4,3,pass,0,9,analysis stopped at its time limit,,,,,7fdfcb7
+test_stack,mpich,2,1,pass,0,1,no report (rc 2),,,,,7fdfcb7
+test_stack,mpich,2,2,pass,0,1,no report (rc 2),,,,,7fdfcb7
+test_stack,mpich,2,3,pass,0,1,no report (rc 2),,,,,7fdfcb7
+test_stack,mpich,4,1,pass,0,1,no report (rc 2),,,,,7fdfcb7
+test_stack,mpich,4,2,pass,0,1,no report (rc 2),,,,,7fdfcb7
+test_stack,mpich,4,3,pass,0,1,no report (rc 2),,,,,7fdfcb7
+test_thread_specific,mpich,2,1,pass,0,1,complete,0,,trace: 2 ranks; 4 sends; 260 receives; 256 wildcard receives; 0 probes; 10 collective records; 4 communicators,4256eda,7fdfcb7
+test_thread_specific,mpich,2,2,pass,0,1,complete,0,,trace: 2 ranks; 4 sends; 260 receives; 256 wildcard receives; 0 probes; 10 collective records; 4 communicators,4256eda,7fdfcb7
+test_thread_specific,mpich,2,3,pass,0,1,complete,0,,trace: 2 ranks; 4 sends; 260 receives; 256 wildcard receives; 0 probes; 10 collective records; 4 communicators,4256eda,7fdfcb7
+test_thread_specific,mpich,4,1,pass,0,1,complete,0,,trace: 4 ranks; 12 sends; 524 receives; 512 wildcard receives; 0 probes; 20 collective records; 6 communicators,4256eda,7fdfcb7
+test_thread_specific,mpich,4,2,pass,0,1,complete,0,,trace: 4 ranks; 12 sends; 524 receives; 512 wildcard receives; 0 probes; 20 collective records; 6 communicators,4256eda,7fdfcb7
+test_thread_specific,mpich,4,3,pass,0,1,complete,0,,trace: 4 ranks; 12 sends; 524 receives; 512 wildcard receives; 0 probes; 20 collective records; 6 communicators,4256eda,7fdfcb7
+test_tree,mpich,2,1,pass,0,1,degraded:order-not-judged,1,observed:2-buffering=1,trace: 2 ranks; 478 sends; 734 receives; 668 wildcard receives; 0 probes; 14 collective records; 4 communicators,4256eda,7fdfcb7
+test_tree,mpich,2,2,pass,0,2,degraded:order-not-judged,1,observed:2-buffering=1,trace: 2 ranks; 510 sends; 766 receives; 692 wildcard receives; 0 probes; 14 collective records; 4 communicators,4256eda,7fdfcb7
+test_tree,mpich,2,3,pass,0,1,degraded:order-not-judged,2,observed:2-buffering=1 observed:2-thread-wait=1,trace: 2 ranks; 430 sends; 686 receives; 620 wildcard receives; 0 probes; 14 collective records; 4 communicators,4256eda,7fdfcb7
+test_tree,mpich,4,1,pass,0,3,analysis stopped at its time limit,,,,,7fdfcb7
+test_tree,mpich,4,2,pass,0,3,analysis stopped at its time limit,,,,,7fdfcb7
+test_tree,mpich,4,3,pass,0,3,analysis stopped at its time limit,,,,,7fdfcb7
+test_vector,mpich,2,1,pass,0,1,no report (rc 2),,,,,7fdfcb7
+test_vector,mpich,2,2,pass,0,1,no report (rc 2),,,,,7fdfcb7
+test_vector,mpich,2,3,pass,0,1,no report (rc 2),,,,,7fdfcb7
+test_vector,mpich,4,1,pass,0,1,no report (rc 2),,,,,7fdfcb7
+test_vector,mpich,4,2,pass,0,1,no report (rc 2),,,,,7fdfcb7
+test_vector,mpich,4,3,pass,0,1,no report (rc 2),,,,,7fdfcb7
+test_vectormacrotask,mpich,2,1,killed,1,600,run killed (trace above 600 MB),,,,,7fdfcb7
+test_vectormacrotask,mpich,2,2,killed,1,600,run killed (trace above 600 MB),,,,,7fdfcb7
+test_vectormacrotask,mpich,2,3,killed,1,600,run killed (trace above 600 MB),,,,,7fdfcb7
+test_vectormacrotask,mpich,4,1,killed,1,600,run killed (trace above 600 MB),,,,,7fdfcb7
+test_vectormacrotask,mpich,4,2,killed,1,600,run killed (trace above 600 MB),,,,,7fdfcb7
+test_vectormacrotask,mpich,4,3,killed,1,600,run killed (trace above 600 MB),,,,,7fdfcb7
+test_world,mpich,2,1,pass,0,382,not analysed (trace of 382 MB),,,,,7fdfcb7
+test_world,mpich,2,2,pass,0,384,not analysed (trace of 384 MB),,,,,7fdfcb7
+test_world,mpich,2,3,pass,0,387,not analysed (trace of 387 MB),,,,,7fdfcb7
+test_world,mpich,4,1,fail,137,28,degraded:order-not-judged,6,observed:2-blocked=1 observed:2-thread-wait=2 observed:abort=3,trace: 4 ranks; 13130 sends; 13643 receives; 13184 wildcard receives; 0 probes; 28 collective records; 8 communicators,9af5d63,7fdfcb7
+test_world,mpich,4,2,fail,137,33,degraded:order-not-judged,5,observed:2-thread-wait=1 observed:abort=4,trace: 4 ranks; 13106 sends; 13618 receives; 13184 wildcard receives; 0 probes; 28 collective records; 8 communicators,9af5d63,7fdfcb7
+test_world,mpich,4,3,fail,137,26,degraded:order-not-judged,5,observed:2-thread-wait=1 observed:abort=4,trace: 4 ranks; 13110 sends; 13622 receives; 13184 wildcard receives; 0 probes; 28 collective records; 8 communicators,9af5d63,7fdfcb7
+test_worldprofile,mpich,2,1,pass,0,1,complete,0,,trace: 2 ranks; 8 sends; 264 receives; 256 wildcard receives; 0 probes; 14 collective records; 4 communicators,4256eda,7fdfcb7
+test_worldprofile,mpich,2,2,pass,0,1,complete,0,,trace: 2 ranks; 8 sends; 264 receives; 256 wildcard receives; 0 probes; 14 collective records; 4 communicators,4256eda,7fdfcb7
+test_worldprofile,mpich,2,3,pass,0,1,complete,0,,trace: 2 ranks; 8 sends; 264 receives; 256 wildcard receives; 0 probes; 14 collective records; 4 communicators,4256eda,7fdfcb7
+test_worldprofile,mpich,4,1,pass,0,1,complete,0,,trace: 4 ranks; 24 sends; 536 receives; 512 wildcard receives; 0 probes; 28 collective records; 6 communicators,4256eda,7fdfcb7
+test_worldprofile,mpich,4,2,pass,0,1,complete,0,,trace: 4 ranks; 24 sends; 536 receives; 512 wildcard receives; 0 probes; 28 collective records; 6 communicators,4256eda,7fdfcb7
+test_worldprofile,mpich,4,3,pass,0,1,complete,0,,trace: 4 ranks; 24 sends; 536 receives; 512 wildcard receives; 0 probes; 28 collective records; 6 communicators,4256eda,7fdfcb7
+test_worldptr,mpich,2,1,pass,0,1,complete,0,,trace: 2 ranks; 20 sends; 276 receives; 264 wildcard receives; 0 probes; 14 collective records; 4 communicators,4256eda,7fdfcb7
+test_worldptr,mpich,2,2,pass,0,1,complete,0,,trace: 2 ranks; 20 sends; 276 receives; 264 wildcard receives; 0 probes; 14 collective records; 4 communicators,4256eda,7fdfcb7
+test_worldptr,mpich,2,3,pass,0,1,complete,0,,trace: 2 ranks; 20 sends; 276 receives; 264 wildcard receives; 0 probes; 14 collective records; 4 communicators,4256eda,7fdfcb7
+test_worldptr,mpich,4,1,pass,0,1,complete,10,L1:1f=10,trace: 4 ranks; 52 sends; 564 receives; 528 wildcard receives; 0 probes; 28 collective records; 6 communicators,4256eda,7fdfcb7
+test_worldptr,mpich,4,2,pass,0,1,complete,9,L1:1f=9,trace: 4 ranks; 52 sends; 564 receives; 528 wildcard receives; 0 probes; 28 collective records; 6 communicators,4256eda,7fdfcb7
+test_worldptr,mpich,4,3,pass,0,1,complete,9,L1:1f=9,trace: 4 ranks; 52 sends; 564 receives; 528 wildcard receives; 0 probes; 28 collective records; 6 communicators,4256eda,7fdfcb7
+test_worldref,mpich,2,1,pass,0,1,complete,0,,trace: 2 ranks; 34 sends; 290 receives; 260 wildcard receives; 0 probes; 14 collective records; 4 communicators,4256eda,7fdfcb7
+test_worldref,mpich,2,2,pass,0,1,complete,0,,trace: 2 ranks; 36 sends; 292 receives; 260 wildcard receives; 0 probes; 14 collective records; 4 communicators,4256eda,7fdfcb7
+test_worldref,mpich,2,3,pass,0,1,complete,0,,trace: 2 ranks; 30 sends; 286 receives; 260 wildcard receives; 0 probes; 14 collective records; 4 communicators,4256eda,7fdfcb7
+test_worldref,mpich,4,1,pass,0,1,complete,3,L1:1f=3,trace: 4 ranks; 110 sends; 622 receives; 520 wildcard receives; 0 probes; 28 collective records; 6 communicators,4256eda,7fdfcb7
+test_worldref,mpich,4,2,pass,0,1,complete,3,L1:1f=3,trace: 4 ranks; 92 sends; 604 receives; 520 wildcard receives; 0 probes; 28 collective records; 6 communicators,4256eda,7fdfcb7
+test_worldref,mpich,4,3,pass,0,1,complete,2,L1:1f=2,trace: 4 ranks; 92 sends; 604 receives; 520 wildcard receives; 0 probes; 28 collective records; 6 communicators,4256eda,7fdfcb7

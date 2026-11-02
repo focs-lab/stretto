@@ -1,0 +1,29 @@
+test,mpi,np,run,site,location,counts,commit
+test_cloud,mpich,2,1,-,,observed:2-buffering=1,7fdfcb7
+test_cloud,mpich,2,2,-,,observed:2-buffering=1,7fdfcb7
+test_cloud,mpich,2,3,-,,observed:2-buffering=1,7fdfcb7
+test_dc,mpich,2,1,-,,observed:2-buffering=1,7fdfcb7
+test_dc,mpich,2,2,-,,observed:2-buffering=1,7fdfcb7
+test_dc,mpich,2,3,-,,observed:2-buffering=1,7fdfcb7
+test_future3,mpich,4,1,test_future3+0x14fba,"SafeMPI::Intracomm::Irecv(void*, int, int, int, int) const at world/safempi.h:751",L1:1f=51,7fdfcb7
+test_future3,mpich,4,2,test_future3+0x14fba,"SafeMPI::Intracomm::Irecv(void*, int, int, int, int) const at world/safempi.h:751",L1:1f=59,7fdfcb7
+test_future3,mpich,4,3,test_future3+0x14fba,"SafeMPI::Intracomm::Irecv(void*, int, int, int, int) const at world/safempi.h:751",L1:1f=65,7fdfcb7
+test_hashdc,mpich,4,1,test_hashdc+0x1caea,"SafeMPI::Intracomm::Irecv(void*, int, int, int, int) const at world/safempi.h:751",L1:1f=10,7fdfcb7
+test_hashdc,mpich,4,2,test_hashdc+0x1caea,"SafeMPI::Intracomm::Irecv(void*, int, int, int, int) const at world/safempi.h:751",L1:1f=7,7fdfcb7
+test_hashdc,mpich,4,3,-,,observed:2-buffering=1,7fdfcb7
+test_hashdc,mpich,4,3,test_hashdc+0x1caea,"SafeMPI::Intracomm::Irecv(void*, int, int, int, int) const at world/safempi.h:751",L1:1f=9,7fdfcb7
+test_hashthreaded,mpich,4,1,-,,observed:1c=2 observed:2-blocked=2 observed:2-buffering=1 observed:abort=2,7fdfcb7
+test_hashthreaded,mpich,4,2,-,,observed:2-blocked=1 observed:abort=3,7fdfcb7
+test_hashthreaded,mpich,4,3,-,,observed:2-blocked=1 observed:abort=3,7fdfcb7
+test_tree,mpich,2,1,-,,observed:2-buffering=1,7fdfcb7
+test_tree,mpich,2,2,-,,observed:2-buffering=1,7fdfcb7
+test_tree,mpich,2,3,-,,observed:2-buffering=1 observed:2-thread-wait=1,7fdfcb7
+test_world,mpich,4,1,-,,observed:2-blocked=1 observed:2-thread-wait=2 observed:abort=3,7fdfcb7
+test_world,mpich,4,2,-,,observed:2-thread-wait=1 observed:abort=4,7fdfcb7
+test_world,mpich,4,3,-,,observed:2-thread-wait=1 observed:abort=4,7fdfcb7
+test_worldptr,mpich,4,1,test_worldptr+0x296da,"SafeMPI::Intracomm::Irecv(void*, int, int, int, int) const at world/safempi.h:751",L1:1f=10,7fdfcb7
+test_worldptr,mpich,4,2,test_worldptr+0x296da,"SafeMPI::Intracomm::Irecv(void*, int, int, int, int) const at world/safempi.h:751",L1:1f=9,7fdfcb7
+test_worldptr,mpich,4,3,test_worldptr+0x296da,"SafeMPI::Intracomm::Irecv(void*, int, int, int, int) const at world/safempi.h:751",L1:1f=9,7fdfcb7
+test_worldref,mpich,4,1,test_worldref+0x30afa,"SafeMPI::Intracomm::Irecv(void*, int, int, int, int) const at world/safempi.h:751",L1:1f=3,7fdfcb7
+test_worldref,mpich,4,2,test_worldref+0x30afa,"SafeMPI::Intracomm::Irecv(void*, int, int, int, int) const at world/safempi.h:751",L1:1f=3,7fdfcb7
+test_worldref,mpich,4,3,test_worldref+0x30afa,"SafeMPI::Intracomm::Irecv(void*, int, int, int, int) const at world/safempi.h:751",L1:1f=2,7fdfcb7

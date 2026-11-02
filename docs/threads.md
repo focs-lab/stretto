@@ -10,7 +10,8 @@ milestone F analyses requests handed between threads and cancelled receives (30 
 section 16 what forced replays of its three races showed (30-31 Oct 2026), section 17 how the
 tracer records synchronisation through atomics (1 Nov 2026),
 section 18 two tracer settings for codes that enter a parallel region per time step and
-write through MPI-IO (1 Nov 2026).
+write through MPI-IO (1 Nov 2026), section 19 forced replays of several threads made reliable
+(2 Nov 2026), section 20 a lock's clock that ends with the lock (2 Nov 2026).
 Decided
 29 Oct 2026: Stretto is extended to programs in which several threads of an MPI process call MPI
 on shared communicators (`MPI_THREAD_MULTIPLE`, and `MPI_THREAD_SERIALIZED` with several calling
@@ -1955,3 +1956,44 @@ table names the code.
 - **Cycles with unrecorded synchronisation.** An alternative whose gates contradict
   synchronisation the trace lacks (PaRSEC's gcc build) holds every thread at a gate; giving way
   ends the run sooner, inconclusive as before.
+
+## 20. A lock’s clock ends with the lock (2 Nov 2026)
+
+The tracer keeps a vector clock per synchronisation object, by address (8 KiB at 256 chains:
+four components per chain). Before, an object's clock lived as long as the run, across
+`pthread_*_destroy` and `*_init` at its address, which only renumbered the lock in the sync log.
+MADNESS (experiments/madness) makes a mutex or spin lock per future and task, and its traced
+`test_world` (2 ranks, a pool of 2 threads) was killed by a 12 GB memory cap; untraced it peaks
+at 2.1 GB per rank. Now `pthread_mutex_*`, `pthread_rwlock_*`, `pthread_spin_*`, `sem_*` and
+`omp_*_lock` init and destroy end the object at the address (`sobj_drop`): its clock is freed,
+and a later lock there is a new lock, with a new lock id and sync-log number, that neither
+synchronises with the old one nor inherits its clock (an edge from the old object's last
+release to the new object's first acquire was no synchronisation of the program; the
+allocator's reuse of the memory is not one the analysis models). An object still in a chain's
+list of critical sections whose edge waits for a record (13.1) is unlinked and freed when that
+list lets it go; the lists are now changed under the objects' mutex. With it the traced
+`test_world` passes with 2.2 GB per rank. Tests: `test_lock_lifetime` (an edge through one
+mutex; none through a mutex destroyed and initialised again between the release and the
+acquire; a destroy right after a deferred critical section; 100 000 mutexes initialised, taken
+and destroyed: peak resident size 830 MB before, now below 300 MB).
+
+Three analysis costs met on the same traces, none of which changes a report: the check for two
+chains waiting on one request leaves out requests that one chain alone waits on (MADNESS's
+communication thread tests the same receives in each of 70 000 `Testsome` records; quadratic
+before); with chains the completion-order alternatives ask the observed happens-before of
+vector clocks (`threads.observed_reaches`) instead of a graph search per query; and rule 6's
+chain of deprived nonblocking receives runs on an explicit stack (30 000 receives of one
+envelope made the recursion deep enough to crash Python with SIGSEGV). Tests:
+`test_checker.C_DeprivedIrecv.test_long_chain_of_deprived_receives` (1 500 in a row, as the
+reference closure finds; a `RecursionError` before). And an option, off by default:
+`stretto analyze --no-order` counts the completion-order candidates (another index of a
+`Waitany`/`Testsome` first, a test finding its receive done) in a note instead of judging each
+with the generic check, and marks the report `degraded:order-not-judged`; receive and probe
+alternatives are judged as always (`test_checker.C_ProbeAndCompletionOrder`). A 217 MB trace of
+MADNESS's `test_dc` has 418 459 such candidates and none at a receive.
+
+Gate (`experiments/report_diff.py` against main 3b7abb5, text, `--json`, `--full-profile
+--json`): the 532 single-chain traces of the earlier gates, 1 596 comparisons, and the 94
+multithreaded traces of section 17's gate, 282 comparisons, all equal but for the
+`analysis_commit` field. Unit tests (experiment image, the repository at /w): 589 run, 44
+skipped (the idioms not traced first), all pass.

@@ -1,0 +1,163 @@
+test,mpi,np,run,result,rc,trace_mb,status,findings,classes,summary,analysis_commit,commit
+test_ar,openmpi,2,1,pass,0,1,complete,0,,trace: 2 ranks; 20 sends; 276 receives; 256 wildcard receives; 0 probes; 10 collective records; 4 communicators,4256eda,7fdfcb7
+test_ar,openmpi,2,2,pass,0,1,complete,0,,trace: 2 ranks; 20 sends; 276 receives; 256 wildcard receives; 0 probes; 10 collective records; 4 communicators,4256eda,7fdfcb7
+test_ar,openmpi,2,3,pass,0,1,complete,0,,trace: 2 ranks; 20 sends; 276 receives; 256 wildcard receives; 0 probes; 10 collective records; 4 communicators,4256eda,7fdfcb7
+test_ar,openmpi,4,1,pass,0,1,complete,0,,trace: 4 ranks; 60 sends; 572 receives; 512 wildcard receives; 0 probes; 20 collective records; 6 communicators,4256eda,7fdfcb7
+test_ar,openmpi,4,2,pass,0,1,complete,0,,trace: 4 ranks; 60 sends; 572 receives; 512 wildcard receives; 0 probes; 20 collective records; 6 communicators,4256eda,7fdfcb7
+test_ar,openmpi,4,3,pass,0,1,complete,0,,trace: 4 ranks; 60 sends; 572 receives; 512 wildcard receives; 0 probes; 20 collective records; 6 communicators,4256eda,7fdfcb7
+test_atomicint,openmpi,2,1,pass,0,7,complete,0,,trace: 2 ranks; 4 sends; 260 receives; 256 wildcard receives; 0 probes; 10 collective records; 4 communicators,4256eda,7fdfcb7
+test_atomicint,openmpi,2,2,pass,0,10,complete,0,,trace: 2 ranks; 4 sends; 260 receives; 256 wildcard receives; 0 probes; 10 collective records; 4 communicators,4256eda,7fdfcb7
+test_atomicint,openmpi,2,3,pass,0,5,complete,0,,trace: 2 ranks; 4 sends; 260 receives; 256 wildcard receives; 0 probes; 10 collective records; 4 communicators,4256eda,7fdfcb7
+test_atomicint,openmpi,4,1,pass,0,46,complete,0,,trace: 4 ranks; 12 sends; 524 receives; 512 wildcard receives; 0 probes; 20 collective records; 6 communicators,4256eda,7fdfcb7
+test_atomicint,openmpi,4,2,pass,0,28,complete,0,,trace: 4 ranks; 12 sends; 524 receives; 512 wildcard receives; 0 probes; 20 collective records; 6 communicators,4256eda,7fdfcb7
+test_atomicint,openmpi,4,3,pass,0,38,complete,0,,trace: 4 ranks; 12 sends; 524 receives; 512 wildcard receives; 0 probes; 20 collective records; 6 communicators,4256eda,7fdfcb7
+test_binsorter,openmpi,2,1,pass,0,3,degraded:order-not-judged,0,,trace: 2 ranks; 1838 sends; 2094 receives; 2076 wildcard receives; 0 probes; 14 collective records; 4 communicators,4256eda,7fdfcb7
+test_binsorter,openmpi,2,2,pass,0,3,degraded:order-not-judged,0,,trace: 2 ranks; 1840 sends; 2096 receives; 2076 wildcard receives; 0 probes; 14 collective records; 4 communicators,4256eda,7fdfcb7
+test_binsorter,openmpi,2,3,pass,0,3,degraded:order-not-judged,0,,trace: 2 ranks; 1840 sends; 2096 receives; 2076 wildcard receives; 0 probes; 14 collective records; 4 communicators,4256eda,7fdfcb7
+test_binsorter,openmpi,4,1,pass,0,14,analysis stopped at its time limit,,,,,7fdfcb7
+test_binsorter,openmpi,4,2,pass,0,14,analysis stopped at its time limit,,,,,7fdfcb7
+test_binsorter,openmpi,4,3,pass,0,21,analysis stopped at its time limit,,,,,7fdfcb7
+test_cloud,openmpi,2,1,pass,0,51,degraded:order-not-judged,1,observed:2-buffering=1,trace: 2 ranks; 6825 sends; 7081 receives; 1053 wildcard receives; 0 probes; 1048 collective records; 82 communicators,4256eda,7fdfcb7
+test_cloud,openmpi,2,2,pass,0,50,degraded:order-not-judged,1,observed:2-buffering=1,trace: 2 ranks; 6807 sends; 7063 receives; 1053 wildcard receives; 0 probes; 1048 collective records; 82 communicators,4256eda,7fdfcb7
+test_cloud,openmpi,2,3,pass,0,50,degraded:order-not-judged,1,observed:2-buffering=1,trace: 2 ranks; 6809 sends; 7065 receives; 1053 wildcard receives; 0 probes; 1048 collective records; 82 communicators,4256eda,7fdfcb7
+test_cloud,openmpi,4,1,pass,0,125,analysis stopped at its time limit,,,,,7fdfcb7
+test_cloud,openmpi,4,2,pass,0,123,analysis stopped at its time limit,,,,,7fdfcb7
+test_cloud,openmpi,4,3,pass,0,125,analysis stopped at its time limit,,,,,7fdfcb7
+test_dc,openmpi,2,1,pass,0,216,degraded:order-not-judged,1,observed:2-buffering=1,trace: 2 ranks; 41910 sends; 42166 receives; 41994 wildcard receives; 0 probes; 14 collective records; 4 communicators,9af5d63,7fdfcb7
+test_dc,openmpi,2,2,pass,0,215,degraded:order-not-judged,1,observed:2-buffering=1,trace: 2 ranks; 41932 sends; 42188 receives; 41994 wildcard receives; 0 probes; 14 collective records; 4 communicators,9af5d63,7fdfcb7
+test_dc,openmpi,2,3,pass,0,208,degraded:order-not-judged,1,observed:2-buffering=1,trace: 2 ranks; 41848 sends; 42104 receives; 41994 wildcard receives; 0 probes; 14 collective records; 4 communicators,9af5d63,7fdfcb7
+test_dc,openmpi,4,1,pass,0,481,not analysed (trace of 481 MB),,,,,7fdfcb7
+test_dc,openmpi,4,2,pass,0,576,not analysed (trace of 576 MB),,,,,7fdfcb7
+test_dc,openmpi,4,3,pass,0,551,not analysed (trace of 551 MB),,,,,7fdfcb7
+test_eval,openmpi,2,1,killed,1,600,run killed (trace above 600 MB),,,,,7fdfcb7
+test_eval,openmpi,2,2,killed,1,600,run killed (trace above 600 MB),,,,,7fdfcb7
+test_eval,openmpi,2,3,killed,1,600,run killed (trace above 600 MB),,,,,7fdfcb7
+test_eval,openmpi,4,1,killed,1,600,run killed (trace above 600 MB),,,,,7fdfcb7
+test_eval,openmpi,4,2,killed,1,600,run killed (trace above 600 MB),,,,,7fdfcb7
+test_eval,openmpi,4,3,killed,1,600,run killed (trace above 600 MB),,,,,7fdfcb7
+test_future,openmpi,2,1,pass,0,1,complete,0,,trace: 2 ranks; 4 sends; 260 receives; 256 wildcard receives; 0 probes; 14 collective records; 4 communicators,9af5d63,7fdfcb7
+test_future,openmpi,2,2,pass,0,1,complete,0,,trace: 2 ranks; 4 sends; 260 receives; 256 wildcard receives; 0 probes; 14 collective records; 4 communicators,9af5d63,7fdfcb7
+test_future,openmpi,2,3,pass,0,1,complete,0,,trace: 2 ranks; 4 sends; 260 receives; 256 wildcard receives; 0 probes; 14 collective records; 4 communicators,9af5d63,7fdfcb7
+test_future,openmpi,4,1,pass,0,1,complete,0,,trace: 4 ranks; 12 sends; 524 receives; 512 wildcard receives; 0 probes; 28 collective records; 6 communicators,9af5d63,7fdfcb7
+test_future,openmpi,4,2,pass,0,1,complete,0,,trace: 4 ranks; 12 sends; 524 receives; 512 wildcard receives; 0 probes; 28 collective records; 6 communicators,9af5d63,7fdfcb7
+test_future,openmpi,4,3,pass,0,1,complete,0,,trace: 4 ranks; 12 sends; 524 receives; 512 wildcard receives; 0 probes; 28 collective records; 6 communicators,9af5d63,7fdfcb7
+test_future2,openmpi,2,1,pass,0,12,degraded:order-not-judged,0,,trace: 2 ranks; 10062 sends; 10318 receives; 10296 wildcard receives; 0 probes; 14 collective records; 4 communicators,9af5d63,7fdfcb7
+test_future2,openmpi,2,2,pass,0,12,degraded:order-not-judged,0,,trace: 2 ranks; 10052 sends; 10308 receives; 10296 wildcard receives; 0 probes; 14 collective records; 4 communicators,9af5d63,7fdfcb7
+test_future2,openmpi,2,3,pass,0,12,degraded:order-not-judged,0,,trace: 2 ranks; 10054 sends; 10310 receives; 10296 wildcard receives; 0 probes; 14 collective records; 4 communicators,9af5d63,7fdfcb7
+test_future2,openmpi,4,1,pass,0,19,analysis stopped at its time limit,,,,,7fdfcb7
+test_future2,openmpi,4,2,pass,0,19,analysis stopped at its time limit,,,,,7fdfcb7
+test_future2,openmpi,4,3,pass,0,18,analysis stopped at its time limit,,,,,7fdfcb7
+test_future3,openmpi,2,1,pass,0,1,complete,0,,trace: 2 ranks; 24 sends; 280 receives; 272 wildcard receives; 0 probes; 14 collective records; 4 communicators,4256eda,7fdfcb7
+test_future3,openmpi,2,2,pass,0,1,complete,0,,trace: 2 ranks; 24 sends; 280 receives; 272 wildcard receives; 0 probes; 14 collective records; 4 communicators,4256eda,7fdfcb7
+test_future3,openmpi,2,3,pass,0,1,complete,0,,trace: 2 ranks; 24 sends; 280 receives; 272 wildcard receives; 0 probes; 14 collective records; 4 communicators,4256eda,7fdfcb7
+test_future3,openmpi,4,1,pass,0,2,complete,52,L1:1f=52,trace: 4 ranks; 120 sends; 632 receives; 608 wildcard receives; 0 probes; 28 collective records; 6 communicators,4256eda,7fdfcb7
+test_future3,openmpi,4,2,pass,0,2,complete,48,L1:1f=48,trace: 4 ranks; 120 sends; 632 receives; 608 wildcard receives; 0 probes; 28 collective records; 6 communicators,4256eda,7fdfcb7
+test_future3,openmpi,4,3,pass,0,2,complete,53,L1:1f=53,trace: 4 ranks; 126 sends; 638 receives; 608 wildcard receives; 0 probes; 28 collective records; 6 communicators,4256eda,7fdfcb7
+test_halo,openmpi,2,1,pass,0,477,not analysed (trace of 477 MB),,,,,7fdfcb7
+test_halo,openmpi,2,2,pass,0,471,not analysed (trace of 471 MB),,,,,7fdfcb7
+test_halo,openmpi,2,3,pass,0,469,not analysed (trace of 469 MB),,,,,7fdfcb7
+test_halo,openmpi,4,1,killed,0,600,run killed (trace above 600 MB),,,,,7fdfcb7
+test_halo,openmpi,4,2,killed,0,600,run killed (trace above 600 MB),,,,,7fdfcb7
+test_halo,openmpi,4,3,killed,1,600,run killed (trace above 600 MB),,,,,7fdfcb7
+test_hashdc,openmpi,2,1,pass,0,1,complete,1,observed:2-buffering=1,trace: 2 ranks; 15 sends; 271 receives; 261 wildcard receives; 0 probes; 14 collective records; 4 communicators,9af5d63,7fdfcb7
+test_hashdc,openmpi,2,2,pass,0,1,complete,1,observed:2-buffering=1,trace: 2 ranks; 15 sends; 271 receives; 261 wildcard receives; 0 probes; 14 collective records; 4 communicators,9af5d63,7fdfcb7
+test_hashdc,openmpi,2,3,pass,0,1,complete,1,observed:2-buffering=1,trace: 2 ranks; 15 sends; 271 receives; 261 wildcard receives; 0 probes; 14 collective records; 4 communicators,9af5d63,7fdfcb7
+test_hashdc,openmpi,4,1,pass,0,2,complete,13,L1:1f=12 observed:2-buffering=1,trace: 4 ranks; 45 sends; 557 receives; 527 wildcard receives; 0 probes; 28 collective records; 6 communicators,9af5d63,7fdfcb7
+test_hashdc,openmpi,4,2,pass,0,2,complete,14,L1:1f=13 observed:2-buffering=1,trace: 4 ranks; 45 sends; 557 receives; 527 wildcard receives; 0 probes; 28 collective records; 6 communicators,9af5d63,7fdfcb7
+test_hashdc,openmpi,4,3,pass,0,1,complete,14,L1:1f=13 observed:2-buffering=1,trace: 4 ranks; 45 sends; 557 receives; 527 wildcard receives; 0 probes; 28 collective records; 6 communicators,9af5d63,7fdfcb7
+test_hashthreaded,openmpi,2,1,hang,124,1,complete,2,observed:abort=2,trace: 2 ranks; 0 sends; 256 receives; 256 wildcard receives; 0 probes; 8 collective records; 4 communicators,4256eda,7fdfcb7
+test_hashthreaded,openmpi,2,2,hang,124,1,complete,2,observed:abort=2,trace: 2 ranks; 0 sends; 256 receives; 256 wildcard receives; 0 probes; 8 collective records; 4 communicators,4256eda,7fdfcb7
+test_hashthreaded,openmpi,2,3,hang,124,1,complete,2,observed:abort=2,trace: 2 ranks; 0 sends; 256 receives; 256 wildcard receives; 0 probes; 8 collective records; 4 communicators,4256eda,7fdfcb7
+test_hashthreaded,openmpi,4,1,hang,124,1,complete,4,observed:abort=4,trace: 4 ranks; 0 sends; 512 receives; 512 wildcard receives; 0 probes; 16 collective records; 6 communicators,4256eda,7fdfcb7
+test_hashthreaded,openmpi,4,2,hang,124,1,complete,4,observed:abort=4,trace: 4 ranks; 0 sends; 512 receives; 512 wildcard receives; 0 probes; 16 collective records; 6 communicators,4256eda,7fdfcb7
+test_hashthreaded,openmpi,4,3,hang,124,1,complete,4,observed:abort=4,trace: 4 ranks; 0 sends; 512 receives; 512 wildcard receives; 0 probes; 16 collective records; 6 communicators,4256eda,7fdfcb7
+test_hello,openmpi,2,1,pass,0,1,complete,0,,trace: 2 ranks; 4 sends; 260 receives; 256 wildcard receives; 0 probes; 10 collective records; 4 communicators,9af5d63,7fdfcb7
+test_hello,openmpi,2,2,pass,0,1,complete,0,,trace: 2 ranks; 4 sends; 260 receives; 256 wildcard receives; 0 probes; 10 collective records; 4 communicators,9af5d63,7fdfcb7
+test_hello,openmpi,2,3,pass,0,1,complete,0,,trace: 2 ranks; 4 sends; 260 receives; 256 wildcard receives; 0 probes; 10 collective records; 4 communicators,9af5d63,7fdfcb7
+test_hello,openmpi,4,1,pass,0,1,complete,0,,trace: 4 ranks; 12 sends; 524 receives; 512 wildcard receives; 0 probes; 20 collective records; 6 communicators,9af5d63,7fdfcb7
+test_hello,openmpi,4,2,pass,0,1,complete,0,,trace: 4 ranks; 12 sends; 524 receives; 512 wildcard receives; 0 probes; 20 collective records; 6 communicators,9af5d63,7fdfcb7
+test_hello,openmpi,4,3,pass,0,1,complete,0,,trace: 4 ranks; 12 sends; 524 receives; 512 wildcard receives; 0 probes; 20 collective records; 6 communicators,9af5d63,7fdfcb7
+test_memory_measurement,openmpi,2,1,pass,0,6,complete,0,,trace: 2 ranks; 1262 sends; 1518 receives; 367 wildcard receives; 0 probes; 30 collective records; 10 communicators,4256eda,7fdfcb7
+test_memory_measurement,openmpi,2,2,pass,0,6,complete,0,,trace: 2 ranks; 1266 sends; 1522 receives; 367 wildcard receives; 0 probes; 30 collective records; 10 communicators,4256eda,7fdfcb7
+test_memory_measurement,openmpi,2,3,pass,0,6,complete,0,,trace: 2 ranks; 1264 sends; 1520 receives; 367 wildcard receives; 0 probes; 30 collective records; 10 communicators,4256eda,7fdfcb7
+test_memory_measurement,openmpi,4,1,pass,0,16,analysis stopped at its time limit,,,,,7fdfcb7
+test_memory_measurement,openmpi,4,2,pass,0,16,analysis stopped at its time limit,,,,,7fdfcb7
+test_memory_measurement,openmpi,4,3,pass,0,16,analysis stopped at its time limit,,,,,7fdfcb7
+test_mul_sparse,openmpi,2,1,pass,0,500,not analysed (trace of 500 MB),,,,,7fdfcb7
+test_mul_sparse,openmpi,2,2,pass,0,520,not analysed (trace of 520 MB),,,,,7fdfcb7
+test_mul_sparse,openmpi,2,3,pass,0,508,not analysed (trace of 508 MB),,,,,7fdfcb7
+test_mul_sparse,openmpi,4,1,killed,1,600,run killed (trace above 600 MB),,,,,7fdfcb7
+test_mul_sparse,openmpi,4,2,killed,1,600,run killed (trace above 600 MB),,,,,7fdfcb7
+test_mul_sparse,openmpi,4,3,killed,1,600,run killed (trace above 600 MB),,,,,7fdfcb7
+test_prof,openmpi,2,1,pass,0,1,complete,0,,trace: 2 ranks; 76 sends; 332 receives; 256 wildcard receives; 0 probes; 14 collective records; 4 communicators,4256eda,7fdfcb7
+test_prof,openmpi,2,2,pass,0,1,complete,0,,trace: 2 ranks; 76 sends; 332 receives; 256 wildcard receives; 0 probes; 14 collective records; 4 communicators,4256eda,7fdfcb7
+test_prof,openmpi,2,3,pass,0,1,complete,0,,trace: 2 ranks; 76 sends; 332 receives; 256 wildcard receives; 0 probes; 14 collective records; 4 communicators,4256eda,7fdfcb7
+test_prof,openmpi,4,1,pass,0,2,complete,0,,trace: 4 ranks; 228 sends; 740 receives; 512 wildcard receives; 0 probes; 28 collective records; 6 communicators,4256eda,7fdfcb7
+test_prof,openmpi,4,2,pass,0,2,complete,0,,trace: 4 ranks; 228 sends; 740 receives; 512 wildcard receives; 0 probes; 28 collective records; 6 communicators,4256eda,7fdfcb7
+test_prof,openmpi,4,3,pass,0,2,complete,0,,trace: 4 ranks; 228 sends; 740 receives; 512 wildcard receives; 0 probes; 28 collective records; 6 communicators,4256eda,7fdfcb7
+test_queue,openmpi,2,1,pass,0,14,complete,0,,trace: 2 ranks; 4 sends; 260 receives; 256 wildcard receives; 0 probes; 14 collective records; 4 communicators,4256eda,7fdfcb7
+test_queue,openmpi,2,2,pass,0,8,complete,0,,trace: 2 ranks; 4 sends; 260 receives; 256 wildcard receives; 0 probes; 14 collective records; 4 communicators,4256eda,7fdfcb7
+test_queue,openmpi,2,3,pass,0,5,complete,0,,trace: 2 ranks; 4 sends; 260 receives; 256 wildcard receives; 0 probes; 14 collective records; 4 communicators,4256eda,7fdfcb7
+test_queue,openmpi,4,1,pass,0,17,complete,0,,trace: 4 ranks; 12 sends; 524 receives; 512 wildcard receives; 0 probes; 28 collective records; 6 communicators,4256eda,7fdfcb7
+test_queue,openmpi,4,2,pass,0,83,complete,0,,trace: 4 ranks; 12 sends; 524 receives; 512 wildcard receives; 0 probes; 28 collective records; 6 communicators,4256eda,7fdfcb7
+test_queue,openmpi,4,3,pass,0,58,complete,0,,trace: 4 ranks; 12 sends; 524 receives; 512 wildcard receives; 0 probes; 28 collective records; 6 communicators,4256eda,7fdfcb7
+test_replication,openmpi,2,1,pass,0,4,complete,0,,trace: 2 ranks; 1018 sends; 1274 receives; 278 wildcard receives; 0 probes; 10 collective records; 4 communicators,4256eda,7fdfcb7
+test_replication,openmpi,2,2,pass,0,4,complete,0,,trace: 2 ranks; 1020 sends; 1276 receives; 278 wildcard receives; 0 probes; 10 collective records; 4 communicators,4256eda,7fdfcb7
+test_replication,openmpi,2,3,pass,0,4,complete,0,,trace: 2 ranks; 1018 sends; 1274 receives; 278 wildcard receives; 0 probes; 10 collective records; 4 communicators,4256eda,7fdfcb7
+test_replication,openmpi,4,1,pass,0,13,analysis stopped at its time limit,,,,,7fdfcb7
+test_replication,openmpi,4,2,pass,0,13,analysis stopped at its time limit,,,,,7fdfcb7
+test_replication,openmpi,4,3,pass,0,13,analysis stopped at its time limit,,,,,7fdfcb7
+test_stack,openmpi,2,1,pass,0,1,no report (rc 2),,,,,7fdfcb7
+test_stack,openmpi,2,2,pass,0,1,no report (rc 2),,,,,7fdfcb7
+test_stack,openmpi,2,3,pass,0,1,no report (rc 2),,,,,7fdfcb7
+test_stack,openmpi,4,1,pass,0,1,no report (rc 2),,,,,7fdfcb7
+test_stack,openmpi,4,2,pass,0,1,no report (rc 2),,,,,7fdfcb7
+test_stack,openmpi,4,3,pass,0,1,no report (rc 2),,,,,7fdfcb7
+test_thread_specific,openmpi,2,1,pass,0,1,complete,0,,trace: 2 ranks; 4 sends; 260 receives; 256 wildcard receives; 0 probes; 10 collective records; 4 communicators,4256eda,7fdfcb7
+test_thread_specific,openmpi,2,2,pass,0,1,complete,0,,trace: 2 ranks; 4 sends; 260 receives; 256 wildcard receives; 0 probes; 10 collective records; 4 communicators,4256eda,7fdfcb7
+test_thread_specific,openmpi,2,3,pass,0,1,complete,0,,trace: 2 ranks; 4 sends; 260 receives; 256 wildcard receives; 0 probes; 10 collective records; 4 communicators,4256eda,7fdfcb7
+test_thread_specific,openmpi,4,1,pass,0,1,complete,0,,trace: 4 ranks; 12 sends; 524 receives; 512 wildcard receives; 0 probes; 20 collective records; 6 communicators,4256eda,7fdfcb7
+test_thread_specific,openmpi,4,2,pass,0,1,complete,0,,trace: 4 ranks; 12 sends; 524 receives; 512 wildcard receives; 0 probes; 20 collective records; 6 communicators,4256eda,7fdfcb7
+test_thread_specific,openmpi,4,3,pass,0,1,complete,0,,trace: 4 ranks; 12 sends; 524 receives; 512 wildcard receives; 0 probes; 20 collective records; 6 communicators,4256eda,7fdfcb7
+test_tree,openmpi,2,1,pass,0,2,degraded:order-not-judged,1,observed:2-buffering=1,trace: 2 ranks; 374 sends; 630 receives; 556 wildcard receives; 0 probes; 14 collective records; 4 communicators,4256eda,7fdfcb7
+test_tree,openmpi,2,2,pass,0,2,degraded:order-not-judged,1,observed:2-buffering=1,trace: 2 ranks; 452 sends; 708 receives; 620 wildcard receives; 0 probes; 14 collective records; 4 communicators,4256eda,7fdfcb7
+test_tree,openmpi,2,3,pass,0,2,degraded:order-not-judged,1,observed:2-buffering=1,trace: 2 ranks; 532 sends; 788 receives; 692 wildcard receives; 0 probes; 14 collective records; 4 communicators,4256eda,7fdfcb7
+test_tree,openmpi,4,1,pass,0,4,analysis stopped at its time limit,,,,,7fdfcb7
+test_tree,openmpi,4,2,pass,0,4,analysis stopped at its time limit,,,,,7fdfcb7
+test_tree,openmpi,4,3,pass,0,4,analysis stopped at its time limit,,,,,7fdfcb7
+test_vector,openmpi,2,1,pass,0,1,no report (rc 2),,,,,7fdfcb7
+test_vector,openmpi,2,2,pass,0,1,no report (rc 2),,,,,7fdfcb7
+test_vector,openmpi,2,3,pass,0,1,no report (rc 2),,,,,7fdfcb7
+test_vector,openmpi,4,1,pass,0,1,no report (rc 2),,,,,7fdfcb7
+test_vector,openmpi,4,2,pass,0,1,no report (rc 2),,,,,7fdfcb7
+test_vector,openmpi,4,3,pass,0,1,no report (rc 2),,,,,7fdfcb7
+test_vectormacrotask,openmpi,2,1,killed,1,600,run killed (trace above 600 MB),,,,,7fdfcb7
+test_vectormacrotask,openmpi,2,2,killed,1,600,run killed (trace above 600 MB),,,,,7fdfcb7
+test_vectormacrotask,openmpi,2,3,killed,1,600,run killed (trace above 600 MB),,,,,7fdfcb7
+test_vectormacrotask,openmpi,4,1,killed,1,600,run killed (trace above 600 MB),,,,,7fdfcb7
+test_vectormacrotask,openmpi,4,2,killed,1,600,run killed (trace above 600 MB),,,,,7fdfcb7
+test_vectormacrotask,openmpi,4,3,killed,1,600,run killed (trace above 600 MB),,,,,7fdfcb7
+test_world,openmpi,2,1,killed,1,600,run killed (trace above 600 MB),,,,,7fdfcb7
+test_world,openmpi,2,2,killed,1,600,run killed (trace above 600 MB),,,,,7fdfcb7
+test_world,openmpi,2,3,killed,1,600,run killed (trace above 600 MB),,,,,7fdfcb7
+test_world,openmpi,4,1,fail,137,43,degraded:order-not-judged,6,observed:1c=1 observed:2-blocked=1 observed:2-buffering=1 observed:abort=3,trace: 4 ranks; 13273 sends; 13784 receives; 13184 wildcard receives; 0 probes; 28 collective records; 8 communicators,9af5d63,7fdfcb7
+test_world,openmpi,4,2,fail,137,46,degraded:order-not-judged,5,observed:2-blocked=1 observed:2-buffering=1 observed:abort=3,trace: 4 ranks; 13256 sends; 13769 receives; 13184 wildcard receives; 0 probes; 28 collective records; 8 communicators,9af5d63,7fdfcb7
+test_world,openmpi,4,3,fail,137,41,degraded:order-not-judged,6,observed:1c=1 observed:2-blocked=1 observed:2-buffering=1 observed:abort=3,trace: 4 ranks; 13265 sends; 13776 receives; 13184 wildcard receives; 0 probes; 28 collective records; 8 communicators,9af5d63,7fdfcb7
+test_worldprofile,openmpi,2,1,pass,0,1,complete,0,,trace: 2 ranks; 8 sends; 264 receives; 256 wildcard receives; 0 probes; 14 collective records; 4 communicators,4256eda,7fdfcb7
+test_worldprofile,openmpi,2,2,pass,0,1,complete,0,,trace: 2 ranks; 8 sends; 264 receives; 256 wildcard receives; 0 probes; 14 collective records; 4 communicators,4256eda,7fdfcb7
+test_worldprofile,openmpi,2,3,pass,0,1,complete,0,,trace: 2 ranks; 8 sends; 264 receives; 256 wildcard receives; 0 probes; 14 collective records; 4 communicators,4256eda,7fdfcb7
+test_worldprofile,openmpi,4,1,pass,0,1,complete,0,,trace: 4 ranks; 24 sends; 536 receives; 512 wildcard receives; 0 probes; 28 collective records; 6 communicators,4256eda,7fdfcb7
+test_worldprofile,openmpi,4,2,pass,0,1,complete,0,,trace: 4 ranks; 24 sends; 536 receives; 512 wildcard receives; 0 probes; 28 collective records; 6 communicators,4256eda,7fdfcb7
+test_worldprofile,openmpi,4,3,pass,0,1,complete,0,,trace: 4 ranks; 24 sends; 536 receives; 512 wildcard receives; 0 probes; 28 collective records; 6 communicators,4256eda,7fdfcb7
+test_worldptr,openmpi,2,1,pass,0,1,complete,0,,trace: 2 ranks; 20 sends; 276 receives; 264 wildcard receives; 0 probes; 14 collective records; 4 communicators,4256eda,7fdfcb7
+test_worldptr,openmpi,2,2,pass,0,1,complete,0,,trace: 2 ranks; 20 sends; 276 receives; 264 wildcard receives; 0 probes; 14 collective records; 4 communicators,4256eda,7fdfcb7
+test_worldptr,openmpi,2,3,pass,0,1,complete,0,,trace: 2 ranks; 20 sends; 276 receives; 264 wildcard receives; 0 probes; 14 collective records; 4 communicators,4256eda,7fdfcb7
+test_worldptr,openmpi,4,1,pass,0,1,complete,9,L1:1f=9,trace: 4 ranks; 52 sends; 564 receives; 528 wildcard receives; 0 probes; 28 collective records; 6 communicators,4256eda,7fdfcb7
+test_worldptr,openmpi,4,2,pass,0,1,complete,10,L1:1f=10,trace: 4 ranks; 52 sends; 564 receives; 528 wildcard receives; 0 probes; 28 collective records; 6 communicators,4256eda,7fdfcb7
+test_worldptr,openmpi,4,3,pass,0,1,complete,11,L1:1f=11,trace: 4 ranks; 52 sends; 564 receives; 528 wildcard receives; 0 probes; 28 collective records; 6 communicators,4256eda,7fdfcb7
+test_worldref,openmpi,2,1,pass,0,1,complete,0,,trace: 2 ranks; 34 sends; 290 receives; 260 wildcard receives; 0 probes; 14 collective records; 4 communicators,4256eda,7fdfcb7
+test_worldref,openmpi,2,2,pass,0,1,complete,0,,trace: 2 ranks; 38 sends; 294 receives; 260 wildcard receives; 0 probes; 14 collective records; 4 communicators,4256eda,7fdfcb7
+test_worldref,openmpi,2,3,pass,0,1,complete,0,,trace: 2 ranks; 32 sends; 288 receives; 260 wildcard receives; 0 probes; 14 collective records; 4 communicators,4256eda,7fdfcb7
+test_worldref,openmpi,4,1,pass,0,1,complete,0,,trace: 4 ranks; 92 sends; 604 receives; 520 wildcard receives; 0 probes; 28 collective records; 6 communicators,4256eda,7fdfcb7
+test_worldref,openmpi,4,2,pass,0,1,complete,0,,trace: 4 ranks; 116 sends; 628 receives; 520 wildcard receives; 0 probes; 28 collective records; 6 communicators,4256eda,7fdfcb7
+test_worldref,openmpi,4,3,pass,0,1,complete,0,,trace: 4 ranks; 104 sends; 616 receives; 520 wildcard receives; 0 probes; 28 collective records; 6 communicators,4256eda,7fdfcb7

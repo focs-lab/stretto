@@ -130,11 +130,6 @@ def compute_cut(t: Trace, M: Dict[Key, Key], changed: Set[Key], B: Optional[int]
     blockers: Dict[int, Optional[List[Tuple[int, int, Optional[int]]]]] = {}   # (chain, record, ordinal of the acquire)
     sync_out = t.hb.out if t.multi and t.hb is not None else {}
     sync_ptr = {a: len(v) for a, v in sync_out.items()}
-    if sync_out:
-        # rule 6 deprives the nonblocking receives of a chain one from the other, recursively: a
-        # thread that posts thousands of them before its wait goes deeper than the default limit
-        import sys
-        sys.setrecursionlimit(max(sys.getrecursionlimit(), 4 * len(t.recvs) + 1000))
     fired: Set[Tuple[int, int, int, int]] = set()
 
     def lower(rank: int, idx: int, why=None, issue_kept: bool = False, gap_dead: bool = False,
@@ -215,6 +210,20 @@ def compute_cut(t: Trace, M: Dict[Key, Key], changed: Set[Key], B: Optional[int]
             lower(*r.complete_at(), lambda: f"{r} never completes: no send for it")
 
     def rule6(r: Recv) -> None:          # a pending receive deprives later receives and probes
+        """Rule 6 for r and, depth first, for every nonblocking receive it deprives (deprive),
+        by an explicit stack: a chain that posts thousands of receives of one envelope
+        (MADNESS's communication thread) made the recursion 30 000 calls deep, and Python
+        died of a stack overflow (SIGSEGV)."""
+        stack = [_rule6(r)]
+        while stack:
+            x = next(stack[-1], None)
+            if x is None:
+                stack.pop()
+            else:
+                stack.append(_rule6(x))
+
+    def _rule6(r: Recv):
+        """rule6 for r alone: yields each receive it deprived, whose own rule 6 comes next."""
         if not (r.completed or r.key in deprived) or not kept(r.rank, r.idx):
             return
         # the later receives and probes of its rank: on its own chain, and on the other chains
@@ -235,6 +244,7 @@ def compute_cut(t: Trace, M: Dict[Key, Key], changed: Set[Key], B: Optional[int]
                     continue                 # takes no message any more
                 if rk is not None and not t.recvs[rk].blocking:
                     deprive(t.recvs[rk], r)  # stays posted without its message; the next one is looked at too
+                    yield t.recvs[rk]        # its own rule 6 (rule6 runs it before going on here)
                     continue
                 lower(c, idx, lambda idx=idx, c=c: f"the receive or probe at {c}#{idx} is deprived: {r}, posted before it and still pending, takes the message")
                 break
@@ -281,14 +291,15 @@ def compute_cut(t: Trace, M: Dict[Key, Key], changed: Set[Key], B: Optional[int]
         """Rule 6 at a nonblocking receive x whose M' message the pending receive by accepts:
         x keeps its posting and loses its message. The rank does not read x's result before
         x's completion, so what it issues up to there stays; x is then a receive without a
-        message (rule 2 at its completion, rules 3 and 7 for its message, rule 6 for x)."""
+        message (rule 2 at its completion, rules 3 and 7 for its message, and rule 6 for x,
+        which rule6 runs next)."""
         deprived.add(x.key)
         if x.completed and kept(*x.complete_at()):
             lower(*x.complete_at(), lambda: f"{x} never gets {t.sends[M[x.key]]}: {by}, posted before it and still pending, takes the message")
         s = t.sends[M[x.key]]
         rule3(s, None)
         rule7(s, None)
-        rule6(x)
+        # then rule 6 for x: the caller's (rule6's stack)
 
     def rule3(s, rk) -> None:            # a rendezvous send with no posted receive does not complete
         if s.completed and kept(*s.complete_at()) and (rk is None or rk in deprived or not kept(rk[0], t.recvs[rk].idx)):

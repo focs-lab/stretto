@@ -1,0 +1,16 @@
+--- a/mpi/tests/large_set.c
++++ b/mpi/tests/large_set.c
+@@ -605,11 +605,8 @@
+ 		if (ret == 0)
+ 		{
+ 			FPRINTF(stderr, "Function MPI_Type_create_struct fails with large types.\n");
+-			fclose(_f_buffer);
+-			starpu_mpi_shutdown();
+-			if (!mpi_init)
+-				MPI_Finalize();
+-			return 0;
++			// ranks above 1 have gone to end, and send their output to rank 0 in dump()
++			goto end;
+ 		}
+ 	}
+ #endif

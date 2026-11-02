@@ -3065,6 +3065,7 @@ typedef struct sobj {
        acquire, its lock event, and the clock its acquire has not taken into the hard half yet */
     long lid, ncs, hold_nrec, hold_ka; int last_rec, hold_ev; struct thr *last_holder; vclock *dv;
     long slid;                    /* its number in the sync log (acq_log), 0 until its first attempt there */
+    int ndef, dead;               /* chains' deferred lists that hold it; destroyed (sobj_drop) while one did */
     vclock vc;
 } sobj;
 #define SOBJ_BUCKETS 8192
@@ -3078,6 +3079,25 @@ static sobj *sobj_get_locked(const void *key) {
     s->key = key; vc_init(&s->vc);
     s->next = g_sobj[h]; g_sobj[h] = s;
     return s;
+}
+/* a lock is initialised or destroyed at key: the object there is a new one, which neither
+   synchronises with the old one nor keeps its clock (8 KB). A program that makes a mutex per
+   task or future (MADNESS) otherwise keeps one per address it ever used, and a traced run of
+   MADNESS's test_world took more than 12 GB. An object still in a chain's deferred list
+   (sync_lock) is unlinked and freed when the last list lets it go (sobj_unref_locked). */
+static void sobj_free(sobj *s) { free(s->dv); free(s->bacc); free(s); }
+static void sobj_unref_locked(sobj *s) { if (--s->ndef == 0 && s->dead) sobj_free(s); }
+static void sobj_drop(const void *key) {
+    IL(&g_symu);
+    size_t h = ((uintptr_t)key >> 3) % SOBJ_BUCKETS;
+    for (sobj **p = &g_sobj[h]; *p; p = &(*p)->next) {
+        sobj *s = *p;
+        if (s->key != key) continue;
+        *p = s->next;
+        if (s->ndef) s->dead = 1; else sobj_free(s);
+        break;
+    }
+    IU(&g_symu);
 }
 static inline int tracking(void) { return g_threads_on && t_mpidepth == 0 && !cur_chain()->untracked; }
 static inline int tracked_call(void *ra) { return tracking() && ra_skipped(ra) != 1; }
@@ -3279,17 +3299,27 @@ static void lk_push(thr *c, long lid, long n, long k, long type, int *at) {
 }
 /* the critical sections of c whose acquire waits contain this record: their edges stay out */
 static void lk_resolve_soft(thr *c) {
-    for (int i = 0; i < c->ndeferred; i++) { free(c->deferred[i]->dv); c->deferred[i]->dv = NULL; }
+    if (!c->ndeferred) return;
+    IL(&g_symu);
+    for (int i = 0; i < c->ndeferred; i++) {
+        sobj *s = c->deferred[i];
+        free(s->dv); s->dv = NULL;
+        sobj_unref_locked(s);
+    }
+    IU(&g_symu);
     c->ndeferred = 0;
 }
 /* c synchronises before any record in them: their edges are taken into the hard half */
 static void lk_flush_hard(thr *c) {
+    IL(&g_symu);
     for (int i = 0; i < c->ndeferred; i++) {
         sobj *s = c->deferred[i];
         vc_acquire_hard(c, s->dv, s->hold_ka);
         free(s->dv); s->dv = NULL;
         if (s->hold_ev >= 0) c->lk[s->hold_ev].type = 0;
+        sobj_unref_locked(s);
     }
+    IU(&g_symu);
     c->ndeferred = 0;
 }
 static void sync_lock(const void *key, int hard) {
@@ -3304,10 +3334,12 @@ static void sync_lock(const void *key, int hard) {
     if (defer) *s->dv = s->vc;
     else vc_acquire_hard(c, &s->vc, ka);
     s->hold_nrec = c->nrec; s->hold_ka = ka;
+    if (defer) {   /* the index lk_push below gives the event */
+        s->hold_ev = c->nlk >= LK_MAX ? -1 : c->nlk;
+        c->deferred[c->ndeferred++] = s; s->ndef++;
+    }
     IU(&g_symu);
-    int at;
-    lk_push(c, lid, n, ka, defer, &at);
-    if (defer) { s->hold_ev = at; c->deferred[c->ndeferred++] = s; }
+    lk_push(c, lid, n, ka, defer, NULL);
 }
 static void sync_unlock(const void *key) {
     thr *c = cur_chain(); long k = sync_op_k(c, 1);   /* a critical section without a record keeps its edge */
@@ -3381,13 +3413,7 @@ static inline void acq_end_cond(const void *key, long n, int rc) {
     if (g_lockgates) stretto_pin_locked(n, 1);
 }
 /* a lock is initialised or destroyed at key: its next acquisition starts a new lock */
-static void acq_renew(const void *key) {
-    if (!__atomic_load_n(&g_sync, __ATOMIC_RELAXED)) return;
-    IL(&g_symu);
-    size_t h = ((uintptr_t)key >> 3) % SOBJ_BUCKETS;
-    for (sobj *s = g_sobj[h]; s; s = s->next) if (s->key == key) s->slid = 0;
-    IU(&g_symu);
-}
+static void acq_renew(const void *key) { if (g_threads_on) sobj_drop(key); }
 static void sync_log_close(void) {
     IL(&g_symu);
     FILE *f = g_sync, *ft = g_tasks;
