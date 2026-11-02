@@ -1,0 +1,40 @@
+test,mpi,run,call,input,np,threads,test_result,test_rc,trace_mb,status,findings,classes,summary,analysis_commit,commit
+fft_fft,openmpi,1,1,hydro/athinput.fft,1,2,pass,0,1,complete,0,,trace: 1 ranks; 0 sends; 0 receives; 0 wildcard receives; 0 probes; 33 collective records; 10 communicators,fdb1968,fdb1968
+fft_fft,openmpi,1,2,hydro/athinput.fft,2,2,pass,0,1,complete,0,,trace: 2 ranks; 756 sends; 756 receives; 0 wildcard receives; 0 probes; 54 collective records; 9 communicators,fdb1968,fdb1968
+fft_fft,openmpi,1,3,hydro/athinput.fft,4,2,pass,0,2,complete,408,L1:waitany-order=408,trace: 4 ranks; 2232 sends; 2232 receives; 0 wildcard receives; 0 probes; 108 collective records; 11 communicators,fdb1968,fdb1968
+fft_fft,openmpi,2,1,hydro/athinput.fft,1,2,pass,0,1,complete,0,,trace: 1 ranks; 0 sends; 0 receives; 0 wildcard receives; 0 probes; 33 collective records; 10 communicators,fdb1968,fdb1968
+fft_fft,openmpi,2,2,hydro/athinput.fft,2,2,pass,0,1,complete,0,,trace: 2 ranks; 756 sends; 756 receives; 0 wildcard receives; 0 probes; 54 collective records; 9 communicators,fdb1968,fdb1968
+fft_fft,openmpi,2,3,hydro/athinput.fft,4,2,pass,0,2,complete,408,L1:waitany-order=408,trace: 4 ranks; 2232 sends; 2232 receives; 0 wildcard receives; 0 probes; 108 collective records; 11 communicators,fdb1968,fdb1968
+fft_fft,openmpi,3,1,hydro/athinput.fft,1,2,pass,0,1,complete,0,,trace: 1 ranks; 0 sends; 0 receives; 0 wildcard receives; 0 probes; 33 collective records; 10 communicators,fdb1968,fdb1968
+fft_fft,openmpi,3,2,hydro/athinput.fft,2,2,pass,0,1,complete,0,,trace: 2 ranks; 756 sends; 756 receives; 0 wildcard receives; 0 probes; 54 collective records; 9 communicators,fdb1968,fdb1968
+fft_fft,openmpi,3,3,hydro/athinput.fft,4,2,pass,0,2,complete,408,L1:waitany-order=408,trace: 4 ranks; 2232 sends; 2232 receives; 0 wildcard receives; 0 probes; 108 collective records; 11 communicators,fdb1968,fdb1968
+grav_jeans_3d,openmpi,1,1,hydro/athinput.jeans_3d,1,2,fail,1,4,complete,0,,trace: 1 ranks; 0 sends; 0 receives; 0 wildcard receives; 0 probes; 12435 collective records; 4 communicators,b84f7b5,fdb1968
+grav_jeans_3d,openmpi,1,2,hydro/athinput.jeans_3d,2,2,fail,1,1,call killed (trace above 1500 MB),,,,,fdb1968
+grav_jeans_3d,openmpi,2,1,hydro/athinput.jeans_3d,1,2,fail,1,4,complete,0,,trace: 1 ranks; 0 sends; 0 receives; 0 wildcard receives; 0 probes; 12435 collective records; 4 communicators,b84f7b5,fdb1968
+grav_jeans_3d,openmpi,2,2,hydro/athinput.jeans_3d,2,2,fail,1,1,call killed (trace above 1500 MB),,,,,fdb1968
+grav_jeans_3d,openmpi,3,1,hydro/athinput.jeans_3d,1,2,fail,1,4,complete,0,,trace: 1 ranks; 0 sends; 0 receives; 0 wildcard receives; 0 probes; 12435 collective records; 4 communicators,fdb1968,fdb1968
+grav_jeans_3d,openmpi,3,2,hydro/athinput.jeans_3d,2,2,fail,1,1,call killed (trace above 1500 MB),,,,,fdb1968
+hybrid_hybrid_linwave,openmpi,1,1,mhd/athinput.linear_wave3d,1,1,pass,0,1,complete,0,,trace: 1 ranks; 0 sends; 0 receives; 0 wildcard receives; 0 probes; 979 collective records; 3 communicators,6cf36d9,fdb1968
+hybrid_hybrid_linwave,openmpi,1,2,mhd/athinput.linear_wave3d,2,2,pass,0,357,complete,0,,trace: 2 ranks; 436096 sends; 436096 receives; 0 wildcard receives; 505476 probes; 1958 collective records; 4 communicators,6cf36d9,fdb1968
+hybrid_hybrid_linwave,openmpi,2,1,mhd/athinput.linear_wave3d,1,1,pass,0,1,complete,0,,trace: 1 ranks; 0 sends; 0 receives; 0 wildcard receives; 0 probes; 979 collective records; 3 communicators,6cf36d9,fdb1968
+hybrid_hybrid_linwave,openmpi,2,2,mhd/athinput.linear_wave3d,2,2,pass,0,370,complete,0,,trace: 2 ranks; 436096 sends; 436096 receives; 0 wildcard receives; 566513 probes; 1958 collective records; 4 communicators,6cf36d9,fdb1968
+hybrid_hybrid_linwave,openmpi,3,1,mhd/athinput.linear_wave3d,1,1,pass,0,1,complete,0,,trace: 1 ranks; 0 sends; 0 receives; 0 wildcard receives; 0 probes; 979 collective records; 3 communicators,5796d9d,fdb1968
+hybrid_hybrid_linwave,openmpi,3,2,mhd/athinput.linear_wave3d,2,2,pass,0,356,complete,0,,trace: 2 ranks; 436096 sends; 436096 receives; 0 wildcard receives; 500812 probes; 1958 collective records; 4 communicators,5796d9d,fdb1968
+mpi_mpi_linwave,openmpi,1,1,mhd/athinput.linear_wave3d,1,2,pass,0,1,complete,0,,trace: 1 ranks; 0 sends; 0 receives; 0 wildcard receives; 0 probes; 979 collective records; 3 communicators,5796d9d,fdb1968
+mpi_mpi_linwave,openmpi,1,2,mhd/athinput.linear_wave3d,2,2,pass,0,393,complete,0,,trace: 2 ranks; 436096 sends; 436096 receives; 0 wildcard receives; 674476 probes; 1958 collective records; 4 communicators,5796d9d,fdb1968
+mpi_mpi_linwave,openmpi,1,3,mhd/athinput.linear_wave3d,4,2,pass,0,1041,not analysed (trace of 1041 MB),,,,,fdb1968
+mpi_mpi_linwave,openmpi,2,1,mhd/athinput.linear_wave3d,1,2,pass,0,1,complete,0,,trace: 1 ranks; 0 sends; 0 receives; 0 wildcard receives; 0 probes; 979 collective records; 3 communicators,5796d9d,fdb1968
+mpi_mpi_linwave,openmpi,2,2,mhd/athinput.linear_wave3d,2,2,pass,0,364,complete,0,,trace: 2 ranks; 436096 sends; 436096 receives; 0 wildcard receives; 539425 probes; 1958 collective records; 4 communicators,5796d9d,fdb1968
+mpi_mpi_linwave,openmpi,2,3,mhd/athinput.linear_wave3d,4,2,pass,0,1121,not analysed (trace of 1121 MB),,,,,fdb1968
+mpi_mpi_linwave,openmpi,3,1,mhd/athinput.linear_wave3d,1,2,pass,0,1,complete,0,,trace: 1 ranks; 0 sends; 0 receives; 0 wildcard receives; 0 probes; 979 collective records; 3 communicators,5796d9d,fdb1968
+mpi_mpi_linwave,openmpi,3,2,mhd/athinput.linear_wave3d,2,2,pass,0,348,complete,0,,trace: 2 ranks; 436096 sends; 436096 receives; 0 wildcard receives; 463696 probes; 1958 collective records; 4 communicators,5796d9d,fdb1968
+mpi_mpi_linwave,openmpi,3,3,mhd/athinput.linear_wave3d,4,2,pass,0,1140,not analysed (trace of 1140 MB),,,,,fdb1968
+turb_turb_3d,openmpi,1,1,hydro/athinput.turb,1,2,pass,0,1,complete,0,,trace: 1 ranks; 0 sends; 0 receives; 0 wildcard receives; 0 probes; 627 collective records; 10 communicators,fdb1968,fdb1968
+turb_turb_3d,openmpi,1,2,hydro/athinput.turb,2,2,pass,0,29,complete,0,,trace: 2 ranks; 34836 sends; 34836 receives; 0 wildcard receives; 38866 probes; 1238 collective records; 9 communicators,fdb1968,fdb1968
+turb_turb_3d,openmpi,1,3,hydro/athinput.turb,4,2,pass,0,79,complete,0,,trace: 4 ranks; 82464 sends; 82464 receives; 0 wildcard receives; 154344 probes; 2476 collective records; 11 communicators,fdb1968,fdb1968
+turb_turb_3d,openmpi,2,1,hydro/athinput.turb,1,2,pass,0,1,complete,0,,trace: 1 ranks; 0 sends; 0 receives; 0 wildcard receives; 0 probes; 627 collective records; 10 communicators,fdb1968,fdb1968
+turb_turb_3d,openmpi,2,2,hydro/athinput.turb,2,2,pass,0,31,complete,0,,trace: 2 ranks; 34836 sends; 34836 receives; 0 wildcard receives; 49354 probes; 1238 collective records; 9 communicators,fdb1968,fdb1968
+turb_turb_3d,openmpi,2,3,hydro/athinput.turb,4,2,pass,0,83,complete,0,,trace: 4 ranks; 82464 sends; 82464 receives; 0 wildcard receives; 169253 probes; 2476 collective records; 11 communicators,fdb1968,fdb1968
+turb_turb_3d,openmpi,3,1,hydro/athinput.turb,1,2,pass,0,1,complete,0,,trace: 1 ranks; 0 sends; 0 receives; 0 wildcard receives; 0 probes; 627 collective records; 10 communicators,fdb1968,fdb1968
+turb_turb_3d,openmpi,3,2,hydro/athinput.turb,2,2,pass,0,29,complete,0,,trace: 2 ranks; 34836 sends; 34836 receives; 0 wildcard receives; 41498 probes; 1238 collective records; 9 communicators,fdb1968,fdb1968
+turb_turb_3d,openmpi,3,3,hydro/athinput.turb,4,2,pass,0,80,complete,0,,trace: 4 ranks; 82464 sends; 82464 receives; 0 wildcard receives; 158480 probes; 2476 collective records; 11 communicators,fdb1968,fdb1968
