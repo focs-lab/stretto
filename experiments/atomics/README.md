@@ -42,6 +42,31 @@ with relaxed atomics, which order nothing), and DLA-Future's `waitany-order` war
 | HDF5 Subfiling within one pool | 2 of 13 traces (as with gcc: 2 of 13) | 0 of 13 `fix` |
 | SLATE CALU (not instrumented: the tracer change alone) | 10 of 10, a subset of the 42 of 30 Oct (20 to 109, all in `permuteRows`; one right factor) | 0 of 10 patched |
 
+## Replays of an instrumented program (2 Nov 2026)
+
+[docs/threads.md](../../docs/threads.md) section 19.2. Lock gates order lock acquisitions, not
+atomics. PaRSEC's instrumented build, forced replays of the reshape race
+([parsec](../parsec/README.md), `replay-atomics*.csv`; 5 traces per setting, 3 alternatives
+each, twice with their controls):
+
+| traced and replayed | replays: every pin, check failed | controls right, every pin | synchronisation as the trace (replays, controls) | confirmed |
+|---|---|---|---|---|
+| atomics recorded | 27 of 30 | 30 of 30 | 0 of 30, 0 of 30 | 0 |
+| `STRETTO_ATOMICS=0`, the same binaries | 30 of 30 | 30 of 30 | 30 of 30, 30 of 30 | 30 |
+
+With the atomics recorded every pinned receive of every replay and control has one `Sendrecv` of
+another thread more or less before it than in the trace (202 of 202 differences are of two
+operations): which release an atomic acquire of PaRSEC's scheduler reads varies between runs,
+and with it the happens-before. The race is realised (pins and outcome) but judged
+inconclusive. Not fixed: ordering the atomics in a replay needs the order of every atomic
+operation per location, of which the tracer keeps no log (one clock per location, section 17.1),
+and judging the synchronisation without the atomic edges needs a third half of every clock in
+the tracer (as `hafter` keeps one without the soft lock edges). A confirmation can use a trace
+recorded with `STRETTO_ATOMICS=0` (30 of 30 above), whose analysis predicts from the coarser
+happens-before (15 to 23 alternatives per trace instead of 718 to 765). DLA-Future's replays stay
+unreplayable for another reason (section 16): pika's work stealing gives a worker other work in
+every run (P-T5), which no gate on locks or MPI calls changes.
+
 ## Cost (e)
 
 [overhead.sh](overhead.sh), wall time of `mpirun`, 5 runs per mode, interleaved, on otherwise idle

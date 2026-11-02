@@ -140,6 +140,43 @@ two threads' reshapes makes the same program, unpatched, compute a wrong result 
 control does not. The rows' commit column was 82c88b0, a commit later amended with an unused
 option only (`--cls`); it is written as 35d94ee here.
 
+**Replays with gates that give way (2 Nov, [docs/threads.md](../../docs/threads.md) section
+19; `replay.sh` with `MODES="before after"`, the 1-rank cell, a-p13 CPUs 8-15,48-55).** 5 new
+traced runs, all right (15 or 17 L1 alternatives each); 3 alternatives per trace, each replayed
+twice in each mode with its control, the same alternatives in both modes
+([replay-modes-1rank.csv](replay-modes-1rank.csv), its traced runs
+[replay-modes-traced-1rank.csv](replay-modes-traced-1rank.csv)). `before` is section 16's replay
+(no gate gives way, nothing gated beyond the horizon), `after` the default since 2 Nov (gates
+give way after 1 s without progress, the control gated beyond the horizon):
+
+| mode | replays | confirmed (pins taken, check failed, control right with its pins) | inconclusive |
+|---|---|---|---|
+| before | 30 | 28 | 2: both replays of one alternative at a gate timeout, 6 of 6 threads at gates |
+| after | 30 | 28 | 2: the same alternative's replays finished after 1 and 2 gates gave way, without their pins |
+
+Every control finished right with its pins taken in both modes (60 of 60). The one alternative
+the gates cannot realise holds every thread at a gate (a cycle of gates on the senders' order):
+its order contradicts synchronisation the trace of this build does not record (PaRSEC's
+scheduler orders its threads through atomics, section 17); giving way ends the cycle but not in
+the alternative's order, which the replay's own trace shows (its pins not taken), so the verdict
+stays inconclusive and is now reached without waiting for the timeout. On 30 Oct the same cell
+had 6 gate timeouts and a control timeout in 30 replays.
+
+**Replays of the instrumented build (2 Nov, section 19).** The build of 1 Nov with PaRSEC's
+atomics instrumented, 5 traced runs per setting, 3 alternatives each, twice with their controls,
+mode `after`: with the atomics recorded ([replay-atomics.csv](replay-atomics.csv), traced runs
+[replay-atomics-traced.csv](replay-atomics-traced.csv), 718 to 765 alternatives per trace), 27
+of 30 replays took every pin and failed the check and all 30 controls came out right with every
+pin taken, but 30 of 30 replays and 30 of 30 controls synchronised otherwise than the trace
+(`sync_divergence`): inconclusive, every one. Every difference (202 counts) is of exactly two
+operations, one `Sendrecv` of another thread more or less before a pinned receive. With the
+recording off on the same binaries (`STRETTO_ATOMICS=0`, traced and replayed;
+[replay-atomics-off.csv](replay-atomics-off.csv), [replay-atomics-off-traced.csv](replay-atomics-off-traced.csv),
+15 to 23 alternatives per trace) 30 of 30 replays are confirmed, no divergence. A recorded
+atomic acquire takes the clock of whichever release it reads, and which one a load or a
+read-modify-write of PaRSEC's scheduler reads differs between runs; the lock gates fix the order
+of lock acquisitions, not that.
+
 Before milestone F: traced `reshape_check` runs (1 rank, 2 virtual processes, `-m 1`, one taskpool): 10 plain runs
 and 5 patched, all with correct results (the tracer's issue lock serialises the postings).
 Stretto: every trace degraded `threads-cancel` ("a receive withdrawn by a successful cancel:
@@ -174,4 +211,6 @@ raising its clock) and 52 500 releases.
 CSV by `../dlaf/traced_csv.py`), `replay.sh` (forced replays), `clean-room.sh` (the upstream
 report's reproduction block, run verbatim in an empty directory); results `series.csv`,
 `traced.csv`, `replay-1rank.csv`, `replay-4ranks.csv`, `replay-traced-1rank.csv`,
-`replay-traced-4ranks.csv`, `traced-atomics.csv`.
+`replay-traced-4ranks.csv`, `traced-atomics.csv`, `replay-modes-1rank.csv`,
+`replay-modes-traced-1rank.csv`, `replay-atomics.csv`, `replay-atomics-traced.csv`,
+`replay-atomics-off.csv`, `replay-atomics-off-traced.csv`.
