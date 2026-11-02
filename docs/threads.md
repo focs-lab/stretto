@@ -10,7 +10,7 @@ milestone F analyses requests handed between threads and cancelled receives (30 
 section 16 what forced replays of its three races showed (30-31 Oct 2026), section 17 how the
 tracer records synchronisation through atomics (1 Nov 2026),
 section 18 two tracer settings for codes that enter a parallel region per time step and
-write through MPI-IO (1 Nov 2026).
+write through MPI-IO (1 Nov 2026), section 19 a lock's clock that ends with the lock (2 Nov 2026).
 Decided
 29 Oct 2026: Stretto is extended to programs in which several threads of an MPI process call MPI
 on shared communicators (`MPI_THREAD_MULTIPLE`, and `MPI_THREAD_SERIALIZED` with several calling
@@ -1788,3 +1788,24 @@ HDF5:
   travel on the file's context, which no receive of the program accepts. The nonblocking,
   split, ordered and shared-pointer calls stay unmodelled. Test:
   `test_replay_e2e.MpiioCollectives`.
+
+## 19. A lock's clock ends with the lock (2 Nov 2026)
+
+The tracer keeps a vector clock per synchronisation object, by address (8 KiB at 256 chains:
+four components per chain). Before, an object's clock lived as long as the run, across
+`pthread_*_destroy` and `*_init` at its address, which only renumbered the lock in the sync log.
+MADNESS (experiments/madness) makes a mutex or spin lock per future and task, and its traced
+`test_world` (2 ranks, a pool of 2 threads) was killed by a 12 GB memory cap; untraced it peaks
+at 2.1 GB per rank. Now `pthread_mutex_*`, `pthread_rwlock_*`, `pthread_spin_*`, `sem_*` and
+`omp_*_lock` init and destroy end the object at the address (`sobj_drop`): its clock is freed,
+and a later lock there is a new lock, with a new lock id and sync-log number, that neither
+synchronises with the old one nor inherits its clock (an edge from the old object's last
+release to the new object's first acquire was no synchronisation of the program; the
+allocator's reuse of the memory is not one the analysis models). An object still in a chain's
+list of critical sections whose edge waits for a record (13.1) is unlinked and freed when that
+list lets it go; the lists are now changed under the objects' mutex. With it the traced
+`test_world` passes with 2.2 GB per rank. Tests: `test_lock_lifetime` (an edge through one
+mutex; none through a mutex destroyed and initialised again between the release and the
+acquire; a destroy right after a deferred critical section; 100 000 mutexes initialised, taken
+and destroyed: peak resident size 830 MB before, now below 300 MB).
+
