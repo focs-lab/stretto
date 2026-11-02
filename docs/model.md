@@ -299,7 +299,8 @@ effect at its call (below, cancellation); and σ records every communication cal
 The report enforces the last premise as far as the trace shows it, and states observed findings
 only (with a note that names the reason) when it fails: a call the tracer marks `unmodelled`
 (one-sided windows, neighbourhood collectives, dynamic processes, generalised requests, MPI-IO,
-whose collective calls synchronise and whose library communicates underneath, and the MPI-4
+whose collective calls synchronise and whose library communicates underneath, unless traced with
+`STRETTO_MPIIO=coll`, which records them as barrier-shaped collectives (threads.md §18), and the MPI-4
 calls it does not model: large-count, partitioned, sessions, Isendrecv,
 Intercomm_create_from_groups; the tracer probes the MPI library for them rather than trusting
 MPI_VERSION); a rank without a trace file; a receive that took a

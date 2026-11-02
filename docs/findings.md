@@ -55,6 +55,8 @@ and compact result tables: [experiments/latent](../experiments/latent/README.md)
 | MFEM master d259866 `ParFiniteElementSpace::OrderPropagation` (pfespace.cpp:3704-3751): a real race, benign | the barrier orders the Isends, not their delivery, so the `Iprobe(ANY)` drain can miss an order message, which the second drain drops; the fixpoint loop (fespace.cpp:3249) resends it | shipped miniapp `phpref -dim 2 -n 100`, np 4: ~900 flag-flip alternatives per trace; 46 of 46 replays and 10 of 10 at np 8 (3D) correct; the race also occurred unforced in 2 controls |
 | GA bd1149f ComEx `mpi-pt` progress thread, `MPI_Recv(ANY_SOURCE)` of request headers (comex.c:2445) and the put handler's named data receive (:2564) | each handler receives the rest of a request from its sender by name, replies go on another communicator, a fence is acknowledged after the sender's earlier requests; requests of different ranks are unordered in GA's model | blind scan: steals in every test with remote traffic; read after the pre-registration; 74 of 74 forced replays pass like their controls |
 | GA bd1149f `threadsafec`, the main threads' reply receives (comex.c:4027, 4102, 3937) | GA's own mutex holds each request with its preposted reply receive, so replies from a node arrive in the order of the receives | no candidate at L1; at L1+L 12 800 candidates in 12 traces, all rejected (`targeted.csv`) |
+| Smilei 61aa917 patch exchanges of fields and particles (`Patch::initExchange`, `initSumField`, `exchNbrOfParticles`, Patch.cpp; OpenMP threads post and complete them) | every tag is the sender patch's Hilbert index, a direction digit and a field digit in decimal (`buildtag`, Patch.h:485-502), distinct among the exchanges in flight between two ranks (fields sharing a digit go one after another); receives name source and tag; the phases are separated by the barriers of their `omp for` loops | blind scan: 408 complete traces of 82 benchmarks (Open MPI) and 54 (MPICH), 4 ranks of 2 threads: no alternative at L1, no wildcard or probe |
+| Athena++ 053bc73 boundary and AMR exchanges and the FFT remap (`remap_3d.cpp:109`, `MPI_Waitany`) | tags pack the destination block's local id with the buffer and physics (`CreateBvalsMPITag`) or the child offsets (`CreateAMRMPITag`), distinct among messages in flight; every remap receive has its own buffer and output offset, so the `Waitany` order is free; the `MPI_Iprobe(ANY, ANY)` calls only push progress | blind scan, 2 threads per rank: no finding but 408 `waitany-order` per 4-rank `fft` trace; read after the pre-registration |
 | SLATE 878439b `ttmqr` (internal_ttmqr.cc:155-189): a freed tile `Isend`, then an `Irecv` into the same tile | the two are not ordered (the program cannot know when a freed send ends), but the peer sends the tile back only after receiving it, so the first transfer ends before the second starts at every eager threshold | `geqrf` tester traced with buffer ranges (`STRETTO_BUFS=1`, 2x2, 4 threads): 84 such pairs, all harmless (docs/model.md section 7) |
 
 The 26 Oct screen of 70 codes, and the 29 Oct screen of ~85 more (deal.II master, PETSc main,
@@ -219,6 +221,20 @@ with the hunt notes, outside this repository.
   rank's waits (4 600 per rank in `threadsafec`, over an hour; grouped by request, 6a36b6f).
   Both give the same reports. Still beyond reach: traces above 60 MB, and `threadsafec`'s 20 000
   candidates per trace at the progress thread's receive for the generic check.
+- A code that enters an OpenMP parallel region per time step overflowed the tracer's 256-chain
+  table at once (each region's thread j > 0 was a chain), and a program that writes through
+  MPI-IO (parallel HDF5) got observed findings only (1 Nov, Smilei,
+  [experiments/smilei](../experiments/smilei/README.md)). Two tracer settings, off by default:
+  `STRETTO_OMP_CHAINS=thread` (one chain per OpenMP thread across a chain's regions, 57cad0c)
+  and `STRETTO_MPIIO=coll` (MPI-IO's collective calls as barrier-shaped collectives on a
+  duplicate of the file's communicator, 85fe6cd); [threads.md](threads.md) section 18.
+- A receive still pending when a hung run is stopped, with the one pending send of its envelope,
+  is reported as an L1 `1f` alternative: the receive's own message, which MPI matches as soon as
+  both are posted, but neither completion is in the trace (2 Nov, Smilei: 31 per trace in 12 of
+  12 hung traces, all of this kind; GA's S2 had the same shape). Not changed; a report could
+  drop a pair when the send is the only pending one the receive accepts.
+- Analysis memory is about 15 times the trace (a 634 MB Smilei trace: 9.2 GB, 9 min), which
+  bounded the Smilei scan to traces of at most 400 MB: 85 of its 173 benchmarks.
 
 ## Multithreaded benchmarks (L1, and L1+L since 30 Oct)
 
@@ -441,6 +457,42 @@ derives the ComEx mutex from `num_mutexes` instead of its argument, so all GA mu
 and a process holding one that asks for another waits for itself (a driver: 20 of 20 hang, 20
 of 20 pass with a 6-line fix). Test defects: `read_only` and `cache_test` call `MPI_Init`,
 which this port rejects. Evidence: [experiments/ga](../experiments/ga/README.md).
+
+**Smilei 61aa917 (master on 1 Nov)**, a particle-in-cell code whose OpenMP threads post their
+own patch exchanges under `MPI_THREAD_MULTIPLE`, the second blind scan: 426 traced runs of 85
+shipped benchmarks (of 173 with a validation script; the rest above 400 MB of trace, or not
+runnable here), 4 ranks of 2 threads, 3 runs each with Open MPI and, for the 57 with traces of
+at most 150 MB, MPICH; each run checked by Smilei's validation; findings committed (2aa26c9, 2
+Nov 06:58 +08) before the communication code was read. The tracer needed two new settings first
+(one chain per OpenMP thread across regions, MPI-IO as collectives; tool limits, above). No
+trace has a wildcard receive or a probe, and no trace but the 12 of hung runs has an alternative
+at L1: the tags are unique among the exchanges in flight (sites shown safe). A real bug,
+deterministic, that the scan's observed classes surfaced rather than predicted: the two 3D
+benchmarks that inject an envelope laser from xmin hang in every run (12 of 12 traced, rank 0
+outside MPI and every other thread waiting on it), because with Python 3.12 the master thread
+holds the GIL through the `omp for` of `VectorPatch::injectEnvelopeFromXminIfNeeded`, and a
+thread with an xmin patch waits in `PyGILState_Ensure` for it (the loop lacks the
+`SMILEI_PY_SAVE_MASTER_THREAD` pair Smilei's other such loops have). Untraced, 20 runs per cell:
+80 of 80 plain runs hang and 80 of 80 patched runs pass their validation (Open MPI and MPICH, 4
+ranks of 2 threads; 6 of 6 and 6 of 6 with 4 threads; 1 thread passes unpatched, 20 of 20);
+report drafted, not sent, its reproduction block 3 of 3 hangs and 3 of 3 passes patched from a
+fresh clone. Not a race: no forced replay applies. Tool false alarm: the 31 L1 alternatives per
+hung trace are pending receives with their own pending messages (tool limits, above). The issue
+307 the audit cited is an invalid tag with Intel MPI (tags about 100 times the patch count), not
+a race. Evidence: [experiments/smilei](../experiments/smilei/README.md).
+
+**Athena++ 053bc73 (master on 2 Nov)**, hybrid MPI+OpenMP, the third blind scan: its MPI regression
+tests (`hybrid_linwave`, `mpi_linwave`, `jeans_3d`, `turb_3d`, `fft`) through its own `run_tests.py`
+and two shipped AMR inputs, built `-mpi -omp`, 2 threads per rank, 3 runs each, Open MPI and (the
+linear-wave tests and the examples) MPICH; findings committed (7199084, 2 Nov 11:44 +08) before
+the communication code was read. 51 traces analysed; the 4-rank linear-wave calls and the DMR
+example (above 1 GB) and `jeans_3d`'s 2-rank call (above 1.5 GB) were not. One class: 408
+`waitany-order` per 4-rank `fft` trace at the remap's `MPI_Waitany`, harmless (each receive has its
+own buffer and output place). No other finding, and none by reading: tags are unique among
+messages in flight, receives name their source, and the wildcard `MPI_Iprobe` calls only push
+progress. The audit's lead, tags packed without a check against `MPI_TAG_UB`, is real (a `\todo`
+in the code) but needs 2^17 blocks per rank with MPICH. No bug found. Evidence:
+[experiments/athena](../experiments/athena/README.md).
 
 Not built in this hunt, by cost (estimated, not measured): HPX's MPI parcelport (read only:
 headers on tag 0 with `ANY_SOURCE` carry the sender's tag from an atomic counter, so data

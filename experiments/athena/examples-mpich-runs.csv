@@ -1,0 +1,7 @@
+test,mpi,run,call,input,np,threads,test_result,test_rc,trace_mb,status,findings,classes,summary,analysis_commit,commit
+dmr_amr,mpich,1,1,hydro/athinput.dmr_amr,2,2,pass,0,1060,not analysed (trace of 1060 MB),,,,,fdb1968
+dmr_amr,mpich,2,1,hydro/athinput.dmr_amr,2,2,pass,0,1065,not analysed (trace of 1065 MB),,,,,fdb1968
+dmr_amr,mpich,3,1,hydro/athinput.dmr_amr,2,2,pass,0,1062,not analysed (trace of 1062 MB),,,,,fdb1968
+linear_wave2d_amr,mpich,1,1,mhd/athinput.linear_wave2d_amr,2,2,pass,0,442,complete,0,,trace: 2 ranks; 438488 sends; 438488 receives; 0 wildcard receives; 553058 probes; 7416 collective records; 37 communicators,fdb1968,fdb1968
+linear_wave2d_amr,mpich,2,1,mhd/athinput.linear_wave2d_amr,2,2,pass,0,437,complete,0,,trace: 2 ranks; 438488 sends; 438488 receives; 0 wildcard receives; 525075 probes; 7416 collective records; 37 communicators,fdb1968,fdb1968
+linear_wave2d_amr,mpich,3,1,mhd/athinput.linear_wave2d_amr,2,2,pass,0,423,complete,0,,trace: 2 ranks; 438488 sends; 438488 receives; 0 wildcard receives; 453788 probes; 7416 collective records; 37 communicators,fdb1968,fdb1968

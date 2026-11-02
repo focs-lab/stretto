@@ -1,0 +1,16 @@
+test,mpi,run,call,input,np,threads,test_result,test_rc,trace_mb,status,findings,classes,summary,analysis_commit,commit
+hybrid_hybrid_linwave,mpich,1,1,mhd/athinput.linear_wave3d,1,1,pass,0,1,complete,0,,trace: 1 ranks; 0 sends; 0 receives; 0 wildcard receives; 0 probes; 979 collective records; 3 communicators,6cf36d9,fdb1968
+hybrid_hybrid_linwave,mpich,1,2,mhd/athinput.linear_wave3d,2,2,pass,0,353,complete,0,,trace: 2 ranks; 436096 sends; 436096 receives; 0 wildcard receives; 489184 probes; 1958 collective records; 4 communicators,6cf36d9,fdb1968
+hybrid_hybrid_linwave,mpich,2,1,mhd/athinput.linear_wave3d,1,1,pass,0,1,complete,0,,trace: 1 ranks; 0 sends; 0 receives; 0 wildcard receives; 0 probes; 979 collective records; 3 communicators,6cf36d9,fdb1968
+hybrid_hybrid_linwave,mpich,2,2,mhd/athinput.linear_wave3d,2,2,pass,0,369,complete,0,,trace: 2 ranks; 436096 sends; 436096 receives; 0 wildcard receives; 564166 probes; 1958 collective records; 4 communicators,6cf36d9,fdb1968
+hybrid_hybrid_linwave,mpich,3,1,mhd/athinput.linear_wave3d,1,1,pass,0,1,complete,0,,trace: 1 ranks; 0 sends; 0 receives; 0 wildcard receives; 0 probes; 979 collective records; 3 communicators,5796d9d,fdb1968
+hybrid_hybrid_linwave,mpich,3,2,mhd/athinput.linear_wave3d,2,2,pass,0,356,complete,0,,trace: 2 ranks; 436096 sends; 436096 receives; 0 wildcard receives; 500525 probes; 1958 collective records; 4 communicators,5796d9d,fdb1968
+mpi_mpi_linwave,mpich,1,1,mhd/athinput.linear_wave3d,1,2,pass,0,1,complete,0,,trace: 1 ranks; 0 sends; 0 receives; 0 wildcard receives; 0 probes; 979 collective records; 3 communicators,5796d9d,fdb1968
+mpi_mpi_linwave,mpich,1,2,mhd/athinput.linear_wave3d,2,2,pass,0,355,complete,0,,trace: 2 ranks; 436096 sends; 436096 receives; 0 wildcard receives; 498303 probes; 1958 collective records; 4 communicators,5796d9d,fdb1968
+mpi_mpi_linwave,mpich,1,3,mhd/athinput.linear_wave3d,4,2,pass,0,1038,not analysed (trace of 1038 MB),,,,,fdb1968
+mpi_mpi_linwave,mpich,2,1,mhd/athinput.linear_wave3d,1,2,pass,0,1,complete,0,,trace: 1 ranks; 0 sends; 0 receives; 0 wildcard receives; 0 probes; 979 collective records; 3 communicators,5796d9d,fdb1968
+mpi_mpi_linwave,mpich,2,2,mhd/athinput.linear_wave3d,2,2,pass,0,350,complete,0,,trace: 2 ranks; 436096 sends; 436096 receives; 0 wildcard receives; 472716 probes; 1958 collective records; 4 communicators,5796d9d,fdb1968
+mpi_mpi_linwave,mpich,2,3,mhd/athinput.linear_wave3d,4,2,pass,0,1075,not analysed (trace of 1075 MB),,,,,fdb1968
+mpi_mpi_linwave,mpich,3,1,mhd/athinput.linear_wave3d,1,2,pass,0,1,complete,0,,trace: 1 ranks; 0 sends; 0 receives; 0 wildcard receives; 0 probes; 979 collective records; 3 communicators,5796d9d,fdb1968
+mpi_mpi_linwave,mpich,3,2,mhd/athinput.linear_wave3d,2,2,pass,0,366,complete,0,,trace: 2 ranks; 436096 sends; 436096 receives; 0 wildcard receives; 548483 probes; 1958 collective records; 4 communicators,5796d9d,fdb1968
+mpi_mpi_linwave,mpich,3,3,mhd/athinput.linear_wave3d,4,2,pass,0,1101,not analysed (trace of 1101 MB),,,,,fdb1968

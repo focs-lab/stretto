@@ -8,7 +8,9 @@ OpenMP tasks (both 30 Oct 2026), section 13 how level L1+L reorders critical sec
 how milestone E replays pools of threads and tasks in the trace's lock order, section 15 how
 milestone F analyses requests handed between threads and cancelled receives (30 Oct 2026),
 section 16 what forced replays of its three races showed (30-31 Oct 2026), section 17 how the
-tracer records synchronisation through atomics (1 Nov 2026).
+tracer records synchronisation through atomics (1 Nov 2026),
+section 18 two tracer settings for codes that enter a parallel region per time step and
+write through MPI-IO (1 Nov 2026).
 Decided
 29 Oct 2026: Stretto is extended to programs in which several threads of an MPI process call MPI
 on shared communicators (`MPI_THREAD_MULTIPLE`, and `MPI_THREAD_SERIALIZED` with several calling
@@ -1757,3 +1759,32 @@ assumes; a volatile access that orders nothing adds edges, and loses alternative
 - **Cost of a release.** Every recorded release copies a clock of 4 longs per chain; with many
   chains and hot atomics (pika's queues) it is the main cost (17.2, overhead).
 - **`waitany-order`** warnings of pika's polling are not synchronisation; they stay.
+
+## 18. Codes with a parallel region per time step, and MPI-IO (1 Nov 2026)
+
+Two tracer settings, both off by default (traces and reports without them are unchanged), found
+necessary by the first traced run of Smilei (experiments/smilei), a particle-in-cell code whose
+OpenMP threads post their own patch exchanges and which writes its diagnostics through parallel
+HDF5:
+
+- `STRETTO_OMP_CHAINS=thread`: the implicit tasks of thread j > 0 in all the parallel regions a
+  chain c enters are one chain, `c/t.j`, instead of one chain `c/p.j` per region. Smilei enters
+  a few regions with MPI calls per time step, so a 1D benchmark with 2 threads made several
+  thousand chains per rank and overflowed the tracer's table of 256 (`tracer-overflow`) within
+  its first steps; with the setting each rank has 2 chains. Nothing is lost: the region's fork
+  orders thread j's start after the master's earlier records, which follow the previous
+  region's join, which follows thread j's end there, so the edge from one region's task to the
+  next is in the happens-before already. At each region after the first, the chain takes the
+  fork's clock as an acquire. The names stay deterministic under P-T5 (the replay names chains
+  with the same code). Test: `test_replay_e2e.OmpChainsPerThread` (301 regions, 2 chains per
+  rank, the one race found, the earlier regions ordered; without the setting, the overflow).
+- `STRETTO_MPIIO=coll`: MPI-IO's collective calls on a file (open, close, set_view, set_size,
+  preallocate, set_atomicity, sync, the blocking `_all` reads and writes) are recorded as
+  collectives instead of `unmodelled` calls, which make the report observed-only: `File_open`
+  as the creation of a duplicate of its communicator (the tracer makes one, as the file's own
+  context), the later ones as collectives on it under names the analysis does not know, so
+  that they synchronise every member like a barrier (`matching.coll_shape`). The premise: an
+  implementation may synchronise there (ROMIO's and OMPIO's do), and the library's own messages
+  travel on the file's context, which no receive of the program accepts. The nonblocking,
+  split, ordered and shared-pointer calls stay unmodelled. Test:
+  `test_replay_e2e.MpiioCollectives`.
