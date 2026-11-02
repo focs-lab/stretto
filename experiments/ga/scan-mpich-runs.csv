@@ -1,180 +1,180 @@
 test,mpi,ppn,run,result,rc,status,findings,classes,summary,analysis_commit,commit
-cache_test,mpich,1,1,fail,5,complete,4,observed:abort=4,trace: 4 ranks; 0 sends; 0 receives; 0 wildcard receives; 0 probes; 0 collective records; 5 communicators,48f1816,48f1816
-cache_test,mpich,1,2,fail,5,complete,4,observed:abort=4,trace: 4 ranks; 0 sends; 0 receives; 0 wildcard receives; 0 probes; 0 collective records; 5 communicators,48f1816,48f1816
-cache_test,mpich,1,3,fail,5,complete,4,observed:abort=4,trace: 4 ranks; 0 sends; 0 receives; 0 wildcard receives; 0 probes; 0 collective records; 5 communicators,48f1816,48f1816
-cache_test,mpich,2,1,fail,5,complete,4,observed:abort=4,trace: 4 ranks; 0 sends; 0 receives; 0 wildcard receives; 0 probes; 0 collective records; 5 communicators,48f1816,48f1816
-cache_test,mpich,2,2,fail,5,complete,4,observed:abort=4,trace: 4 ranks; 0 sends; 0 receives; 0 wildcard receives; 0 probes; 0 collective records; 5 communicators,48f1816,48f1816
-cache_test,mpich,2,3,fail,5,complete,4,observed:abort=4,trace: 4 ranks; 0 sends; 0 receives; 0 wildcard receives; 0 probes; 0 collective records; 5 communicators,48f1816,48f1816
-comm_init,mpich,1,1,pass,0,complete,0,,trace: 4 ranks; 28 sends; 28 receives; 16 wildcard receives; 0 probes; 296 collective records; 37 communicators,48f1816,48f1816
-comm_init,mpich,1,2,pass,0,complete,0,,trace: 4 ranks; 28 sends; 28 receives; 16 wildcard receives; 0 probes; 296 collective records; 37 communicators,48f1816,48f1816
-comm_init,mpich,1,3,pass,0,complete,0,,trace: 4 ranks; 28 sends; 28 receives; 16 wildcard receives; 0 probes; 296 collective records; 37 communicators,48f1816,48f1816
-comm_init,mpich,2,1,pass,0,complete,0,,trace: 4 ranks; 2 sends; 2 receives; 2 wildcard receives; 0 probes; 296 collective records; 35 communicators,48f1816,48f1816
-comm_init,mpich,2,2,pass,0,complete,0,,trace: 4 ranks; 2 sends; 2 receives; 2 wildcard receives; 0 probes; 296 collective records; 35 communicators,48f1816,48f1816
-comm_init,mpich,2,3,pass,0,complete,0,,trace: 4 ranks; 2 sends; 2 receives; 2 wildcard receives; 0 probes; 296 collective records; 35 communicators,48f1816,48f1816
-elempatch,mpich,1,1,pass,0,complete,0,,trace: 4 ranks; 4 sends; 4 receives; 4 wildcard receives; 0 probes; 178256 collective records; 26 communicators,48f1816,48f1816
-elempatch,mpich,1,2,pass,0,complete,0,,trace: 4 ranks; 4 sends; 4 receives; 4 wildcard receives; 0 probes; 178256 collective records; 26 communicators,48f1816,48f1816
-elempatch,mpich,1,3,pass,0,complete,0,,trace: 4 ranks; 4 sends; 4 receives; 4 wildcard receives; 0 probes; 178256 collective records; 26 communicators,48f1816,48f1816
-elempatch,mpich,2,1,pass,0,complete,0,,trace: 4 ranks; 2 sends; 2 receives; 2 wildcard receives; 0 probes; 178256 collective records; 24 communicators,48f1816,48f1816
-elempatch,mpich,2,2,pass,0,complete,0,,trace: 4 ranks; 2 sends; 2 receives; 2 wildcard receives; 0 probes; 178256 collective records; 24 communicators,48f1816,48f1816
-elempatch,mpich,2,3,pass,0,complete,0,,trace: 4 ranks; 2 sends; 2 receives; 2 wildcard receives; 0 probes; 178256 collective records; 24 communicators,48f1816,48f1816
-ga-mpi,mpich,1,1,pass,0,complete,294,L1:1f=294,trace: 4 ranks; 338 sends; 338 receives; 171 wildcard receives; 0 probes; 380 collective records; 28 communicators,48f1816,48f1816
-ga-mpi,mpich,1,2,pass,0,complete,298,L1:1f=298,trace: 4 ranks; 338 sends; 338 receives; 171 wildcard receives; 0 probes; 380 collective records; 28 communicators,48f1816,48f1816
-ga-mpi,mpich,1,3,pass,0,complete,283,L1:1f=283,trace: 4 ranks; 338 sends; 338 receives; 171 wildcard receives; 0 probes; 380 collective records; 28 communicators,48f1816,48f1816
-ga-mpi,mpich,2,1,pass,0,complete,69,L1:1f=69,trace: 4 ranks; 206 sends; 206 receives; 104 wildcard receives; 0 probes; 380 collective records; 26 communicators,48f1816,48f1816
-ga-mpi,mpich,2,2,pass,0,complete,61,L1:1f=61,trace: 4 ranks; 206 sends; 206 receives; 104 wildcard receives; 0 probes; 380 collective records; 26 communicators,48f1816,48f1816
-ga-mpi,mpich,2,3,pass,0,complete,63,L1:1f=63,trace: 4 ranks; 206 sends; 206 receives; 104 wildcard receives; 0 probes; 380 collective records; 26 communicators,48f1816,48f1816
-gatscat,mpich,1,1,pass,0,complete,118,L1:1f=118,trace: 4 ranks; 244 sends; 244 receives; 88 wildcard receives; 0 probes; 304 collective records; 26 communicators,48f1816,48f1816
-gatscat,mpich,1,2,pass,0,complete,111,L1:1f=111,trace: 4 ranks; 244 sends; 244 receives; 88 wildcard receives; 0 probes; 304 collective records; 26 communicators,48f1816,48f1816
-gatscat,mpich,1,3,pass,0,complete,110,L1:1f=110,trace: 4 ranks; 244 sends; 244 receives; 88 wildcard receives; 0 probes; 304 collective records; 26 communicators,48f1816,48f1816
-gatscat,mpich,2,1,pass,0,complete,143,L1:1f=143,trace: 4 ranks; 218 sends; 218 receives; 74 wildcard receives; 0 probes; 304 collective records; 24 communicators,48f1816,48f1816
-gatscat,mpich,2,2,pass,0,complete,140,L1:1f=140,trace: 4 ranks; 218 sends; 218 receives; 74 wildcard receives; 0 probes; 304 collective records; 24 communicators,48f1816,48f1816
-gatscat,mpich,2,3,pass,0,complete,134,L1:1f=134,trace: 4 ranks; 218 sends; 218 receives; 74 wildcard receives; 0 probes; 304 collective records; 24 communicators,48f1816,48f1816
-getmem,mpich,1,1,pass,0,complete,0,,trace: 4 ranks; 4 sends; 4 receives; 4 wildcard receives; 0 probes; 344 collective records; 26 communicators,48f1816,48f1816
-getmem,mpich,1,2,pass,0,complete,0,,trace: 4 ranks; 4 sends; 4 receives; 4 wildcard receives; 0 probes; 344 collective records; 26 communicators,48f1816,48f1816
-getmem,mpich,1,3,pass,0,complete,0,,trace: 4 ranks; 4 sends; 4 receives; 4 wildcard receives; 0 probes; 344 collective records; 26 communicators,48f1816,48f1816
-getmem,mpich,2,1,pass,0,complete,0,,trace: 4 ranks; 2 sends; 2 receives; 2 wildcard receives; 0 probes; 344 collective records; 24 communicators,48f1816,48f1816
-getmem,mpich,2,2,pass,0,complete,0,,trace: 4 ranks; 2 sends; 2 receives; 2 wildcard receives; 0 probes; 344 collective records; 24 communicators,48f1816,48f1816
-getmem,mpich,2,3,pass,0,complete,0,,trace: 4 ranks; 2 sends; 2 receives; 2 wildcard receives; 0 probes; 344 collective records; 24 communicators,48f1816,48f1816
-lock,mpich,1,1,pass,0,complete,0,,trace: 4 ranks; 48 sends; 48 receives; 27 wildcard receives; 0 probes; 300 collective records; 26 communicators,48f1816,48f1816
-lock,mpich,1,2,pass,0,complete,0,,trace: 4 ranks; 48 sends; 48 receives; 27 wildcard receives; 0 probes; 300 collective records; 26 communicators,48f1816,48f1816
-lock,mpich,1,3,pass,0,complete,0,,trace: 4 ranks; 48 sends; 48 receives; 27 wildcard receives; 0 probes; 300 collective records; 26 communicators,48f1816,48f1816
-lock,mpich,2,1,pass,0,complete,2,L1:1f=2,trace: 4 ranks; 32 sends; 32 receives; 18 wildcard receives; 0 probes; 300 collective records; 24 communicators,48f1816,48f1816
-lock,mpich,2,2,pass,0,complete,2,L1:1f=2,trace: 4 ranks; 32 sends; 32 receives; 18 wildcard receives; 0 probes; 300 collective records; 24 communicators,48f1816,48f1816
-lock,mpich,2,3,pass,0,complete,2,L1:1f=2,trace: 4 ranks; 32 sends; 32 receives; 18 wildcard receives; 0 probes; 300 collective records; 24 communicators,48f1816,48f1816
-matrixc,mpich,1,1,pass,0,complete,86,L1:1f=86,trace: 4 ranks; 328 sends; 328 receives; 151 wildcard receives; 0 probes; 712 collective records; 26 communicators,48f1816,48f1816
-matrixc,mpich,1,2,pass,0,complete,86,L1:1f=86,trace: 4 ranks; 328 sends; 328 receives; 151 wildcard receives; 0 probes; 712 collective records; 26 communicators,48f1816,48f1816
-matrixc,mpich,1,3,pass,0,complete,86,L1:1f=86,trace: 4 ranks; 328 sends; 328 receives; 151 wildcard receives; 0 probes; 712 collective records; 26 communicators,48f1816,48f1816
-matrixc,mpich,2,1,pass,0,complete,67,L1:1f=67,trace: 4 ranks; 204 sends; 204 receives; 88 wildcard receives; 0 probes; 712 collective records; 24 communicators,48f1816,48f1816
-matrixc,mpich,2,2,pass,0,complete,72,L1:1f=72,trace: 4 ranks; 204 sends; 204 receives; 88 wildcard receives; 0 probes; 712 collective records; 24 communicators,48f1816,48f1816
-matrixc,mpich,2,3,pass,0,complete,69,L1:1f=69,trace: 4 ranks; 204 sends; 204 receives; 88 wildcard receives; 0 probes; 712 collective records; 24 communicators,48f1816,48f1816
-mtest,mpich,1,1,pass,0,complete,36,L1:1f=36,trace: 4 ranks; 64 sends; 64 receives; 28 wildcard receives; 0 probes; 264 collective records; 26 communicators,48f1816,48f1816
-mtest,mpich,1,2,pass,0,complete,36,L1:1f=36,trace: 4 ranks; 64 sends; 64 receives; 28 wildcard receives; 0 probes; 264 collective records; 26 communicators,48f1816,48f1816
-mtest,mpich,1,3,pass,0,complete,33,L1:1f=33,trace: 4 ranks; 64 sends; 64 receives; 28 wildcard receives; 0 probes; 264 collective records; 26 communicators,48f1816,48f1816
-mtest,mpich,2,1,pass,0,complete,43,L1:1f=43,trace: 4 ranks; 54 sends; 54 receives; 22 wildcard receives; 0 probes; 264 collective records; 24 communicators,48f1816,48f1816
-mtest,mpich,2,2,pass,0,complete,47,L1:1f=46 observed:2-buffering=1,trace: 4 ranks; 54 sends; 54 receives; 22 wildcard receives; 0 probes; 264 collective records; 24 communicators,48f1816,48f1816
-mtest,mpich,2,3,pass,0,complete,40,L1:1f=40,trace: 4 ranks; 54 sends; 54 receives; 22 wildcard receives; 0 probes; 264 collective records; 24 communicators,48f1816,48f1816
-nbtestc,mpich,1,1,hang,124,complete,8,observed:2-blocked=7 observed:abort=1,trace: 4 ranks; 6 sends; 10 receives; 7 wildcard receives; 0 probes; 159 collective records; 26 communicators,48f1816,48f1816
-nbtestc,mpich,1,2,hang,124,complete,8,observed:2-blocked=7 observed:abort=1,trace: 4 ranks; 6 sends; 10 receives; 7 wildcard receives; 0 probes; 159 collective records; 26 communicators,48f1816,48f1816
-nbtestc,mpich,1,3,hang,124,complete,8,observed:2-blocked=7 observed:abort=1,trace: 4 ranks; 6 sends; 10 receives; 7 wildcard receives; 0 probes; 159 collective records; 26 communicators,48f1816,48f1816
-nbtestc,mpich,2,1,hang,124,complete,6,observed:2-blocked=5 observed:abort=1,trace: 4 ranks; 4 sends; 6 receives; 4 wildcard receives; 0 probes; 159 collective records; 24 communicators,48f1816,48f1816
-nbtestc,mpich,2,2,hang,124,complete,6,observed:2-blocked=5 observed:abort=1,trace: 4 ranks; 4 sends; 6 receives; 4 wildcard receives; 0 probes; 159 collective records; 24 communicators,48f1816,48f1816
-normc,mpich,1,1,pass,0,complete,0,,trace: 4 ranks; 4 sends; 4 receives; 4 wildcard receives; 0 probes; 1616 collective records; 26 communicators,48f1816,48f1816
-normc,mpich,1,2,pass,0,complete,0,,trace: 4 ranks; 4 sends; 4 receives; 4 wildcard receives; 0 probes; 1616 collective records; 26 communicators,48f1816,48f1816
-normc,mpich,1,3,pass,0,complete,0,,trace: 4 ranks; 4 sends; 4 receives; 4 wildcard receives; 0 probes; 1616 collective records; 26 communicators,48f1816,48f1816
-normc,mpich,2,1,pass,0,complete,0,,trace: 4 ranks; 2 sends; 2 receives; 2 wildcard receives; 0 probes; 1616 collective records; 24 communicators,48f1816,48f1816
-normc,mpich,2,2,pass,0,complete,0,,trace: 4 ranks; 2 sends; 2 receives; 2 wildcard receives; 0 probes; 1616 collective records; 24 communicators,48f1816,48f1816
-normc,mpich,2,3,pass,0,complete,0,,trace: 4 ranks; 2 sends; 2 receives; 2 wildcard receives; 0 probes; 1616 collective records; 24 communicators,48f1816,48f1816
-ntestc,mpich,1,1,pass,0,complete,35,L1:1f=35,trace: 4 ranks; 178 sends; 178 receives; 62 wildcard receives; 0 probes; 432 collective records; 26 communicators,48f1816,48f1816
-ntestc,mpich,1,2,pass,0,complete,37,L1:1f=37,trace: 4 ranks; 178 sends; 178 receives; 62 wildcard receives; 0 probes; 432 collective records; 26 communicators,48f1816,48f1816
-ntestc,mpich,1,3,pass,0,complete,37,L1:1f=37,trace: 4 ranks; 178 sends; 178 receives; 62 wildcard receives; 0 probes; 432 collective records; 26 communicators,48f1816,48f1816
-ntestc,mpich,2,1,pass,0,complete,32,L1:1f=32,trace: 4 ranks; 176 sends; 176 receives; 60 wildcard receives; 0 probes; 432 collective records; 24 communicators,48f1816,48f1816
-ntestc,mpich,2,2,pass,0,complete,40,L1:1f=40,trace: 4 ranks; 176 sends; 176 receives; 60 wildcard receives; 0 probes; 432 collective records; 24 communicators,48f1816,48f1816
-ntestc,mpich,2,3,pass,0,complete,36,L1:1f=36,trace: 4 ranks; 176 sends; 176 receives; 60 wildcard receives; 0 probes; 432 collective records; 24 communicators,48f1816,48f1816
-ntestfc,mpich,1,1,pass,0,complete,36,L1:1f=36,trace: 4 ranks; 178 sends; 178 receives; 62 wildcard receives; 0 probes; 400 collective records; 26 communicators,48f1816,48f1816
-ntestfc,mpich,1,2,pass,0,complete,36,L1:1f=36,trace: 4 ranks; 178 sends; 178 receives; 62 wildcard receives; 0 probes; 400 collective records; 26 communicators,48f1816,48f1816
-ntestfc,mpich,1,3,pass,0,complete,37,L1:1f=37,trace: 4 ranks; 178 sends; 178 receives; 62 wildcard receives; 0 probes; 400 collective records; 26 communicators,48f1816,48f1816
-ntestfc,mpich,2,1,pass,0,complete,36,L1:1f=36,trace: 4 ranks; 176 sends; 176 receives; 60 wildcard receives; 0 probes; 400 collective records; 24 communicators,48f1816,48f1816
-ntestfc,mpich,2,2,pass,0,complete,34,L1:1f=34,trace: 4 ranks; 176 sends; 176 receives; 60 wildcard receives; 0 probes; 400 collective records; 24 communicators,48f1816,48f1816
-ntestfc,mpich,2,3,pass,0,complete,34,L1:1f=34,trace: 4 ranks; 176 sends; 176 receives; 60 wildcard receives; 0 probes; 400 collective records; 24 communicators,48f1816,48f1816
-packc,mpich,1,1,pass,0,not analysed (trace of 92 MB),,,,,48f1816
-packc,mpich,1,2,pass,0,not analysed (trace of 92 MB),,,,,48f1816
-packc,mpich,1,3,pass,0,not analysed (trace of 92 MB),,,,,48f1816
-packc,mpich,2,1,pass,0,not analysed (trace of 76 MB),,,,,48f1816
-packc,mpich,2,2,pass,0,not analysed (trace of 76 MB),,,,,48f1816
-packc,mpich,2,3,pass,0,not analysed (trace of 76 MB),,,,,48f1816
-patch_enumc,mpich,1,1,pass,0,complete,84,L1:1f=84,trace: 4 ranks; 172 sends; 172 receives; 88 wildcard receives; 0 probes; 8712 collective records; 26 communicators,48f1816,48f1816
-patch_enumc,mpich,1,2,pass,0,complete,84,L1:1f=84,trace: 4 ranks; 172 sends; 172 receives; 88 wildcard receives; 0 probes; 8712 collective records; 26 communicators,48f1816,48f1816
-patch_enumc,mpich,1,3,pass,0,complete,84,L1:1f=84,trace: 4 ranks; 172 sends; 172 receives; 88 wildcard receives; 0 probes; 8712 collective records; 26 communicators,48f1816,48f1816
-patch_enumc,mpich,2,1,pass,0,complete,42,L1:1f=42,trace: 4 ranks; 114 sends; 114 receives; 58 wildcard receives; 0 probes; 8712 collective records; 24 communicators,48f1816,48f1816
-patch_enumc,mpich,2,2,pass,0,complete,42,L1:1f=42,trace: 4 ranks; 114 sends; 114 receives; 58 wildcard receives; 0 probes; 8712 collective records; 24 communicators,48f1816,48f1816
-patch_enumc,mpich,2,3,pass,0,complete,42,L1:1f=42,trace: 4 ranks; 114 sends; 114 receives; 58 wildcard receives; 0 probes; 8712 collective records; 24 communicators,48f1816,48f1816
-perf_amo,mpich,1,1,pass,0,not analysed (trace of 307 MB),,,,,48f1816
-perf_amo,mpich,1,2,pass,0,not analysed (trace of 307 MB),,,,,48f1816
-perf_amo,mpich,1,3,pass,0,not analysed (trace of 307 MB),,,,,48f1816
-perf_amo,mpich,2,1,pass,0,not analysed (trace of 306 MB),,,,,48f1816
-perf_amo,mpich,2,2,pass,0,not analysed (trace of 306 MB),,,,,48f1816
-perf_amo,mpich,2,3,pass,0,not analysed (trace of 306 MB),,,,,48f1816
-print,mpich,1,1,pass,0,complete,0,,trace: 4 ranks; 52 sends; 52 receives; 28 wildcard receives; 0 probes; 608 collective records; 26 communicators,48f1816,48f1816
-print,mpich,1,2,pass,0,complete,0,,trace: 4 ranks; 52 sends; 52 receives; 28 wildcard receives; 0 probes; 608 collective records; 26 communicators,48f1816,48f1816
-print,mpich,1,3,pass,0,complete,0,,trace: 4 ranks; 52 sends; 52 receives; 28 wildcard receives; 0 probes; 608 collective records; 26 communicators,48f1816,48f1816
-print,mpich,2,1,pass,0,complete,0,,trace: 4 ranks; 26 sends; 26 receives; 14 wildcard receives; 0 probes; 608 collective records; 24 communicators,48f1816,48f1816
-print,mpich,2,2,pass,0,complete,0,,trace: 4 ranks; 26 sends; 26 receives; 14 wildcard receives; 0 probes; 608 collective records; 24 communicators,48f1816,48f1816
-print,mpich,2,3,pass,0,complete,0,,trace: 4 ranks; 26 sends; 26 receives; 14 wildcard receives; 0 probes; 608 collective records; 24 communicators,48f1816,48f1816
-read_only,mpich,1,1,fail,5,complete,4,observed:abort=4,trace: 4 ranks; 0 sends; 0 receives; 0 wildcard receives; 0 probes; 0 collective records; 5 communicators,48f1816,48f1816
-read_only,mpich,1,2,fail,5,complete,4,observed:abort=4,trace: 4 ranks; 0 sends; 0 receives; 0 wildcard receives; 0 probes; 0 collective records; 5 communicators,48f1816,48f1816
-read_only,mpich,1,3,fail,5,complete,4,observed:abort=4,trace: 4 ranks; 0 sends; 0 receives; 0 wildcard receives; 0 probes; 0 collective records; 5 communicators,48f1816,48f1816
-read_only,mpich,2,1,fail,5,complete,4,observed:abort=4,trace: 4 ranks; 0 sends; 0 receives; 0 wildcard receives; 0 probes; 0 collective records; 5 communicators,48f1816,48f1816
-read_only,mpich,2,2,fail,5,complete,4,observed:abort=4,trace: 4 ranks; 0 sends; 0 receives; 0 wildcard receives; 0 probes; 0 collective records; 5 communicators,48f1816,48f1816
-read_only,mpich,2,3,fail,5,complete,4,observed:abort=4,trace: 4 ranks; 0 sends; 0 receives; 0 wildcard receives; 0 probes; 0 collective records; 5 communicators,48f1816,48f1816
-scan_addc,mpich,1,1,pass,0,not analysed (trace of 184 MB),,,,,48f1816
-scan_addc,mpich,1,2,pass,0,not analysed (trace of 184 MB),,,,,48f1816
-scan_addc,mpich,1,3,pass,0,not analysed (trace of 184 MB),,,,,48f1816
-scan_addc,mpich,2,1,pass,0,not analysed (trace of 157 MB),,,,,48f1816
-scan_addc,mpich,2,2,pass,0,not analysed (trace of 157 MB),,,,,48f1816
-scan_addc,mpich,2,3,pass,0,not analysed (trace of 157 MB),,,,,48f1816
-scan_copyc,mpich,1,1,pass,0,not analysed (trace of 89 MB),,,,,48f1816
-scan_copyc,mpich,1,2,pass,0,not analysed (trace of 89 MB),,,,,48f1816
-scan_copyc,mpich,1,3,pass,0,not analysed (trace of 89 MB),,,,,48f1816
-scan_copyc,mpich,2,1,pass,0,not analysed (trace of 75 MB),,,,,48f1816
-scan_copyc,mpich,2,2,pass,0,not analysed (trace of 75 MB),,,,,48f1816
-scan_copyc,mpich,2,3,pass,0,not analysed (trace of 75 MB),,,,,48f1816
-shift,mpich,1,1,pass,0,complete,0,,trace: 4 ranks; 2884 sends; 2884 receives; 1444 wildcard receives; 0 probes; 6392 collective records; 11 communicators,48f1816,48f1816
-shift,mpich,1,2,pass,0,complete,0,,trace: 4 ranks; 2884 sends; 2884 receives; 1444 wildcard receives; 0 probes; 6392 collective records; 11 communicators,48f1816,48f1816
-shift,mpich,1,3,pass,0,complete,0,,trace: 4 ranks; 2884 sends; 2884 receives; 1444 wildcard receives; 0 probes; 6392 collective records; 11 communicators,48f1816,48f1816
-shift,mpich,2,1,pass,0,complete,323,L1:1f=323,trace: 4 ranks; 1922 sends; 1922 receives; 962 wildcard receives; 0 probes; 6392 collective records; 9 communicators,48f1816,48f1816
-shift,mpich,2,2,pass,0,complete,322,L1:1f=322,trace: 4 ranks; 1922 sends; 1922 receives; 962 wildcard receives; 0 probes; 6392 collective records; 9 communicators,48f1816,48f1816
-shift,mpich,2,3,pass,0,complete,322,L1:1f=322,trace: 4 ranks; 1922 sends; 1922 receives; 962 wildcard receives; 0 probes; 6392 collective records; 9 communicators,48f1816,48f1816
-simple_groups_commc,mpich,1,1,pass,0,complete,0,,trace: 4 ranks; 4 sends; 4 receives; 4 wildcard receives; 0 probes; 332 collective records; 36 communicators,48f1816,48f1816
-simple_groups_commc,mpich,1,2,pass,0,complete,0,,trace: 4 ranks; 4 sends; 4 receives; 4 wildcard receives; 0 probes; 332 collective records; 36 communicators,48f1816,48f1816
-simple_groups_commc,mpich,1,3,pass,0,complete,0,,trace: 4 ranks; 4 sends; 4 receives; 4 wildcard receives; 0 probes; 332 collective records; 36 communicators,48f1816,48f1816
-simple_groups_commc,mpich,2,1,pass,0,complete,0,,trace: 4 ranks; 2 sends; 2 receives; 2 wildcard receives; 0 probes; 332 collective records; 34 communicators,48f1816,48f1816
-simple_groups_commc,mpich,2,2,pass,0,complete,0,,trace: 4 ranks; 2 sends; 2 receives; 2 wildcard receives; 0 probes; 332 collective records; 34 communicators,48f1816,48f1816
-simple_groups_commc,mpich,2,3,pass,0,complete,0,,trace: 4 ranks; 2 sends; 2 receives; 2 wildcard receives; 0 probes; 332 collective records; 34 communicators,48f1816,48f1816
-sprs_test,mpich,1,1,pass,0,not analysed (trace of 322 MB),,,,,48f1816
-sprs_test,mpich,1,2,pass,0,not analysed (trace of 322 MB),,,,,48f1816
-sprs_test,mpich,1,3,pass,0,not analysed (trace of 322 MB),,,,,48f1816
-sprs_test,mpich,2,1,pass,0,not analysed (trace of 278 MB),,,,,48f1816
-sprs_test,mpich,2,2,pass,0,not analysed (trace of 278 MB),,,,,48f1816
-sprs_test,mpich,2,3,pass,0,not analysed (trace of 278 MB),,,,,48f1816
-test,mpich,1,1,pass,0,not analysed (trace of 125 MB),,,,,48f1816
-test,mpich,1,2,pass,0,not analysed (trace of 125 MB),,,,,48f1816
-test,mpich,1,3,pass,0,not analysed (trace of 125 MB),,,,,48f1816
-test,mpich,2,1,pass,0,not analysed (trace of 124 MB),,,,,48f1816
-test,mpich,2,2,pass,0,not analysed (trace of 124 MB),,,,,48f1816
-test,mpich,2,3,pass,0,not analysed (trace of 124 MB),,,,,48f1816
-testc,mpich,1,1,pass,0,complete,318,L1:1f=318,trace: 4 ranks; 364 sends; 364 receives; 184 wildcard receives; 0 probes; 432 collective records; 26 communicators,48f1816,48f1816
-testc,mpich,1,2,pass,0,complete,314,L1:1f=314,trace: 4 ranks; 364 sends; 364 receives; 184 wildcard receives; 0 probes; 432 collective records; 26 communicators,48f1816,48f1816
-testc,mpich,1,3,pass,0,complete,285,L1:1f=285,trace: 4 ranks; 364 sends; 364 receives; 184 wildcard receives; 0 probes; 432 collective records; 26 communicators,48f1816,48f1816
-testc,mpich,2,1,pass,0,complete,70,L1:1f=70,trace: 4 ranks; 230 sends; 230 receives; 116 wildcard receives; 0 probes; 432 collective records; 24 communicators,48f1816,48f1816
-testc,mpich,2,2,pass,0,complete,67,L1:1f=67,trace: 4 ranks; 230 sends; 230 receives; 116 wildcard receives; 0 probes; 432 collective records; 24 communicators,48f1816,48f1816
-testc,mpich,2,3,pass,0,complete,73,L1:1f=73,trace: 4 ranks; 230 sends; 230 receives; 116 wildcard receives; 0 probes; 432 collective records; 24 communicators,48f1816,48f1816
-testmatmultc,mpich,1,1,pass,0,complete,140,L1:1f=140,trace: 4 ranks; 988 sends; 988 receives; 414 wildcard receives; 0 probes; 2256 collective records; 26 communicators,48f1816,48f1816
-testmatmultc,mpich,1,2,pass,0,complete,140,L1:1f=140,trace: 4 ranks; 988 sends; 988 receives; 414 wildcard receives; 0 probes; 2256 collective records; 26 communicators,48f1816,48f1816
-testmatmultc,mpich,1,3,pass,0,complete,140,L1:1f=140,trace: 4 ranks; 988 sends; 988 receives; 414 wildcard receives; 0 probes; 2256 collective records; 26 communicators,48f1816,48f1816
-testmatmultc,mpich,2,1,pass,0,complete,280,L1:1f=280,trace: 4 ranks; 822 sends; 822 receives; 330 wildcard receives; 0 probes; 2256 collective records; 24 communicators,48f1816,48f1816
-testmatmultc,mpich,2,2,pass,0,complete,280,L1:1f=280,trace: 4 ranks; 822 sends; 822 receives; 330 wildcard receives; 0 probes; 2256 collective records; 24 communicators,48f1816,48f1816
-testmatmultc,mpich,2,3,pass,0,complete,280,L1:1f=280,trace: 4 ranks; 822 sends; 822 receives; 330 wildcard receives; 0 probes; 2256 collective records; 24 communicators,48f1816,48f1816
-testmult,mpich,1,1,pass,0,complete,1047,L1:1f=1047,trace: 4 ranks; 3040 sends; 3040 receives; 1056 wildcard receives; 0 probes; 15008 collective records; 26 communicators,48f1816,48f1816
-testmult,mpich,1,2,pass,0,complete,970,L1:1f=970,trace: 4 ranks; 3040 sends; 3040 receives; 1056 wildcard receives; 0 probes; 15008 collective records; 26 communicators,48f1816,48f1816
-testmult,mpich,1,3,pass,0,complete,1003,L1:1f=1003,trace: 4 ranks; 3040 sends; 3040 receives; 1056 wildcard receives; 0 probes; 15008 collective records; 26 communicators,48f1816,48f1816
-testmult,mpich,2,1,pass,0,complete,1355,L1:1f=1355,trace: 4 ranks; 2990 sends; 2990 receives; 1030 wildcard receives; 0 probes; 15008 collective records; 24 communicators,48f1816,48f1816
-testmult,mpich,2,2,pass,0,complete,1370,L1:1f=1370,trace: 4 ranks; 2990 sends; 2990 receives; 1030 wildcard receives; 0 probes; 15008 collective records; 24 communicators,48f1816,48f1816
-testmult,mpich,2,3,pass,0,complete,1356,L1:1f=1356,trace: 4 ranks; 2990 sends; 2990 receives; 1030 wildcard receives; 0 probes; 15008 collective records; 24 communicators,37643dc,48f1816
-testmultrect,mpich,1,1,pass,0,complete,5,L1:1f=5,trace: 4 ranks; 51 sends; 51 receives; 23 wildcard receives; 0 probes; 520 collective records; 26 communicators,48f1816,48f1816
-testmultrect,mpich,1,2,pass,0,complete,6,L1:1f=6,trace: 4 ranks; 51 sends; 51 receives; 23 wildcard receives; 0 probes; 520 collective records; 26 communicators,48f1816,48f1816
-testmultrect,mpich,1,3,pass,0,complete,6,L1:1f=6,trace: 4 ranks; 51 sends; 51 receives; 23 wildcard receives; 0 probes; 520 collective records; 26 communicators,48f1816,48f1816
-testmultrect,mpich,2,1,pass,0,complete,3,L1:1f=3,trace: 4 ranks; 37 sends; 37 receives; 15 wildcard receives; 0 probes; 520 collective records; 24 communicators,48f1816,48f1816
-testmultrect,mpich,2,2,pass,0,complete,3,L1:1f=3,trace: 4 ranks; 37 sends; 37 receives; 15 wildcard receives; 0 probes; 520 collective records; 24 communicators,48f1816,48f1816
-testmultrect,mpich,2,3,pass,0,complete,3,L1:1f=3,trace: 4 ranks; 37 sends; 37 receives; 15 wildcard receives; 0 probes; 520 collective records; 24 communicators,48f1816,48f1816
-threadsafec,mpich,1,1,pass,0,analysis stopped unfinished (census.csv and targeted.csv instead),,,,,48f1816
-threadsafec,mpich,1,2,pass,0,analysis stopped unfinished (census.csv and targeted.csv instead),,,,,48f1816
-threadsafec,mpich,1,3,pass,0,analysis stopped unfinished (census.csv and targeted.csv instead),,,,,48f1816
-threadsafec,mpich,2,1,pass,0,analysis stopped unfinished (census.csv and targeted.csv instead),,,,,48f1816
-threadsafec,mpich,2,2,pass,0,analysis stopped unfinished (census.csv and targeted.csv instead),,,,,48f1816
-threadsafec,mpich,2,3,pass,0,analysis stopped unfinished (census.csv and targeted.csv instead),,,,,48f1816
-unpackc,mpich,1,1,pass,0,not analysed (trace of 90 MB),,,,,48f1816
-unpackc,mpich,1,2,pass,0,not analysed (trace of 90 MB),,,,,48f1816
-unpackc,mpich,1,3,pass,0,not analysed (trace of 90 MB),,,,,48f1816
-unpackc,mpich,2,1,pass,0,not analysed (trace of 76 MB),,,,,48f1816
-unpackc,mpich,2,2,pass,0,not analysed (trace of 76 MB),,,,,48f1816
-unpackc,mpich,2,3,pass,0,not analysed (trace of 76 MB),,,,,48f1816
+cache_test,mpich,1,1,fail,5,complete,4,observed:abort=4,trace: 4 ranks; 0 sends; 0 receives; 0 wildcard receives; 0 probes; 0 collective records; 5 communicators,2373196,2373196
+cache_test,mpich,1,2,fail,5,complete,4,observed:abort=4,trace: 4 ranks; 0 sends; 0 receives; 0 wildcard receives; 0 probes; 0 collective records; 5 communicators,2373196,2373196
+cache_test,mpich,1,3,fail,5,complete,4,observed:abort=4,trace: 4 ranks; 0 sends; 0 receives; 0 wildcard receives; 0 probes; 0 collective records; 5 communicators,2373196,2373196
+cache_test,mpich,2,1,fail,5,complete,4,observed:abort=4,trace: 4 ranks; 0 sends; 0 receives; 0 wildcard receives; 0 probes; 0 collective records; 5 communicators,2373196,2373196
+cache_test,mpich,2,2,fail,5,complete,4,observed:abort=4,trace: 4 ranks; 0 sends; 0 receives; 0 wildcard receives; 0 probes; 0 collective records; 5 communicators,2373196,2373196
+cache_test,mpich,2,3,fail,5,complete,4,observed:abort=4,trace: 4 ranks; 0 sends; 0 receives; 0 wildcard receives; 0 probes; 0 collective records; 5 communicators,2373196,2373196
+comm_init,mpich,1,1,pass,0,complete,0,,trace: 4 ranks; 28 sends; 28 receives; 16 wildcard receives; 0 probes; 296 collective records; 37 communicators,2373196,2373196
+comm_init,mpich,1,2,pass,0,complete,0,,trace: 4 ranks; 28 sends; 28 receives; 16 wildcard receives; 0 probes; 296 collective records; 37 communicators,2373196,2373196
+comm_init,mpich,1,3,pass,0,complete,0,,trace: 4 ranks; 28 sends; 28 receives; 16 wildcard receives; 0 probes; 296 collective records; 37 communicators,2373196,2373196
+comm_init,mpich,2,1,pass,0,complete,0,,trace: 4 ranks; 2 sends; 2 receives; 2 wildcard receives; 0 probes; 296 collective records; 35 communicators,2373196,2373196
+comm_init,mpich,2,2,pass,0,complete,0,,trace: 4 ranks; 2 sends; 2 receives; 2 wildcard receives; 0 probes; 296 collective records; 35 communicators,2373196,2373196
+comm_init,mpich,2,3,pass,0,complete,0,,trace: 4 ranks; 2 sends; 2 receives; 2 wildcard receives; 0 probes; 296 collective records; 35 communicators,2373196,2373196
+elempatch,mpich,1,1,pass,0,complete,0,,trace: 4 ranks; 4 sends; 4 receives; 4 wildcard receives; 0 probes; 178256 collective records; 26 communicators,2373196,2373196
+elempatch,mpich,1,2,pass,0,complete,0,,trace: 4 ranks; 4 sends; 4 receives; 4 wildcard receives; 0 probes; 178256 collective records; 26 communicators,2373196,2373196
+elempatch,mpich,1,3,pass,0,complete,0,,trace: 4 ranks; 4 sends; 4 receives; 4 wildcard receives; 0 probes; 178256 collective records; 26 communicators,2373196,2373196
+elempatch,mpich,2,1,pass,0,complete,0,,trace: 4 ranks; 2 sends; 2 receives; 2 wildcard receives; 0 probes; 178256 collective records; 24 communicators,2373196,2373196
+elempatch,mpich,2,2,pass,0,complete,0,,trace: 4 ranks; 2 sends; 2 receives; 2 wildcard receives; 0 probes; 178256 collective records; 24 communicators,2373196,2373196
+elempatch,mpich,2,3,pass,0,complete,0,,trace: 4 ranks; 2 sends; 2 receives; 2 wildcard receives; 0 probes; 178256 collective records; 24 communicators,2373196,2373196
+ga-mpi,mpich,1,1,pass,0,complete,294,L1:1f=294,trace: 4 ranks; 338 sends; 338 receives; 171 wildcard receives; 0 probes; 380 collective records; 28 communicators,2373196,2373196
+ga-mpi,mpich,1,2,pass,0,complete,298,L1:1f=298,trace: 4 ranks; 338 sends; 338 receives; 171 wildcard receives; 0 probes; 380 collective records; 28 communicators,2373196,2373196
+ga-mpi,mpich,1,3,pass,0,complete,283,L1:1f=283,trace: 4 ranks; 338 sends; 338 receives; 171 wildcard receives; 0 probes; 380 collective records; 28 communicators,2373196,2373196
+ga-mpi,mpich,2,1,pass,0,complete,69,L1:1f=69,trace: 4 ranks; 206 sends; 206 receives; 104 wildcard receives; 0 probes; 380 collective records; 26 communicators,2373196,2373196
+ga-mpi,mpich,2,2,pass,0,complete,61,L1:1f=61,trace: 4 ranks; 206 sends; 206 receives; 104 wildcard receives; 0 probes; 380 collective records; 26 communicators,2373196,2373196
+ga-mpi,mpich,2,3,pass,0,complete,63,L1:1f=63,trace: 4 ranks; 206 sends; 206 receives; 104 wildcard receives; 0 probes; 380 collective records; 26 communicators,2373196,2373196
+gatscat,mpich,1,1,pass,0,complete,118,L1:1f=118,trace: 4 ranks; 244 sends; 244 receives; 88 wildcard receives; 0 probes; 304 collective records; 26 communicators,2373196,2373196
+gatscat,mpich,1,2,pass,0,complete,111,L1:1f=111,trace: 4 ranks; 244 sends; 244 receives; 88 wildcard receives; 0 probes; 304 collective records; 26 communicators,2373196,2373196
+gatscat,mpich,1,3,pass,0,complete,110,L1:1f=110,trace: 4 ranks; 244 sends; 244 receives; 88 wildcard receives; 0 probes; 304 collective records; 26 communicators,2373196,2373196
+gatscat,mpich,2,1,pass,0,complete,143,L1:1f=143,trace: 4 ranks; 218 sends; 218 receives; 74 wildcard receives; 0 probes; 304 collective records; 24 communicators,2373196,2373196
+gatscat,mpich,2,2,pass,0,complete,140,L1:1f=140,trace: 4 ranks; 218 sends; 218 receives; 74 wildcard receives; 0 probes; 304 collective records; 24 communicators,2373196,2373196
+gatscat,mpich,2,3,pass,0,complete,134,L1:1f=134,trace: 4 ranks; 218 sends; 218 receives; 74 wildcard receives; 0 probes; 304 collective records; 24 communicators,2373196,2373196
+getmem,mpich,1,1,pass,0,complete,0,,trace: 4 ranks; 4 sends; 4 receives; 4 wildcard receives; 0 probes; 344 collective records; 26 communicators,2373196,2373196
+getmem,mpich,1,2,pass,0,complete,0,,trace: 4 ranks; 4 sends; 4 receives; 4 wildcard receives; 0 probes; 344 collective records; 26 communicators,2373196,2373196
+getmem,mpich,1,3,pass,0,complete,0,,trace: 4 ranks; 4 sends; 4 receives; 4 wildcard receives; 0 probes; 344 collective records; 26 communicators,2373196,2373196
+getmem,mpich,2,1,pass,0,complete,0,,trace: 4 ranks; 2 sends; 2 receives; 2 wildcard receives; 0 probes; 344 collective records; 24 communicators,2373196,2373196
+getmem,mpich,2,2,pass,0,complete,0,,trace: 4 ranks; 2 sends; 2 receives; 2 wildcard receives; 0 probes; 344 collective records; 24 communicators,2373196,2373196
+getmem,mpich,2,3,pass,0,complete,0,,trace: 4 ranks; 2 sends; 2 receives; 2 wildcard receives; 0 probes; 344 collective records; 24 communicators,2373196,2373196
+lock,mpich,1,1,pass,0,complete,0,,trace: 4 ranks; 48 sends; 48 receives; 27 wildcard receives; 0 probes; 300 collective records; 26 communicators,2373196,2373196
+lock,mpich,1,2,pass,0,complete,0,,trace: 4 ranks; 48 sends; 48 receives; 27 wildcard receives; 0 probes; 300 collective records; 26 communicators,2373196,2373196
+lock,mpich,1,3,pass,0,complete,0,,trace: 4 ranks; 48 sends; 48 receives; 27 wildcard receives; 0 probes; 300 collective records; 26 communicators,2373196,2373196
+lock,mpich,2,1,pass,0,complete,2,L1:1f=2,trace: 4 ranks; 32 sends; 32 receives; 18 wildcard receives; 0 probes; 300 collective records; 24 communicators,2373196,2373196
+lock,mpich,2,2,pass,0,complete,2,L1:1f=2,trace: 4 ranks; 32 sends; 32 receives; 18 wildcard receives; 0 probes; 300 collective records; 24 communicators,2373196,2373196
+lock,mpich,2,3,pass,0,complete,2,L1:1f=2,trace: 4 ranks; 32 sends; 32 receives; 18 wildcard receives; 0 probes; 300 collective records; 24 communicators,2373196,2373196
+matrixc,mpich,1,1,pass,0,complete,86,L1:1f=86,trace: 4 ranks; 328 sends; 328 receives; 151 wildcard receives; 0 probes; 712 collective records; 26 communicators,2373196,2373196
+matrixc,mpich,1,2,pass,0,complete,86,L1:1f=86,trace: 4 ranks; 328 sends; 328 receives; 151 wildcard receives; 0 probes; 712 collective records; 26 communicators,2373196,2373196
+matrixc,mpich,1,3,pass,0,complete,86,L1:1f=86,trace: 4 ranks; 328 sends; 328 receives; 151 wildcard receives; 0 probes; 712 collective records; 26 communicators,2373196,2373196
+matrixc,mpich,2,1,pass,0,complete,67,L1:1f=67,trace: 4 ranks; 204 sends; 204 receives; 88 wildcard receives; 0 probes; 712 collective records; 24 communicators,2373196,2373196
+matrixc,mpich,2,2,pass,0,complete,72,L1:1f=72,trace: 4 ranks; 204 sends; 204 receives; 88 wildcard receives; 0 probes; 712 collective records; 24 communicators,2373196,2373196
+matrixc,mpich,2,3,pass,0,complete,69,L1:1f=69,trace: 4 ranks; 204 sends; 204 receives; 88 wildcard receives; 0 probes; 712 collective records; 24 communicators,2373196,2373196
+mtest,mpich,1,1,pass,0,complete,36,L1:1f=36,trace: 4 ranks; 64 sends; 64 receives; 28 wildcard receives; 0 probes; 264 collective records; 26 communicators,2373196,2373196
+mtest,mpich,1,2,pass,0,complete,36,L1:1f=36,trace: 4 ranks; 64 sends; 64 receives; 28 wildcard receives; 0 probes; 264 collective records; 26 communicators,2373196,2373196
+mtest,mpich,1,3,pass,0,complete,33,L1:1f=33,trace: 4 ranks; 64 sends; 64 receives; 28 wildcard receives; 0 probes; 264 collective records; 26 communicators,2373196,2373196
+mtest,mpich,2,1,pass,0,complete,43,L1:1f=43,trace: 4 ranks; 54 sends; 54 receives; 22 wildcard receives; 0 probes; 264 collective records; 24 communicators,2373196,2373196
+mtest,mpich,2,2,pass,0,complete,47,L1:1f=46 observed:2-buffering=1,trace: 4 ranks; 54 sends; 54 receives; 22 wildcard receives; 0 probes; 264 collective records; 24 communicators,2373196,2373196
+mtest,mpich,2,3,pass,0,complete,40,L1:1f=40,trace: 4 ranks; 54 sends; 54 receives; 22 wildcard receives; 0 probes; 264 collective records; 24 communicators,2373196,2373196
+nbtestc,mpich,1,1,hang,124,complete,8,observed:2-blocked=7 observed:abort=1,trace: 4 ranks; 6 sends; 10 receives; 7 wildcard receives; 0 probes; 159 collective records; 26 communicators,2373196,2373196
+nbtestc,mpich,1,2,hang,124,complete,8,observed:2-blocked=7 observed:abort=1,trace: 4 ranks; 6 sends; 10 receives; 7 wildcard receives; 0 probes; 159 collective records; 26 communicators,2373196,2373196
+nbtestc,mpich,1,3,hang,124,complete,8,observed:2-blocked=7 observed:abort=1,trace: 4 ranks; 6 sends; 10 receives; 7 wildcard receives; 0 probes; 159 collective records; 26 communicators,2373196,2373196
+nbtestc,mpich,2,1,hang,124,complete,6,observed:2-blocked=5 observed:abort=1,trace: 4 ranks; 4 sends; 6 receives; 4 wildcard receives; 0 probes; 159 collective records; 24 communicators,2373196,2373196
+nbtestc,mpich,2,2,hang,124,complete,6,observed:2-blocked=5 observed:abort=1,trace: 4 ranks; 4 sends; 6 receives; 4 wildcard receives; 0 probes; 159 collective records; 24 communicators,2373196,2373196
+normc,mpich,1,1,pass,0,complete,0,,trace: 4 ranks; 4 sends; 4 receives; 4 wildcard receives; 0 probes; 1616 collective records; 26 communicators,2373196,2373196
+normc,mpich,1,2,pass,0,complete,0,,trace: 4 ranks; 4 sends; 4 receives; 4 wildcard receives; 0 probes; 1616 collective records; 26 communicators,2373196,2373196
+normc,mpich,1,3,pass,0,complete,0,,trace: 4 ranks; 4 sends; 4 receives; 4 wildcard receives; 0 probes; 1616 collective records; 26 communicators,2373196,2373196
+normc,mpich,2,1,pass,0,complete,0,,trace: 4 ranks; 2 sends; 2 receives; 2 wildcard receives; 0 probes; 1616 collective records; 24 communicators,2373196,2373196
+normc,mpich,2,2,pass,0,complete,0,,trace: 4 ranks; 2 sends; 2 receives; 2 wildcard receives; 0 probes; 1616 collective records; 24 communicators,2373196,2373196
+normc,mpich,2,3,pass,0,complete,0,,trace: 4 ranks; 2 sends; 2 receives; 2 wildcard receives; 0 probes; 1616 collective records; 24 communicators,2373196,2373196
+ntestc,mpich,1,1,pass,0,complete,35,L1:1f=35,trace: 4 ranks; 178 sends; 178 receives; 62 wildcard receives; 0 probes; 432 collective records; 26 communicators,2373196,2373196
+ntestc,mpich,1,2,pass,0,complete,37,L1:1f=37,trace: 4 ranks; 178 sends; 178 receives; 62 wildcard receives; 0 probes; 432 collective records; 26 communicators,2373196,2373196
+ntestc,mpich,1,3,pass,0,complete,37,L1:1f=37,trace: 4 ranks; 178 sends; 178 receives; 62 wildcard receives; 0 probes; 432 collective records; 26 communicators,2373196,2373196
+ntestc,mpich,2,1,pass,0,complete,32,L1:1f=32,trace: 4 ranks; 176 sends; 176 receives; 60 wildcard receives; 0 probes; 432 collective records; 24 communicators,2373196,2373196
+ntestc,mpich,2,2,pass,0,complete,40,L1:1f=40,trace: 4 ranks; 176 sends; 176 receives; 60 wildcard receives; 0 probes; 432 collective records; 24 communicators,2373196,2373196
+ntestc,mpich,2,3,pass,0,complete,36,L1:1f=36,trace: 4 ranks; 176 sends; 176 receives; 60 wildcard receives; 0 probes; 432 collective records; 24 communicators,2373196,2373196
+ntestfc,mpich,1,1,pass,0,complete,36,L1:1f=36,trace: 4 ranks; 178 sends; 178 receives; 62 wildcard receives; 0 probes; 400 collective records; 26 communicators,2373196,2373196
+ntestfc,mpich,1,2,pass,0,complete,36,L1:1f=36,trace: 4 ranks; 178 sends; 178 receives; 62 wildcard receives; 0 probes; 400 collective records; 26 communicators,2373196,2373196
+ntestfc,mpich,1,3,pass,0,complete,37,L1:1f=37,trace: 4 ranks; 178 sends; 178 receives; 62 wildcard receives; 0 probes; 400 collective records; 26 communicators,2373196,2373196
+ntestfc,mpich,2,1,pass,0,complete,36,L1:1f=36,trace: 4 ranks; 176 sends; 176 receives; 60 wildcard receives; 0 probes; 400 collective records; 24 communicators,2373196,2373196
+ntestfc,mpich,2,2,pass,0,complete,34,L1:1f=34,trace: 4 ranks; 176 sends; 176 receives; 60 wildcard receives; 0 probes; 400 collective records; 24 communicators,2373196,2373196
+ntestfc,mpich,2,3,pass,0,complete,34,L1:1f=34,trace: 4 ranks; 176 sends; 176 receives; 60 wildcard receives; 0 probes; 400 collective records; 24 communicators,2373196,2373196
+packc,mpich,1,1,pass,0,not analysed (trace of 92 MB),,,,,2373196
+packc,mpich,1,2,pass,0,not analysed (trace of 92 MB),,,,,2373196
+packc,mpich,1,3,pass,0,not analysed (trace of 92 MB),,,,,2373196
+packc,mpich,2,1,pass,0,not analysed (trace of 76 MB),,,,,2373196
+packc,mpich,2,2,pass,0,not analysed (trace of 76 MB),,,,,2373196
+packc,mpich,2,3,pass,0,not analysed (trace of 76 MB),,,,,2373196
+patch_enumc,mpich,1,1,pass,0,complete,84,L1:1f=84,trace: 4 ranks; 172 sends; 172 receives; 88 wildcard receives; 0 probes; 8712 collective records; 26 communicators,2373196,2373196
+patch_enumc,mpich,1,2,pass,0,complete,84,L1:1f=84,trace: 4 ranks; 172 sends; 172 receives; 88 wildcard receives; 0 probes; 8712 collective records; 26 communicators,2373196,2373196
+patch_enumc,mpich,1,3,pass,0,complete,84,L1:1f=84,trace: 4 ranks; 172 sends; 172 receives; 88 wildcard receives; 0 probes; 8712 collective records; 26 communicators,2373196,2373196
+patch_enumc,mpich,2,1,pass,0,complete,42,L1:1f=42,trace: 4 ranks; 114 sends; 114 receives; 58 wildcard receives; 0 probes; 8712 collective records; 24 communicators,2373196,2373196
+patch_enumc,mpich,2,2,pass,0,complete,42,L1:1f=42,trace: 4 ranks; 114 sends; 114 receives; 58 wildcard receives; 0 probes; 8712 collective records; 24 communicators,2373196,2373196
+patch_enumc,mpich,2,3,pass,0,complete,42,L1:1f=42,trace: 4 ranks; 114 sends; 114 receives; 58 wildcard receives; 0 probes; 8712 collective records; 24 communicators,2373196,2373196
+perf_amo,mpich,1,1,pass,0,not analysed (trace of 307 MB),,,,,2373196
+perf_amo,mpich,1,2,pass,0,not analysed (trace of 307 MB),,,,,2373196
+perf_amo,mpich,1,3,pass,0,not analysed (trace of 307 MB),,,,,2373196
+perf_amo,mpich,2,1,pass,0,not analysed (trace of 306 MB),,,,,2373196
+perf_amo,mpich,2,2,pass,0,not analysed (trace of 306 MB),,,,,2373196
+perf_amo,mpich,2,3,pass,0,not analysed (trace of 306 MB),,,,,2373196
+print,mpich,1,1,pass,0,complete,0,,trace: 4 ranks; 52 sends; 52 receives; 28 wildcard receives; 0 probes; 608 collective records; 26 communicators,2373196,2373196
+print,mpich,1,2,pass,0,complete,0,,trace: 4 ranks; 52 sends; 52 receives; 28 wildcard receives; 0 probes; 608 collective records; 26 communicators,2373196,2373196
+print,mpich,1,3,pass,0,complete,0,,trace: 4 ranks; 52 sends; 52 receives; 28 wildcard receives; 0 probes; 608 collective records; 26 communicators,2373196,2373196
+print,mpich,2,1,pass,0,complete,0,,trace: 4 ranks; 26 sends; 26 receives; 14 wildcard receives; 0 probes; 608 collective records; 24 communicators,2373196,2373196
+print,mpich,2,2,pass,0,complete,0,,trace: 4 ranks; 26 sends; 26 receives; 14 wildcard receives; 0 probes; 608 collective records; 24 communicators,2373196,2373196
+print,mpich,2,3,pass,0,complete,0,,trace: 4 ranks; 26 sends; 26 receives; 14 wildcard receives; 0 probes; 608 collective records; 24 communicators,2373196,2373196
+read_only,mpich,1,1,fail,5,complete,4,observed:abort=4,trace: 4 ranks; 0 sends; 0 receives; 0 wildcard receives; 0 probes; 0 collective records; 5 communicators,2373196,2373196
+read_only,mpich,1,2,fail,5,complete,4,observed:abort=4,trace: 4 ranks; 0 sends; 0 receives; 0 wildcard receives; 0 probes; 0 collective records; 5 communicators,2373196,2373196
+read_only,mpich,1,3,fail,5,complete,4,observed:abort=4,trace: 4 ranks; 0 sends; 0 receives; 0 wildcard receives; 0 probes; 0 collective records; 5 communicators,2373196,2373196
+read_only,mpich,2,1,fail,5,complete,4,observed:abort=4,trace: 4 ranks; 0 sends; 0 receives; 0 wildcard receives; 0 probes; 0 collective records; 5 communicators,2373196,2373196
+read_only,mpich,2,2,fail,5,complete,4,observed:abort=4,trace: 4 ranks; 0 sends; 0 receives; 0 wildcard receives; 0 probes; 0 collective records; 5 communicators,2373196,2373196
+read_only,mpich,2,3,fail,5,complete,4,observed:abort=4,trace: 4 ranks; 0 sends; 0 receives; 0 wildcard receives; 0 probes; 0 collective records; 5 communicators,2373196,2373196
+scan_addc,mpich,1,1,pass,0,not analysed (trace of 184 MB),,,,,2373196
+scan_addc,mpich,1,2,pass,0,not analysed (trace of 184 MB),,,,,2373196
+scan_addc,mpich,1,3,pass,0,not analysed (trace of 184 MB),,,,,2373196
+scan_addc,mpich,2,1,pass,0,not analysed (trace of 157 MB),,,,,2373196
+scan_addc,mpich,2,2,pass,0,not analysed (trace of 157 MB),,,,,2373196
+scan_addc,mpich,2,3,pass,0,not analysed (trace of 157 MB),,,,,2373196
+scan_copyc,mpich,1,1,pass,0,not analysed (trace of 89 MB),,,,,2373196
+scan_copyc,mpich,1,2,pass,0,not analysed (trace of 89 MB),,,,,2373196
+scan_copyc,mpich,1,3,pass,0,not analysed (trace of 89 MB),,,,,2373196
+scan_copyc,mpich,2,1,pass,0,not analysed (trace of 75 MB),,,,,2373196
+scan_copyc,mpich,2,2,pass,0,not analysed (trace of 75 MB),,,,,2373196
+scan_copyc,mpich,2,3,pass,0,not analysed (trace of 75 MB),,,,,2373196
+shift,mpich,1,1,pass,0,complete,0,,trace: 4 ranks; 2884 sends; 2884 receives; 1444 wildcard receives; 0 probes; 6392 collective records; 11 communicators,2373196,2373196
+shift,mpich,1,2,pass,0,complete,0,,trace: 4 ranks; 2884 sends; 2884 receives; 1444 wildcard receives; 0 probes; 6392 collective records; 11 communicators,2373196,2373196
+shift,mpich,1,3,pass,0,complete,0,,trace: 4 ranks; 2884 sends; 2884 receives; 1444 wildcard receives; 0 probes; 6392 collective records; 11 communicators,2373196,2373196
+shift,mpich,2,1,pass,0,complete,323,L1:1f=323,trace: 4 ranks; 1922 sends; 1922 receives; 962 wildcard receives; 0 probes; 6392 collective records; 9 communicators,2373196,2373196
+shift,mpich,2,2,pass,0,complete,322,L1:1f=322,trace: 4 ranks; 1922 sends; 1922 receives; 962 wildcard receives; 0 probes; 6392 collective records; 9 communicators,2373196,2373196
+shift,mpich,2,3,pass,0,complete,322,L1:1f=322,trace: 4 ranks; 1922 sends; 1922 receives; 962 wildcard receives; 0 probes; 6392 collective records; 9 communicators,2373196,2373196
+simple_groups_commc,mpich,1,1,pass,0,complete,0,,trace: 4 ranks; 4 sends; 4 receives; 4 wildcard receives; 0 probes; 332 collective records; 36 communicators,2373196,2373196
+simple_groups_commc,mpich,1,2,pass,0,complete,0,,trace: 4 ranks; 4 sends; 4 receives; 4 wildcard receives; 0 probes; 332 collective records; 36 communicators,2373196,2373196
+simple_groups_commc,mpich,1,3,pass,0,complete,0,,trace: 4 ranks; 4 sends; 4 receives; 4 wildcard receives; 0 probes; 332 collective records; 36 communicators,2373196,2373196
+simple_groups_commc,mpich,2,1,pass,0,complete,0,,trace: 4 ranks; 2 sends; 2 receives; 2 wildcard receives; 0 probes; 332 collective records; 34 communicators,2373196,2373196
+simple_groups_commc,mpich,2,2,pass,0,complete,0,,trace: 4 ranks; 2 sends; 2 receives; 2 wildcard receives; 0 probes; 332 collective records; 34 communicators,2373196,2373196
+simple_groups_commc,mpich,2,3,pass,0,complete,0,,trace: 4 ranks; 2 sends; 2 receives; 2 wildcard receives; 0 probes; 332 collective records; 34 communicators,2373196,2373196
+sprs_test,mpich,1,1,pass,0,not analysed (trace of 322 MB),,,,,2373196
+sprs_test,mpich,1,2,pass,0,not analysed (trace of 322 MB),,,,,2373196
+sprs_test,mpich,1,3,pass,0,not analysed (trace of 322 MB),,,,,2373196
+sprs_test,mpich,2,1,pass,0,not analysed (trace of 278 MB),,,,,2373196
+sprs_test,mpich,2,2,pass,0,not analysed (trace of 278 MB),,,,,2373196
+sprs_test,mpich,2,3,pass,0,not analysed (trace of 278 MB),,,,,2373196
+test,mpich,1,1,pass,0,not analysed (trace of 125 MB),,,,,2373196
+test,mpich,1,2,pass,0,not analysed (trace of 125 MB),,,,,2373196
+test,mpich,1,3,pass,0,not analysed (trace of 125 MB),,,,,2373196
+test,mpich,2,1,pass,0,not analysed (trace of 124 MB),,,,,2373196
+test,mpich,2,2,pass,0,not analysed (trace of 124 MB),,,,,2373196
+test,mpich,2,3,pass,0,not analysed (trace of 124 MB),,,,,2373196
+testc,mpich,1,1,pass,0,complete,318,L1:1f=318,trace: 4 ranks; 364 sends; 364 receives; 184 wildcard receives; 0 probes; 432 collective records; 26 communicators,2373196,2373196
+testc,mpich,1,2,pass,0,complete,314,L1:1f=314,trace: 4 ranks; 364 sends; 364 receives; 184 wildcard receives; 0 probes; 432 collective records; 26 communicators,2373196,2373196
+testc,mpich,1,3,pass,0,complete,285,L1:1f=285,trace: 4 ranks; 364 sends; 364 receives; 184 wildcard receives; 0 probes; 432 collective records; 26 communicators,2373196,2373196
+testc,mpich,2,1,pass,0,complete,70,L1:1f=70,trace: 4 ranks; 230 sends; 230 receives; 116 wildcard receives; 0 probes; 432 collective records; 24 communicators,2373196,2373196
+testc,mpich,2,2,pass,0,complete,67,L1:1f=67,trace: 4 ranks; 230 sends; 230 receives; 116 wildcard receives; 0 probes; 432 collective records; 24 communicators,2373196,2373196
+testc,mpich,2,3,pass,0,complete,73,L1:1f=73,trace: 4 ranks; 230 sends; 230 receives; 116 wildcard receives; 0 probes; 432 collective records; 24 communicators,2373196,2373196
+testmatmultc,mpich,1,1,pass,0,complete,140,L1:1f=140,trace: 4 ranks; 988 sends; 988 receives; 414 wildcard receives; 0 probes; 2256 collective records; 26 communicators,2373196,2373196
+testmatmultc,mpich,1,2,pass,0,complete,140,L1:1f=140,trace: 4 ranks; 988 sends; 988 receives; 414 wildcard receives; 0 probes; 2256 collective records; 26 communicators,2373196,2373196
+testmatmultc,mpich,1,3,pass,0,complete,140,L1:1f=140,trace: 4 ranks; 988 sends; 988 receives; 414 wildcard receives; 0 probes; 2256 collective records; 26 communicators,2373196,2373196
+testmatmultc,mpich,2,1,pass,0,complete,280,L1:1f=280,trace: 4 ranks; 822 sends; 822 receives; 330 wildcard receives; 0 probes; 2256 collective records; 24 communicators,2373196,2373196
+testmatmultc,mpich,2,2,pass,0,complete,280,L1:1f=280,trace: 4 ranks; 822 sends; 822 receives; 330 wildcard receives; 0 probes; 2256 collective records; 24 communicators,2373196,2373196
+testmatmultc,mpich,2,3,pass,0,complete,280,L1:1f=280,trace: 4 ranks; 822 sends; 822 receives; 330 wildcard receives; 0 probes; 2256 collective records; 24 communicators,2373196,2373196
+testmult,mpich,1,1,pass,0,complete,1047,L1:1f=1047,trace: 4 ranks; 3040 sends; 3040 receives; 1056 wildcard receives; 0 probes; 15008 collective records; 26 communicators,2373196,2373196
+testmult,mpich,1,2,pass,0,complete,970,L1:1f=970,trace: 4 ranks; 3040 sends; 3040 receives; 1056 wildcard receives; 0 probes; 15008 collective records; 26 communicators,2373196,2373196
+testmult,mpich,1,3,pass,0,complete,1003,L1:1f=1003,trace: 4 ranks; 3040 sends; 3040 receives; 1056 wildcard receives; 0 probes; 15008 collective records; 26 communicators,2373196,2373196
+testmult,mpich,2,1,pass,0,complete,1355,L1:1f=1355,trace: 4 ranks; 2990 sends; 2990 receives; 1030 wildcard receives; 0 probes; 15008 collective records; 24 communicators,2373196,2373196
+testmult,mpich,2,2,pass,0,complete,1370,L1:1f=1370,trace: 4 ranks; 2990 sends; 2990 receives; 1030 wildcard receives; 0 probes; 15008 collective records; 24 communicators,2373196,2373196
+testmult,mpich,2,3,pass,0,complete,1356,L1:1f=1356,trace: 4 ranks; 2990 sends; 2990 receives; 1030 wildcard receives; 0 probes; 15008 collective records; 24 communicators,6a36b6f,2373196
+testmultrect,mpich,1,1,pass,0,complete,5,L1:1f=5,trace: 4 ranks; 51 sends; 51 receives; 23 wildcard receives; 0 probes; 520 collective records; 26 communicators,2373196,2373196
+testmultrect,mpich,1,2,pass,0,complete,6,L1:1f=6,trace: 4 ranks; 51 sends; 51 receives; 23 wildcard receives; 0 probes; 520 collective records; 26 communicators,2373196,2373196
+testmultrect,mpich,1,3,pass,0,complete,6,L1:1f=6,trace: 4 ranks; 51 sends; 51 receives; 23 wildcard receives; 0 probes; 520 collective records; 26 communicators,2373196,2373196
+testmultrect,mpich,2,1,pass,0,complete,3,L1:1f=3,trace: 4 ranks; 37 sends; 37 receives; 15 wildcard receives; 0 probes; 520 collective records; 24 communicators,2373196,2373196
+testmultrect,mpich,2,2,pass,0,complete,3,L1:1f=3,trace: 4 ranks; 37 sends; 37 receives; 15 wildcard receives; 0 probes; 520 collective records; 24 communicators,2373196,2373196
+testmultrect,mpich,2,3,pass,0,complete,3,L1:1f=3,trace: 4 ranks; 37 sends; 37 receives; 15 wildcard receives; 0 probes; 520 collective records; 24 communicators,2373196,2373196
+threadsafec,mpich,1,1,pass,0,analysis stopped unfinished (census.csv and targeted.csv instead),,,,,2373196
+threadsafec,mpich,1,2,pass,0,analysis stopped unfinished (census.csv and targeted.csv instead),,,,,2373196
+threadsafec,mpich,1,3,pass,0,analysis stopped unfinished (census.csv and targeted.csv instead),,,,,2373196
+threadsafec,mpich,2,1,pass,0,analysis stopped unfinished (census.csv and targeted.csv instead),,,,,2373196
+threadsafec,mpich,2,2,pass,0,analysis stopped unfinished (census.csv and targeted.csv instead),,,,,2373196
+threadsafec,mpich,2,3,pass,0,analysis stopped unfinished (census.csv and targeted.csv instead),,,,,2373196
+unpackc,mpich,1,1,pass,0,not analysed (trace of 90 MB),,,,,2373196
+unpackc,mpich,1,2,pass,0,not analysed (trace of 90 MB),,,,,2373196
+unpackc,mpich,1,3,pass,0,not analysed (trace of 90 MB),,,,,2373196
+unpackc,mpich,2,1,pass,0,not analysed (trace of 76 MB),,,,,2373196
+unpackc,mpich,2,2,pass,0,not analysed (trace of 76 MB),,,,,2373196
+unpackc,mpich,2,3,pass,0,not analysed (trace of 76 MB),,,,,2373196

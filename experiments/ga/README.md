@@ -30,7 +30,7 @@ Recorded before any of ComEx's communication code (`comex/src-mpi-pt/comex.c`, `
 read; what was read: GA's build files, the test programs' sources where a test failed, and the
 function names and line numbers that `stretto sites` prints for the call sites of the traces.
 
-**What ran.** `scan.sh` at commit 48f1816 (analysis code of 8a05eff), 1 Nov 2026 14:40-16:24
+**What ran.** `scan.sh` at commit 2373196 (analysis code of 5fec36b), 1 Nov 2026 14:40-16:24
 +08, two containers on CPUs 8-15,48-55: 30 shipped tests (GA's C tests without the benchmarks,
 ComEx's `test`, `shift`, `perf_amo`; two more left out, below), 4 ranks, `FAKEHOST_PPN` 1
 (four nodes of one rank) and 2 (two nodes of two), 3 traced runs each, with Open MPI and with
@@ -54,7 +54,7 @@ GA's tree and its counts). Deviations, all recorded in the tables or here:
   and `nbtestc` has 5 MPICH runs instead of 6 (the sixth was cut by that stop).
 - `threadsafec` (OpenMP threads calling GA at once; about 68 000 records and 102 or 104 chains
   per trace) did not finish: the check for two threads waiting on one request compared every
-  pair of a rank's waits (made linear in commit 37643dc, the same result), and after it each
+  pair of a rank's waits (made linear in commit 6a36b6f, the same result), and after it each
   trace has 17 800 to 22 300 L1 candidates for the generic check, beyond hours. The analyses
   were stopped after 54 minutes (rows "analysis stopped"). Instead `census.py`
   ([census.csv](census.csv)) counts the candidates per site over the happens-before of L1 and
@@ -62,8 +62,8 @@ GA's tree and its counts). Deviations, all recorded in the tables or here:
   `stretto.locks.alternatives` does, every candidate at the main threads' reply receives
   (started 18:01 +08; its table, `targeted.csv`, is added when it ends, its shards merged).
   The two scripts as they ran wrote no commit column and CRLF line ends; that is all the
-  committed ones change (`census.csv` got its column, 37643dc, the analysis code it ran on).
-  The `testmult` analyses that the restart cut were run again with 37643dc; their rows name
+  committed ones change (`census.csv` got its column, 6a36b6f, the analysis code it ran on).
+  The `testmult` analyses that the restart cut were run again with 6a36b6f; their rows name
   it as the analysis commit.
 - Seven `perf_amo` analyses (four of Open MPI, three of MPICH) found their trace already
   deleted (the side loop ran first); they are size-skipped like the others.
@@ -177,7 +177,7 @@ The real bug the scan surfaced (O1) is a hang that any plain run of the shipped 
 analysis named where each thread stood when it ended (rank 0 outside MPI, its 16 KB put never
 received), which pointed at `comex_test`. The observed 2-buffering (O2) is a false alarm of
 the class with a wildcard receive on the cycle. Two analysis costs found on the way are fixed
-(8a05eff: one-type signatures flattened at once, 280 s to 16 s on `testc`; 37643dc: the
+(5fec36b: one-type signatures flattened at once, 280 s to 16 s on `testc`; 6a36b6f: the
 double-wait check grouped by request).
 
 ## Files

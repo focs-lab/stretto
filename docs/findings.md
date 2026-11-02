@@ -215,8 +215,8 @@ with the hunt notes, outside this repository.
   it to a warning when a wildcard receive on the cycle has another candidate.
 - Two analysis costs on GA's traces (1 Nov): a signature of one basic type was flattened copy by
   copy (2 MB `MPI_CHAR` receives: 280 s to 16 s on a 2 700-record trace once merged at once,
-  8a05eff), and the check for two threads waiting on one request compared every pair of a
-  rank's waits (4 600 per rank in `threadsafec`, over an hour; grouped by request, 37643dc).
+  5fec36b), and the check for two threads waiting on one request compared every pair of a
+  rank's waits (4 600 per rank in `threadsafec`, over an hour; grouped by request, 6a36b6f).
   Both give the same reports. Still beyond reach: traces above 60 MB, and `threadsafec`'s 20 000
   candidates per trace at the progress thread's receive for the generic check.
 
