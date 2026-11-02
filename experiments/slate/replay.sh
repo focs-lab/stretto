@@ -19,12 +19,18 @@
 # and control's output is kept under WORK/run<i>/out. A trace is deleted once its run is
 # replayed, or at once if the run aborted. ONLY (a regular expression of the alternatives'
 # titles, by default the collision range's tags) narrows the sample, OUT names the table
-# (replay.csv).
+# (replay.csv), KEEP_TRACE=1 keeps the traces. MODES (default "after") replays each sampled
+# alternative once per mode, the table's column mode saying which (docs/threads.md, section 19;
+# experiments/replay_modes.sh): before (gates never give way, no task priorities, nothing gated
+# beyond the horizon), yield (gates give way, task priorities, nothing beyond the horizon), after
+# (the defaults: also the control gated beyond the horizon in the run's order) and both (the
+# replay too).
 set -u
 L=${1:?usage: replay.sh LIBDIR DRIVER WORK}; D=${2:?}; W=${3:?}
 RUNS=${RUNS:-5}; FIRST=${FIRST:-1}; SAMPLE=${SAMPLE:-2}; REPEAT=${REPEAT:-3}; TIMEOUT=${TIMEOUT:-120}
 read -r P Q <<< "${GRID:-2 2}"
 REPO=$(cd "$(dirname "$0")/../.." && pwd)
+source "$REPO/experiments/replay_modes.sh"
 export PYTHONPATH=$REPO/analysis LD_LIBRARY_PATH="$L/plain"
 export OPENBLAS_NUM_THREADS=1 OMPI_MCA_rmaps_base_oversubscribe=1 OMPI_MCA_btl_vader_single_copy_mechanism=none
 export OMP_NUM_THREADS=${THREADS:-4}
@@ -47,14 +53,17 @@ for i in $(seq "$FIRST" $((FIRST + RUNS - 1))); do
   if [ "${res#crash}" = "$res" ] && [ "$l1" -gt 0 ]; then
     for c in ${CLASSES:-all}; do
       cls=(); [ "$c" = all ] || cls=(--cls "$c")
-      OMP_NUM_THREADS=${REPLAY_THREADS:-$OMP_NUM_THREADS} \
-        python3 "$REPO/experiments/replay_sample.py" --threads --repeat "$REPEAT" --sample "$SAMPLE" ${SEED:+--seed "$SEED"} \
-        --only "${ONLY:-tag=2[0-9] }" "${cls[@]}" --grep 'WRONG' --timeout "$TIMEOUT" --keep-output "$d/out/$c" \
-        --out "$d/replay-$c.csv" "$d/trace" 4 "$D" 1000 2000 100 "$P" "$Q" C 1 1 > "$d/replay-$c.log" 2>&1
-      [ -f "$out" ] || { head -1 "$d/replay-$c.csv" | sed 's/^/run,/' > "$out"; }
-      tail -n +2 "$d/replay-$c.csv" | sed "s/^/$i,/" >> "$out"
+      for m in ${MODES:-after}; do
+        # shellcheck disable=SC2046
+        env $(mode_env "$m") OMP_NUM_THREADS=${REPLAY_THREADS:-$OMP_NUM_THREADS} \
+          python3 "$REPO/experiments/replay_sample.py" --threads --repeat "$REPEAT" --sample "$SAMPLE" ${SEED:+--seed "$SEED"} \
+          --only "${ONLY:-tag=2[0-9] }" "${cls[@]}" --grep 'WRONG' --timeout "$TIMEOUT" --keep-output "$d/out/$c-$m" \
+          --out "$d/replay-$c-$m.csv" "$d/trace" 4 "$D" 1000 2000 100 "$P" "$Q" C 1 1 > "$d/replay-$c-$m.log" 2>&1
+        [ -f "$out" ] || { head -1 "$d/replay-$c-$m.csv" | sed 's/^/run,mode,/' > "$out"; }
+        tail -n +2 "$d/replay-$c-$m.csv" | sed "s/^/$i,$m,/" >> "$out"
+      done
     done
   fi
-  rm -rf "$d/trace"
+  [ "${KEEP_TRACE:-0}" = 1 ] || rm -rf "$d/trace"
 done
 cat "$W/traced.csv"

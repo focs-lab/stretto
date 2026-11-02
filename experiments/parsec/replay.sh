@@ -11,16 +11,19 @@
 # runs, 5), SAMPLE (3), REPEAT (2), TIMEOUT (60 s per run). Writes WORK/traced.csv (run, result,
 # Stretto's L1 findings) and WORK/replay.csv (replay_sample.py's columns with the run in front;
 # "hits" is 1 for a run whose check failed); each run's output is kept under WORK/run<i>/out. A
-# trace is deleted once its run is replayed.
+# trace is deleted once its run is replayed. MODES (default "after") replays each sampled
+# alternative once per mode (experiments/replay_modes.sh; docs/threads.md section 19), the
+# table's column mode saying which. EXE overrides the driver (an instrumented build's).
 set -u
 B=${1:?usage: replay.sh BUILD WORK}; W=${2:?}
 CELL=${CELL:-vp2-mt:1:6:1:2}; RUNS=${RUNS:-5}; SAMPLE=${SAMPLE:-3}; REPEAT=${REPEAT:-2}; TIMEOUT=${TIMEOUT:-60}
 REPO=$(cd "$(dirname "$0")/../.." && pwd)
+source "$REPO/experiments/replay_modes.sh"
 export PYTHONPATH=$REPO/analysis OMPI_MCA_rmaps_base_oversubscribe=1 OMPI_MCA_btl_vader_single_copy_mechanism=none
 export OMPI_MCA_hwloc_base_binding_policy=none
 T=$REPO/tracer/bin/openmpi/libstretto-trace.so
 IFS=: read -r name np cores mt pk <<< "$CELL"
-exe=$B/parsec-plain/tests/collections/reshape/reshape_check
+exe=${EXE:-$B/parsec-plain/tests/collections/reshape/reshape_check}
 args=(-N 120 -t 9 -c "$cores" -m "$mt"); envs=(REPS=1)
 if [ "$pk" -gt 0 ]; then envs+=("HWLOC_SYNTHETIC=package:$pk core:$((cores / pk)) pu:1"); args+=(-- --mca runtime_vpmap hwloc); fi
 xs=(); es=(); for e in "${envs[@]}"; do xs+=(-x "$e"); es+=(--env "$e"); done
@@ -37,11 +40,14 @@ for i in $(seq 1 "$RUNS"); do
   l1=$(grep '^\[' "$d/report.txt" | grep -c ' L1 ')
   echo "$i,$res,$rc,$l1" >> "$W/traced.csv"
   if [ "$res" != crash ] && [ "$l1" -gt 0 ]; then
-    python3 "$REPO/experiments/replay_sample.py" --threads --repeat "$REPEAT" --sample "$SAMPLE" ${SEED:+--seed "$SEED"} \
-      --grep 'summary reps [0-9]+ wrong [1-9]' --timeout "$TIMEOUT" --keep-output "$d/out" "${es[@]}" --out "$d/replay.csv" \
-      "$d/trace" "$np" "$exe" "${args[@]}" > "$d/replay.log" 2>&1
-    [ -f "$out" ] || { head -1 "$d/replay.csv" | sed 's/^/run,/' > "$out"; }
-    tail -n +2 "$d/replay.csv" | sed "s/^/$i,/" >> "$out"
+    for m in ${MODES:-after}; do
+      # shellcheck disable=SC2046
+      env $(mode_env "$m") python3 "$REPO/experiments/replay_sample.py" --threads --repeat "$REPEAT" --sample "$SAMPLE" \
+        ${SEED:+--seed "$SEED"} --grep 'summary reps [0-9]+ wrong [1-9]' --timeout "$TIMEOUT" --keep-output "$d/out-$m" "${es[@]}" \
+        --out "$d/replay-$m.csv" "$d/trace" "$np" "$exe" "${args[@]}" > "$d/replay-$m.log" 2>&1
+      [ -f "$out" ] || { head -1 "$d/replay-$m.csv" | sed 's/^/run,mode,/' > "$out"; }
+      tail -n +2 "$d/replay-$m.csv" | sed "s/^/$i,$m,/" >> "$out"
+    done
   fi
   rm -rf "$d/trace"
 done

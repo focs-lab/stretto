@@ -29,6 +29,9 @@ as <k>-<class>-<pin>-replay and -control, k the row of the sample.
 --threads replays a program of several threads (stretto.confirm, chain pins and order gates):
 OMP_NUM_THREADS is left alone, and the rows gain the columns of THREAD_KEYS. --repeat replays each
 alternative and its control K times, since the interleaving the gates leave free varies.
+--tails says what follows the horizon (stretto.confirm.TAILS, docs/threads.md section 19:
+control, both or none); --levels L1,L1+L samples the L1+L alternatives, lock-order deadlocks and
+collectives ordered by a lock too.
 
 usage: replay_sample.py --out CSV [--sample N] [--seed K] [--timeout S] [--mpi openmpi|mpich]
                         [--from-csv CSV] [--flips] [--threads] [--repeat K] [--only REGEX] [--cls C,...] [--grep REGEX]
@@ -51,8 +54,9 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, os.path.join(ROOT, "analysis"))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from stretto import keep, trace  # noqa: E402
-from stretto.confirm import (_reported, all_matched, changed_pin, horizon_pins, pin_name, required_matches, run_checked,  # noqa: E402
-                            truncation_shown, with_sync)
+from stretto import confirm as confirm_mod  # noqa: E402
+from stretto.confirm import (_reported, all_matched, changed_pin, gates_yielded, horizon_pins, pin_name, required_matches,  # noqa: E402
+                            run_checked, truncation_shown, with_sync)
 from stretto.report import Finding, analyze  # noqa: E402
 from provenance import code_commit  # noqa: E402
 
@@ -62,7 +66,8 @@ KEYS = ["finding", "cls", "pin", "site", "pins", "replay", "matched", "run_valid
 # replay against the trace's (stretto.confirm.sync_divergence), the lines --grep matches, and for a
 # 1a finding whether a replay that ended in MPI_ERR_TRUNCATE ended in its changed receive with every
 # other required pin taken or pending there (stretto.confirm.truncation_shown, as confirm judges it)
-THREAD_KEYS = ["repeat", "misapplied", "diverged", "control_misapplied", "control_diverged", "hits", "control_hits", "shown"]
+THREAD_KEYS = ["repeat", "misapplied", "diverged", "control_misapplied", "control_diverged", "hits", "control_hits", "shown",
+               "level", "yields", "soft_yields", "control_yields", "control_soft_yields", "tails"]
 
 _PROBE = re.compile(r"^(?:i?m?probe)\((\d+), (\d+)\) .*? could observe send\((\d+), (\d+)\)")
 _RECV = re.compile(r"^recv\((\d+), (\d+)\) .*? <- send\((\d+), (\d+)\)")
@@ -130,10 +135,16 @@ def main() -> int:
                          "and -control.out (an oracle that needs more than --grep's count)")
     ap.add_argument("--env", action="append", default=[], metavar="NAME=VALUE",
                     help="give every rank of every replay and control this variable, as the traced run's launcher did (-x)")
+    ap.add_argument("--tails", default=None, choices=("control", "both", "none"),
+                    help="what follows the horizon: the trace's order in the control (default), in both, or in neither")
+    ap.add_argument("--levels", default="L1", help="the levels whose alternatives are sampled (L1, or L1,L1+L)")
     ap.add_argument("--out", required=True)
     ap.add_argument("--keep-campaign", default=None,
                     help="with KEEP_TRACES set, keep the replays' traces under this campaign (stretto.keep; default: the table's)")
     args = ap.parse_args()
+    if args.tails:
+        confirm_mod.TAILS = args.tails
+    levels = set(args.levels.split(","))
     campaign = args.keep_campaign or keep.campaign_of(args.out)
     t = with_sync(trace.load(args.tracedir), args.tracedir)   # the lock order, if the run recorded it
     if args.from_csv:
@@ -146,7 +157,9 @@ def main() -> int:
         pool = len(sample)
     else:
         rep = analyze(t, with_sp=False)
-        pool = [f for f in rep.findings if f.level == "L1" and f.send is not None and (f.probe is not None or f.recv is not None)]
+        pool = [f for f in rep.findings if f.level in levels and f.send is not None and (f.probe is not None or f.recv is not None)]
+        if "L1+L" in levels:
+            pool += [f for f in rep.findings if f.level == "L1+L" and f.cls in ("2-lock-order", "2-thread-collective")]
         if args.flips:
             pool += [f for f in rep.findings if f.level == "L1" and f.cls in ("probe-unflip", "test-flip")]
         if args.only:
@@ -158,7 +171,8 @@ def main() -> int:
         pool = len(pool)
         del rep
     # every pin first; then the trace goes, before the replays' own traces are read
-    planned = [(f, horizon_pins(t, f), required_matches(t, f), changed_pin(t, f) if f.cls == "1a" else None) for f in sample]
+    planned = [(f, horizon_pins(t, f), required_matches(t, f), changed_pin(t, f) if f.cls == "1a" and f.level == "L1" else None)
+               for f in sample]
     del t
     gc.collect()
     rows = []
@@ -204,7 +218,10 @@ def main() -> int:
                          "diverged": "; ".join(ra.diverged)[:300], "control_misapplied": "; ".join(rc.misapplied)[:300],
                          "control_diverged": "; ".join(rc.diverged)[:300], "hits": hits(ra), "control_hits": hits(rc),
                          "shown": "" if f.cls != "1a" else ra.result == "MPI-ERROR:MPI_ERR_TRUNCATE" and truncation_shown(
-                             changed, alt, ra.proc.stderr, required, _reported(ra.proc.stderr, alt) | ra.seen, ra.ended)})
+                             changed, alt, ra.proc.stderr, required, _reported(ra.proc.stderr, alt) | ra.seen, ra.ended),
+                         "level": f.level, "yields": gates_yielded(ra.proc.stderr)[0], "soft_yields": gates_yielded(ra.proc.stderr)[1],
+                         "control_yields": gates_yielded(rc.proc.stderr)[0], "control_soft_yields": gates_yielded(rc.proc.stderr)[1],
+                         "tails": confirm_mod.TAILS})
             r = rows[-1]
             print(f"[{k}/{len(planned)}{f'.{rep_k}' if args.repeat > 1 else ''}] {r['replay']} matched={r['matched']} valid={ra.valid} "
                   f"control={r['control']} valid={rc.valid} {f.title[:90]}"
