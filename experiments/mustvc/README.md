@@ -27,7 +27,7 @@ with the change MUST-vc needs to work at all (below).
 | MUST-vc's suite, 30 own programs and 20 adapted from CorrBench, 5 runs each | erroneous: 115 of 115 runs flagged; correct: 5 of 135 runs flagged (all `concurrent_communicator_transitive`); the counter layout 6 of 115 and 0 of 135; its `run_tests.sh` gives the artifact's table exactly | erroneous: 86 of 115 (error class: 71); correct: 39 of 135 flagged (error class: 29): 14 on three "correct" programs that deadlock (below), 10 on two task programs whose traces are degraded (chain table overflow), 10 probe warnings on the two Mprobe programs, 5 on `concurrent_communicator_transitive` |
 | MPI-CorrBench a05644b, the 103 OpenMP programs, 3 runs each (59 erroneous, 44 correct) | as is: 0 programs; 300 of 309 runs warn that OpenMP started before `MPI_Init` (clang calls the runtime at the entry of a function with a `num_threads` clause), which MUST does not support; compat (the clause removed): 14 erroneous programs in every run, 1 correct one (`two_collectives_4`, erroneous as built) | 26 erroneous programs in every run and 4 in some; 5 correct ones (3 with an error class: `deadlock_probe`, a real lock-order deadlock, and `two_collectives_4` and `_5`, erroneous as built; 2 with probe warnings) |
 | Stretto's idioms 15-47 with threads, 3 runs each (21 pthreads, 8 OpenMP) | pthreads: 0 of 21 idioms (no OpenMP); OpenMP as is: 0 of 8 (early start); compat: 3 of the 5 OpenMP idioms with an error (18, 25, 34; not 43, 45), none of the 3 negatives | 20 of 29 flagged in every run, each with the report its header expects (19 with the probe warnings it allows); the 9 unflagged are the 9 negatives |
-| *special row:* **MPI calls under a lock** (critical sections whose order decides the run) | CorrBench `two_collectives_8`, `_9`, `dependant/deadlock_probe`: 0 of 9 runs (compat); idiom 43: 0 of 3 (compat); MUST-vc's own `ThreadLevel_serialized` and `two_collectives_4` (labelled correct; both can deadlock): 0 of 10 | L1+L: `two_collectives_8`, `_9` 6 of 6 (`2-thread-collective`), `deadlock_probe` 3 of 3 (`2-lock-order`), idiom 43 3 of 3, idioms 22, 23, 27 9 of 9; `ThreadLevel_serialized` 5 of 5 (`2-lock-order` in the 2 runs that finished, the hang observed in 3), `two_collectives_4` 5 of 5 |
+| *special row:* **MPI calls under a lock** (critical sections whose order decides the run) | CorrBench `two_collectives_8`, `_9`, `dependant/deadlock_probe`: 0 of 9 runs (compat); idiom 43: 0 of 3 (compat); MUST-vc's own `ThreadLevel_serialized` and `two_collectives_4` (labelled correct; both can deadlock): 0 of 10 | L1+L: `two_collectives_8`, `_9` 6 of 6 (`2-thread-collective`), `deadlock_probe` 3 of 3 (`2-lock-order`), idiom 43 3 of 3, idioms 22, 23, 27 9 of 9; `ThreadLevel_serialized` 5 of 5 (`2-lock-order` in the 2 runs that finished, the hang observed in 3), `two_collectives_4` 5 of 5; forced by replay since 2 Nov (below) |
 | *special row:* **requests completed by another thread** | CorrBench `request_reuse` (two threads wait on one request): 0 of 6 (as is and compat); idiom 26: 0 of 3 (pthreads); DLA-Future (pika's polling worker completes other workers' requests): crashes under MUST-vc, 20 of 20 | `request_reuse` 3 of 3 (1c, observed), idiom 26 3 of 3 (`2-thread-wait`), DLA-Future's hand-offs to pika's polling worker modelled (P-T9 to P-T11): the 15 traces above |
 | *special row:* **transitive synchronisation** through MPI (`concurrent_communicator_transitive`, labelled correct) | 5 of 5, the artifact's known false positive | 5 of 5 as well (`2-thread-collective`, observed): neither tool orders threads through messages. Thread 1's second barrier follows thread 0's first only in its start; thread 0's call need not have returned, so the two calls can overlap, which MPI 4.1 §12.6.2 forbids |
 | *special row:* **predictions from runs where nothing went wrong** | the checks need no failure, but only report concurrency of one envelope: no consequence, and nothing when the threads are not OpenMP (PaRSEC: 0 of 10 right runs); idiom 45 (tasks under a nest lock, one tag): 0 of 3 | PaRSEC 10 of 10 right runs, then confirmed by replay; SLATE 7 right-factor runs; idioms 15, 20, 34, 44, 45, 47 from runs that went right, with the consequence (34, 44, 45: 1a truncation) |
@@ -116,6 +116,49 @@ $D --user 1000:1000 -e HOME=/tmp stretto-exp:24.04 bash -c 'make -C /w/tracer MP
 # /src/uintah, where its build looks for ups_spec.xml; DLA-Future also with the Open MPI image,
 # OMPI_MCA_rmaps_base_oversubscribe=1, into mustvc-apps-openmpi.csv)
 ```
+
+## Forced replays of the L1+L findings (2 Nov 2026)
+
+[docs/threads.md](../../docs/threads.md) section 19. `lock_replays.sh` (a-p13, CPUs 8-15,48-55,
+the experiment image, Open MPI 4.1.6) builds each program as `stretto_bench.sh` does, traces it
+with the lock order (`STRETTO_SYNC_ORDER=1`) until 2 runs have finished, and replays every L1+L
+finding of each finished trace twice with its control (`experiments/replay_sample.py --threads
+--levels L1+L`): the replay enters the critical sections in the order of the analysis's schedule
+and reports each acquisition it moved; the control keeps the run's order. Before this step none
+of these findings could be replayed. Table [lock-replays.csv](lock-replays.csv) (commit c8b0f52;
+verdicts by `experiments/replay_verdicts.py`; "moved" counts the replays that took every
+required pin, the moved acquisitions among them):
+
+| program | class (findings) | replays | moved, every pin taken | replay outcome | controls as the run | verdicts |
+|---|---|---|---|---|---|---|
+| idiom 22 | 1f (2) | 4 | 4 | 4 finished, all with "wrong order" | 4 | 4 confirmed |
+| idiom 23 | probe-alt (2) | 4 | 4 | 4 finished | 4 | 4 realised (no consequence to show) |
+| idiom 27 | 2-lock-order (2) | 4 | 4 | 4 hung | 4 | 4 confirmed |
+| idiom 43 | 2-thread-collective (6) | 12 | 12 | 12 finished (the broadcasts have one size) | 12 | 12 confirmed |
+| CorrBench `two_collectives_8` | 2-thread-collective (12) | 24 | 24 | 24 finished | 24 | 24 confirmed |
+| CorrBench `two_collectives_9` | 2-thread-collective (2) | 4 | 4 | 4 finished | 4 | 4 confirmed |
+| CorrBench `dependant/deadlock_probe` | 2-lock-order (2) | 4 | 4 | 3 hung, 1 finished | 0 (all 4 hung) | 4 inconclusive |
+| CorrBench `correct/dependant/deadlock_probe` | 2-lock-order (2) | 4 | 4 | 3 hung, 1 finished | 3 (1 hung) | 3 confirmed, 1 inconclusive |
+| MUST-vc `ThreadLevel_serialized` | 2-lock-order (20) | 40 | 29 | 12 hung, 15 finished, 13 gate timeouts | 40 | 12 confirmed, 15 realised, 13 inconclusive |
+| MUST-vc `two_collectives_4` | 2-thread-collective (4) | 8 | 8 | 6 finished, 2 hung (a barrier against a broadcast) | 8 | 8 confirmed |
+
+A 2-thread-collective replay is confirmed by its moved acquisition alone: once taken, the
+process has issued its collectives on the communicator in the other order, an erroneous
+execution (MPI 4.1 §12.6.2) whatever it prints. Where the controls of `deadlock_probe` hung, the
+program's own probe race decided it (its `Mprobe`s are not pinned beyond the deadlock's horizon);
+in the first campaign of this step (below) its 8 controls finished and its 8 replays hung. Of
+`ThreadLevel_serialized`'s 20 deadlocks, 12 replays hung and 15 finished although they entered
+the critical sections in the deadlock's order: each rank's lock order is gated, but the order of
+the two ranks' sections against each other only through their messages, which the deadlock
+needs otherwise (not diagnosed further).
+
+The first campaign of this step, [lock-replays-yield.csv](lock-replays-yield.csv) (commit
+c466813, gates giving way in every replay): the same counts but for the deadlocks. Of
+`ThreadLevel_serialized`'s 48 replays (24 findings) 21 hung and 27 finished, 24 of those 27 after
+a gate gave way, against 3 of the 21 that hung: a gate that gives way in a deadlock releases a
+chain the deadlock keeps waiting. Replays of a predicted hang have no gate give way since
+c8b0f52 (`stretto.confirm.replay_env`), and a finished one with a gate that gave way is judged
+inconclusive.
 
 ## Times
 
