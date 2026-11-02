@@ -401,6 +401,8 @@ _MISAPPLIED = re.compile(r"\[stretto-pin\] rank \d+: (?:probe |flip )?pin (?:wid
 # a chain pin's lines (replay/pin.h, STRETTO_PIN_CHAIN): applied when its receive is posted,
 # matched when it completes; which message it took only the replay's own trace says
 _CLINE = re.compile(r"\[stretto-pin\] rank (\d+) chain (\S+): (matched|applied) ridx=(\d+)\b([^\n]*)")
+# an acquisition an L1+L alternative moved (STRETTO_PIN_LOCK, '*'), taken: ("lock", rank, chain, ordinal)
+_FORCED = re.compile(r"\[stretto-pin\] rank (\d+) chain (\S+): lock a#(\d+) taken in the forced order")
 # gates that gave way (docs/threads.md, section 19)
 _YIELD = re.compile(r"\[stretto-pin\] rank \d+ chain \S+: (soft )?gate yielded after")
 
@@ -477,6 +479,8 @@ def _reported(stderr: str, pins=None) -> Set[tuple]:
         key = _line_key(what, rank, idx)
         if _agrees(want.get(key), ident):
             out.add(key)
+    if "forced order" in stderr:
+        out |= {("lock", int(m.group(1)), m.group(2), int(m.group(3))) for m in _FORCED.finditer(stderr)}
     return out
 
 
@@ -603,18 +607,20 @@ def _hb_text(t, x) -> str:
     return ";".join(sorted(parts))
 
 
-def chain_pin_token(t, r, s, posted_only: bool = False) -> str:
+def chain_pin_token(t, r, s, posted_only: bool = False, hb: bool = True) -> str:
     """The chain pin of receive r of trace t to send s: "rank:chain:ridx:src[:tag]@identity=
     sproc:schain:sidx|happens-before" (replay/pin.h; the part after '=' is the harness's).
     posted_only: r completes beyond the horizon, where the run need not take s ("-" in place of
-    the message: the pin steers the posting and is not required)."""
+    the message: the pin steers the posting and is not required). hb=False leaves the
+    happens-before out (an L1+L alternative, whose critical sections, and so whose
+    synchronisation, are not the run's): sync_divergence then does not judge the pin."""
     of = _chain_ops(t)[0]
     proc, name, k = of[("r", r.key)]
     sp, sn, sk = of[("s", s.key)]
     src = s.proc if r.src == ANY else r.src
     tag = f":{s.tag}" if r.tag == ANY else ""
     want = "-" if posted_only else f"{sp}:{sn}:{sk}"
-    return f"{proc}:{name}:{k}:{src}{tag}@{ident_text(t, r)}={want}|{_hb_text(t, r)}"
+    return f"{proc}:{name}:{k}:{src}{tag}@{ident_text(t, r)}={want}|{_hb_text(t, r) if hb else ''}"
 
 
 def _topo_positions(t, g) -> Dict:
@@ -751,19 +757,27 @@ TAILS = os.environ.get("STRETTO_REPLAY_TAILS", "control")
 TASK_ORDER = os.environ.get("STRETTO_REPLAY_TASKS", "1") != "0"
 
 
-def _chain_specs(t, M, chk, keep, B, probe_alt, tails: Optional[str] = None):
+def _chain_specs(t, M, chk, keep, B, probe_alt, tails: Optional[str] = None, tg=None, positions=None,
+                 lock_order: Optional[Dict[tuple, int]] = None, required_extra=(), alt_hb: bool = True):
     """horizon_pins for a trace of several threads (the section's comment): (alternative,
     control, required) over the horizon of check verdict chk, M the alternative matching.
-    tails: what follows the horizon (TAILS)."""
+    tails: what follows the horizon (TAILS). tg: the trace whose happens-before the alternative
+    is judged over (an L1+L alternative's hard view, stretto.locks.view; t by default);
+    positions: an order of the alternative's graph nodes to gate by in place of a topological
+    one (an L1+L schedule's, stretto.locks._State.order); lock_order: the alternative's order of
+    the horizon's lock acquisitions (lock_tokens); required_extra: pins the replay must show
+    besides its receives (the forced lock acquisitions of an L1+L alternative); alt_hb=False:
+    the replay's chain pins carry no happens-before (chain_pin_token)."""
     from .chains import physical_key
     from .feasible import without
     from .matching import build_graph
     tails = TAILS if tails is None else tails
+    tg = t if tg is None else tg
     cut = chk.cut
     of = _chain_ops(t)[0]
     Md = without(M, chk.deprived)
-    g = build_graph(t, Md, cut, B, (), False, probe_alt, chk.issued)
-    pos = _topo_positions(t, g)
+    g = build_graph(tg, Md, cut, B, (), False, probe_alt, chk.issued)
+    pos = positions if positions is not None else _topo_positions(tg, g)
     far = 1 << 60
 
     def node(kind, x):
@@ -818,7 +832,7 @@ def _chain_specs(t, M, chk, keep, B, probe_alt, tails: Optional[str] = None):
     locks = lock_gates(t, cut, stops, chk.issued)
     pa: list = []
     pc: list = []
-    ga, gc = order_gates(t, cut, alt_pos, keep, pa), order_gates(t, cut, ctl_pos, keep, pc)
+    ga, gc = order_gates(tg, cut, alt_pos, keep, pa), order_gates(t, cut, ctl_pos, keep, pc)
     if locks is None:
         alt_gates = [g for g in ga if g not in set(gc)]
         ctl_gates = [g for g in gc if g not in set(ga)]
@@ -828,7 +842,7 @@ def _chain_specs(t, M, chk, keep, B, probe_alt, tails: Optional[str] = None):
         have = set(alt_gates)
         alt_gates += [x for x, (a, b) in zip(gc, pc) if x not in have and not forced(b, a)]
         ctl_gates = gc
-        alt_locks = lock_tokens(t, cut, stops, tail=tails == "both", issued=chk.issued)
+        alt_locks = lock_tokens(t, cut, stops, tail=tails == "both", order=lock_order, issued=chk.issued)
         ctl_locks = lock_tokens(t, cut, stops, tail=tails in ("control", "both"), tail_fails=True, issued=chk.issued) \
             if tails in ("control", "both") else locks
         # beyond the horizon (section 19): every concurrent pair of the whole trace in the run's
@@ -849,7 +863,7 @@ def _chain_specs(t, M, chk, keep, B, probe_alt, tails: Optional[str] = None):
     # with the lock order fixed, a probe is also pinned by its envelope ordinal where the probes of
     # its envelope follow one another
     env_ok = _envelope_pinnable(t) if locks is not None else set()
-    required: Set[tuple] = set()
+    required: Set[tuple] = set(required_extra)
 
     def specs(alternative: bool) -> List[str]:
         rtok, ptok = [], []
@@ -862,14 +876,15 @@ def _chain_specs(t, M, chk, keep, B, probe_alt, tails: Optional[str] = None):
             # with lock gates (section 14) a receive that completes beyond the horizon is not
             # required to take its message in the control either
             posted_only = locks is not None and not done_inside(r)
-            rtok.append(chain_pin_token(t, r, t.sends[sk], posted_only))
+            rtok.append(chain_pin_token(t, r, t.sends[sk], posted_only, alt_hb or not alternative))
             if alternative and done_inside(r):
                 required.add(("crecv",) + of[("r", r.key)])
         for q in sorted(t.probes.values(), key=lambda q: (q.proc, q.idx)):
             if q.pidx is None or not q.flag or q.idx >= cut[q.rank] or (q.proc not in pinnable and q.key not in env_ok) \
                     or q.seen is None:
                 continue
-            m = t.sends[q.seen]
+            sk = probe_alt.get(q.key, q.seen) if alternative and probe_alt else q.seen
+            m = t.sends[sk]
             ptok.append(pin_token(t, q, m.proc, m.tag))
             if alternative:
                 required.add(("probe", q.proc, q.pidx))
@@ -1014,8 +1029,8 @@ def _lock_lists(t, cut, stops=frozenset(), issued=None):
     return out
 
 
-def _lock_entry(e) -> str:
-    return f"{e[0]}#{e[1]}{'t' if e[3] == 't' else ''}"
+def _lock_entry(e, forced: bool = False) -> str:
+    return f"{e[0]}#{e[1]}{'t' if e[3] == 't' else ''}{'*' if forced else ''}"
 
 
 def lock_gates(t, cut, stops=frozenset(), issued=None) -> Optional[List[str]]:
@@ -1033,10 +1048,16 @@ def lock_gates(t, cut, stops=frozenset(), issued=None) -> Optional[List[str]]:
 
 
 def lock_tokens(t, cut, stops=frozenset(), tail: bool = False, tail_fails: bool = False,
-                issued=None) -> Optional[List[str]]:
+                order: Optional[Dict[tuple, int]] = None, issued=None) -> Optional[List[str]]:
     """lock_gates, and (docs/threads.md, section 19) with tail each lock's acquisitions beyond
     the horizon after them as its soft tail ("...>~chain#n>..."), which the replay follows where
-    the run still does; with tail_fails also the failed tries beyond the horizon."""
+    the run still does; with tail_fails also the failed tries beyond the horizon. order, (proc,
+    chain name, ordinal) -> position: the acquisitions of an L1+L alternative's schedule, which
+    enters critical sections in another order than the run; for a lock it names they are the
+    horizon's, in its order, whatever the cut says (one at the end of a chain's horizon holds its
+    lock there), and the lock's other acquisitions follow as its soft tail whatever tail says.
+    One that comes before an acquisition that preceded it in the trace is marked '*', and the
+    replay reports it taken ("lock a#n taken in the forced order")."""
     lists = _lock_lists(t, cut, stops, issued)
     if lists is None:
         return None
@@ -1045,10 +1066,32 @@ def lock_tokens(t, cut, stops=frozenset(), tail: bool = False, tail_fails: bool 
         out += [f"{proc}:{name}#{n}!" for name, n, inside in fails if inside or tail_fails]
         for lid, seqn, hard in locks:
             head = list(seqn[:hard])
-            rest = seqn[hard:] if tail else []
+            forced = set()
+            if order and any((proc, e[0], e[1]) in order for e in seqn):
+                # the schedule's acquisitions of the lock are the horizon's, in its order; the rest
+                # (those a stuck schedule did not reach) come after them, in the trace's
+                head = sorted((e for e in seqn if (proc, e[0], e[1]) in order),
+                              key=lambda e: order[(proc, e[0], e[1])])
+                # forced: an acquisition that the trace made earlier comes after it (later in the
+                # list, or not in it: an attempt no hard entry names waits for all of them)
+                sigma = [(e[0], e[1]) for e in seqn]
+                placed: Set[tuple] = set()
+                low = 0
+                for e in head:
+                    key = (e[0], e[1])
+                    while low < len(sigma) and sigma[low] in placed:
+                        low += 1
+                    if low < len(sigma) and sigma[low] != key:
+                        forced.add(key)
+                    placed.add(key)
+            have = {(e[0], e[1]) for e in head}
+            # a lock the alternative reorders keeps its tail in any case: an attempt no entry names
+            # waits only once the lock's first listed acquisition has named its address, and one
+            # made before would take the lock out of the alternative's order
+            rest = [e for e in seqn if (e[0], e[1]) not in have] if tail or forced else []
             if not head and not rest:
                 continue
-            text = ">".join(_lock_entry(e) for e in head)
+            text = ">".join(_lock_entry(e, (e[0], e[1]) in forced) for e in head)
             if rest:
                 text += (">" if text else "") + "~" + ">".join(_lock_entry(e) for e in rest)
             out.append(f"{proc}:{text}")
@@ -1194,6 +1237,8 @@ def _horizon(t, f: Finding, B=None, infeasible_ok: bool = False, M=None, changed
     receive complete, each judged as the report judged it (report.probe_kw, report.wait_kw)."""
     from .feasible import check
     from .report import wait_kw
+    if f.level == "L1+L":
+        return _lock_horizon(t, f, B) if t is not None else None
     if f.probe is not None and f.send is not None:
         M = t.observed
         chk = check(t, M, set(), B, "L1", changed_probes={f.probe}, probe_alt={f.probe: f.send})
@@ -1285,6 +1330,172 @@ def _horizon(t, f: Finding, B=None, infeasible_ok: bool = False, M=None, changed
 
 
 
+
+# ------------------------------------------------------------------ L1+L alternatives
+#
+# docs/threads.md, sections 13 and 19. An L1+L finding needs two critical sections of one lock
+# in the other order than the run: the alternatives of locks.alternatives (a schedule of the
+# hard happens-before that enters them so), the deadlocks of locks.lock_deadlocks (y entered
+# before x, the schedule stuck) and the collectives of locks.lock_collectives (b's section
+# entered before a's). The replay gates the horizon's lock acquisitions in the schedule's order
+# (lock_tokens with order), so that the critical sections the alternative reorders are entered
+# so, and reports each acquisition it moved ('*'); the operations are gated in the schedule's
+# order where they conflict. The control is the run's, as for every other alternative.
+
+def _cs_entries(t) -> Dict[tuple, Tuple[str, int]]:
+    """(proc, lid, n) of each critical section of t.locks -> (chain name, ordinal) of its
+    acquisition in the sync log, the attempt the lock gates name. A lock of the lock events is
+    the sync log's lock whose acquisitions are made by the same chains after the same records
+    (the chain's last record before the attempt, its seq); the k-th critical section of one is
+    the k-th acquisition of the other."""
+    sync = t.__dict__.get("_stretto_sync") or {}
+    seq = t.__dict__.get("_stretto_seq", {})
+    out: Dict[tuple, Tuple[str, int]] = {}
+    for proc, by_lid in t.locks.items():
+        rows: Dict[int, list] = {}
+        for lid, name, n, s, flag in sync.get(proc, ()):
+            if flag in ("", "t"):
+                rows.setdefault(lid, []).append((name, n, s))
+        used = set()
+        for lid, css in sorted(by_lid.items()):
+            css = sorted(css, key=lambda cs: cs.n)
+            sig = [(chain_label(t, cs.chain), seq.get((cs.chain, cs.acq), -1) if cs.acq >= 0 else -1) for cs in css]
+            slid = next((s for s, r in rows.items() if s not in used and [(a, b) for a, _, b in r] == sig), None)
+            if slid is None:
+                continue
+            used.add(slid)
+            for cs, (name, n, _) in zip(css, rows[slid]):
+                out[(proc, lid, cs.n)] = (name, n)
+    return out
+
+
+def _lock_order(t, acquired, pending=()) -> Dict[tuple, int]:
+    """(proc, chain name, ordinal) -> position of the critical sections a schedule entered, in
+    its order (acquired), then of those it left waiting at their acquire (pending)."""
+    ent = _cs_entries(t)
+    out = {}
+    for i, cs in enumerate(list(acquired) + list(pending)):
+        e = ent.get((cs.proc, cs.lid, cs.n))
+        if e is not None and (cs.proc,) + e not in out:
+            out[(cs.proc,) + e] = i
+    return out
+
+
+def _forced_required(t, order: Dict[tuple, int], cut, stops=frozenset(), issued=None) -> Set[tuple]:
+    """The ("lock", proc, chain, ordinal) pins of the acquisitions lock_tokens marks forced."""
+    out = set()
+    for tok in lock_tokens(t, cut, stops, order=order, issued=issued) or ():
+        proc, _, seqn = tok.partition(":")
+        for e in seqn.split(">"):
+            if e.endswith("*"):
+                name, _, n = e[:-1].rpartition("#")
+                out.add(("lock", int(proc), name, int(n.rstrip("t"))))
+    return out
+
+
+_DEADLOCK = re.compile(r"deadlock when chain (\S+) enters critical section #(\d+) of lock (\d+) before chain (\S+) enters #(\d+)")
+_LOCKCOLL = re.compile(r"rank (\d+): \S+ \(chain (\S+)\) and \S+ \(chain (\S+)\) on comm (\d+) are ordered only by the order in which "
+                       r"their threads enter lock (\d+)")
+_LOCKCOLL_CS = re.compile(r"another execution enters critical section #(\d+) before #(\d+)")
+
+
+def _cs(t, proc: int, lid: int, n: int):
+    return next((cs for cs in t.locks.get(proc, {}).get(lid, ()) if cs.n == n), None)
+
+
+def _lock_horizon(t, f: Finding, B=None):
+    """(alternative, control, required) of an L1+L finding, or None: a receive alternative
+    (concurrent swap or steal) at its schedule, a lock-order deadlock (2-lock-order) at the
+    schedule that enters y first and gets stuck, two collectives ordered by a lock
+    (2-thread-collective) at the schedule that enters b's section first. Needs the sync log."""
+    from types import SimpleNamespace
+    from . import locks as L
+    from .matching import build_graph
+    if not t.multi or t.__dict__.get("_stretto_sync") is None or not L.applies(t):
+        return None
+    tv = L.view(t)
+    if f.recv is not None and f.send is not None:
+        from .threads import candidates
+        alts, _ = candidates(tv)
+        a = next((a for a in alts if a.recv == f.recv and a.send == f.send), None)
+        if a is None:
+            return None
+        open_end = {tv.recvs[k].rank for k in a.changed}
+        for Bx in ((B,) if B is not None else (0, None)):
+            st, v = L.judge(tv, a.M, a.changed, Bx, open_end)
+            if st is not None:
+                break
+        else:
+            return None
+        order = _lock_order(t, st.acquired)
+        M = a.M
+        stops = {(ch, ci + 1) for ch, ci in (t.recvs[k].complete_at() for k in a.changed)}
+        req = _forced_required(t, order, v.cut, stops, v.issued)
+        return _chain_specs(t, M, v, {f.recv}, Bx, None, tg=tv, positions=st.order, lock_order=order, required_extra=req,
+                            alt_hb=False)
+    if f.probe is not None and f.send is not None and f.cls == "probe-alt":
+        from .report import probe_kw
+        p, s = tv.probes.get(f.probe), tv.sends.get(f.send)
+        if p is None or s is None:
+            return None
+        kw = probe_kw(p, s)
+        for Bx in ((B,) if B is not None else (0, None)):
+            st, v = L.judge(tv, tv.observed, set(), Bx, {p.rank}, **kw)
+            if st is not None:
+                break
+        else:
+            return None
+        order = _lock_order(t, st.acquired)
+        req = _forced_required(t, order, v.cut, frozenset(), v.issued)
+        alt, ctl, required = _chain_specs(t, tv.observed, v, {f.probe}, Bx, kw.get("probe_alt"), tg=tv, positions=st.order,
+                                          lock_order=order, required_extra=req, alt_hb=False)
+        # the probe must be pinned: by its rank's ordinal, or by its envelope's where its threads took turns
+        return (alt, ctl, required) if ("probe", p.proc, p.pidx) in required else None
+    chain_of = {str(ch): ch for ch in t.ranks}          # a report names a chain by its label (rank.chain)
+    m = _DEADLOCK.match(f.title)
+    if f.cls == "2-lock-order" and m and m.group(1) in chain_of:
+        yc, yn, lid, xn = chain_of[m.group(1)], int(m.group(2)), int(m.group(3)), int(m.group(5))
+        proc = t.proc.get(yc, yc)
+        y, x = _cs(t, proc, lid, yn), _cs(t, proc, lid, xn)
+        if y is None or x is None:
+            return None
+        for Bx in ((B,) if B is not None else (0, None)):
+            g = build_graph(tv, tv.observed, None, Bx)
+            sim = L._Sim(tv, g, {ch: len(r) for ch, r in tv.ranks.items()})
+            st = sim.greedy((y, x))
+            if not sim.complete(st) and any(cs is y for cs in st.acquired):
+                break
+        else:
+            return None
+        cut, issued, _ = L._stuck(tv, sim, st)
+        v = SimpleNamespace(cut=cut, deprived=set(), issued=issued)
+        order = _lock_order(t, st.acquired, [x])
+        req = _forced_required(t, order, cut, issued=issued)
+        return _chain_specs(t, tv.observed, v, frozenset(), Bx, None, tg=tv, positions=st.order, lock_order=order,
+                            required_extra=req, alt_hb=False)
+    m, mc = _LOCKCOLL.match(f.title), next((_LOCKCOLL_CS.search(d) for d in f.detail if _LOCKCOLL_CS.search(d)), None)
+    if f.cls == "2-thread-collective" and m and mc:
+        proc, lid = int(m.group(1)), int(m.group(5))
+        cb, ca = _cs(t, proc, lid, int(mc.group(1))), _cs(t, proc, lid, int(mc.group(2)))
+        if ca is None or cb is None:
+            return None
+        g = build_graph(tv, tv.observed, None, None)
+        sim = L._Sim(tv, g, {ch: len(r) for ch, r in tv.ranks.items()}, coll_order=False)
+        st = sim.greedy((cb, ca), pin=False)
+        cut = {}
+        for ch, recs in tv.ranks.items():
+            c = 0
+            while c < len(recs) and (ch, c, "c") in st.done:
+                c += 1
+            cut[ch] = c
+        v = SimpleNamespace(cut=cut, deprived=set(), issued={})
+        order = _lock_order(t, st.acquired)
+        req = _forced_required(t, order, cut)
+        if not req:
+            return None
+        return _chain_specs(t, tv.observed, v, frozenset(), None, None, tg=tv, positions=st.order, lock_order=order,
+                            required_extra=req, alt_hb=False)
+    return None
 
 
 def parse_pins(pins) -> Tuple[Dict[Tuple[int, int], Tuple[int, Optional[int]]], Dict[Tuple[int, int], Tuple[int, Optional[int]]]]:
@@ -1656,9 +1867,9 @@ def expected_outcomes(f: Finding) -> set:
     replay can show neither, and they stay unconfirmed whatever it does (n/a)."""
     if f.cls == "1a":
         return {"MPI-ERROR:MPI_ERR_TRUNCATE"} if error_of(f) == "truncate" else set()
-    if f.cls in ("1c", "1d", "2-buffering"):
+    if f.cls in ("1c", "1d", "2-buffering") or (f.cls == "2-lock-order" and f.level == "L1+L"):
         return {"TIMEOUT"}
-    return set()   # 1b, 1f, probe-alt, waitany-order: any outcome is consistent (info only)
+    return set()   # 1b, 1f, probe-alt, waitany-order, 2-thread-collective: any outcome is consistent (info only)
 
 
 def _applied(stderr: str, pins) -> Set[tuple]:
@@ -1928,7 +2139,8 @@ def confirm(rep: Report, np: int, exe: str, args: List[str] = (), timeout: int =
     for f in rep.findings:
         if f.level == "observed":
             continue
-        if only_errors and f.cls not in ("1a", "1c", "1d", "1b", "2-buffering"):
+        if only_errors and f.cls not in ("1a", "1c", "1d", "1b", "2-buffering") \
+                and not (f.level == "L1+L" and f.cls in ("2-lock-order", "2-thread-collective")):
             continue
         pin = f.pin
         if pin is None:

@@ -692,8 +692,10 @@ static void yielded(const char *name, int soft, const struct waiter *w, const ch
    happened. The entries from one that starts with '~' on are the lock's tail beyond the horizon
    (soft): they wait in the same way, but a soft entry that falls on another lock than the
    token's, or that gives way (gate_slice), ends the following of that lock's tail ("lock tail
-   abandoned") instead of the run. */
-struct lacq { int chain; long n; int lock, pos, pchain; long pn; char flag; char soft, bad; };
+   abandoned") instead of the run. An entry that ends in '*' is one the alternative moved before
+   an earlier acquisition of the trace: its acquisition is reported ("lock a#n taken in the
+   forced order"), the evidence that the lock order the alternative needs happened. */
+struct lacq { int chain; long n; int lock, pos, pchain; long pn; char flag; char soft, forced, bad; };
 /* len: the listed acquisitions, hard of them the horizon's (the rest the soft tail); done and
    hdone: how many of them, and of the horizon's, have happened; dead: the tail is no longer
    followed */
@@ -760,10 +762,13 @@ static size_t laddr_slot(const void *addr) {
     return i;
 }
 
-/* "[~]name#n[t|!]" at s: the chain, the ordinal, the flag and whether the tail starts here */
+/* "[~]name#n[t|!][*]" at s: the chain, the ordinal, the flag, whether the tail starts here and
+   whether the alternative moved it */
 static int parse_lacq(char *s, struct lacq *a, int *tail) {
     *tail = *s == '~';
     if (*tail) s++;
+    size_t len = strlen(s);
+    if (len && s[len - 1] == '*') { a->forced = 1; s[--len] = '\0'; }
     char *hash = strrchr(s, '#'), *end = NULL;
     if (!hash || hash == s) return 0;
     *hash = '\0';
@@ -948,6 +953,8 @@ HIDDEN void stretto_pin_locked(long n, int ok) {
         if (e && e->lock >= 0 && ok && !e->bad) {
             g_lseq[e->lock].done++;
             if (!e->soft) g_lseq[e->lock].hdone++;
+            if (e->forced)
+                fprintf(stderr, "[stretto-pin] rank %d chain %s: lock a#%ld taken in the forced order\n", g_rank, g_lname[ci], n);
         }
     }
     pthread_cond_broadcast(&g_gcv);

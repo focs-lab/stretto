@@ -626,6 +626,51 @@ class Threads(unittest.TestCase):
                     self.assertEqual(c.control, "FINISHED")
 
 
+class LockOrder(unittest.TestCase):
+    """L1+L findings replayed (docs/threads.md, sections 13 and 19): the replay enters the
+    critical sections the alternative reorders in its order, reports each moved acquisition
+    taken, and shows the consequence; the control, in the run's lock order, does not. Two runs
+    each."""
+
+    def horizon(self, n, pick):
+        from stretto import report, trace
+        exe, tdir = idiom(self, n)
+        t = C.with_sync(trace.load(tdir), tdir)
+        f = next(f for f in report.analyze(t, with_sp=False).findings if f.level == "L1+L" and pick(f))
+        return exe, t, f, C._horizon(t, f)
+
+    def test_the_senders_take_the_mutex_in_the_other_order(self):
+        exe, t, f, (alt, ctl, required) = self.horizon(22, lambda f: f.recv is not None)
+        self.assertTrue(any(k[0] == "lock" for k in required))
+        for _ in range(2):
+            ra, rc = C.run_checked(3, exe, [], alt, 60), C.run_checked(3, exe, [], ctl, 60)
+            self.assertEqual(ra.misapplied + rc.misapplied + rc.diverged, [])
+            self.assertTrue(C.all_matched(alt, ra.proc.stderr, required, ra.seen), ra.proc.stderr[-800:])
+            self.assertIn("wrong order", ra.proc.stdout)
+            self.assertEqual(rc.result, "FINISHED")
+            self.assertNotIn("wrong order", rc.proc.stdout)
+
+    def test_the_lock_order_deadlock_hangs(self):
+        from stretto import report, trace
+        exe, tdir = idiom(self, 27)
+        t = C.with_sync(trace.load(tdir), tdir)
+        for _ in range(2):
+            res = [c for c in C.confirm(report.analyze(t, with_sp=False), 3, exe, timeout=20, t=t) if c.finding.cls == "2-lock-order"]
+            self.assertTrue(res)
+            for c in res:
+                self.assertIn("*", c.pin)
+                self.assertEqual((c.verdict, c.result, c.control), ("confirmed", "TIMEOUT", "FINISHED"), c)
+
+    def test_a_reordered_broadcast_is_entered_first(self):
+        exe, t, f, (alt, ctl, required) = self.horizon(43, lambda f: f.cls == "2-thread-collective")
+        ra, rc = C.run_checked(3, exe, [], alt, 60), C.run_checked(3, exe, [], ctl, 60)
+        self.assertEqual(ra.misapplied + rc.misapplied + rc.diverged, [])
+        self.assertTrue(C.all_matched(alt, ra.proc.stderr, required, ra.seen), ra.proc.stderr[-800:])
+        self.assertIn("taken in the forced order", ra.proc.stderr)
+        self.assertEqual(rc.result, "FINISHED")
+        self.assertNotIn("taken in the forced order", rc.proc.stderr)
+
+
 class Yields(unittest.TestCase):
     """A gate that cannot open (docs/threads.md, section 19): without STRETTO_GATE_YIELD_MS it
     ends the run at its timeout (exit 87); with it the gate gives way once nothing on its rank

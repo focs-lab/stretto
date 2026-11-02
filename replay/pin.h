@@ -125,7 +125,10 @@
    the entries of a lock token from one that starts with '~' on ("A#1>B#2>~C#3>D#4"), are soft:
    they follow the trace's order where the run still does, and give way where it does not. A soft
    lock entry on another lock than its token's abandons the rest of that token ("lock tail
-   abandoned"), not the run; an attempt no token names waits only for the hard entries.
+   abandoned"), not the run; an attempt no token names waits only for the hard entries. A lock
+   entry that ends in '*' is one the alternative moved before an earlier acquisition of the trace
+   (L1+L): its acquisition is reported as "[stretto-pin] rank R chain C: lock a#n taken in the
+   forced order".
    STRETTO_GATE_YIELD_MS=ms                a gate (order or lock) that stays closed while for ms no
                                            operation is posted and no lock taken on the rank gives
                                            way: the thread that has waited longest goes on
