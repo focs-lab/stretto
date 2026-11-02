@@ -14,7 +14,7 @@ mkdir build && cd build
 make -j$J > /dev/null 2>&1 && make -C mpi/tests -j$J large_set > /dev/null 2>&1
 run() {
   for i in 1 2 3; do
-    STARPU_NCPU=2 STARPU_MPI_NOBIND=1 timeout 60 mpirun --oversubscribe -np 4 \
+    STARPU_NCPU=2 STARPU_MPI_NOBIND=1 timeout -k 10 60 mpirun --oversubscribe -np 4 \
       --mca btl self,tcp --mca btl_tcp_eager_limit 56 --mca btl_self_eager_limit 56 \
       mpi/tests/large_set > /dev/null 2>&1; echo "exit $?"
   done
