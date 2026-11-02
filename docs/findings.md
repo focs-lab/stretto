@@ -56,6 +56,7 @@ and compact result tables: [experiments/latent](../experiments/latent/README.md)
 | GA bd1149f ComEx `mpi-pt` progress thread, `MPI_Recv(ANY_SOURCE)` of request headers (comex.c:2445) and the put handler's named data receive (:2564) | each handler receives the rest of a request from its sender by name, replies go on another communicator, a fence is acknowledged after the sender's earlier requests; requests of different ranks are unordered in GA's model | blind scan: steals in every test with remote traffic; read after the pre-registration; 74 of 74 forced replays pass like their controls |
 | GA bd1149f `threadsafec`, the main threads' reply receives (comex.c:4027, 4102, 3937) | GA's own mutex holds each request with its preposted reply receive, so replies from a node arrive in the order of the receives | no candidate at L1; at L1+L 12 800 candidates in 12 traces, all rejected (`targeted.csv`) |
 | Smilei 61aa917 patch exchanges of fields and particles (`Patch::initExchange`, `initSumField`, `exchNbrOfParticles`, Patch.cpp; OpenMP threads post and complete them) | every tag is the sender patch's Hilbert index, a direction digit and a field digit in decimal (`buildtag`, Patch.h:485-502), distinct among the exchanges in flight between two ranks (fields sharing a digit go one after another); receives name source and tag; the phases are separated by the barriers of their `omp for` loops | blind scan: 408 complete traces of 82 benchmarks (Open MPI) and 54 (MPICH), 4 ranks of 2 threads: no alternative at L1, no wildcard or probe |
+| Athena++ 053bc73 boundary and AMR exchanges and the FFT remap (`remap_3d.cpp:109`, `MPI_Waitany`) | tags pack the destination block's local id with the buffer and physics (`CreateBvalsMPITag`) or the child offsets (`CreateAMRMPITag`), distinct among messages in flight; every remap receive has its own buffer and output offset, so the `Waitany` order is free; the `MPI_Iprobe(ANY, ANY)` calls only push progress | blind scan, 2 threads per rank: no finding but 408 `waitany-order` per 4-rank `fft` trace; read after the pre-registration |
 | SLATE 878439b `ttmqr` (internal_ttmqr.cc:155-189): a freed tile `Isend`, then an `Irecv` into the same tile | the two are not ordered (the program cannot know when a freed send ends), but the peer sends the tile back only after receiving it, so the first transfer ends before the second starts at every eager threshold | `geqrf` tester traced with buffer ranges (`STRETTO_BUFS=1`, 2x2, 4 threads): 84 such pairs, all harmless (docs/model.md section 7) |
 
 The 26 Oct screen of 70 codes, and the 29 Oct screen of ~85 more (deal.II master, PETSc main,
@@ -456,6 +457,19 @@ fresh clone. Not a race: no forced replay applies. Tool false alarm: the 31 L1 a
 hung trace are pending receives with their own pending messages (tool limits, above). The issue
 307 the audit cited is an invalid tag with Intel MPI (tags about 100 times the patch count), not
 a race. Evidence: [experiments/smilei](../experiments/smilei/README.md).
+
+**Athena++ 053bc73 (master on 2 Nov)**, hybrid MPI+OpenMP, the third blind scan: its MPI regression
+tests (`hybrid_linwave`, `mpi_linwave`, `jeans_3d`, `turb_3d`, `fft`) through its own `run_tests.py`
+and two shipped AMR inputs, built `-mpi -omp`, 2 threads per rank, 3 runs each, Open MPI and (the
+linear-wave tests and the examples) MPICH; findings committed (7199084, 2 Nov 11:44 +08) before
+the communication code was read. 51 traces analysed; the 4-rank linear-wave calls and the DMR
+example (above 1 GB) and `jeans_3d`'s 2-rank call (above 1.5 GB) were not. One class: 408
+`waitany-order` per 4-rank `fft` trace at the remap's `MPI_Waitany`, harmless (each receive has its
+own buffer and output place). No other finding, and none by reading: tags are unique among
+messages in flight, receives name their source, and the wildcard `MPI_Iprobe` calls only push
+progress. The audit's lead, tags packed without a check against `MPI_TAG_UB`, is real (a `\todo`
+in the code) but needs 2^17 blocks per rank with MPICH. No bug found. Evidence:
+[experiments/athena](../experiments/athena/README.md).
 
 Not built in this hunt, by cost (estimated, not measured): HPX's MPI parcelport (read only:
 headers on tag 0 with `ANY_SOURCE` carry the sender's tag from an atomic counter, so data

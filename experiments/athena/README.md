@@ -84,3 +84,35 @@ first, or does it unpack each message into its own place (an order-free `Waitany
 no finding in the boundary exchanges, the AMR restriction and prolongation and the wildcard
 probes: are the tags of concurrent exchanges distinct, and what do the probes do with what
 they find? Where would the tag packing overflow (the audit's lead)?
+
+## Verdicts (after the pre-registration, from reading the code at the sites)
+
+Read from 11:45 +08: `src/fft/plimpton/remap_3d.cpp`, the tag builders
+(`BoundaryBase::CreateBvalsMPITag`, `bvals/bvals_base.cpp:271-291`;
+`Mesh::CreateAMRMPITag`, `mesh/amr_loadbalance.cpp:1469-1480`), the `MPI_Iprobe` calls of
+`src/bvals`, and the OpenMP loops of `task_list/task_list.cpp`. Line numbers are those of
+053bc73.
+
+| # | Verdict | Why |
+|---|---|---|
+| W1 | harmless by design | `remap_3d` (`remap_3d.cpp:65-112`) posts every receive into its own place of the scratch buffer (`recv_bufloc[irecv]`) from a named source, sends with `MPI_Send`, and unpacks each completed receive from its own place into its own offset of the output (`recv_offset[irecv]`, `unpackplan[irecv]`): the order in which `MPI_Waitany` returns them changes nothing. All remap messages share tag 0 on the plan's communicator (`MPI_Comm_dup`, `:438`), and a remap completes all its receives before it returns, so per-source FIFO keeps two remaps apart |
+| none elsewhere | no race in these tests, by construction | a boundary tag packs the destination block's local id, the buffer and the physics (`(lid<<11) \| (bufid<<5) \| phys`), an AMR tag the local id and the child offsets (`(lid<<8) \| (ox1<<7) \| (ox2<<6) \| (ox3<<5)`): distinct for every message in flight between two ranks; every receive names its source. The `MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG)` calls (`flux_correction_fc.cpp:1635`, `bvals_var.cpp:258` and others) only push progress: their result is discarded (the code calls it "black magic"), so no probe alternative has a consequence. The audit's lead is real but not a race: no check of the tags against `MPI_TAG_UB` (a `\todo` at `bvals_base.cpp:283-284`), so a rank with 2^17 blocks would pass MPICH's bound of 2^28-1 here and 2^20 blocks Open MPI's; nothing near in the shipped tests |
+
+No bug found, by the tool or by reading. Not reached here, by size: the 4-rank calls of
+`mpi_linwave`, the DMR example, and `jeans_3d` beyond its 1-rank call (its 2-rank call of the
+multigrid build wrote more than 1.5 GB in its first minutes).
+
+## What the tool did here
+
+Nothing wrong found, and the tool's one class (W1) is the completion order of a `Waitany` whose
+loop does not depend on it, which its own text says it cannot tell. The absence of other
+findings has the reason reading gives: tags unique among messages in flight and receives that
+name their source, with the only wildcard calls being probes whose results are thrown away.
+The traces of Athena++'s threaded runs are large (350 MB for a 2-rank linear wave of 16 blocks,
+over 1 GB with 4 ranks), which bounded what could be analysed.
+
+## Files
+
+`Dockerfile`, `mpirun` (the traced wrapper, first in PATH), `scan.sh` (the regression tests;
+`scan-{openmpi,mpich}-{runs,sites}.csv`), `examples.sh` (the AMR examples;
+`examples-{openmpi,mpich}-{runs,sites}.csv`), `scan_csv.py` (the tables).
