@@ -25,9 +25,15 @@ docs/firstread.md), if there is one. With KEEP_TRACES set (stretto.keep), each t
 trace is kept as <campaign>/<program>, and each replay's and control's as
 <campaign>/<program>__<class>-<level>-<pin>__replay (or __control); the campaign is the table's
 path under experiments/results (mbi/mbi, guard/mbb, reps/mbi-3), that of --replays-out, or
---keep-campaign.
+--keep-campaign. With --rerun the traced run records payloads (STRETTO_PAYLOAD) and the
+analysis adds level L2 by re-execution (stretto.rerun, docs/l2-auto.md): every rank of the
+traced executable may be rerun alone under the shim (rerun/libstretto-rerun.so). The row then
+says which L2 claims the report makes (column l2: abort, deadlock, diverge; score.l2_verdict
+counts an abort as an error), how many judgements were dismissed or left undetermined, and how
+many re-executions and seconds of analysis it took; the table needs --out, so that it never replaces a table without L2.
 
 usage: run_mbi.py [--corpus mbi|mbb] [--select REGEX] [--limit N] [--confirm] [--must] [--guard] [--timeout S] [--jobs J] [--reads DIR]
+                  [--rerun --out CSV]
        run_mbi.py --replay-only [--select REGEX] [--timeout S] [--replays-out CSV] ...   (implies --confirm)
 """
 from __future__ import annotations
@@ -53,8 +59,9 @@ RESULTS = os.path.join(ROOT, "experiments", "results", "mbi")
 MPICC = "/usr/bin/mpicc.openmpi"
 MPIRUN = "/usr/bin/mpirun.openmpi"
 TRACER = os.path.join(ROOT, "tracer", "bin", "openmpi", "libstretto-trace.so")
+PAYLOAD = 1 << 16      # --rerun: packed bytes recorded per message (STRETTO_PAYLOAD), as experiments/e7_rerun.py
 sys.path.insert(0, os.path.join(ROOT, "analysis"))
-from stretto import confirm as confirm_mod, keep, reads, report, trace  # noqa: E402
+from stretto import confirm as confirm_mod, keep, reads, report, rerun, trace  # noqa: E402
 from stretto.confirm import classify_rc  # noqa: E402
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from provenance import code_commit  # noqa: E402
@@ -131,7 +138,8 @@ def run_one(name: str, args) -> dict:
     tracedir = os.path.join(out, "trace")
     shutil.rmtree(tracedir, ignore_errors=True)
     os.makedirs(tracedir)
-    env = ["-x", f"STRETTO_TRACE_DIR={tracedir}", "-x", f"LD_PRELOAD={TRACER}"] + (["-x", "STRETTO_GUARD=1"] if args.guard else [])
+    env = ["-x", f"STRETTO_TRACE_DIR={tracedir}", "-x", f"LD_PRELOAD={TRACER}"] + (["-x", "STRETTO_GUARD=1"] if args.guard else []) \
+        + (["-x", f"STRETTO_PAYLOAD={PAYLOAD}"] if args.rerun else [])
     cmd = ["/usr/bin/timeout", "-k", "5", str(args.timeout), MPIRUN, "-np", str(row["np"]), *env, exe]
     t0 = time.monotonic()
     r = subprocess.run(cmd, capture_output=True, text=True, stdin=subprocess.DEVNULL,
@@ -162,6 +170,30 @@ def replay_one(row: dict, args) -> dict:
     return row
 
 
+def rerun_twin(t, exe: str, np: int, args):
+    """--rerun: the traced program as a DSL program whose ranks are re-executed under the shim
+    where their results leave the recorded ones (stretto.rerun.Oracle, every rank live), with the
+    defaults of experiments/e7_rerun.py."""
+    runner = rerun.ShimRunner(exe, [], np=np, mpi="openmpi", timeout=args.rerun_timeout)
+    return rerun.Oracle(t, runner, max_runs=args.rerun_max_runs).program()
+
+
+def l2_claims(rep) -> dict:
+    """The L2 columns of a row from a report analysed with a twin: l2, the kinds of L2 finding
+    (abort: the program aborts on its own check in some or every execution with the pair;
+    deadlock; diverge: its calls depart from the trace's), and the judgements, one per L1
+    alternative and threshold, the twin dismissed or left undetermined (report.analyze's details)."""
+    kinds = set()
+    for f in rep.findings:
+        if f.level != "L2":
+            continue
+        kinds.add("abort" if f.title.startswith("the program aborts") else "deadlock" if f.cls == "1d"
+                  else "diverge" if f.title.startswith("the continuation diverges") else f.cls)
+    details = [d for f in rep.findings if f.level == "L1" for d in f.detail if d.startswith("L2 at B=")]
+    return {"l2": " ".join(sorted(kinds)), "l2_dismissed": sum(": dismissed:" in d for d in details),
+            "l2_undetermined": sum(": undetermined continuations:" in d for d in details)}
+
+
 def analyse(row: dict, out: str, exe: str, tracedir: str, args) -> None:
     """Analyse the trace under out/, fill the Stretto columns of row and, with --confirm,
     replay every error finding with its pin. An analysis that raises has no verdict: the row
@@ -178,8 +210,10 @@ def analyse(row: dict, out: str, exe: str, tracedir: str, args) -> None:
             mp = os.path.join(args.reads, row["name"] + ".json")
             bounds = (reads.SiteMap.load(mp, reads.addr2line_resolver(out), t=t, objdir=out, unchecked=args.reads_unchecked)
                       if os.path.exists(mp) else None)
+        twin = rerun_twin(t, exe, int(row["np"]), args) if args.rerun else None
+        t0 = time.monotonic()
         rep = report.analyze(t, with_sp=not args.no_sp, sp_max_events=args.sp_max_events, max_states=args.max_states,
-                             reads=bounds)
+                             reads=bounds, twin=twin, twin_label="re-execution")
     except Exception as e:  # noqa: BLE001  (recorded as CRASH, never as a verdict)
         with open(os.path.join(out, "analysis.err"), "w") as fh:
             fh.write(traceback.format_exc())
@@ -187,6 +221,9 @@ def analyse(row: dict, out: str, exe: str, tracedir: str, args) -> None:
                    notes=f"analysis failed: {type(e).__name__}: {e}"[:300])
         return
     row["analysis"] = "ok"
+    if twin is not None:
+        row.update(l2_claims(rep), rerun_runs=len(twin.oracle.runs), rerun_seconds=f"{time.monotonic() - t0:.1f}",
+                   rerun_unreliable="; ".join(f"rank {r}: {w}" for r, w in sorted(twin.oracle.unreliable.items()))[:300])
     row["classes"] = " ".join(rep.classes())
     row["levels"] = " ".join(rep.levels())
     row["findings"] = len(rep.findings)
@@ -311,6 +348,10 @@ def parser() -> argparse.ArgumentParser:
                     help="with --reads: accept maps without checking them against the traced programs' sources")
     ap.add_argument("--reads", default=None,
                     help="directory of first-read maps, DIR/<name>.json (reads_maps.py): analyse with read bounds (docs/firstread.md)")
+    ap.add_argument("--rerun", action="store_true",
+                    help="trace with payloads and add level L2 by re-execution (stretto.rerun, docs/l2-auto.md; needs --out)")
+    ap.add_argument("--rerun-timeout", type=float, default=20, help="with --rerun: seconds per re-execution")
+    ap.add_argument("--rerun-max-runs", type=int, default=2000, help="with --rerun: re-executions per program")
     ap.add_argument("--keep-campaign", default=None,
                     help="with KEEP_TRACES set, keep the traced runs' and replays' traces under this campaign (stretto.keep; "
                          "default: the table's path under experiments/results, or that of --replays-out)")
@@ -320,7 +361,8 @@ def parser() -> argparse.ArgumentParser:
 def main() -> int:
     args = parser().parse_args()
     args.gencodes = CORPORA[args.corpus]
-    partial = args.select is not None and args.select != DEFAULT_SELECT[args.corpus] or bool(args.limit)
+    # a run with L2 by re-execution is another analysis of other runs: never the canonical table
+    partial = args.select is not None and args.select != DEFAULT_SELECT[args.corpus] or bool(args.limit) or args.rerun
     if args.select is None:
         args.select = DEFAULT_SELECT[args.corpus]
     # a run with the guard keeps its programs' directories apart, so it never replaces the traces
@@ -336,8 +378,8 @@ def main() -> int:
     # the canonical table is written only by a run of the campaign's selection: a part of the
     # corpus (another --select, --limit) goes to --out, never over the whole table
     if partial and not args.out:
-        print(f"run_mbi.py: a selection other than the corpus's ({DEFAULT_SELECT[args.corpus]!r}) or --limit would overwrite "
-              f"{os.path.relpath(canonical, ROOT)} with part of it; give --out", file=sys.stderr)
+        print(f"run_mbi.py: a selection other than the corpus's ({DEFAULT_SELECT[args.corpus]!r}), --limit or --rerun would "
+              f"overwrite {os.path.relpath(canonical, ROOT)} with part of it or with another analysis; give --out", file=sys.stderr)
         return 2
     args.out = args.out or canonical
     args.keep_campaign = args.keep_campaign or keep.campaign_of(args.out)
@@ -381,6 +423,8 @@ def main() -> int:
             "build", "run", "wildcard_recvs", "events", "findings", "l1_alternatives", "classes", "levels", "analysis", "confirmed", "confirmed_strict",
             "not_confirmed", "replays", "must", "notes", "commit", "analysis_commit"]
     keys += other_must
+    if args.rerun:
+        keys += ["l2", "l2_dismissed", "l2_undetermined", "rerun_runs", "rerun_seconds", "rerun_unreliable"]
     with open(args.out, "w", newline="") as fh:
         w = csv.DictWriter(fh, fieldnames=keys, extrasaction="ignore", lineterminator="\n")
         w.writeheader()

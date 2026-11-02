@@ -18,6 +18,10 @@ what Stretto predicts about other runs:
               docs/firstread.md), observed:2-buffering (the finished run would deadlock below a
               threshold)
   L1 only   : L1:1a/1c/1d, the error consequences that hold without the single-path assumption
+  with L2   : a table of run_mbi.py --rerun (level L2 by re-execution) also has the column l2;
+              l2_verdict adds to the union an L2 abort (the program aborts on its own check in
+              some execution with the alternative), which is class 1e like a departure from the
+              trace's calls and so in neither set above; an L2 deadlock is class 1d already
 A program whose analysis crashed has no verdict (CRASH), and neither has a run that the harness
 itself could not complete or judge (HARNESS-ERROR: no trace, a tool that did not start, a
 container that failed): a confusion matrix counts such rows apart, as neither a positive nor a
@@ -112,6 +116,15 @@ def l1_verdict(r: dict) -> str:
     return "ERROR" if levels(r) & L1_ONLY else "OK"
 
 
+def l2_verdict(r: dict) -> str:
+    """The union with level L2 by re-execution (run_mbi.py --rerun): ERROR also when the
+    program aborts on its own check under an alternative (column l2)."""
+    v = verdict(r)
+    if v != "OK":
+        return v
+    return "ERROR" if "abort" in (r.get("l2") or "").split() else "OK"
+
+
 def analysis_failed(r: dict) -> bool:
     return (r.get("notes") or "").startswith("analysis failed")
 
@@ -202,7 +215,10 @@ def replay_rows(csv_path: str) -> List[dict]:
 
 def main(path: str, md: bool = False) -> int:
     rs = compiled(rows(path))
-    for name, judge in (("union", verdict), ("observed", observed_verdict), ("predicted", predicted_verdict), ("L1 only", l1_verdict)):
+    judges = [("union", verdict), ("observed", observed_verdict), ("predicted", predicted_verdict), ("L1 only", l1_verdict)]
+    if rs and "l2" in rs[0]:
+        judges.append(("with L2", l2_verdict))
+    for name, judge in judges:
         c = confusion(rs, judge)
         print(f"{name:<9} TP={c['tp']} FP={c['fp']} FN={c['fn']} TN={c['tn']} precision={c['precision']:.2f} recall={c['recall']:.2f} F1={c['f1']:.2f}")
     if any(r.get("must") for r in rs):

@@ -131,6 +131,60 @@ class CrashIsNoVerdict(unittest.TestCase):
             self.assertEqual(score.verdict(row), "ERROR")
 
 
+class MbiWithReexecution(unittest.TestCase):
+    """run_mbi.py --rerun: level L2 by re-execution in the corpus harness, and its verdict."""
+
+    def test_an_l2_abort_is_an_error_and_a_departure_is_not(self):
+        rs = [{"name": "a", "expect": "ERROR", "classes": "1e 1f", "l2": "abort diverge"},
+              {"name": "b", "expect": "OK", "classes": "1e 1f", "l2": "diverge"},
+              {"name": "c", "expect": "ERROR", "classes": "1d", "l2": ""},
+              {"name": "d", "expect": "OK", "classes": "", "l2": "abort", "analysis": "CRASH"}]
+        self.assertEqual([score.verdict(r) for r in rs], ["OK", "OK", "ERROR", "CRASH"])
+        self.assertEqual([score.l2_verdict(r) for r in rs], ["ERROR", "OK", "ERROR", "CRASH"])
+        c = score.confusion(rs, score.l2_verdict)
+        self.assertEqual((c["tp"], c["fp"], c["fn"], c["tn"], c["crash"]), (2, 0, 0, 1, 1))
+
+    def test_run_mbi_rerun_reports_the_payload_check(self):
+        """The E7 program MessageRace_Recv_Send_nok (rank 0 aborts unless the last payload is
+        3), traced in a run that finished, with Python ranks for the shim (test_rerun): L1 flags
+        the race only, L2 by re-execution finds the abort; without --rerun the row has no l2."""
+        import tempfile
+        import types
+        import test_rerun as R
+        from stretto import rerun
+        run_mbi = module("experiments/mbi/run_mbi.py", "run_mbi_rerun")
+        run_mbi.trace = types.SimpleNamespace(load=lambda d: R.trace_mbi((1, 2, 3)))
+        run_mbi.rerun_twin = lambda t, exe, np, args: rerun.Oracle(t, R.runner(R.PROGRAMS_MBI, np),
+                                                                   max_runs=args.rerun_max_runs).program()
+        self.assertIn("--rerun", run_mbi.parser().format_help())
+        with tempfile.TemporaryDirectory() as d:
+            row = {"name": "MessageRace_Recv_Send_nok", "np": 4, "expect": "ERROR"}
+            run_mbi.analyse(row, d, os.path.join(d, "main"), d, run_mbi.options(rerun=True))
+            self.assertEqual(row["analysis"], "ok")
+            self.assertEqual(score.verdict(row), "OK")
+            self.assertIn("abort", row["l2"].split())
+            self.assertEqual(score.l2_verdict(row), "ERROR")
+            self.assertGreater(row["rerun_runs"], 0)
+            self.assertEqual(row["rerun_unreliable"], "")
+            plain = {"name": "MessageRace_Recv_Send_nok", "np": 4, "expect": "ERROR"}
+            run_mbi.analyse(plain, d, os.path.join(d, "main"), d, run_mbi.options())
+            self.assertNotIn("l2", plain)
+            self.assertEqual(plain["levels"], row["levels"].replace("L2:1e", "").strip())
+
+    def test_run_mbi_rerun_needs_out(self):
+        import tempfile
+        run_mbi = module("experiments/mbi/run_mbi.py", "run_mbi_rerun_out")
+        with tempfile.TemporaryDirectory() as d:
+            open(os.path.join(d, "MessageRace_x.c"), "w").close()
+            run_mbi.CORPORA["mbi"] = d
+            argv = sys.argv
+            try:
+                sys.argv = ["run_mbi.py", "--corpus", "mbi", "--rerun", "--work", d]
+                self.assertEqual(run_mbi.main(), 2)
+            finally:
+                sys.argv = argv
+
+
 class NinjaRerun(unittest.TestCase):
     """experiments/ninja/run.py appends to its tables; a campaign run again must not count twice."""
 
