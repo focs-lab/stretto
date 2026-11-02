@@ -14,10 +14,10 @@
 # only the runs whose factor came out right, the others recorded with their result alone.
 # CLASSES (for example "1a 1f") samples SAMPLE alternatives of each class in turn, and not
 # SAMPLE of all.
-# Writes WORK/traced.csv (run, factor, Stretto's findings) and WORK/replay.csv (replay_sample.py's
-# columns with the run in front; "hits" counts the lines reporting a wrong factor); each replay's
-# and control's output is kept under WORK/run<i>/out. A trace is deleted once its run is
-# replayed, or at once if the run aborted. ONLY (a regular expression of the alternatives'
+# Writes WORK/traced.csv (run, factor, Stretto's findings, the code's commit) and WORK/replay.csv
+# (replay_sample.py's columns with the run in front; "hits" counts the lines reporting a wrong
+# factor); each replay's and control's output is kept under WORK/run<i>/out. A trace is deleted
+# once its run is replayed, or at once if the run aborted. ONLY (a regular expression of the alternatives'
 # titles, by default the collision range's tags) narrows the sample, OUT names the table
 # (replay.csv), KEEP_TRACE=1 keeps the traces. MODES (default "after") replays each sampled
 # alternative once per mode, the table's column mode saying which (docs/threads.md, section 19;
@@ -34,8 +34,9 @@ source "$REPO/experiments/replay_modes.sh"
 export PYTHONPATH=$REPO/analysis LD_LIBRARY_PATH="$L/plain"
 export OPENBLAS_NUM_THREADS=1 OMPI_MCA_rmaps_base_oversubscribe=1 OMPI_MCA_btl_vader_single_copy_mechanism=none
 export OMP_NUM_THREADS=${THREADS:-4}
+export STRETTO_COMMIT=${STRETTO_COMMIT:-$(python3 "$REPO/experiments/provenance.py")}
 mkdir -p "$W"
-[ -f "$W/traced.csv" ] || echo "run,result,stretto_rc,l1_collision,l1_collision_1a" > "$W/traced.csv"
+[ -f "$W/traced.csv" ] || echo "run,result,stretto_rc,l1_collision,l1_collision_1a,commit" > "$W/traced.csv"
 out=$W/${OUT:-replay.csv}; [ "$FIRST" = 1 ] && rm -f "$out"
 for i in $(seq "$FIRST" $((FIRST + RUNS - 1))); do
   d=$W/run$i; rm -rf "$d"; mkdir -p "$d/trace"
@@ -44,14 +45,15 @@ for i in $(seq "$FIRST" $((FIRST + RUNS - 1))); do
   res=$(echo "$log" | sed -n 's/^rep 0 .* \(ok\|WRONG\)$/\1/p')
   [ -z "$res" ] && res=crash:$(echo "$log" | grep -oE 'MPI_ERR_[A-Z_]+' | head -1)
   if [ "${RIGHT_ONLY:-0}" = 1 ] && [ "$res" != ok ]; then
-    echo "$i,$res,,," >> "$W/traced.csv"; rm -rf "$d/trace"; continue
+    echo "$i,$res,,,,$STRETTO_COMMIT" >> "$W/traced.csv"; rm -rf "$d/trace"; continue
   fi
   timeout 3600 python3 -m stretto analyze "$d/trace" > "$d/report.txt" 2> "$d/report.err"; rc=$?
   l1=$(grep '^\[' "$d/report.txt" | grep ' L1 ' | grep -cE 'tag=2[0-9] ')
   l1a=$(grep '^\[' "$d/report.txt" | grep ' L1 ' | grep -E 'tag=2[0-9] ' | grep -c '^\[ *1a\]')
-  echo "$i,$res,$rc,$l1,$l1a" >> "$W/traced.csv"
+  echo "$i,$res,$rc,$l1,$l1a,$STRETTO_COMMIT" >> "$W/traced.csv"
   if [ "${res#crash}" = "$res" ] && [ "$l1" -gt 0 ]; then
     for c in ${CLASSES:-all}; do
+      [ "$c" = 1a ] && [ "$l1a" = 0 ] && continue      # no 1a alternative to sample: each mode would analyse the trace for nothing
       cls=(); [ "$c" = all ] || cls=(--cls "$c")
       for m in ${MODES:-after}; do
         # shellcheck disable=SC2046

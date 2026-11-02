@@ -9,7 +9,7 @@
 #   experiments/parsec/replay.sh BUILD WORK
 # Settings: CELL (name:ranks:cores:mt:packages as in traced.sh, vp2-mt:1:6:1:2), RUNS (traced
 # runs, 5), SAMPLE (3), REPEAT (2), TIMEOUT (60 s per run). Writes WORK/traced.csv (run, result,
-# Stretto's L1 findings) and WORK/replay.csv (replay_sample.py's columns with the run in front;
+# Stretto's L1 findings, the code's commit) and WORK/replay.csv (replay_sample.py's columns with the run in front;
 # "hits" is 1 for a run whose check failed); each run's output is kept under WORK/run<i>/out. A
 # trace is deleted once its run is replayed. MODES (default "after") replays each sampled
 # alternative once per mode (experiments/replay_modes.sh; docs/threads.md section 19), the
@@ -28,7 +28,8 @@ args=(-N 120 -t 9 -c "$cores" -m "$mt"); envs=(REPS=1)
 if [ "$pk" -gt 0 ]; then envs+=("HWLOC_SYNTHETIC=package:$pk core:$((cores / pk)) pu:1"); args+=(-- --mca runtime_vpmap hwloc); fi
 xs=(); es=(); for e in "${envs[@]}"; do xs+=(-x "$e"); es+=(--env "$e"); done
 mkdir -p "$W"
-echo "run,result,stretto_rc,l1" > "$W/traced.csv"
+export STRETTO_COMMIT=${STRETTO_COMMIT:-$(python3 "$REPO/experiments/provenance.py")}
+echo "run,result,stretto_rc,l1,commit" > "$W/traced.csv"
 out=$W/replay.csv; rm -f "$out"
 for i in $(seq 1 "$RUNS"); do
   d=$W/run$i; rm -rf "$d"; mkdir -p "$d/trace"
@@ -38,7 +39,7 @@ for i in $(seq 1 "$RUNS"); do
   res=crash; if [ -n "$w" ]; then if [ "$w" -gt 0 ]; then res=wrong; else res=ok; fi; fi
   timeout 3600 python3 -m stretto analyze "$d/trace" > "$d/report.txt" 2> "$d/report.err"; rc=$?
   l1=$(grep '^\[' "$d/report.txt" | grep -c ' L1 ')
-  echo "$i,$res,$rc,$l1" >> "$W/traced.csv"
+  echo "$i,$res,$rc,$l1,$STRETTO_COMMIT" >> "$W/traced.csv"
   if [ "$res" != crash ] && [ "$l1" -gt 0 ]; then
     for m in ${MODES:-after}; do
       # shellcheck disable=SC2046
