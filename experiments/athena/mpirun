@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# A traced mpirun for Athena++'s regression tests (scan.sh puts this directory first in PATH):
+# each call gets a trace directory of its own, $TRACES/<n> with the call's arguments in
+# <n>/cmd, and runs Open MPI's mpirun (which starts MPICH's programs too) with the tracer and its
+# settings for OpenMP regions and MPI-IO (docs/threads.md, section 17). A call whose trace
+# passes KILLMB MB (default 1500) is killed, its trace deleted, and <n>/killed written.
+# TRACER unset: the call is forwarded untraced. TIMEOUT bounds each call (seconds).
+set -u
+n=$(ls -d "$TRACES"/[0-9]* 2>/dev/null | wc -l)
+d=$TRACES/$((n + 1)); mkdir -p "$d"
+echo "$*" > "$d/cmd"
+[ -n "${TRACER:-}" ] || exec timeout "${TIMEOUT:-600}" /usr/bin/mpirun --bind-to none "$@"
+timeout "${TIMEOUT:-600}" /usr/bin/mpirun --bind-to none -x STRETTO_TRACE_DIR="$d" -x STRETTO_SYNC_ORDER=1 \
+  -x STRETTO_OMP_CHAINS=thread -x STRETTO_MPIIO=coll -x LD_PRELOAD="$TRACER" "$@" &
+pid=$!
+while kill -0 $pid 2>/dev/null; do
+  sleep 3
+  if [ "$(du -sm "$d" | cut -f1)" -gt "${KILLMB:-1500}" ]; then
+    kill $pid; sleep 3; kill -9 $pid 2>/dev/null; pkill -9 -f "STRETTO_TRACE_DIR=$d"
+    rm -f "$d"/rank-*.jsonl "$d"/sync-*.txt; echo "trace above ${KILLMB:-1500} MB" > "$d/killed"
+  fi
+done
+wait $pid
