@@ -120,7 +120,21 @@
                                            attempt no token names, on a lock a token names,
                                            waits until every listed acquisition of that lock has
                                            happened (they are the horizon's). Timeouts as for
-                                           STRETTO_PIN_ORDER. */
+                                           STRETTO_PIN_ORDER.
+   Beyond the horizon (docs/threads.md, section 19): an order gate whose token ends in '~', and
+   the entries of a lock token from one that starts with '~' on ("A#1>B#2>~C#3>D#4"), are soft:
+   they follow the trace's order where the run still does, and give way where it does not. A soft
+   lock entry on another lock than its token's abandons the rest of that token ("lock tail
+   abandoned"), not the run; an attempt no token names waits only for the hard entries.
+   STRETTO_GATE_YIELD_MS=ms                a gate (order or lock) that stays closed while for ms no
+                                           operation is posted and no lock taken on the rank gives
+                                           way: the thread that has waited longest goes on
+                                           ("gate yielded after N ms: ..."), the others wait on.
+                                           0 (the default): never. A soft gate gives way after
+                                           STRETTO_GATE_SOFT_MS (default STRETTO_GATE_YIELD_MS) of
+                                           waiting in any case, and the soft gates that wait for
+                                           the same chain (lock) are then open. At MPI_Finalize:
+                                           "gates yielded: H hard, S soft". */
 #ifndef STRETTO_PIN_H
 #define STRETTO_PIN_H
 #include <mpi.h>

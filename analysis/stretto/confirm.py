@@ -191,7 +191,7 @@ def _pin_kind(name: str) -> str:
 def pin_tokens(pins) -> List[PinToken]:
     """The tokens of "STRETTO_PIN=...", "STRETTO_PIN_PROBE=...", "STRETTO_PIN_FLIP=..." and
     "STRETTO_PIN_CHAIN=..." assignments (one, a list, or None), in both formats. The order
-    gates (STRETTO_PIN_ORDER) pin no operation and give no token."""
+    and lock gates (STRETTO_PIN_ORDER, STRETTO_PIN_LOCK) pin no operation and give no token."""
     out = []
     for a in ([pins] if isinstance(pins, str) else (pins or [])):
         name, _, spec = a.partition("=")
@@ -400,6 +400,20 @@ _MISAPPLIED = re.compile(r"\[stretto-pin\] rank \d+: (?:probe |flip )?pin (?:wid
 # a chain pin's lines (replay/pin.h, STRETTO_PIN_CHAIN): applied when its receive is posted,
 # matched when it completes; which message it took only the replay's own trace says
 _CLINE = re.compile(r"\[stretto-pin\] rank (\d+) chain (\S+): (matched|applied) ridx=(\d+)\b([^\n]*)")
+# gates that gave way (docs/threads.md, section 19)
+_YIELD = re.compile(r"\[stretto-pin\] rank \d+ chain \S+: (soft )?gate yielded after")
+
+
+def gates_yielded(stderr: str) -> Tuple[int, int]:
+    """(hard, soft): how many gates of the horizon, and soft gates beyond it, gave way in a run
+    (replay/pin.h, STRETTO_GATE_YIELD_MS)."""
+    hard = soft = 0
+    for m in _YIELD.finditer(stderr or ""):
+        if m.group(1):
+            soft += 1
+        else:
+            hard += 1
+    return hard, soft
 
 
 def _lines(stderr: str):
@@ -725,12 +739,22 @@ def _envelope_pinnable(t) -> Set:
     return out
 
 
-def _chain_specs(t, M, chk, keep, B, probe_alt):
+# What follows the horizon (docs/threads.md, section 19): "control" (the default) gives the
+# control the trace's order beyond the horizon too, as soft gates, so that it reproduces the
+# recorded run and not only its horizon; "both" gives the replay the trace's order beyond its
+# horizon as well (the chains the alternative leaves as they were go on as recorded); "none"
+# leaves both free beyond the horizon, as before. STRETTO_REPLAY_TAILS sets the default.
+TAILS = os.environ.get("STRETTO_REPLAY_TAILS", "control")
+
+
+def _chain_specs(t, M, chk, keep, B, probe_alt, tails: Optional[str] = None):
     """horizon_pins for a trace of several threads (the section's comment): (alternative,
-    control, required) over the horizon of check verdict chk, M the alternative matching."""
+    control, required) over the horizon of check verdict chk, M the alternative matching.
+    tails: what follows the horizon (TAILS)."""
     from .chains import physical_key
     from .feasible import without
     from .matching import build_graph
+    tails = TAILS if tails is None else tails
     cut = chk.cut
     of = _chain_ops(t)[0]
     Md = without(M, chk.deprived)
@@ -787,18 +811,35 @@ def _chain_specs(t, M, chk, keep, B, probe_alt):
         """Does receive r complete inside the horizon, on the chain that completed it?"""
         ch, ci = r.complete_at()
         return r.completed and ci < cut[ch]
-    locks = lock_gates(t, cut, stops)
+    locks = lock_gates(t, cut, stops, chk.issued)
     pa: list = []
     pc: list = []
     ga, gc = order_gates(t, cut, alt_pos, keep, pa), order_gates(t, cut, ctl_pos, keep, pc)
     if locks is None:
         alt_gates = [g for g in ga if g not in set(gc)]
         ctl_gates = [g for g in gc if g not in set(ga)]
+        alt_locks = ctl_locks = None
     else:
         alt_gates = [x for x, (a, b) in zip(ga, pa) if forced(a, b)]
         have = set(alt_gates)
         alt_gates += [x for x, (a, b) in zip(gc, pc) if x not in have and not forced(b, a)]
         ctl_gates = gc
+        alt_locks = lock_tokens(t, cut, stops, tail=tails == "both", issued=chk.issued)
+        ctl_locks = lock_tokens(t, cut, stops, tail=tails in ("control", "both"), tail_fails=True, issued=chk.issued) \
+            if tails in ("control", "both") else locks
+        # beyond the horizon (section 19): every concurrent pair of the whole trace in the run's
+        # order, as soft gates; the replay's only where the waiting operation lies beyond its
+        # horizon, so that nothing of the horizon waits for what the alternative may not do
+        if tails in ("control", "both"):
+            full = {ch: len(recs) for ch, recs in t.ranks.items()}
+            pf: list = []
+            gf = order_gates(t, full, ctl_pos, frozenset(), pf)
+            have_c = set(ctl_gates)
+            ctl_gates = ctl_gates + [x + "~" for x in gf if x not in have_c]
+            if tails == "both":
+                have_a = set(alt_gates)
+                alt_gates = alt_gates + [x + "~" for x, (_, (_, b)) in zip(gf, pf)
+                                         if x not in have_a and b.idx >= cut[b.rank] and b.key not in keep]
     pinnable = _probe_pinnable(t)
     # with the lock order fixed, a probe is also pinned by its envelope ordinal where the probes of
     # its envelope follow one another
@@ -828,6 +869,7 @@ def _chain_specs(t, M, chk, keep, B, probe_alt):
             if alternative:
                 required.add(("probe", q.proc, q.pidx))
         gates = alt_gates if alternative else ctl_gates
+        lk = alt_locks if alternative else ctl_locks
         out = []
         if rtok:
             out.append("STRETTO_PIN_CHAIN=" + ",".join(rtok))
@@ -835,8 +877,8 @@ def _chain_specs(t, M, chk, keep, B, probe_alt):
             out.append("STRETTO_PIN_PROBE=" + ",".join(ptok))
         if gates:
             out.append("STRETTO_PIN_ORDER=" + ",".join(gates))
-        if locks:
-            out.append("STRETTO_PIN_LOCK=" + ",".join(locks))
+        if lk:
+            out.append("STRETTO_PIN_LOCK=" + ",".join(lk))
         return out
 
     return specs(True), specs(False), required
@@ -913,16 +955,14 @@ def with_sync(t, tracedir: str):
     return t
 
 
-def lock_gates(t, cut, stops=frozenset()) -> Optional[List[str]]:
-    """The STRETTO_PIN_LOCK tokens of trace t over the horizon cut: per lock, its acquisitions
-    in the trace's order up to the first that lies beyond the horizon, as
-    "proc:chain#n>chain#n...", a condition wait that timed out marked "t"; each try in the
-    horizon that failed as "proc:chain#n!". An acquisition lies in the horizon when the record
-    its chain writes next does, or when the record before it does and the chain is not cut right
-    after that record by a changed receive (stops: (chain, cut) of each such cut; rule 1 cuts
-    the synchronisation after the receive, rule 8 a later record whose own predecessors are
-    missing); a chain without records is not cut. A single construct's attempts come winner
-    first within each of its instances. None when the trace has no sync log (with_sync)."""
+def _lock_lists(t, cut, stops=frozenset(), issued=None):
+    """Per process, its failed tries and its locks' acquisitions in the trace's order (the sync
+    log, a single construct's winner first within each of its instances): None without a sync
+    log, else [(proc, fails, locks)] with fails [(name, n, inside)] and locks [(lid, entries,
+    hard)], entries [(name, n, seq, flag)] and hard the number of them up to the first that
+    lies beyond the horizon cut (lock_gates says when one does). issued: per chain, the record
+    at its cut that the horizon issues without completing it (a blocking send, check's
+    issued), whose acquisitions before it lie in the horizon too."""
     from bisect import bisect_right
     sync = t.__dict__.get("_stretto_sync")
     if not sync:
@@ -939,16 +979,19 @@ def lock_gates(t, cut, stops=frozenset()) -> Optional[List[str]]:
             if ch is None:
                 return True
             c = cut.get(ch, len(seqs[ch])) if isinstance(cut, dict) else cut[ch]
+            if issued and issued.get(ch) == c:
+                c += 1
             j = bisect_right(seqs[ch], seq)
             return j < c or (j == c and c > 0 and (ch, c) not in stops)
 
+        fails = []
         locks: Dict[int, list] = {}
         for lid, name, n, seq, flag in rows:
             if flag == "f":
-                if inside(name, seq):
-                    out.append(f"{proc}:{name}#{n}!")
+                fails.append((name, n, inside(name, seq)))
                 continue
             locks.setdefault(lid, []).append((name, n, seq, flag))
+        lists = []
         for lid, seqn in locks.items():
             if any(e[3] == "l" for e in seqn):
                 k: Counter = Counter()
@@ -957,9 +1000,50 @@ def lock_gates(t, cut, stops=frozenset()) -> Optional[List[str]]:
                     inst.append(k[e[0]])
                     k[e[0]] += 1
                 seqn = [e for _, e in sorted(zip(inst, seqn), key=lambda p: (p[0], p[1][3] == "l"))]
-            listed = list(itertools.takewhile(lambda e: inside(e[0], e[2]), seqn))
-            if listed:
-                out.append(f"{proc}:" + ">".join(f"{e[0]}#{e[1]}{'t' if e[3] == 't' else ''}" for e in listed))
+            hard = sum(1 for _ in itertools.takewhile(lambda e: inside(e[0], e[2]), seqn))
+            lists.append((lid, seqn, hard))
+        out.append((proc, fails, lists))
+    return out
+
+
+def _lock_entry(e) -> str:
+    return f"{e[0]}#{e[1]}{'t' if e[3] == 't' else ''}"
+
+
+def lock_gates(t, cut, stops=frozenset(), issued=None) -> Optional[List[str]]:
+    """The STRETTO_PIN_LOCK tokens of trace t over the horizon cut: per lock, its acquisitions
+    in the trace's order up to the first that lies beyond the horizon, as
+    "proc:chain#n>chain#n...", a condition wait that timed out marked "t"; each try in the
+    horizon that failed as "proc:chain#n!". An acquisition lies in the horizon when the record
+    its chain writes next does, or when the record before it does and the chain is not cut right
+    after that record by a changed receive (stops: (chain, cut) of each such cut; rule 1 cuts
+    the synchronisation after the receive, rule 8 a later record whose own predecessors are
+    missing); a chain without records is not cut. A single construct's attempts come winner
+    first within each of its instances. None when the trace has no sync log (with_sync).
+    issued: the records the horizon issues at the cut (_lock_lists)."""
+    return lock_tokens(t, cut, stops, issued=issued)
+
+
+def lock_tokens(t, cut, stops=frozenset(), tail: bool = False, tail_fails: bool = False,
+                issued=None) -> Optional[List[str]]:
+    """lock_gates, and (docs/threads.md, section 19) with tail each lock's acquisitions beyond
+    the horizon after them as its soft tail ("...>~chain#n>..."), which the replay follows where
+    the run still does; with tail_fails also the failed tries beyond the horizon."""
+    lists = _lock_lists(t, cut, stops, issued)
+    if lists is None:
+        return None
+    out = []
+    for proc, fails, locks in lists:
+        out += [f"{proc}:{name}#{n}!" for name, n, inside in fails if inside or tail_fails]
+        for lid, seqn, hard in locks:
+            head = list(seqn[:hard])
+            rest = seqn[hard:] if tail else []
+            if not head and not rest:
+                continue
+            text = ">".join(_lock_entry(e) for e in head)
+            if rest:
+                text += (">" if text else "") + "~" + ">".join(_lock_entry(e) for e in rest)
+            out.append(f"{proc}:{text}")
     return out
 
 
@@ -1160,6 +1244,9 @@ def _horizon(t, f: Finding, B=None, infeasible_ok: bool = False, M=None, changed
         return out
 
     return specs(True), specs(False), required
+
+
+
 
 
 def parse_pins(pins) -> Tuple[Dict[Tuple[int, int], Tuple[int, Optional[int]]], Dict[Tuple[int, int], Tuple[int, Optional[int]]]]:
@@ -1712,9 +1799,12 @@ def run_checked(np: int, exe: str, args: List[str], pin, timeout: int = 20, mpi:
     the replay's trace with KEEP_TRACES set (stretto.keep), whatever its verdict, with the same
     note and the run's stdout in replay.txt."""
     tracer = tracer_lib(mpi)
-    if any(a.startswith(("STRETTO_PIN_ORDER=", "STRETTO_PIN_LOCK=")) for a in ([pin] if isinstance(pin, str) else (pin or []))):
-        # a gate gives up before the run's own timeout, so that a closed one is told from a hang
-        extra_env = {"STRETTO_GATE_TIMEOUT_MS": str(int(timeout * 800)), **(extra_env or {})}
+    assignments = [pin] if isinstance(pin, str) else (pin or [])
+    if any(a.startswith(("STRETTO_PIN_ORDER=", "STRETTO_PIN_LOCK=")) for a in assignments):
+        # a gate gives up before the run's own timeout, so that a closed one is told from a hang;
+        # one that stays closed while nothing moves gives way first (docs/threads.md, section 19)
+        extra_env = {"STRETTO_GATE_TIMEOUT_MS": str(int(timeout * 800)), "STRETTO_GATE_YIELD_MS": str(GATE_YIELD_MS),
+                     **(extra_env or {})}
     if not os.path.exists(tracer):
         r = run_pinned(np, exe, args, pin, timeout, mpi, mpirun_args, extra_env, cwd)
         res = classify_rc(r.returncode, r.stderr, r.elapsed, timeout)
@@ -1751,6 +1841,8 @@ def run_checked(np: int, exe: str, args: List[str], pin, timeout: int = 20, mpi:
 
 
 PIN_INLINE_MAX = 16 * 1024
+# how long a gate waits while nothing on its rank moves before it gives way (replay/pin.h)
+GATE_YIELD_MS = int(os.environ.get("STRETTO_GATE_YIELD_MS", "1000"))
 
 
 def pin_assignment(assignment: str, d: str) -> str:

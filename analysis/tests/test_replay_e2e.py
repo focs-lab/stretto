@@ -6,6 +6,7 @@ setting of experiments/run_remaining.sh tests, which builds and traces first).
    cd analysis && python3 -m unittest tests.test_replay_e2e"""
 import glob
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -623,6 +624,46 @@ class Threads(unittest.TestCase):
                     self.assertIn("STRETTO_PIN_LOCK=", c.pin)
                     self.assertEqual(c.verdict, "confirmed", (n, c))
                     self.assertEqual(c.control, "FINISHED")
+
+
+class Yields(unittest.TestCase):
+    """A gate that cannot open (docs/threads.md, section 19): without STRETTO_GATE_YIELD_MS it
+    ends the run at its timeout (exit 87); with it the gate gives way once nothing on its rank
+    moves, the run goes on, and the line says so; a soft gate gives way after
+    STRETTO_GATE_SOFT_MS whatever moves. Idiom 20's replay with a gate on a receive its other
+    thread never posts."""
+
+    def pins(self):
+        from stretto import report, trace
+        exe, tdir = idiom(self, 20)
+        t = trace.load(tdir)
+        f = next(f for f in report.analyze(t, with_sp=False).findings if f.level == "L1" and f.recv is not None)
+        alt, _, required = C._horizon(t, f)
+        return exe, alt, required
+
+    def with_gate(self, alt, gate):
+        out = [x + "," + gate if x.startswith("STRETTO_PIN_ORDER=") else x for x in alt]
+        return out if any(x.startswith("STRETTO_PIN_ORDER=") for x in alt) else out + ["STRETTO_PIN_ORDER=" + gate]
+
+    def test_a_stalled_gate_gives_way(self):
+        exe, alt, required = self.pins()
+        pins = self.with_gate(alt, "0:0.1#r#50<0.0#s#0")
+        stuck = C.run_checked(3, exe, [], pins, 30, extra_env={"STRETTO_GATE_YIELD_MS": "0", "STRETTO_GATE_TIMEOUT_MS": "2000"})
+        # the gate times out and ends the run (Open MPI's abort can outlast the run's timeout)
+        self.assertIn("gate timed out", stuck.proc.stderr, stuck.proc.stderr[-800:])
+        self.assertIn(stuck.result, (f"APP-ERROR:{C.GATE_TIMEOUT}", "TIMEOUT"), stuck.proc.stderr[-800:])
+        r = C.run_checked(3, exe, [], pins, 30, extra_env={"STRETTO_GATE_YIELD_MS": "300"})
+        self.assertEqual(r.result, "FINISHED", r.proc.stderr[-800:])
+        hard, soft = C.gates_yielded(r.proc.stderr)
+        self.assertEqual((hard >= 1, soft), (True, 0), r.proc.stderr[-800:])
+        self.assertEqual(r.misapplied, [])
+
+    def test_a_soft_gate_gives_way_after_its_bound(self):
+        exe, alt, required = self.pins()
+        pins = self.with_gate(alt, "0:0.1#r#50<0.0#s#0~")
+        r = C.run_checked(3, exe, [], pins, 30, extra_env={"STRETTO_GATE_YIELD_MS": "0", "STRETTO_GATE_SOFT_MS": "300"})
+        self.assertEqual(r.result, "FINISHED", r.proc.stderr[-800:])
+        self.assertEqual(C.gates_yielded(r.proc.stderr), (0, 1), r.proc.stderr[-800:])
 
 
 if __name__ == "__main__":

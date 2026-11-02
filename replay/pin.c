@@ -560,8 +560,11 @@ HIDDEN void stretto_pin_before_recv(void) {
 const char *stretto_chain_name(void);   /* tracer/mpitrace.c; NULL in the replay library alone */
 
 #define CHAIN_NAME 160
-struct gate { char wchain[CHAIN_NAME]; int wkind, word; char pchain[CHAIN_NAME]; int pkind, pord; int reached; };
-struct cstate { char name[CHAIN_NAME]; int next[3], posted[3]; };
+/* soft: a gate beyond the horizon ("~" after the token), which follows the recorded order where
+   the run still does and gives way where it does not (docs/threads.md, section 19) */
+struct gate { char wchain[CHAIN_NAME]; int wkind, word; char pchain[CHAIN_NAME]; int pkind, pord; int reached, soft; };
+/* sdead: a soft gate waited for this chain in vain, and the soft gates that wait for it are open */
+struct cstate { char name[CHAIN_NAME]; int next[3], posted[3]; int sdead; };
 static struct pin *g_cpins = NULL;             /* this rank's chain pins, by (chain, idx) */
 static int g_ncpins = 0;
 static struct gate *g_gates = NULL;            /* this rank's gates, by (waiting chain, kind, ordinal) */
@@ -609,14 +612,92 @@ static void bad_token(const char *name, const char *tok) {
     PMPI_Abort(MPI_COMM_WORLD, 3);
 }
 
+/* ---- waiting at a gate (docs/threads.md, sections 11, 14 and 19). A gated thread holds its
+   thread: an OpenMP task that waits keeps its thread from the team, and a runtime's thread that
+   waits may be the one the operation it waits for needs (premise P-T7). A gate that stays closed
+   while nothing opens any gate of the rank therefore gives way: once STRETTO_GATE_YIELD_MS have
+   passed without an operation posted or a lock taken by any chain, the thread that has waited
+   longest goes on as if its gate had opened ("gate yielded"), and the others wait on, the period
+   starting again. Whether the replay still is the alternative is then for its own trace to say
+   (every required pin taken), as for any replay; the run is not ended. A soft gate (beyond the
+   horizon) also gives way after STRETTO_GATE_SOFT_MS of waiting, progress or not, and then
+   stops following the chain it waited for. A hard gate still closed after STRETTO_GATE_TIMEOUT_MS
+   ends the run as before. */
+struct waiter { unsigned long ticket; struct timespec since; struct waiter *next; };
+static struct waiter *g_waiters = NULL;      /* the threads waiting at gates (caller holds g_gmu) */
+static unsigned long g_ticket = 0;
+static struct timespec g_progress;           /* when a gate could last have opened */
+static long g_yield_ms = 0, g_soft_ms = 0;   /* 0: never */
+static int g_yields = 0, g_soft_yields = 0;
+static long ms_between(const struct timespec *a, const struct timespec *b) {
+    return (b->tv_sec - a->tv_sec) * 1000L + (b->tv_nsec - a->tv_nsec) / 1000000L;
+}
+static void progress_locked(void) { clock_gettime(CLOCK_REALTIME, &g_progress); }
+static void waiter_add(struct waiter *w) {
+    w->ticket = g_ticket++;
+    clock_gettime(CLOCK_REALTIME, &w->since);
+    w->next = g_waiters; g_waiters = w;
+}
+static void waiter_del(struct waiter *w) {
+    for (struct waiter **p = &g_waiters; *p; p = &(*p)->next)
+        if (*p == w) { *p = w->next; return; }
+}
+static int waiter_oldest(const struct waiter *w) {
+    for (const struct waiter *o = g_waiters; o; o = o->next) if (o->ticket < w->ticket) return 0;
+    return 1;
+}
+/* One slice of a wait on g_gcv (caller holds g_gmu, w registered), the gate still closed after
+   it: 0 wait on, 1 give way (soft: as a soft gate), -1 the hard deadline has passed. */
+static int gate_slice(struct waiter *w, const struct timespec *until, int soft) {
+    struct timespec now, dl;
+    clock_gettime(CLOCK_REALTIME, &now);
+    long slice = 1000;
+    if (g_yield_ms > 0 && g_yield_ms / 4 < slice) slice = g_yield_ms / 4 > 5 ? g_yield_ms / 4 : 5;
+    if (soft && g_soft_ms > 0 && g_soft_ms / 4 < slice) slice = g_soft_ms / 4 > 5 ? g_soft_ms / 4 : 5;
+    dl = now;
+    dl.tv_sec += slice / 1000; dl.tv_nsec += (slice % 1000) * 1000000L;
+    if (dl.tv_nsec >= 1000000000L) { dl.tv_sec++; dl.tv_nsec -= 1000000000L; }
+    if (dl.tv_sec > until->tv_sec || (dl.tv_sec == until->tv_sec && dl.tv_nsec > until->tv_nsec)) dl = *until;
+    pthread_cond_timedwait(&g_gcv, &g_gmu, &dl);
+    clock_gettime(CLOCK_REALTIME, &now);
+    if (soft && g_soft_ms > 0 && ms_between(&w->since, &now) >= g_soft_ms) return 1;
+    if (g_yield_ms > 0 && ms_between(&g_progress, &now) >= g_yield_ms && ms_between(&w->since, &now) >= g_yield_ms
+        && waiter_oldest(w)) {
+        g_progress = now;                     /* the next waiter waits a period of its own */
+        return 1;
+    }
+    if (now.tv_sec > until->tv_sec || (now.tv_sec == until->tv_sec && now.tv_nsec >= until->tv_nsec)) return soft ? 1 : -1;
+    return 0;
+}
+static int nwaiting_locked(void) {
+    int n = 0;
+    for (const struct waiter *o = g_waiters; o; o = o->next) n++;
+    return n;
+}
+/* the report of a gate that gave way (caller holds g_gmu) */
+static void yielded(const char *name, int soft, const struct waiter *w, const char *what) {
+    struct timespec now;
+    clock_gettime(CLOCK_REALTIME, &now);
+    if (soft) g_soft_yields++; else g_yields++;
+    fprintf(stderr, "[stretto-pin] rank %d chain %s: %sgate yielded after %ld ms: %s; %d thread(s) wait at gates\n", g_rank, name,
+            soft ? "soft " : "", ms_between(&w->since, &now), what, nwaiting_locked());
+}
 
-/* ---- lock gates (STRETTO_PIN_LOCK; docs/threads.md, section 14). The tracer numbers each
-   chain's attempts to take a lock (its sync log's ordinals) and asks before each one
+
+/* ---- lock gates (STRETTO_PIN_LOCK; docs/threads.md, sections 14 and 19). The tracer numbers
+   each chain's attempts to take a lock (its sync log's ordinals) and asks before each one
    (stretto_pin_lock) and after it (stretto_pin_locked). An attempt a token names waits until
    the attempt before it in the token has taken the lock; one no token names waits, if its lock
-   is one a token names, until all of that lock's listed acquisitions have happened. */
-struct lacq { int chain; long n; int lock, pos, pchain; long pn; char flag; };
-struct lseq { int len, done; const void *addr; };
+   is one a token names, until all of that lock's listed acquisitions of the horizon have
+   happened. The entries from one that starts with '~' on are the lock's tail beyond the horizon
+   (soft): they wait in the same way, but a soft entry that falls on another lock than the
+   token's, or that gives way (gate_slice), ends the following of that lock's tail ("lock tail
+   abandoned") instead of the run. */
+struct lacq { int chain; long n; int lock, pos, pchain; long pn; char flag; char soft, bad; };
+/* len: the listed acquisitions, hard of them the horizon's (the rest the soft tail); done and
+   hdone: how many of them, and of the horizon's, have happened; dead: the tail is no longer
+   followed */
+struct lseq { int len, hard, done, hdone, dead; const void *addr; };
 static struct lacq *g_lacq = NULL;           /* by (chain, n) */
 static int g_nlacq = 0;
 static struct lseq *g_lseq = NULL;
@@ -626,7 +707,7 @@ static long *g_ldone = NULL;                 /* per such chain: attempts finishe
 static int g_nlname = 0, g_caplname = 0;
 static struct { const void *addr; int lock; } *g_laddr = NULL;   /* address -> lock, open addressing */
 static int g_laddr_cap = 0;
-static int g_locks_on = 0, g_nwaiting = 0;
+static int g_locks_on = 0, g_ltails_dead = 0;
 
 static int lname_find(const char *name) {
     for (int i = 0; i < g_nlname; i++) if (strcmp(g_lname[i], name) == 0) return i;
@@ -679,8 +760,10 @@ static size_t laddr_slot(const void *addr) {
     return i;
 }
 
-/* "name#n", "name#nt" or "name#n!" at s: the chain, the ordinal and the flag */
-static int parse_lacq(char *s, struct lacq *a) {
+/* "[~]name#n[t|!]" at s: the chain, the ordinal, the flag and whether the tail starts here */
+static int parse_lacq(char *s, struct lacq *a, int *tail) {
+    *tail = *s == '~';
+    if (*tail) s++;
     char *hash = strrchr(s, '#'), *end = NULL;
     if (!hash || hash == s) return 0;
     *hash = '\0';
@@ -698,14 +781,17 @@ static void locks_init(int rank) {
         char *colon = strchr(tok, ':');
         if (!colon) bad_token("STRETTO_PIN_LOCK", tok);
         if (atoi(tok) != rank) continue;
-        int lock = g_nlseq++, pos = 0;
+        int lock = g_nlseq++, pos = 0, soft = 0, hard = -1;
         g_lseq = realloc(g_lseq, sizeof *g_lseq * g_nlseq);
         memset(&g_lseq[lock], 0, sizeof g_lseq[lock]);
         char *s2 = NULL;
         for (char *seg = strtok_r(colon + 1, ">", &s2); seg; seg = strtok_r(NULL, ">", &s2), pos++) {
             struct lacq a;
+            int tail = 0;
             memset(&a, 0, sizeof a);
-            if (!parse_lacq(seg, &a) || (a.flag == '!' && pos > 0)) bad_token("STRETTO_PIN_LOCK", seg);
+            if (!parse_lacq(seg, &a, &tail) || (a.flag == '!' && pos > 0)) bad_token("STRETTO_PIN_LOCK", seg);
+            if (tail && !soft) { soft = 1; hard = pos; }
+            a.soft = (char)soft;
             a.lock = a.flag == '!' ? -1 : lock;
             a.pos = pos;
             a.pchain = pos ? g_lacq[g_nlacq - 1].chain : -1;
@@ -714,6 +800,7 @@ static void locks_init(int rank) {
             g_lacq[g_nlacq++] = a;
         }
         g_lseq[lock].len = g_lacq[g_nlacq - 1].flag == '!' ? 0 : pos;
+        g_lseq[lock].hard = hard < 0 ? g_lseq[lock].len : hard;
     }
     free(spec);
     if (g_nlacq > 1) qsort(g_lacq, g_nlacq, sizeof *g_lacq, by_lacq);
@@ -735,18 +822,18 @@ static struct timespec deadline(void) {
     if (until.tv_nsec >= 1000000000L) { until.tv_sec++; until.tv_nsec -= 1000000000L; }
     return until;
 }
-/* a gate of the calling chain stayed closed (caller holds g_gmu): the run ends */
-static void lock_timeout(const char *name, long n, const char *what) {
-    fprintf(stderr, "[stretto-pin] rank %d chain %s: gate timed out: lock attempt a#%ld %s; %d thread(s) wait at gates\n",
-            g_rank, name, n, what, g_nwaiting);
-    fflush(stderr);
-    pthread_mutex_unlock(&g_gmu);
-    threads_abort(STRETTO_PIN_GATE_TIMEOUT);
+/* the soft tail of lock L is no longer followed (caller holds g_gmu) */
+static void tail_dead(struct lseq *L, const char *name, long n, const char *why) {
+    if (L->dead) return;
+    L->dead = 1;
+    g_ltails_dead++;
+    fprintf(stderr, "[stretto-pin] rank %d chain %s: lock tail abandoned at a#%ld: %s\n", g_rank, name, n, why);
+    pthread_cond_broadcast(&g_gcv);
 }
 
 HIDDEN int stretto_pin_lock(long n, const void *key, int is_try, int poll) {
     static __thread long t_pn = -1;               /* a polled attempt: when its polling began */
-    static __thread struct timespec t_pdl;
+    static __thread struct waiter t_pw;
     if (!g_locks_on) return STRETTO_LOCK_GO;
     int ci = lname_cur();
     const char *name = stretto_chain_name();
@@ -760,46 +847,87 @@ HIDDEN int stretto_pin_lock(long n, const void *key, int is_try, int poll) {
     if (e) L = &g_lseq[e->lock];
     else {
         int li = g_laddr[laddr_slot(key)].addr ? g_laddr[laddr_slot(key)].lock : -1;
-        if (li < 0 || g_lseq[li].done >= g_lseq[li].len) { pthread_mutex_unlock(&g_gmu); return STRETTO_LOCK_GO; }
+        if (li < 0 || g_lseq[li].hdone >= g_lseq[li].hard) { pthread_mutex_unlock(&g_gmu); return STRETTO_LOCK_GO; }
         L = &g_lseq[li];
     }
-    /* ready: the token's previous acquisition has happened (for an attempt no token names, all of them) */
-#define LOCK_READY() (e ? e->pos == 0 || g_ldone[e->pchain] > e->pn : L->done >= L->len)
+    if (e && e->soft && L->dead) { pthread_mutex_unlock(&g_gmu); return STRETTO_LOCK_GO; }
+    int soft = e && e->soft;
+    /* ready: the token's previous acquisition has happened (for an attempt no token names, all of
+       the horizon's); a soft entry also once its tail is abandoned */
+#define LOCK_READY() (e ? e->pos == 0 || g_ldone[e->pchain] > e->pn || (e->soft && L->dead) : L->hdone >= L->hard)
+#define LOCK_WHAT(buf) (e ? snprintf(buf, sizeof buf, "lock attempt a#%ld waits for a#%ld of chain %s, which has finished %ld", n, e->pn, \
+                                     g_lname[e->pchain], g_ldone[e->pchain]) \
+                          : snprintf(buf, sizeof buf, "lock attempt a#%ld (beyond the gates) waits for %d of its lock's %d listed acquisitions", \
+                                     n, L->hard - L->hdone, L->hard))
     if (!LOCK_READY()) {
+        char what[CHAIN_NAME + 128];
+        int gave_way = 0;
         if (poll) {
-            if (t_pn != n) { t_pn = n; t_pdl = deadline(); }
+            /* a condition wait asks again every few ms (cond_turn); it counts as waiting from its first ask */
+            if (t_pn != n) { t_pn = n; t_pw.ticket = g_ticket++; clock_gettime(CLOCK_REALTIME, &t_pw.since); }
             struct timespec now;
             clock_gettime(CLOCK_REALTIME, &now);
-            if (now.tv_sec > t_pdl.tv_sec || (now.tv_sec == t_pdl.tv_sec && now.tv_nsec >= t_pdl.tv_nsec)) {
-                char what[CHAIN_NAME + 64];
-                if (e) snprintf(what, sizeof what, "waits for a#%ld of chain %s, which has finished %ld", e->pn, g_lname[e->pchain], g_ldone[e->pchain]);
-                else snprintf(what, sizeof what, "(beyond the gates) waits for %d of its lock's %d listed acquisitions", L->len - L->done, L->len);
-                lock_timeout(name, n, what);
+            long waited = ms_between(&t_pw.since, &now);
+            if ((soft && g_soft_ms > 0 && waited >= g_soft_ms)
+                || (g_yield_ms > 0 && waited >= g_yield_ms && ms_between(&g_progress, &now) >= g_yield_ms)
+                || (soft && waited >= g_gate_ms)) {
+                if (!soft) g_progress = now;
+                LOCK_WHAT(what);
+                yielded(name, soft, &t_pw, what);
+                gave_way = 1;
+            } else if (waited >= g_gate_ms) {
+                LOCK_WHAT(what);
+                fprintf(stderr, "[stretto-pin] rank %d chain %s: gate timed out: %s; %d thread(s) wait at gates\n", g_rank, name, what,
+                        nwaiting_locked() + 1);
+                fflush(stderr);
+                pthread_mutex_unlock(&g_gmu);
+                threads_abort(STRETTO_PIN_GATE_TIMEOUT);
+            } else {
+                pthread_mutex_unlock(&g_gmu);
+                return STRETTO_LOCK_NOTYET;
             }
-            pthread_mutex_unlock(&g_gmu);
-            return STRETTO_LOCK_NOTYET;
+        } else {
+            struct timespec until = deadline();
+            struct waiter w;
+            waiter_add(&w);
+            while (!LOCK_READY()) {
+                int rc = gate_slice(&w, &until, soft);
+                if (rc == 0 || LOCK_READY()) continue;
+                LOCK_WHAT(what);
+                if (rc < 0) {
+                    waiter_del(&w);
+                    fprintf(stderr, "[stretto-pin] rank %d chain %s: gate timed out: %s; %d thread(s) wait at gates\n", g_rank, name, what,
+                            nwaiting_locked() + 1);
+                    fflush(stderr);
+                    pthread_mutex_unlock(&g_gmu);
+                    threads_abort(STRETTO_PIN_GATE_TIMEOUT);
+                }
+                yielded(name, soft, &w, what);
+                gave_way = 1;
+                break;
+            }
+            waiter_del(&w);
         }
-        struct timespec until = deadline();
-        g_nwaiting++;
-        while (!LOCK_READY())
-            if (pthread_cond_timedwait(&g_gcv, &g_gmu, &until) != 0 && !LOCK_READY()) {
-                char what[CHAIN_NAME + 64];
-                if (e) snprintf(what, sizeof what, "waits for a#%ld of chain %s, which has finished %ld", e->pn, g_lname[e->pchain], g_ldone[e->pchain]);
-                else snprintf(what, sizeof what, "(beyond the gates) waits for %d of its lock's %d listed acquisitions", L->len - L->done, L->len);
-                lock_timeout(name, n, what);
-            }
-        g_nwaiting--;
+        if (gave_way && soft) tail_dead(L, name, n, "its turn did not come");
     }
 #undef LOCK_READY
+#undef LOCK_WHAT
     t_pn = -1;
-    if (e && e->pos == 0) {                       /* the lock's first acquisition names its address */
+    if (e && !L->addr && !(soft && L->dead)) {   /* the lock's first acquisition (or the first to come) names its address */
         L->addr = key;
         size_t i = laddr_slot(key);
         g_laddr[i].addr = key;
         g_laddr[i].lock = e->lock;
-    } else if (e && L->addr != key) {
+    }
+    if (e && L->addr != key) {
+        if (soft) {
+            e->bad = 1;
+            tail_dead(L, name, n, "it takes another lock than the trace's");
+            pthread_mutex_unlock(&g_gmu);
+            return STRETTO_LOCK_GO;
+        }
         fprintf(stderr, "[stretto-pin] rank %d chain %s: lock pin a#%ld misapplied: it takes another lock than a#%ld of chain %s\n",
-                g_rank, name, n, e->pn, g_lname[e->pchain]);
+                g_rank, name, n, e->pn, e->pchain >= 0 ? g_lname[e->pchain] : "?");
         fflush(stderr);
         pthread_mutex_unlock(&g_gmu);
         threads_abort(STRETTO_PIN_MISAPPLIED);
@@ -812,22 +940,33 @@ HIDDEN int stretto_pin_lock(long n, const void *key, int is_try, int poll) {
 HIDDEN void stretto_pin_locked(long n, int ok) {
     if (!g_locks_on) return;
     int ci = lname_cur();
-    if (ci < 0) return;
     pthread_mutex_lock(&g_gmu);
-    if (g_ldone[ci] < n + 1) g_ldone[ci] = n + 1;
-    struct lacq *e = lacq_find(ci, n);
-    if (e && e->lock >= 0 && ok) g_lseq[e->lock].done++;
+    progress_locked();
+    if (ci >= 0) {
+        if (g_ldone[ci] < n + 1) g_ldone[ci] = n + 1;
+        struct lacq *e = lacq_find(ci, n);
+        if (e && e->lock >= 0 && ok && !e->bad) {
+            g_lseq[e->lock].done++;
+            if (!e->soft) g_lseq[e->lock].hdone++;
+        }
+    }
     pthread_cond_broadcast(&g_gcv);
     pthread_mutex_unlock(&g_gmu);
 }
 
 static void locks_finalize(void) {
     if (!g_locks_on) return;
-    int reached = 0, listed = 0;
+    int reached = 0, listed = 0, treached = 0, tlisted = 0;
     pthread_mutex_lock(&g_gmu);
-    for (int i = 0; i < g_nlseq; i++) { reached += g_lseq[i].done; listed += g_lseq[i].len; }
+    for (int i = 0; i < g_nlseq; i++) {
+        reached += g_lseq[i].hdone; listed += g_lseq[i].hard;
+        treached += g_lseq[i].done - g_lseq[i].hdone; tlisted += g_lseq[i].len - g_lseq[i].hard;
+    }
     pthread_mutex_unlock(&g_gmu);
     fprintf(stderr, "[stretto-pin] rank %d: lock gates: %d of %d listed acquisitions reached\n", g_rank, reached, listed);
+    if (tlisted)
+        fprintf(stderr, "[stretto-pin] rank %d: lock tails: %d of %d acquisitions beyond the horizon followed, %d tail(s) abandoned\n",
+                g_rank, treached, tlisted, g_ltails_dead);
 }
 
 static void chains_init(int rank) {
@@ -856,11 +995,12 @@ static void chains_init(int rank) {
     for (char *tok = spec ? strtok_r(spec, ", \n", &save) : NULL; tok; tok = strtok_r(NULL, ", \n", &save)) {
         struct gate g;
         char pk, wk;
-        int r;
+        int r, used = 0;
         memset(&g, 0, sizeof g);
-        if (sscanf(tok, "%d:%159[^#]#%c#%d<%159[^#]#%c#%d", &r, g.pchain, &pk, &g.pord, g.wchain, &wk, &g.word) != 7
-            || (g.pkind = kind_of(pk)) < 0 || (g.wkind = kind_of(wk)) < 0)
+        if (sscanf(tok, "%d:%159[^#]#%c#%d<%159[^#]#%c#%d%n", &r, g.pchain, &pk, &g.pord, g.wchain, &wk, &g.word, &used) != 7
+            || (g.pkind = kind_of(pk)) < 0 || (g.wkind = kind_of(wk)) < 0 || (tok[used] && strcmp(tok + used, "~") != 0))
             bad_token("STRETTO_PIN_ORDER", tok);
+        g.soft = tok[used] == '~';               /* beyond the horizon: follows the run where it can */
         if (r != rank) continue;
         if (g_ngates == cap) { cap = cap ? 2 * cap : 16; g_gates = realloc(g_gates, sizeof *g_gates * cap); }
         g_gates[g_ngates++] = g;
@@ -869,6 +1009,10 @@ static void chains_init(int rank) {
     if (g_ngates > 1) qsort(g_gates, g_ngates, sizeof *g_gates, by_waiter);
     const char *ms = getenv("STRETTO_GATE_TIMEOUT_MS");
     if (ms) g_gate_ms = atol(ms);
+    if ((ms = getenv("STRETTO_GATE_YIELD_MS"))) g_yield_ms = atol(ms);
+    g_soft_ms = g_yield_ms;
+    if ((ms = getenv("STRETTO_GATE_SOFT_MS"))) g_soft_ms = atol(ms);
+    progress_locked();
     locks_init(rank);
     g_chains_on = g_ncpins > 0 || g_ngates > 0 || g_locks_on || getenv("STRETTO_PIN_CHAIN") || getenv("STRETTO_PIN_ORDER")
                   || getenv("STRETTO_PIN_LOCK");
@@ -879,6 +1023,9 @@ static void chains_init(int rank) {
     }
     if (g_ncpins || g_ngates)
         fprintf(stderr, "[stretto-pin] rank %d: %d chain pin(s), %d gate(s) active\n", rank, g_ncpins, g_ngates);
+    if (g_yield_ms > 0 && (g_ngates || g_locks_on))
+        fprintf(stderr, "[stretto-pin] rank %d: gates give way after %ld ms without progress (soft gates after %ld ms)\n", rank,
+                g_yield_ms, g_soft_ms);
 }
 
 /* The state of a chain, created at its first use (caller holds g_gmu). */
@@ -890,6 +1037,12 @@ static struct cstate *chain_state(const char *name) {
     memset(c, 0, sizeof *c);
     snprintf(c->name, sizeof c->name, "%s", name);
     return c;
+}
+
+/* Is gate g open? A soft gate also when the chain it waits for is no longer followed. */
+static int gate_open_locked(const struct gate *g) {
+    const struct cstate *p = chain_state(g->pchain);
+    return p->posted[g->pkind] > g->pord || (g->soft && p->sdead);
 }
 
 HIDDEN int stretto_pin_gate(int kind, int skip) {
@@ -905,32 +1058,33 @@ HIDDEN int stretto_pin_gate(int kind, int skip) {
         int mid = (lo + hi) / 2;
         if (gate_cmp(g_gates[mid].wchain, g_gates[mid].wkind, g_gates[mid].word, name, kind, ord) < 0) lo = mid + 1; else hi = mid;
     }
-    struct timespec until;
-    clock_gettime(CLOCK_REALTIME, &until);
-    until.tv_sec += g_gate_ms / 1000;
-    until.tv_nsec += (g_gate_ms % 1000) * 1000000L;
-    if (until.tv_nsec >= 1000000000L) { until.tv_sec++; until.tv_nsec -= 1000000000L; }
+    struct timespec until = deadline();
     for (int i = lo; i < g_ngates && gate_cmp(g_gates[i].wchain, g_gates[i].wkind, g_gates[i].word, name, kind, ord) == 0; i++) {
         struct gate *g = &g_gates[i];
         g->reached = 1;
-        for (;;) {
+        if (gate_open_locked(g)) continue;
+        struct waiter w;
+        waiter_add(&w);
+        while (!gate_open_locked(g)) {
+            int rc = gate_slice(&w, &until, g->soft);
+            if (rc == 0 || gate_open_locked(g)) continue;
             struct cstate *p = chain_state(g->pchain);
-            c = chain_state(name);               /* chain_state may move the table */
-            if (p->posted[g->pkind] > g->pord) break;
-            g_nwaiting++;
-            int rc = pthread_cond_timedwait(&g_gcv, &g_gmu, &until);
-            g_nwaiting--;
-            if (rc != 0) {
-                p = chain_state(g->pchain);
-                if (p->posted[g->pkind] > g->pord) break;
-                fprintf(stderr, "[stretto-pin] rank %d chain %s: gate timed out: %c#%d waits for %c#%d of chain %s, which has posted %d; "
-                        "%d thread(s) wait at gates\n",
-                        g_rank, name, KIND[kind], ord, KIND[g->pkind], g->pord, g->pchain, p->posted[g->pkind], g_nwaiting);
+            char what[2 * CHAIN_NAME + 64];
+            snprintf(what, sizeof what, "%c#%d waits for %c#%d of chain %s, which has posted %d", KIND[kind], ord, KIND[g->pkind], g->pord,
+                     g->pchain, p->posted[g->pkind]);
+            if (rc < 0) {
+                waiter_del(&w);
+                fprintf(stderr, "[stretto-pin] rank %d chain %s: gate timed out: %s; %d thread(s) wait at gates\n", g_rank, name, what,
+                        nwaiting_locked() + 1);
                 fflush(stderr);
                 pthread_mutex_unlock(&g_gmu);
                 threads_abort(STRETTO_PIN_GATE_TIMEOUT);
             }
+            yielded(name, g->soft, &w, what);
+            if (g->soft) { p->sdead = 1; pthread_cond_broadcast(&g_gcv); }
+            break;
         }
+        waiter_del(&w);
     }
     pthread_mutex_unlock(&g_gmu);
     if (kind == STRETTO_OP_RECV) t_cord = ord;
@@ -950,7 +1104,7 @@ HIDDEN int stretto_pin_gate_open(int kind, int skip) {
         if (gate_cmp(g_gates[mid].wchain, g_gates[mid].wkind, g_gates[mid].word, name, kind, ord) < 0) lo = mid + 1; else hi = mid;
     }
     for (int i = lo; open && i < g_ngates && gate_cmp(g_gates[i].wchain, g_gates[i].wkind, g_gates[i].word, name, kind, ord) == 0; i++)
-        open = chain_state(g_gates[i].pchain)->posted[g_gates[i].pkind] > g_gates[i].pord;
+        open = gate_open_locked(&g_gates[i]);
     pthread_mutex_unlock(&g_gmu);
     return open;
 }
@@ -962,6 +1116,7 @@ HIDDEN void stretto_pin_posted(int kind, int ord) {
     pthread_mutex_lock(&g_gmu);
     struct cstate *c = chain_state(name);
     if (c->posted[kind] < ord + 1) c->posted[kind] = ord + 1;
+    progress_locked();
     pthread_cond_broadcast(&g_gcv);
     pthread_mutex_unlock(&g_gmu);
 }
@@ -1024,6 +1179,10 @@ static void chain_pin_matched(int i, int comm_src) {
 
 static void chains_finalize(void) {
     locks_finalize();
+    pthread_mutex_lock(&g_gmu);
+    int hy = g_yields, sy = g_soft_yields;
+    pthread_mutex_unlock(&g_gmu);
+    if (hy || sy) fprintf(stderr, "[stretto-pin] rank %d: gates yielded: %d hard, %d soft\n", g_rank, hy, sy);
     for (int i = 0; i < g_ncpins; i++)
         if (!g_cpins[i].used) {
             pthread_mutex_lock(&g_gmu);
