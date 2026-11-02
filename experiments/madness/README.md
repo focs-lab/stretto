@@ -96,7 +96,7 @@ backtraces name its callers, and every receive at the site with an alternative i
 runtime's preposted ones: `MPI_ANY_SOURCE`, tag 1023, 1 572 864 bytes, posted by
 `RMI::RmiTask::post_recv_buf` (`worldrmi.cc:203`), 128 per rank from `RmiTask`'s constructor in
 `madness::initialize` (`worldrmi.cc:318`, `world.cc:222`; chain `0`, the main thread) and again,
-as each completes, from `RmiTask::process_some` (`worldrmi.cc:115`; chain `0.1`). The other
+as each completes, from `RmiTask::process_some` (`worldrmi.cc:115`; chain `0.1`, the server thread). The other
 receives at that line (fences' `WorldGopInterface::fence_impl` and `broadcast`, `worldgop.cc:71`,
 `:203`) name their source and use tags 1024-1029, and have no alternative.
 
@@ -121,3 +121,64 @@ reposted by the communication thread take one rank's messages in another order t
 sent? O1, does the cycle run through the wildcard receives (GA's O2 shape)? O2, what lock does
 `Test_got_lock_already` assume, and does the tracer see it? Why no alternative at 2 ranks and in
 the fences?
+
+**The large traces** (`big.sh`, scripts of 7fdfcb7, 16:51-17:30 +08, finished after the
+pre-registration and before any verdict below was written; [big-openmpi.csv](big-openmpi.csv),
+[big-mpich.csv](big-mpich.csv)): one run each of `test_cloud` and `test_dc` on 4 ranks and of
+`test_halo` and `test_mul_sparse` on 2, both MPIs, traced up to 700 MB (97-492 MB) and judged by
+`targeted.py` (census and a sample of 100): steals at the same preposted receives only, 1 455 and
+1 537 candidates in `test_cloud` (the reposting thread is `0.16` there), 275 and 589 in `test_dc`,
+of the 400 judged 184 accepted (all 1f) and 216 rejected; none in the 2-rank traces. MPICH's
+2-rank `test_world` was left out (its traced run needs more than the 9 GB the container had: a
+first attempt was killed by memory and its core dump briefly brought the disk to 10 GB free),
+and `test_eval` and `test_vectormacrotask` (above 700 MB) were not traced again.
+
+## Verdicts (after the pre-registration, from reading the code at the sites)
+
+Read from 17:10 +08: `src/madness/world/worldrmi.cc` and `worldrmi.h` (the server's loop, its
+receive buffers, `isend` and the huge-message protocol), `worldam.h` (the managed send buffers),
+`worldgop.cc` (`fence_impl`), `world.h` and `thread.h` (`World::await`), `safempi.h` (`Request`)
+and `worldmutex.h` (`Spinlock`); and, for O2, gdb at `MPI_Test` in untraced runs of `test_tree`
+with MPICH (thread and request handle of each call). Line numbers are those of 64eaf80.
+
+| # | Verdict | Why |
+|---|---|---|
+| S1 | harmless by design | the server preposts 128 identical buffers (`post_recv_buf`, `worldrmi.cc:201-213`: `MPI_ANY_SOURCE`, `RMI_TAG` 1023) and dispatches each arrival on its header (`process_some`, `:60-180`). An active message is unordered (tasks and remote method calls, `world_task_queue.h:436`, `world_object.h:772`, the reduction trees of `worldgop.h`) or ordered (the default of `WorldAmInterface::send`, `worldam.h:279`); an ordered one carries a per-destination counter stamped under the RMI mutex that encloses the send (`isend`, `worldrmi.cc:456-470`), and the server runs it only when its counter is the source's next, queueing the others and sorting the queue by source and counter (`:105-165`). Which buffer takes which rank's message, or which of two arrivals is processed first, therefore changes nothing that the runtime promises: ordered messages run in send order per source whatever the buffers, unordered ones carry no order. The queue cannot overflow (`maxq_` is the number of buffers plus one, and each queued message holds its buffer until it runs). Huge messages are announced by an unordered message and received from the named source with a unique tag (`:419-442`, `:183-199`). Fences count sent and received messages (`fence_impl`, `worldgop.cc:55-150`), not their order. None at 2 ranks because a rank's only other source keeps MPI's per-source order |
+| O1 | **tool false alarm** (a limit of the observed 2-buffering class) | the cycle runs through the server's wildcard receives (checked in the reports of `test_tree` on 2 ranks and `test_hashdc` on 4, Open MPI: an `irecv` with `MPI_ANY_SOURCE` and tag 1023 on both chains of the cycle); with rendezvous sends the server takes another message first, and no sender blocks on a receive that is not preposted. GA's O2 shape. Untraced runs of `test_tree` and `test_dc` (2 ranks), `test_hashdc` (4) and `test_cloud` (2), Open MPI, 5 each at the defaults and 5 over TCP at 0 eager payload bytes (`eager.sh`, [eager-openmpi.csv](eager-openmpi.csv)): 40 of 40 passed, none hung |
+| O2 | **tool false alarm** (tracer) | the two `MPI_Test`s are of two requests with one handle value: gdb shows the main thread (in `World::await` and `free_managed_buffers`) and the server thread (`clear_send_req`) testing handle `0x6c000001`, which is MPICH's builtin handle for a send request that completed at once (a lightweight request; `HANDLE_KIND_BUILTIN`), shared by every such request. The tracer names requests by handle value, so two distinct completed sends became one request tested by two chains. Open MPI returns distinct handles, hence MPICH only. Not fixed here (the tracer would have to treat MPICH's builtin request handles as completed at creation); recorded in docs/findings.md. The managed send buffers themselves are tested under their own spin lock (`SendReq`, `worldam.h:218-236`, `:354-363`), which the tracer records |
+| O3 | not a bug of the program here | runs killed by the container's memory cap (the 4-rank `test_world`) or by the 300 s limit of a test that is slow under the tracer (`test_hashthreaded`, 47-59 s untraced) |
+
+**Forced replays of S1** (`replay.sh`, [replay-openmpi.csv](replay-openmpi.csv), Open MPI, the
+instrumented build): 2 new traced runs each of `test_hashdc`, `test_worldptr` and `test_future3`
+on 4 ranks with the lock order recorded (`STRETTO_SYNC_ORDER=1`), 4 sampled 1f alternatives per
+trace, each replayed once with its control: all 24 inconclusive (`replay_verdicts.py`). 23 replays
+and their 23 controls ended on a misapplied lock pin (exit 86: a chain's attempt at a given
+ordinal took another lock than in the trace), and one alternative had no horizon to pin. MADNESS's pool takes tasks from its
+own queues and its threads take their locks in an order that depends on that schedule, so a
+replay cannot follow the trace's lock order (premise P-T5 fails for the pool, as for DLA-Future's
+pika, docs/threads.md section 16; and the lock gates do not order atomics, section 17.3). The
+harmlessness of S1 rests on the reading above, not on replays.
+
+## What the tool did here
+
+No bug found, by the tool or by reading. The tool's predictions are all of one kind, steals at
+the active-message server's 128 preposted `MPI_ANY_SOURCE` receives on 4 ranks (2 to 65 per
+trace in full analyses, 116 to 21 141 candidates per trace where the analysis was cut short), and
+the runtime is built for them: ordered messages carry a per-source counter and are run in that
+order whatever the buffer, unordered ones promise no order. This is GA's S1 again, with the
+order kept by counters instead of by named follow-up receives. The tool's observed classes were
+false alarms twice: an observed `2-buffering` whose cycle runs through those wildcard receives
+(GA's O2), and a `2-thread-wait` that MPICH's shared handle for requests completed at creation
+made out of two distinct requests. MADNESS needed two tool changes to be traced at all (a lock's
+clock freed with the lock, and three analysis costs) and is beyond the analysis at its own test
+sizes: traces of 4 ranks have up to 21 000 candidates each, judged here by sample, and its
+largest tests (`test_eval`, `test_vectormacrotask`, `test_world`) write more than 600 MB.
+
+## Files
+
+`Dockerfile`, `build.sh` (MADNESS with both MPIs, gcc or, with `TSAN=1`, clang with the atomics
+instrumented), `scan.sh` and `scan_csv.py` (the scan and its tables
+`scan-{openmpi,mpich}-{runs,sites}.csv`), `summary.py` (findings by site and class),
+`targeted.py`, `targeted.sh`, `big.sh` and `targeted_summary.py` (the census and the sampled
+judgement: `targeted-{openmpi,mpich}.csv`, and `big-{openmpi,mpich}.csv` for the large traces),
+`eager.sh` (`eager-openmpi.csv`), `replay.sh` (`replay-openmpi.csv`).

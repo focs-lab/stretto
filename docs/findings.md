@@ -57,6 +57,7 @@ and compact result tables: [experiments/latent](../experiments/latent/README.md)
 | GA bd1149f `threadsafec`, the main threads' reply receives (comex.c:4027, 4102, 3937) | GA's own mutex holds each request with its preposted reply receive, so replies from a node arrive in the order of the receives | no candidate at L1; at L1+L 12 800 candidates in 12 traces, all rejected (`targeted.csv`) |
 | Smilei 61aa917 patch exchanges of fields and particles (`Patch::initExchange`, `initSumField`, `exchNbrOfParticles`, Patch.cpp; OpenMP threads post and complete them) | every tag is the sender patch's Hilbert index, a direction digit and a field digit in decimal (`buildtag`, Patch.h:485-502), distinct among the exchanges in flight between two ranks (fields sharing a digit go one after another); receives name source and tag; the phases are separated by the barriers of their `omp for` loops | blind scan: 408 complete traces of 82 benchmarks (Open MPI) and 54 (MPICH), 4 ranks of 2 threads: no alternative at L1, no wildcard or probe |
 | Athena++ 053bc73 boundary and AMR exchanges and the FFT remap (`remap_3d.cpp:109`, `MPI_Waitany`) | tags pack the destination block's local id with the buffer and physics (`CreateBvalsMPITag`) or the child offsets (`CreateAMRMPITag`), distinct among messages in flight; every remap receive has its own buffer and output offset, so the `Waitany` order is free; the `MPI_Iprobe(ANY, ANY)` calls only push progress | blind scan, 2 threads per rank: no finding but 408 `waitany-order` per 4-rank `fft` trace; read after the pre-registration |
+| MADNESS 64eaf80 active-message server, 128 preposted `Irecv(ANY_SOURCE, 1023)` (`RmiTask::post_recv_buf`, worldrmi.cc:203), posted by the main thread and reposted by the server thread | ordered messages carry a per-destination counter stamped under the RMI mutex around the send, and the server runs them in counter order per source whatever the buffer (`process_some`, worldrmi.cc:60-180); unordered ones promise no order; fences count messages | blind scan, 4 ranks, atomics recorded: steals in every 4-rank trace with traffic (2-65 per trace; 253 206 candidates in 30 traces cut short, 1 274 of a sample of 3 000 accepted); read after the pre-registration; forced replays inconclusive (the pool's lock order is the schedule's) |
 | SLATE 878439b `ttmqr` (internal_ttmqr.cc:155-189): a freed tile `Isend`, then an `Irecv` into the same tile | the two are not ordered (the program cannot know when a freed send ends), but the peer sends the tile back only after receiving it, so the first transfer ends before the second starts at every eager threshold | `geqrf` tester traced with buffer ranges (`STRETTO_BUFS=1`, 2x2, 4 threads): 84 such pairs, all harmless (docs/model.md section 7) |
 
 The 26 Oct screen of 70 codes, and the 29 Oct screen of ~85 more (deal.II master, PETSc main,
@@ -235,6 +236,20 @@ with the hunt notes, outside this repository.
   drop a pair when the send is the only pending one the receive accepts.
 - Analysis memory is about 15 times the trace (a 634 MB Smilei trace: 9.2 GB, 9 min), which
   bounded the Smilei scan to traces of at most 400 MB: 85 of its 173 benchmarks.
+- MADNESS (2 Nov, [experiments/madness](../experiments/madness/README.md)): the tracer kept a
+  lock's 8 KiB clock for every address ever used for a lock, and a traced `test_world` (a mutex
+  per future and task) was killed by a 12 GB cap; a lock's clock now ends with the lock
+  (04d9f71, [threads.md](threads.md) section 19). Three analysis costs on its traces (the
+  double-wait check, completion-order queries by graph search, rule 6's recursion, which
+  crashed Python) are fixed with the same reports, and `--no-order` counts the
+  completion-order candidates instead of judging them (418 459 in one 217 MB trace; a14ee43).
+  Still beyond reach: 4-rank traces with up to 21 000 steals each at the server's wildcard
+  receives (judged by sample), and traces above 600 MB.
+- Two observed false alarms on MADNESS: a `2-buffering` whose cycle runs through the server's
+  wildcard receives (GA's shape; 40 of 40 untraced runs pass at 0 eager bytes), and a
+  `2-thread-wait` under MPICH that is two distinct send requests completed at creation, which
+  MPICH gives one builtin handle (`0x6c000001`): the tracer names requests by handle value. Not
+  fixed (a fix would treat MPICH's builtin request handles as completed at their call).
 
 ## Multithreaded benchmarks (L1, and L1+L since 30 Oct)
 
@@ -493,6 +508,20 @@ messages in flight, receives name their source, and the wildcard `MPI_Iprobe` ca
 progress. The audit's lead, tags packed without a check against `MPI_TAG_UB`, is real (a `\todo`
 in the code) but needs 2^17 blocks per rank with MPICH. No bug found. Evidence:
 [experiments/athena](../experiments/athena/README.md).
+
+**MADNESS 64eaf80 (master on 29 Oct)**, a pthreads task pool with an active-message server
+thread that receives with wildcards, the fourth blind scan: its 27 runtime and numerical-library
+unit tests, compiled by clang with the atomics instrumented (futures and the task queue
+synchronise through them), 2 and 4 ranks of a 2-thread pool, 3 runs each, Open MPI and MPICH,
+324 traced runs; findings committed (26bd9e5, 2 Nov 17:09 +08) before the communication code
+was read. Every predicted alternative is a steal at the server's 128 preposted
+`Irecv(ANY_SOURCE, 1023)`, on 4 ranks only: harmless by design (ordered messages run in
+per-source counter order whatever the buffer, unordered ones promise no order; GA's S1 with
+counters). The observed classes were tool false alarms (a `2-buffering` through the wildcard
+receives; a `2-thread-wait` from MPICH's shared handle for completed sends) or the ends of runs
+stopped by memory or time. Forced replays inconclusive: the pool takes its locks in the order of
+its schedule (P-T5). No bug found, by the tool or by reading. Two tool changes first (tool
+limits, above). Evidence: [experiments/madness](../experiments/madness/README.md).
 
 Not built in this hunt, by cost (estimated, not measured): HPX's MPI parcelport (read only:
 headers on tag 0 with `ANY_SOURCE` carry the sender's tag from an atomic counter, so data
