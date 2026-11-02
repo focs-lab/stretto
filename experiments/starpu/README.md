@@ -88,3 +88,74 @@ ranks (the envelope names the data's tag and size, and a named receive follows)?
 posting sends (`1`), can two envelopes of one rank to one destination leave in another order
 than their data? O1, is rank 0 meant to receive `dump`'s messages? O2, does each cycle run
 through the envelope receives? And `large_set` with MPICH: what grows?
+
+## Verdicts (after the pre-registration, from reading the code at the sites)
+
+Read from 18:56 +08: `mpi/src/mpi/starpu_mpi_comm.c` (the envelope receive), `mpi/src/mpi/starpu_mpi_mpi.c`
+(the envelope and data sends, the receive side of the progress loop, early data, the sync
+mode, request termination), and the test `mpi/tests/large_set.c`. Line numbers are those of
+e736b00.
+
+| # | Verdict | Why |
+|---|---|---|
+| S1 | harmless by design | the communication thread keeps one `Irecv(MPI_ANY_SOURCE, _STARPU_MPI_TAG_ENVELOPE)` posted per communicator (`_starpu_mpi_comm_post_recv`, `starpu_mpi_comm.c:145-163`) and, for each envelope it tests complete (`_starpu_mpi_comm_test_recv`, `:165-213`), looks up the application's request by the envelope's data tag and the status's source, or creates early data for it, and posts the data receive from that source by name before it tests for another envelope (`starpu_mpi_mpi.c:1502-1590`; for early data "to make sure the mpi_irecv is posted before receiving an other envelope", `:1300-1310`). A sender posts an envelope and its data under one mutex (`send_mutex`, `_starpu_mpi_isend_envelope_func` and `_starpu_mpi_mpi_backend_isend`, `:478-548`), whichever thread posts them, so one rank's envelopes and data reach a destination in the same order, with workers posting sends (`1`) as with the communication thread alone; a synchronous send's data waits for the receiver's ready envelope, which the receiver sends just before it posts the data receive (`:566-584`), on another MPI tag. Which rank's envelope is taken first therefore changes only the order in which requests of different ranks are served, each by its own named receive |
+| O1 | **real bug** in the test program, deterministic with an MPI library that lacks `MPI_Type_vector_c` (Open MPI 4.1 here), surfaced by the observed classes of the scan (1c and 2-buffering), not by a prediction | ranks above 1 skip the test and go to `end` (`large_set.c:595-596`), where `dump()` sends their output to rank 0 with two `MPI_Send` (`:56-59`). Without `MPI_Type_vector_c` (`#ifndef STARPU_HAVE_MPI_TYPE_VECTOR_C`, `:598-614`), ranks 0 and 1 first check `MPI_Type_create_struct` on large types (`_starpu_test_datatype`), and when it fails (as with Open MPI 4.1.6) they shut down and `return 0` without going to `end`: rank 0 never receives the other ranks' messages. They are 8 and 23 bytes, so the sends complete eagerly and the test passes; with the eager limit at its minimum every run hangs in those `MPI_Send` (`eager.sh`, [eager-openmpi.csv](eager-openmpi.csv): 10 of 10 runs at 0 eager payload bytes hang, as shipped and with the workers' own sends, one of them recorded as "fail 137" at 620 s because its stuck `mpirun` was killed by hand; 10 of 10 pass at the defaults), and the messages are left unmatched at `MPI_Finalize` in every run. The program relies on buffering that MPI does not promise. Fix: `goto end` on that path (`large-set-dump.patch`, 2 lines), so that ranks 0 and 1 dump too and rank 0 receives every rank's output. With MPICH (which has `MPI_Type_vector_c`) the check is skipped and ranks 0 and 1 run the large data sets, which need more memory than the 12 GB container (the deviation above), not this bug |
+| O2 | **tool false alarm** (a limit of the observed 2-buffering class) | the cycle of `insert_task` (checked record by record; those of `early_request` and `load_balancer` were checked only for wildcard receives, of which `load_balancer`'s has two) runs through completions that are successful `MPI_Test`s of the communication thread's polling loop (`_starpu_mpi_test_detached_requests`, `starpu_mpi_mpi.c:1125-1150`) on the data sends; without buffering the test returns false and the thread goes on to serve envelopes and post the data receives the other rank waits for: the observed sequence of calls is not the only one the program makes at that threshold. The only blocking wait on the cycle, the `MPI_Wait` on the envelope of a send whose data is already complete (`:944-951`), cannot block: the data's receive is posted only after its envelope is received. Untraced runs at 0 eager bytes: `insert_task`, `insert_task_seq`, `early_request`, `load_balancer`, `mpi_scatter_gather`, `coop_many`, 60 of 60 passed at 0 eager bytes (30 per mode) and 60 of 60 at the defaults, none hung |
+| O3 | as expected | the `XFAIL_TESTS` abort by design; MPICH's `large_set` runs ran out of the container's memory |
+
+**Forced replays of S1** (`replay.sh`, [replay-openmpi.csv](replay-openmpi.csv), Open MPI, as
+shipped): 2 new traced runs each of `gather`, `partition` and `mpi_redux` with the lock order
+recorded, up to 4 sampled 1f alternatives per trace, each replayed once with its control: all
+17 inconclusive (`replay_verdicts.py`): every replay and every control ended on a misapplied lock
+pin (exit 86) within StarPU's initialisation (lock attempt 12 of a main thread), whose lock order
+depends on the schedule of its threads (premise P-T5, as for MADNESS and DLA-Future). The
+harmlessness of S1 rests on the reading.
+
+## The large_set messages (O1): series, fix, report
+
+`large-set-dump.patch` (2 lines in `main`): `goto end` instead of the early return, so that
+ranks 0 and 1 dump their output too and rank 0 receives every rank's. `series.sh`
+([series-openmpi.csv](series-openmpi.csv)), untraced, 4 ranks of 2 workers, Open MPI 4.1.6, 30 s
+a run, 20 runs per cell, plain and patched builds (`build.sh` with `VARIANT=dump`) interleaved:
+
+| mode | eager limit | plain | patched |
+|---|---|---|---|
+| as shipped (`MPI_THREAD_SERIALIZED`) | minimal (TCP, no payload byte buffered) | 19 of 20 hang (the 20th was killed by hand at 20 s while it hung: exit 137) | 0 of 20: 20 pass (0.6-0.7 s) |
+| as shipped | defaults | 0 of 20: 20 pass | 0 of 20: 20 pass |
+| `MPI_THREAD_MULTIPLE`, `STARPU_MPI_THREAD_MULTIPLE_SEND=1` | minimal | 20 of 20 hang | 0 of 20: 20 pass |
+| `MPI_THREAD_MULTIPLE`, `STARPU_MPI_THREAD_MULTIPLE_SEND=1` | defaults | 0 of 20: 20 pass | 0 of 20: 20 pass |
+
+Rows of `series-openmpi.csv` whose commit is `490410c-dirty` (from the 11th round on) ran
+`eager.sh` as committed in 4e4d984 (`timeout -k 10`: after `timeout` stopped a hung run,
+`mpirun` itself hung with its ranks gone, and the 11th plain run and one run of `eager.sh` were
+killed by hand; `eager-openmpi.csv` has that one as "fail 137" at 620 s).
+
+The report's reproduction block (`clean-room.sh`: a fresh clone, StarPU's default configuration
+with MPI and gcc, Ubuntu's Open MPI, 4 ranks, eager limit at its minimum) run in an empty
+directory: 3 of 3 plain runs hung (exit 124), 3 of 3 runs with the patch applied passed (exit 0), 2 Nov 19:21-19:40 +08 (a first attempt with plain `timeout` had one plain run killed by hand, as above: 124, 137, 124 and 0, 0, 0). The lines of the type check and its early return date from October 2024 to April 2025
+(blame of the file); StarPU's issue tracker was not searched (no access from here). Report drafted, not
+sent.
+
+## What the tool did here
+
+No race in StarPU-MPI's shipped tests, with or without workers posting their own sends. Every
+predicted alternative is a steal at the communication thread's one wildcard envelope receive,
+on 14 of the 86 tests (1 to 347 per trace, 10 016 more candidates in the traces cut short), and
+the runtime is built for it: each envelope is answered by a data receive that names its
+source, posted before the next envelope is taken, and a sender posts envelope and data under one
+mutex whichever thread sends (GA's S1 and MADNESS's S1 again). The real bug of the scan is in
+a test program, and the scan's observed classes surfaced it rather than a prediction: four
+sends of `large_set` that nothing receives (1c), and the observed matching's deadlock without
+buffering (2-buffering), which an untraced run at the minimal eager limit confirms as a hang in
+every run. The other observed 2-buffering reports are false alarms of the class at a polling
+loop, whose successful tests the class takes for waits.
+
+## Files
+
+`Dockerfile`, `build.sh` (StarPU with its MPI layer, clang with the atomics instrumented, both
+MPIs, `VARIANT`/`PATCH` for patched trees), `mtinit.c` (the `MPI_THREAD_MULTIPLE` shim),
+`scan.sh` and `scan_csv.py` (the scan and its tables `scan-{openmpi,mpich}-{runs,sites}.csv`),
+`summary.py`, `targeted.py`, `targeted.sh` and `targeted_summary.py`
+(`targeted-{openmpi,mpich}.csv`), `eager.sh` (`eager-openmpi.csv`), `replay.sh`
+(`replay-openmpi.csv`), `large-set-dump.patch`, `series.sh` (`series-openmpi.csv`),
+`clean-room.sh`.
