@@ -249,7 +249,12 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
     # with MPI calls inside OpenMP tasks the order of a rank's collectives is not known (its tasks are
     # not chains of their own): no collective-ordering finding from it
     tasks = t.multi and any(reason == "threads-tasks" for reason, _ in t.thread_limits)
+    # nor on a communicator that a chain beyond the tracer's chain table called collectives on:
+    # that chain merges many, so the order of the rank's collectives there is not known
+    merged = {c.comm for c in t.colls if c.rank in t.overflow_chains}
     for cs in (t.coll_sets() if not tasks else []):
+        if cs[0].comm in merged:
+            continue
         names = sorted({c.name for c in cs})
         members = t.comm_members.get(cs[0].comm, [])
         if len(names) > 1:
@@ -273,6 +278,11 @@ def analyze(t: Trace, with_sp: bool = True, max_states: int = 300_000, sp_max_ev
     multi = [rank for rank, n in t.threads.items() if n > 1 and rank not in t.chains]
     if t.multi and not multi:
         rep.notes.append(threads.chain_note(t))
+        if t.overflow_chains:
+            rep.notes.append("the chains beyond the tracer's chain table share one chain without happens-before ("
+                             + ", ".join(str(c) for c in sorted(t.overflow_chains))
+                             + "): no observed thread finding involves it, and no collective-ordering finding is made "
+                             "on a communicator it called collectives on")
         for cls, title, detail in threads.observed_findings(t, tasks=bool(tasks)):
             rep.findings.append(Finding("2", cls, "observed", title, detail))
         # requests handed between threads and receives withdrawn by a cancel are modelled since
