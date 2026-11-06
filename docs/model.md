@@ -831,21 +831,21 @@ shaped collectives and metadata branches.
   branch-guarding-a-collective as functions of `MPI_SOURCE` / `Waitany` index; a value
   skeleton (`payload == sender rank`) for the benchmark-shaped races. Re-execution
   (`docs/l2-auto.md`) needs none of it written down; what it lacks is probes, tests and
-  communicator creation in the shim, and a proof in the paper.
+  communicator creation in the shim. Its claim is a theorem of the paper since 6 Nov 2026
+  (`thm:rerun`, under premises R1-R4).
 - Buffer races (family ③), §7: request spans are in the trace; accesses are not, except the ones
   the tracer's buffer guard (`STRETTO_GUARD=1`) catches in the run itself: the first access
   between MPI calls to a pending operation's buffer, a send buffer changed before its
   completion, two pending operations owning the same bytes. These are observed findings
   (class 3-local), with the thresholds at which they change data (§7); predicting one for
   another run would need the program's accesses, not its calls.
-- Several threads calling MPI (MPI_THREAD_MULTIPLE, SERIALIZED, or a misused FUNNELED): a
-  rank's call order then depends on the threads' scheduling, not only on its results, so it
-  is not a function of them as the definition of a program needs, and per-rank program order
-  is not total. The tracer records the calling thread at every level (on every record under
-  MULTIPLE, on the records of threads other than the initialising one below it), and the
-  analysis stops at observed findings when a rank's records come from more than one thread.
-  Before 22 Oct 2026 the thread was recorded under MULTIPLE only, and a SERIALIZED rank with
-  several calling threads was analysed as one deterministic sequence.
+- Several threads calling MPI: analysed since 29 Oct 2026 as chains ordered by recorded
+  happens-before ([threads.md](threads.md); before, the analysis stopped at observed findings
+  when a rank's records came from more than one thread). The soundness of L1 with chains, of
+  L1+L and of lock-order deadlocks is proved in the paper's appendix (6 Nov 2026, threads.md
+  section 21); monotonicity in B does not hold with chains, and completeness is not claimed
+  (the orientation picks, and for L1+L a bounded search of an NP-hard question). Open: a
+  complete check that branches on the picks; replays that hold the order of atomics.
 
 ## 7. Buffers
 

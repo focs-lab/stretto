@@ -270,6 +270,24 @@ with the hunt notes, outside this repository.
   checked record by record; the other 18 are `large_set`'s, a real bug; 60 of 60 untraced runs of those tests
   pass at 0 eager bytes). Not changed; the class could demote a cycle
   through a successful test of a loop to a warning.
+- Found by writing the proofs of the thread theorems (6 Nov, [threads.md](threads.md) section
+  21). (1) L1 of several threads accepted a steal that no execution has: the orientation of a
+  judged pair (r, s) against a concurrent receive x that accepts s was left out whenever x's
+  message precedes s on the channel, also where r does not accept that message, so nothing
+  ordered x's match before r's although x was posted first (an any-tag receive against a
+  tag-1 receive; an exhaustive search of the single-path program's executions finds r taking
+  only the other two messages). Fixed: the orientation is drawn there by the run's order of
+  postings (`threads.sender_orders`, test `test_an_any_tag_receive_posted_first_keeps_its_message`).
+  (2) Monotonicity in B (T2-T) is false with several chains: a receive of another chain can
+  take the released message, and whether an earlier message's receive is in the horizon
+  depends on B, so a profile can be feasible at 0, infeasible at 1 and feasible from 64 on; the
+  profiler's bisection then claimed B = 1 (3 of about 4 100 steals at blocking receives of
+  8 000 random programs, 107 non-monotone). Fixed: every breakpoint of a trace with several
+  chains is judged (`report._profiles_generic`, tests `C_Monotone`). (3) A lock-order deadlock
+  through a wait for another chain's point holds only where that wait cannot return otherwise
+  (premise S9): true for lock acquires, joins and barriers, not for a semaphore another post
+  satisfies or a polled flag, which `locks.lock_deadlocks` does not tell apart. Not changed.
+  None of the committed thread results was rerun with fixes (1) and (2).
 
 ## Multithreaded benchmarks (L1, and L1+L since 30 Oct)
 
