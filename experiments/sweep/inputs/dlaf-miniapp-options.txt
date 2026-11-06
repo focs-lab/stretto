@@ -1,0 +1,64 @@
+miniapp_band_to_tridiag.cpp:("matrix-size",  value<SizeType>()   ->default_value(4096)
+miniapp_band_to_tridiag.cpp:("block-size",   value<SizeType>()   ->default_value( 256)
+miniapp_band_to_tridiag.cpp:("band-size",    value<SizeType>()   ->default_value(  64)
+miniapp_bt_band_to_tridiag.cpp:("m",              value<SizeType>() ->default_value(2048)
+miniapp_bt_band_to_tridiag.cpp:("n",              value<SizeType>() ->default_value(4096)
+miniapp_bt_band_to_tridiag.cpp:("mb",             value<SizeType>() ->default_value( 256)
+miniapp_bt_band_to_tridiag.cpp:("nb",             value<SizeType>() ->default_value( 512)
+miniapp_bt_band_to_tridiag.cpp:("b",              value<SizeType>() ->default_value(  64)
+miniapp_bt_reduction_to_band.cpp:("m",              value<SizeType>() ->default_value(2048)
+miniapp_bt_reduction_to_band.cpp:("n",              value<SizeType>() ->default_value(4096)
+miniapp_bt_reduction_to_band.cpp:("mb",             value<SizeType>() ->default_value( 256)
+miniapp_bt_reduction_to_band.cpp:("nb",             value<SizeType>() ->default_value( 512)
+miniapp_bt_reduction_to_band.cpp:("b",              value<SizeType>() ->default_value(  64)
+miniapp_cholesky.cpp:("matrix-size", value<SizeType>()   ->default_value(4096)
+miniapp_cholesky.cpp:("block-size",  value<SizeType>()   ->default_value( 256)
+miniapp_communication.cpp:("matrix-size", value<SizeType>()   ->default_value(4096)
+miniapp_communication.cpp:("block-size",  value<SizeType>()   ->default_value( 256)
+miniapp_eigensolver.cpp:("matrix-size",    value<SizeType>() ->default_value(4096)
+miniapp_eigensolver.cpp:("block-size",     value<SizeType>() ->default_value( 256)
+miniapp_gen_eigensolver.cpp:("matrix-size",    value<SizeType>()   ->default_value(4096)
+miniapp_gen_eigensolver.cpp:("block-size",     value<SizeType>()   ->default_value( 256)
+miniapp_gen_to_std.cpp:("matrix-size",  value<SizeType>()   ->default_value(4096)
+miniapp_gen_to_std.cpp:("block-size",   value<SizeType>()   ->default_value( 256)
+miniapp_inverse_from_cholesky_factor.cpp:("matrix-size", value<SizeType>()   ->default_value(4096)
+miniapp_inverse_from_cholesky_factor.cpp:("block-size",  value<SizeType>()   ->default_value( 256)
+miniapp_redistribution.cpp:("matrix-size",     value<SizeType>() ->default_value(4096)
+miniapp_redistribution.cpp:("block-size",      value<SizeType>() ->default_value(  64)
+miniapp_redistribution.cpp:("block-size-dst",  value<SizeType>() ->default_value(1024)
+miniapp_reduction_to_band.cpp:("matrix-size", value<SizeType>()   ->default_value(4096)
+miniapp_reduction_to_band.cpp:("block-size",  value<SizeType>()   ->default_value( 256)
+miniapp_reduction_to_band.cpp:("band-size",   value<SizeType>()   ->default_value(  -1)
+miniapp_triangular_inverse.cpp:("matrix-size", value<SizeType>()   ->default_value(4096)
+miniapp_triangular_inverse.cpp:("block-size",  value<SizeType>()   ->default_value( 256)
+miniapp_triangular_multiplication.cpp:("m",             value<SizeType>()     ->default_value(4096)
+miniapp_triangular_multiplication.cpp:("n",             value<SizeType>()     ->default_value(512)
+miniapp_triangular_multiplication.cpp:("mb",            value<SizeType>()     ->default_value(256)
+miniapp_triangular_multiplication.cpp:("nb",            value<SizeType>()     ->default_value(512)
+miniapp_triangular_solver.cpp:("m",              value<SizeType>() ->default_value(4096)
+miniapp_triangular_solver.cpp:("n",              value<SizeType>() ->default_value(512)
+miniapp_triangular_solver.cpp:("mb",             value<SizeType>() ->default_value(256)
+miniapp_triangular_solver.cpp:("nb",             value<SizeType>() ->default_value(512)
+miniapp_tridiag_solver.cpp:("matrix-size",  value<SizeType>()   ->default_value(4096)
+miniapp_tridiag_solver.cpp:("block-size",   value<SizeType>()   ->default_value( 256)
+241:      "backend", pika::program_options::value<std::string>()->default_value("default"),
+244:      "type", pika::program_options::value<std::string>()->default_value("d"),
+246:  desc.add_options()("grid-rows", pika::program_options::value<int>()->default_value(1),
+248:  desc.add_options()("grid-cols", pika::program_options::value<int>()->default_value(1),
+250:  desc.add_options()("local", pika::program_options::bool_switch()->default_value(false),
+252:  desc.add_options()("nruns", pika::program_options::value<int64_t>()->default_value(1),
+254:  desc.add_options()("nwarmups", pika::program_options::value<int64_t>()->default_value(1),
+256:  desc.add_options()("check-result", pika::program_options::value<std::string>()->default_value("none"),
+258:  desc.add_options()("csv", pika::program_options::bool_switch()->default_value(false),
+260:  desc.add_options()("pp-info", pika::program_options::value<std::string>()->default_value(""),
+300:      "backend", pika::program_options::value<std::string>()->default_value("default"),
+303:      "type", pika::program_options::value<std::string>()->default_value("d"),
+305:  desc.add_options()("nruns", pika::program_options::value<int64_t>()->default_value(1),
+307:  desc.add_options()("nparallel", pika::program_options::value<int64_t>()->default_value(1),
+309:  desc.add_options()("count", pika::program_options::value<int64_t>()->default_value(10),
+311:  desc.add_options()("check-result", pika::program_options::value<std::string>()->default_value("none"),
+320:                     pika::program_options::value<std::string>()->default_value({blas::to_char(def)}),
+327:                     pika::program_options::value<std::string>()->default_value({blas::to_char(def)}),
+334:                     pika::program_options::value<std::string>()->default_value({blas::to_char(def)}),
+341:                     pika::program_options::value<std::string>()->default_value({blas::to_char(def)}),
+348:                     pika::program_options::value<std::string>()->default_value({blas::to_char(def)}),
