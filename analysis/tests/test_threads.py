@@ -174,6 +174,31 @@ class C_Chains(unittest.TestCase):
         alts = probe_candidates(t)
         self.assertTrue(alts)
 
+    def test_an_any_tag_receive_posted_first_keeps_its_message(self):
+        """Thread A posts y = Irecv(ANY, 2) and x = Irecv(1, ANY), then sends to rank 2, whose
+        reply lets thread B post r = Irecv(ANY, 1), receive z from rank 4 and send to rank 3,
+        whose tag-2 reply t is y's message; rank 1 sends s2 (tag 2), then s (tag 1). In every
+        execution x is posted before r and accepts s, so r takes s only after x took s2, which
+        needs y matched first (it accepts s2), to t, which follows z's match, which follows r's
+        (r accepts u): the steal r <- s has no execution (an exhaustive search of the model's
+        executions finds r taking only s_o or u). x's message precedes s on the channel but r
+        does not accept it, so no sender-side edge orders the two matches: before 6 Nov 2026
+        the orientation of (r, s) against x was left out and the steal accepted."""
+        t = mkt({0: [th(0, irecv(T.ANY, 2, 1)), th(0, irecv(1, T.ANY, 2)), th(0, send(2, 5)),
+                     th(1, recv(2, 6, 2, 6)), th(1, irecv(T.ANY, 1, 3)), th(1, recv(4, 1, 4, 1)),
+                     th(1, send(3, 8)), th(1, wait((3, 3, 1))),
+                     th(0, wait((1, 3, 2), (2, 1, 2), kind="waitall")), th(1, recv(1, 1, 1, 1))],
+                 1: [send(0, 2), send(0, 1)],
+                 2: [recv(0, 5, 0, 5), send(0, 6)],
+                 3: [send(0, 1), recv(0, 8, 0, 8), send(0, 2)],
+                 4: [send(0, 1)]})
+        _, alts = alts_of(t)
+        r = t.chains[0][1]
+        steals = {t.sends[a.M[(r, 1)]].proc: a for a in alts if a.kind == "steal" and a.recv == (r, 1)}
+        self.assertEqual(sorted(steals), [1, 4])
+        self.assertFalse(accepted(t, steals[1]))
+        self.assertTrue(accepted(t, steals[4]))      # r can take u: posted before z, it accepts u
+
 
 class C_Rule8(unittest.TestCase):
     def test_a_release_after_a_changed_receive_is_not_in_the_horizon(self):

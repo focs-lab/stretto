@@ -435,6 +435,15 @@ class Trace:
                 out = self._earlier[k] = tuple(self._earlier_sends(r, s))
         return out
 
+    @property
+    def reserved_sends(self) -> bool:
+        """Does a matched probe reserve some send for a later receive (available_to)?"""
+        v = self.__dict__.get("_reserved_sends")
+        if v is None:
+            v = self.__dict__["_reserved_sends"] = any(
+                s.reserved_idx is not None or s.reserved_fn is not None for s in self.sends.values())
+        return v
+
     def withdrawn(self, rank: Optional[int] = None) -> List[Recv]:
         """The receives of rank whose cancel succeeded, in posting order: posted at their record,
         withdrawn at their MPI_Cancel (cancel_idx), never matched (docs/model.md §2b,
