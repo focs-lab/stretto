@@ -3,29 +3,33 @@
 # Run inside hunt-slate:24.04 with the tester at /b/build/test/tester, the repository at REPO and
 # the tracer to use at TRACER (default: REPO's, built with a larger chain table, -DMAXCH=4096):
 #   experiments/slate-leads/retrace.sh SWEEP_RUNS WORK OUT.csv CELL_DIR...
-# Each CELL_DIR names a cell directory of the sweep (its args file gives the tester's arguments;
+# Each CELL_DIR names a cell directory of the sweep (its args file holds the tester's arguments;
 # the name ends in _<grid>_t<threads>). OUT gets one row per cell: the run's exit status and time,
 # whether the chain table overflowed, the number of chains, and the count of each finding class.
+# MODE=plain runs without the tracer; XENV adds environment to the ranks; LIB labels the SLATE build
+# mounted at /b (plain, or fixed: experiments/slate-leads/hetrf-levels.patch).
 set -u
 S=${1:?usage: retrace.sh SWEEP_RUNS WORK OUT.csv CELL_DIR...}; W=${2:?}; OUT=${3:?}; shift 3
 REPO=${REPO:-$(cd "$(dirname "$0")/../.." && pwd)}
 TRACER=${TRACER:-$REPO/tracer/bin/openmpi/libstretto-trace.so}
 BIN=${BIN:-/b/build/test/tester}
 MODE=${MODE:-traced}           # traced, or plain (no tracer: the run's status and time only)
+XENV=${XENV:-}                 # more environment for the ranks, VAR=value separated by spaces
 TIMEOUT=${TIMEOUT:-300}
 export PYTHONPATH=$REPO/analysis OPENBLAS_NUM_THREADS=1
 export OMPI_MCA_rmaps_base_oversubscribe=1 OMPI_MCA_btl_vader_single_copy_mechanism=none
 ulimit -c 0
 commit=$(git -C "$REPO" rev-parse --short HEAD 2>/dev/null || cat "$REPO/COMMIT")
-[ -e "$OUT" ] || echo "cell,mode,rep,run_rc,run_seconds,status,overflow,chains,classes,commit" > "$OUT"
+[ -e "$OUT" ] || echo "cell,mode,env,lib,rep,run_rc,run_seconds,status,overflow,chains,classes,commit" > "$OUT"
 for c in "$@"; do
   name=$(basename "$c")
   threads=${name##*_t}; grid=${name%_t*}; grid=${grid##*_}
   np=$(( ${grid%x*} * ${grid#*x} ))
-  eval "a=($(cat "$S/$name/args"))"; a=("${a[@]:1}")
+  eval "a=($(cat "$S/$name/args"))"
   rep=${REP:-0}
-  d=$W/$name.$MODE.$rep; rm -rf "$d"; mkdir -p "$d/trace"
+  d=$W/$name.$MODE.${LIB:-plain}.${XENV//[ =]/_}.$rep; rm -rf "$d"; mkdir -p "$d/trace"
   xs=(-x OMP_NUM_THREADS="$threads")
+  for e in $XENV; do xs+=(-x "$e"); done
   [ "$MODE" = traced ] && xs+=(-x STRETTO_TRACE_DIR="$d/trace" -x LD_PRELOAD="$TRACER")
   t0=$(date +%s)
   (cd "$d" && timeout "$TIMEOUT" mpirun --bind-to none -np "$np" "${xs[@]}" "$BIN" "${a[@]}" < /dev/null) > "$d/log" 2>&1
@@ -51,5 +55,5 @@ EOF
   else
     rm -rf "$d/trace"
   fi
-  echo "$name,$MODE,$rep,$rc,$secs,$status,$ovf,$nch,$classes,$commit" >> "$OUT"
+  echo "$name,$MODE,${XENV// /;},${LIB:-plain},$rep,$rc,$secs,$status,$ovf,$nch,$classes,$commit" >> "$OUT"
 done
