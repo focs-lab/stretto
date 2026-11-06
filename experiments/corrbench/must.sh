@@ -20,8 +20,12 @@ if [ "${1:-}" = --one ]; then   # --one C W TIMEOUT REPS PROGRAM: every run of o
     t0=$SECONDS
     v=$(cd "$d/src" && STRETTO_MUST_CFLAGS="-I$C/$(dirname "$f") -I$C/correct/include" "$R/scripts/must_once.sh" 2 "$TO" | tail -1)
     echo "$f,$label,$k,\"${v//\"/\'}\",$((SECONDS - t0)),$COMMIT"
-    # MUST's output stays only for runs it did not judge OK
-    [ "$v" = OK ] && rm -rf "$d"
+    # MUST's output stays only for runs it did not judge OK, without the binary and MUST's
+    # temporary files, and only the last 64 KiB of the run's output
+    if [ "$v" = OK ]; then rm -rf "$d"
+    else rm -rf "$d/src/prog" "$d/src/must_temp"
+         for o in "$d"/src/run.out "$d"/src/run.err; do [ -f "$o" ] && tail -c 65536 "$o" > "$o.t" && mv "$o.t" "$o"; done
+    fi
   done
   exit 0
 fi

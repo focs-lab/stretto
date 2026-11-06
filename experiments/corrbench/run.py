@@ -19,8 +19,9 @@ harness runs every program (scripts/*/execute_tool.sh), under Open MPI's mpirun 
 A run that left no trace (the program stopped before MPI_Init returned) has analysis NO-TRACE.
 A run's verdict follows experiments/mbi/score.py (any error class; summary.py). Settings:
 REPS (3), TIMEOUT (30 s per run; the programs run for well under a second unless they hang),
-STRETTO_COMMIT (else COMMIT at the repository root). Raw outputs go to WORK/<mpi>/<program>/
-and may be deleted once the table is written."""
+STRETTO_COMMIT (else COMMIT at the repository root). Each run's reports and the last 64 KiB of
+its output stay in WORK/<mpi>/<program>/; its trace is deleted after its analysis, except for an
+in-scope program and a correct one with an error finding, whose traces stay as trace.tar.xz."""
 from __future__ import annotations
 import argparse
 import csv
@@ -38,6 +39,9 @@ sys.path.insert(0, os.path.join(ROOT, "experiments"))
 import run_mbi  # noqa: E402
 from provenance import code_commit  # noqa: E402
 from stretto.confirm import classify_rc  # noqa: E402
+from score import ERROR  # noqa: E402
+
+OUTPUT_TAIL = 1 << 16    # bytes of a run's stdout and stderr kept
 
 MPIRUN = "/usr/bin/mpirun.openmpi"
 KEYS = ["mpi", "program", "area", "conflo", "label", "kind", "scope", "mode", "run", "result", "seconds", "analysis",
@@ -80,8 +84,9 @@ def one(meta: dict, args) -> list:
             for name, value in extra.items():
                 env += ["-x", f"{name}={value}"]
             r, res, took = run([MPIRUN, "-np", "2", *env, exe], args.timeout, d)
-            open(os.path.join(d, "run.stdout"), "w").write(r.stdout)
-            open(os.path.join(d, "run.stderr"), "w").write(r.stderr)
+            # the tail of the output only: some erroneous programs print hundreds of megabytes
+            open(os.path.join(d, "run.stdout"), "w").write(r.stdout[-OUTPUT_TAIL:])
+            open(os.path.join(d, "run.stderr"), "w").write(r.stderr[-OUTPUT_TAIL:])
             row = {**base, "mode": mode, "run": k, "result": res, "seconds": f"{took:.2f}", "np": 2}
             if not any(f.startswith("rank-") for f in os.listdir(tracedir)):
                 # the program stopped before MPI_Init returned (a call before it): nothing to analyse,
@@ -99,7 +104,20 @@ def one(meta: dict, args) -> list:
                 else:
                     row["l2"] = "CRASH"
             rows.append(row)
+            prune(d, meta, row)
+    os.remove(exe)
     return rows
+
+
+def prune(d: str, meta: dict, row: dict) -> None:
+    """Keep a run's reports and the tail of its output; its trace only, as one tar.xz, for an
+    in-scope program and for a correct one with an error finding (the cases the README lists),
+    so that the campaign never holds more than the runs in progress."""
+    tracedir = os.path.join(d, "trace")
+    if meta["scope"] == "in" or meta["label"] == "correct" and set(row.get("classes", "").split()) & ERROR:
+        subprocess.run(["tar", "-cJf", os.path.join(d, "trace.tar.xz"), "-C", d, "trace"], check=False)
+    shutil.rmtree(tracedir, ignore_errors=True)
+    shutil.rmtree(os.path.join(d, "l2"), ignore_errors=True)
 
 
 def main() -> int:
