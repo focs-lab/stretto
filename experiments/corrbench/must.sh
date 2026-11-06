@@ -13,6 +13,7 @@ set -u
 R=$(cd "$(dirname "$0")/../.." && pwd)
 if [ "${1:-}" = --one ]; then   # --one C W TIMEOUT REPS PROGRAM: every run of one program, its rows on stdout
   C=$2 W=$3 TO=$4 REPS=$5 f=$6
+  ulimit -c 0   # no core files: a crashing erroneous program would leave about 40 MB per rank
   name=$(echo "${f%.c}" | sed 's|/|__|g')
   case $f in correct/*) label=correct;; *) label=erroneous;; esac
   for k in $(seq 1 "$REPS"); do
@@ -23,7 +24,7 @@ if [ "${1:-}" = --one ]; then   # --one C W TIMEOUT REPS PROGRAM: every run of o
     # MUST's output stays only for runs it did not judge OK, without the binary and MUST's
     # temporary files, and only the last 64 KiB of the run's output
     if [ "$v" = OK ]; then rm -rf "$d"
-    else rm -rf "$d/src/prog" "$d/src/must_temp"
+    else rm -rf "$d/src/prog" "$d/src/must_temp" "$d"/src/core*
          for o in "$d"/src/run.out "$d"/src/run.err; do [ -f "$o" ] && tail -c 65536 "$o" > "$o.t" && mv "$o.t" "$o"; done
     fi
   done

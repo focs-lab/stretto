@@ -26,6 +26,7 @@ from __future__ import annotations
 import argparse
 import csv
 import os
+import resource
 import shutil
 import subprocess
 import sys
@@ -51,8 +52,10 @@ KEYS = ["mpi", "program", "area", "conflo", "label", "kind", "scope", "mode", "r
 
 def run(cmd, timeout, cwd, env=None):
     t0 = time.monotonic()
+    # no core files: the erroneous programs that crash would leave about 40 MB each per rank
     r = subprocess.run(["/usr/bin/timeout", "-k", "5", str(timeout), *cmd], capture_output=True, text=True, cwd=cwd,
-                       stdin=subprocess.DEVNULL, env={**os.environ, "OMPI_MCA_rmaps_base_oversubscribe": "1", **(env or {})})
+                       stdin=subprocess.DEVNULL, preexec_fn=lambda: resource.setrlimit(resource.RLIMIT_CORE, (0, 0)),
+                       env={**os.environ, "OMPI_MCA_rmaps_base_oversubscribe": "1", **(env or {})})
     took = time.monotonic() - t0
     return r, classify_rc(r.returncode, r.stderr, took, timeout), took
 
