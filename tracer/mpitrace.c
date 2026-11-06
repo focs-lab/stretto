@@ -49,7 +49,7 @@
                is no chain (a taskloop's), or after a detached task was created (once)
      unordered call: a posting the issue lock does not order (MPI_Sendrecv_replace; once)
      locks     locks: a chain's lock events after its last record, written when the chain ends
-     overflow  with what "chain table": more than 256 chains wrote records (later chains: tid -1);
+     overflow  with what "chain table": more than MAXCH chains (256 unless the build sets it) wrote records (later chains: tid -1);
                "atomics table": STRETTO_ATOMICS_MAX atomic locations have clocks (later ones: none)
      begin     call=<recv|wait|probe|coll|send> + the call's arguments; emitted BEFORE a
                potentially blocking call. The loader drops a begin followed by its
@@ -203,7 +203,9 @@ static pthread_mutex_t g_mu = PTHREAD_MUTEX_INITIALIZER;
    Every clock has a second, hard half (hs, hk): the same happens-before without the edges
    between two critical sections of one lock that both contain a record of their chain (section
    "critical sections" below). Its deltas are "hafter", written when they differ from "after". */
-#define MAXCH 256
+#ifndef MAXCH
+#define MAXCH 256                 /* chains with an id; a build may raise it (-DMAXCH=4096) */
+#endif
 typedef struct { long s[MAXCH], k[MAXCH], hs[MAXCH], hk[MAXCH]; } vclock;
 #define HELD_MAX 8
 #define HX_MAX 1024
