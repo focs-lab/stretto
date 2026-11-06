@@ -579,5 +579,70 @@ class C_Scale(unittest.TestCase):
                     self.assertEqual(reach(a, b), b in rs, (name, a, b))
 
 
+def sized_programs(seed, n):
+    """Traces of explore_threads' random programs with messages of four sizes, so that a
+    profile has breakpoints a bisection could skip (two sizes give none), run at random
+    thresholds."""
+    import random
+    from stretto import explore_threads as X
+    rnd = random.Random(seed)
+    out = []
+    for _ in range(n):
+        prog = X.random_program(rnd, nprocs=rnd.choice((2, 2, 3)), max_msgs=rnd.choice((4, 5, 6)))
+        prog = X.TProgram([[[X.TOp(o.kind, o.a, o.b, rnd.choice((1, 8, 64, 512)) if o.kind == "send"
+                                   else 512 if rnd.random() < 0.85 else 64) if o.kind in ("send", "recv") else o
+                             for o in ops] for ops in chains] for chains in prog.procs])
+        got = X.trace_of(prog, rnd.choice((None, None, 0, 8, 64)), rnd)
+        if got is not None and got[0].multi:
+            out.append((str(prog), got[0]))
+    return out
+
+
+class C_Monotone(unittest.TestCase):
+    """Theorem T2 (monotonicity in B) for several chains, which docs/threads.md 3.5 conjectured
+    and does not hold: a steal at a blocking receive can be feasible at B and not above it,
+    when a receive of another chain of the process, judged only above B, takes the released
+    message, or when an earlier message's receive on a concurrent chain enters the horizon only
+    above B. The profiler therefore judges every breakpoint from B0 on (report._profiles_generic);
+    a bisection had claimed thresholds at which the check rejects."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.traces = sized_programs(1, 300) + [(name, t) for name, t in thread_traces()]
+
+    def test_feasibility_is_not_monotone_with_several_chains(self):
+        from stretto.feasible import breakpoints, feasible_profile
+        bad = 0
+        for name, t in self.traces:
+            bps = breakpoints(t) + [None]
+            for a in candidates_full(t)[0]:
+                if a.kind != "steal" or not t.recvs[a.recv].blocking:
+                    continue
+                prof = [feasible_profile(t, a.M, a.changed, mode="L1")[B] for B in bps]
+                bad += any(prof[i] and not prof[i + 1] for i in range(len(prof) - 1))
+        self.assertGreater(bad, 0)
+
+    def test_the_profiler_judges_every_breakpoint(self):
+        from stretto.feasible import breakpoints, feasible_profile
+        from stretto.report import _profiles_generic, observed_floor, probe_kw
+        n = 0
+        for name, t in self.traces:
+            alts = candidates_full(t)[0]
+            probes = probe_candidates(t)
+            pr = _profiles_generic(t, alts, probes, [])
+            bps = breakpoints(t) + [None]
+            i0 = observed_floor(bps, pr.real)
+            for a, got in zip(alts, pr.alt):
+                full = feasible_profile(t, a.M, a.changed, mode="L1")
+                want = {B: full[B] and (i >= i0 or not (a.kind == "steal" and t.recvs[a.recv].blocking))
+                        for i, B in enumerate(bps)}
+                self.assertEqual({B: got[B] for B in bps}, want, (name, a.describe(t)))
+                n += len(bps) > 4
+            for (p, s), got in zip(probes, pr.probe):
+                full = feasible_profile(t, t.observed, set(), mode="L1", **probe_kw(p, s))
+                self.assertEqual({B: got[B] for B in bps}, {B: full[B] and i >= i0 for i, B in enumerate(bps)}, (name, str(p)))
+        self.assertGreater(n, 0)
+
+
 if __name__ == "__main__":
     unittest.main()

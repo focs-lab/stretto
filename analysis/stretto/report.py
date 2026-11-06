@@ -1260,6 +1260,14 @@ def observed_floor(bps: List[Optional[int]], obs: Dict[Optional[int], bool]) -> 
     return 0
 
 
+def _from_floor(t: Trace, prof: Dict[Optional[int], bool], B0: Optional[int]) -> Dict[Optional[int], bool]:
+    """A profile judged at every breakpoint, with the thresholds below the observed run's B0 set
+    infeasible, as a bisection from B0 sets them (feasible.feasible_profile)."""
+    if B0 is None:
+        return {B: ok and B is None for B, ok in prof.items()}
+    return {B: ok and (B is None or B >= B0) for B, ok in prof.items()}
+
+
 def _profiles_generic(t: Trace, alts, probes, waits, reads=None) -> _Profiles:
     """The generic checker (feasible.check), profiling each item from the observed run's
     threshold B0 to infinity and bisecting between them (T2); swaps in full. With read
@@ -1280,8 +1288,14 @@ def _profiles_generic(t: Trace, alts, probes, waits, reads=None) -> _Profiles:
             pr.alt.append({B: False for B in bps})
             pr.alt_reason.append(why)
             continue
+        # bisected only where theorem T2 holds: a steal at a blocking receive of a trace whose
+        # ranks have one chain. With several chains a receive of another chain of the process
+        # may take the released message, and whether an earlier message's receive is in the
+        # horizon depends on B, so feasibility need not be monotone, or an interval, in B
+        # (C_Monotone in tests/test_threads.py)
         full = not (a.kind == "steal" and t.recvs[a.recv].blocking)
-        prof = feasible_profile(t, a.M, a.changed, mode="L1", full=full, floor=B0)
+        prof = _from_floor(t, feasible_profile(t, a.M, a.changed, mode="L1", full=full or t.multi, floor=B0), B0) \
+            if t.multi and not full else feasible_profile(t, a.M, a.changed, mode="L1", full=full, floor=B0)
         if reads is not None and reads.extends(t, a.changed, a.M):
             p2 = feasible_profile(t, a.M, a.changed, mode="L1", full=True, bounds=reads)
             prof = {B: ok or p2.get(B, False) for B, ok in prof.items()}
@@ -1294,11 +1308,11 @@ def _profiles_generic(t: Trace, alts, probes, waits, reads=None) -> _Profiles:
             pr.probe_reason.append(why)
             continue
         kw = probe_kw(p, s)
-        pr.probe.append(feasible_profile(t, t.observed, set(), mode="L1", full=False, floor=B0, **kw))
+        pr.probe.append(_from_floor(t, feasible_profile(t, t.observed, set(), mode="L1", full=t.multi, floor=B0, **kw), B0))
         pr.probe_reason.append(check(t, t.observed, set(), None, "L1", **kw).reason)
     for rec, j, r_j, s_j in waits:
         kw = wait_kw(rec, j, r_j, s_j)
-        pr.wait.append(feasible_profile(t, t.observed, set(), mode="L1", full=False, floor=B0, **kw))
+        pr.wait.append(_from_floor(t, feasible_profile(t, t.observed, set(), mode="L1", full=t.multi, floor=B0, **kw), B0))
         pr.wait_reason.append(check(t, t.observed, set(), None, "L1", **kw).reason)
     return pr
 
