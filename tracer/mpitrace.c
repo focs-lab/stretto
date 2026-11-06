@@ -1235,8 +1235,14 @@ static void rb_tag(rec_t *b, int tag) {
    with STRETTO_PAYLOAD set, and only up to that many packed bytes (keybig:<size> above). */
 static void rb_payload(rec_t *b, const char *key, const void *buf, int count, MPI_Datatype dt) {
     if (g_payload <= 0 || buf == MPI_IN_PLACE || count < 0 || dt == MPI_DATATYPE_NULL) return;
+    /* the size first in MPI_Count: a message of 2 GiB or more has a packed size that MPI_Pack_size's
+       int cannot hold, and MPI_Pack then fails under the communicator's fatal error handler,
+       which ended the program (MPICH's large_type_sendrec test, a 4 GiB message) */
+    MPI_Count tsize = 0;
+    if (PMPI_Type_size_x(dt, &tsize) != MPI_SUCCESS || tsize < 0) return;
+    if (tsize * (MPI_Count)count > g_payload) { rb_printf(b, ",\"%sbig\":%lld", key, (long long)(tsize * (MPI_Count)count)); return; }
     int size = 0, pos = 0;
-    if (PMPI_Pack_size(count, dt, MPI_COMM_WORLD, &size) != MPI_SUCCESS) return;
+    if (PMPI_Pack_size(count, dt, MPI_COMM_WORLD, &size) != MPI_SUCCESS || size < 0) return;
     if (size > g_payload) { rb_printf(b, ",\"%sbig\":%d", key, size); return; }
     unsigned char *packed = xrealloc(NULL, size > 0 ? size : 1);
     if (PMPI_Pack(buf, count, dt, packed, size, &pos, MPI_COMM_WORLD) == MPI_SUCCESS) {

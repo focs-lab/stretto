@@ -1,0 +1,514 @@
+program,area,conflo,label,kind,scope,expect,why
+coll/ArgError-MPIAllgather-Communicator-1.c,coll,0,erroneous,ArgError,out,,an invalid argument of one call
+coll/ArgError-MPIAllgather-Communicator-2.c,coll,0,erroneous,ArgError,out,,an invalid argument of one call
+coll/ArgError-MPIAllgather-Count-1.c,coll,0,erroneous,ArgError,out,,an invalid argument of one call
+coll/ArgError-MPIAllgather-Count-2.c,coll,0,erroneous,ArgError,out,,an invalid argument of one call
+coll/ArgError-MPIAllgather-Count-3.c,coll,0,erroneous,ArgError,out,,an invalid argument of one call
+coll/ArgError-MPIAllgather-Count-4.c,coll,0,erroneous,ArgError,out,,an invalid argument of one call
+coll/ArgError-MPIAllgather-RecvBuffer-1.c,coll,0,erroneous,ArgError,out,,an invalid argument of one call
+coll/ArgError-MPIAllgather-RecvBuffer-2.c,coll,0,erroneous,ArgError,out,,an invalid argument of one call
+coll/ArgError-MPIAllgather-SendBuffer.c,coll,0,erroneous,ArgError,out,,an invalid argument of one call
+coll/ArgError-MPIAllgather-Type-1.c,coll,0,erroneous,ArgError,out,,an invalid argument of one call
+coll/ArgError-MPIAllgather-Type-2.c,coll,0,erroneous,ArgError,out,,an invalid argument of one call
+coll/ArgError-MPIAllgather-Type-3.c,coll,0,erroneous,ArgError,out,,an invalid argument of one call
+coll/ArgError-MPIAllgather-Type-4.c,coll,0,erroneous,ArgError,out,,an invalid argument of one call
+coll/ArgError-MPIGather-Communicator-1.c,coll,0,erroneous,ArgError,out,,an invalid argument of one call
+coll/ArgError-MPIGather-Communicator-2.c,coll,0,erroneous,ArgError,out,,an invalid argument of one call
+coll/ArgError-MPIGather-Count-1.c,coll,0,erroneous,ArgError,out,,an invalid argument of one call
+coll/ArgError-MPIGather-Count-2.c,coll,0,erroneous,ArgError,out,,an invalid argument of one call
+coll/ArgError-MPIGather-Count-3.c,coll,0,erroneous,ArgError,out,,an invalid argument of one call
+coll/ArgError-MPIGather-Dest-1.c,coll,0,erroneous,ArgError,out,,an invalid argument of one call
+coll/ArgError-MPIGather-Dest-2.c,coll,0,erroneous,ArgError,out,,an invalid argument of one call
+coll/ArgError-MPIGather-RecvBuffer-1.c,coll,0,erroneous,ArgError,out,,an invalid argument of one call
+coll/ArgError-MPIGather-RecvBuffer-2.c,coll,0,erroneous,ArgError,out,,an invalid argument of one call
+coll/ArgError-MPIGather-SendBuffer.c,coll,0,erroneous,ArgError,out,,an invalid argument of one call
+coll/ArgError-MPIGather-Type-1.c,coll,0,erroneous,ArgError,out,,an invalid argument of one call
+coll/ArgError-MPIGather-Type-2.c,coll,0,erroneous,ArgError,out,,an invalid argument of one call
+coll/ArgError-MPIGather-Type-3.c,coll,0,erroneous,ArgError,out,,an invalid argument of one call
+coll/ArgError-MPIGather-Type-4.c,coll,0,erroneous,ArgError,out,,an invalid argument of one call
+coll/ArgError-MPIReduce-Communicator-1.c,coll,0,erroneous,ArgError,out,,an invalid argument of one call
+coll/ArgError-MPIReduce-Communicator-2.c,coll,0,erroneous,ArgError,out,,an invalid argument of one call
+coll/ArgError-MPIReduce-Count-1.c,coll,0,erroneous,ArgError,out,,an invalid argument of one call
+coll/ArgError-MPIReduce-Count-2.c,coll,0,erroneous,ArgError,out,,an invalid argument of one call
+coll/ArgError-MPIReduce-Count-3.c,coll,0,erroneous,ArgError,out,,an invalid argument of one call
+coll/ArgError-MPIReduce-Count-3a.c,coll,0,erroneous,ArgError,out,,an invalid argument of one call
+coll/ArgError-MPIReduce-Op-1.c,coll,0,erroneous,ArgError,out,,an invalid argument of one call
+coll/ArgError-MPIReduce-Op-2.c,coll,0,erroneous,ArgError,out,,an invalid argument of one call
+coll/ArgError-MPIReduce-RecvBuffer.c,coll,0,erroneous,ArgError,out,,an invalid argument of one call
+coll/ArgError-MPIReduce-Root.c,coll,0,erroneous,ArgError,out,,an invalid argument of one call
+coll/ArgError-MPIReduce-SendBuffer.c,coll,0,erroneous,ArgError,out,,an invalid argument of one call
+coll/ArgError-MPIReduce-Type-1.c,coll,0,erroneous,ArgError,out,,an invalid argument of one call
+coll/ArgError-MPIReduce-Type-2.c,coll,0,erroneous,ArgError,out,,an invalid argument of one call
+coll/ArgError-MPIReduce-Type-3.c,coll,0,erroneous,ArgError,out,,an invalid argument of one call
+coll/ArgError-MPIScatter-Communicator-1.c,coll,0,erroneous,ArgError,out,,an invalid argument of one call
+coll/ArgError-MPIScatter-Communicator-2.c,coll,0,erroneous,ArgError,out,,an invalid argument of one call
+coll/ArgError-MPIScatter-Count-1.c,coll,0,erroneous,ArgError,out,,an invalid argument of one call
+coll/ArgError-MPIScatter-Count-1a.c,coll,0,erroneous,ArgError,out,,an invalid argument of one call
+coll/ArgError-MPIScatter-Count-2.c,coll,0,erroneous,ArgError,out,,an invalid argument of one call
+coll/ArgError-MPIScatter-Count-3.c,coll,0,erroneous,ArgError,out,,an invalid argument of one call
+coll/ArgError-MPIScatter-Count-4.c,coll,0,erroneous,ArgError,out,,an invalid argument of one call
+coll/ArgError-MPIScatter-Rank.c,coll,0,erroneous,ArgError,out,,an invalid argument of one call
+coll/ArgError-MPIScatter-RecvBuffer.c,coll,0,erroneous,ArgError,out,,an invalid argument of one call
+coll/ArgError-MPIScatter-SendBuffer.c,coll,0,erroneous,ArgError,out,,an invalid argument of one call
+coll/ArgError-MPIScatter-Type-1.c,coll,0,erroneous,ArgError,out,,an invalid argument of one call
+coll/ArgError-MPIScatter-Type-2.c,coll,0,erroneous,ArgError,out,,an invalid argument of one call
+coll/ArgError-MPIScatter-Type-3.c,coll,0,erroneous,ArgError,out,,an invalid argument of one call
+coll/ArgMismatch-MPIGather-Type-1.c,coll,0,erroneous,ArgMismatch,out,,collective arguments differ between the ranks
+coll/ArgMismatch-MPIGather-Type-2.c,coll,0,erroneous,ArgMismatch,out,,collective arguments differ between the ranks
+coll/ArgMismatch-MPIReduce-Count.c,coll,0,erroneous,ArgMismatch,out,,collective arguments differ between the ranks
+coll/ArgMismatch-MPIReduce-Op.c,coll,0,erroneous,ArgMismatch,out,,collective arguments differ between the ranks
+coll/ArgMismatch-MPIReduce-root.c,coll,0,erroneous,ArgMismatch,out,,collective arguments differ between the ranks
+coll/MisplacedCall-MPIBarrier-Deadlock-1.c,coll,0,erroneous,MisplacedCall,in,2-blocked 2-collective 1c,a deadlock in every run
+coll/MisplacedCall-MPIBarrier-Deadlock-2.c,coll,0,erroneous,MisplacedCall,in,2-blocked 2-collective 1c,a deadlock in every run
+coll/MissingCall-MPIGather-Deadlock.c,coll,0,erroneous,MissingCall,in,2-blocked 2-collective 1c,a deadlock in every run
+coll/MissingCall-MPIIBcast.c,coll,0,erroneous,MissingCall,out,,"the life of a request: no hang, no lost message"
+coll/MissingCall-MPIReduce-Deadlock.c,coll,0,erroneous,MissingCall,in,2-blocked 2-collective 1c,a deadlock in every run
+conflo/coll/ArgError-MPIAllgather-SendCount.c,coll,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/coll/ArgError-MPIGather-Dest.c,coll,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/coll/ArgError-MPIGather-RecvBuffer.c,coll,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/coll/ArgError-MPIGather-RecvCount.c,coll,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/coll/ArgError-MPIGather-RecvType.c,coll,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/coll/ArgError-MPIGather-SendBuffer.c,coll,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/coll/ArgError-MPIGather-SendCount-1.c,coll,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/coll/ArgError-MPIGather-SendCount-2.c,coll,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/coll/ArgError-MPIGather-SendType.c,coll,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/coll/ArgError-MPIReduce-Communicator.c,coll,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/coll/ArgError-MPIReduce-Count.c,coll,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/coll/ArgError-MPIReduce-Op-1.c,coll,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/coll/ArgError-MPIReduce-Op-2.c,coll,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/coll/ArgError-MPIReduce-Op-3.c,coll,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/coll/ArgError-MPIReduce-Op-4.c,coll,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/coll/ArgError-MPIReduce-RecvBuffer.c,coll,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/coll/ArgError-MPIReduce-Root.c,coll,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/coll/ArgError-MPIReduce-SendBuffer.c,coll,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/coll/ArgError-MPIScatter-Count-1.c,coll,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/coll/ArgError-MPIScatter-Count-2.c,coll,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/coll/ArgMismatch-MPIReduce-Count.c,coll,1,erroneous,ArgMismatch,out,,collective arguments differ between the ranks
+conflo/coll/ArgMismatch-MPIReduce-Op.c,coll,1,erroneous,ArgMismatch,out,,collective arguments differ between the ranks
+conflo/coll/ArgMismatch-MPIReduce-root.c,coll,1,erroneous,ArgMismatch,out,,collective arguments differ between the ranks
+conflo/coll/MisplacedCall-MPIBarrier-Deadlock-1.c,coll,1,erroneous,MisplacedCall,in,2-blocked 2-collective 1c,a deadlock in every run
+conflo/coll/MissingCall-MPIGather-Deadlock.c,coll,1,erroneous,MissingCall,in,2-blocked 2-collective 1c,a deadlock in every run
+conflo/coll/MissingCall-MPIIBcast.c,coll,1,erroneous,MissingCall,out,,"the life of a request: no hang, no lost message"
+conflo/coll/MissingCall-MPIReduce-Deadlock.c,coll,1,erroneous,MissingCall,in,2-blocked 2-collective 1c,a deadlock in every run
+conflo/pt2pt/ArgError-MPIIRecv-Reqest.c,pt2pt,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/pt2pt/ArgError-MPIISend-Buffer.c,pt2pt,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/pt2pt/ArgError-MPIISend-Communicator-1.c,pt2pt,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/pt2pt/ArgError-MPIISend-Communicator-2.c,pt2pt,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/pt2pt/ArgError-MPIISend-Communicator-3.c,pt2pt,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/pt2pt/ArgError-MPIISend-Count-1.c,pt2pt,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/pt2pt/ArgError-MPIISend-Count-2.c,pt2pt,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/pt2pt/ArgError-MPIISend-Count-4.c,pt2pt,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/pt2pt/ArgError-MPIISend-Request.c,pt2pt,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/pt2pt/ArgError-MPIISend-Tag.c,pt2pt,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/pt2pt/ArgError-MPIISend-TargetRank.c,pt2pt,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/pt2pt/ArgError-MPIISend-Type.c,pt2pt,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/pt2pt/ArgError-MPIRecv-Buffer.c,pt2pt,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/pt2pt/ArgError-MPIRecv-Communicator.c,pt2pt,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/pt2pt/ArgError-MPIRecv-Count.c,pt2pt,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/pt2pt/ArgError-MPIRecv-Type-1.c,pt2pt,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/pt2pt/ArgError-MPIRecv-Type-2.c,pt2pt,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/pt2pt/ArgError-MPIRecv-Type-3.c,pt2pt,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/pt2pt/ArgError-MPISend-Buffer.c,pt2pt,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/pt2pt/ArgError-MPISend-Communicator-1.c,pt2pt,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/pt2pt/ArgError-MPISend-Communicator-2.c,pt2pt,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/pt2pt/ArgError-MPISend-Communicator-3.c,pt2pt,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/pt2pt/ArgError-MPISend-Count-1.c,pt2pt,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/pt2pt/ArgError-MPISend-Count-2.c,pt2pt,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/pt2pt/ArgError-MPISend-Count-3.c,pt2pt,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/pt2pt/ArgError-MPISend-Rank.c,pt2pt,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/pt2pt/ArgError-MPISend-Tag-1.c,pt2pt,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/pt2pt/ArgError-MPISend-Tag-2.c,pt2pt,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/pt2pt/ArgError-MPISend-Type-2.c,pt2pt,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/pt2pt/ArgError-MPISend-Type-3.c,pt2pt,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/pt2pt/ArgError-MPITest-Flag.c,pt2pt,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/pt2pt/ArgError-MPITest-Status.c,pt2pt,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/pt2pt/ArgMismatch-MPIIRecv-Tag-2.c,pt2pt,1,erroneous,ArgMismatch,in,2-blocked 1c,the receive's tag matches no send: it never completes
+conflo/pt2pt/ArgMismatch-MPIIrecv-buffer-overlap.c,pt2pt,1,erroneous,ArgMismatch,in,3-local 3-race,two pending receives write one buffer
+conflo/pt2pt/ArgMismatch-MPIRecv-Tag-1.c,pt2pt,1,erroneous,ArgMismatch,in,2-blocked 1c,the receive's tag matches no send: it never completes
+conflo/pt2pt/ArgMismatch-MPIRecv-Tag-3.c,pt2pt,1,erroneous,ArgMismatch,in,2-blocked 1c,the receive's tag matches no send: it never completes
+conflo/pt2pt/MisplacedCall-MPIRecv-Deadlock-1.c,pt2pt,1,erroneous,MisplacedCall,in,2-blocked 2-collective 1c,a deadlock in every run
+conflo/pt2pt/MisplacedCall-MPIRecv-Deadlock-4.c,pt2pt,1,erroneous,MisplacedCall,in,2-buffering 2-blocked,a deadlock unless the sends are buffered
+conflo/pt2pt/MisplacedCall-MPISend.c,pt2pt,1,erroneous,MisplacedCall,out,,a call before MPI_Init
+conflo/pt2pt/MisplacedCall-MPIWait.c,pt2pt,1,erroneous,MisplacedCall,in,3-local,the send buffer is written before the wait
+conflo/pt2pt/MissingCall-MPIFinalize.c,pt2pt,1,erroneous,MissingCall,out,,a missing MPI_Finalize
+conflo/pt2pt/MissingCall-MPIRecv.c,pt2pt,1,erroneous,MissingCall,in,1c,a message is never received
+conflo/pt2pt/MissingCall-MPISend-Deadlock.c,pt2pt,1,erroneous,MissingCall,in,2-blocked 2-collective 1c,a deadlock in every run
+conflo/pt2pt/MissingCall-MPIWait.c,pt2pt,1,erroneous,MissingCall,out,,"the life of a request: no hang, no lost message"
+conflo/rma/ArgError-MPIGet-SizeNotMatching.c,rma,1,erroneous,ArgError,out,,one-sided communication: no model
+conflo/rma/ArgError-MPIGet-buffer.c,rma,1,erroneous,ArgError,out,,one-sided communication: no model
+conflo/rma/ArgError-MPIGet-invalidAccess.c,rma,1,erroneous,ArgError,out,,one-sided communication: no model
+conflo/rma/ArgError-MPIGet-rank.c,rma,1,erroneous,ArgError,out,,one-sided communication: no model
+conflo/rma/ArgError-MPIGet-type.c,rma,1,erroneous,ArgError,out,,one-sided communication: no model
+conflo/rma/ArgError-MPIPut-InvalidAccess.c,rma,1,erroneous,ArgError,out,,one-sided communication: no model
+conflo/rma/ArgError-MPIPut-SizeNotMatching.c,rma,1,erroneous,ArgError,out,,one-sided communication: no model
+conflo/rma/ArgError-MPIPut-buffer.c,rma,1,erroneous,ArgError,out,,one-sided communication: no model
+conflo/rma/ArgError-MPIPut-count.c,rma,1,erroneous,ArgError,out,,one-sided communication: no model
+conflo/rma/ArgError-MPIPut-rank.c,rma,1,erroneous,ArgError,out,,one-sided communication: no model
+conflo/rma/ArgError-MPIPut-type.c,rma,1,erroneous,ArgError,out,,one-sided communication: no model
+conflo/rma/ArgError-MPIWinCreate-OverwriteWin.c,rma,1,erroneous,ArgError,out,,one-sided communication: no model
+conflo/rma/ArgError-MPIWinCreate-dispUnit.c,rma,1,erroneous,ArgError,out,,one-sided communication: no model
+conflo/rma/ArgError-MPIWinCreate-invalidBuffer-1.c,rma,1,erroneous,ArgError,out,,one-sided communication: no model
+conflo/rma/ArgError-MPIWinCreate-overlap.c,rma,1,erroneous,ArgError,out,,one-sided communication: no model
+conflo/rma/ArgError-MPIWinCreate-size.c,rma,1,erroneous,ArgError,out,,one-sided communication: no model
+conflo/rma/ArgError-MPIWinFence-assert.c,rma,1,erroneous,ArgError,out,,one-sided communication: no model
+conflo/rma/MisplacedCall-MPIGet-bufferModification.c,rma,1,erroneous,MisplacedCall,out,,one-sided communication: no model
+conflo/rma/MisplacedCall-MPIPut-bufferModification.c,rma,1,erroneous,MisplacedCall,out,,one-sided communication: no model
+conflo/rma/MisplacedCall-MPIWinFence-1.c,rma,1,erroneous,MisplacedCall,out,,one-sided communication: no model
+conflo/rma/MisplacedCall-MPIWinFence-2.c,rma,1,erroneous,MisplacedCall,out,,one-sided communication: no model
+conflo/rma/MisplacedCall-MPIWinFree-bufferFree.c,rma,1,erroneous,MisplacedCall,out,,one-sided communication: no model
+conflo/rma/MisplacedCall-MPIWinLock.c,rma,1,erroneous,MisplacedCall,out,,one-sided communication: no model
+conflo/rma/MissingCall-MPIFence.c,rma,1,erroneous,MissingCall,out,,one-sided communication: no model
+conflo/rma/MissingCall-MPIWinCreate.c,rma,1,erroneous,MissingCall,out,,one-sided communication: no model
+conflo/rma/MissingCall-MPIWinFence-1.c,rma,1,erroneous,MissingCall,out,,one-sided communication: no model
+conflo/rma/MissingCall-MPIWinFence-2.c,rma,1,erroneous,MissingCall,out,,one-sided communication: no model
+conflo/rma/MissingCall-MPIWinFence-3.c,rma,1,erroneous,MissingCall,out,,one-sided communication: no model
+conflo/usertypes/ArgError-MPIRecv-Count-2.c,usertypes,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/usertypes/ArgError-MPISend-Type-1.c,usertypes,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/usertypes/ArgError-MPISend-Type-4.c,usertypes,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/usertypes/ArgError-MPITypeContiguous-Count.c,usertypes,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/usertypes/ArgError-MPITypeContiguous-NewType.c,usertypes,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/usertypes/ArgError-MPITypeContiguous-OldType.c,usertypes,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/usertypes/ArgError-MPITypeCreateHVector-Stride.c,usertypes,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/usertypes/ArgError-MPITypeCreateStruct-Count-1.c,usertypes,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/usertypes/ArgError-MPITypeCreateStruct-Count-2.c,usertypes,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/usertypes/ArgError-MPITypeCreateStruct-Datatype.c,usertypes,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/usertypes/ArgError-MPITypeCreateStruct-Displacements-1.c,usertypes,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/usertypes/ArgError-MPITypeCreateStruct-Displacements-2.c,usertypes,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/usertypes/ArgError-MPITypeVector-Blocklength.c,usertypes,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/usertypes/ArgError-MPITypeVector-Count.c,usertypes,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/usertypes/ArgError-MPITypeVector-NewType.c,usertypes,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/usertypes/ArgError-MPITypeVector-OldType.c,usertypes,1,erroneous,ArgError,out,,an invalid argument of one call
+conflo/usertypes/ArgMismatch-MPIRecv-Type-3.c,usertypes,1,erroneous,ArgMismatch,out,,the signature of the run's own match differs (checked for alternatives only)
+conflo/usertypes/ArgMismatch-MPIRecv-Type-4.c,usertypes,1,erroneous,ArgMismatch,out,,the signature of the run's own match differs (checked for alternatives only)
+conflo/usertypes/MisplacedCall-MPITypeCommit-1.c,usertypes,1,erroneous,MisplacedCall,out,,the life of a datatype
+conflo/usertypes/MissingCall-MPITypeCommit.c,usertypes,1,erroneous,MissingCall,out,,the life of a datatype
+correct/coll/allgather2.c,coll,0,correct,correct,,,
+correct/coll/allgather3.c,coll,0,correct,correct,,,
+correct/coll/allgather_struct.c,coll,0,correct,correct,,,
+correct/coll/allgatherv2.c,coll,0,correct,correct,,,
+correct/coll/allgatherv3.c,coll,0,correct,correct,,,
+correct/coll/allred2.c,coll,0,correct,correct,,,
+correct/coll/allred3.c,coll,0,correct,correct,,,
+correct/coll/allred4.c,coll,0,correct,correct,,,
+correct/coll/allred5.c,coll,0,correct,correct,,,
+correct/coll/allred6.c,coll,0,correct,correct,,,
+correct/coll/allredmany.c,coll,0,correct,correct,,,
+correct/coll/alltoall1.c,coll,0,correct,correct,,,
+correct/coll/alltoallv.c,coll,0,correct,correct,,,
+correct/coll/alltoallv0.c,coll,0,correct,correct,,,
+correct/coll/alltoallw1.c,coll,0,correct,correct,,,
+correct/coll/alltoallw2.c,coll,0,correct,correct,,,
+correct/coll/alltoallw_zeros.c,coll,0,correct,correct,,,
+correct/coll/bcasttest.c,coll,0,correct,correct,,,
+correct/coll/bcastzerotype.c,coll,0,correct,correct,,,
+correct/coll/coll10.c,coll,0,correct,correct,,,
+correct/coll/coll11.c,coll,0,correct,correct,,,
+correct/coll/coll12.c,coll,0,correct,correct,,,
+correct/coll/coll13.c,coll,0,correct,correct,,,
+correct/coll/coll2.c,coll,0,correct,correct,,,
+correct/coll/coll3.c,coll,0,correct,correct,,,
+correct/coll/coll4.c,coll,0,correct,correct,,,
+correct/coll/coll5.c,coll,0,correct,correct,,,
+correct/coll/coll6.c,coll,0,correct,correct,,,
+correct/coll/coll7.c,coll,0,correct,correct,,,
+correct/coll/coll8.c,coll,0,correct,correct,,,
+correct/coll/coll9.c,coll,0,correct,correct,,,
+correct/coll/exscan.c,coll,0,correct,correct,,,
+correct/coll/exscan2.c,coll,0,correct,correct,,,
+correct/coll/gather.c,coll,0,correct,correct,,,
+correct/coll/gather2.c,coll,0,correct,correct,,,
+correct/coll/iallred.c,coll,0,correct,correct,,,
+correct/coll/ibarrier.c,coll,0,correct,correct,,,
+correct/coll/icalltoall.c,coll,0,correct,correct,,,
+correct/coll/icalltoallv.c,coll,0,correct,correct,,,
+correct/coll/icalltoallw.c,coll,0,correct,correct,,,
+correct/coll/icbarrier.c,coll,0,correct,correct,,,
+correct/coll/icbcast.c,coll,0,correct,correct,,,
+correct/coll/icgather.c,coll,0,correct,correct,,,
+correct/coll/icgatherv.c,coll,0,correct,correct,,,
+correct/coll/icreduce.c,coll,0,correct,correct,,,
+correct/coll/icscatter.c,coll,0,correct,correct,,,
+correct/coll/icscatterv.c,coll,0,correct,correct,,,
+correct/coll/longuser.c,coll,0,correct,correct,,,
+correct/coll/neighb_coll.c,coll,0,correct,correct,,,
+correct/coll/nonblocking.c,coll,0,correct,correct,,,
+correct/coll/op_commutative.c,coll,0,correct,correct,,,
+correct/coll/opmax.c,coll,0,correct,correct,,,
+correct/coll/opmaxloc.c,coll,0,correct,correct,,,
+correct/coll/opmin.c,coll,0,correct,correct,,,
+correct/coll/opminloc.c,coll,0,correct,correct,,,
+correct/coll/opprod.c,coll,0,correct,correct,,,
+correct/coll/opsum.c,coll,0,correct,correct,,,
+correct/coll/red3.c,coll,0,correct,correct,,,
+correct/coll/red4.c,coll,0,correct,correct,,,
+correct/coll/red_scat_block.c,coll,0,correct,correct,,,
+correct/coll/red_scat_block2.c,coll,0,correct,correct,,,
+correct/coll/redscat.c,coll,0,correct,correct,,,
+correct/coll/redscat2.c,coll,0,correct,correct,,,
+correct/coll/redscat3.c,coll,0,correct,correct,,,
+correct/coll/redscatbkinter.c,coll,0,correct,correct,,,
+correct/coll/redscatblk3.c,coll,0,correct,correct,,,
+correct/coll/redscatinter.c,coll,0,correct,correct,,,
+correct/coll/reduce.c,coll,0,correct,correct,,,
+correct/coll/reduce_local.c,coll,0,correct,correct,,,
+correct/coll/scantst.c,coll,0,correct,correct,,,
+correct/coll/scattern.c,coll,0,correct,correct,,,
+correct/coll/uoplong.c,coll,0,correct,correct,,,
+correct/datatype/cxx_types.c,usertypes,0,correct,correct,,,
+correct/datatype/darray_cyclic.c,usertypes,0,correct,correct,,,
+correct/datatype/gaddress.c,usertypes,0,correct,correct,,,
+correct/datatype/get_elements.c,usertypes,0,correct,correct,,,
+correct/datatype/hindexed_block_contents.c,usertypes,0,correct,correct,,,
+correct/datatype/large_type_sendrec.c,usertypes,0,correct,correct,,,
+correct/datatype/longdouble.c,usertypes,0,correct,correct,,,
+correct/datatype/simple_pack_external2.c,usertypes,0,correct,correct,,,
+correct/datatype/subarray.c,usertypes,0,correct,correct,,,
+correct/datatype/tfree.c,usertypes,0,correct,correct,,,
+correct/datatype/tmatchsize.c,usertypes,0,correct,correct,,,
+correct/datatype/tresized.c,usertypes,0,correct,correct,,,
+correct/datatype/tresized2.c,usertypes,0,correct,correct,,,
+correct/datatype/typecommit.c,usertypes,0,correct,correct,,,
+correct/datatype/typefree.c,usertypes,0,correct,correct,,,
+correct/datatype/vecblklen.c,usertypes,0,correct,correct,,,
+correct/datatype/zero_blklen_vector.c,usertypes,0,correct,correct,,,
+correct/datatype/zeroblks.c,usertypes,0,correct,correct,,,
+correct/pt2pt/anyall.c,pt2pt,0,correct,correct,,,
+correct/pt2pt/big_count_status.c,pt2pt,0,correct,correct,,,
+correct/pt2pt/bottom.c,pt2pt,0,correct,correct,,,
+correct/pt2pt/bsend1.c,pt2pt,0,correct,correct,,,
+correct/pt2pt/bsend2.c,pt2pt,0,correct,correct,,,
+correct/pt2pt/bsend3.c,pt2pt,0,correct,correct,,,
+correct/pt2pt/bsend4.c,pt2pt,0,correct,correct,,,
+correct/pt2pt/bsend5.c,pt2pt,0,correct,correct,,,
+correct/pt2pt/bsendalign.c,pt2pt,0,correct,correct,,,
+correct/pt2pt/bsendpending.c,pt2pt,0,correct,correct,,,
+correct/pt2pt/cancelanysrc.c,pt2pt,0,correct,correct,,,
+correct/pt2pt/dtype_send.c,pt2pt,0,correct,correct,,,
+correct/pt2pt/greq1.c,pt2pt,0,correct,correct,,,
+correct/pt2pt/huge_anysrc.c,pt2pt,0,correct,correct,,,
+correct/pt2pt/huge_dupcomm.c,pt2pt,0,correct,correct,,,
+correct/pt2pt/huge_underflow.c,pt2pt,0,correct,correct,,,
+correct/pt2pt/icsend.c,pt2pt,0,correct,correct,,,
+correct/pt2pt/inactivereq.c,pt2pt,0,correct,correct,,,
+correct/pt2pt/isendirecv.c,pt2pt,0,correct,correct,,,
+correct/pt2pt/isendself.c,pt2pt,0,correct,correct,,,
+correct/pt2pt/isendselfprobe.c,pt2pt,0,correct,correct,,,
+correct/pt2pt/issendselfcancel.c,pt2pt,0,correct,correct,,,
+correct/pt2pt/large_tag.c,pt2pt,0,correct,correct,,,
+correct/pt2pt/many_isend.c,pt2pt,0,correct,correct,,,
+correct/pt2pt/manylmt.c,pt2pt,0,correct,correct,,,
+correct/pt2pt/patterns.c,pt2pt,0,correct,correct,,,
+correct/pt2pt/probe_unexp.c,pt2pt,0,correct,correct,,,
+correct/pt2pt/probenull.c,pt2pt,0,correct,correct,,,
+correct/pt2pt/rcancel.c,pt2pt,0,correct,correct,,,
+correct/pt2pt/recv_any.c,pt2pt,0,correct,correct,,,
+correct/pt2pt/rqfreeb.c,pt2pt,0,correct,correct,,,
+correct/pt2pt/rqstatus.c,pt2pt,0,correct,correct,,,
+correct/pt2pt/scancel2.c,pt2pt,0,correct,correct,,,
+correct/pt2pt/sendall.c,pt2pt,0,correct,correct,,,
+correct/pt2pt/sendrecv.c,pt2pt,0,correct,correct,,,
+correct/pt2pt/sendrecv3.c,pt2pt,0,correct,correct,,,
+correct/pt2pt/simple.c,pt2pt,0,correct,correct,,,
+correct/pt2pt/srtest.c,pt2pt,0,correct,correct,,,
+correct/pt2pt/waittestnull.c,pt2pt,0,correct,correct,,,
+correct/pt2pt/wtime.c,pt2pt,0,correct,correct,,,
+correct/rma/acc_loc.c,rma,0,correct,correct,,,
+correct/rma/acc_ordering.c,rma,0,correct,correct,,,
+correct/rma/acc_pairtype.c,rma,0,correct,correct,,,
+correct/rma/accfence2.c,rma,0,correct,correct,,,
+correct/rma/accfence2_am.c,rma,0,correct,correct,,,
+correct/rma/aint.c,rma,0,correct,correct,,,
+correct/rma/at_complete.c,rma,0,correct,correct,,,
+correct/rma/atomic_get.c,rma,0,correct,correct,,,
+correct/rma/atomic_rmw_cas.c,rma,0,correct,correct,,,
+correct/rma/atomic_rmw_fop.c,rma,0,correct,correct,,,
+correct/rma/atomic_rmw_gacc.c,rma,0,correct,correct,,,
+correct/rma/baseattrwin.c,rma,0,correct,correct,,,
+correct/rma/compare_and_swap.c,rma,0,correct,correct,,,
+correct/rma/contig_displ.c,rma,0,correct,correct,,,
+correct/rma/fence_shm.c,rma,0,correct,correct,,,
+correct/rma/fetch_and_op.c,rma,0,correct,correct,,,
+correct/rma/fetchandadd.c,rma,0,correct,correct,,,
+correct/rma/fetchandadd_am.c,rma,0,correct,correct,,,
+correct/rma/fetchandadd_tree.c,rma,0,correct,correct,,,
+correct/rma/fetchandadd_tree_am.c,rma,0,correct,correct,,,
+correct/rma/flush.c,rma,0,correct,correct,,,
+correct/rma/get_acc_local.c,rma,0,correct,correct,,,
+correct/rma/get_accumulate.c,rma,0,correct,correct,,,
+correct/rma/get_struct.c,rma,0,correct,correct,,,
+correct/rma/getgroup.c,rma,0,correct,correct,,,
+correct/rma/large_small_acc.c,rma,0,correct,correct,,,
+correct/rma/lock_nested.c,rma,0,correct,correct,,,
+correct/rma/lockcontention2.c,rma,0,correct,correct,,,
+correct/rma/locknull.c,rma,0,correct,correct,,,
+correct/rma/lockopts.c,rma,0,correct,correct,,,
+correct/rma/manyget.c,rma,0,correct,correct,,,
+correct/rma/manyrma3.c,rma,0,correct,correct,,,
+correct/rma/mixedsync.c,rma,0,correct,correct,,,
+correct/rma/nullpscw.c,rma,0,correct,correct,,,
+correct/rma/pscw_ordering.c,rma,0,correct,correct,,,
+correct/rma/put_base.c,rma,0,correct,correct,,,
+correct/rma/put_bottom.c,rma,0,correct,correct,,,
+correct/rma/racc_local_comp.c,rma,0,correct,correct,,,
+correct/rma/req_example.c,rma,0,correct,correct,,,
+correct/rma/reqops.c,rma,0,correct,correct,,,
+correct/rma/rget_unlock.c,rma,0,correct,correct,,,
+correct/rma/rmazero.c,rma,0,correct,correct,,,
+correct/rma/rput_local_comp.c,rma,0,correct,correct,,,
+correct/rma/selfrma.c,rma,0,correct,correct,,,
+correct/rma/strided_acc_indexed.c,rma,0,correct,correct,,,
+correct/rma/strided_acc_onelock.c,rma,0,correct,correct,,,
+correct/rma/strided_acc_subarray.c,rma,0,correct,correct,,,
+correct/rma/strided_get_indexed.c,rma,0,correct,correct,,,
+correct/rma/strided_getacc_indexed.c,rma,0,correct,correct,,,
+correct/rma/strided_getacc_indexed_shared.c,rma,0,correct,correct,,,
+correct/rma/strided_putget_indexed.c,rma,0,correct,correct,,,
+correct/rma/strided_putget_indexed_shared.c,rma,0,correct,correct,,,
+correct/rma/test1.c,rma,0,correct,correct,,,
+correct/rma/test1_am.c,rma,0,correct,correct,,,
+correct/rma/test1_dt.c,rma,0,correct,correct,,,
+correct/rma/test2.c,rma,0,correct,correct,,,
+correct/rma/test2_am.c,rma,0,correct,correct,,,
+correct/rma/test3.c,rma,0,correct,correct,,,
+correct/rma/test3_am.c,rma,0,correct,correct,,,
+correct/rma/test4.c,rma,0,correct,correct,,,
+correct/rma/test4_am.c,rma,0,correct,correct,,,
+correct/rma/test5.c,rma,0,correct,correct,,,
+correct/rma/test5_am.c,rma,0,correct,correct,,,
+correct/rma/win_flavors.c,rma,0,correct,correct,,,
+correct/rma/win_info.c,rma,0,correct,correct,,,
+correct/rma/win_large_shm.c,rma,0,correct,correct,,,
+correct/rma/win_shared_query_null.c,rma,0,correct,correct,,,
+correct/rma/win_zero.c,rma,0,correct,correct,,,
+correct/rma/wincall.c,rma,0,correct,correct,,,
+correct/rma/window_creation.c,rma,0,correct,correct,,,
+correct/rma/winname.c,rma,0,correct,correct,,,
+correct/rma/wintest.c,rma,0,correct,correct,,,
+pt2pt/ArgError-MPIIRecv-Buffer-1.c,pt2pt,0,erroneous,ArgError,out,,an invalid argument of one call
+pt2pt/ArgError-MPIIRecv-Communicator-1.c,pt2pt,0,erroneous,ArgError,out,,an invalid argument of one call
+pt2pt/ArgError-MPIIRecv-Communicator-2.c,pt2pt,0,erroneous,ArgError,out,,an invalid argument of one call
+pt2pt/ArgError-MPIIRecv-Count-1.c,pt2pt,0,erroneous,ArgError,out,,an invalid argument of one call
+pt2pt/ArgError-MPIIRecv-Count-2.c,pt2pt,0,erroneous,ArgError,out,,an invalid argument of one call
+pt2pt/ArgError-MPIIRecv-Rank-1.c,pt2pt,0,erroneous,ArgError,out,,an invalid argument of one call
+pt2pt/ArgError-MPIIRecv-Rank-2.c,pt2pt,0,erroneous,ArgError,out,,an invalid argument of one call
+pt2pt/ArgError-MPIIRecv-Request.c,pt2pt,0,erroneous,ArgError,out,,an invalid argument of one call
+pt2pt/ArgError-MPIIRecv-Tag.c,pt2pt,0,erroneous,ArgError,out,,an invalid argument of one call
+pt2pt/ArgError-MPIIRecv-Type-1.c,pt2pt,0,erroneous,ArgError,out,,an invalid argument of one call
+pt2pt/ArgError-MPIIRecv-Type-2.c,pt2pt,0,erroneous,ArgError,out,,an invalid argument of one call
+pt2pt/ArgError-MPIIRecv-Type-3.c,pt2pt,0,erroneous,ArgError,out,,an invalid argument of one call
+pt2pt/ArgError-MPIIRecv-Type-3a.c,pt2pt,0,erroneous,ArgError,out,,an invalid argument of one call
+pt2pt/ArgError-MPIISend-Buffer.c,pt2pt,0,erroneous,ArgError,out,,an invalid argument of one call
+pt2pt/ArgError-MPIISend-Communicator-1.c,pt2pt,0,erroneous,ArgError,out,,an invalid argument of one call
+pt2pt/ArgError-MPIISend-Communicator-2.c,pt2pt,0,erroneous,ArgError,out,,an invalid argument of one call
+pt2pt/ArgError-MPIISend-Count-1.c,pt2pt,0,erroneous,ArgError,out,,an invalid argument of one call
+pt2pt/ArgError-MPIISend-Count-2.c,pt2pt,0,erroneous,ArgError,out,,an invalid argument of one call
+pt2pt/ArgError-MPIISend-Rank-1.c,pt2pt,0,erroneous,ArgError,out,,an invalid argument of one call
+pt2pt/ArgError-MPIISend-Rank-2.c,pt2pt,0,erroneous,ArgError,out,,an invalid argument of one call
+pt2pt/ArgError-MPIISend-Request-1.c,pt2pt,0,erroneous,ArgError,out,,an invalid argument of one call
+pt2pt/ArgError-MPIISend-Tag-1.c,pt2pt,0,erroneous,ArgError,out,,an invalid argument of one call
+pt2pt/ArgError-MPIISend-Tag-2.c,pt2pt,0,erroneous,ArgError,out,,an invalid argument of one call
+pt2pt/ArgError-MPIISend-Type-1.c,pt2pt,0,erroneous,ArgError,out,,an invalid argument of one call
+pt2pt/ArgError-MPIISend-Type-2.c,pt2pt,0,erroneous,ArgError,out,,an invalid argument of one call
+pt2pt/ArgError-MPIISend-Type-3.c,pt2pt,0,erroneous,ArgError,out,,an invalid argument of one call
+pt2pt/ArgError-MPIRecv-Buffer.c,pt2pt,0,erroneous,ArgError,out,,an invalid argument of one call
+pt2pt/ArgError-MPIRecv-Communicator-1.c,pt2pt,0,erroneous,ArgError,out,,an invalid argument of one call
+pt2pt/ArgError-MPIRecv-Communicator-2.c,pt2pt,0,erroneous,ArgError,out,,an invalid argument of one call
+pt2pt/ArgError-MPIRecv-Count-1.c,pt2pt,0,erroneous,ArgError,out,,an invalid argument of one call
+pt2pt/ArgError-MPIRecv-Count-2.c,pt2pt,0,erroneous,ArgError,out,,an invalid argument of one call
+pt2pt/ArgError-MPIRecv-Rank-1.c,pt2pt,0,erroneous,ArgError,out,,an invalid argument of one call
+pt2pt/ArgError-MPIRecv-Rank-2.c,pt2pt,0,erroneous,ArgError,out,,an invalid argument of one call
+pt2pt/ArgError-MPIRecv-Tag.c,pt2pt,0,erroneous,ArgError,out,,an invalid argument of one call
+pt2pt/ArgError-MPIRecv-Type-1.c,pt2pt,0,erroneous,ArgError,out,,an invalid argument of one call
+pt2pt/ArgError-MPIRecv-Type-2.c,pt2pt,0,erroneous,ArgError,out,,an invalid argument of one call
+pt2pt/ArgError-MPIRecv-Type-3.c,pt2pt,0,erroneous,ArgError,out,,an invalid argument of one call
+pt2pt/ArgError-MPISend-Buffer.c,pt2pt,0,erroneous,ArgError,out,,an invalid argument of one call
+pt2pt/ArgError-MPISend-Communicator-1.c,pt2pt,0,erroneous,ArgError,out,,an invalid argument of one call
+pt2pt/ArgError-MPISend-Communicator-2.c,pt2pt,0,erroneous,ArgError,out,,an invalid argument of one call
+pt2pt/ArgError-MPISend-Count-1.c,pt2pt,0,erroneous,ArgError,out,,an invalid argument of one call
+pt2pt/ArgError-MPISend-Count-2.c,pt2pt,0,erroneous,ArgError,out,,an invalid argument of one call
+pt2pt/ArgError-MPISend-Count-3.c,pt2pt,0,erroneous,ArgError,out,,an invalid argument of one call
+pt2pt/ArgError-MPISend-Rank-1.c,pt2pt,0,erroneous,ArgError,out,,an invalid argument of one call
+pt2pt/ArgError-MPISend-Rank-2.c,pt2pt,0,erroneous,ArgError,out,,an invalid argument of one call
+pt2pt/ArgError-MPISend-Tag-1.c,pt2pt,0,erroneous,ArgError,out,,an invalid argument of one call
+pt2pt/ArgError-MPISend-Tag-2.c,pt2pt,0,erroneous,ArgError,out,,an invalid argument of one call
+pt2pt/ArgError-MPISend-Type-2.c,pt2pt,0,erroneous,ArgError,out,,an invalid argument of one call
+pt2pt/ArgError-MPISend-Type-3.c,pt2pt,0,erroneous,ArgError,out,,an invalid argument of one call
+pt2pt/ArgError-MPITest-Flag-duplicate.c,pt2pt,0,erroneous,ArgError,out,,an invalid argument of one call
+pt2pt/ArgError-MPITest-Flag.c,pt2pt,0,erroneous,ArgError,out,,an invalid argument of one call
+pt2pt/ArgError-MPITest-Status.c,pt2pt,0,erroneous,ArgError,out,,an invalid argument of one call
+pt2pt/ArgMismatch-MPIIRecv-Tag-1.c,pt2pt,0,erroneous,ArgMismatch,in,2-blocked 1c,the receive's tag matches no send: it never completes
+pt2pt/ArgMismatch-MPIIRecv-Tag-2.c,pt2pt,0,erroneous,ArgMismatch,in,2-blocked 1c,the receive's tag matches no send: it never completes
+pt2pt/ArgMismatch-MPIISend-Communicator-3.c,pt2pt,0,erroneous,ArgMismatch,out,,the destination is no rank of its communicator (an invalid argument)
+pt2pt/ArgMismatch-MPIISend-Type.c,pt2pt,0,erroneous,ArgMismatch,out,,a null datatype (an invalid argument)
+pt2pt/ArgMismatch-MPIIrecv-buffer-overlap.c,pt2pt,0,erroneous,ArgMismatch,in,3-local 3-race,two pending receives write one buffer
+pt2pt/ArgMismatch-MPIRecv-Tag-1.c,pt2pt,0,erroneous,ArgMismatch,in,2-blocked 1c,the receive's tag matches no send: it never completes
+pt2pt/ArgMismatch-MPIRecv-Tag-2.c,pt2pt,0,erroneous,ArgMismatch,in,2-blocked 1c,the receive's tag matches no send: it never completes
+pt2pt/ArgMismatch-MPIRecv-Tag-3.c,pt2pt,0,erroneous,ArgMismatch,in,2-blocked 1c,the receive's tag matches no send: it never completes
+pt2pt/ArgMismatch-MPIRecv-Type-1.c,pt2pt,0,erroneous,ArgMismatch,out,,the signature of the run's own match differs (checked for alternatives only)
+pt2pt/ArgMismatch-MPIRecv-Type-2.c,pt2pt,0,erroneous,ArgMismatch,out,,the signature of the run's own match differs (checked for alternatives only)
+pt2pt/ArgMismatch-MPIRecv-Type-7.c,pt2pt,0,erroneous,ArgMismatch,out,,the signature of the run's own match differs (checked for alternatives only)
+pt2pt/ArgMismatch-MPISend-Communicator-1.c,pt2pt,0,erroneous,ArgMismatch,out,,the destination is no rank of its communicator (an invalid argument)
+pt2pt/ArgMismatch-MPISend-Communicator-2.c,pt2pt,0,erroneous,ArgMismatch,out,,the destination is no rank of its communicator (an invalid argument)
+pt2pt/MisplacedCall-MPIRecv-Deadlock-1.c,pt2pt,0,erroneous,MisplacedCall,in,2-blocked 2-collective 1c,a deadlock in every run
+pt2pt/MisplacedCall-MPIRecv-Deadlock-2.c,pt2pt,0,erroneous,MisplacedCall,in,2-buffering 2-blocked,a deadlock unless the sends are buffered
+pt2pt/MisplacedCall-MPIRecv-Deadlock-4.c,pt2pt,0,erroneous,MisplacedCall,in,2-buffering 2-blocked,a deadlock unless the sends are buffered
+pt2pt/MisplacedCall-MPISend.c,pt2pt,0,erroneous,MisplacedCall,out,,a call before MPI_Init
+pt2pt/MisplacedCall-MPIWait.c,pt2pt,0,erroneous,MisplacedCall,in,3-local,the send buffer is written before the wait
+pt2pt/MissingCall-MPIFinalize.c,pt2pt,0,erroneous,MissingCall,out,,a missing MPI_Finalize
+pt2pt/MissingCall-MPIRecv.c,pt2pt,0,erroneous,MissingCall,in,1c,a message is never received
+pt2pt/MissingCall-MPISend-Deadlock.c,pt2pt,0,erroneous,MissingCall,in,2-blocked 2-collective 1c,a deadlock in every run
+pt2pt/MissingCall-MPIWait.c,pt2pt,0,erroneous,MissingCall,out,,"the life of a request: no hang, no lost message"
+rma/ArgError-MPIGet-SizeNotMatching.c,rma,0,erroneous,ArgError,out,,one-sided communication: no model
+rma/ArgError-MPIGet-buffer.c,rma,0,erroneous,ArgError,out,,one-sided communication: no model
+rma/ArgError-MPIGet-invalidAccess.c,rma,0,erroneous,ArgError,out,,one-sided communication: no model
+rma/ArgError-MPIGet-rank.c,rma,0,erroneous,ArgError,out,,one-sided communication: no model
+rma/ArgError-MPIPut-InvalidAccess.c,rma,0,erroneous,ArgError,out,,one-sided communication: no model
+rma/ArgError-MPIPut-SizeNotMatching.c,rma,0,erroneous,ArgError,out,,one-sided communication: no model
+rma/ArgError-MPIPut-buffer.c,rma,0,erroneous,ArgError,out,,one-sided communication: no model
+rma/ArgError-MPIPut-count.c,rma,0,erroneous,ArgError,out,,one-sided communication: no model
+rma/ArgError-MPIPut-rank.c,rma,0,erroneous,ArgError,out,,one-sided communication: no model
+rma/ArgError-MPIWinCreate-OverwriteWin.c,rma,0,erroneous,ArgError,out,,one-sided communication: no model
+rma/ArgError-MPIWinCreate-dispUnit.c,rma,0,erroneous,ArgError,out,,one-sided communication: no model
+rma/ArgError-MPIWinCreate-invalidBuffer-1.c,rma,0,erroneous,ArgError,out,,one-sided communication: no model
+rma/ArgError-MPIWinCreate-invalidBuffer-2.c,rma,0,erroneous,ArgError,out,,one-sided communication: no model
+rma/ArgError-MPIWinCreate-overlap.c,rma,0,erroneous,ArgError,out,,one-sided communication: no model
+rma/ArgError-MPIWinCreate-size.c,rma,0,erroneous,ArgError,out,,one-sided communication: no model
+rma/ArgError-MPIWinFence-assert.c,rma,0,erroneous,ArgError,out,,one-sided communication: no model
+rma/ArgMismatch-MPIGet-type.c,rma,0,erroneous,ArgMismatch,out,,one-sided communication: no model
+rma/ArgMismatch-MPIPut-type.c,rma,0,erroneous,ArgMismatch,out,,one-sided communication: no model
+rma/MisplacedCall-MPIGet-bufferModification.c,rma,0,erroneous,MisplacedCall,out,,one-sided communication: no model
+rma/MisplacedCall-MPIPut-bufferModification.c,rma,0,erroneous,MisplacedCall,out,,one-sided communication: no model
+rma/MisplacedCall-MPIWinFence-1.c,rma,0,erroneous,MisplacedCall,out,,one-sided communication: no model
+rma/MisplacedCall-MPIWinFence-2.c,rma,0,erroneous,MisplacedCall,out,,one-sided communication: no model
+rma/MisplacedCall-MPIWinFree-bufferFree.c,rma,0,erroneous,MisplacedCall,out,,one-sided communication: no model
+rma/MisplacedCall-MPIWinLock.c,rma,0,erroneous,MisplacedCall,out,,one-sided communication: no model
+rma/MissingCall-MPIFence.c,rma,0,erroneous,MissingCall,out,,one-sided communication: no model
+rma/MissingCall-MPIWinCreate.c,rma,0,erroneous,MissingCall,out,,one-sided communication: no model
+rma/MissingCall-MPIWinFence-1.c,rma,0,erroneous,MissingCall,out,,one-sided communication: no model
+rma/MissingCall-MPIWinFence-2.c,rma,0,erroneous,MissingCall,out,,one-sided communication: no model
+rma/MissingCall-MPIWinFence-3.c,rma,0,erroneous,MissingCall,out,,one-sided communication: no model
+usertypes/ArgError-MPISend-Type-1.c,usertypes,0,erroneous,ArgError,out,,an invalid argument of one call
+usertypes/ArgError-MPISend-Type-4.c,usertypes,0,erroneous,ArgError,out,,an invalid argument of one call
+usertypes/ArgError-MPITypeContiguous-Count.c,usertypes,0,erroneous,ArgError,out,,an invalid argument of one call
+usertypes/ArgError-MPITypeContiguous-NewType.c,usertypes,0,erroneous,ArgError,out,,an invalid argument of one call
+usertypes/ArgError-MPITypeContiguous-OldType.c,usertypes,0,erroneous,ArgError,out,,an invalid argument of one call
+usertypes/ArgError-MPITypeCreateHVector-Stride.c,usertypes,0,erroneous,ArgError,out,,an invalid argument of one call
+usertypes/ArgError-MPITypeCreateStruct-Blocklengths.c,usertypes,0,erroneous,ArgError,out,,an invalid argument of one call
+usertypes/ArgError-MPITypeCreateStruct-Count-1.c,usertypes,0,erroneous,ArgError,out,,an invalid argument of one call
+usertypes/ArgError-MPITypeCreateStruct-Count-2.c,usertypes,0,erroneous,ArgError,out,,an invalid argument of one call
+usertypes/ArgError-MPITypeCreateStruct-Count-3.c,usertypes,0,erroneous,ArgError,out,,an invalid argument of one call
+usertypes/ArgError-MPITypeCreateStruct-Datatype-1.c,usertypes,0,erroneous,ArgError,out,,an invalid argument of one call
+usertypes/ArgError-MPITypeCreateStruct-Datatype-2.c,usertypes,0,erroneous,ArgError,out,,an invalid argument of one call
+usertypes/ArgError-MPITypeCreateStruct-Displacements-1.c,usertypes,0,erroneous,ArgError,out,,an invalid argument of one call
+usertypes/ArgError-MPITypeCreateStruct-Displacements-2.c,usertypes,0,erroneous,ArgError,out,,an invalid argument of one call
+usertypes/ArgError-MPITypeVector-Blocklength.c,usertypes,0,erroneous,ArgError,out,,an invalid argument of one call
+usertypes/ArgError-MPITypeVector-Count.c,usertypes,0,erroneous,ArgError,out,,an invalid argument of one call
+usertypes/ArgError-MPITypeVector-NewType.c,usertypes,0,erroneous,ArgError,out,,an invalid argument of one call
+usertypes/ArgError-MPITypeVector-OldType.c,usertypes,0,erroneous,ArgError,out,,an invalid argument of one call
+usertypes/ArgMismatch-MPIRecv-Type-2.c,usertypes,0,erroneous,ArgMismatch,out,,the signature of the run's own match differs (checked for alternatives only)
+usertypes/ArgMismatch-MPIRecv-Type-3.c,usertypes,0,erroneous,ArgMismatch,out,,the signature of the run's own match differs (checked for alternatives only)
+usertypes/ArgMismatch-MPIRecv-Type-4.c,usertypes,0,erroneous,ArgMismatch,out,,the signature of the run's own match differs (checked for alternatives only)
+usertypes/ArgMismatch-MPIRecv-Type-5.c,usertypes,0,erroneous,ArgMismatch,out,,the signature of the run's own match differs (checked for alternatives only)
+usertypes/ArgMismatch-MPIRecv-Type-6.c,usertypes,0,erroneous,ArgMismatch,out,,the signature of the run's own match differs (checked for alternatives only)
+usertypes/MisplacedCall-MPITypeCommit-1.c,usertypes,0,erroneous,MisplacedCall,out,,the life of a datatype
+usertypes/MissingCall-MPITypeCommit.c,usertypes,0,erroneous,MissingCall,out,,the life of a datatype

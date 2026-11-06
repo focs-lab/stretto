@@ -601,6 +601,39 @@ experiment machine (Open MPI 4.1.6), at commit f6367f4:
   prediction whose consequence a replay shows, not an L2 claim. Evidence:
   `experiments/results/l2auto/replay-<program>.csv`.
 
+## Labelled benchmarks: MPI-CorrBench outside its OpenMP directory (6 Nov)
+
+The 513 programs of MPI-CorrBench a05644b outside `openmp/` (311 erroneous, 202 correct MPICH
+tests) were each run once untraced, three times traced and three times with the buffer guard,
+under Open MPI 4.1.6 and MPICH 4.2. MUST 1.11.2 ran three times on each. Which programs are in
+Stretto's scope was committed before any run: 28 erroneous in, 283 out, each with its reason.
+Evidence: [experiments/corrbench](../experiments/corrbench/README.md).
+
+- **In scope:** 28 of 28 flagged in every run under both MPIs.
+  - 16 hang by themselves (2-blocked).
+  - 12 finish and are flagged anyway: 2-buffering for the four that deadlock without eager
+    buffering, 1c, 2-collective, and 3-local for the four buffer cases. Only the guarded runs
+    report the buffer cases.
+  - MUST flags 26 of 28; it misses the two that write a send buffer before the wait.
+  - None of these programs has a wildcard, so L1 alternatives and L2 change nothing.
+- **Out of scope:** 209 (Open MPI) and 191 (MPICH) of 283 are flagged, all but 3 only in runs
+  that failed by themselves. MUST, whose domain these argument errors are, flags 149.
+- **Correct:** under MPICH, 5 of 202 are flagged.
+  - Four are real. `dtype_send`, `inactivereq` and `patterns` post several receives into one
+    buffer; `sendrecv3` receives into a pending send's buffer. CorrBench labels the same shape
+    erroneous elsewhere, and MUST reports all four.
+  - One is a false alarm, `rqfreeb` (below).
+  - MUST flags 47 of the correct programs.
+  - Under Open MPI, 46 more correct one-sided programs are flagged, all in runs that hang or
+    abort without the tracer too.
+- **Tool defects:**
+  - Fixed in 1496d9b: with payloads, a message of 2 GiB or more overflowed `MPI_Pack_size`, and
+    the tracer's `MPI_Pack` aborted the program (`large_type_sendrec`, every traced run).
+  - Not fixed: a receive freed with `MPI_Request_free` takes no message in the observed
+    matching. The buffering profile of `rqfreeb` therefore sees its send without a receive and
+    reports a deadlock below 4 bytes. The fix touches every corpus's matching (991 MBI and 194
+    MPI-BugBench programs free requests), so those tables would need a rerun.
+
 ## Not yet traced
 
 PFLOTRAN (perturbation inversion, needs three or more process groups) and SPECFEM3D (HDF5 I/O
