@@ -8,8 +8,9 @@
 # Settings: BATCH (cells traced before their analysis starts, 20; the analysis of one batch runs
 # while the next is traced), JOBS (analyses at once, 6), ONLY (a grep pattern on the cell name),
 # MINFREE (GiB that must stay free on WORK's file system, 12; the sweep stops below it).
-# Every cell's directory keeps its log, result, report.json, sites.txt and pairs.txt; the trace is
-# deleted once its row is written. OUT gets one row per cell (cell_row.py), appended; cells whose
+# Every cell's directory keeps its log, result, report.json, sites.txt and pairs.txt, and its trace
+# as trace.tar.xz once its row is written (so the sweep can be analysed again by another commit of
+# the analysis: reanalyse.sh). OUT gets one row per cell (cell_row.py), appended; cells whose
 # row is in OUT already are skipped, so an interrupted sweep resumes.
 set -u
 P=${1:?usage: run.sh slate|dlaf|parsec GRID.csv WORK OUT.csv}; G=${2:?}; W=${3:?}; OUT=${4:?}
@@ -71,7 +72,7 @@ analyse() {      # the cell directories in $@: reports, sites, pending pairs, ro
   local d
   for d in "$@"; do
     python3 -I "$REPO/experiments/sweep/cell_row.py" "$P" "$d" "$(git -C "$REPO" rev-parse --short HEAD 2>/dev/null || cat "$REPO/COMMIT")" >> "$OUT"
-    rm -rf "$d/trace"
+    tar -C "$d" -cf - trace | xz -T1 -6 > "$d/trace.tar.xz" && rm -rf "$d/trace"
   done
 }
 
