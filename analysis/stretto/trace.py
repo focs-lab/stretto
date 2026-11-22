@@ -343,6 +343,7 @@ class Trace:
     fpos: Dict[Tuple[int, int], int] = field(default_factory=dict)   # (chain, idx) -> place in its rank's file
     issue_order: bool = False        # the tracer numbered the postings (MPI_THREAD_MULTIPLE)
     thread_limits: List[Tuple[str, str]] = field(default_factory=list)   # (reason, detail): what chains cannot be analysed
+    overflow_chains: Set[int] = field(default_factory=set)   # chains (r.-1) holding every chain beyond the tracer's chain table
     handoffs: int = 0     # requests another chain than the posting one completed, tested or cancelled (P-T9)
     thread_overlap: List[int] = field(default_factory=list)   # ranks on which two threads were inside MPI at once
 
@@ -678,10 +679,31 @@ def _fold_begins(raw: List[dict]) -> List[dict]:
         following[i] = last.get(raw[i].get("tid"))
         if raw[i].get("op") not in SIDE_RECORDS and raw[i].get("op") not in THREAD_SIDE:
             last[raw[i].get("tid")] = raw[i]
+    # The chain of the chains beyond the tracer's chain table (tid -1) interleaves many threads,
+    # so its next record is another thread's as often as not: a begin there is paired with the
+    # first later record of its call on that chain that no earlier begin took, and is a hang
+    # only when there is none. The chain has no happens-before, so nothing is carried over.
+    later_of: Dict[str, List[int]] = {}
+    for i, r in enumerate(raw):
+        if r.get("tid") == -1 and r.get("op") not in ("begin",) + SIDE_RECORDS + THREAD_SIDE:
+            later_of.setdefault(r.get("op"), []).append(i)
+    taken: Dict[str, int] = {}
     out = []
     for i, r in enumerate(raw):
         if r.get("op") != "begin":
             out.append(r)
+            continue
+        if r.get("tid") == -1:
+            q, k = later_of.get(r.get("call"), []), taken.get(r.get("call"), 0)
+            while k < len(q) and q[k] < i:
+                k += 1
+            if k < len(q):
+                taken[r.get("call")] = k + 1
+                continue
+            taken[r.get("call")] = k
+            b = dict(r)
+            b["op"] = "blocked"
+            out.append(b)
             continue
         nxt = following[i]
         if nxt is not None and nxt.get("op") == r.get("call") and nxt.get("op") != "begin":

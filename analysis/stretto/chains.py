@@ -145,6 +145,10 @@ def split(t, folded: Dict[int, List[dict]], make_rec) -> Dict[int, list]:
                 cmap[tid] = Chain(next_id, f"{rank}.{tid}")
                 next_id += 1
         t.chains[rank] = [cmap[tid] for tid in ids]
+        if -1 in cmap:
+            # the tracer's chain table overflowed: every later chain wrote its records as tid -1,
+            # one chain with no happens-before of its own (tracer/mpitrace.c, chain_id_locked)
+            t.overflow_chains.add(cmap[-1])
         for tid, ch in cmap.items():
             t.proc[ch] = rank
             info = t.chain_info.get((rank, tid))

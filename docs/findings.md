@@ -652,6 +652,33 @@ Evidence: [experiments/corrbench](../experiments/corrbench/README.md).
     reports a deadlock below 4 bytes. The fix touches every corpus's matching (991 MBI and 194
     MPI-BugBench programs free requests), so those tables would need a rerun.
 
+## SLATE leads of the configuration sweep (7 Nov)
+
+The sweep's 1 695 SLATE cells left observed thread findings outside the CALU race and some
+traced runs that timed out. Leads and tests were committed before the code was read. Evidence:
+[experiments/slate-leads](../experiments/slate-leads/README.md).
+
+- **Tool artefact, fixed (43c4c09):** every 2-thread-finalize, 2-thread-collective and
+  2-collective finding (103 cells) came from a trace whose chain table (256) overflowed. The
+  analysis took the merged chain of the later threads (tid -1) as one more thread, and paired
+  the begins of its blocking calls with other threads' records. Now no observed finding rests
+  on that chain. The sweep's 103 traces give no finding of any class; 85 cells traced again
+  with a table of 4 096 (a build-time size since 37376a4) are complete and clean.
+- **Real bug, not a race: `hetrf` hangs with more than one panel thread.** The panel's nested
+  parallel region is inactive because `hetrf` does not raise OpenMP's max-active-levels, as
+  `getrf` does, so its spinning barrier waits for a thread that never exists. The tester's
+  default, half the threads, reaches it at 4 threads: 0 of 140 untraced runs of seven cells
+  finish, 140 of 140 with the one-line guard. Report drafted 7 Nov, not sent.
+- **Real bug, not a race: `unmtr_hb2st` (and `heev` with eigenvectors) deadlocks.** Blocking
+  broadcasts of 160 kB inside OpenMP tasks, taken in a different order on each rank, leave no
+  free thread to post a receive. At 4 threads 13 of 400 runs hang (4x1), 6 of 100 (1x4), `heev`
+  4 of 50. Broadcasting before the tasks: 0 of 300 and 0 of 50. Report drafted 7 Nov, not sent.
+- **Stretto's part:** neither bug is a matching race. The sweep's timeouts surfaced both;
+  untraced series and stack dumps located them. A deadlock in a bounded pool of task threads is
+  outside the model (premise P-T7).
+- **Open:** with two panel threads, `hetrf` square 2x1 aborts with `std::out_of_range` in
+  `tileBcast` in 3 of 110 runs; not examined.
+
 ## Not yet traced
 
 PFLOTRAN (perturbation inversion, needs three or more process groups) and SPECFEM3D (HDF5 I/O

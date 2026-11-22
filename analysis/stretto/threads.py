@@ -1095,9 +1095,11 @@ def observed_findings(t: Trace, tasks: bool = False) -> List[tuple]:
     """(class, title, details) of the errors §12.6.2 and §12.2.1 of MPI 4.1 name, read from the
     chains and their happens-before (docs/threads.md 3.7). tasks: MPI was called inside OpenMP
     tasks, which are no chains of their own, so the happens-before is not known and only the
-    thread level is checked."""
+    thread level is checked. The chain of a rank's chains beyond the tracer's chain table
+    (t.overflow_chains) has no happens-before of its own, so no finding involves it."""
     out = []
     level = t.thread_level
+    merged = t.overflow_chains
     for rank, chs in sorted(t.chains.items()):
         if tasks:
             chs = []                     # only the thread level below (and every chain for it)
@@ -1107,6 +1109,7 @@ def observed_findings(t: Trace, tasks: bool = False) -> List[tuple]:
             if c.proc == rank:
                 by_comm.setdefault(c.comm, []).append(c)
         for comm, cs in (sorted(by_comm.items()) if chs else []):
+            cs = [c for c in cs if c.rank not in merged]
             hit = next(((a, b) for i, a in enumerate(cs) for b in cs[i + 1:] if concurrent(t, a, b)), None)
             if hit:
                 a, b = hit
@@ -1115,7 +1118,7 @@ def observed_findings(t: Trace, tasks: bool = False) -> List[tuple]:
                             ["MPI 4.1 §12.6.2: matching of collective calls is by their order at each process; "
                              "concurrent threads must order them by synchronisation"]))
         # two waits or tests on one request that neither precedes
-        waits = [rec for c in chs for rec in t.ranks[c] if rec.op == "wait" and rec.raw is not None]
+        waits = [rec for c in chs if c not in merged for rec in t.ranks[c] if rec.op == "wait" and rec.raw is not None]
         reqs_of = lambda rec: {q for q in rec.raw.get("reqs", []) if q is not None and q >= 0}
         found = _double_wait(t, waits, reqs_of)
         if found:
@@ -1129,7 +1132,7 @@ def observed_findings(t: Trace, tasks: bool = False) -> List[tuple]:
             if f.rank != rank:
                 out.append(("2-thread-finalize", f"rank {rank}: MPI_Finalize called by chain {f.rank}, not by the "
                             "thread that initialised MPI", ["MPI 4.1 §12.6.2"]))
-            late = next((rec for c in chs if c != f.rank for rec in t.ranks[c]
+            late = next((rec for c in chs if c != f.rank and c not in merged for rec in t.ranks[c]
                          if rec.op not in ("overflow", "guard", "comm") and not before(t, rec, f)), None)
             if late is not None:
                 out.append(("2-thread-finalize", f"rank {rank}: MPI_Finalize is not preceded by chain {late.rank}'s "

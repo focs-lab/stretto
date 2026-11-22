@@ -1,0 +1,36 @@
+--- a/src/internal/internal_unmtr_hb2st.cc
++++ b/src/internal/internal_unmtr_hb2st.cc
+@@ -112,6 +112,21 @@
+     uint8_t* row = row_vector.data();
+     SLATE_UNUSED( row ); // Used only by OpenMP
+ 
++    // Broadcast every V(0, r) first, in one order on every rank. Inside the
++    // tasks below, each rank's threads took the broadcasts in the order its
++    // scheduler picked them; a root blocked in Waitall on a large send while
++    // every thread of the receiver was blocked in another task's broadcast,
++    // and the ranks deadlocked once no thread was left free.
++    for (int j2 = mt-1; j2 > -mt; --j2) {
++        for (int j = 0; j < mt; ++j) {
++            int i = 2*j - j2;
++            if (j <= i && i < mt) {
++                int64_t r = i - j + j*mt - j*(j-1)/2;
++                V.tileBcast(0, r, C.sub(i, i, 0, nt-1), Layout::ColMajor, j);
++            }
++        }
++    }
++
+     // See SWAN13 for the definition of parallel tasks.
+     //
+     // The following two for-loops submit tasks in the order
+@@ -137,10 +152,7 @@
+                     // Index of block of V, using lower triangular packed indexing.
+                     int64_t r = i - j + j*mt - j*(j-1)/2;
+ 
+-                    // Send V(0, r) across ranks owning row C(i, :).
+-                    // Send from V to be contiguous, instead of V_.
+-                    // todo make async; put in different task.
+-                    V.tileBcast(0, r, C.sub(i, i, 0, nt-1), Layout::ColMajor, j);
++                    // V(0, r) was sent across ranks owning row C(i, :) above.
+ 
+                     auto Vr = V_(0, r);
+                     scalar_t* Vr_data = Vr.data();

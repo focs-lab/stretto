@@ -384,6 +384,51 @@ class C_Observed(unittest.TestCase):
         self.assertGreater(found, 0)
         self.assertLess(found, 20)
 
+
+OVERFLOW = {"op": "overflow", "what": "chain table"}
+
+
+class C_OverflowChain(unittest.TestCase):
+    """The tracer puts every chain beyond its chain table into one chain, tid -1, with no
+    happens-before of its own (SLATE's tester: experiments/slate-leads): no observed finding
+    may rest on that chain's order."""
+
+    def test_no_collective_pair_with_the_overflow_chain(self):
+        t = mkt({0: [OVERFLOW, th(0, coll("bcast", 0)), th(-1, coll("allreduce"))],
+                 1: [coll("bcast", 0), coll("allreduce")]})
+        self.assertEqual(len(t.overflow_chains), 1)
+        rep = analyze(t, with_sp=False)
+        self.assertNotIn("2-thread-collective", {f.cls for f in rep.findings}, format_report(t, rep))
+        self.assertTrue(any("chain table" in n for n in rep.notes), rep.notes)
+
+    def test_no_finalize_finding_from_the_overflow_chain(self):
+        t = mkt({0: [OVERFLOW, th(-1, send(1, 0))], 1: [recv(0, 0, 0, 0)]})
+        rep = analyze(t, with_sp=False)
+        self.assertNotIn("2-thread-finalize", {f.cls for f in rep.findings}, format_report(t, rep))
+
+    def test_other_chains_are_still_checked(self):
+        t = mkt({0: [OVERFLOW, th(-1, send(1, 1)), th(1, send(1, 0))], 1: [recv(0, 1, 0, 1), recv(0, 0, 0, 0)]})
+        rep = analyze(t, with_sp=False)
+        self.assertIn("2-thread-finalize", {f.cls for f in rep.findings}, format_report(t, rep))
+
+    def test_no_collective_order_on_a_communicator_of_the_overflow_chain(self):
+        t = mkt({0: [OVERFLOW, th(-1, coll("bcast", 0)), th(0, coll("allreduce"))],
+                 1: [coll("allreduce"), coll("bcast", 0)]})
+        rep = analyze(t, with_sp=False)
+        self.assertNotIn("2-collective", {f.cls for f in rep.findings}, format_report(t, rep))
+
+    def test_begins_of_the_overflow_chain_pair_by_call(self):
+        """Two threads of the overflow chain enter a receive each before either returns: neither
+        begin is a hang; a third begin with no record left is one."""
+        raw = [{"op": "begin", "call": "recv", "tid": -1}, {"op": "begin", "call": "recv", "tid": -1},
+               {"op": "recv", "tid": -1}, {"op": "recv", "tid": -1}, {"op": "begin", "call": "recv", "tid": -1}]
+        out = T._fold_begins(raw)
+        self.assertEqual([r["op"] for r in out], ["recv", "recv", "blocked"])
+        # on any other chain the pairing is with the thread's next record, as before
+        raw = [{"op": "begin", "call": "recv", "tid": 2}, {"op": "begin", "call": "recv", "tid": 2},
+               {"op": "recv", "tid": 2}]
+        self.assertEqual([r["op"] for r in T._fold_begins(raw)], ["blocked", "recv"])
+
     def test_funneled_violation(self):
         t = mkt({0: [th(1, send(1, 0), "s")], 1: [recv(0, 0, 0, 0)]}, level=1, issue=False)
         rep = analyze(t, with_sp=False)
