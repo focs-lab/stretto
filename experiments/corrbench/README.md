@@ -48,7 +48,7 @@ brackets, programs with a run without a verdict.
 |---|---|---|---|---|---|
 | erroneous, in scope | 28 | 12 / 16 / 0 | **28 / 28** (16) | 12 / 16 / 0 | **28 / 28** (16) |
 | erroneous, out of scope | 283 | 64 / 29 / 190 | 209 / 209 (206) [2] | 80 / 9 / 194 | 191 / 191 (187) [2] |
-| correct | 202 | 155 / 31 / 16 | 51 / 51 (46) | 201 / 1 / 0 | **5 / 5** (0) |
+| correct | 202 | 155 / 31 / 16 | 50 / 50 (46) | 201 / 1 / 0 | **4 / 4** (0) |
 
 In scope, every program in every run, under both MPIs. 16 of the 28 hang by themselves and the
 report says where (2-blocked, with 1c for the eight tag mismatches). The other 12 finish and are
@@ -67,7 +67,7 @@ program the rule put out of scope as a request's lifetime), and `ArgError-MPIIRe
 whose wildcard receive L1 shows truncating a message (1a). The two programs that call MPI
 before `MPI_Init` leave no trace and get no verdict.
 
-Correct programs: under MPICH 5 of 202 flagged, all in runs that finished:
+Correct programs: under MPICH 4 of 202 flagged, all in runs that finished and all real:
 
 - `pt2pt/dtype_send`, `inactivereq`, `patterns` (two or more pending `MPI_Irecv` into one
   buffer) and `sendrecv3` (an `MPI_Recv` into the buffer of a pending `MPI_Isend`): 3-local in
@@ -75,13 +75,12 @@ Correct programs: under MPICH 5 of 202 flagged, all in runs that finished:
   accessed until it completes; CorrBench labels the same shape erroneous in
   `pt2pt/ArgMismatch-MPIIrecv-buffer-overlap`, and MUST reports all four ("the memory regions to
   be transfered by this receive operation overlap").
-- `pt2pt/rqfreeb`: a false alarm. Stretto reports that the run deadlocks below an eager threshold
-  of 4 bytes because the last `MPI_Isend` has no posted receive; its receive was posted before a
-  barrier and then freed with `MPI_Request_free`, and a freed receive takes no message in the
-  observed matching (`stretto.trace._reconstruct_observed` skips receives without a status), so
-  the buffering profile sees a rendezvous send with no receive. Not fixed here: the observed
-  matching of freed receives is shared by every corpus (991 MBI and 194 MPI-BugBench programs
-  call `MPI_Request_free`), so the fix needs those tables rerun.
+- `pt2pt/rqfreeb` was a false alarm until 385f919: a deadlock below an eager threshold of 4
+  bytes, because the last `MPI_Isend`'s receive, posted before a barrier and then freed with
+  `MPI_Request_free`, took no message in the observed matching. A freed receive that names its
+  source and tag now takes the head of its channel. The six programs that call
+  `MPI_Request_free` ran again with the fix (`stretto-<mpi>-recheck.csv`, which replaces their
+  rows): `rqfreeb` has no finding under either MPI, and no other verdict moved.
 
 Under Open MPI 46 more correct programs are flagged, all one-sided ones (`correct/rma`) whose
 runs fail without the tracer too: 47 of the 72 hang (31) or abort (16) natively under the image's
@@ -117,7 +116,7 @@ from MUST in any run (a timeout, or MUST hanging after the program finished).
   `MPI_ERR_TRUNCATE` and finished without the tracer. The size is now taken with
   `MPI_Type_size_x`; run again (`stretto-<mpi>-again.csv`, which replaces its rows), the test
   finishes traced and has no finding.
-- **Freed receives in the observed matching** (not fixed): `rqfreeb` above.
+- **Freed receives in the observed matching** (fixed, 385f919): `rqfreeb` above.
 - Not the tool's: `conflo/usertypes/ArgError-MPITypeCreateStruct-Displacements-1` crashes in
   `MPI_Send` only when traced; its displacements are uninitialised, so what it sends depends on
   the stack, which the preloaded tracer changes.
@@ -129,6 +128,7 @@ from MUST in any run (a timeout, or MUST hanging after the program finished).
 | [programs.csv](programs.csv) | label, scope and reason of each program | `classify.py` (before the runs) |
 | [stretto-openmpi.csv](stretto-openmpi.csv), [stretto-mpich.csv](stretto-mpich.csv) | one row per run: mode (native, trace, guard), outcome, classes with their levels, L2 columns | `run.py` |
 | [stretto-openmpi-again.csv](stretto-openmpi-again.csv), [stretto-mpich-again.csv](stretto-mpich-again.csv) | `large_type_sendrec` with the fixed tracer | `run.py --select large_type_sendrec` |
+| [stretto-openmpi-recheck.csv](stretto-openmpi-recheck.csv), [stretto-mpich-recheck.csv](stretto-mpich-recheck.csv) | the six programs that call `MPI_Request_free`, with the fix of freed receives | `run.py --select 'MissingCall-MPIWait\|bsend3\|inactivereq\|issendselfcancel\|rqfreeb'` |
 | [must.csv](must.csv) | one row per MUST run, its verdict | `must.sh` |
 
 `summary.py DIR [--list]` prints the tables and, with `--list`, every flagged correct program

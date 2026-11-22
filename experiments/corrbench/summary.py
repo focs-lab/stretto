@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Tables of the MPI-CorrBench runs outside its OpenMP directory (experiments/corrbench/README.md)
 from the CSVs of run.py (stretto-<mpi>.csv; the rows of a program in stretto-<mpi>-again.csv,
-run again after a fix, replace its first ones) and must.sh (must.csv) in DIR:
+run again after a fix, and then in stretto-<mpi>-recheck.csv, run again after the fixes of
+November, replace its earlier ones) and must.sh (must.csv) in DIR:
 
   experiments/corrbench/summary.py DIR [--list]
 
@@ -74,12 +75,13 @@ def load(d: str):
             for r in csv.DictReader(open(p)):
                 by[r["program"]].append(r)
             # programs run again by a later commit (stretto-<mpi>-again.csv): their rows replace the first ones
-            again = os.path.join(d, f"stretto-{mpi}-again.csv")
-            if os.path.exists(again):
-                redone = collections.defaultdict(list)
-                for r in csv.DictReader(open(again)):
-                    redone[r["program"]].append(r)
-                by.update(redone)
+            for later in ("again", "recheck"):
+                again = os.path.join(d, f"stretto-{mpi}-{later}.csv")
+                if os.path.exists(again):
+                    redone = collections.defaultdict(list)
+                    for r in csv.DictReader(open(again)):
+                        redone[r["program"]].append(r)
+                    by.update(redone)
             stretto[mpi] = by
     must = collections.defaultdict(list)
     p = os.path.join(d, "must.csv")
