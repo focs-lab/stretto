@@ -326,8 +326,11 @@ because some executions were undetermined. "Other" means a claim the reference d
 
 ## 6. Before it goes into the paper
 
-- The claim of §3 as a theorem in the paper's appendix, with R1-R4 among the premises, and
-  the trace-path argument written against theorem T1.
+- The claim of §3 as a theorem in the paper's appendix, with R1-R4 among the premises: done 6
+  Nov 2026 (`thm:rerun` in the section on skeletons, proof in the appendix's section on L2 by
+  re-execution). It is stated for the program that produced the trace, and it rests, as L1+SP
+  does, on the explorer enumerating every execution of the twin, which the differential test
+  checks and no proof covers.
 - Probes, tests and `Waitsome` as explorer choices (flags, index sets) in the DSL and the shim.
   Today they end a continuation, and on the trace path they stop the rank, which makes L2 say
   nothing on probe-heavy codes (HYPRE ParaSails, AMG).

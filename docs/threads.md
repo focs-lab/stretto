@@ -11,7 +11,8 @@ section 16 what forced replays of its three races showed (30-31 Oct 2026), secti
 tracer records synchronisation through atomics (1 Nov 2026),
 section 18 two tracer settings for codes that enter a parallel region per time step and
 write through MPI-IO (1 Nov 2026), section 19 forced replays of several threads made reliable
-(2 Nov 2026), section 20 a lock's clock that ends with the lock (2 Nov 2026).
+(2 Nov 2026), section 20 a lock's clock that ends with the lock (2 Nov 2026), section 21 the
+proofs written for the paper and the two defects they found (6 Nov 2026).
 Decided
 29 Oct 2026: Stretto is extended to programs in which several threads of an MPI process call MPI
 on shared communicators (`MPI_THREAD_MULTIPLE`, and `MPI_THREAD_SERIALIZED` with several calling
@@ -456,7 +457,7 @@ chain, and a single change now also covers a concurrent swap: both cuts come fro
 not depend on B, and a receive kept only at the larger threshold is not HB-after either changed
 receive (rule 8 would remove it), so its obligations involve operations on which M' and M₀ agree.
 Rule 8 does not mention B. To be tested before it is claimed (the E2 differential on the thread
-idioms and random multi-chain traces).
+idioms and random multi-chain traces). Tested 6 Nov 2026: false (section 21).
 
 **What stays exactly as is.** On a trace in which every rank has one chain: the chain ids are the
 ranks, every new edge and rule fires only between two chains of one process (rule 8, orientation
@@ -1160,7 +1161,7 @@ another process's k-th collective in σ has other arguments (name, root, count, 
 signature) than b, and §12.6.2 makes the program erroneous (class `2-thread-collective`, level
 L1+L). Two identical calls are not reported (CorrBench's `correct/two_collectives_5` and `_6`).
 
-**What the paper's theorems would need** (the paper is not edited): T1 gains T1-L as a variant
+**What the paper's theorems would need** (written 6 Nov 2026, section 21): T1 gains T1-L as a variant
 under P-T8, whose proof is T1-T's with HB⁻ and the schedule; T7 gains stops at lock acquires
 and at waits with ordinals; T2 (monotonicity in B) is not claimed for L1+L, which is judged at
 B = 0 and B = inf only; T6 (completeness) is not claimed: the schedule search is bounded, and
@@ -1997,3 +1998,69 @@ Gate (`experiments/report_diff.py` against main 3b7abb5, text, `--json`, `--full
 multithreaded traces of section 17's gate, 282 comparisons, all equal but for the
 `analysis_commit` field. Unit tests (experiment image, the repository at /w): 589 run, 44
 skipped (the idioms not traced first), all pass.
+
+## 21. Proofs for the paper (6 Nov 2026)
+
+The sketches of T1-T (3.5, 15.3), T1-L and T7-L (13.2) are written out as proofs in the paper's
+appendix (section "Several threads"), with the premises in the model section and the theorem of
+L1 with chains in the section on the check; the claim of L2 by re-execution (`docs/l2-auto.md`
+§3) is a theorem there too. The paper names the premises differently:
+
+| paper | here | content |
+|---|---|---|
+| S1 | P-T1, P-T2, P-T12 | conflicting accesses to a location that a deciding read reads are ordered by recorded synchronisation; a synchronisation result that decides an action (a barrier's serial thread, a timeout) depends only on what happens before it |
+| S2 | P-T3, P-T7 | chains may be delayed and block no other; a task has a free thread |
+| S3 | P-T4 | matching in the order of the posting calls |
+| S4 | P-T9, P-T10 | hand-off order; results read after the completing call |
+| S5 | P-T11 | cancel at its call |
+| S6 | C2 | a process's collectives on a communicator ordered by HB |
+| S7 | P-T6 | the tracer follows every chain that calls MPI |
+| S8 | P-T8 | S1 with HB without the soft edges |
+| S9 | new | an operation with a recorded edge from a point does not return in an execution without that point (T7-L's waits) |
+
+What the proofs needed beyond the sketches:
+
+- **Gaps and the reached part.** The execution is built from a topological order of the graph
+  together with the accesses and synchronisation of each chain's gaps that rule 8 keeps, and the
+  reads are shown to read what they read in the run because the writes to a deciding location are
+  totally ordered by HB (S1 as P-T8 states it; P-T1's "read after the write it reads" is not
+  enough when two writes race). A synchronisation result is a read too: which thread a barrier
+  calls serial depends on the order of arrivals, which HB does not fix, so S1 says such a result
+  decides no action. Semaphores are sound because an object's clock accumulates every release
+  (`sync_release` joins), so a wait comes after every earlier post, and the k-th wait in any
+  order has at least k posts before it.
+- **Orientation (defect, fixed).** The proof of the receiver-side non-overtaking rule needs, for
+  every judged pair (r, s) and concurrent receive x accepting s, a path that posts r first or
+  matches x first. The construction left the pair out whenever x's message s2 precedes s on the
+  channel in HB, on the ground that the sender-side order edge says it; that edge exists only if
+  r accepts s2. Witness (`test_threads.C_Chains.test_an_any_tag_receive_posted_first_keeps_its_message`):
+  thread A posts y = Irecv(ANY, 2), x = Irecv(1, ANY), sends to rank 2 and waits; rank 2's reply
+  lets thread B post r = Irecv(ANY, 1), receive from rank 4 and send to rank 3, whose tag-2 reply
+  t is y's message; rank 1 sends s2 (tag 2) and s (tag 1). The steal r <- s was accepted at
+  B = inf, and an exhaustive search of the single-path program (the model's executions, physical
+  order) finds r taking only rank 3's or rank 4's message. Now `threads.sender_orders` skips the
+  pair only when r can take s2; otherwise the posting order of the run picks the edge (in the
+  full construction, the reduced one, and the bisection of `recv_fast`, which walks such classes).
+- **T2-T (false, profiler changed).** The released message of a steal at a blocking receive can
+  be taken by a receive of another chain, which rule 1 does not cut, and the sender-side
+  obligation asks the earlier message's receive to be in the horizon, which for a concurrent
+  chain depends on B. Witness (`C_Monotone`): rank 0 sends a, b, c of 64 bytes to rank 1, whose
+  three threads take one each; the steal of a by the second thread with the first left without
+  a message is feasible below 64 bytes and not from 64 on. On 8 000 random programs (four message
+  sizes, two or three processes, up to two workers) 107 of 4 079 steals at blocking receives were
+  not monotone, and in 3 the bisection between B0 and infinity claimed a threshold the check
+  rejects (feasible at 0, not at 1, feasible from 64). `report._profiles_generic` now judges every
+  breakpoint of a trace with several chains (steals, probes, completion order), the thresholds
+  below B0 set infeasible as before. Single-chain traces are unchanged.
+- **T7-L.** The proof needs S9 for a chain stopped at a wait for another chain's point; the
+  implementation's stops (`locks._stuck`) also take waits on semaphores and atomics, for which
+  S9 can fail. Not changed; the note above says where it matters.
+- **Completeness** is not claimed for chains (the picks) nor for L1+L (bounded search of an
+  NP-hard question), as before.
+
+The committed thread results (SLATE, PaRSEC, DLA-Future, Uintah, the blind scans, CorrBench,
+MUST-vc's suite, the idioms) were computed before both fixes and were not rerun. The orientation
+fix adds edges only where an any-tag or other wider receive is concurrent with a narrower one,
+and the profile change judges more thresholds of the same alternatives. Unit tests 609 run, 42
+skipped, all pass (focs, outside the image); `experiments/e6_locks.py --programs 400 --seed 7`:
+no unsound claim.

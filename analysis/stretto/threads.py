@@ -98,6 +98,16 @@ def same_channel(a: Send, b: Send) -> bool:
     return a.proc == b.proc and a.dst == b.dst and a.comm == b.comm
 
 
+def sender_orders(t: Trace, r, s2: Send, s: Send) -> bool:
+    """Do the sender-side order edges already put the match of s2 before r's match of s? Only
+    if s2 precedes s on its channel and r could take it: the edges of (r, s) start at the sends
+    r accepts. A receive of another chain that takes s2 and would take s is otherwise ordered
+    against r by the order of the postings, as in the run: an any-tag receive x of rank 1's tag-2
+    message s2 posted before r, a receive of tag 1, must have its message before r takes rank 1's
+    later tag-1 s (C_Chains.test_an_any_tag_receive_posted_first_keeps_its_message)."""
+    return same_channel(s2, s) and send_before(t, s2, s) and s2.available_to(r)
+
+
 # ----------------------------------------------------------------------- matching order
 
 def matching_order_ok(t: Trace, M, kept_recv, ranks: Optional[Set[int]] = None,
@@ -391,10 +401,13 @@ def thread_edges(t: Trace, M, node_set, mnode: Dict[Key, tuple], probe_alt=None,
                     continue
                 s2k = M.get(x.key)
                 s2 = t.sends[s2k] if s2k is not None else None
-                if s2 is not None and same_channel(s2, s) and send_before(t, s2, s):
+                if s2 is not None and sender_orders(t, r, s2, s):
                     continue                     # the sender-side order edge says it already
                 mx = match_of(x.key) if s2 is not None else None
-                if s2 is not None and same_channel(s2, s):
+                if s2 is not None and same_channel(s2, s) and send_before(t, s2, s):
+                    # r cannot take s2, which is sent first: the postings decide, as in the run
+                    first_x = mx is not None and phys_before(x, r)
+                elif s2 is not None and same_channel(s2, s):
                     # two messages of one channel: the postings follow the order of the sends
                     # (sends keep the order in which MPI saw them, unless happens-before says)
                     first_x = mx is not None and not send_before(t, s, s2) and phys_before(s2, s)
@@ -639,6 +652,8 @@ def _thread_edges_reduced(t: Trace, M, node_set, mnode: Dict[Key, tuple], probe_
                 plan.append((key, v))
             elif (c, r.comm, ANY, tag) in t._recv_class_idx:
                 return False                     # receives from any source: messages of several channels
+        if (r.tag != ANY and (c, r.comm, s.proc, ANY) in t._recv_class_idx) or t.reserved_sends:
+            return False                         # a message r cannot take: sender_orders decides, one by one
         for key, (n, pos, val, nomx, exc) in plan:
             idx, lst = t._recv_class_idx[key], t._recv_class[key]
             a, b = bisect_right(idx, lo), min(bisect_left(idx, hi), n)
@@ -795,9 +810,12 @@ def _thread_edges_reduced(t: Trace, M, node_set, mnode: Dict[Key, tuple], probe_
             s2k = M.get(x.key)
             s2 = t.sends[s2k] if s2k is not None else None
             if s2 is not None and same_channel(s2, s):
-                if send_before(t, s2, s):
+                if sender_orders(t, r, s2, s):
                     return None                  # the sender-side order edge says it already
-                first_x = mx is not None and not send_before(t, s, s2) and phys(s2) < ps
+                if send_before(t, s2, s):
+                    first_x = mx is not None and phys(x) < pr    # r cannot take s2: the postings decide
+                else:
+                    first_x = mx is not None and not send_before(t, s, s2) and phys(s2) < ps
             else:
                 first_x = s2 is not None and mx is not None and phys(x) < pr
             return "B" if first_x else "A"
