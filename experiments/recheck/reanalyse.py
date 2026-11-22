@@ -18,6 +18,9 @@ of the experiments that kept their traces without a manifest).
 OUT/rows.csv has one row per trace: campaign, name, same, exit statuses and seconds of both
 versions, and the commit of this repository (experiments/provenance.py).
 
+An archive is unpacked only while the disk keeps --min-free-gb (12) free beyond its size, and
+its scratch directory goes as soon as both reports are written.
+
 With --unaffected-only-sampled N, a trace that the fixes of November cannot change is analysed
 only if it falls in a sample of one in N (by a hash of its name), and its row says "skipped"
 otherwise: every change since 6fd7a06 acts on a rank with several chains or on a receive freed
@@ -33,6 +36,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import threading
 import time
 import zlib
 
@@ -108,6 +112,7 @@ def main() -> int:
     ap.add_argument("--skip-names", default="", help="leave out traces whose name matches this pattern")
     ap.add_argument("--timeout", type=int, default=3600)
     ap.add_argument("--unaffected-only-sampled", type=int, default=0, metavar="N")
+    ap.add_argument("--min-free-gb", type=float, default=12, help="unpack an archive only while the scratch disk keeps this much free")
     ap.add_argument("--scratch", default=None, help="where archives are unpacked (default: a temporary directory)")
     args = ap.parse_args()
     if args.manifest:
@@ -135,6 +140,7 @@ def main() -> int:
             done = {(r["campaign"], r["name"]) for r in csv.DictReader(fh)}
     rows = [r for r in rows if (r["campaign"], r["name"]) not in done]
     commit = code_commit()
+    room = threading.Lock()
 
     def one(r):
         tmp = tempfile.mkdtemp(dir=args.scratch)
@@ -144,7 +150,11 @@ def main() -> int:
                 d = src
             else:
                 with tarfile.open(src) as tf:
-                    tf.extractall(tmp, filter="data")
+                    need = sum(m.size for m in tf.getmembers())
+                    with room:   # one archive at a time checks the disk and unpacks, so two cannot take one room
+                        while shutil.disk_usage(tmp).free < args.min_free_gb * 2**30 + need:
+                            time.sleep(30)
+                        tf.extractall(tmp, filter="data")
                 d = trace_dir(tmp)
             hit = affected(args.new, d, args.timeout) if args.unaffected_only_sampled else "?"
             sampled = zlib.crc32((r["campaign"] + "/" + r["name"]).encode()) % max(args.unaffected_only_sampled, 1) == 0
