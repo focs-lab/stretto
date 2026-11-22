@@ -16,7 +16,12 @@ first component of a path below ROOT is its campaign, the rest its name (the wor
 of the experiments that kept their traces without a manifest).
 
 OUT/rows.csv has one row per trace: campaign, name, same, exit statuses and seconds of both
-versions, and the commit of this repository (experiments/provenance.py)."""
+versions, and the commit of this repository (experiments/provenance.py).
+
+With --unaffected-only-sampled N, a trace that the fixes of November cannot change is analysed
+only if it falls in a sample of one in N (by a hash of its name), and its row says "skipped"
+otherwise: every change since 6fd7a06 acts on a rank with several chains or on a receive freed
+while pending (trace.Trace.multi, Recv.freed), which the trace is loaded once to look for."""
 import argparse
 import concurrent.futures as cf
 import csv
@@ -29,12 +34,13 @@ import sys
 import tarfile
 import tempfile
 import time
+import zlib
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 sys.path.insert(0, os.path.join(ROOT, "experiments"))
 from provenance import code_commit  # noqa: E402
 
-FIELDS = ["campaign", "name", "same", "base_exit", "new_exit", "base_seconds", "new_seconds", "commit"]
+FIELDS = ["campaign", "name", "affected", "same", "base_exit", "new_exit", "base_seconds", "new_seconds", "commit"]
 
 
 def run(code: str, d: str, timeout: int):
@@ -65,6 +71,22 @@ def normal(out: bytes):
     return strip(rep)
 
 
+PROBE = ("import sys; from stretto import trace; t = trace.load(sys.argv[1]); "
+         "print(int(t.multi or any(r.freed for r in t.recvs.values())))")
+
+
+def affected(code: str, d: str, timeout: int) -> str:
+    """1 if the trace has a rank with several chains or a freed receive, 0 if not, ? if it
+    could not be loaded."""
+    try:
+        p = subprocess.run([sys.executable, "-c", PROBE, d], env=dict(os.environ, PYTHONPATH=code),
+                           stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        return "?"
+    out = p.stdout.decode().strip().splitlines()
+    return out[-1] if p.returncode == 0 and out else "?"
+
+
 def trace_dir(root: str) -> str:
     """The directory of the unpacked archive that holds the rank files."""
     for d, _, files in os.walk(root):
@@ -85,6 +107,7 @@ def main() -> int:
     ap.add_argument("--campaigns", default="", help="only these campaigns (comma-separated prefixes)")
     ap.add_argument("--skip-names", default="", help="leave out traces whose name matches this pattern")
     ap.add_argument("--timeout", type=int, default=3600)
+    ap.add_argument("--unaffected-only-sampled", type=int, default=0, metavar="N")
     ap.add_argument("--scratch", default=None, help="where archives are unpacked (default: a temporary directory)")
     args = ap.parse_args()
     if args.manifest:
@@ -123,6 +146,11 @@ def main() -> int:
                 with tarfile.open(src) as tf:
                     tf.extractall(tmp, filter="data")
                 d = trace_dir(tmp)
+            hit = affected(args.new, d, args.timeout) if args.unaffected_only_sampled else "?"
+            sampled = zlib.crc32((r["campaign"] + "/" + r["name"]).encode()) % max(args.unaffected_only_sampled, 1) == 0
+            if hit == "0" and not sampled:
+                return {"campaign": r["campaign"], "name": r["name"], "affected": hit, "same": "skipped",
+                        "base_exit": "", "new_exit": "", "base_seconds": "", "new_seconds": "", "commit": commit}
             a, b = run(args.base, d, args.timeout), run(args.new, d, args.timeout)
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
@@ -132,7 +160,7 @@ def main() -> int:
             for name, x in (("base", a), ("new", b)):
                 with open(os.path.join(args.out, "differ", f"{tag}.{name}"), "wb") as fh:
                     fh.write(x[1] + b"\n--- stderr\n" + x[2][-20000:] + f"\n--- exit status {x[0]}\n".encode())
-        return {"campaign": r["campaign"], "name": r["name"], "same": int(same), "base_exit": a[0],
+        return {"campaign": r["campaign"], "name": r["name"], "affected": hit, "same": int(same), "base_exit": a[0],
                 "new_exit": b[0], "base_seconds": f"{a[3]:.2f}", "new_seconds": f"{b[3]:.2f}", "commit": commit}
 
     new_file = not os.path.exists(out_csv)
@@ -145,7 +173,7 @@ def main() -> int:
             w.writerow(row)
             fh.flush()
             n += 1
-            differ += not row["same"]
+            differ += row["same"] == 0
     print(f"traces {n}, differing {differ}")
     return 1 if differ else 0
 
