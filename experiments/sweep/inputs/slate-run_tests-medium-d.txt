@@ -1,0 +1,113 @@
+./tester  --origin s --target t --ref n --nb 64,100 --type d --lookahead 1 --transA n,t,c --transB n,t,c --dim 100:500:100 --dim 200:1000:200x100:500:100 --dim 120:600:120x100:500:100 --dim 100:500:100x200:1000:200 --dim 100:500:100x120:600:120 --dim 100x300x600 --dim 300x100x600 --dim 100x600x300 --dim 300x600x100 --dim 600x100x300 --dim 600x300x100 --kl 20,100 --ku 20,100 gbmm
+./tester  --origin s --target t --ref n --nb 64,100 --type d --lookahead 1 --transA n,t,c --transB n,t,c --dim 100:500:100 --dim 200:1000:200x100:500:100 --dim 120:600:120x100:500:100 --dim 100:500:100x200:1000:200 --dim 100:500:100x120:600:120 --dim 100x300x600 --dim 300x100x600 --dim 100x600x300 --dim 300x600x100 --dim 600x100x300 --dim 600x300x100 --nonuniform-nb n --dev-order r,c gemm
+./tester  --origin s --target t --ref n --nb 64,100 --type d --lookahead 1 --transA n,t,c --transB n,t,c --dim 100:500:100 --dim 200:1000:200x100:500:100 --dim 120:600:120x100:500:100 --dim 100:500:100x200:1000:200 --dim 100:500:100x120:600:120 --dim 100x300x600 --dim 300x100x600 --dim 100x600x300 --dim 300x600x100 --dim 600x100x300 --dim 600x300x100 --nonuniform-nb n --dev-order r,c gemmA
+./tester  --origin s --target t --ref n --nb 64,100 --type d --lookahead 1 --transA n,t,c --transB n,t,c --dim 100:500:100 --dim 200:1000:200x100:500:100 --dim 120:600:120x100:500:100 --dim 100:500:100x200:1000:200 --dim 100:500:100x120:600:120 --dim 100x300x600 --dim 300x100x600 --dim 100x600x300 --dim 300x600x100 --dim 600x100x300 --dim 600x300x100 --nonuniform-nb n --dev-order r,c gemmC
+./tester  --origin s --target t --ref n --nb 64,100 --type d --lookahead 1 --side l,r --dev-order r,c --uplo l,u --dim 100:500:100 --dim 200:1000:200x100:500:100 --dim 120:600:120x100:500:100 --dim 100:500:100x200:1000:200 --dim 100:500:100x120:600:120 hemm
+./tester  --ref n --nb 64,100 --type d --lookahead 1 --side l,r --dev-order r,c --uplo l,u --dim 100:500:100 --dim 200:1000:200x100:500:100 --dim 120:600:120x100:500:100 --dim 100:500:100x200:1000:200 --dim 100:500:100x120:600:120 hemmA
+./tester  --origin s --target t --ref n --nb 64,100 --type d --lookahead 1 --side l,r --dev-order r,c --uplo l,u --dim 100:500:100 --dim 200:1000:200x100:500:100 --dim 120:600:120x100:500:100 --dim 100:500:100x200:1000:200 --dim 100:500:100x120:600:120 hemmC
+./tester  --origin s --target t --ref n --nb 64,100 --type d --lookahead 1 --side l,r --uplo l,u --dim 100:500:100 --dim 200:1000:200x100:500:100 --dim 120:600:120x100:500:100 --dim 100:500:100x200:1000:200 --dim 100:500:100x120:600:120 --kd 20,100 hbmm
+./tester  --origin s --target t --ref n --nb 64,100 --type d --lookahead 1 --dev-order r,c --uplo l,u --trans n,t,c --dim 100:500:100 --dim 1x200:1000:200x100:500:100 --dim 1x120:600:120x100:500:100 --dim 1x100:500:100x200:1000:200 --dim 1x100:500:100x120:600:120 herk
+./tester  --origin s --target t --ref n --nb 64,100 --type ? --lookahead 1 --dev-order r,c --uplo l,u --trans n,c --dim 100:500:100 --dim 1x200:1000:200x100:500:100 --dim 1x120:600:120x100:500:100 --dim 1x100:500:100x200:1000:200 --dim 1x100:500:100x120:600:120 herk
+./tester  --origin s --target t --ref n --nb 64,100 --type d --lookahead 1 --dev-order r,c --uplo l,u --trans n,t,c --dim 100:500:100 --dim 1x200:1000:200x100:500:100 --dim 1x120:600:120x100:500:100 --dim 1x100:500:100x200:1000:200 --dim 1x100:500:100x120:600:120 her2k
+./tester  --origin s --target t --ref n --nb 64,100 --type ? --lookahead 1 --dev-order r,c --uplo l,u --trans n,c --dim 100:500:100 --dim 1x200:1000:200x100:500:100 --dim 1x120:600:120x100:500:100 --dim 1x100:500:100x200:1000:200 --dim 1x100:500:100x120:600:120 her2k
+./tester  --origin s --target t --ref n --nb 64,100 --type d --lookahead 1 --side l,r --dev-order r,c --uplo l,u --dim 100:500:100 --dim 200:1000:200x100:500:100 --dim 120:600:120x100:500:100 --dim 100:500:100x200:1000:200 --dim 100:500:100x120:600:120 symm
+./tester  --origin s --target t --ref n --nb 64,100 --type d --lookahead 1 --dev-order r,c --uplo l,u --trans n,t,c --dim 100:500:100 --dim 1x200:1000:200x100:500:100 --dim 1x120:600:120x100:500:100 --dim 1x100:500:100x200:1000:200 --dim 1x100:500:100x120:600:120 syr2k
+./tester  --origin s --target t --ref n --nb 64,100 --type ? --lookahead 1 --dev-order r,c --uplo l,u --trans n,t --dim 100:500:100 --dim 1x200:1000:200x100:500:100 --dim 1x120:600:120x100:500:100 --dim 1x100:500:100x200:1000:200 --dim 1x100:500:100x120:600:120 syr2k
+./tester  --origin s --target t --ref n --nb 64,100 --type d --lookahead 1 --dev-order r,c --uplo l,u --trans n,t,c --dim 100:500:100 --dim 1x200:1000:200x100:500:100 --dim 1x120:600:120x100:500:100 --dim 1x100:500:100x200:1000:200 --dim 1x100:500:100x120:600:120 syrk
+./tester  --origin s --target t --ref n --nb 64,100 --type ? --lookahead 1 --dev-order r,c --uplo l,u --trans n,t --dim 100:500:100 --dim 1x200:1000:200x100:500:100 --dim 1x120:600:120x100:500:100 --dim 1x100:500:100x200:1000:200 --dim 1x100:500:100x120:600:120 syrk
+./tester  --origin s --target t --ref n --nb 32 --type d --lookahead 1 --side l,r --uplo l,u --transA n,t,c --diag n,u --dim 100:500:100 --dim 200:1000:200x100:500:100 --dim 120:600:120x100:500:100 --dim 100:500:100x200:1000:200 --dim 100:500:100x120:600:120 --kd 20,100 tbsm
+./tester  --origin s --target t --ref n --nb 64,100 --type d --lookahead 1 --side l,r --dev-order r,c --uplo l,u --diag n,u --nonuniform-nb n --transA n,t,c --dim 100:500:100 --dim 200:1000:200x100:500:100 --dim 120:600:120x100:500:100 --dim 100:500:100x200:1000:200 --dim 100:500:100x120:600:120 trmm
+./tester  --origin s --target t --ref n --nb 64,100 --type d --lookahead 1 --side l,r --dev-order r,c --uplo l,u --diag n,u --nonuniform-nb n --transA n,t,c --dim 100:500:100 --dim 200:1000:200x100:500:100 --dim 120:600:120x100:500:100 --dim 100:500:100x200:1000:200 --dim 100:500:100x120:600:120 trsm
+./tester  --origin s --target t --ref n --nb 64,100 --type d --lookahead 1 --side l,r --dev-order r,c --uplo l,u --diag n,u --nonuniform-nb n --transA n,t,c --dim 100:500:100 --dim 200:1000:200x100:500:100 --dim 120:600:120x100:500:100 --dim 100:500:100x200:1000:200 --dim 100:500:100x120:600:120 trsmA
+./tester  --origin s --target t --ref n --nb 64,100 --type d --lookahead 1 --side l,r --dev-order r,c --uplo l,u --diag n,u --nonuniform-nb n --transA n,t,c --dim 100:500:100 --dim 200:1000:200x100:500:100 --dim 120:600:120x100:500:100 --dim 100:500:100x200:1000:200 --dim 100:500:100x120:600:120 trsmB
+./tester  --origin s --target t --ref n --nb 64,100 --type d --lookahead 1 --dim 100:500:100 --dev-order r,c --nonuniform-nb n --threshold 1,0.5 gesv
+./tester  --origin s --target t --ref n --nb 64,100 --type d --lookahead 1 --dim 100:500:100 --dev-order r,c gesv_tntpiv
+./tester  --origin s --target t --ref n --nb 64,100 --type d --lookahead 1 --dim 100:500:100 --dev-order r,c --nonuniform-nb n --matrix rand_dominant gesv_nopiv
+./tester  --origin s --target t --ref n --nb 64,100 --type d --lookahead 1 --dim 100:500:100 --dev-order r,c --nonuniform-nb n --threshold 1,0.5 getrf
+./tester  --origin s --target t --ref n --nb 64,100 --type d --lookahead 1 --dim 100:500:100 --dev-order r,c getrf_tntpiv
+./tester  --origin s --target t --ref n --nb 64,100 --type d --lookahead 1 --dim 100:500:100 --dev-order r,c --nonuniform-nb n --matrix rand_dominant getrf_nopiv
+./tester  --origin s --target t --ref n --nb 64,100 --type d --lookahead 1 --dim 100:500:100 --trans n,t,c --dev-order r,c --nonuniform-nb n --threshold 1,0.5 getrs
+./tester  --origin s --target t --ref n --nb 64,100 --type d --lookahead 1 --dim 100:500:100 --trans n,t,c --dev-order r,c getrs_tntpiv
+./tester  --origin s --target t --ref n --nb 64,100 --type d --lookahead 1 --dim 100:500:100 --trans n,t,c --dev-order r,c --nonuniform-nb n --matrix rand_dominant getrs_nopiv
+./tester  --origin s --target t --ref n --nb 64,100 --type d --lookahead 1 --dim 100:500:100 getri
+./tester  --origin s --target t --ref n --nb 64,100 --type d --lookahead 1 --dim 100:500:100 getriOOP
+./tester  --origin s --target t --ref n --nb 64,100 --type d --lookahead 1 --dim 100:500:100 --dev-order r,c --nonuniform-nb n gesv_mixed
+./tester  --origin s --target t --ref n --nb 64,100 --type d --lookahead 1 --dim 100:500:100 --nrhs 1 --dev-order r,c --nonuniform-nb n gesv_mixed_gmres
+./tester  --origin s --target t --ref n --nb 64,100 --type d --lookahead 1 --dim 100:500:100 --dev-order r,c gesv_rbt
+./tester  --origin s --target t --ref n --nb 64,100 --type d --lookahead 1 --dim 100:500:100 --kl 20,100 --ku 20,100 gbsv
+./tester  --origin s --target t --ref n --nb 64,100 --type d --lookahead 1 --dim 100:500:100 --kl 20,100 --ku 20,100 gbtrf
+./tester  --origin s --target t --ref n --nb 64,100 --type d --lookahead 1 --dim 100:500:100 --kl 20,100 --ku 20,100 --trans n,t,c gbtrs
+./tester  --origin s --target t --ref n --nb 64,100 --type d --lookahead 1 --dim 100:500:100 --dev-order r,c --uplo l,u posv
+./tester  --origin s --target t --ref n --nb 64,100 --type d --lookahead 1 --dim 100:500:100 --dev-order r,c --uplo l,u potrf
+./tester  --origin s --target t --ref n --nb 64,100 --type d --lookahead 1 --dim 100:500:100 --dev-order r,c --uplo l,u potrs
+./tester  --origin s --target t --ref n --nb 64,100 --type d --lookahead 1 --dim 100:500:100 potri
+./tester  --origin s --target t --ref n --nb 64,100 --type d --lookahead 1 --dim 100:500:100 --dev-order r,c --uplo l,u posv_mixed
+./tester  --origin s --target t --ref n --nb 64,100 --type d --lookahead 1 --dim 100:500:100 --nrhs 1 --dev-order r,c --uplo l,u posv_mixed_gmres
+./tester  --origin s --target t --ref n --nb 64,100 --type d --lookahead 1 --dim 100:500:100 --uplo l,u --diag n,u trtri
+./tester  --origin s --target t --ref n --nb 64,100 --type d --lookahead 1 --dim 100:500:100 --kd 20,100 --uplo l,u pbsv
+./tester  --origin s --target t --ref n --nb 64,100 --type d --lookahead 1 --dim 100:500:100 --kd 20,100 --uplo l,u pbtrf
+./tester  --origin s --target t --ref n --nb 64,100 --type d --lookahead 1 --dim 100:500:100 --kd 20,100 --uplo l,u pbtrs
+./tester  --origin s --target t --ref n --nb 50 --type d --lookahead 1 --dim 100:500:100 hesv
+./tester  --origin s --target t --ref n --nb 50 --type d --lookahead 1 --dim 100:500:100 hetrf
+./tester  --origin s --target t --ref n --nb 50 --type d --lookahead 1 --dim 100:500:100 hetrs
+./tester  --origin s --target t --ref n --nb 64,100 --type d --lookahead 1 --dim 100:500:100 --dim 200:1000:200x100:500:100 --dim 120:600:120x100:500:100 --trans n,c --method-gels qr gels
+./tester  --origin s --target t --ref n --nb 64,100 --type d --lookahead 1 --dim 100:500:100 --dim 200:1000:200x100:500:100 --dim 120:600:120x100:500:100 --trans n,c --cond 1e2 --method-gels cholqr --matrix svd gels
+./tester  --origin s --target t --ref n --nb 64,100 --type d --lookahead 1 --dim 100:500:100 --dim 200:1000:200x100:500:100 --dim 120:600:120x100:500:100 cholqr
+./tester  --origin s --target t --ref n --nb 64,100 --type d --lookahead 1 --dim 100:500:100 --dim 200:1000:200x100:500:100 --dim 120:600:120x100:500:100 --dim 100:500:100x200:1000:200 --dim 100:500:100x120:600:120 geqrf
+./tester  --origin s --target t --ref n --nb 64,100 --type d --lookahead 1 --dim 100:500:100 --dim 200:1000:200x100:500:100 --dim 120:600:120x100:500:100 --dim 100:500:100x200:1000:200 --dim 100:500:100x120:600:120 unmqr
+./tester  --origin s --target t --ref n --nb 64,100 --type d --lookahead 1 --dim 100:500:100 --dim 200:1000:200x100:500:100 --dim 120:600:120x100:500:100 --dim 100:500:100x200:1000:200 --dim 100:500:100x120:600:120 gelqf
+./tester  --origin s --target t --ref n --nb 64,100 --type d --lookahead 1 --dim 100:500:100 --jobz n --ref y --method-eig qr heev
+./tester  --origin s --target t --ref n --nb 64,100 --type d --lookahead 1 --dim 100:500:100 --jobz v --method-eig dc heev
+./tester  --origin s --target t --ref n --nb 64,100 --type d --lookahead 1 --dim 100:500:100 --jobz v --method-eig qr heev
+./tester  --origin s --target t --ref n --nb 64,100 --type d --side l --trans n --dim 100:500:100 unmtr_he2hb
+./tester  --origin s --target t --ref n --nb 64,100 --type ? --side l --trans n --dim 100:500:100 unmtr_he2hb
+./tester  --ref n --nb 64,100 --type d --dim 100:500:100 unmtr_hb2st
+./tester  --ref n --nb 64,100 --type ? --dim 100:500:100 unmtr_hb2st
+./tester  --origin s --target t --ref n --nb 64,100 --type d --dim 100:500:100 he2hb
+./tester  --ref n --nb 64,100 --type d --dim 100:500:100 hb2st
+./tester  --origin s --target t --ref n --nb 64,100 --dim 100:500:100 stedc
+./tester  --ref n --nb 64,100 --ref y --dim 100:500:100 stedc_deflate
+./tester  --ref n --nb 64,100 --ref y --dim 100:500:100 stedc_secular
+./tester  --ref n --nb 64,100 --ref y --dim 100:500:100 stedc_sort
+./tester  --ref n --nb 64,100 --ref y --dim 100:500:100 stedc_z_vector
+./tester  --ref n --type d --dim 100:500:100 sterf
+./tester  --ref n --type d --dim 100:500:100 --jobz n,v steqr
+./tester  --origin s --target t --ref n --nb 64,100 --type d --lookahead 1 --dim 100:500:100 --jobz n,v --itype 1,2,3 --uplo l,u hegv
+./tester  --origin s --target t --ref n --nb 64,100 --type d --lookahead 1 --dim 100:500:100 --itype 1,2,3 --uplo l,u hegst
+./tester  --origin s --target t --ref n --nb 64,100 --type d --lookahead 1 --dim 100:500:100 --dim 200:1000:200x100:500:100 --dim 120:600:120x100:500:100 --dim 100:500:100x200:1000:200 --dim 100:500:100x120:600:120 --jobu n --jobvt n --dev-order r,c svd
+./tester  --origin s --target t --ref n --nb 64,100 --type d --lookahead 1 --dim 100:500:100 --dim 200:1000:200x100:500:100 --dim 120:600:120x100:500:100 --dim 100:500:100x200:1000:200 --dim 100:500:100x120:600:120 --jobu v --jobvt v --dev-order r,c svd
+./tester  --origin s --target t --ref n --nb 64,100 --type d --dim 100:500:100 --dim 200:1000:200x100:500:100 --dim 120:600:120x100:500:100 --jobu v --jobvt v ge2tb
+./tester  --ref n --nb 64,100 --type d --dim 100:500:100 --jobu v --jobvt v tb2bd
+./tester  --ref n --nb 64,100 --type d --dim 100:500:100 --uplo l,u bdsqr
+./tester  --origin s --target t --ref n --nb 64,100 --type d --dim 100:500:100 --dim 200:1000:200x100:500:100 --dim 120:600:120x100:500:100 --dim 100:500:100x200:1000:200 --dim 100:500:100x120:600:120 --norm max,1,inf,fro --extended 10 --nonuniform-nb n --dev-order r,c genorm
+./tester  --origin s --target t --ref n --nb 64,100 --type d --dim 100:500:100 --norm max,1,inf,fro --extended 10 --nonuniform-nb n --dev-order r,c --uplo l,u henorm
+./tester  --origin s --target t --ref n --nb 64,100 --type d --dim 100:500:100 --norm max,1,inf,fro --extended 10 --nonuniform-nb n --dev-order r,c --uplo l,u synorm
+./tester  --origin s --target t --ref n --nb 64,100 --type d --dim 100:500:100 --norm max,1,inf,fro --extended 10 --nonuniform-nb n --dev-order r,c --uplo l,u --diag n,u trnorm
+./tester  --origin s --target t --ref n --nb 64,100 --type d --dim 100:500:100 --dim 200:1000:200x100:500:100 --dim 120:600:120x100:500:100 --dim 100:500:100x200:1000:200 --dim 100:500:100x120:600:120 --norm max,1,inf,fro --extended 10 --nonuniform-nb n --dev-order r,c --uplo l,u --diag n,u tznorm
+./tester  --origin s --target t --ref n --nb 64,100 --type d --dim 100:500:100 --dim 200:1000:200x100:500:100 --dim 120:600:120x100:500:100 --dim 100:500:100x200:1000:200 --dim 100:500:100x120:600:120 --kl 20,100 --ku 20,100 --norm max,1,inf,fro gbnorm
+./tester  --origin s --target t --ref n --nb 64,100 --type d --dim 100:500:100 --kd 20,100 --norm max,1,inf,fro --uplo l,u hbnorm
+./tester  --origin s --target t --ref n --nb 64,100 --type d --dim 100:500:100 gecondest
+./tester  --origin s --target t --ref n --nb 64,100 --type d --dim 100:500:100 --uplo l,u pocondest
+./tester  --origin s --target t --ref n --nb 64,100 --type d --dim 100:500:100 trcondest
+./tester  --origin s --target t --ref n --nb 64,100 --type d --dim 100:500:100 --dim 200:1000:200x100:500:100 --dim 120:600:120x100:500:100 --dim 100:500:100x200:1000:200 --dim 100:500:100x120:600:120 --nonuniform-nb n --dev-order r,c add
+./tester  --origin s --target t --ref n --nb 64,100 --type d --dim 100:500:100 --dim 200:1000:200x100:500:100 --dim 120:600:120x100:500:100 --dim 100:500:100x200:1000:200 --dim 100:500:100x120:600:120 --nonuniform-nb n --dev-order r,c --uplo l,u tzadd
+./tester  --origin s --target t --ref n --nb 64,100 --type d --dim 100:500:100 --nonuniform-nb n --dev-order r,c --uplo l,u tradd
+./tester  --origin s --target t --ref n --nb 64,100 --type d --dim 100:500:100 --nonuniform-nb n --dev-order r,c --uplo l,u syadd
+./tester  --origin s --target t --ref n --nb 64,100 --type d --dim 100:500:100 --nonuniform-nb n --dev-order r,c --uplo l,u headd
+./tester  --origin s --target t --ref n --nb 64,100 --type d --dim 100:500:100 --dim 200:1000:200x100:500:100 --dim 120:600:120x100:500:100 --dim 100:500:100x200:1000:200 --dim 100:500:100x120:600:120 --nonuniform-nb n --dev-order r,c copy
+./tester  --origin s --target t --ref n --nb 64,100 --type d --dim 100:500:100 --dim 200:1000:200x100:500:100 --dim 120:600:120x100:500:100 --dim 100:500:100x200:1000:200 --dim 100:500:100x120:600:120 --nonuniform-nb n --dev-order r,c --uplo l,u tzcopy
+./tester  --origin s --target t --ref n --nb 64,100 --type d --dim 100:500:100 --nonuniform-nb n --dev-order r,c --uplo l,u trcopy
+./tester  --origin s --target t --ref n --nb 64,100 --type d --dim 100:500:100 --nonuniform-nb n --dev-order r,c --uplo l,u sycopy
+./tester  --origin s --target t --ref n --nb 64,100 --type d --dim 100:500:100 --nonuniform-nb n --dev-order r,c --uplo l,u hecopy
+./tester  --origin s --target t --ref n --nb 64,100 --type d --dim 100:500:100 --dim 200:1000:200x100:500:100 --dim 120:600:120x100:500:100 --dim 100:500:100x200:1000:200 --dim 100:500:100x120:600:120 --nonuniform-nb n --dev-order r,c scale
+./tester  --origin s --target t --ref n --nb 64,100 --type d --dim 100:500:100 --dim 200:1000:200x100:500:100 --dim 120:600:120x100:500:100 --dim 100:500:100x200:1000:200 --dim 100:500:100x120:600:120 --nonuniform-nb n --dev-order r,c --uplo l,u tzscale
+./tester  --origin s --target t --ref n --nb 64,100 --type d --dim 100:500:100 --nonuniform-nb n --dev-order r,c --uplo l,u trscale
+./tester  --origin s --target t --ref n --nb 64,100 --type d --dim 100:500:100 --nonuniform-nb n --dev-order r,c --uplo l,u syscale
+./tester  --origin s --target t --ref n --nb 64,100 --type d --dim 100:500:100 --nonuniform-nb n --dev-order r,c --uplo l,u hescale
+./tester  --origin s --target t --ref n --nb 64,100 --type d --dim 100:500:100 --dim 200:1000:200x100:500:100 --dim 120:600:120x100:500:100 --dim 100:500:100x200:1000:200 --dim 100:500:100x120:600:120 --equed b,r,c,n --nonuniform-nb n --dev-order r,c scale_row_col
+./tester  --origin s --target t --ref n --type d --dim 20 --nb 4 --verbose 4 --dev-order r,c matgen
+./tester  --origin s --target t --ref n --nb 64,100 --type d --dim 100:500:100 --dim 200:1000:200x100:500:100 --dim 120:600:120x100:500:100 --dim 100:500:100x200:1000:200 --dim 100:500:100x120:600:120 --nonuniform-nb n --dev-order r,c set
+./tester  --origin s --target t --ref n --nb 64,100 --type d --dim 100:500:100 --dim 200:1000:200x100:500:100 --dim 120:600:120x100:500:100 --dim 100:500:100x200:1000:200 --dim 100:500:100x120:600:120 --nonuniform-nb n --dev-order r,c --uplo l,u tzset
+./tester  --origin s --target t --ref n --nb 64,100 --type d --dim 100:500:100 --nonuniform-nb n --dev-order r,c --uplo l,u trset
+./tester  --origin s --target t --ref n --nb 64,100 --type d --dim 100:500:100 --nonuniform-nb n --dev-order r,c --uplo l,u syset
+./tester  --origin s --target t --ref n --nb 64,100 --type d --dim 100:500:100 --nonuniform-nb n --dev-order r,c --uplo l,u heset

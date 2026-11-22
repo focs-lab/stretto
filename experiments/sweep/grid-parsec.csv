@@ -1,0 +1,651 @@
+project,driver,cell,shape,grid,block,vpmap,np,threads,env,args
+parsec,class/atomics,class/atomics:flat,,,,flat,1,4,,class/atomics -c 4
+parsec,class/atomics,class/atomics:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_vpmap=hwloc,class/atomics -c 4
+parsec,class/atomics,class/atomics:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,class/atomics -c 4
+parsec,class/atomics,class/atomics:rr,,,,rr,1,4,PARSEC_MCA_runtime_vpmap=rr:2:2:4,class/atomics -c 4
+parsec,class/atomics,class/atomics:file,,,,file,1,4,PARSEC_MCA_runtime_vpmap=file:@VPMAP@,class/atomics -c 4
+parsec,class/rwlock,class/rwlock:flat,,,,flat,1,4,,class/rwlock -c 4
+parsec,class/rwlock,class/rwlock:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_vpmap=hwloc,class/rwlock -c 4
+parsec,class/rwlock,class/rwlock:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,class/rwlock -c 4
+parsec,class/rwlock,class/rwlock:rr,,,,rr,1,4,PARSEC_MCA_runtime_vpmap=rr:2:2:4,class/rwlock -c 4
+parsec,class/rwlock,class/rwlock:file,,,,file,1,4,PARSEC_MCA_runtime_vpmap=file:@VPMAP@,class/rwlock -c 4
+parsec,class/lifo,class/lifo:flat,,,,flat,1,4,,class/lifo -c 4
+parsec,class/lifo,class/lifo:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_vpmap=hwloc,class/lifo -c 4
+parsec,class/lifo,class/lifo:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,class/lifo -c 4
+parsec,class/lifo,class/lifo:rr,,,,rr,1,4,PARSEC_MCA_runtime_vpmap=rr:2:2:4,class/lifo -c 4
+parsec,class/lifo,class/lifo:file,,,,file,1,4,PARSEC_MCA_runtime_vpmap=file:@VPMAP@,class/lifo -c 4
+parsec,class/heap,class/heap:flat,,,,flat,1,4,PARSEC_MCA_runtime_num_cores=4,class/heap
+parsec,class/heap,class/heap:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,class/heap
+parsec,class/heap,class/heap:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,class/heap
+parsec,class/heap,class/heap:rr,,,,rr,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,class/heap
+parsec,class/heap,class/heap:file,,,,file,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,class/heap
+parsec,class/list,class/list:flat,,,,flat,1,4,,class/list -c 4
+parsec,class/list,class/list:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_vpmap=hwloc,class/list -c 4
+parsec,class/list,class/list:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,class/list -c 4
+parsec,class/list,class/list:rr,,,,rr,1,4,PARSEC_MCA_runtime_vpmap=rr:2:2:4,class/list -c 4
+parsec,class/list,class/list:file,,,,file,1,4,PARSEC_MCA_runtime_vpmap=file:@VPMAP@,class/list -c 4
+parsec,class/hash,class/hash:flat,,,,flat,1,4,PARSEC_MCA_runtime_num_cores=4,class/hash '-#' 65536 -r 4 -n
+parsec,class/hash,class/hash:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,class/hash '-#' 65536 -r 4 -n
+parsec,class/hash,class/hash:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,class/hash '-#' 65536 -r 4 -n
+parsec,class/hash,class/hash:rr,,,,rr,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,class/hash '-#' 65536 -r 4 -n
+parsec,class/hash,class/hash:file,,,,file,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,class/hash '-#' 65536 -r 4 -n
+parsec,class/obj_allocator,class/obj_allocator:flat,,,,flat,1,4,PARSEC_MCA_runtime_num_cores=4,class/obj_allocator
+parsec,class/obj_allocator,class/obj_allocator:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,class/obj_allocator
+parsec,class/obj_allocator,class/obj_allocator:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,class/obj_allocator
+parsec,class/obj_allocator,class/obj_allocator:rr,,,,rr,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,class/obj_allocator
+parsec,class/obj_allocator,class/obj_allocator:file,,,,file,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,class/obj_allocator
+parsec,class/future,class/future:flat,,,,flat,1,4,,class/future -c 4
+parsec,class/future,class/future:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_vpmap=hwloc,class/future -c 4
+parsec,class/future,class/future:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,class/future -c 4
+parsec,class/future,class/future:rr,,,,rr,1,4,PARSEC_MCA_runtime_vpmap=rr:2:2:4,class/future -c 4
+parsec,class/future,class/future:file,,,,file,1,4,PARSEC_MCA_runtime_vpmap=file:@VPMAP@,class/future -c 4
+parsec,class/future_datacopy,class/future_datacopy:flat,,,,flat,1,4,PARSEC_MCA_runtime_num_cores=4,class/future_datacopy
+parsec,class/future_datacopy,class/future_datacopy:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,class/future_datacopy
+parsec,class/future_datacopy,class/future_datacopy:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,class/future_datacopy
+parsec,class/future_datacopy,class/future_datacopy:rr,,,,rr,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,class/future_datacopy
+parsec,class/future_datacopy,class/future_datacopy:file,,,,file,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,class/future_datacopy
+parsec,class/atomics:inline,class/atomics:inline:flat,,,,flat,1,4,,class/atomics_inline -c 4
+parsec,class/atomics:inline,class/atomics:inline:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_vpmap=hwloc,class/atomics_inline -c 4
+parsec,class/atomics:inline,class/atomics:inline:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,class/atomics_inline -c 4
+parsec,class/atomics:inline,class/atomics:inline:rr,,,,rr,1,4,PARSEC_MCA_runtime_vpmap=rr:2:2:4,class/atomics_inline -c 4
+parsec,class/atomics:inline,class/atomics:inline:file,,,,file,1,4,PARSEC_MCA_runtime_vpmap=file:@VPMAP@,class/atomics_inline -c 4
+parsec,class/rwlock:inline,class/rwlock:inline:flat,,,,flat,1,4,,class/rwlock_inline -c 4
+parsec,class/rwlock:inline,class/rwlock:inline:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_vpmap=hwloc,class/rwlock_inline -c 4
+parsec,class/rwlock:inline,class/rwlock:inline:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,class/rwlock_inline -c 4
+parsec,class/rwlock:inline,class/rwlock:inline:rr,,,,rr,1,4,PARSEC_MCA_runtime_vpmap=rr:2:2:4,class/rwlock_inline -c 4
+parsec,class/rwlock:inline,class/rwlock:inline:file,,,,file,1,4,PARSEC_MCA_runtime_vpmap=file:@VPMAP@,class/rwlock_inline -c 4
+parsec,class/lifo:inline,class/lifo:inline:flat,,,,flat,1,4,,class/lifo_inline -c 4
+parsec,class/lifo:inline,class/lifo:inline:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_vpmap=hwloc,class/lifo_inline -c 4
+parsec,class/lifo:inline,class/lifo:inline:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,class/lifo_inline -c 4
+parsec,class/lifo:inline,class/lifo:inline:rr,,,,rr,1,4,PARSEC_MCA_runtime_vpmap=rr:2:2:4,class/lifo_inline -c 4
+parsec,class/lifo:inline,class/lifo:inline:file,,,,file,1,4,PARSEC_MCA_runtime_vpmap=file:@VPMAP@,class/lifo_inline -c 4
+parsec,class/list:inline,class/list:inline:flat,,,,flat,1,4,,class/list_inline -c 4
+parsec,class/list:inline,class/list:inline:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_vpmap=hwloc,class/list_inline -c 4
+parsec,class/list:inline,class/list:inline:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,class/list_inline -c 4
+parsec,class/list:inline,class/list:inline:rr,,,,rr,1,4,PARSEC_MCA_runtime_vpmap=rr:2:2:4,class/list_inline -c 4
+parsec,class/list:inline,class/list:inline:file,,,,file,1,4,PARSEC_MCA_runtime_vpmap=file:@VPMAP@,class/list_inline -c 4
+parsec,class/hash:inline,class/hash:inline:flat,,,,flat,1,4,PARSEC_MCA_runtime_num_cores=4,class/hash_inline '-#' 65536 -r 4 -n
+parsec,class/hash:inline,class/hash:inline:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,class/hash_inline '-#' 65536 -r 4 -n
+parsec,class/hash:inline,class/hash:inline:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,class/hash_inline '-#' 65536 -r 4 -n
+parsec,class/hash:inline,class/hash:inline:rr,,,,rr,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,class/hash_inline '-#' 65536 -r 4 -n
+parsec,class/hash:inline,class/hash:inline:file,,,,file,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,class/hash_inline '-#' 65536 -r 4 -n
+parsec,class/obj_allocator:inline,class/obj_allocator:inline:flat,,,,flat,1,4,PARSEC_MCA_runtime_num_cores=4,class/obj_allocator_inline
+parsec,class/obj_allocator:inline,class/obj_allocator:inline:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,class/obj_allocator_inline
+parsec,class/obj_allocator:inline,class/obj_allocator:inline:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,class/obj_allocator_inline
+parsec,class/obj_allocator:inline,class/obj_allocator:inline:rr,,,,rr,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,class/obj_allocator_inline
+parsec,class/obj_allocator:inline,class/obj_allocator:inline:file,,,,file,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,class/obj_allocator_inline
+parsec,api/trim_chores,api/trim_chores:flat,,,,flat,1,4,PARSEC_MCA_runtime_num_cores=4,api/trim_chores
+parsec,api/trim_chores,api/trim_chores:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,api/trim_chores
+parsec,api/trim_chores,api/trim_chores:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,api/trim_chores
+parsec,api/trim_chores,api/trim_chores:rr,,,,rr,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,api/trim_chores
+parsec,api/trim_chores,api/trim_chores:file,,,,file,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,api/trim_chores
+parsec,api/init_fini,api/init_fini:flat,,,,flat,1,4,PARSEC_MCA_runtime_num_cores=4,api/init_fini
+parsec,api/init_fini,api/init_fini:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,api/init_fini
+parsec,api/init_fini,api/init_fini:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,api/init_fini
+parsec,api/init_fini,api/init_fini:rr,,,,rr,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,api/init_fini
+parsec,api/init_fini,api/init_fini:file,,,,file,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,api/init_fini
+parsec,api/touch,api/touch:flat,,,,flat,1,4,PARSEC_MCA_runtime_num_cores=4,api/touch_ex -v=5
+parsec,api/touch,api/touch:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,api/touch_ex -v=5
+parsec,api/touch,api/touch:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,api/touch_ex -v=5
+parsec,api/touch,api/touch:rr,,,,rr,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,api/touch_ex -v=5
+parsec,api/touch,api/touch:file,,,,file,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,api/touch_ex -v=5
+parsec,api/touch:inline,api/touch:inline:flat,,,,flat,1,4,PARSEC_MCA_runtime_num_cores=4,api/touch_ex_inline -v=5
+parsec,api/touch:inline,api/touch:inline:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,api/touch_ex_inline -v=5
+parsec,api/touch:inline,api/touch:inline:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,api/touch_ex_inline -v=5
+parsec,api/touch:inline,api/touch:inline:rr,,,,rr,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,api/touch_ex_inline -v=5
+parsec,api/touch:inline,api/touch:inline:file,,,,file,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,api/touch_ex_inline -v=5
+parsec,api/compose,api/compose:flat,,,,flat,1,4,PARSEC_MCA_runtime_num_cores=4,api/compose
+parsec,api/compose,api/compose:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,api/compose
+parsec,api/compose,api/compose:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,api/compose
+parsec,api/compose,api/compose:rr,,,,rr,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,api/compose
+parsec,api/compose,api/compose:file,,,,file,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,api/compose
+parsec,api/init_fini:mp,api/init_fini:mp:flat,,,,flat,4,4,PARSEC_MCA_runtime_num_cores=4,api/init_fini
+parsec,api/init_fini:mp,api/init_fini:mp:hwloc-host,,,,hwloc-host,4,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,api/init_fini
+parsec,api/init_fini:mp,api/init_fini:mp:hwloc-2socket,,,,hwloc-2socket,4,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,api/init_fini
+parsec,api/init_fini:mp,api/init_fini:mp:rr,,,,rr,4,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,api/init_fini
+parsec,api/init_fini:mp,api/init_fini:mp:file,,,,file,4,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,api/init_fini
+parsec,api/compose:mp,api/compose:mp:flat,,,,flat,4,4,PARSEC_MCA_runtime_num_cores=4,api/compose
+parsec,api/compose:mp,api/compose:mp:hwloc-host,,,,hwloc-host,4,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,api/compose
+parsec,api/compose:mp,api/compose:mp:hwloc-2socket,,,,hwloc-2socket,4,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,api/compose
+parsec,api/compose:mp,api/compose:mp:rr,,,,rr,4,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,api/compose
+parsec,api/compose:mp,api/compose:mp:file,,,,file,4,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,api/compose
+parsec,api/operator:mp,api/operator:mp:flat,,,,flat,4,4,PARSEC_MCA_runtime_num_cores=4,api/operator
+parsec,api/operator:mp,api/operator:mp:hwloc-host,,,,hwloc-host,4,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,api/operator
+parsec,api/operator:mp,api/operator:mp:hwloc-2socket,,,,hwloc-2socket,4,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,api/operator
+parsec,api/operator:mp,api/operator:mp:rr,,,,rr,4,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,api/operator
+parsec,api/operator:mp,api/operator:mp:file,,,,file,4,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,api/operator
+parsec,api/taskpool_wait,api/taskpool_wait:flat,,,,flat,1,4,PARSEC_MCA_runtime_num_cores=4,api/taskpool_wait/taskpool_wait
+parsec,api/taskpool_wait,api/taskpool_wait:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,api/taskpool_wait/taskpool_wait
+parsec,api/taskpool_wait,api/taskpool_wait:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,api/taskpool_wait/taskpool_wait
+parsec,api/taskpool_wait,api/taskpool_wait:rr,,,,rr,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,api/taskpool_wait/taskpool_wait
+parsec,api/taskpool_wait,api/taskpool_wait:file,,,,file,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,api/taskpool_wait/taskpool_wait
+parsec,api/taskpool_wait:mp,api/taskpool_wait:mp:flat,,,,flat,8,4,PARSEC_MCA_runtime_num_cores=4,api/taskpool_wait/taskpool_wait
+parsec,api/taskpool_wait:mp,api/taskpool_wait:mp:hwloc-host,,,,hwloc-host,8,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,api/taskpool_wait/taskpool_wait
+parsec,api/taskpool_wait:mp,api/taskpool_wait:mp:hwloc-2socket,,,,hwloc-2socket,8,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,api/taskpool_wait/taskpool_wait
+parsec,api/taskpool_wait:mp,api/taskpool_wait:mp:rr,,,,rr,8,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,api/taskpool_wait/taskpool_wait
+parsec,api/taskpool_wait:mp,api/taskpool_wait:mp:file,,,,file,8,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,api/taskpool_wait/taskpool_wait
+parsec,runtime/scheduling:ap,runtime/scheduling:ap:flat,,,,flat,1,4,PARSEC_MCA_runtime_num_cores=4,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched ap
+parsec,runtime/scheduling:ap,runtime/scheduling:ap:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched ap
+parsec,runtime/scheduling:ap,runtime/scheduling:ap:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched ap
+parsec,runtime/scheduling:ap,runtime/scheduling:ap:rr,,,,rr,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched ap
+parsec,runtime/scheduling:ap,runtime/scheduling:ap:file,,,,file,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched ap
+parsec,runtime/scheduling:gd,runtime/scheduling:gd:flat,,,,flat,1,4,PARSEC_MCA_runtime_num_cores=4,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched gd
+parsec,runtime/scheduling:gd,runtime/scheduling:gd:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched gd
+parsec,runtime/scheduling:gd,runtime/scheduling:gd:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched gd
+parsec,runtime/scheduling:gd,runtime/scheduling:gd:rr,,,,rr,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched gd
+parsec,runtime/scheduling:gd,runtime/scheduling:gd:file,,,,file,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched gd
+parsec,runtime/scheduling:ip,runtime/scheduling:ip:flat,,,,flat,1,4,PARSEC_MCA_runtime_num_cores=4,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched ip
+parsec,runtime/scheduling:ip,runtime/scheduling:ip:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched ip
+parsec,runtime/scheduling:ip,runtime/scheduling:ip:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched ip
+parsec,runtime/scheduling:ip,runtime/scheduling:ip:rr,,,,rr,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched ip
+parsec,runtime/scheduling:ip,runtime/scheduling:ip:file,,,,file,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched ip
+parsec,runtime/scheduling:lfq,runtime/scheduling:lfq:flat,,,,flat,1,4,PARSEC_MCA_runtime_num_cores=4,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched lfq
+parsec,runtime/scheduling:lfq,runtime/scheduling:lfq:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched lfq
+parsec,runtime/scheduling:lfq,runtime/scheduling:lfq:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched lfq
+parsec,runtime/scheduling:lfq,runtime/scheduling:lfq:rr,,,,rr,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched lfq
+parsec,runtime/scheduling:lfq,runtime/scheduling:lfq:file,,,,file,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched lfq
+parsec,runtime/scheduling:lhq,runtime/scheduling:lhq:flat,,,,flat,1,4,PARSEC_MCA_runtime_num_cores=4,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched lhq
+parsec,runtime/scheduling:lhq,runtime/scheduling:lhq:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched lhq
+parsec,runtime/scheduling:lhq,runtime/scheduling:lhq:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched lhq
+parsec,runtime/scheduling:lhq,runtime/scheduling:lhq:rr,,,,rr,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched lhq
+parsec,runtime/scheduling:lhq,runtime/scheduling:lhq:file,,,,file,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched lhq
+parsec,runtime/scheduling:ll,runtime/scheduling:ll:flat,,,,flat,1,4,PARSEC_MCA_runtime_num_cores=4,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched ll
+parsec,runtime/scheduling:ll,runtime/scheduling:ll:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched ll
+parsec,runtime/scheduling:ll,runtime/scheduling:ll:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched ll
+parsec,runtime/scheduling:ll,runtime/scheduling:ll:rr,,,,rr,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched ll
+parsec,runtime/scheduling:ll,runtime/scheduling:ll:file,,,,file,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched ll
+parsec,runtime/scheduling:llp,runtime/scheduling:llp:flat,,,,flat,1,4,PARSEC_MCA_runtime_num_cores=4,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched llp
+parsec,runtime/scheduling:llp,runtime/scheduling:llp:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched llp
+parsec,runtime/scheduling:llp,runtime/scheduling:llp:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched llp
+parsec,runtime/scheduling:llp,runtime/scheduling:llp:rr,,,,rr,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched llp
+parsec,runtime/scheduling:llp,runtime/scheduling:llp:file,,,,file,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched llp
+parsec,runtime/scheduling:ltq,runtime/scheduling:ltq:flat,,,,flat,1,4,PARSEC_MCA_runtime_num_cores=4,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched ltq
+parsec,runtime/scheduling:ltq,runtime/scheduling:ltq:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched ltq
+parsec,runtime/scheduling:ltq,runtime/scheduling:ltq:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched ltq
+parsec,runtime/scheduling:ltq,runtime/scheduling:ltq:rr,,,,rr,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched ltq
+parsec,runtime/scheduling:ltq,runtime/scheduling:ltq:file,,,,file,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched ltq
+parsec,runtime/scheduling:pbq,runtime/scheduling:pbq:flat,,,,flat,1,4,PARSEC_MCA_runtime_num_cores=4,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched pbq
+parsec,runtime/scheduling:pbq,runtime/scheduling:pbq:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched pbq
+parsec,runtime/scheduling:pbq,runtime/scheduling:pbq:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched pbq
+parsec,runtime/scheduling:pbq,runtime/scheduling:pbq:rr,,,,rr,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched pbq
+parsec,runtime/scheduling:pbq,runtime/scheduling:pbq:file,,,,file,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched pbq
+parsec,runtime/scheduling:rnd,runtime/scheduling:rnd:flat,,,,flat,1,4,PARSEC_MCA_runtime_num_cores=4,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched rnd
+parsec,runtime/scheduling:rnd,runtime/scheduling:rnd:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched rnd
+parsec,runtime/scheduling:rnd,runtime/scheduling:rnd:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched rnd
+parsec,runtime/scheduling:rnd,runtime/scheduling:rnd:rr,,,,rr,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched rnd
+parsec,runtime/scheduling:rnd,runtime/scheduling:rnd:file,,,,file,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched rnd
+parsec,runtime/scheduling:spq,runtime/scheduling:spq:flat,,,,flat,1,4,PARSEC_MCA_runtime_num_cores=4,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched spq
+parsec,runtime/scheduling:spq,runtime/scheduling:spq:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched spq
+parsec,runtime/scheduling:spq,runtime/scheduling:spq:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched spq
+parsec,runtime/scheduling:spq,runtime/scheduling:spq:rr,,,,rr,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched spq
+parsec,runtime/scheduling:spq,runtime/scheduling:spq:file,,,,file,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched spq
+parsec,runtime/scheduling:mp:ap,runtime/scheduling:mp:ap:flat,,,,flat,2,4,PARSEC_MCA_runtime_num_cores=4,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched ap
+parsec,runtime/scheduling:mp:ap,runtime/scheduling:mp:ap:hwloc-host,,,,hwloc-host,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched ap
+parsec,runtime/scheduling:mp:ap,runtime/scheduling:mp:ap:hwloc-2socket,,,,hwloc-2socket,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched ap
+parsec,runtime/scheduling:mp:ap,runtime/scheduling:mp:ap:rr,,,,rr,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched ap
+parsec,runtime/scheduling:mp:ap,runtime/scheduling:mp:ap:file,,,,file,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched ap
+parsec,runtime/scheduling:mp:gd,runtime/scheduling:mp:gd:flat,,,,flat,2,4,PARSEC_MCA_runtime_num_cores=4,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched gd
+parsec,runtime/scheduling:mp:gd,runtime/scheduling:mp:gd:hwloc-host,,,,hwloc-host,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched gd
+parsec,runtime/scheduling:mp:gd,runtime/scheduling:mp:gd:hwloc-2socket,,,,hwloc-2socket,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched gd
+parsec,runtime/scheduling:mp:gd,runtime/scheduling:mp:gd:rr,,,,rr,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched gd
+parsec,runtime/scheduling:mp:gd,runtime/scheduling:mp:gd:file,,,,file,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched gd
+parsec,runtime/scheduling:mp:ip,runtime/scheduling:mp:ip:flat,,,,flat,2,4,PARSEC_MCA_runtime_num_cores=4,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched ip
+parsec,runtime/scheduling:mp:ip,runtime/scheduling:mp:ip:hwloc-host,,,,hwloc-host,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched ip
+parsec,runtime/scheduling:mp:ip,runtime/scheduling:mp:ip:hwloc-2socket,,,,hwloc-2socket,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched ip
+parsec,runtime/scheduling:mp:ip,runtime/scheduling:mp:ip:rr,,,,rr,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched ip
+parsec,runtime/scheduling:mp:ip,runtime/scheduling:mp:ip:file,,,,file,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched ip
+parsec,runtime/scheduling:mp:lfq,runtime/scheduling:mp:lfq:flat,,,,flat,2,4,PARSEC_MCA_runtime_num_cores=4,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched lfq
+parsec,runtime/scheduling:mp:lfq,runtime/scheduling:mp:lfq:hwloc-host,,,,hwloc-host,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched lfq
+parsec,runtime/scheduling:mp:lfq,runtime/scheduling:mp:lfq:hwloc-2socket,,,,hwloc-2socket,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched lfq
+parsec,runtime/scheduling:mp:lfq,runtime/scheduling:mp:lfq:rr,,,,rr,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched lfq
+parsec,runtime/scheduling:mp:lfq,runtime/scheduling:mp:lfq:file,,,,file,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched lfq
+parsec,runtime/scheduling:mp:lhq,runtime/scheduling:mp:lhq:flat,,,,flat,2,4,PARSEC_MCA_runtime_num_cores=4,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched lhq
+parsec,runtime/scheduling:mp:lhq,runtime/scheduling:mp:lhq:hwloc-host,,,,hwloc-host,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched lhq
+parsec,runtime/scheduling:mp:lhq,runtime/scheduling:mp:lhq:hwloc-2socket,,,,hwloc-2socket,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched lhq
+parsec,runtime/scheduling:mp:lhq,runtime/scheduling:mp:lhq:rr,,,,rr,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched lhq
+parsec,runtime/scheduling:mp:lhq,runtime/scheduling:mp:lhq:file,,,,file,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched lhq
+parsec,runtime/scheduling:mp:ll,runtime/scheduling:mp:ll:flat,,,,flat,2,4,PARSEC_MCA_runtime_num_cores=4,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched ll
+parsec,runtime/scheduling:mp:ll,runtime/scheduling:mp:ll:hwloc-host,,,,hwloc-host,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched ll
+parsec,runtime/scheduling:mp:ll,runtime/scheduling:mp:ll:hwloc-2socket,,,,hwloc-2socket,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched ll
+parsec,runtime/scheduling:mp:ll,runtime/scheduling:mp:ll:rr,,,,rr,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched ll
+parsec,runtime/scheduling:mp:ll,runtime/scheduling:mp:ll:file,,,,file,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched ll
+parsec,runtime/scheduling:mp:llp,runtime/scheduling:mp:llp:flat,,,,flat,2,4,PARSEC_MCA_runtime_num_cores=4,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched llp
+parsec,runtime/scheduling:mp:llp,runtime/scheduling:mp:llp:hwloc-host,,,,hwloc-host,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched llp
+parsec,runtime/scheduling:mp:llp,runtime/scheduling:mp:llp:hwloc-2socket,,,,hwloc-2socket,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched llp
+parsec,runtime/scheduling:mp:llp,runtime/scheduling:mp:llp:rr,,,,rr,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched llp
+parsec,runtime/scheduling:mp:llp,runtime/scheduling:mp:llp:file,,,,file,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched llp
+parsec,runtime/scheduling:mp:ltq,runtime/scheduling:mp:ltq:flat,,,,flat,2,4,PARSEC_MCA_runtime_num_cores=4,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched ltq
+parsec,runtime/scheduling:mp:ltq,runtime/scheduling:mp:ltq:hwloc-host,,,,hwloc-host,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched ltq
+parsec,runtime/scheduling:mp:ltq,runtime/scheduling:mp:ltq:hwloc-2socket,,,,hwloc-2socket,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched ltq
+parsec,runtime/scheduling:mp:ltq,runtime/scheduling:mp:ltq:rr,,,,rr,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched ltq
+parsec,runtime/scheduling:mp:ltq,runtime/scheduling:mp:ltq:file,,,,file,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched ltq
+parsec,runtime/scheduling:mp:pbq,runtime/scheduling:mp:pbq:flat,,,,flat,2,4,PARSEC_MCA_runtime_num_cores=4,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched pbq
+parsec,runtime/scheduling:mp:pbq,runtime/scheduling:mp:pbq:hwloc-host,,,,hwloc-host,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched pbq
+parsec,runtime/scheduling:mp:pbq,runtime/scheduling:mp:pbq:hwloc-2socket,,,,hwloc-2socket,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched pbq
+parsec,runtime/scheduling:mp:pbq,runtime/scheduling:mp:pbq:rr,,,,rr,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched pbq
+parsec,runtime/scheduling:mp:pbq,runtime/scheduling:mp:pbq:file,,,,file,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched pbq
+parsec,runtime/scheduling:mp:rnd,runtime/scheduling:mp:rnd:flat,,,,flat,2,4,PARSEC_MCA_runtime_num_cores=4,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched rnd
+parsec,runtime/scheduling:mp:rnd,runtime/scheduling:mp:rnd:hwloc-host,,,,hwloc-host,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched rnd
+parsec,runtime/scheduling:mp:rnd,runtime/scheduling:mp:rnd:hwloc-2socket,,,,hwloc-2socket,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched rnd
+parsec,runtime/scheduling:mp:rnd,runtime/scheduling:mp:rnd:rr,,,,rr,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched rnd
+parsec,runtime/scheduling:mp:rnd,runtime/scheduling:mp:rnd:file,,,,file,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched rnd
+parsec,runtime/scheduling:mp:spq,runtime/scheduling:mp:spq:flat,,,,flat,2,4,PARSEC_MCA_runtime_num_cores=4,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched spq
+parsec,runtime/scheduling:mp:spq,runtime/scheduling:mp:spq:hwloc-host,,,,hwloc-host,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched spq
+parsec,runtime/scheduling:mp:spq,runtime/scheduling:mp:spq:hwloc-2socket,,,,hwloc-2socket,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched spq
+parsec,runtime/scheduling:mp:spq,runtime/scheduling:mp:spq:rr,,,,rr,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched spq
+parsec,runtime/scheduling:mp:spq,runtime/scheduling:mp:spq:file,,,,file,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,runtime/scheduling/schedmicro -t 10 -l 8 -n 512 -- --mca mca_sched spq
+parsec,collections/reduce,collections/reduce:flat,,,,flat,1,4,PARSEC_MCA_runtime_num_cores=4,collections/reduce
+parsec,collections/reduce,collections/reduce:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,collections/reduce
+parsec,collections/reduce,collections/reduce:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,collections/reduce
+parsec,collections/reduce,collections/reduce:rr,,,,rr,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,collections/reduce
+parsec,collections/reduce,collections/reduce:file,,,,file,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,collections/reduce
+parsec,collections/redistribute:mp,collections/redistribute:mp:flat,,,,flat,8,4,PARSEC_MCA_runtime_num_cores=4,collections/redistribute/testing_redistribute -M 2400 -N 2400 -a 2400 -A 2400 -t 300 -T 300 -b 200 -B 200 -m 2000 -n 2000 -I 30 -J 40 -i 100 -j 121 -v -z -x -P 2 -Q 4 -p 4 -q 2
+parsec,collections/redistribute:mp,collections/redistribute:mp:hwloc-host,,,,hwloc-host,8,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,collections/redistribute/testing_redistribute -M 2400 -N 2400 -a 2400 -A 2400 -t 300 -T 300 -b 200 -B 200 -m 2000 -n 2000 -I 30 -J 40 -i 100 -j 121 -v -z -x -P 2 -Q 4 -p 4 -q 2
+parsec,collections/redistribute:mp,collections/redistribute:mp:hwloc-2socket,,,,hwloc-2socket,8,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,collections/redistribute/testing_redistribute -M 2400 -N 2400 -a 2400 -A 2400 -t 300 -T 300 -b 200 -B 200 -m 2000 -n 2000 -I 30 -J 40 -i 100 -j 121 -v -z -x -P 2 -Q 4 -p 4 -q 2
+parsec,collections/redistribute:mp,collections/redistribute:mp:rr,,,,rr,8,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,collections/redistribute/testing_redistribute -M 2400 -N 2400 -a 2400 -A 2400 -t 300 -T 300 -b 200 -B 200 -m 2000 -n 2000 -I 30 -J 40 -i 100 -j 121 -v -z -x -P 2 -Q 4 -p 4 -q 2
+parsec,collections/redistribute:mp,collections/redistribute:mp:file,,,,file,8,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,collections/redistribute/testing_redistribute -M 2400 -N 2400 -a 2400 -A 2400 -t 300 -T 300 -b 200 -B 200 -m 2000 -n 2000 -I 30 -J 40 -i 100 -j 121 -v -z -x -P 2 -Q 4 -p 4 -q 2
+parsec,collections/redistribute:mp:2dbc_to_2dbc:cpu_to_cpu,collections/redistribute:mp:2dbc_to_2dbc:cpu_to_cpu:flat,,,,flat,3,4,PARSEC_MCA_runtime_num_cores=4,collections/redistribute/testing_redistribute -M 12 -N 12 -a 12 -A 12 -t 2 -T 2 -b 2 -B 2 -m 4 -n 4 -I 6 -J 0 -i 6 -j 0 -x -P 3 -Q 1 -p 3 -q 1 -g 2dbc -G 2dbc -l cpu -L cpu
+parsec,collections/redistribute:mp:2dbc_to_2dbc:cpu_to_cpu,collections/redistribute:mp:2dbc_to_2dbc:cpu_to_cpu:hwloc-host,,,,hwloc-host,3,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,collections/redistribute/testing_redistribute -M 12 -N 12 -a 12 -A 12 -t 2 -T 2 -b 2 -B 2 -m 4 -n 4 -I 6 -J 0 -i 6 -j 0 -x -P 3 -Q 1 -p 3 -q 1 -g 2dbc -G 2dbc -l cpu -L cpu
+parsec,collections/redistribute:mp:2dbc_to_2dbc:cpu_to_cpu,collections/redistribute:mp:2dbc_to_2dbc:cpu_to_cpu:hwloc-2socket,,,,hwloc-2socket,3,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,collections/redistribute/testing_redistribute -M 12 -N 12 -a 12 -A 12 -t 2 -T 2 -b 2 -B 2 -m 4 -n 4 -I 6 -J 0 -i 6 -j 0 -x -P 3 -Q 1 -p 3 -q 1 -g 2dbc -G 2dbc -l cpu -L cpu
+parsec,collections/redistribute:mp:2dbc_to_2dbc:cpu_to_cpu,collections/redistribute:mp:2dbc_to_2dbc:cpu_to_cpu:rr,,,,rr,3,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,collections/redistribute/testing_redistribute -M 12 -N 12 -a 12 -A 12 -t 2 -T 2 -b 2 -B 2 -m 4 -n 4 -I 6 -J 0 -i 6 -j 0 -x -P 3 -Q 1 -p 3 -q 1 -g 2dbc -G 2dbc -l cpu -L cpu
+parsec,collections/redistribute:mp:2dbc_to_2dbc:cpu_to_cpu,collections/redistribute:mp:2dbc_to_2dbc:cpu_to_cpu:file,,,,file,3,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,collections/redistribute/testing_redistribute -M 12 -N 12 -a 12 -A 12 -t 2 -T 2 -b 2 -B 2 -m 4 -n 4 -I 6 -J 0 -i 6 -j 0 -x -P 3 -Q 1 -p 3 -q 1 -g 2dbc -G 2dbc -l cpu -L cpu
+parsec,collections/redistribute:mp:2dbc_to_sdb:cpu_to_cpu,collections/redistribute:mp:2dbc_to_sdb:cpu_to_cpu:flat,,,,flat,3,4,PARSEC_MCA_runtime_num_cores=4,collections/redistribute/testing_redistribute -M 12 -N 12 -a 12 -A 12 -t 2 -T 2 -b 2 -B 2 -m 4 -n 4 -I 6 -J 0 -i 6 -j 0 -x -P 3 -Q 1 -p 3 -q 1 -g 2dbc -G sdb -l cpu -L cpu
+parsec,collections/redistribute:mp:2dbc_to_sdb:cpu_to_cpu,collections/redistribute:mp:2dbc_to_sdb:cpu_to_cpu:hwloc-host,,,,hwloc-host,3,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,collections/redistribute/testing_redistribute -M 12 -N 12 -a 12 -A 12 -t 2 -T 2 -b 2 -B 2 -m 4 -n 4 -I 6 -J 0 -i 6 -j 0 -x -P 3 -Q 1 -p 3 -q 1 -g 2dbc -G sdb -l cpu -L cpu
+parsec,collections/redistribute:mp:2dbc_to_sdb:cpu_to_cpu,collections/redistribute:mp:2dbc_to_sdb:cpu_to_cpu:hwloc-2socket,,,,hwloc-2socket,3,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,collections/redistribute/testing_redistribute -M 12 -N 12 -a 12 -A 12 -t 2 -T 2 -b 2 -B 2 -m 4 -n 4 -I 6 -J 0 -i 6 -j 0 -x -P 3 -Q 1 -p 3 -q 1 -g 2dbc -G sdb -l cpu -L cpu
+parsec,collections/redistribute:mp:2dbc_to_sdb:cpu_to_cpu,collections/redistribute:mp:2dbc_to_sdb:cpu_to_cpu:rr,,,,rr,3,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,collections/redistribute/testing_redistribute -M 12 -N 12 -a 12 -A 12 -t 2 -T 2 -b 2 -B 2 -m 4 -n 4 -I 6 -J 0 -i 6 -j 0 -x -P 3 -Q 1 -p 3 -q 1 -g 2dbc -G sdb -l cpu -L cpu
+parsec,collections/redistribute:mp:2dbc_to_sdb:cpu_to_cpu,collections/redistribute:mp:2dbc_to_sdb:cpu_to_cpu:file,,,,file,3,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,collections/redistribute/testing_redistribute -M 12 -N 12 -a 12 -A 12 -t 2 -T 2 -b 2 -B 2 -m 4 -n 4 -I 6 -J 0 -i 6 -j 0 -x -P 3 -Q 1 -p 3 -q 1 -g 2dbc -G sdb -l cpu -L cpu
+parsec,collections/redistribute:mp:sdb_to_2dbc:cpu_to_cpu,collections/redistribute:mp:sdb_to_2dbc:cpu_to_cpu:flat,,,,flat,3,4,PARSEC_MCA_runtime_num_cores=4,collections/redistribute/testing_redistribute -M 12 -N 12 -a 12 -A 12 -t 2 -T 2 -b 2 -B 2 -m 4 -n 4 -I 6 -J 0 -i 6 -j 0 -x -P 3 -Q 1 -p 3 -q 1 -g sdb -G 2dbc -l cpu -L cpu
+parsec,collections/redistribute:mp:sdb_to_2dbc:cpu_to_cpu,collections/redistribute:mp:sdb_to_2dbc:cpu_to_cpu:hwloc-host,,,,hwloc-host,3,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,collections/redistribute/testing_redistribute -M 12 -N 12 -a 12 -A 12 -t 2 -T 2 -b 2 -B 2 -m 4 -n 4 -I 6 -J 0 -i 6 -j 0 -x -P 3 -Q 1 -p 3 -q 1 -g sdb -G 2dbc -l cpu -L cpu
+parsec,collections/redistribute:mp:sdb_to_2dbc:cpu_to_cpu,collections/redistribute:mp:sdb_to_2dbc:cpu_to_cpu:hwloc-2socket,,,,hwloc-2socket,3,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,collections/redistribute/testing_redistribute -M 12 -N 12 -a 12 -A 12 -t 2 -T 2 -b 2 -B 2 -m 4 -n 4 -I 6 -J 0 -i 6 -j 0 -x -P 3 -Q 1 -p 3 -q 1 -g sdb -G 2dbc -l cpu -L cpu
+parsec,collections/redistribute:mp:sdb_to_2dbc:cpu_to_cpu,collections/redistribute:mp:sdb_to_2dbc:cpu_to_cpu:rr,,,,rr,3,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,collections/redistribute/testing_redistribute -M 12 -N 12 -a 12 -A 12 -t 2 -T 2 -b 2 -B 2 -m 4 -n 4 -I 6 -J 0 -i 6 -j 0 -x -P 3 -Q 1 -p 3 -q 1 -g sdb -G 2dbc -l cpu -L cpu
+parsec,collections/redistribute:mp:sdb_to_2dbc:cpu_to_cpu,collections/redistribute:mp:sdb_to_2dbc:cpu_to_cpu:file,,,,file,3,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,collections/redistribute/testing_redistribute -M 12 -N 12 -a 12 -A 12 -t 2 -T 2 -b 2 -B 2 -m 4 -n 4 -I 6 -J 0 -i 6 -j 0 -x -P 3 -Q 1 -p 3 -q 1 -g sdb -G 2dbc -l cpu -L cpu
+parsec,collections/redistribute:mp:sdb_to_sdb:cpu_to_cpu,collections/redistribute:mp:sdb_to_sdb:cpu_to_cpu:flat,,,,flat,3,4,PARSEC_MCA_runtime_num_cores=4,collections/redistribute/testing_redistribute -M 12 -N 12 -a 12 -A 12 -t 2 -T 2 -b 2 -B 2 -m 4 -n 4 -I 6 -J 0 -i 6 -j 0 -x -P 3 -Q 1 -p 3 -q 1 -g sdb -G sdb -l cpu -L cpu
+parsec,collections/redistribute:mp:sdb_to_sdb:cpu_to_cpu,collections/redistribute:mp:sdb_to_sdb:cpu_to_cpu:hwloc-host,,,,hwloc-host,3,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,collections/redistribute/testing_redistribute -M 12 -N 12 -a 12 -A 12 -t 2 -T 2 -b 2 -B 2 -m 4 -n 4 -I 6 -J 0 -i 6 -j 0 -x -P 3 -Q 1 -p 3 -q 1 -g sdb -G sdb -l cpu -L cpu
+parsec,collections/redistribute:mp:sdb_to_sdb:cpu_to_cpu,collections/redistribute:mp:sdb_to_sdb:cpu_to_cpu:hwloc-2socket,,,,hwloc-2socket,3,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,collections/redistribute/testing_redistribute -M 12 -N 12 -a 12 -A 12 -t 2 -T 2 -b 2 -B 2 -m 4 -n 4 -I 6 -J 0 -i 6 -j 0 -x -P 3 -Q 1 -p 3 -q 1 -g sdb -G sdb -l cpu -L cpu
+parsec,collections/redistribute:mp:sdb_to_sdb:cpu_to_cpu,collections/redistribute:mp:sdb_to_sdb:cpu_to_cpu:rr,,,,rr,3,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,collections/redistribute/testing_redistribute -M 12 -N 12 -a 12 -A 12 -t 2 -T 2 -b 2 -B 2 -m 4 -n 4 -I 6 -J 0 -i 6 -j 0 -x -P 3 -Q 1 -p 3 -q 1 -g sdb -G sdb -l cpu -L cpu
+parsec,collections/redistribute:mp:sdb_to_sdb:cpu_to_cpu,collections/redistribute:mp:sdb_to_sdb:cpu_to_cpu:file,,,,file,3,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,collections/redistribute/testing_redistribute -M 12 -N 12 -a 12 -A 12 -t 2 -T 2 -b 2 -B 2 -m 4 -n 4 -I 6 -J 0 -i 6 -j 0 -x -P 3 -Q 1 -p 3 -q 1 -g sdb -G sdb -l cpu -L cpu
+parsec,collections/redistribute_random:mp,collections/redistribute_random:mp:flat,,,,flat,8,4,PARSEC_MCA_runtime_num_cores=4,collections/redistribute/testing_redistribute_random -M 2400 -N 2400 -a 2400 -A 2400 -t 300 -T 300 -b 200 -B 200 -m 2000 -n 2000 -I 30 -J 40 -i 100 -j 121 -v -z -x -P 2 -Q 4 -p 4 -q 2
+parsec,collections/redistribute_random:mp,collections/redistribute_random:mp:hwloc-host,,,,hwloc-host,8,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,collections/redistribute/testing_redistribute_random -M 2400 -N 2400 -a 2400 -A 2400 -t 300 -T 300 -b 200 -B 200 -m 2000 -n 2000 -I 30 -J 40 -i 100 -j 121 -v -z -x -P 2 -Q 4 -p 4 -q 2
+parsec,collections/redistribute_random:mp,collections/redistribute_random:mp:hwloc-2socket,,,,hwloc-2socket,8,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,collections/redistribute/testing_redistribute_random -M 2400 -N 2400 -a 2400 -A 2400 -t 300 -T 300 -b 200 -B 200 -m 2000 -n 2000 -I 30 -J 40 -i 100 -j 121 -v -z -x -P 2 -Q 4 -p 4 -q 2
+parsec,collections/redistribute_random:mp,collections/redistribute_random:mp:rr,,,,rr,8,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,collections/redistribute/testing_redistribute_random -M 2400 -N 2400 -a 2400 -A 2400 -t 300 -T 300 -b 200 -B 200 -m 2000 -n 2000 -I 30 -J 40 -i 100 -j 121 -v -z -x -P 2 -Q 4 -p 4 -q 2
+parsec,collections/redistribute_random:mp,collections/redistribute_random:mp:file,,,,file,8,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,collections/redistribute/testing_redistribute_random -M 2400 -N 2400 -a 2400 -A 2400 -t 300 -T 300 -b 200 -B 200 -m 2000 -n 2000 -I 30 -J 40 -i 100 -j 121 -v -z -x -P 2 -Q 4 -p 4 -q 2
+parsec,collections/reshape,collections/reshape:flat,,,,flat,1,10,,collections/reshape/reshape -N 120 -t 9 -c 10
+parsec,collections/reshape,collections/reshape:hwloc-host,,,,hwloc-host,1,10,PARSEC_MCA_runtime_vpmap=hwloc,collections/reshape/reshape -N 120 -t 9 -c 10
+parsec,collections/reshape,collections/reshape:hwloc-2socket,,,,hwloc-2socket,1,10,PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:5 pu:1,collections/reshape/reshape -N 120 -t 9 -c 10
+parsec,collections/reshape,collections/reshape:rr,,,,rr,1,10,PARSEC_MCA_runtime_vpmap=rr:2:5:10,collections/reshape/reshape -N 120 -t 9 -c 10
+parsec,collections/reshape,collections/reshape:file,,,,file,1,10,PARSEC_MCA_runtime_vpmap=file:@VPMAP@,collections/reshape/reshape -N 120 -t 9 -c 10
+parsec,collections/reshape:mt,collections/reshape:mt:flat,,,,flat,1,10,,collections/reshape/reshape -N 120 -t 9 -c 10 -m 1
+parsec,collections/reshape:mt,collections/reshape:mt:hwloc-host,,,,hwloc-host,1,10,PARSEC_MCA_runtime_vpmap=hwloc,collections/reshape/reshape -N 120 -t 9 -c 10 -m 1
+parsec,collections/reshape:mt,collections/reshape:mt:hwloc-2socket,,,,hwloc-2socket,1,10,PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:5 pu:1,collections/reshape/reshape -N 120 -t 9 -c 10 -m 1
+parsec,collections/reshape:mt,collections/reshape:mt:rr,,,,rr,1,10,PARSEC_MCA_runtime_vpmap=rr:2:5:10,collections/reshape/reshape -N 120 -t 9 -c 10 -m 1
+parsec,collections/reshape:mt,collections/reshape:mt:file,,,,file,1,10,PARSEC_MCA_runtime_vpmap=file:@VPMAP@,collections/reshape/reshape -N 120 -t 9 -c 10 -m 1
+parsec,collections/reshape:mp,collections/reshape:mp:flat,,,,flat,4,10,,collections/reshape/reshape -N 120 -t 9 -c 10
+parsec,collections/reshape:mp,collections/reshape:mp:hwloc-host,,,,hwloc-host,4,10,PARSEC_MCA_runtime_vpmap=hwloc,collections/reshape/reshape -N 120 -t 9 -c 10
+parsec,collections/reshape:mp,collections/reshape:mp:hwloc-2socket,,,,hwloc-2socket,4,10,PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:5 pu:1,collections/reshape/reshape -N 120 -t 9 -c 10
+parsec,collections/reshape:mp,collections/reshape:mp:rr,,,,rr,4,10,PARSEC_MCA_runtime_vpmap=rr:2:5:10,collections/reshape/reshape -N 120 -t 9 -c 10
+parsec,collections/reshape:mp,collections/reshape:mp:file,,,,file,4,10,PARSEC_MCA_runtime_vpmap=file:@VPMAP@,collections/reshape/reshape -N 120 -t 9 -c 10
+parsec,collections/reshape:mp:mt,collections/reshape:mp:mt:flat,,,,flat,4,10,,collections/reshape/reshape -N 120 -t 9 -c 10 -m 1
+parsec,collections/reshape:mp:mt,collections/reshape:mp:mt:hwloc-host,,,,hwloc-host,4,10,PARSEC_MCA_runtime_vpmap=hwloc,collections/reshape/reshape -N 120 -t 9 -c 10 -m 1
+parsec,collections/reshape:mp:mt,collections/reshape:mp:mt:hwloc-2socket,,,,hwloc-2socket,4,10,PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:5 pu:1,collections/reshape/reshape -N 120 -t 9 -c 10 -m 1
+parsec,collections/reshape:mp:mt,collections/reshape:mp:mt:rr,,,,rr,4,10,PARSEC_MCA_runtime_vpmap=rr:2:5:10,collections/reshape/reshape -N 120 -t 9 -c 10 -m 1
+parsec,collections/reshape:mp:mt,collections/reshape:mp:mt:file,,,,file,4,10,PARSEC_MCA_runtime_vpmap=file:@VPMAP@,collections/reshape/reshape -N 120 -t 9 -c 10 -m 1
+parsec,collections/reshape/input_single_copy,collections/reshape/input_single_copy:flat,,,,flat,1,2,,collections/reshape/input_dep_reshape_single_copy -N 12 -t 2 -c 2
+parsec,collections/reshape/input_single_copy,collections/reshape/input_single_copy:hwloc-host,,,,hwloc-host,1,2,PARSEC_MCA_runtime_vpmap=hwloc,collections/reshape/input_dep_reshape_single_copy -N 12 -t 2 -c 2
+parsec,collections/reshape/input_single_copy,collections/reshape/input_single_copy:hwloc-2socket,,,,hwloc-2socket,1,2,PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:1 pu:1,collections/reshape/input_dep_reshape_single_copy -N 12 -t 2 -c 2
+parsec,collections/reshape/input_single_copy,collections/reshape/input_single_copy:rr,,,,rr,1,2,PARSEC_MCA_runtime_vpmap=rr:2:1:2,collections/reshape/input_dep_reshape_single_copy -N 12 -t 2 -c 2
+parsec,collections/reshape/input_single_copy,collections/reshape/input_single_copy:file,,,,file,1,2,PARSEC_MCA_runtime_vpmap=file:@VPMAP@,collections/reshape/input_dep_reshape_single_copy -N 12 -t 2 -c 2
+parsec,collections/reshape/input_single_copy:mt,collections/reshape/input_single_copy:mt:flat,,,,flat,1,2,,collections/reshape/input_dep_reshape_single_copy -N 12 -t 2 -c 2 -m 1
+parsec,collections/reshape/input_single_copy:mt,collections/reshape/input_single_copy:mt:hwloc-host,,,,hwloc-host,1,2,PARSEC_MCA_runtime_vpmap=hwloc,collections/reshape/input_dep_reshape_single_copy -N 12 -t 2 -c 2 -m 1
+parsec,collections/reshape/input_single_copy:mt,collections/reshape/input_single_copy:mt:hwloc-2socket,,,,hwloc-2socket,1,2,PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:1 pu:1,collections/reshape/input_dep_reshape_single_copy -N 12 -t 2 -c 2 -m 1
+parsec,collections/reshape/input_single_copy:mt,collections/reshape/input_single_copy:mt:rr,,,,rr,1,2,PARSEC_MCA_runtime_vpmap=rr:2:1:2,collections/reshape/input_dep_reshape_single_copy -N 12 -t 2 -c 2 -m 1
+parsec,collections/reshape/input_single_copy:mt,collections/reshape/input_single_copy:mt:file,,,,file,1,2,PARSEC_MCA_runtime_vpmap=file:@VPMAP@,collections/reshape/input_dep_reshape_single_copy -N 12 -t 2 -c 2 -m 1
+parsec,collections/reshape/input_single_copy:mp,collections/reshape/input_single_copy:mp:flat,,,,flat,4,2,,collections/reshape/input_dep_reshape_single_copy -N 12 -t 2 -c 2
+parsec,collections/reshape/input_single_copy:mp,collections/reshape/input_single_copy:mp:hwloc-host,,,,hwloc-host,4,2,PARSEC_MCA_runtime_vpmap=hwloc,collections/reshape/input_dep_reshape_single_copy -N 12 -t 2 -c 2
+parsec,collections/reshape/input_single_copy:mp,collections/reshape/input_single_copy:mp:hwloc-2socket,,,,hwloc-2socket,4,2,PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:1 pu:1,collections/reshape/input_dep_reshape_single_copy -N 12 -t 2 -c 2
+parsec,collections/reshape/input_single_copy:mp,collections/reshape/input_single_copy:mp:rr,,,,rr,4,2,PARSEC_MCA_runtime_vpmap=rr:2:1:2,collections/reshape/input_dep_reshape_single_copy -N 12 -t 2 -c 2
+parsec,collections/reshape/input_single_copy:mp,collections/reshape/input_single_copy:mp:file,,,,file,4,2,PARSEC_MCA_runtime_vpmap=file:@VPMAP@,collections/reshape/input_dep_reshape_single_copy -N 12 -t 2 -c 2
+parsec,collections/reshape/input_single_copy:mp:mt,collections/reshape/input_single_copy:mp:mt:flat,,,,flat,4,2,,collections/reshape/input_dep_reshape_single_copy -N 12 -t 2 -c 2 -m 1
+parsec,collections/reshape/input_single_copy:mp:mt,collections/reshape/input_single_copy:mp:mt:hwloc-host,,,,hwloc-host,4,2,PARSEC_MCA_runtime_vpmap=hwloc,collections/reshape/input_dep_reshape_single_copy -N 12 -t 2 -c 2 -m 1
+parsec,collections/reshape/input_single_copy:mp:mt,collections/reshape/input_single_copy:mp:mt:hwloc-2socket,,,,hwloc-2socket,4,2,PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:1 pu:1,collections/reshape/input_dep_reshape_single_copy -N 12 -t 2 -c 2 -m 1
+parsec,collections/reshape/input_single_copy:mp:mt,collections/reshape/input_single_copy:mp:mt:rr,,,,rr,4,2,PARSEC_MCA_runtime_vpmap=rr:2:1:2,collections/reshape/input_dep_reshape_single_copy -N 12 -t 2 -c 2 -m 1
+parsec,collections/reshape/input_single_copy:mp:mt,collections/reshape/input_single_copy:mp:mt:file,,,,file,4,2,PARSEC_MCA_runtime_vpmap=file:@VPMAP@,collections/reshape/input_dep_reshape_single_copy -N 12 -t 2 -c 2 -m 1
+parsec,collections/reshape/remote_multiple_outs_same_pred_flow,collections/reshape/remote_multiple_outs_same_pred_flow:flat,,,,flat,1,10,,collections/reshape/remote_multiple_outs_same_pred_flow -N 320 -t 9 -c 10 -- --mca runtime_comm_short_limit 0
+parsec,collections/reshape/remote_multiple_outs_same_pred_flow,collections/reshape/remote_multiple_outs_same_pred_flow:hwloc-host,,,,hwloc-host,1,10,PARSEC_MCA_runtime_vpmap=hwloc,collections/reshape/remote_multiple_outs_same_pred_flow -N 320 -t 9 -c 10 -- --mca runtime_comm_short_limit 0
+parsec,collections/reshape/remote_multiple_outs_same_pred_flow,collections/reshape/remote_multiple_outs_same_pred_flow:hwloc-2socket,,,,hwloc-2socket,1,10,PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:5 pu:1,collections/reshape/remote_multiple_outs_same_pred_flow -N 320 -t 9 -c 10 -- --mca runtime_comm_short_limit 0
+parsec,collections/reshape/remote_multiple_outs_same_pred_flow,collections/reshape/remote_multiple_outs_same_pred_flow:rr,,,,rr,1,10,PARSEC_MCA_runtime_vpmap=rr:2:5:10,collections/reshape/remote_multiple_outs_same_pred_flow -N 320 -t 9 -c 10 -- --mca runtime_comm_short_limit 0
+parsec,collections/reshape/remote_multiple_outs_same_pred_flow,collections/reshape/remote_multiple_outs_same_pred_flow:file,,,,file,1,10,PARSEC_MCA_runtime_vpmap=file:@VPMAP@,collections/reshape/remote_multiple_outs_same_pred_flow -N 320 -t 9 -c 10 -- --mca runtime_comm_short_limit 0
+parsec,collections/reshape/remote_multiple_outs_same_pred_flow:mt,collections/reshape/remote_multiple_outs_same_pred_flow:mt:flat,,,,flat,1,10,,collections/reshape/remote_multiple_outs_same_pred_flow -N 320 -t 9 -c 10 -m 1 -- --mca runtime_comm_short_limit 0
+parsec,collections/reshape/remote_multiple_outs_same_pred_flow:mt,collections/reshape/remote_multiple_outs_same_pred_flow:mt:hwloc-host,,,,hwloc-host,1,10,PARSEC_MCA_runtime_vpmap=hwloc,collections/reshape/remote_multiple_outs_same_pred_flow -N 320 -t 9 -c 10 -m 1 -- --mca runtime_comm_short_limit 0
+parsec,collections/reshape/remote_multiple_outs_same_pred_flow:mt,collections/reshape/remote_multiple_outs_same_pred_flow:mt:hwloc-2socket,,,,hwloc-2socket,1,10,PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:5 pu:1,collections/reshape/remote_multiple_outs_same_pred_flow -N 320 -t 9 -c 10 -m 1 -- --mca runtime_comm_short_limit 0
+parsec,collections/reshape/remote_multiple_outs_same_pred_flow:mt,collections/reshape/remote_multiple_outs_same_pred_flow:mt:rr,,,,rr,1,10,PARSEC_MCA_runtime_vpmap=rr:2:5:10,collections/reshape/remote_multiple_outs_same_pred_flow -N 320 -t 9 -c 10 -m 1 -- --mca runtime_comm_short_limit 0
+parsec,collections/reshape/remote_multiple_outs_same_pred_flow:mt,collections/reshape/remote_multiple_outs_same_pred_flow:mt:file,,,,file,1,10,PARSEC_MCA_runtime_vpmap=file:@VPMAP@,collections/reshape/remote_multiple_outs_same_pred_flow -N 320 -t 9 -c 10 -m 1 -- --mca runtime_comm_short_limit 0
+parsec,collections/reshape/remote_multiple_outs_same_pred_flow:mp,collections/reshape/remote_multiple_outs_same_pred_flow:mp:flat,,,,flat,4,10,,collections/reshape/remote_multiple_outs_same_pred_flow -N 320 -t 9 -c 10 -- --mca runtime_comm_short_limit 0
+parsec,collections/reshape/remote_multiple_outs_same_pred_flow:mp,collections/reshape/remote_multiple_outs_same_pred_flow:mp:hwloc-host,,,,hwloc-host,4,10,PARSEC_MCA_runtime_vpmap=hwloc,collections/reshape/remote_multiple_outs_same_pred_flow -N 320 -t 9 -c 10 -- --mca runtime_comm_short_limit 0
+parsec,collections/reshape/remote_multiple_outs_same_pred_flow:mp,collections/reshape/remote_multiple_outs_same_pred_flow:mp:hwloc-2socket,,,,hwloc-2socket,4,10,PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:5 pu:1,collections/reshape/remote_multiple_outs_same_pred_flow -N 320 -t 9 -c 10 -- --mca runtime_comm_short_limit 0
+parsec,collections/reshape/remote_multiple_outs_same_pred_flow:mp,collections/reshape/remote_multiple_outs_same_pred_flow:mp:rr,,,,rr,4,10,PARSEC_MCA_runtime_vpmap=rr:2:5:10,collections/reshape/remote_multiple_outs_same_pred_flow -N 320 -t 9 -c 10 -- --mca runtime_comm_short_limit 0
+parsec,collections/reshape/remote_multiple_outs_same_pred_flow:mp,collections/reshape/remote_multiple_outs_same_pred_flow:mp:file,,,,file,4,10,PARSEC_MCA_runtime_vpmap=file:@VPMAP@,collections/reshape/remote_multiple_outs_same_pred_flow -N 320 -t 9 -c 10 -- --mca runtime_comm_short_limit 0
+parsec,collections/reshape/remote_multiple_outs_same_pred_flow:mp:mt,collections/reshape/remote_multiple_outs_same_pred_flow:mp:mt:flat,,,,flat,4,10,,collections/reshape/remote_multiple_outs_same_pred_flow -N 320 -t 9 -c 10 -m 1 -- --mca runtime_comm_short_limit 0
+parsec,collections/reshape/remote_multiple_outs_same_pred_flow:mp:mt,collections/reshape/remote_multiple_outs_same_pred_flow:mp:mt:hwloc-host,,,,hwloc-host,4,10,PARSEC_MCA_runtime_vpmap=hwloc,collections/reshape/remote_multiple_outs_same_pred_flow -N 320 -t 9 -c 10 -m 1 -- --mca runtime_comm_short_limit 0
+parsec,collections/reshape/remote_multiple_outs_same_pred_flow:mp:mt,collections/reshape/remote_multiple_outs_same_pred_flow:mp:mt:hwloc-2socket,,,,hwloc-2socket,4,10,PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:5 pu:1,collections/reshape/remote_multiple_outs_same_pred_flow -N 320 -t 9 -c 10 -m 1 -- --mca runtime_comm_short_limit 0
+parsec,collections/reshape/remote_multiple_outs_same_pred_flow:mp:mt,collections/reshape/remote_multiple_outs_same_pred_flow:mp:mt:rr,,,,rr,4,10,PARSEC_MCA_runtime_vpmap=rr:2:5:10,collections/reshape/remote_multiple_outs_same_pred_flow -N 320 -t 9 -c 10 -m 1 -- --mca runtime_comm_short_limit 0
+parsec,collections/reshape/remote_multiple_outs_same_pred_flow:mp:mt,collections/reshape/remote_multiple_outs_same_pred_flow:mp:mt:file,,,,file,4,10,PARSEC_MCA_runtime_vpmap=file:@VPMAP@,collections/reshape/remote_multiple_outs_same_pred_flow -N 320 -t 9 -c 10 -m 1 -- --mca runtime_comm_short_limit 0
+parsec,collections/reshape/avoidable,collections/reshape/avoidable:flat,,,,flat,1,10,,collections/reshape/avoidable_reshape -N 100 -t 2 -c 10
+parsec,collections/reshape/avoidable,collections/reshape/avoidable:hwloc-host,,,,hwloc-host,1,10,PARSEC_MCA_runtime_vpmap=hwloc,collections/reshape/avoidable_reshape -N 100 -t 2 -c 10
+parsec,collections/reshape/avoidable,collections/reshape/avoidable:hwloc-2socket,,,,hwloc-2socket,1,10,PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:5 pu:1,collections/reshape/avoidable_reshape -N 100 -t 2 -c 10
+parsec,collections/reshape/avoidable,collections/reshape/avoidable:rr,,,,rr,1,10,PARSEC_MCA_runtime_vpmap=rr:2:5:10,collections/reshape/avoidable_reshape -N 100 -t 2 -c 10
+parsec,collections/reshape/avoidable,collections/reshape/avoidable:file,,,,file,1,10,PARSEC_MCA_runtime_vpmap=file:@VPMAP@,collections/reshape/avoidable_reshape -N 100 -t 2 -c 10
+parsec,collections/matrix/band,collections/matrix/band:flat,,,,flat,8,4,PARSEC_MCA_runtime_num_cores=4,collections/two_dim_band/testing_band -N 3200 -T 160 -P 4 -s 5 -S 10 -p 2 -f 2 -F 10 -b 2
+parsec,collections/matrix/band,collections/matrix/band:hwloc-host,,,,hwloc-host,8,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,collections/two_dim_band/testing_band -N 3200 -T 160 -P 4 -s 5 -S 10 -p 2 -f 2 -F 10 -b 2
+parsec,collections/matrix/band,collections/matrix/band:hwloc-2socket,,,,hwloc-2socket,8,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,collections/two_dim_band/testing_band -N 3200 -T 160 -P 4 -s 5 -S 10 -p 2 -f 2 -F 10 -b 2
+parsec,collections/matrix/band,collections/matrix/band:rr,,,,rr,8,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,collections/two_dim_band/testing_band -N 3200 -T 160 -P 4 -s 5 -S 10 -p 2 -f 2 -F 10 -b 2
+parsec,collections/matrix/band,collections/matrix/band:file,,,,file,8,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,collections/two_dim_band/testing_band -N 3200 -T 160 -P 4 -s 5 -S 10 -p 2 -f 2 -F 10 -b 2
+parsec,dsl/ptg/ptgpp/forward_RW_NULL,dsl/ptg/ptgpp/forward_RW_NULL:flat,,,,flat,1,4,PARSEC_MCA_runtime_num_cores=4,dsl/ptg/ptgpp/jdf_forward_RW_NULL
+parsec,dsl/ptg/ptgpp/forward_RW_NULL,dsl/ptg/ptgpp/forward_RW_NULL:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,dsl/ptg/ptgpp/jdf_forward_RW_NULL
+parsec,dsl/ptg/ptgpp/forward_RW_NULL,dsl/ptg/ptgpp/forward_RW_NULL:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,dsl/ptg/ptgpp/jdf_forward_RW_NULL
+parsec,dsl/ptg/ptgpp/forward_RW_NULL,dsl/ptg/ptgpp/forward_RW_NULL:rr,,,,rr,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,dsl/ptg/ptgpp/jdf_forward_RW_NULL
+parsec,dsl/ptg/ptgpp/forward_RW_NULL,dsl/ptg/ptgpp/forward_RW_NULL:file,,,,file,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,dsl/ptg/ptgpp/jdf_forward_RW_NULL
+parsec,dsl/ptg/ptgpp/forward_READ_NULL,dsl/ptg/ptgpp/forward_READ_NULL:flat,,,,flat,1,4,PARSEC_MCA_runtime_num_cores=4,dsl/ptg/ptgpp/jdf_forward_READ_NULL
+parsec,dsl/ptg/ptgpp/forward_READ_NULL,dsl/ptg/ptgpp/forward_READ_NULL:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,dsl/ptg/ptgpp/jdf_forward_READ_NULL
+parsec,dsl/ptg/ptgpp/forward_READ_NULL,dsl/ptg/ptgpp/forward_READ_NULL:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,dsl/ptg/ptgpp/jdf_forward_READ_NULL
+parsec,dsl/ptg/ptgpp/forward_READ_NULL,dsl/ptg/ptgpp/forward_READ_NULL:rr,,,,rr,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,dsl/ptg/ptgpp/jdf_forward_READ_NULL
+parsec,dsl/ptg/ptgpp/forward_READ_NULL,dsl/ptg/ptgpp/forward_READ_NULL:file,,,,file,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,dsl/ptg/ptgpp/jdf_forward_READ_NULL
+parsec,dsl/ptg/ptgpp/write_check,dsl/ptg/ptgpp/write_check:flat,,,,flat,1,4,PARSEC_MCA_runtime_num_cores=4,dsl/ptg/ptgpp/write_check
+parsec,dsl/ptg/ptgpp/write_check,dsl/ptg/ptgpp/write_check:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,dsl/ptg/ptgpp/write_check
+parsec,dsl/ptg/ptgpp/write_check,dsl/ptg/ptgpp/write_check:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,dsl/ptg/ptgpp/write_check
+parsec,dsl/ptg/ptgpp/write_check,dsl/ptg/ptgpp/write_check:rr,,,,rr,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,dsl/ptg/ptgpp/write_check
+parsec,dsl/ptg/ptgpp/write_check,dsl/ptg/ptgpp/write_check:file,,,,file,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,dsl/ptg/ptgpp/write_check
+parsec,dsl/ptg/ptgpp/forward_RW_NULL:mp,dsl/ptg/ptgpp/forward_RW_NULL:mp:flat,,,,flat,2,4,PARSEC_MCA_runtime_num_cores=4,dsl/ptg/ptgpp/jdf_forward_RW_NULL
+parsec,dsl/ptg/ptgpp/forward_RW_NULL:mp,dsl/ptg/ptgpp/forward_RW_NULL:mp:hwloc-host,,,,hwloc-host,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,dsl/ptg/ptgpp/jdf_forward_RW_NULL
+parsec,dsl/ptg/ptgpp/forward_RW_NULL:mp,dsl/ptg/ptgpp/forward_RW_NULL:mp:hwloc-2socket,,,,hwloc-2socket,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,dsl/ptg/ptgpp/jdf_forward_RW_NULL
+parsec,dsl/ptg/ptgpp/forward_RW_NULL:mp,dsl/ptg/ptgpp/forward_RW_NULL:mp:rr,,,,rr,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,dsl/ptg/ptgpp/jdf_forward_RW_NULL
+parsec,dsl/ptg/ptgpp/forward_RW_NULL:mp,dsl/ptg/ptgpp/forward_RW_NULL:mp:file,,,,file,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,dsl/ptg/ptgpp/jdf_forward_RW_NULL
+parsec,dsl/ptg/ptgpp/forward_READ_NULL:mp,dsl/ptg/ptgpp/forward_READ_NULL:mp:flat,,,,flat,2,4,PARSEC_MCA_runtime_num_cores=4,dsl/ptg/ptgpp/jdf_forward_READ_NULL
+parsec,dsl/ptg/ptgpp/forward_READ_NULL:mp,dsl/ptg/ptgpp/forward_READ_NULL:mp:hwloc-host,,,,hwloc-host,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,dsl/ptg/ptgpp/jdf_forward_READ_NULL
+parsec,dsl/ptg/ptgpp/forward_READ_NULL:mp,dsl/ptg/ptgpp/forward_READ_NULL:mp:hwloc-2socket,,,,hwloc-2socket,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,dsl/ptg/ptgpp/jdf_forward_READ_NULL
+parsec,dsl/ptg/ptgpp/forward_READ_NULL:mp,dsl/ptg/ptgpp/forward_READ_NULL:mp:rr,,,,rr,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,dsl/ptg/ptgpp/jdf_forward_READ_NULL
+parsec,dsl/ptg/ptgpp/forward_READ_NULL:mp,dsl/ptg/ptgpp/forward_READ_NULL:mp:file,,,,file,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,dsl/ptg/ptgpp/jdf_forward_READ_NULL
+parsec,dsl/ptg/ptgpp/write_check:mp,dsl/ptg/ptgpp/write_check:mp:flat,,,,flat,4,4,PARSEC_MCA_runtime_num_cores=4,dsl/ptg/ptgpp/write_check
+parsec,dsl/ptg/ptgpp/write_check:mp,dsl/ptg/ptgpp/write_check:mp:hwloc-host,,,,hwloc-host,4,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,dsl/ptg/ptgpp/write_check
+parsec,dsl/ptg/ptgpp/write_check:mp,dsl/ptg/ptgpp/write_check:mp:hwloc-2socket,,,,hwloc-2socket,4,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,dsl/ptg/ptgpp/write_check
+parsec,dsl/ptg/ptgpp/write_check:mp,dsl/ptg/ptgpp/write_check:mp:rr,,,,rr,4,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,dsl/ptg/ptgpp/write_check
+parsec,dsl/ptg/ptgpp/write_check:mp,dsl/ptg/ptgpp/write_check:mp:file,,,,file,4,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,dsl/ptg/ptgpp/write_check
+parsec,dsl/ptg/user-defined-functions/udf,dsl/ptg/user-defined-functions/udf:flat,,,,flat,1,4,PARSEC_MCA_runtime_num_cores=4,dsl/ptg/user-defined-functions/udf -N 100 -n 10
+parsec,dsl/ptg/user-defined-functions/udf,dsl/ptg/user-defined-functions/udf:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,dsl/ptg/user-defined-functions/udf -N 100 -n 10
+parsec,dsl/ptg/user-defined-functions/udf,dsl/ptg/user-defined-functions/udf:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,dsl/ptg/user-defined-functions/udf -N 100 -n 10
+parsec,dsl/ptg/user-defined-functions/udf,dsl/ptg/user-defined-functions/udf:rr,,,,rr,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,dsl/ptg/user-defined-functions/udf -N 100 -n 10
+parsec,dsl/ptg/user-defined-functions/udf,dsl/ptg/user-defined-functions/udf:file,,,,file,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,dsl/ptg/user-defined-functions/udf -N 100 -n 10
+parsec,dsl/ptg/branching/hashtable,dsl/ptg/branching/hashtable:flat,,,,flat,1,4,PARSEC_MCA_runtime_num_cores=4,dsl/ptg/branching/branching_ht
+parsec,dsl/ptg/branching/hashtable,dsl/ptg/branching/hashtable:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,dsl/ptg/branching/branching_ht
+parsec,dsl/ptg/branching/hashtable,dsl/ptg/branching/hashtable:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,dsl/ptg/branching/branching_ht
+parsec,dsl/ptg/branching/hashtable,dsl/ptg/branching/hashtable:rr,,,,rr,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,dsl/ptg/branching/branching_ht
+parsec,dsl/ptg/branching/hashtable,dsl/ptg/branching/hashtable:file,,,,file,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,dsl/ptg/branching/branching_ht
+parsec,dsl/ptg/branching/idxarray,dsl/ptg/branching/idxarray:flat,,,,flat,1,4,PARSEC_MCA_runtime_num_cores=4,dsl/ptg/branching/branching_idxarr
+parsec,dsl/ptg/branching/idxarray,dsl/ptg/branching/idxarray:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,dsl/ptg/branching/branching_idxarr
+parsec,dsl/ptg/branching/idxarray,dsl/ptg/branching/idxarray:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,dsl/ptg/branching/branching_idxarr
+parsec,dsl/ptg/branching/idxarray,dsl/ptg/branching/idxarray:rr,,,,rr,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,dsl/ptg/branching/branching_idxarr
+parsec,dsl/ptg/branching/idxarray,dsl/ptg/branching/idxarray:file,,,,file,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,dsl/ptg/branching/branching_idxarr
+parsec,dsl/ptg/multisize_bcast,dsl/ptg/multisize_bcast:flat,,,,flat,1,4,PARSEC_MCA_runtime_num_cores=4,dsl/ptg/multisize_bcast/check_multisize_bcast
+parsec,dsl/ptg/multisize_bcast,dsl/ptg/multisize_bcast:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,dsl/ptg/multisize_bcast/check_multisize_bcast
+parsec,dsl/ptg/multisize_bcast,dsl/ptg/multisize_bcast:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,dsl/ptg/multisize_bcast/check_multisize_bcast
+parsec,dsl/ptg/multisize_bcast,dsl/ptg/multisize_bcast:rr,,,,rr,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,dsl/ptg/multisize_bcast/check_multisize_bcast
+parsec,dsl/ptg/multisize_bcast,dsl/ptg/multisize_bcast:file,,,,file,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,dsl/ptg/multisize_bcast/check_multisize_bcast
+parsec,dsl/ptg/multisize_bcast:mp,dsl/ptg/multisize_bcast:mp:flat,,,,flat,4,4,PARSEC_MCA_runtime_num_cores=4,dsl/ptg/multisize_bcast/check_multisize_bcast
+parsec,dsl/ptg/multisize_bcast:mp,dsl/ptg/multisize_bcast:mp:hwloc-host,,,,hwloc-host,4,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,dsl/ptg/multisize_bcast/check_multisize_bcast
+parsec,dsl/ptg/multisize_bcast:mp,dsl/ptg/multisize_bcast:mp:hwloc-2socket,,,,hwloc-2socket,4,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,dsl/ptg/multisize_bcast/check_multisize_bcast
+parsec,dsl/ptg/multisize_bcast:mp,dsl/ptg/multisize_bcast:mp:rr,,,,rr,4,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,dsl/ptg/multisize_bcast/check_multisize_bcast
+parsec,dsl/ptg/multisize_bcast:mp,dsl/ptg/multisize_bcast:mp:file,,,,file,4,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,dsl/ptg/multisize_bcast/check_multisize_bcast
+parsec,dsl/ptg/startup1,dsl/ptg/startup1:flat,,,,flat,1,4,PARSEC_MCA_runtime_num_cores=4,dsl/ptg/startup -i=10 -j=10 -k=10 -v=5
+parsec,dsl/ptg/startup1,dsl/ptg/startup1:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,dsl/ptg/startup -i=10 -j=10 -k=10 -v=5
+parsec,dsl/ptg/startup1,dsl/ptg/startup1:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,dsl/ptg/startup -i=10 -j=10 -k=10 -v=5
+parsec,dsl/ptg/startup1,dsl/ptg/startup1:rr,,,,rr,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,dsl/ptg/startup -i=10 -j=10 -k=10 -v=5
+parsec,dsl/ptg/startup1,dsl/ptg/startup1:file,,,,file,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,dsl/ptg/startup -i=10 -j=10 -k=10 -v=5
+parsec,dsl/ptg/startup2,dsl/ptg/startup2:flat,,,,flat,1,4,PARSEC_MCA_runtime_num_cores=4,dsl/ptg/startup -i=10 -j=20 -k=30 -v=5
+parsec,dsl/ptg/startup2,dsl/ptg/startup2:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,dsl/ptg/startup -i=10 -j=20 -k=30 -v=5
+parsec,dsl/ptg/startup2,dsl/ptg/startup2:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,dsl/ptg/startup -i=10 -j=20 -k=30 -v=5
+parsec,dsl/ptg/startup2,dsl/ptg/startup2:rr,,,,rr,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,dsl/ptg/startup -i=10 -j=20 -k=30 -v=5
+parsec,dsl/ptg/startup2,dsl/ptg/startup2:file,,,,file,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,dsl/ptg/startup -i=10 -j=20 -k=30 -v=5
+parsec,dsl/ptg/startup3,dsl/ptg/startup3:flat,,,,flat,1,4,PARSEC_MCA_runtime_num_cores=4,dsl/ptg/startup -i=30 -j=30 -k=30 -v=5
+parsec,dsl/ptg/startup3,dsl/ptg/startup3:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,dsl/ptg/startup -i=30 -j=30 -k=30 -v=5
+parsec,dsl/ptg/startup3,dsl/ptg/startup3:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,dsl/ptg/startup -i=30 -j=30 -k=30 -v=5
+parsec,dsl/ptg/startup3,dsl/ptg/startup3:rr,,,,rr,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,dsl/ptg/startup -i=30 -j=30 -k=30 -v=5
+parsec,dsl/ptg/startup3,dsl/ptg/startup3:file,,,,file,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,dsl/ptg/startup -i=30 -j=30 -k=30 -v=5
+parsec,dsl/ptg/strange,dsl/ptg/strange:flat,,,,flat,1,4,PARSEC_MCA_runtime_num_cores=4,dsl/ptg/strange
+parsec,dsl/ptg/strange,dsl/ptg/strange:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,dsl/ptg/strange
+parsec,dsl/ptg/strange,dsl/ptg/strange:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,dsl/ptg/strange
+parsec,dsl/ptg/strange,dsl/ptg/strange:rr,,,,rr,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,dsl/ptg/strange
+parsec,dsl/ptg/strange,dsl/ptg/strange:file,,,,file,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,dsl/ptg/strange
+parsec,dsl/ptg/batch_cpu,dsl/ptg/batch_cpu:flat,,,,flat,1,4,PARSEC_MCA_runtime_num_cores=4,dsl/ptg/batch_cpu
+parsec,dsl/ptg/batch_cpu,dsl/ptg/batch_cpu:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,dsl/ptg/batch_cpu
+parsec,dsl/ptg/batch_cpu,dsl/ptg/batch_cpu:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,dsl/ptg/batch_cpu
+parsec,dsl/ptg/batch_cpu,dsl/ptg/batch_cpu:rr,,,,rr,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,dsl/ptg/batch_cpu
+parsec,dsl/ptg/batch_cpu,dsl/ptg/batch_cpu:file,,,,file,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,dsl/ptg/batch_cpu
+parsec,dsl/dtd/empty,dsl/dtd/empty:flat,,,,flat,1,4,PARSEC_MCA_runtime_num_cores=4,dsl/dtd/dtd_test_empty
+parsec,dsl/dtd/empty,dsl/dtd/empty:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,dsl/dtd/dtd_test_empty
+parsec,dsl/dtd/empty,dsl/dtd/empty:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,dsl/dtd/dtd_test_empty
+parsec,dsl/dtd/empty,dsl/dtd/empty:rr,,,,rr,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,dsl/dtd/dtd_test_empty
+parsec,dsl/dtd/empty,dsl/dtd/empty:file,,,,file,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,dsl/dtd/dtd_test_empty
+parsec,dsl/dtd/task_generation,dsl/dtd/task_generation:flat,,,,flat,1,4,PARSEC_MCA_runtime_num_cores=4,dsl/dtd/dtd_test_task_generation
+parsec,dsl/dtd/task_generation,dsl/dtd/task_generation:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,dsl/dtd/dtd_test_task_generation
+parsec,dsl/dtd/task_generation,dsl/dtd/task_generation:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,dsl/dtd/dtd_test_task_generation
+parsec,dsl/dtd/task_generation,dsl/dtd/task_generation:rr,,,,rr,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,dsl/dtd/dtd_test_task_generation
+parsec,dsl/dtd/task_generation,dsl/dtd/task_generation:file,,,,file,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,dsl/dtd/dtd_test_task_generation
+parsec,dsl/dtd/task_inserting_task,dsl/dtd/task_inserting_task:flat,,,,flat,1,4,PARSEC_MCA_runtime_num_cores=4,dsl/dtd/dtd_test_task_inserting_task
+parsec,dsl/dtd/task_inserting_task,dsl/dtd/task_inserting_task:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,dsl/dtd/dtd_test_task_inserting_task
+parsec,dsl/dtd/task_inserting_task,dsl/dtd/task_inserting_task:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,dsl/dtd/dtd_test_task_inserting_task
+parsec,dsl/dtd/task_inserting_task,dsl/dtd/task_inserting_task:rr,,,,rr,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,dsl/dtd/dtd_test_task_inserting_task
+parsec,dsl/dtd/task_inserting_task,dsl/dtd/task_inserting_task:file,,,,file,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,dsl/dtd/dtd_test_task_inserting_task
+parsec,dsl/dtd/task_insertion,dsl/dtd/task_insertion:flat,,,,flat,1,4,PARSEC_MCA_runtime_num_cores=4,dsl/dtd/dtd_test_task_insertion
+parsec,dsl/dtd/task_insertion,dsl/dtd/task_insertion:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,dsl/dtd/dtd_test_task_insertion
+parsec,dsl/dtd/task_insertion,dsl/dtd/task_insertion:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,dsl/dtd/dtd_test_task_insertion
+parsec,dsl/dtd/task_insertion,dsl/dtd/task_insertion:rr,,,,rr,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,dsl/dtd/dtd_test_task_insertion
+parsec,dsl/dtd/task_insertion,dsl/dtd/task_insertion:file,,,,file,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,dsl/dtd/dtd_test_task_insertion
+parsec,dsl/dtd/war,dsl/dtd/war:flat,,,,flat,1,4,PARSEC_MCA_runtime_num_cores=4,dsl/dtd/dtd_test_war
+parsec,dsl/dtd/war,dsl/dtd/war:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,dsl/dtd/dtd_test_war
+parsec,dsl/dtd/war,dsl/dtd/war:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,dsl/dtd/dtd_test_war
+parsec,dsl/dtd/war,dsl/dtd/war:rr,,,,rr,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,dsl/dtd/dtd_test_war
+parsec,dsl/dtd/war,dsl/dtd/war:file,,,,file,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,dsl/dtd/dtd_test_war
+parsec,dsl/dtd/interleave_actions,dsl/dtd/interleave_actions:flat,,,,flat,1,4,PARSEC_MCA_runtime_num_cores=4,dsl/dtd/dtd_test_interleave_actions
+parsec,dsl/dtd/interleave_actions,dsl/dtd/interleave_actions:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,dsl/dtd/dtd_test_interleave_actions
+parsec,dsl/dtd/interleave_actions,dsl/dtd/interleave_actions:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,dsl/dtd/dtd_test_interleave_actions
+parsec,dsl/dtd/interleave_actions,dsl/dtd/interleave_actions:rr,,,,rr,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,dsl/dtd/dtd_test_interleave_actions
+parsec,dsl/dtd/interleave_actions,dsl/dtd/interleave_actions:file,,,,file,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,dsl/dtd/dtd_test_interleave_actions
+parsec,dsl/dtd/allreduce,dsl/dtd/allreduce:flat,,,,flat,1,4,PARSEC_MCA_runtime_num_cores=4,dsl/dtd/dtd_test_allreduce
+parsec,dsl/dtd/allreduce,dsl/dtd/allreduce:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,dsl/dtd/dtd_test_allreduce
+parsec,dsl/dtd/allreduce,dsl/dtd/allreduce:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,dsl/dtd/dtd_test_allreduce
+parsec,dsl/dtd/allreduce,dsl/dtd/allreduce:rr,,,,rr,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,dsl/dtd/dtd_test_allreduce
+parsec,dsl/dtd/allreduce,dsl/dtd/allreduce:file,,,,file,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,dsl/dtd/dtd_test_allreduce
+parsec,dsl/dtd/broadcast,dsl/dtd/broadcast:flat,,,,flat,1,4,PARSEC_MCA_runtime_num_cores=4,dsl/dtd/dtd_test_broadcast
+parsec,dsl/dtd/broadcast,dsl/dtd/broadcast:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,dsl/dtd/dtd_test_broadcast
+parsec,dsl/dtd/broadcast,dsl/dtd/broadcast:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,dsl/dtd/dtd_test_broadcast
+parsec,dsl/dtd/broadcast,dsl/dtd/broadcast:rr,,,,rr,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,dsl/dtd/dtd_test_broadcast
+parsec,dsl/dtd/broadcast,dsl/dtd/broadcast:file,,,,file,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,dsl/dtd/dtd_test_broadcast
+parsec,dsl/dtd/data_flush,dsl/dtd/data_flush:flat,,,,flat,1,4,PARSEC_MCA_runtime_num_cores=4,dsl/dtd/dtd_test_data_flush
+parsec,dsl/dtd/data_flush,dsl/dtd/data_flush:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,dsl/dtd/dtd_test_data_flush
+parsec,dsl/dtd/data_flush,dsl/dtd/data_flush:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,dsl/dtd/dtd_test_data_flush
+parsec,dsl/dtd/data_flush,dsl/dtd/data_flush:rr,,,,rr,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,dsl/dtd/dtd_test_data_flush
+parsec,dsl/dtd/data_flush,dsl/dtd/data_flush:file,,,,file,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,dsl/dtd/dtd_test_data_flush
+parsec,dsl/dtd/global_id_for_dc_assumed,dsl/dtd/global_id_for_dc_assumed:flat,,,,flat,1,4,PARSEC_MCA_runtime_num_cores=4,dsl/dtd/dtd_test_global_id_for_dc_assumed
+parsec,dsl/dtd/global_id_for_dc_assumed,dsl/dtd/global_id_for_dc_assumed:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,dsl/dtd/dtd_test_global_id_for_dc_assumed
+parsec,dsl/dtd/global_id_for_dc_assumed,dsl/dtd/global_id_for_dc_assumed:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,dsl/dtd/dtd_test_global_id_for_dc_assumed
+parsec,dsl/dtd/global_id_for_dc_assumed,dsl/dtd/global_id_for_dc_assumed:rr,,,,rr,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,dsl/dtd/dtd_test_global_id_for_dc_assumed
+parsec,dsl/dtd/global_id_for_dc_assumed,dsl/dtd/global_id_for_dc_assumed:file,,,,file,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,dsl/dtd/dtd_test_global_id_for_dc_assumed
+parsec,dsl/dtd/hierarchy,dsl/dtd/hierarchy:flat,,,,flat,1,4,PARSEC_MCA_runtime_num_cores=4,dsl/dtd/dtd_test_hierarchy
+parsec,dsl/dtd/hierarchy,dsl/dtd/hierarchy:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,dsl/dtd/dtd_test_hierarchy
+parsec,dsl/dtd/hierarchy,dsl/dtd/hierarchy:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,dsl/dtd/dtd_test_hierarchy
+parsec,dsl/dtd/hierarchy,dsl/dtd/hierarchy:rr,,,,rr,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,dsl/dtd/dtd_test_hierarchy
+parsec,dsl/dtd/hierarchy,dsl/dtd/hierarchy:file,,,,file,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,dsl/dtd/dtd_test_hierarchy
+parsec,dsl/dtd/insert_task_interface,dsl/dtd/insert_task_interface:flat,,,,flat,1,4,PARSEC_MCA_runtime_num_cores=4,dsl/dtd/dtd_test_insert_task_interface
+parsec,dsl/dtd/insert_task_interface,dsl/dtd/insert_task_interface:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,dsl/dtd/dtd_test_insert_task_interface
+parsec,dsl/dtd/insert_task_interface,dsl/dtd/insert_task_interface:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,dsl/dtd/dtd_test_insert_task_interface
+parsec,dsl/dtd/insert_task_interface,dsl/dtd/insert_task_interface:rr,,,,rr,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,dsl/dtd/dtd_test_insert_task_interface
+parsec,dsl/dtd/insert_task_interface,dsl/dtd/insert_task_interface:file,,,,file,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,dsl/dtd/dtd_test_insert_task_interface
+parsec,dsl/dtd/flag_dont_track,dsl/dtd/flag_dont_track:flat,,,,flat,1,4,PARSEC_MCA_runtime_num_cores=4,dsl/dtd/dtd_test_flag_dont_track
+parsec,dsl/dtd/flag_dont_track,dsl/dtd/flag_dont_track:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,dsl/dtd/dtd_test_flag_dont_track
+parsec,dsl/dtd/flag_dont_track,dsl/dtd/flag_dont_track:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,dsl/dtd/dtd_test_flag_dont_track
+parsec,dsl/dtd/flag_dont_track,dsl/dtd/flag_dont_track:rr,,,,rr,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,dsl/dtd/dtd_test_flag_dont_track
+parsec,dsl/dtd/flag_dont_track,dsl/dtd/flag_dont_track:file,,,,file,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,dsl/dtd/dtd_test_flag_dont_track
+parsec,dsl/dtd/multiple_handle_wait,dsl/dtd/multiple_handle_wait:flat,,,,flat,1,4,PARSEC_MCA_runtime_num_cores=4,dsl/dtd/dtd_test_multiple_handle_wait
+parsec,dsl/dtd/multiple_handle_wait,dsl/dtd/multiple_handle_wait:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,dsl/dtd/dtd_test_multiple_handle_wait
+parsec,dsl/dtd/multiple_handle_wait,dsl/dtd/multiple_handle_wait:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,dsl/dtd/dtd_test_multiple_handle_wait
+parsec,dsl/dtd/multiple_handle_wait,dsl/dtd/multiple_handle_wait:rr,,,,rr,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,dsl/dtd/dtd_test_multiple_handle_wait
+parsec,dsl/dtd/multiple_handle_wait,dsl/dtd/multiple_handle_wait:file,,,,file,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,dsl/dtd/dtd_test_multiple_handle_wait
+parsec,dsl/dtd/null_as_tile,dsl/dtd/null_as_tile:flat,,,,flat,1,4,PARSEC_MCA_runtime_num_cores=4,dsl/dtd/dtd_test_null_as_tile
+parsec,dsl/dtd/null_as_tile,dsl/dtd/null_as_tile:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,dsl/dtd/dtd_test_null_as_tile
+parsec,dsl/dtd/null_as_tile,dsl/dtd/null_as_tile:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,dsl/dtd/dtd_test_null_as_tile
+parsec,dsl/dtd/null_as_tile,dsl/dtd/null_as_tile:rr,,,,rr,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,dsl/dtd/dtd_test_null_as_tile
+parsec,dsl/dtd/null_as_tile,dsl/dtd/null_as_tile:file,,,,file,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,dsl/dtd/dtd_test_null_as_tile
+parsec,dsl/dtd/reduce,dsl/dtd/reduce:flat,,,,flat,1,4,PARSEC_MCA_runtime_num_cores=4,dsl/dtd/dtd_test_reduce
+parsec,dsl/dtd/reduce,dsl/dtd/reduce:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,dsl/dtd/dtd_test_reduce
+parsec,dsl/dtd/reduce,dsl/dtd/reduce:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,dsl/dtd/dtd_test_reduce
+parsec,dsl/dtd/reduce,dsl/dtd/reduce:rr,,,,rr,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,dsl/dtd/dtd_test_reduce
+parsec,dsl/dtd/reduce,dsl/dtd/reduce:file,,,,file,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,dsl/dtd/dtd_test_reduce
+parsec,dsl/dtd/explicit_task_creation,dsl/dtd/explicit_task_creation:flat,,,,flat,1,4,PARSEC_MCA_runtime_num_cores=4,dsl/dtd/dtd_test_explicit_task_creation
+parsec,dsl/dtd/explicit_task_creation,dsl/dtd/explicit_task_creation:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,dsl/dtd/dtd_test_explicit_task_creation
+parsec,dsl/dtd/explicit_task_creation,dsl/dtd/explicit_task_creation:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,dsl/dtd/dtd_test_explicit_task_creation
+parsec,dsl/dtd/explicit_task_creation,dsl/dtd/explicit_task_creation:rr,,,,rr,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,dsl/dtd/dtd_test_explicit_task_creation
+parsec,dsl/dtd/explicit_task_creation,dsl/dtd/explicit_task_creation:file,,,,file,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,dsl/dtd/dtd_test_explicit_task_creation
+parsec,dsl/dtd/template_counter,dsl/dtd/template_counter:flat,,,,flat,1,4,PARSEC_MCA_runtime_num_cores=4,dsl/dtd/dtd_test_template_counter
+parsec,dsl/dtd/template_counter,dsl/dtd/template_counter:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,dsl/dtd/dtd_test_template_counter
+parsec,dsl/dtd/template_counter,dsl/dtd/template_counter:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,dsl/dtd/dtd_test_template_counter
+parsec,dsl/dtd/template_counter,dsl/dtd/template_counter:rr,,,,rr,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,dsl/dtd/dtd_test_template_counter
+parsec,dsl/dtd/template_counter,dsl/dtd/template_counter:file,,,,file,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,dsl/dtd/dtd_test_template_counter
+parsec,dsl/dtd/untie,dsl/dtd/untie:flat,,,,flat,1,4,PARSEC_MCA_runtime_num_cores=4,dsl/dtd/dtd_test_untie
+parsec,dsl/dtd/untie,dsl/dtd/untie:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,dsl/dtd/dtd_test_untie
+parsec,dsl/dtd/untie,dsl/dtd/untie:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,dsl/dtd/dtd_test_untie
+parsec,dsl/dtd/untie,dsl/dtd/untie:rr,,,,rr,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,dsl/dtd/dtd_test_untie
+parsec,dsl/dtd/untie,dsl/dtd/untie:file,,,,file,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,dsl/dtd/dtd_test_untie
+parsec,dsl/dtd/new_tile:cpu,dsl/dtd/new_tile:cpu:flat,,,,flat,1,4,PARSEC_MCA_runtime_num_cores=4,dsl/dtd/dtd_test_new_tile --mca device_cuda_enabled 0
+parsec,dsl/dtd/new_tile:cpu,dsl/dtd/new_tile:cpu:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,dsl/dtd/dtd_test_new_tile --mca device_cuda_enabled 0
+parsec,dsl/dtd/new_tile:cpu,dsl/dtd/new_tile:cpu:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,dsl/dtd/dtd_test_new_tile --mca device_cuda_enabled 0
+parsec,dsl/dtd/new_tile:cpu,dsl/dtd/new_tile:cpu:rr,,,,rr,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,dsl/dtd/dtd_test_new_tile --mca device_cuda_enabled 0
+parsec,dsl/dtd/new_tile:cpu,dsl/dtd/new_tile:cpu:file,,,,file,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,dsl/dtd/dtd_test_new_tile --mca device_cuda_enabled 0
+parsec,dsl/dtd/batch_cpu,dsl/dtd/batch_cpu:flat,,,,flat,1,4,PARSEC_MCA_runtime_num_cores=4,dsl/dtd/dtd_test_batch_cpu
+parsec,dsl/dtd/batch_cpu,dsl/dtd/batch_cpu:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,dsl/dtd/dtd_test_batch_cpu
+parsec,dsl/dtd/batch_cpu,dsl/dtd/batch_cpu:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,dsl/dtd/dtd_test_batch_cpu
+parsec,dsl/dtd/batch_cpu,dsl/dtd/batch_cpu:rr,,,,rr,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,dsl/dtd/dtd_test_batch_cpu
+parsec,dsl/dtd/batch_cpu,dsl/dtd/batch_cpu:file,,,,file,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,dsl/dtd/dtd_test_batch_cpu
+parsec,dsl/dtd/batch_cpu:disabled,dsl/dtd/batch_cpu:disabled:flat,,,,flat,1,4,PARSEC_MCA_runtime_num_cores=4,dsl/dtd/dtd_test_batch_cpu --mca device_enable_batching 0
+parsec,dsl/dtd/batch_cpu:disabled,dsl/dtd/batch_cpu:disabled:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,dsl/dtd/dtd_test_batch_cpu --mca device_enable_batching 0
+parsec,dsl/dtd/batch_cpu:disabled,dsl/dtd/batch_cpu:disabled:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,dsl/dtd/dtd_test_batch_cpu --mca device_enable_batching 0
+parsec,dsl/dtd/batch_cpu:disabled,dsl/dtd/batch_cpu:disabled:rr,,,,rr,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,dsl/dtd/dtd_test_batch_cpu --mca device_enable_batching 0
+parsec,dsl/dtd/batch_cpu:disabled,dsl/dtd/batch_cpu:disabled:file,,,,file,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,dsl/dtd/dtd_test_batch_cpu --mca device_enable_batching 0
+parsec,dsl/dtd/empty:mp,dsl/dtd/empty:mp:flat,,,,flat,2,4,PARSEC_MCA_runtime_num_cores=4,dsl/dtd/dtd_test_empty
+parsec,dsl/dtd/empty:mp,dsl/dtd/empty:mp:hwloc-host,,,,hwloc-host,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,dsl/dtd/dtd_test_empty
+parsec,dsl/dtd/empty:mp,dsl/dtd/empty:mp:hwloc-2socket,,,,hwloc-2socket,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,dsl/dtd/dtd_test_empty
+parsec,dsl/dtd/empty:mp,dsl/dtd/empty:mp:rr,,,,rr,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,dsl/dtd/dtd_test_empty
+parsec,dsl/dtd/empty:mp,dsl/dtd/empty:mp:file,,,,file,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,dsl/dtd/dtd_test_empty
+parsec,dsl/dtd/pingpong:mp,dsl/dtd/pingpong:mp:flat,,,,flat,2,4,PARSEC_MCA_runtime_num_cores=4,dsl/dtd/dtd_test_pingpong
+parsec,dsl/dtd/pingpong:mp,dsl/dtd/pingpong:mp:hwloc-host,,,,hwloc-host,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,dsl/dtd/dtd_test_pingpong
+parsec,dsl/dtd/pingpong:mp,dsl/dtd/pingpong:mp:hwloc-2socket,,,,hwloc-2socket,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,dsl/dtd/dtd_test_pingpong
+parsec,dsl/dtd/pingpong:mp,dsl/dtd/pingpong:mp:rr,,,,rr,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,dsl/dtd/dtd_test_pingpong
+parsec,dsl/dtd/pingpong:mp,dsl/dtd/pingpong:mp:file,,,,file,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,dsl/dtd/dtd_test_pingpong
+parsec,dsl/dtd/task_inserting_task:mp,dsl/dtd/task_inserting_task:mp:flat,,,,flat,4,4,PARSEC_MCA_runtime_num_cores=4,dsl/dtd/dtd_test_task_inserting_task
+parsec,dsl/dtd/task_inserting_task:mp,dsl/dtd/task_inserting_task:mp:hwloc-host,,,,hwloc-host,4,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,dsl/dtd/dtd_test_task_inserting_task
+parsec,dsl/dtd/task_inserting_task:mp,dsl/dtd/task_inserting_task:mp:hwloc-2socket,,,,hwloc-2socket,4,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,dsl/dtd/dtd_test_task_inserting_task
+parsec,dsl/dtd/task_inserting_task:mp,dsl/dtd/task_inserting_task:mp:rr,,,,rr,4,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,dsl/dtd/dtd_test_task_inserting_task
+parsec,dsl/dtd/task_inserting_task:mp,dsl/dtd/task_inserting_task:mp:file,,,,file,4,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,dsl/dtd/dtd_test_task_inserting_task
+parsec,dsl/dtd/task_insertion:mp,dsl/dtd/task_insertion:mp:flat,,,,flat,4,4,PARSEC_MCA_runtime_num_cores=4,dsl/dtd/dtd_test_task_insertion
+parsec,dsl/dtd/task_insertion:mp,dsl/dtd/task_insertion:mp:hwloc-host,,,,hwloc-host,4,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,dsl/dtd/dtd_test_task_insertion
+parsec,dsl/dtd/task_insertion:mp,dsl/dtd/task_insertion:mp:hwloc-2socket,,,,hwloc-2socket,4,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,dsl/dtd/dtd_test_task_insertion
+parsec,dsl/dtd/task_insertion:mp,dsl/dtd/task_insertion:mp:rr,,,,rr,4,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,dsl/dtd/dtd_test_task_insertion
+parsec,dsl/dtd/task_insertion:mp,dsl/dtd/task_insertion:mp:file,,,,file,4,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,dsl/dtd/dtd_test_task_insertion
+parsec,dsl/dtd/war:mp,dsl/dtd/war:mp:flat,,,,flat,4,4,PARSEC_MCA_runtime_num_cores=4,dsl/dtd/dtd_test_war
+parsec,dsl/dtd/war:mp,dsl/dtd/war:mp:hwloc-host,,,,hwloc-host,4,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,dsl/dtd/dtd_test_war
+parsec,dsl/dtd/war:mp,dsl/dtd/war:mp:hwloc-2socket,,,,hwloc-2socket,4,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,dsl/dtd/dtd_test_war
+parsec,dsl/dtd/war:mp,dsl/dtd/war:mp:rr,,,,rr,4,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,dsl/dtd/dtd_test_war
+parsec,dsl/dtd/war:mp,dsl/dtd/war:mp:file,,,,file,4,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,dsl/dtd/dtd_test_war
+parsec,dsl/dtd/interleave_actions:mp,dsl/dtd/interleave_actions:mp:flat,,,,flat,4,4,PARSEC_MCA_runtime_num_cores=4,dsl/dtd/dtd_test_interleave_actions
+parsec,dsl/dtd/interleave_actions:mp,dsl/dtd/interleave_actions:mp:hwloc-host,,,,hwloc-host,4,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,dsl/dtd/dtd_test_interleave_actions
+parsec,dsl/dtd/interleave_actions:mp,dsl/dtd/interleave_actions:mp:hwloc-2socket,,,,hwloc-2socket,4,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,dsl/dtd/dtd_test_interleave_actions
+parsec,dsl/dtd/interleave_actions:mp,dsl/dtd/interleave_actions:mp:rr,,,,rr,4,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,dsl/dtd/dtd_test_interleave_actions
+parsec,dsl/dtd/interleave_actions:mp,dsl/dtd/interleave_actions:mp:file,,,,file,4,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,dsl/dtd/dtd_test_interleave_actions
+parsec,dsl/dtd/allreduce:mp,dsl/dtd/allreduce:mp:flat,,,,flat,4,4,PARSEC_MCA_runtime_num_cores=4,dsl/dtd/dtd_test_allreduce
+parsec,dsl/dtd/allreduce:mp,dsl/dtd/allreduce:mp:hwloc-host,,,,hwloc-host,4,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,dsl/dtd/dtd_test_allreduce
+parsec,dsl/dtd/allreduce:mp,dsl/dtd/allreduce:mp:hwloc-2socket,,,,hwloc-2socket,4,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,dsl/dtd/dtd_test_allreduce
+parsec,dsl/dtd/allreduce:mp,dsl/dtd/allreduce:mp:rr,,,,rr,4,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,dsl/dtd/dtd_test_allreduce
+parsec,dsl/dtd/allreduce:mp,dsl/dtd/allreduce:mp:file,,,,file,4,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,dsl/dtd/dtd_test_allreduce
+parsec,dsl/dtd/broadcast:mp,dsl/dtd/broadcast:mp:flat,,,,flat,4,4,PARSEC_MCA_runtime_num_cores=4,dsl/dtd/dtd_test_broadcast
+parsec,dsl/dtd/broadcast:mp,dsl/dtd/broadcast:mp:hwloc-host,,,,hwloc-host,4,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,dsl/dtd/dtd_test_broadcast
+parsec,dsl/dtd/broadcast:mp,dsl/dtd/broadcast:mp:hwloc-2socket,,,,hwloc-2socket,4,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,dsl/dtd/dtd_test_broadcast
+parsec,dsl/dtd/broadcast:mp,dsl/dtd/broadcast:mp:rr,,,,rr,4,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,dsl/dtd/dtd_test_broadcast
+parsec,dsl/dtd/broadcast:mp,dsl/dtd/broadcast:mp:file,,,,file,4,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,dsl/dtd/dtd_test_broadcast
+parsec,dsl/dtd/data_flush:mp:2,dsl/dtd/data_flush:mp:2:flat,,,,flat,2,4,PARSEC_MCA_runtime_num_cores=4,dsl/dtd/dtd_test_data_flush
+parsec,dsl/dtd/data_flush:mp:2,dsl/dtd/data_flush:mp:2:hwloc-host,,,,hwloc-host,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,dsl/dtd/dtd_test_data_flush
+parsec,dsl/dtd/data_flush:mp:2,dsl/dtd/data_flush:mp:2:hwloc-2socket,,,,hwloc-2socket,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,dsl/dtd/dtd_test_data_flush
+parsec,dsl/dtd/data_flush:mp:2,dsl/dtd/data_flush:mp:2:rr,,,,rr,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,dsl/dtd/dtd_test_data_flush
+parsec,dsl/dtd/data_flush:mp:2,dsl/dtd/data_flush:mp:2:file,,,,file,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,dsl/dtd/dtd_test_data_flush
+parsec,dsl/dtd/data_flush:mp:3,dsl/dtd/data_flush:mp:3:flat,,,,flat,3,4,PARSEC_MCA_runtime_num_cores=4,dsl/dtd/dtd_test_data_flush
+parsec,dsl/dtd/data_flush:mp:3,dsl/dtd/data_flush:mp:3:hwloc-host,,,,hwloc-host,3,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,dsl/dtd/dtd_test_data_flush
+parsec,dsl/dtd/data_flush:mp:3,dsl/dtd/data_flush:mp:3:hwloc-2socket,,,,hwloc-2socket,3,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,dsl/dtd/dtd_test_data_flush
+parsec,dsl/dtd/data_flush:mp:3,dsl/dtd/data_flush:mp:3:rr,,,,rr,3,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,dsl/dtd/dtd_test_data_flush
+parsec,dsl/dtd/data_flush:mp:3,dsl/dtd/data_flush:mp:3:file,,,,file,3,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,dsl/dtd/dtd_test_data_flush
+parsec,dsl/dtd/global_id_for_dc_assumed:mp,dsl/dtd/global_id_for_dc_assumed:mp:flat,,,,flat,2,4,PARSEC_MCA_runtime_num_cores=4,dsl/dtd/dtd_test_global_id_for_dc_assumed
+parsec,dsl/dtd/global_id_for_dc_assumed:mp,dsl/dtd/global_id_for_dc_assumed:mp:hwloc-host,,,,hwloc-host,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,dsl/dtd/dtd_test_global_id_for_dc_assumed
+parsec,dsl/dtd/global_id_for_dc_assumed:mp,dsl/dtd/global_id_for_dc_assumed:mp:hwloc-2socket,,,,hwloc-2socket,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,dsl/dtd/dtd_test_global_id_for_dc_assumed
+parsec,dsl/dtd/global_id_for_dc_assumed:mp,dsl/dtd/global_id_for_dc_assumed:mp:rr,,,,rr,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,dsl/dtd/dtd_test_global_id_for_dc_assumed
+parsec,dsl/dtd/global_id_for_dc_assumed:mp,dsl/dtd/global_id_for_dc_assumed:mp:file,,,,file,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,dsl/dtd/dtd_test_global_id_for_dc_assumed
+parsec,dsl/dtd/hierarchy:mp,dsl/dtd/hierarchy:mp:flat,,,,flat,2,4,PARSEC_MCA_runtime_num_cores=4,dsl/dtd/dtd_test_hierarchy
+parsec,dsl/dtd/hierarchy:mp,dsl/dtd/hierarchy:mp:hwloc-host,,,,hwloc-host,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,dsl/dtd/dtd_test_hierarchy
+parsec,dsl/dtd/hierarchy:mp,dsl/dtd/hierarchy:mp:hwloc-2socket,,,,hwloc-2socket,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,dsl/dtd/dtd_test_hierarchy
+parsec,dsl/dtd/hierarchy:mp,dsl/dtd/hierarchy:mp:rr,,,,rr,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,dsl/dtd/dtd_test_hierarchy
+parsec,dsl/dtd/hierarchy:mp,dsl/dtd/hierarchy:mp:file,,,,file,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,dsl/dtd/dtd_test_hierarchy
+parsec,dsl/dtd/multiple_handle_wait:mp,dsl/dtd/multiple_handle_wait:mp:flat,,,,flat,2,4,PARSEC_MCA_runtime_num_cores=4,dsl/dtd/dtd_test_multiple_handle_wait
+parsec,dsl/dtd/multiple_handle_wait:mp,dsl/dtd/multiple_handle_wait:mp:hwloc-host,,,,hwloc-host,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,dsl/dtd/dtd_test_multiple_handle_wait
+parsec,dsl/dtd/multiple_handle_wait:mp,dsl/dtd/multiple_handle_wait:mp:hwloc-2socket,,,,hwloc-2socket,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,dsl/dtd/dtd_test_multiple_handle_wait
+parsec,dsl/dtd/multiple_handle_wait:mp,dsl/dtd/multiple_handle_wait:mp:rr,,,,rr,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,dsl/dtd/dtd_test_multiple_handle_wait
+parsec,dsl/dtd/multiple_handle_wait:mp,dsl/dtd/multiple_handle_wait:mp:file,,,,file,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,dsl/dtd/dtd_test_multiple_handle_wait
+parsec,dsl/dtd/null_as_tile:mp,dsl/dtd/null_as_tile:mp:flat,,,,flat,2,4,PARSEC_MCA_runtime_num_cores=4,dsl/dtd/dtd_test_null_as_tile
+parsec,dsl/dtd/null_as_tile:mp,dsl/dtd/null_as_tile:mp:hwloc-host,,,,hwloc-host,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,dsl/dtd/dtd_test_null_as_tile
+parsec,dsl/dtd/null_as_tile:mp,dsl/dtd/null_as_tile:mp:hwloc-2socket,,,,hwloc-2socket,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,dsl/dtd/dtd_test_null_as_tile
+parsec,dsl/dtd/null_as_tile:mp,dsl/dtd/null_as_tile:mp:rr,,,,rr,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,dsl/dtd/dtd_test_null_as_tile
+parsec,dsl/dtd/null_as_tile:mp,dsl/dtd/null_as_tile:mp:file,,,,file,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,dsl/dtd/dtd_test_null_as_tile
+parsec,dsl/dtd/reduce:mp,dsl/dtd/reduce:mp:flat,,,,flat,4,4,PARSEC_MCA_runtime_num_cores=4,dsl/dtd/dtd_test_reduce
+parsec,dsl/dtd/reduce:mp,dsl/dtd/reduce:mp:hwloc-host,,,,hwloc-host,4,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,dsl/dtd/dtd_test_reduce
+parsec,dsl/dtd/reduce:mp,dsl/dtd/reduce:mp:hwloc-2socket,,,,hwloc-2socket,4,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,dsl/dtd/dtd_test_reduce
+parsec,dsl/dtd/reduce:mp,dsl/dtd/reduce:mp:rr,,,,rr,4,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,dsl/dtd/dtd_test_reduce
+parsec,dsl/dtd/reduce:mp,dsl/dtd/reduce:mp:file,,,,file,4,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,dsl/dtd/dtd_test_reduce
+parsec,dsl/dtd/task_placement:mp,dsl/dtd/task_placement:mp:flat,,,,flat,2,4,PARSEC_MCA_runtime_num_cores=4,dsl/dtd/dtd_test_task_placement
+parsec,dsl/dtd/task_placement:mp,dsl/dtd/task_placement:mp:hwloc-host,,,,hwloc-host,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,dsl/dtd/dtd_test_task_placement
+parsec,dsl/dtd/task_placement:mp,dsl/dtd/task_placement:mp:hwloc-2socket,,,,hwloc-2socket,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,dsl/dtd/dtd_test_task_placement
+parsec,dsl/dtd/task_placement:mp,dsl/dtd/task_placement:mp:rr,,,,rr,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,dsl/dtd/dtd_test_task_placement
+parsec,dsl/dtd/task_placement:mp,dsl/dtd/task_placement:mp:file,,,,file,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,dsl/dtd/dtd_test_task_placement
+parsec,dsl/dtd/template_counter:mp,dsl/dtd/template_counter:mp:flat,,,,flat,2,4,PARSEC_MCA_runtime_num_cores=4,dsl/dtd/dtd_test_template_counter
+parsec,dsl/dtd/template_counter:mp,dsl/dtd/template_counter:mp:hwloc-host,,,,hwloc-host,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,dsl/dtd/dtd_test_template_counter
+parsec,dsl/dtd/template_counter:mp,dsl/dtd/template_counter:mp:hwloc-2socket,,,,hwloc-2socket,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,dsl/dtd/dtd_test_template_counter
+parsec,dsl/dtd/template_counter:mp,dsl/dtd/template_counter:mp:rr,,,,rr,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,dsl/dtd/dtd_test_template_counter
+parsec,dsl/dtd/template_counter:mp,dsl/dtd/template_counter:mp:file,,,,file,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,dsl/dtd/dtd_test_template_counter
+parsec,dsl/dtd/new_tile:mp:cpu,dsl/dtd/new_tile:mp:cpu:flat,,,,flat,2,4,PARSEC_MCA_runtime_num_cores=4,dsl/dtd/dtd_test_new_tile --mca device_cuda_enabled 0
+parsec,dsl/dtd/new_tile:mp:cpu,dsl/dtd/new_tile:mp:cpu:hwloc-host,,,,hwloc-host,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,dsl/dtd/dtd_test_new_tile --mca device_cuda_enabled 0
+parsec,dsl/dtd/new_tile:mp:cpu,dsl/dtd/new_tile:mp:cpu:hwloc-2socket,,,,hwloc-2socket,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,dsl/dtd/dtd_test_new_tile --mca device_cuda_enabled 0
+parsec,dsl/dtd/new_tile:mp:cpu,dsl/dtd/new_tile:mp:cpu:rr,,,,rr,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,dsl/dtd/dtd_test_new_tile --mca device_cuda_enabled 0
+parsec,dsl/dtd/new_tile:mp:cpu,dsl/dtd/new_tile:mp:cpu:file,,,,file,2,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,dsl/dtd/dtd_test_new_tile --mca device_cuda_enabled 0
+parsec,apps/haar_tree,apps/haar_tree:flat,,,,flat,1,4,PARSEC_MCA_runtime_num_cores=4,apps/haar_tree/project -x
+parsec,apps/haar_tree,apps/haar_tree:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,apps/haar_tree/project -x
+parsec,apps/haar_tree,apps/haar_tree:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,apps/haar_tree/project -x
+parsec,apps/haar_tree,apps/haar_tree:rr,,,,rr,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,apps/haar_tree/project -x
+parsec,apps/haar_tree,apps/haar_tree:file,,,,file,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,apps/haar_tree/project -x
+parsec,apps/haar_tree:mp,apps/haar_tree:mp:flat,,,,flat,4,4,PARSEC_MCA_runtime_num_cores=4,apps/haar_tree/project -x
+parsec,apps/haar_tree:mp,apps/haar_tree:mp:hwloc-host,,,,hwloc-host,4,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,apps/haar_tree/project -x
+parsec,apps/haar_tree:mp,apps/haar_tree:mp:hwloc-2socket,,,,hwloc-2socket,4,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,apps/haar_tree/project -x
+parsec,apps/haar_tree:mp,apps/haar_tree:mp:rr,,,,rr,4,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,apps/haar_tree/project -x
+parsec,apps/haar_tree:mp,apps/haar_tree:mp:file,,,,file,4,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,apps/haar_tree/project -x
+parsec,apps/merge_sort,apps/merge_sort:flat,,,,flat,1,4,PARSEC_MCA_runtime_num_cores=4,apps/merge_sort/merge_sort
+parsec,apps/merge_sort,apps/merge_sort:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,apps/merge_sort/merge_sort
+parsec,apps/merge_sort,apps/merge_sort:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,apps/merge_sort/merge_sort
+parsec,apps/merge_sort,apps/merge_sort:rr,,,,rr,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,apps/merge_sort/merge_sort
+parsec,apps/merge_sort,apps/merge_sort:file,,,,file,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,apps/merge_sort/merge_sort
+parsec,apps/merge_sort:mp,apps/merge_sort:mp:flat,,,,flat,4,4,PARSEC_MCA_runtime_num_cores=4,apps/merge_sort/merge_sort
+parsec,apps/merge_sort:mp,apps/merge_sort:mp:hwloc-host,,,,hwloc-host,4,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,apps/merge_sort/merge_sort
+parsec,apps/merge_sort:mp,apps/merge_sort:mp:hwloc-2socket,,,,hwloc-2socket,4,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,apps/merge_sort/merge_sort
+parsec,apps/merge_sort:mp,apps/merge_sort:mp:rr,,,,rr,4,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,apps/merge_sort/merge_sort
+parsec,apps/merge_sort:mp,apps/merge_sort:mp:file,,,,file,4,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,apps/merge_sort/merge_sort
+parsec,apps/stencil,apps/stencil:flat,,,,flat,1,4,PARSEC_MCA_runtime_num_cores=4,apps/stencil/testing_stencil_1D -t 100 -T 100 -N 1000 -M 1000 -I 10 -R 2 -m 1
+parsec,apps/stencil,apps/stencil:hwloc-host,,,,hwloc-host,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,apps/stencil/testing_stencil_1D -t 100 -T 100 -N 1000 -M 1000 -I 10 -R 2 -m 1
+parsec,apps/stencil,apps/stencil:hwloc-2socket,,,,hwloc-2socket,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,apps/stencil/testing_stencil_1D -t 100 -T 100 -N 1000 -M 1000 -I 10 -R 2 -m 1
+parsec,apps/stencil,apps/stencil:rr,,,,rr,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,apps/stencil/testing_stencil_1D -t 100 -T 100 -N 1000 -M 1000 -I 10 -R 2 -m 1
+parsec,apps/stencil,apps/stencil:file,,,,file,1,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,apps/stencil/testing_stencil_1D -t 100 -T 100 -N 1000 -M 1000 -I 10 -R 2 -m 1
+parsec,apps/stencil:mp,apps/stencil:mp:flat,,,,flat,8,4,PARSEC_MCA_runtime_num_cores=4,apps/stencil/testing_stencil_1D -t 100 -T 100 -N 1000 -M 1000 -I 10 -R 2 -m 1
+parsec,apps/stencil:mp,apps/stencil:mp:hwloc-host,,,,hwloc-host,8,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc,apps/stencil/testing_stencil_1D -t 100 -T 100 -N 1000 -M 1000 -I 10 -R 2 -m 1
+parsec,apps/stencil:mp,apps/stencil:mp:hwloc-2socket,,,,hwloc-2socket,8,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=hwloc;HWLOC_SYNTHETIC=package:2 core:2 pu:1,apps/stencil/testing_stencil_1D -t 100 -T 100 -N 1000 -M 1000 -I 10 -R 2 -m 1
+parsec,apps/stencil:mp,apps/stencil:mp:rr,,,,rr,8,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=rr:2:2:4,apps/stencil/testing_stencil_1D -t 100 -T 100 -N 1000 -M 1000 -I 10 -R 2 -m 1
+parsec,apps/stencil:mp,apps/stencil:mp:file,,,,file,8,4,PARSEC_MCA_runtime_num_cores=4;PARSEC_MCA_runtime_vpmap=file:@VPMAP@,apps/stencil/testing_stencil_1D -t 100 -T 100 -N 1000 -M 1000 -I 10 -R 2 -m 1

@@ -652,6 +652,22 @@ Evidence: [experiments/corrbench](../experiments/corrbench/README.md).
     reports a deadlock below 4 bytes. The fix touches every corpus's matching (991 MBI and 194
     MPI-BugBench programs free requests), so those tables would need a rerun.
 
+## Configuration sweep without reading (6 Nov)
+
+The three thread races found by reading ([threads](#multithreaded-benchmarks-l1-and-l1l-since-30-oct)) come
+out of a mechanical sweep of each project's shipped drivers and documented options, a grid fixed
+and committed before any run ([experiments/sweep](../experiments/sweep/README.md); 2 520 cells, one
+traced run each, matched after all were analysed):
+
+| bug | cells | predicting at L1 | decided by |
+|---|---|---|---|
+| SLATE CALU tags | 1 695 (113 runner lines) | 3: wide `getrf_tntpiv` on 2x2, 2x1, 4x1 | shapes for every routine (the runner factors square matrices only) |
+| DLA-Future copy tags | 175 (15 miniapps) | 4: `miniapp_redistribution`, unequal blocks, 2x1 and 4x1 | the block pair; matched by a criterion added after the run (the recorded site is the sender adaptor) |
+| PaRSEC reshape tags | 650 (130 test registrations) | 0 within the 3 600 s analysis budget; 2 with 21 600 s (outside the rule): shipped `reshape:mt` and `reshape:mp:mt` with two virtual processes | the two-socket topology (a-p13 has one NUMA node); the budget |
+
+The fixed thread analysis of theory-threads (e3ce53c) gives the same predicting cells and counts;
+nothing else is predicted at a receive except the safe activation steals of PaRSEC above.
+
 ## SLATE leads of the configuration sweep (7 Nov)
 
 The sweep's 1 695 SLATE cells left observed thread findings outside the CALU race and some

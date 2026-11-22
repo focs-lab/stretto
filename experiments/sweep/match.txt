@@ -1,0 +1,96 @@
+== SLATE CALU tags: 3 of 1695 cells (1695 analysed within the budget)
+  getrf_tntpiv:wide:2x2:t4 outcome abort:MPI_ERR_TRUNCATE pending 4 vpmap  findings 37 ['1a', '1f']
+  getrf_tntpiv:wide:2x1:t2 outcome exit134 pending 2 vpmap  findings 34 ['1a', '1f']
+  getrf_tntpiv:wide:4x1:t2 outcome exit134 pending 14 vpmap  findings 101 ['1f']
+  L1 findings elsewhere: 1 cells, 0 of them only warnings at no receive ([])
+    getrf_tntpiv:wide:2x2:t4 outcome abort:MPI_ERR_TRUNCATE: 1f x1 in slate::Tile<double>::irecv
+== DLA-Future copy tags: 4 of 175 cells (165 analysed within the budget)
+  miniapp_redistribution:-:tall:2x1:t2 outcome exit0 pending 15 vpmap  findings 14 ['1f']
+  miniapp_redistribution:-:tall:4x1:t4 outcome exit0 pending 3 vpmap  findings 57 ['1f']
+  miniapp_redistribution:-:wide:2x1:t2 outcome exit0 pending 30 vpmap  findings 20 ['1f']
+  miniapp_redistribution:-:wide:4x1:t2 outcome exit0 pending 19 vpmap  findings 2 ['1f']
+  L1 findings elsewhere: 52 cells, 52 of them only warnings at no receive (['waitany-order'])
+== PaRSEC reshape tags: 0 of 650 cells (583 analysed within the budget)
+  L1 findings elsewhere: 30 cells, 6 of them only warnings at no receive (['waitany-order'])
+    collections/redistribute:mp:2dbc_to_sdb:cpu_to_cpu:flat outcome exit0: 1f x2 in mpi_no_thread_enable
+    collections/redistribute:mp:2dbc_to_sdb:cpu_to_cpu:hwloc-host outcome exit0: 1f x2 in mpi_no_thread_enable
+    collections/redistribute:mp:2dbc_to_sdb:cpu_to_cpu:hwloc-2socket outcome exit0: 1f x2 in mpi_no_thread_enable
+    collections/redistribute:mp:sdb_to_2dbc:cpu_to_cpu:flat outcome exit0: 1f x2 in mpi_no_thread_enable
+    collections/redistribute:mp:sdb_to_2dbc:cpu_to_cpu:hwloc-host outcome exit0: 1f x2 in mpi_no_thread_enable
+    collections/redistribute:mp:sdb_to_2dbc:cpu_to_cpu:hwloc-2socket outcome exit0: 1f x2 in mpi_no_thread_enable
+    collections/reshape:mp:flat outcome exit0: 1f x23 in mpi_no_thread_enable; 1f x537 in mpi_no_thread_serve_cb
+    collections/reshape:mp:hwloc-host outcome exit0: 1f x26 in mpi_no_thread_enable; 1f x562 in mpi_no_thread_serve_cb
+    collections/reshape:mp:hwloc-2socket outcome exit0: 1f x24 in mpi_no_thread_enable; 1f x524 in mpi_no_thread_serve_cb
+    collections/reshape/remote_multiple_outs_same_pred_flow:mp:mt:flat outcome exit0: 1f x6 in mpi_no_thread_enable; 1f x44 in mpi_no_thread_serve_cb; waitany-order x874 in -
+    collections/reshape/remote_multiple_outs_same_pred_flow:mp:mt:hwloc-host outcome exit0: 1f x4 in mpi_no_thread_enable; 1f x45 in mpi_no_thread_serve_cb; waitany-order x760 in -
+    dsl/dtd/reduce:mp:flat outcome exit0: 1f x3 in mpi_no_thread_enable
+    dsl/dtd/reduce:mp:hwloc-host outcome exit0: 1f x3 in mpi_no_thread_enable
+    dsl/dtd/reduce:mp:hwloc-2socket outcome exit0: 1f x3 in mpi_no_thread_enable
+    dsl/dtd/new_tile:mp:cpu:flat outcome exit0: 1f x1 in mpi_no_thread_enable; 1f x1 in mpi_no_thread_serve_cb
+    apps/haar_tree:mp:flat outcome exit0: 1f x3 in mpi_no_thread_enable; 1f x51 in mpi_no_thread_serve_cb
+    apps/haar_tree:mp:hwloc-host outcome exit0: 1f x2 in mpi_no_thread_enable; 1f x42 in mpi_no_thread_serve_cb
+    apps/haar_tree:mp:hwloc-2socket outcome exit0: 1f x4 in mpi_no_thread_enable; 1f x41 in mpi_no_thread_serve_cb
+    apps/merge_sort:mp:flat outcome exit0: 1f x9 in mpi_no_thread_enable; 1f x873 in mpi_no_thread_serve_cb; waitany-order x94 in -
+    apps/merge_sort:mp:hwloc-host outcome exit0: 1f x11 in mpi_no_thread_enable; 1f x898 in mpi_no_thread_serve_cb; waitany-order x97 in -
+    apps/merge_sort:mp:hwloc-2socket outcome exit0: 1f x14 in mpi_no_thread_enable; 1f x607 in mpi_no_thread_serve_cb; waitany-order x117 in -
+    apps/stencil:mp:flat outcome exit0: 1f x61 in mpi_no_thread_enable; 1f x132 in mpi_no_thread_serve_cb; waitany-order x561 in -
+    apps/stencil:mp:hwloc-host outcome exit0: 1f x72 in mpi_no_thread_enable; 1f x129 in mpi_no_thread_serve_cb; waitany-order x560 in -
+    apps/stencil:mp:hwloc-2socket outcome exit0: 1f x74 in mpi_no_thread_enable; 1f x201 in mpi_no_thread_serve_cb; waitany-order x684 in -
+== the fixed analysis (e3ce53c)
+== SLATE CALU tags: 3 of 1306 cells (1306 analysed within the budget)
+  getrf_tntpiv:wide:2x1:t2 outcome exit134 pending 2 vpmap  findings 34 ['1a', '1f']
+  getrf_tntpiv:wide:2x2:t4 outcome abort:MPI_ERR_TRUNCATE pending 4 vpmap  findings 37 ['1a', '1f']
+  getrf_tntpiv:wide:4x1:t2 outcome exit134 pending 14 vpmap  findings 101 ['1f']
+  L1 findings elsewhere: 1 cells, 0 of them only warnings at no receive ([])
+    getrf_tntpiv:wide:2x2:t4 outcome abort:MPI_ERR_TRUNCATE: 1f x1 in slate::Tile<double>::irecv
+== DLA-Future copy tags: 4 of 175 cells (160 analysed within the budget)
+  miniapp_redistribution:-:tall:2x1:t2 outcome exit0 pending 15 vpmap  findings 14 ['1f']
+  miniapp_redistribution:-:tall:4x1:t4 outcome exit0 pending 3 vpmap  findings 57 ['1f']
+  miniapp_redistribution:-:wide:2x1:t2 outcome exit0 pending 30 vpmap  findings 20 ['1f']
+  miniapp_redistribution:-:wide:4x1:t2 outcome exit0 pending 19 vpmap  findings 2 ['1f']
+  L1 findings elsewhere: 47 cells, 47 of them only warnings at no receive (['waitany-order'])
+== PaRSEC reshape tags: 0 of 650 cells (583 analysed within the budget)
+  L1 findings elsewhere: 30 cells, 6 of them only warnings at no receive (['waitany-order'])
+    apps/haar_tree:mp:flat outcome exit0: 1f x3 in mpi_no_thread_enable; 1f x51 in mpi_no_thread_serve_cb
+    apps/haar_tree:mp:hwloc-2socket outcome exit0: 1f x4 in mpi_no_thread_enable; 1f x41 in mpi_no_thread_serve_cb
+    apps/haar_tree:mp:hwloc-host outcome exit0: 1f x2 in mpi_no_thread_enable; 1f x42 in mpi_no_thread_serve_cb
+    apps/merge_sort:mp:flat outcome exit0: 1f x9 in mpi_no_thread_enable; 1f x873 in mpi_no_thread_serve_cb; waitany-order x94 in -
+    apps/merge_sort:mp:hwloc-2socket outcome exit0: 1f x14 in mpi_no_thread_enable; 1f x607 in mpi_no_thread_serve_cb; waitany-order x117 in -
+    apps/merge_sort:mp:hwloc-host outcome exit0: 1f x11 in mpi_no_thread_enable; 1f x898 in mpi_no_thread_serve_cb; waitany-order x97 in -
+    apps/stencil:mp:flat outcome exit0: 1f x61 in mpi_no_thread_enable; 1f x132 in mpi_no_thread_serve_cb; waitany-order x561 in -
+    apps/stencil:mp:hwloc-2socket outcome exit0: 1f x74 in mpi_no_thread_enable; 1f x201 in mpi_no_thread_serve_cb; waitany-order x684 in -
+    apps/stencil:mp:hwloc-host outcome exit0: 1f x72 in mpi_no_thread_enable; 1f x129 in mpi_no_thread_serve_cb; waitany-order x560 in -
+    collections/redistribute:mp:2dbc_to_sdb:cpu_to_cpu:flat outcome exit0: 1f x2 in mpi_no_thread_enable
+    collections/redistribute:mp:2dbc_to_sdb:cpu_to_cpu:hwloc-2socket outcome exit0: 1f x2 in mpi_no_thread_enable
+    collections/redistribute:mp:2dbc_to_sdb:cpu_to_cpu:hwloc-host outcome exit0: 1f x2 in mpi_no_thread_enable
+    collections/redistribute:mp:sdb_to_2dbc:cpu_to_cpu:flat outcome exit0: 1f x2 in mpi_no_thread_enable
+    collections/redistribute:mp:sdb_to_2dbc:cpu_to_cpu:hwloc-2socket outcome exit0: 1f x2 in mpi_no_thread_enable
+    collections/redistribute:mp:sdb_to_2dbc:cpu_to_cpu:hwloc-host outcome exit0: 1f x2 in mpi_no_thread_enable
+    collections/reshape:mp:flat outcome exit0: 1f x23 in mpi_no_thread_enable; 1f x537 in mpi_no_thread_serve_cb
+    collections/reshape:mp:hwloc-2socket outcome exit0: 1f x24 in mpi_no_thread_enable; 1f x524 in mpi_no_thread_serve_cb
+    collections/reshape:mp:hwloc-host outcome exit0: 1f x26 in mpi_no_thread_enable; 1f x562 in mpi_no_thread_serve_cb
+    collections/reshape/remote_multiple_outs_same_pred_flow:mp:mt:flat outcome exit0: 1f x6 in mpi_no_thread_enable; 1f x44 in mpi_no_thread_serve_cb; waitany-order x874 in -
+    collections/reshape/remote_multiple_outs_same_pred_flow:mp:mt:hwloc-host outcome exit0: 1f x4 in mpi_no_thread_enable; 1f x45 in mpi_no_thread_serve_cb; waitany-order x760 in -
+    dsl/dtd/new_tile:mp:cpu:flat outcome exit0: 1f x1 in mpi_no_thread_enable; 1f x1 in mpi_no_thread_serve_cb
+    dsl/dtd/reduce:mp:flat outcome exit0: 1f x3 in mpi_no_thread_enable
+    dsl/dtd/reduce:mp:hwloc-2socket outcome exit0: 1f x3 in mpi_no_thread_enable
+    dsl/dtd/reduce:mp:hwloc-host outcome exit0: 1f x3 in mpi_no_thread_enable
+== outside the rule: 21 600 s per analysis, main (ef153ed) and fixed (e3ce53c) rows together
+== PaRSEC reshape tags: 4 of 94 cells (94 analysed within the budget)
+  collections/reshape:mp:mt:hwloc-2socket outcome exit0 pending 2517 vpmap hwloc-2socket findings 2644 ['1f']
+  collections/reshape:mt:hwloc-2socket outcome exit0 pending 86 vpmap hwloc-2socket findings 4479 ['1f']
+  collections/reshape:mp:mt:hwloc-2socket outcome exit0 pending 2517 vpmap hwloc-2socket findings 2644 ['1f']
+  collections/reshape:mt:hwloc-2socket outcome exit0 pending 86 vpmap hwloc-2socket findings 4479 ['1f']
+  L1 findings elsewhere: 12 cells, 0 of them only warnings at no receive ([])
+    collections/reshape:mp:flat outcome exit0: 1f x23 in mpi_no_thread_enable; 1f x537 in mpi_no_thread_serve_cb
+    collections/reshape:mp:hwloc-2socket outcome exit0: 1f x24 in mpi_no_thread_enable; 1f x524 in mpi_no_thread_serve_cb
+    collections/reshape:mp:hwloc-host outcome exit0: 1f x26 in mpi_no_thread_enable; 1f x562 in mpi_no_thread_serve_cb
+    collections/reshape:mp:mt:flat outcome exit0: 1f x39 in mpi_no_thread_enable; 1f x956 in mpi_no_thread_serve_cb
+    collections/reshape:mp:mt:hwloc-2socket outcome exit0: 1f x50 in mpi_no_thread_enable; 1f x1129 in mpi_no_thread_serve_cb
+    collections/reshape:mp:mt:hwloc-host outcome exit0: 1f x53 in mpi_no_thread_enable; 1f x879 in mpi_no_thread_serve_cb
+    collections/reshape:mp:flat outcome exit0: 1f x23 in mpi_no_thread_enable; 1f x537 in mpi_no_thread_serve_cb
+    collections/reshape:mp:hwloc-2socket outcome exit0: 1f x24 in mpi_no_thread_enable; 1f x524 in mpi_no_thread_serve_cb
+    collections/reshape:mp:hwloc-host outcome exit0: 1f x26 in mpi_no_thread_enable; 1f x562 in mpi_no_thread_serve_cb
+    collections/reshape:mp:mt:flat outcome exit0: 1f x39 in mpi_no_thread_enable; 1f x956 in mpi_no_thread_serve_cb
+    collections/reshape:mp:mt:hwloc-2socket outcome exit0: 1f x50 in mpi_no_thread_enable; 1f x1129 in mpi_no_thread_serve_cb
+    collections/reshape:mp:mt:hwloc-host outcome exit0: 1f x53 in mpi_no_thread_enable; 1f x879 in mpi_no_thread_serve_cb
