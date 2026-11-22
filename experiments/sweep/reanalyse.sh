@@ -6,22 +6,24 @@
 # commit) goes into the rows' commit column and names the directory WORK/<cell>/re-LABEL that
 # takes the new report.json, sites.txt and pairs.txt. JOBS (analyses at once, 6). Cells without
 # a kept trace get no row. Run in the image of the project's campaign (finding_sites.py needs
-# gdb and the traced objects at their paths).
+# gdb and the traced objects at their paths). TIMEOUT (seconds per analysis, 3600 as in the rule)
+# and ONLY (a grep pattern on the cell name) serve the analyses beyond the rule's budget.
 set -u
 P=${1:?usage: reanalyse.sh PROJECT WORK OUT.csv TREE LABEL}; W=${2:?}; OUT=${3:?}; TREE=${4:?}; L=${5:?}
-JOBS=${JOBS:-6}
+JOBS=${JOBS:-6}; export TIMEOUT=${TIMEOUT:-3600}
 HERE=$(cd "$(dirname "$0")" && pwd)
 [ -e "$OUT" ] || python3 -I "$HERE/cell_row.py" --header > "$OUT"
 ls -d "$W"/*/ | while read -r d; do
   d=${d%/}
   [ -f "$d/trace.tar.xz" ] || continue
+  [ -n "${ONLY:-}" ] && ! head -1 "$d/cell" | cut -d, -f1 | grep -q -- "$ONLY" && continue
   grep -q "^$P,$(head -1 "$d/cell" | cut -d, -f1 | sed 's/[.[\*^$]/\\&/g')," "$OUT" && continue
   echo "$d"
 done | xargs -r -P "$JOBS" -I{} sh -c '
   d={}; r=$d/re-$2; rm -rf "$r"; mkdir -p "$r"
   for f in cell run.rc log trace.kb rerun; do [ -e "$d/$f" ] && cp "$d/$f" "$r/"; done
   xz -dc "$d/trace.tar.xz" | tar -C "$r" -xf -
-  s=$(date +%s); PYTHONPATH=$1/analysis timeout 3600 python3 -m stretto analyze --json "$r/trace" > "$r/report.json" 2> "$r/report.err"
+  s=$(date +%s); PYTHONPATH=$1/analysis timeout "$TIMEOUT" python3 -m stretto analyze --json "$r/trace" > "$r/report.json" 2> "$r/report.err"
   echo $? $(($(date +%s) - s)) > "$r/report.rc"
   python3 -I "$1/experiments/slate/finding_sites.py" "$r/trace" "$r/report.json" > "$r/sites.txt" 2> "$r/sites.err"
   python3 -I "$1/experiments/dlaf/pending_pairs.py" "$r/trace" > "$r/pairs.txt" 2> "$r/pairs.err"
