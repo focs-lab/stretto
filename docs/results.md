@@ -1807,6 +1807,19 @@ certify a consequence; the twin yields the abort.
 | MessageRace_Recv_Send_nok | ERROR MessageRace | FINISHED | 1f | - | 1e | the program aborts on its own check in every execution; the program aborts on its own check in some executions |
 
 
+## E7b: MBI with L2 by re-execution
+
+MBI's 115 programs traced 11 times with payloads and analysed with L2 by re-execution
+(`run_mbi.py --rerun`; `experiments/mbi/l2_summary.py`). A row apart from the corpus table, whose headline is
+the L1 number of the single corpus run.
+
+| | labelled errors reported | false alarms on correct programs |
+|---|---|---|
+| without L2, per traced run | 61 to 64 of 65 | 0 of 50 |
+| L2 by re-execution (Theorem rerun) | 65 of 65 | 0 of 50 |
+
+Per pass, 760 re-executions and 212 s of analysis on average. Commits: f6367f4 (11).
+
 ## E8: the buffer guard (local concurrency, class 3-local)
 
 MPI-BugBench local-concurrency programs traced with the guard (`lc.txt`): openmpi: 3-local in 20 of 20 programs built; mpich: 3-local in 22 of 22 programs built.
