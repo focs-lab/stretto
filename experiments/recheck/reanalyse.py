@@ -7,9 +7,13 @@ unpacked trace per job. Two reports are the same when they are equal but for the
 and for fields a later version added and left empty; a pair that differs is kept under
 OUT/differ/.
 
-  experiments/recheck/reanalyse.py --manifest <MANIFEST.tsv> --base <analysis dir>
-      [--new <analysis dir>] --out <dir> [--jobs N] [--campaigns a,b] [--skip-names re]
-      [--timeout S]
+  experiments/recheck/reanalyse.py (--manifest <MANIFEST.tsv> | --list <file> --root <dir>)
+      --base <analysis dir> [--new <analysis dir>] --out <dir> [--jobs N] [--campaigns a,b]
+      [--skip-names re] [--timeout S]
+
+A list file names trace directories or .tar.xz archives of one, one per line, under ROOT: the
+first component of a path below ROOT is its campaign, the rest its name (the work directories
+of the experiments that kept their traces without a manifest).
 
 OUT/rows.csv has one row per trace: campaign, name, same, exit statuses and seconds of both
 versions, and the commit of this repository (experiments/provenance.py)."""
@@ -71,7 +75,9 @@ def trace_dir(root: str) -> str:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--manifest", required=True)
+    ap.add_argument("--manifest")
+    ap.add_argument("--list")
+    ap.add_argument("--root")
     ap.add_argument("--base", required=True)
     ap.add_argument("--new", default=os.path.join(ROOT, "analysis"))
     ap.add_argument("--out", required=True)
@@ -81,9 +87,19 @@ def main() -> int:
     ap.add_argument("--timeout", type=int, default=3600)
     ap.add_argument("--scratch", default=None, help="where archives are unpacked (default: a temporary directory)")
     args = ap.parse_args()
-    base_dir = os.path.dirname(os.path.abspath(args.manifest))
-    with open(args.manifest) as fh:
-        rows = list(csv.DictReader(fh, delimiter="\t"))
+    if args.manifest:
+        base_dir = os.path.dirname(os.path.abspath(args.manifest))
+        with open(args.manifest) as fh:
+            rows = list(csv.DictReader(fh, delimiter="\t"))
+    else:
+        base_dir = os.path.abspath(args.root)
+        rows = []
+        with open(args.list) as fh:
+            for line in fh:
+                rel = os.path.relpath(os.path.join(base_dir, line.strip()), base_dir)
+                if line.strip():
+                    camp, _, name = rel.partition("/")
+                    rows.append({"campaign": camp, "name": name, "archive": rel})
     pre = [c for c in args.campaigns.split(",") if c]
     skip = re.compile(args.skip_names) if args.skip_names else None
     rows = [r for r in rows if (not pre or any(r["campaign"].startswith(c) for c in pre))
@@ -100,9 +116,13 @@ def main() -> int:
     def one(r):
         tmp = tempfile.mkdtemp(dir=args.scratch)
         try:
-            with tarfile.open(os.path.join(base_dir, r["archive"])) as tf:
-                tf.extractall(tmp, filter="data")
-            d = trace_dir(tmp)
+            src = os.path.join(base_dir, r["archive"])
+            if os.path.isdir(src):
+                d = src
+            else:
+                with tarfile.open(src) as tf:
+                    tf.extractall(tmp, filter="data")
+                d = trace_dir(tmp)
             a, b = run(args.base, d, args.timeout), run(args.new, d, args.timeout)
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
