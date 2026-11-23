@@ -1,0 +1,13 @@
+campaign,name,affected,same,base_exit,new_exit,base_seconds,new_seconds,commit
+ga-work,scan-mpich/testmult-mpich-ppn1-1/trace,?,1,0,0,1585.98,12110.83,83e2d3a
+ga-work,scan-mpich/testmult-mpich-ppn1-2/trace,?,1,0,0,1463.00,11144.82,83e2d3a
+ga-work,scan-mpich/testmult-mpich-ppn1-3/trace,?,1,0,0,1494.24,11548.80,83e2d3a
+ga-work,scan-mpich/testmult-mpich-ppn2-1/trace,?,1,0,0,1915.00,14539.91,83e2d3a
+ga-work,scan-mpich/testmult-mpich-ppn2-2/trace,?,1,0,0,1948.00,14671.60,83e2d3a
+ga-work,scan-mpich/testmult-mpich-ppn2-3/trace,?,1,0,0,1941.83,14572.00,83e2d3a
+ga-work,scan-openmpi/testmult-openmpi-ppn1-1/trace,?,1,0,0,1476.20,11454.12,83e2d3a
+ga-work,scan-openmpi/testmult-openmpi-ppn1-2/trace,?,1,0,0,1498.09,11449.57,83e2d3a
+ga-work,scan-openmpi/testmult-openmpi-ppn1-3/trace,?,1,0,0,1492.23,11600.43,83e2d3a
+ga-work,scan-openmpi/testmult-openmpi-ppn2-1/trace,?,1,0,0,2035.52,14999.23,83e2d3a
+ga-work,scan-openmpi/testmult-openmpi-ppn2-2/trace,?,1,0,0,1973.76,14746.70,83e2d3a
+ga-work,scan-openmpi/testmult-openmpi-ppn2-3/trace,?,1,0,0,1953.39,14535.65,83e2d3a

@@ -210,6 +210,8 @@ acquires (470 of them raising its clock) and 42 000 releases. The `waitany-order
 (43 to 2 026 per trace recorded, 58 to 2 324 off): a `Testsome` that could complete another of
 its requests first, whatever the threads' order.
 
+Traced again on 23 Nov with the November fixes ([traced-atomics-recheck.csv](traced-atomics-recheck.csv), [recheck](../recheck/README.md)): every plain run of the three colliding cells copies wrongly and 15 of 15 traces predict the race, 4-19, 26-72 and 6-20 alternatives per trace on 2x1, 4x1 and 3x2; 0 in the patched traces and the controls; no observed thread finding. The analyses before and after the fixes give the same report on each of the 50 traces.
+
 ## Files
 
 `Dockerfile`, `build.sh`, `copy_check.cpp` (driver and oracle), `copy-tags.patch` (against

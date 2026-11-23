@@ -176,7 +176,7 @@ def main() -> int:
     new_file = not os.path.exists(out_csv)
     n = differ = 0
     with cf.ThreadPoolExecutor(args.jobs) as ex, open(out_csv, "a", newline="") as fh:
-        w = csv.DictWriter(fh, FIELDS)
+        w = csv.DictWriter(fh, FIELDS, lineterminator="\n")
         if new_file:
             w.writeheader()
         for row in ex.map(one, rows):
