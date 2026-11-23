@@ -900,6 +900,30 @@ class C_RequestGetStatus(unittest.TestCase):
         self.assertEqual(t.observed, {(0, 0): (1, 0)})
         self.assertFalse(analyze(t, with_sp=False).by_class("1c"))
 
+    def test_a_freed_pending_receive_still_takes_its_message(self):
+        """MPI-CorrBench's rqfreeb: rank 1 posts receives of tags 1 and 2 before a barrier,
+        waits for the first and frees the second; rank 0 sends both after the barrier and waits
+        for the second send. The freed receive stays posted, so the send completes without
+        buffering. Once it took no message, which reported a deadlock below 4 bytes."""
+        t = mk({0: [coll("barrier"), send(1, 1, mode="isend", req=0), {"op": "reqfree", "req": 0},
+                    send(1, 2, mode="isend", req=1), wait((1, None, None))],
+                1: [irecv(0, 1, 0), irecv(0, 2, 1), coll("barrier"), wait((0, 0, 1)), {"op": "reqfree", "req": 1}]})
+        self.assertEqual(t.observed, {(1, 0): (0, 0), (1, 1): (0, 1)})
+        self.assertFalse(analyze(t, with_sp=False).findings)
+        # the explorer agrees: a receive never waited for is a freed one, and every execution
+        # finishes at every threshold
+        prog = {0: [dsl.Coll("barrier"), dsl.Send(1, 1, req="a"), dsl.Send(1, 2, req="b"), dsl.Wait("b")],
+                1: [dsl.Recv(0, 1, req="x"), dsl.Recv(0, 2, req="y"), dsl.Coll("barrier"), dsl.Wait("x")]}
+        for B in (0, 4, None):
+            self.assertEqual(explore.explore(prog, B).kinds(), {"done"})
+        # a later receive of the same channel takes the next message, not the freed one's
+        t = mk({0: [send(1, 1), send(1, 1)],
+                1: [irecv(0, 1, 0), {"op": "reqfree", "req": 0}, recv(0, 1, 0, 1)]})
+        self.assertEqual(t.observed, {(1, 0): (0, 0), (1, 1): (0, 1)})
+        # a freed wildcard receive's message is not known: it stays unmatched, as before
+        t = mk({0: [send(1, 1)], 1: [irecv(T.ANY, 1, 0), {"op": "reqfree", "req": 0}]})
+        self.assertEqual(t.observed, {})
+
 
 class C_TypeSignatures(unittest.TestCase):
     def test_contiguous_equals_repeated_basic(self):

@@ -204,6 +204,8 @@ orders; with the atomics, 110 of 3 840 such pairs are concurrent and 731 alterna
 accepted, none rejected. Rank 0 records about 5 600 atomic locations, 52 500 acquires (650
 raising its clock) and 52 500 releases.
 
+Traced again on 23 Nov with the November fixes ([traced-atomics-recheck.csv](traced-atomics-recheck.csv), [recheck](../recheck/README.md)): all 40 runs right; 10 of 10 plain traces with two virtual processes predict the race, 744 to 756 alternatives per trace on 1 rank and 63 to 311 on 4 ranks; 0 in the patched traces and the controls. The analyses before and after the fixes give the same report on each of these traces, so the counts move with the runs.
+
 ## Files
 
 `Dockerfile`, `build.sh`, `reshape_check.jdf`, `testing_reshape_check.c`, `self-tags.patch`

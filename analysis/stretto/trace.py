@@ -1200,6 +1200,16 @@ def _reconstruct_observed(t: Trace) -> None:
                             mine.setdefault((e.rank, key), []).append(q[i])   # its thread receives it
                         ptr[key] = i + 1
                 continue
+            if e.freed and not e.completed and e.src != ANY and e.tag != ANY:
+                # freed while pending: it stays posted and takes the earliest message of its
+                # channel by non-overtaking, though no record says when (rqfreeb of MPI-CorrBench)
+                key = (e.src, rank, e.comm, e.tag)
+                q = queues.get(key)
+                i = ptr.get(key, 0)
+                if q and i < len(q):
+                    t.observed[e.key] = q[i].key
+                    ptr[key] = i + 1
+                continue
             if not e.completed or e.msrc is None:
                 continue
             key = (e.msrc, rank, e.comm, e.mtag)

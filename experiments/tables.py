@@ -2666,6 +2666,42 @@ def e7():
             "certify a consequence; the twin yields the abort.\n\n" + open(f).read() + "\n")
 
 
+def e7_auto():
+    """E7b: MBI with level L2 by re-execution (stretto.rerun, Theorem rerun of the paper), over
+    the repeated traced runs of experiments/results/l2auto/ (experiments/mbi/l2_summary.py).
+    Kept apart from the headline, which stays the L1 number of the single corpus run (decided
+    22 Nov 2026): the macros nMBIAutoLtwo* are this row's."""
+    f = os.path.join(RES, "l2auto", "summary.csv")
+    if not os.path.exists(f):
+        return "_no results_\n"
+    rs = [r for r in rows(f) if r["run"] != "mean"]
+    mean = next(r for r in rows(f) if r["run"] == "mean")
+    l1 = sorted(int(r["reported"]) for r in rs)
+    l2 = sorted(int(r["reported_l2"]) for r in rs)
+    num("nMBIAutoLtwoRuns", len(rs))
+    num("nMBIAutoLtwoErrors", int(rs[0]["errors"]))
+    num("nMBIAutoLtwoCorrect", int(rs[0]["correct"]))
+    num("nMBIAutoLtwoReportedMin", l2[0])
+    num("nMBIAutoLtwoReportedMax", l2[-1])
+    num("nMBIAutoLtwoFalse", max(int(r["false_alarms_l2"]) for r in rs))
+    num("nMBIAutoLtwoLoneMin", l1[0])
+    num("nMBIAutoLtwoLoneMax", l1[-1])
+    num("nMBIAutoLtwoReruns", round(float(mean["rerun_runs"])))
+    num("nMBIAutoLtwoSeconds", round(float(mean["rerun_seconds"])))
+    span = lambda v: f"{v[0]}" if v[0] == v[-1] else f"{v[0]} to {v[-1]}"
+    out = [f"MBI's {rs[0]['programs']} programs traced {len(rs)} times with payloads and analysed with L2 by re-execution",
+           "(`run_mbi.py --rerun`; `experiments/mbi/l2_summary.py`). A row apart from the corpus table, whose headline is",
+           "the L1 number of the single corpus run.", "",
+           "| | labelled errors reported | false alarms on correct programs |", "|---|---|---|",
+           f"| without L2, per traced run | {span(l1)} of {rs[0]['errors']} | "
+           f"{max(int(r['false_alarms']) for r in rs)} of {rs[0]['correct']} |",
+           f"| L2 by re-execution (Theorem rerun) | {span(l2)} of {rs[0]['errors']} | "
+           f"{max(int(r['false_alarms_l2']) for r in rs)} of {rs[0]['correct']} |", "",
+           f"Per pass, {round(float(mean['rerun_runs']))} re-executions and {round(float(mean['rerun_seconds']))} s of analysis "
+           f"on average. Commits: {commits(rs)}."]
+    return "\n".join(out) + "\n"
+
+
 LEVEL_KEY = {"L1": "one", "L1+SP": "sp", "observed": "obs"}
 CLASS_KEY = {"1a": "A", "1b": "B", "1c": "C", "1d": "D", "1e": "E", "1f": "F", "2-blocked": "Blocked",
              "2-buffering": "Buffering", "2-collective": "Collective"}
@@ -4465,6 +4501,7 @@ def main():
            "## E5j: the other tools on the bugs of E5c to E5f (MUST, NINJA, MPI-PRV)", "", early_tools(),
            "## E6: polynomial checker vs exhaustive explorer", "", e6(),
            "## E7: the value skeleton on MBI (level L2)", "", e7(),
+           "## E7b: MBI with L2 by re-execution", "", e7_auto(),
            "## E8: the buffer guard (local concurrency, class 3-local)", "", guard() + must_tsan_local(),
            "## E8b: happens-before candidate selection against the check", "", e8_hb(),
            "## E8c: confirming replays judged as runs of the program", "", valid(),

@@ -476,7 +476,7 @@ each of 12 runs stalling before the first time step; DLA-Future crashes natively
 4.0.2 and, rebuilt for Open MPI, under MUST-vc in 20 of 20 runs. On MPI-CorrBench's 103 OpenMP programs as published it flags none: clang starts the
 OpenMP runtime at the entry of `main` when it has a `num_threads` clause, which MUST does not
 support (300 of 309 runs warn); without the clause 14 erroneous programs. Stretto flags 26 in
-every run and 4 in some, and alone finds the critical-section and lock-order cases
+every run and 4 in some (25 in every run since 43c4c09, below), and alone finds the critical-section and lock-order cases
 (`two_collectives_8`, `_9`, `deadlock_probe`, idiom 43), the request completed by another thread
 (`request_reuse`, idiom 26), and all pthreads idioms. Three programs MUST-vc's suite labels
 correct deadlock natively (`two_collectives_4` 7 of 10 runs with MPICH and libomp,
@@ -485,8 +485,8 @@ and libgomp); Stretto reports them (`2-lock-order`, `2-thread-collective` at L1+
 hangs), MUST-vc does not. Where Stretto is behind: a probe that a concurrent receive leaves
 without a message (MUST-vc's two `RecvProbe` programs, 0 of 10), `MPI_THREAD_SERIALIZED`
 violations by local calls such as `MPI_Comm_size` (not traced; 3 programs, 0 of 15), task
-programs beyond the tracer's 256 chains (degraded, false observed classes on 2 correct
-programs), and the transitive program, which both tools flag. Side defect found on the way:
+programs beyond the tracer's 256 chains (degraded; the false observed classes on 2 correct
+programs are gone since 43c4c09, and `nondeterministic_deadlock` is a miss), and the transitive program, which both tools flag. Side defect found on the way:
 PaRSEC's `MPI_Allreduce(MPI_BYTE, MPI_SUM)` (parsec.c:2833) is undefined in MPI, and MPICH
 rejects it, so PaRSEC on several ranks aborts at start under MPICH.
 
@@ -694,6 +694,36 @@ traced runs that timed out. Leads and tests were committed before the code was r
   outside the model (premise P-T7).
 - **Open:** with two panel threads, `hetrf` square 2x1 aborts with `std::out_of_range` in
   `tileBcast` in 3 of 110 runs; not examined.
+
+## Recheck after the November fixes (23 Nov)
+
+The merged fixes of November (thread orientation 1544c79, every threshold for several chains
+56b8a47, the overflow chain 43c4c09, payloads of 2 GiB 1496d9b) and one more, 385f919 (a receive
+freed while pending takes the head of its channel, which removes CorrBench's `rqfreeb` false
+alarm), were checked against every committed result: each kept trace analysed before and after
+them, and the thread campaigns whose traces were gone traced again. Evidence:
+[experiments/recheck](../experiments/recheck/README.md).
+
+- **The paper's corpora and applications do not move.** None of the 16 939 traces of the frozen
+  rerun (MBI, MBB, deal.II, NPB MG, AMG, Nekbone, the replays) has a rank with several chains or a
+  freed pending receive; 1 093 compared in full (all of MBI and MBB) give the same reports.
+- **CorrBench outside OpenMP:** the six programs that call `MPI_Request_free`, run again under
+  both MPIs: only `rqfreeb` changes, now clean; correct programs flagged 4 of 202 under MPICH (5
+  before), all real, 50 under Open MPI (51).
+- **MUST-vc's suite and CorrBench's OpenMP programs**, traced again: 15 of 830 reports differ,
+  all on traces whose chain table overflowed, all by 43c4c09. The correct
+  `concurrent_communicator_task_nesting` loses its false findings (correct runs flagged 34 of
+  135, 39 before); `nondeterministic_deadlock` loses findings that rested on the overflow chain
+  and is a miss (25 erroneous programs in every run, 26 before).
+- **PaRSEC and DLA-Future**, their atomics campaigns traced again: the races are predicted in 10
+  of 10 and 15 of 15 plain traces, 0 in the patched ones and the controls, and both analyses
+  give the same report on every new trace; the counts per trace move with the runs.
+- **The 1 285 other kept thread traces** (gates, idioms, the GA, Smilei and Athena++ scans, HDF5,
+  Uintah's runs, the hunts): no report differs where both versions finish. The new analysis is
+  slower on GA's 12 `testmult` traces, with the same reports: 3.1 to 4.2 hours against 24 to 34
+  minutes, the cost of judging every threshold; 16 traces exceed 3 hours in both versions.
+- **Not rechecked:** the campaigns whose traces were deleted (Uintah's, MADNESS's and StarPU's
+  scans, SLATE's cells of 30 Oct); the sweep's traces were re-analysed when it was merged.
 
 ## Not yet traced
 
