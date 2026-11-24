@@ -1,8 +1,8 @@
 # The uniform campaign: harness
 
-[RULE.md](RULE.md) fixes the protocol, with its amendments of 24 and 25 Nov 2026 (Sections 10 to 13); this
-directory is the harness that runs it. Nothing here is a result yet: `results/` is written by the
-campaign itself.
+[RULE.md](RULE.md) fixes the protocol, with its amendments of 24 and 25 Nov 2026 (Sections 10 to
+13, amendments 14 to 33); this directory is the harness that runs it. Nothing here is a result
+yet: `results/` is written by the campaign itself.
 
 Frozen commit: (set before the first run)
 
@@ -108,15 +108,20 @@ same categories are written, and there F is a false alarm. A replay row's outcom
   counts the alternatives of the bug's kind, whose pins run.py keeps for the replays (a sidecar
   for every analysis, empty when it found none; the replays take only these, amendment 26).
 - Runs that end early or leave nothing are rows with outcome tool failure, never rerun
-  (amendments 25 and 29): a run killed before T by the job's own memory limit (run.py's `KILLED`
-  when the job's cgroup counted the kill, `memory.events`; a container Docker records as
-  `State.OOMKilled` gets its row from the scheduler: a replay's with a verdict, inconclusive, a
-  delays run's with its seed, a calibration run's with the seconds it lasted, left out of T as a
-  capped run), a traced run whose trace is empty or unreadable, an analysis killed before its
-  budget ("analysis killed", not "analysis timeout"). Any other kill, and any job that leaves no
-  row, is a harness failure (Section 1.8): the job runs again, at most twice in an invocation
-  (then its block stops), and every rerun is listed in [`results/reruns.tsv`](results/) (time,
-  block, job, reason). A deferred analysis gets the memory its traced run's job had.
+  (amendments 25 and 33): a run killed before T when its own container hit its memory limit
+  (run.py's `KILLED` when the `oom` counter of the container's `memory.events` rose during the
+  run; a delays run's row keeps its seed, a calibration run's its seconds, left out of T as a
+  capped run; a replay or control so killed makes its replay inconclusive), a traced run whose
+  trace is empty or unreadable, an analysis killed before its budget ("analysis killed", not
+  "analysis timeout"). Any other kill (`oom_kill` without `oom`, a parent slice's or the host's
+  cap, an operator, a stopped daemon; Docker's `OOMKilled` alone says nothing more), and a
+  container that goes away without a row, is a harness failure (Section 1.8): the job runs
+  again, at most twice in an invocation (then its block stops), every rerun is listed in
+  [`results/reruns.tsv`](results/) (time, block, job, reason), and a row it replaces stays in its
+  table with `superseded` set. A job that ends with a harness error of its own (run.py's
+  HARNESS-ERROR, an exception in the harness or a judge) is not run again: its block stops, the
+  journal says why, and the fix is a declared deviation. A deferred analysis gets the memory its
+  traced run's job had.
 - F for MUST: an error (not a warning, amendment 4) of MUST's report whose call, or one of whose
   referenced calls, is a racing call with a stack at the racing site. A run MUST stops at a
   deadlock shows no symptom: at the racing calls "predicted", elsewhere a tool failure
@@ -138,11 +143,28 @@ same categories are written, and there F is a false alarm. A replay row's outcom
   `tab:rq2` scripts count it: a failing run for the delays and NINJA (experiments/tables.py
   `stress`, any `first_failure`), no report for MUST on MBI and MPI-BugBench (experiments/mbi/
   score.py `must_verdict`: TIMEOUT is not ERROR), a run without a verdict, a tool failure, for
-  MUST on CorrBench (experiments/corrbench/summary.py), Stretto's report for Stretto. Against the
-  committed MBI and MPI-BugBench tables (stress.csv, the corpus tables' must1112 and Stretto
-  columns) and CorrBench's (must.csv, stretto-openmpi.csv) the adapters give the committed
-  reveals per tool and label (a unit test); CorrBench's "failed run only" (an error finding
-  observed on a run that did not finish) is observed-reported under Section 3. MUST's report
+  MUST on CorrBench (experiments/corrbench/summary.py), Stretto's report for Stretto. Stretto's F
+  on a suite (amendment 32) is an error-class finding that does more than record the run's own
+  failure: a run whose error findings are only an observed abort, or only observed ones on a run
+  that ended in its own error (an MPI error, a signal, a nonzero exit), is observed-not-reported.
+  An observed deadlock of a run that hung counts: it names the blocked calls, as MUST's deadlock
+  report does. Against the committed MBI and MPI-BugBench tables (stress.csv, the corpus tables'
+  must1112 column) and CorrBench's must.csv the adapters give the committed reveals per tool and
+  label (a unit test). For Stretto the unit test pins the counts the rule changes, from the
+  committed CSVs: MBI's erroneous programs 62 (score.verdict, as `tab:rq2`) to 61 (the one left
+  out, `MessageRace_Recv_Isend_nok`, aborted with signal 6, and its only error finding is that
+  abort; its L1 alternative, 1f, is a warning class), its correct ones 0; MPI-BugBench's 216 to
+  212 and 4 to 0 (runs that ended in an MPI error whose findings were the observed blocking it
+  caused); CorrBench's traced runs under Open MPI 693 (its summary's flagged and "failed run
+  only") to 96 on the erroneous runs and 144 to 24 on the correct ones, under MPICH 639 to 96 and
+  6 to 3. The correct runs left are, under Open MPI, 21 of seven one-sided programs
+  (`correct/rma`: get_struct, mixedsync, racc_local_comp, reqops, rput_local_comp, test3,
+  test3_am) that hang under the image's Open MPI 4.1.6 without the tracer too, Stretto's report
+  naming the blocked calls (experiments/corrbench/README.md: 47 of the 72 one-sided correct
+  programs hang or abort natively there, none under MPICH); and under both MPIs the 3 runs of
+  `pt2pt/rqfreeb`, the false alarm that 385f919 fixed, whose rows `stretto-<mpi>-recheck.csv`
+  replaces in the committed summary: with those replacements the correct runs left are 21 and 0.
+  MUST's report
   counts when it holds an error, a data race alone only on a program labelled a data race
   (amendment 22; must_once.sh says "data race:" when the race is all MUST reported; suites.py
   `labels`). Stretto's suite rows carry `cell` (amendment 23): `stretto` for the traced
@@ -257,17 +279,17 @@ keep their threads until they end and are collected then; every other job runs, 
 says which runs were started before and had no row; they run again, listed in
 `results/reruns.tsv`. SIGINT or SIGTERM stops starting jobs and lets the running ones finish; a
 second signal kills them (their runs have no row and run again). A job that ends without a row
-(a library that did not load, a trace that could not be kept, a script that wrote no table, a
-kill that is not its memory limit's) runs again, twice at most, each rerun in
-`results/reruns.tsv`, then stops its block for that invocation; a missing build stops it at once.
-A run killed by the job's own memory limit is a tool-failure row instead, never rerun (amendments
-25 and 29). Containers are kept until the scheduler has read Docker's verdict on them and then
-removed; they carry their job and whether it runs alone as labels, so that containers adopted
-from an earlier invocation count in the jobs column and an adopted job that runs alone, selected
-or not, keeps every other job from starting until it ends. schedule.py refuses to start without
-`MACHINE`. summary.py shows a suite block per cell and label, with the share of its reveals that
-are timeouts (amendment 28), and a thread replay block per alternative and mode as well as per
-replay (amendment 24).
+because it was killed by anything but its own container's memory limit, or went away, runs
+again, twice at most, each rerun in `results/reruns.tsv`, then stops its block for that
+invocation; a missing build stops it at once. A run killed by the job's own memory limit is a
+tool-failure row instead, never rerun (amendments 25 and 33); a job's own harness error stops
+its block without a rerun. Containers are kept until the scheduler has read how they ended (for
+a rerun's reason) and then removed; they carry their job and whether it runs alone as labels, so
+that containers adopted from an earlier invocation count in the jobs column and an adopted job
+that runs alone, selected or not, keeps every other job from starting until it ends. schedule.py
+refuses to start without `MACHINE`. summary.py shows a suite block per cell and label (`expect`,
+CorrBench's `label`), with the share of its reveals that are timeouts (amendment 28), and a
+thread replay block per alternative and mode as well as per replay (amendment 24).
 
 ## Smoke test
 
