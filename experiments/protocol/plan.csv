@@ -1,0 +1,1148 @@
+block,subject,config,np,mpi,version,tool,setting,n,table,cpus,alone,image,runner,notes
+hypre/calibrate,hypre,np4,4,mpich,fix,calibrate,plain:-,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+hypre/plain,hypre,np4,4,mpich,bug,plain,-,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+hypre/plain,hypre,np4,4,mpich,fix,plain,-,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+hypre/calibrate,hypre,np4,4,mpich,fix,calibrate,delays:D50,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+hypre/delays-D50,hypre,np4,4,mpich,bug,delays,D50,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+hypre/delays-D50,hypre,np4,4,mpich,fix,delays,D50,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+hypre/calibrate,hypre,np4,4,mpich,fix,calibrate,ninja:random,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+hypre/ninja-random,hypre,np4,4,mpich,bug,ninja,random,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+hypre/ninja-random,hypre,np4,4,mpich,fix,ninja,random,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+hypre/calibrate,hypre,np4,4,mpich,fix,calibrate,ninja:system,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+hypre/ninja-system,hypre,np4,4,mpich,bug,ninja,system,40,appendix,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+hypre/ninja-system,hypre,np4,4,mpich,fix,ninja,system,40,appendix,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+hypre/calibrate,hypre,np4,4,mpich,fix,calibrate,ninja:app,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+hypre/ninja-app,hypre,np4,4,mpich,bug,ninja,app,40,appendix,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+hypre/ninja-learn,hypre,np4,4,mpich,bug,ninja,learn,1,prerequisite,4,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+hypre/ninja-app,hypre,np4,4,mpich,fix,ninja,app,40,appendix,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+hypre/ninja-learn,hypre,np4,4,mpich,fix,ninja,learn,1,prerequisite,4,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+hypre/calibrate,hypre,np4,4,mpich,fix,calibrate,must:1.11.2,10,prerequisite,6,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+hypre/must-1.11.2,hypre,np4,4,mpich,bug,must,1.11.2,40,main,6,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+hypre/must-1.11.2,hypre,np4,4,mpich,fix,must,1.11.2,40,main,6,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+hypre/calibrate,hypre,np4,4,mpich,fix,calibrate,stretto:traced,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+hypre/stretto-traced,hypre,np4,4,mpich,bug,stretto,traced,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+hypre/stretto-traced,hypre,np4,4,mpich,fix,stretto,traced,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+hypre/calibrate,hypre,np4,4,mpich,fix,calibrate,ninja:random-1.2s,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+hypre/ninja-random-1.2s,hypre,np4,4,mpich,bug,ninja,random-1.2s,40,appendix,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+hypre/ninja-random-1.2s,hypre,np4,4,mpich,fix,ninja,random-1.2s,40,appendix,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+hypre/calibrate,hypre,np4,4,mpich,fix,calibrate,ninja:nonoise,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+hypre/ninja-nonoise,hypre,np4,4,mpich,bug,ninja,nonoise,10,check,4,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+hypre/ninja-nonoise,hypre,np4,4,mpich,fix,ninja,nonoise,10,check,4,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+hypre/plain-serial,hypre,np4,4,mpich,bug,plain,serial,40,check,4,1,stretto-exp:24.04,run.py,"jobs = 1, beside the 40 parallel plain runs; Fisher's exact test"
+hypre/replay,hypre,np4,4,mpich,bug,stretto,replay,40,main,4,0,stretto-exp:24.04,replays.py,"every distinct alternative by its pins over the configuration's traces, a seeded sample of 40 if more; each with its control; only if the traces predict the bug"
+hypre/calibrate,hypre,np8,8,mpich,fix,calibrate,plain:-,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+hypre/plain,hypre,np8,8,mpich,bug,plain,-,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+hypre/plain,hypre,np8,8,mpich,fix,plain,-,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+hypre/calibrate,hypre,np8,8,mpich,fix,calibrate,delays:D50,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+hypre/delays-D50,hypre,np8,8,mpich,bug,delays,D50,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+hypre/delays-D50,hypre,np8,8,mpich,fix,delays,D50,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+hypre/calibrate,hypre,np8,8,mpich,fix,calibrate,ninja:random,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+hypre/ninja-random,hypre,np8,8,mpich,bug,ninja,random,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+hypre/ninja-random,hypre,np8,8,mpich,fix,ninja,random,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+hypre/calibrate,hypre,np8,8,mpich,fix,calibrate,ninja:system,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+hypre/ninja-system,hypre,np8,8,mpich,bug,ninja,system,40,appendix,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+hypre/ninja-system,hypre,np8,8,mpich,fix,ninja,system,40,appendix,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+hypre/calibrate,hypre,np8,8,mpich,fix,calibrate,ninja:app,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+hypre/ninja-app,hypre,np8,8,mpich,bug,ninja,app,40,appendix,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+hypre/ninja-learn,hypre,np8,8,mpich,bug,ninja,learn,1,prerequisite,8,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+hypre/ninja-app,hypre,np8,8,mpich,fix,ninja,app,40,appendix,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+hypre/ninja-learn,hypre,np8,8,mpich,fix,ninja,learn,1,prerequisite,8,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+hypre/calibrate,hypre,np8,8,mpich,fix,calibrate,must:1.11.2,10,prerequisite,11,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+hypre/must-1.11.2,hypre,np8,8,mpich,bug,must,1.11.2,40,main,11,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+hypre/must-1.11.2,hypre,np8,8,mpich,fix,must,1.11.2,40,main,11,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+hypre/calibrate,hypre,np8,8,mpich,fix,calibrate,stretto:traced,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+hypre/stretto-traced,hypre,np8,8,mpich,bug,stretto,traced,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+hypre/stretto-traced,hypre,np8,8,mpich,fix,stretto,traced,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+hypre/calibrate,hypre,np8,8,mpich,fix,calibrate,ninja:random-1.2s,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+hypre/ninja-random-1.2s,hypre,np8,8,mpich,bug,ninja,random-1.2s,40,appendix,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+hypre/ninja-random-1.2s,hypre,np8,8,mpich,fix,ninja,random-1.2s,40,appendix,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+hypre/calibrate,hypre,np8,8,mpich,fix,calibrate,ninja:nonoise,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+hypre/ninja-nonoise,hypre,np8,8,mpich,bug,ninja,nonoise,10,check,8,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+hypre/ninja-nonoise,hypre,np8,8,mpich,fix,ninja,nonoise,10,check,8,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+hypre/replay,hypre,np8,8,mpich,bug,stretto,replay,40,main,8,0,stretto-exp:24.04,replays.py,"every distinct alternative by its pins over the configuration's traces, a seeded sample of 40 if more; each with its control; only if the traces predict the bug"
+hypre/mpiprv,hypre,np4,4,mpich,bug,mpiprv,attempt,1,main,4,0,mpiprv/mpiprv,experiments/mpiprv/apps.py,"attempted on every subject, Fortran ones included; build or instrumentation failure recorded"
+hypre3/calibrate,hypre3,np4,4,openmpi,fix,calibrate,plain:-,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+hypre3/plain,hypre3,np4,4,openmpi,bug,plain,-,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+hypre3/plain,hypre3,np4,4,openmpi,fix,plain,-,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+hypre3/calibrate,hypre3,np4,4,openmpi,fix,calibrate,delays:D50,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+hypre3/delays-D50,hypre3,np4,4,openmpi,bug,delays,D50,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+hypre3/delays-D50,hypre3,np4,4,openmpi,fix,delays,D50,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+hypre3/calibrate,hypre3,np4,4,openmpi,fix,calibrate,ninja:random,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+hypre3/ninja-random,hypre3,np4,4,openmpi,bug,ninja,random,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+hypre3/ninja-random,hypre3,np4,4,openmpi,fix,ninja,random,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+hypre3/calibrate,hypre3,np4,4,openmpi,fix,calibrate,ninja:system,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+hypre3/ninja-system,hypre3,np4,4,openmpi,bug,ninja,system,40,appendix,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+hypre3/ninja-system,hypre3,np4,4,openmpi,fix,ninja,system,40,appendix,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+hypre3/calibrate,hypre3,np4,4,openmpi,fix,calibrate,ninja:app,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+hypre3/ninja-app,hypre3,np4,4,openmpi,bug,ninja,app,40,appendix,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+hypre3/ninja-learn,hypre3,np4,4,openmpi,bug,ninja,learn,1,prerequisite,4,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+hypre3/ninja-app,hypre3,np4,4,openmpi,fix,ninja,app,40,appendix,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+hypre3/ninja-learn,hypre3,np4,4,openmpi,fix,ninja,learn,1,prerequisite,4,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+hypre3/calibrate,hypre3,np4,4,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,6,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+hypre3/must-1.11.2,hypre3,np4,4,openmpi,bug,must,1.11.2,40,main,6,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+hypre3/must-1.11.2,hypre3,np4,4,openmpi,fix,must,1.11.2,40,main,6,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+hypre3/calibrate,hypre3,np4,4,openmpi,fix,calibrate,stretto:traced,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+hypre3/stretto-traced,hypre3,np4,4,openmpi,bug,stretto,traced,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+hypre3/stretto-traced,hypre3,np4,4,openmpi,fix,stretto,traced,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+hypre3/calibrate,hypre3,np4,4,openmpi,fix,calibrate,ninja:nonoise,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+hypre3/ninja-nonoise,hypre3,np4,4,openmpi,bug,ninja,nonoise,10,check,4,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+hypre3/ninja-nonoise,hypre3,np4,4,openmpi,fix,ninja,nonoise,10,check,4,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+hypre3/plain-serial,hypre3,np4,4,openmpi,bug,plain,serial,40,check,4,1,stretto-exp:24.04,run.py,"jobs = 1, beside the 40 parallel plain runs; Fisher's exact test"
+hypre3/replay,hypre3,np4,4,openmpi,bug,stretto,replay,40,main,4,0,stretto-exp:24.04,replays.py,"every distinct alternative by its pins over the configuration's traces, a seeded sample of 40 if more; each with its control; only if the traces predict the bug"
+hypre3/calibrate,hypre3,np8,8,openmpi,fix,calibrate,plain:-,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+hypre3/plain,hypre3,np8,8,openmpi,bug,plain,-,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+hypre3/plain,hypre3,np8,8,openmpi,fix,plain,-,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+hypre3/calibrate,hypre3,np8,8,openmpi,fix,calibrate,delays:D50,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+hypre3/delays-D50,hypre3,np8,8,openmpi,bug,delays,D50,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+hypre3/delays-D50,hypre3,np8,8,openmpi,fix,delays,D50,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+hypre3/calibrate,hypre3,np8,8,openmpi,fix,calibrate,ninja:random,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+hypre3/ninja-random,hypre3,np8,8,openmpi,bug,ninja,random,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+hypre3/ninja-random,hypre3,np8,8,openmpi,fix,ninja,random,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+hypre3/calibrate,hypre3,np8,8,openmpi,fix,calibrate,ninja:system,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+hypre3/ninja-system,hypre3,np8,8,openmpi,bug,ninja,system,40,appendix,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+hypre3/ninja-system,hypre3,np8,8,openmpi,fix,ninja,system,40,appendix,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+hypre3/calibrate,hypre3,np8,8,openmpi,fix,calibrate,ninja:app,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+hypre3/ninja-app,hypre3,np8,8,openmpi,bug,ninja,app,40,appendix,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+hypre3/ninja-learn,hypre3,np8,8,openmpi,bug,ninja,learn,1,prerequisite,8,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+hypre3/ninja-app,hypre3,np8,8,openmpi,fix,ninja,app,40,appendix,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+hypre3/ninja-learn,hypre3,np8,8,openmpi,fix,ninja,learn,1,prerequisite,8,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+hypre3/calibrate,hypre3,np8,8,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,11,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+hypre3/must-1.11.2,hypre3,np8,8,openmpi,bug,must,1.11.2,40,main,11,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+hypre3/must-1.11.2,hypre3,np8,8,openmpi,fix,must,1.11.2,40,main,11,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+hypre3/calibrate,hypre3,np8,8,openmpi,fix,calibrate,stretto:traced,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+hypre3/stretto-traced,hypre3,np8,8,openmpi,bug,stretto,traced,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+hypre3/stretto-traced,hypre3,np8,8,openmpi,fix,stretto,traced,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+hypre3/calibrate,hypre3,np8,8,openmpi,fix,calibrate,ninja:nonoise,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+hypre3/ninja-nonoise,hypre3,np8,8,openmpi,bug,ninja,nonoise,10,check,8,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+hypre3/ninja-nonoise,hypre3,np8,8,openmpi,fix,ninja,nonoise,10,check,8,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+hypre3/replay,hypre3,np8,8,openmpi,bug,stretto,replay,40,main,8,0,stretto-exp:24.04,replays.py,"every distinct alternative by its pins over the configuration's traces, a seeded sample of 40 if more; each with its control; only if the traces predict the bug"
+hypre3/mpiprv,hypre3,np4,4,openmpi,bug,mpiprv,attempt,1,main,4,0,mpiprv/mpiprv,experiments/mpiprv/apps.py,"attempted on every subject, Fortran ones included; build or instrumentation failure recorded"
+petsc/calibrate,petsc,np4,4,openmpi,fix,calibrate,plain:-,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+petsc/plain,petsc,np4,4,openmpi,bug,plain,-,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+petsc/plain,petsc,np4,4,openmpi,fix,plain,-,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+petsc/calibrate,petsc,np4,4,openmpi,fix,calibrate,delays:D50,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+petsc/delays-D50,petsc,np4,4,openmpi,bug,delays,D50,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+petsc/delays-D50,petsc,np4,4,openmpi,fix,delays,D50,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+petsc/calibrate,petsc,np4,4,openmpi,fix,calibrate,ninja:random,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+petsc/ninja-random,petsc,np4,4,openmpi,bug,ninja,random,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+petsc/ninja-random,petsc,np4,4,openmpi,fix,ninja,random,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+petsc/calibrate,petsc,np4,4,openmpi,fix,calibrate,ninja:system,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+petsc/ninja-system,petsc,np4,4,openmpi,bug,ninja,system,40,appendix,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+petsc/ninja-system,petsc,np4,4,openmpi,fix,ninja,system,40,appendix,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+petsc/calibrate,petsc,np4,4,openmpi,fix,calibrate,ninja:app,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+petsc/ninja-app,petsc,np4,4,openmpi,bug,ninja,app,40,appendix,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+petsc/ninja-learn,petsc,np4,4,openmpi,bug,ninja,learn,1,prerequisite,4,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+petsc/ninja-app,petsc,np4,4,openmpi,fix,ninja,app,40,appendix,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+petsc/ninja-learn,petsc,np4,4,openmpi,fix,ninja,learn,1,prerequisite,4,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+petsc/calibrate,petsc,np4,4,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,6,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+petsc/must-1.11.2,petsc,np4,4,openmpi,bug,must,1.11.2,40,main,6,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+petsc/must-1.11.2,petsc,np4,4,openmpi,fix,must,1.11.2,40,main,6,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+petsc/calibrate,petsc,np4,4,openmpi,fix,calibrate,stretto:traced,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+petsc/stretto-traced,petsc,np4,4,openmpi,bug,stretto,traced,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+petsc/stretto-traced,petsc,np4,4,openmpi,fix,stretto,traced,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+petsc/calibrate,petsc,np4,4,openmpi,fix,calibrate,ninja:nonoise,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+petsc/ninja-nonoise,petsc,np4,4,openmpi,bug,ninja,nonoise,10,check,4,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+petsc/ninja-nonoise,petsc,np4,4,openmpi,fix,ninja,nonoise,10,check,4,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+petsc/plain-serial,petsc,np4,4,openmpi,bug,plain,serial,40,check,4,1,stretto-exp:24.04,run.py,"jobs = 1, beside the 40 parallel plain runs; Fisher's exact test"
+petsc/replay,petsc,np4,4,openmpi,bug,stretto,replay,40,main,4,0,stretto-exp:24.04,replays.py,"every distinct alternative by its pins over the configuration's traces, a seeded sample of 40 if more; each with its control; only if the traces predict the bug"
+petsc/calibrate,petsc,np8,8,openmpi,fix,calibrate,plain:-,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+petsc/plain,petsc,np8,8,openmpi,bug,plain,-,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+petsc/plain,petsc,np8,8,openmpi,fix,plain,-,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+petsc/calibrate,petsc,np8,8,openmpi,fix,calibrate,delays:D50,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+petsc/delays-D50,petsc,np8,8,openmpi,bug,delays,D50,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+petsc/delays-D50,petsc,np8,8,openmpi,fix,delays,D50,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+petsc/calibrate,petsc,np8,8,openmpi,fix,calibrate,ninja:random,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+petsc/ninja-random,petsc,np8,8,openmpi,bug,ninja,random,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+petsc/ninja-random,petsc,np8,8,openmpi,fix,ninja,random,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+petsc/calibrate,petsc,np8,8,openmpi,fix,calibrate,ninja:system,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+petsc/ninja-system,petsc,np8,8,openmpi,bug,ninja,system,40,appendix,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+petsc/ninja-system,petsc,np8,8,openmpi,fix,ninja,system,40,appendix,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+petsc/calibrate,petsc,np8,8,openmpi,fix,calibrate,ninja:app,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+petsc/ninja-app,petsc,np8,8,openmpi,bug,ninja,app,40,appendix,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+petsc/ninja-learn,petsc,np8,8,openmpi,bug,ninja,learn,1,prerequisite,8,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+petsc/ninja-app,petsc,np8,8,openmpi,fix,ninja,app,40,appendix,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+petsc/ninja-learn,petsc,np8,8,openmpi,fix,ninja,learn,1,prerequisite,8,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+petsc/calibrate,petsc,np8,8,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,11,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+petsc/must-1.11.2,petsc,np8,8,openmpi,bug,must,1.11.2,40,main,11,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+petsc/must-1.11.2,petsc,np8,8,openmpi,fix,must,1.11.2,40,main,11,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+petsc/calibrate,petsc,np8,8,openmpi,fix,calibrate,stretto:traced,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+petsc/stretto-traced,petsc,np8,8,openmpi,bug,stretto,traced,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+petsc/stretto-traced,petsc,np8,8,openmpi,fix,stretto,traced,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+petsc/calibrate,petsc,np8,8,openmpi,fix,calibrate,ninja:nonoise,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+petsc/ninja-nonoise,petsc,np8,8,openmpi,bug,ninja,nonoise,10,check,8,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+petsc/ninja-nonoise,petsc,np8,8,openmpi,fix,ninja,nonoise,10,check,8,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+petsc/replay,petsc,np8,8,openmpi,bug,stretto,replay,40,main,8,0,stretto-exp:24.04,replays.py,"every distinct alternative by its pins over the configuration's traces, a seeded sample of 40 if more; each with its control; only if the traces predict the bug"
+petsc/mpiprv,petsc,np4,4,openmpi,bug,mpiprv,attempt,1,main,4,0,mpiprv/mpiprv,experiments/mpiprv/apps.py,"attempted on every subject, Fortran ones included; build or instrumentation failure recorded"
+npbmg/calibrate,npbmg,np16,16,mpich,fix,calibrate,plain:-,10,prerequisite,16,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+npbmg/plain,npbmg,np16,16,mpich,bug,plain,-,40,main,16,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+npbmg/plain,npbmg,np16,16,mpich,fix,plain,-,40,main,16,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+npbmg/calibrate,npbmg,np16,16,mpich,fix,calibrate,delays:D50,10,prerequisite,16,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+npbmg/delays-D50,npbmg,np16,16,mpich,bug,delays,D50,40,main,16,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+npbmg/delays-D50,npbmg,np16,16,mpich,fix,delays,D50,40,main,16,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+npbmg/calibrate,npbmg,np16,16,mpich,fix,calibrate,ninja:random,10,prerequisite,16,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+npbmg/ninja-random,npbmg,np16,16,mpich,bug,ninja,random,40,main,16,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+npbmg/ninja-random,npbmg,np16,16,mpich,fix,ninja,random,40,main,16,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+npbmg/calibrate,npbmg,np16,16,mpich,fix,calibrate,ninja:system,10,prerequisite,16,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+npbmg/ninja-system,npbmg,np16,16,mpich,bug,ninja,system,40,appendix,16,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+npbmg/ninja-system,npbmg,np16,16,mpich,fix,ninja,system,40,appendix,16,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+npbmg/calibrate,npbmg,np16,16,mpich,fix,calibrate,ninja:app,10,prerequisite,16,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+npbmg/ninja-app,npbmg,np16,16,mpich,bug,ninja,app,40,appendix,16,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+npbmg/ninja-learn,npbmg,np16,16,mpich,bug,ninja,learn,1,prerequisite,16,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+npbmg/ninja-app,npbmg,np16,16,mpich,fix,ninja,app,40,appendix,16,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+npbmg/ninja-learn,npbmg,np16,16,mpich,fix,ninja,learn,1,prerequisite,16,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+npbmg/calibrate,npbmg,np16,16,mpich,fix,calibrate,must:1.11.2,10,prerequisite,21,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+npbmg/must-1.11.2,npbmg,np16,16,mpich,bug,must,1.11.2,40,main,21,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+npbmg/must-1.11.2,npbmg,np16,16,mpich,fix,must,1.11.2,40,main,21,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+npbmg/calibrate,npbmg,np16,16,mpich,fix,calibrate,stretto:traced,10,prerequisite,16,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+npbmg/stretto-traced,npbmg,np16,16,mpich,bug,stretto,traced,40,main,16,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+npbmg/stretto-traced,npbmg,np16,16,mpich,fix,stretto,traced,40,main,16,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+npbmg/calibrate,npbmg,np16,16,mpich,fix,calibrate,ninja:nonoise,10,prerequisite,16,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+npbmg/ninja-nonoise,npbmg,np16,16,mpich,bug,ninja,nonoise,10,check,16,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+npbmg/ninja-nonoise,npbmg,np16,16,mpich,fix,ninja,nonoise,10,check,16,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+npbmg/plain-serial,npbmg,np16,16,mpich,bug,plain,serial,40,check,16,1,stretto-exp:24.04,run.py,"jobs = 1, beside the 40 parallel plain runs; Fisher's exact test"
+npbmg/replay,npbmg,np16,16,mpich,bug,stretto,replay,40,main,16,0,stretto-exp:24.04,replays.py,"every distinct alternative by its pins over the configuration's traces, a seeded sample of 40 if more; each with its control; only if the traces predict the bug"
+npbmg/calibrate,npbmg,np32,32,mpich,fix,calibrate,plain:-,10,prerequisite,32,1,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+npbmg/plain,npbmg,np32,32,mpich,bug,plain,-,40,main,32,1,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+npbmg/plain,npbmg,np32,32,mpich,fix,plain,-,40,main,32,1,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+npbmg/calibrate,npbmg,np32,32,mpich,fix,calibrate,delays:D50,10,prerequisite,32,1,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+npbmg/delays-D50,npbmg,np32,32,mpich,bug,delays,D50,40,main,32,1,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+npbmg/delays-D50,npbmg,np32,32,mpich,fix,delays,D50,40,main,32,1,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+npbmg/calibrate,npbmg,np32,32,mpich,fix,calibrate,ninja:random,10,prerequisite,32,1,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+npbmg/ninja-random,npbmg,np32,32,mpich,bug,ninja,random,40,main,32,1,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+npbmg/ninja-random,npbmg,np32,32,mpich,fix,ninja,random,40,main,32,1,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+npbmg/calibrate,npbmg,np32,32,mpich,fix,calibrate,ninja:system,10,prerequisite,32,1,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+npbmg/ninja-system,npbmg,np32,32,mpich,bug,ninja,system,40,appendix,32,1,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+npbmg/ninja-system,npbmg,np32,32,mpich,fix,ninja,system,40,appendix,32,1,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+npbmg/calibrate,npbmg,np32,32,mpich,fix,calibrate,ninja:app,10,prerequisite,32,1,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+npbmg/ninja-app,npbmg,np32,32,mpich,bug,ninja,app,40,appendix,32,1,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+npbmg/ninja-learn,npbmg,np32,32,mpich,bug,ninja,learn,1,prerequisite,32,1,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+npbmg/ninja-app,npbmg,np32,32,mpich,fix,ninja,app,40,appendix,32,1,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+npbmg/ninja-learn,npbmg,np32,32,mpich,fix,ninja,learn,1,prerequisite,32,1,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+npbmg/calibrate,npbmg,np32,32,mpich,fix,calibrate,must:1.11.2,10,prerequisite,35,1,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+npbmg/must-1.11.2,npbmg,np32,32,mpich,bug,must,1.11.2,40,main,35,1,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+npbmg/must-1.11.2,npbmg,np32,32,mpich,fix,must,1.11.2,40,main,35,1,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+npbmg/calibrate,npbmg,np32,32,mpich,fix,calibrate,stretto:traced,10,prerequisite,32,1,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+npbmg/stretto-traced,npbmg,np32,32,mpich,bug,stretto,traced,40,main,32,1,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+npbmg/stretto-traced,npbmg,np32,32,mpich,fix,stretto,traced,40,main,32,1,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+npbmg/calibrate,npbmg,np32,32,mpich,fix,calibrate,ninja:nonoise,10,prerequisite,32,1,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+npbmg/ninja-nonoise,npbmg,np32,32,mpich,bug,ninja,nonoise,10,check,32,1,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+npbmg/ninja-nonoise,npbmg,np32,32,mpich,fix,ninja,nonoise,10,check,32,1,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+npbmg/replay,npbmg,np32,32,mpich,bug,stretto,replay,40,main,32,1,stretto-exp:24.04,replays.py,"every distinct alternative by its pins over the configuration's traces, a seeded sample of 40 if more; each with its control; only if the traces predict the bug"
+npbmg/mpiprv,npbmg,np16,16,mpich,bug,mpiprv,attempt,1,main,16,0,mpiprv/mpiprv,experiments/mpiprv/apps.py,"attempted on every subject, Fortran ones included; build or instrumentation failure recorded"
+dealii/calibrate,dealii,np4,4,mpich,fix,calibrate,plain:-,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+dealii/plain,dealii,np4,4,mpich,bug,plain,-,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+dealii/plain,dealii,np4,4,mpich,fix,plain,-,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+dealii/calibrate,dealii,np4,4,mpich,fix,calibrate,delays:D50,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+dealii/delays-D50,dealii,np4,4,mpich,bug,delays,D50,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+dealii/delays-D50,dealii,np4,4,mpich,fix,delays,D50,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+dealii/calibrate,dealii,np4,4,mpich,fix,calibrate,ninja:random,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+dealii/ninja-random,dealii,np4,4,mpich,bug,ninja,random,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+dealii/ninja-random,dealii,np4,4,mpich,fix,ninja,random,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+dealii/calibrate,dealii,np4,4,mpich,fix,calibrate,ninja:system,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+dealii/ninja-system,dealii,np4,4,mpich,bug,ninja,system,40,appendix,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+dealii/ninja-system,dealii,np4,4,mpich,fix,ninja,system,40,appendix,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+dealii/calibrate,dealii,np4,4,mpich,fix,calibrate,ninja:app,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+dealii/ninja-app,dealii,np4,4,mpich,bug,ninja,app,40,appendix,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+dealii/ninja-learn,dealii,np4,4,mpich,bug,ninja,learn,1,prerequisite,4,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+dealii/ninja-app,dealii,np4,4,mpich,fix,ninja,app,40,appendix,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+dealii/ninja-learn,dealii,np4,4,mpich,fix,ninja,learn,1,prerequisite,4,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+dealii/calibrate,dealii,np4,4,mpich,fix,calibrate,must:1.11.2,10,prerequisite,6,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+dealii/must-1.11.2,dealii,np4,4,mpich,bug,must,1.11.2,40,main,6,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+dealii/must-1.11.2,dealii,np4,4,mpich,fix,must,1.11.2,40,main,6,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+dealii/calibrate,dealii,np4,4,mpich,fix,calibrate,stretto:traced,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+dealii/stretto-traced,dealii,np4,4,mpich,bug,stretto,traced,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+dealii/stretto-traced,dealii,np4,4,mpich,fix,stretto,traced,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+dealii/calibrate,dealii,np4,4,mpich,fix,calibrate,ninja:nonoise,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+dealii/ninja-nonoise,dealii,np4,4,mpich,bug,ninja,nonoise,10,check,4,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+dealii/ninja-nonoise,dealii,np4,4,mpich,fix,ninja,nonoise,10,check,4,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+dealii/plain-serial,dealii,np4,4,mpich,bug,plain,serial,40,check,4,1,stretto-exp:24.04,run.py,"jobs = 1, beside the 40 parallel plain runs; Fisher's exact test"
+dealii/replay,dealii,np4,4,mpich,bug,stretto,replay,40,main,4,0,stretto-exp:24.04,replays.py,"every distinct alternative by its pins over the configuration's traces, a seeded sample of 40 if more; each with its control; only if the traces predict the bug"
+dealii/mpiprv,dealii,np4,4,mpich,bug,mpiprv,attempt,1,main,4,0,mpiprv/mpiprv,experiments/mpiprv/apps.py,"attempted on every subject, Fortran ones included; build or instrumentation failure recorded"
+dealii8929/calibrate,dealii8929,np4,4,openmpi,fix,calibrate,plain:-,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+dealii8929/plain,dealii8929,np4,4,openmpi,bug,plain,-,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+dealii8929/plain,dealii8929,np4,4,openmpi,fix,plain,-,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+dealii8929/calibrate,dealii8929,np4,4,openmpi,fix,calibrate,delays:D50,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+dealii8929/delays-D50,dealii8929,np4,4,openmpi,bug,delays,D50,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+dealii8929/delays-D50,dealii8929,np4,4,openmpi,fix,delays,D50,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+dealii8929/calibrate,dealii8929,np4,4,openmpi,fix,calibrate,ninja:random,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+dealii8929/ninja-random,dealii8929,np4,4,openmpi,bug,ninja,random,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+dealii8929/ninja-random,dealii8929,np4,4,openmpi,fix,ninja,random,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+dealii8929/calibrate,dealii8929,np4,4,openmpi,fix,calibrate,ninja:system,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+dealii8929/ninja-system,dealii8929,np4,4,openmpi,bug,ninja,system,40,appendix,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+dealii8929/ninja-system,dealii8929,np4,4,openmpi,fix,ninja,system,40,appendix,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+dealii8929/calibrate,dealii8929,np4,4,openmpi,fix,calibrate,ninja:app,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+dealii8929/ninja-app,dealii8929,np4,4,openmpi,bug,ninja,app,40,appendix,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+dealii8929/ninja-learn,dealii8929,np4,4,openmpi,bug,ninja,learn,1,prerequisite,4,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+dealii8929/ninja-app,dealii8929,np4,4,openmpi,fix,ninja,app,40,appendix,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+dealii8929/ninja-learn,dealii8929,np4,4,openmpi,fix,ninja,learn,1,prerequisite,4,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+dealii8929/calibrate,dealii8929,np4,4,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,6,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+dealii8929/must-1.11.2,dealii8929,np4,4,openmpi,bug,must,1.11.2,40,main,6,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+dealii8929/must-1.11.2,dealii8929,np4,4,openmpi,fix,must,1.11.2,40,main,6,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+dealii8929/calibrate,dealii8929,np4,4,openmpi,fix,calibrate,stretto:traced,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+dealii8929/stretto-traced,dealii8929,np4,4,openmpi,bug,stretto,traced,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+dealii8929/stretto-traced,dealii8929,np4,4,openmpi,fix,stretto,traced,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+dealii8929/calibrate,dealii8929,np4,4,openmpi,fix,calibrate,ninja:nonoise,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+dealii8929/ninja-nonoise,dealii8929,np4,4,openmpi,bug,ninja,nonoise,10,check,4,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+dealii8929/ninja-nonoise,dealii8929,np4,4,openmpi,fix,ninja,nonoise,10,check,4,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+dealii8929/plain-serial,dealii8929,np4,4,openmpi,bug,plain,serial,40,check,4,1,stretto-exp:24.04,run.py,"jobs = 1, beside the 40 parallel plain runs; Fisher's exact test"
+dealii8929/replay,dealii8929,np4,4,openmpi,bug,stretto,replay,40,main,4,0,stretto-exp:24.04,replays.py,"every distinct alternative by its pins over the configuration's traces, a seeded sample of 40 if more; each with its control; only if the traces predict the bug"
+dealii8929/calibrate,dealii8929,np8,8,openmpi,fix,calibrate,plain:-,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+dealii8929/plain,dealii8929,np8,8,openmpi,bug,plain,-,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+dealii8929/plain,dealii8929,np8,8,openmpi,fix,plain,-,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+dealii8929/calibrate,dealii8929,np8,8,openmpi,fix,calibrate,delays:D50,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+dealii8929/delays-D50,dealii8929,np8,8,openmpi,bug,delays,D50,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+dealii8929/delays-D50,dealii8929,np8,8,openmpi,fix,delays,D50,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+dealii8929/calibrate,dealii8929,np8,8,openmpi,fix,calibrate,ninja:random,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+dealii8929/ninja-random,dealii8929,np8,8,openmpi,bug,ninja,random,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+dealii8929/ninja-random,dealii8929,np8,8,openmpi,fix,ninja,random,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+dealii8929/calibrate,dealii8929,np8,8,openmpi,fix,calibrate,ninja:system,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+dealii8929/ninja-system,dealii8929,np8,8,openmpi,bug,ninja,system,40,appendix,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+dealii8929/ninja-system,dealii8929,np8,8,openmpi,fix,ninja,system,40,appendix,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+dealii8929/calibrate,dealii8929,np8,8,openmpi,fix,calibrate,ninja:app,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+dealii8929/ninja-app,dealii8929,np8,8,openmpi,bug,ninja,app,40,appendix,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+dealii8929/ninja-learn,dealii8929,np8,8,openmpi,bug,ninja,learn,1,prerequisite,8,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+dealii8929/ninja-app,dealii8929,np8,8,openmpi,fix,ninja,app,40,appendix,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+dealii8929/ninja-learn,dealii8929,np8,8,openmpi,fix,ninja,learn,1,prerequisite,8,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+dealii8929/calibrate,dealii8929,np8,8,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,11,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+dealii8929/must-1.11.2,dealii8929,np8,8,openmpi,bug,must,1.11.2,40,main,11,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+dealii8929/must-1.11.2,dealii8929,np8,8,openmpi,fix,must,1.11.2,40,main,11,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+dealii8929/calibrate,dealii8929,np8,8,openmpi,fix,calibrate,stretto:traced,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+dealii8929/stretto-traced,dealii8929,np8,8,openmpi,bug,stretto,traced,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+dealii8929/stretto-traced,dealii8929,np8,8,openmpi,fix,stretto,traced,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+dealii8929/calibrate,dealii8929,np8,8,openmpi,fix,calibrate,ninja:nonoise,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+dealii8929/ninja-nonoise,dealii8929,np8,8,openmpi,bug,ninja,nonoise,10,check,8,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+dealii8929/ninja-nonoise,dealii8929,np8,8,openmpi,fix,ninja,nonoise,10,check,8,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+dealii8929/replay,dealii8929,np8,8,openmpi,bug,stretto,replay,40,main,8,0,stretto-exp:24.04,replays.py,"every distinct alternative by its pins over the configuration's traces, a seeded sample of 40 if more; each with its control; only if the traces predict the bug"
+dealii8929/mpiprv,dealii8929,np4,4,openmpi,bug,mpiprv,attempt,1,main,4,0,mpiprv/mpiprv,experiments/mpiprv/apps.py,"attempted on every subject, Fortran ones included; build or instrumentation failure recorded"
+cabana/calibrate,cabana,np3,3,openmpi,fix,calibrate,plain:-,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+cabana/plain,cabana,np3,3,openmpi,bug,plain,-,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+cabana/plain,cabana,np3,3,openmpi,fix,plain,-,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+cabana/calibrate,cabana,np3,3,openmpi,fix,calibrate,delays:D50,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+cabana/delays-D50,cabana,np3,3,openmpi,bug,delays,D50,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+cabana/delays-D50,cabana,np3,3,openmpi,fix,delays,D50,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+cabana/calibrate,cabana,np3,3,openmpi,fix,calibrate,ninja:random,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+cabana/ninja-random,cabana,np3,3,openmpi,bug,ninja,random,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+cabana/ninja-random,cabana,np3,3,openmpi,fix,ninja,random,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+cabana/calibrate,cabana,np3,3,openmpi,fix,calibrate,ninja:system,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+cabana/ninja-system,cabana,np3,3,openmpi,bug,ninja,system,40,appendix,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+cabana/ninja-system,cabana,np3,3,openmpi,fix,ninja,system,40,appendix,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+cabana/calibrate,cabana,np3,3,openmpi,fix,calibrate,ninja:app,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+cabana/ninja-app,cabana,np3,3,openmpi,bug,ninja,app,40,appendix,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+cabana/ninja-learn,cabana,np3,3,openmpi,bug,ninja,learn,1,prerequisite,3,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+cabana/ninja-app,cabana,np3,3,openmpi,fix,ninja,app,40,appendix,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+cabana/ninja-learn,cabana,np3,3,openmpi,fix,ninja,learn,1,prerequisite,3,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+cabana/calibrate,cabana,np3,3,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,5,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+cabana/must-1.11.2,cabana,np3,3,openmpi,bug,must,1.11.2,40,main,5,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+cabana/must-1.11.2,cabana,np3,3,openmpi,fix,must,1.11.2,40,main,5,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+cabana/calibrate,cabana,np3,3,openmpi,fix,calibrate,stretto:traced,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+cabana/stretto-traced,cabana,np3,3,openmpi,bug,stretto,traced,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+cabana/stretto-traced,cabana,np3,3,openmpi,fix,stretto,traced,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+cabana/calibrate,cabana,np3,3,openmpi,fix,calibrate,ninja:nonoise,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+cabana/ninja-nonoise,cabana,np3,3,openmpi,bug,ninja,nonoise,10,check,3,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+cabana/ninja-nonoise,cabana,np3,3,openmpi,fix,ninja,nonoise,10,check,3,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+cabana/plain-serial,cabana,np3,3,openmpi,bug,plain,serial,40,check,3,1,stretto-exp:24.04,run.py,"jobs = 1, beside the 40 parallel plain runs; Fisher's exact test"
+cabana/replay,cabana,np3,3,openmpi,bug,stretto,replay,40,main,3,0,stretto-exp:24.04,replays.py,"every distinct alternative by its pins over the configuration's traces, a seeded sample of 40 if more; each with its control; only if the traces predict the bug"
+cabana/calibrate,cabana,np4,4,openmpi,fix,calibrate,plain:-,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+cabana/plain,cabana,np4,4,openmpi,bug,plain,-,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+cabana/plain,cabana,np4,4,openmpi,fix,plain,-,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+cabana/calibrate,cabana,np4,4,openmpi,fix,calibrate,delays:D50,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+cabana/delays-D50,cabana,np4,4,openmpi,bug,delays,D50,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+cabana/delays-D50,cabana,np4,4,openmpi,fix,delays,D50,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+cabana/calibrate,cabana,np4,4,openmpi,fix,calibrate,ninja:random,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+cabana/ninja-random,cabana,np4,4,openmpi,bug,ninja,random,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+cabana/ninja-random,cabana,np4,4,openmpi,fix,ninja,random,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+cabana/calibrate,cabana,np4,4,openmpi,fix,calibrate,ninja:system,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+cabana/ninja-system,cabana,np4,4,openmpi,bug,ninja,system,40,appendix,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+cabana/ninja-system,cabana,np4,4,openmpi,fix,ninja,system,40,appendix,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+cabana/calibrate,cabana,np4,4,openmpi,fix,calibrate,ninja:app,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+cabana/ninja-app,cabana,np4,4,openmpi,bug,ninja,app,40,appendix,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+cabana/ninja-learn,cabana,np4,4,openmpi,bug,ninja,learn,1,prerequisite,4,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+cabana/ninja-app,cabana,np4,4,openmpi,fix,ninja,app,40,appendix,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+cabana/ninja-learn,cabana,np4,4,openmpi,fix,ninja,learn,1,prerequisite,4,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+cabana/calibrate,cabana,np4,4,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,6,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+cabana/must-1.11.2,cabana,np4,4,openmpi,bug,must,1.11.2,40,main,6,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+cabana/must-1.11.2,cabana,np4,4,openmpi,fix,must,1.11.2,40,main,6,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+cabana/calibrate,cabana,np4,4,openmpi,fix,calibrate,stretto:traced,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+cabana/stretto-traced,cabana,np4,4,openmpi,bug,stretto,traced,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+cabana/stretto-traced,cabana,np4,4,openmpi,fix,stretto,traced,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+cabana/calibrate,cabana,np4,4,openmpi,fix,calibrate,ninja:nonoise,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+cabana/ninja-nonoise,cabana,np4,4,openmpi,bug,ninja,nonoise,10,check,4,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+cabana/ninja-nonoise,cabana,np4,4,openmpi,fix,ninja,nonoise,10,check,4,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+cabana/replay,cabana,np4,4,openmpi,bug,stretto,replay,40,main,4,0,stretto-exp:24.04,replays.py,"every distinct alternative by its pins over the configuration's traces, a seeded sample of 40 if more; each with its control; only if the traces predict the bug"
+cabana/calibrate,cabana,np3-repeat2,3,openmpi,fix,calibrate,plain:-,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+cabana/plain,cabana,np3-repeat2,3,openmpi,bug,plain,-,40,supplementary,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+cabana/plain,cabana,np3-repeat2,3,openmpi,fix,plain,-,40,supplementary,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+cabana/calibrate,cabana,np3-repeat2,3,openmpi,fix,calibrate,delays:D50,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+cabana/delays-D50,cabana,np3-repeat2,3,openmpi,bug,delays,D50,40,supplementary,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+cabana/delays-D50,cabana,np3-repeat2,3,openmpi,fix,delays,D50,40,supplementary,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+cabana/calibrate,cabana,np3-repeat2,3,openmpi,fix,calibrate,ninja:random,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+cabana/ninja-random,cabana,np3-repeat2,3,openmpi,bug,ninja,random,40,supplementary,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+cabana/ninja-random,cabana,np3-repeat2,3,openmpi,fix,ninja,random,40,supplementary,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+cabana/calibrate,cabana,np3-repeat2,3,openmpi,fix,calibrate,ninja:system,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+cabana/ninja-system,cabana,np3-repeat2,3,openmpi,bug,ninja,system,40,supplementary,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+cabana/ninja-system,cabana,np3-repeat2,3,openmpi,fix,ninja,system,40,supplementary,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+cabana/calibrate,cabana,np3-repeat2,3,openmpi,fix,calibrate,ninja:app,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+cabana/ninja-app,cabana,np3-repeat2,3,openmpi,bug,ninja,app,40,supplementary,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+cabana/ninja-learn,cabana,np3-repeat2,3,openmpi,bug,ninja,learn,1,prerequisite,3,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+cabana/ninja-app,cabana,np3-repeat2,3,openmpi,fix,ninja,app,40,supplementary,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+cabana/ninja-learn,cabana,np3-repeat2,3,openmpi,fix,ninja,learn,1,prerequisite,3,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+cabana/calibrate,cabana,np3-repeat2,3,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,5,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+cabana/must-1.11.2,cabana,np3-repeat2,3,openmpi,bug,must,1.11.2,40,supplementary,5,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+cabana/must-1.11.2,cabana,np3-repeat2,3,openmpi,fix,must,1.11.2,40,supplementary,5,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+cabana/calibrate,cabana,np3-repeat2,3,openmpi,fix,calibrate,stretto:traced,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+cabana/stretto-traced,cabana,np3-repeat2,3,openmpi,bug,stretto,traced,40,supplementary,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+cabana/stretto-traced,cabana,np3-repeat2,3,openmpi,fix,stretto,traced,40,supplementary,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+cabana/calibrate,cabana,np3-repeat2,3,openmpi,fix,calibrate,ninja:nonoise,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+cabana/ninja-nonoise,cabana,np3-repeat2,3,openmpi,bug,ninja,nonoise,10,supplementary,3,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+cabana/ninja-nonoise,cabana,np3-repeat2,3,openmpi,fix,ninja,nonoise,10,supplementary,3,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+cabana/replay,cabana,np3-repeat2,3,openmpi,bug,stretto,replay,40,main,3,0,stretto-exp:24.04,replays.py,"every distinct alternative by its pins over the configuration's traces, a seeded sample of 40 if more; each with its control; only if the traces predict the bug"
+cabana/calibrate,cabana,np4-repeat2,4,openmpi,fix,calibrate,plain:-,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+cabana/plain,cabana,np4-repeat2,4,openmpi,bug,plain,-,40,supplementary,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+cabana/plain,cabana,np4-repeat2,4,openmpi,fix,plain,-,40,supplementary,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+cabana/calibrate,cabana,np4-repeat2,4,openmpi,fix,calibrate,delays:D50,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+cabana/delays-D50,cabana,np4-repeat2,4,openmpi,bug,delays,D50,40,supplementary,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+cabana/delays-D50,cabana,np4-repeat2,4,openmpi,fix,delays,D50,40,supplementary,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+cabana/calibrate,cabana,np4-repeat2,4,openmpi,fix,calibrate,ninja:random,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+cabana/ninja-random,cabana,np4-repeat2,4,openmpi,bug,ninja,random,40,supplementary,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+cabana/ninja-random,cabana,np4-repeat2,4,openmpi,fix,ninja,random,40,supplementary,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+cabana/calibrate,cabana,np4-repeat2,4,openmpi,fix,calibrate,ninja:system,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+cabana/ninja-system,cabana,np4-repeat2,4,openmpi,bug,ninja,system,40,supplementary,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+cabana/ninja-system,cabana,np4-repeat2,4,openmpi,fix,ninja,system,40,supplementary,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+cabana/calibrate,cabana,np4-repeat2,4,openmpi,fix,calibrate,ninja:app,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+cabana/ninja-app,cabana,np4-repeat2,4,openmpi,bug,ninja,app,40,supplementary,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+cabana/ninja-learn,cabana,np4-repeat2,4,openmpi,bug,ninja,learn,1,prerequisite,4,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+cabana/ninja-app,cabana,np4-repeat2,4,openmpi,fix,ninja,app,40,supplementary,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+cabana/ninja-learn,cabana,np4-repeat2,4,openmpi,fix,ninja,learn,1,prerequisite,4,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+cabana/calibrate,cabana,np4-repeat2,4,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,6,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+cabana/must-1.11.2,cabana,np4-repeat2,4,openmpi,bug,must,1.11.2,40,supplementary,6,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+cabana/must-1.11.2,cabana,np4-repeat2,4,openmpi,fix,must,1.11.2,40,supplementary,6,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+cabana/calibrate,cabana,np4-repeat2,4,openmpi,fix,calibrate,stretto:traced,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+cabana/stretto-traced,cabana,np4-repeat2,4,openmpi,bug,stretto,traced,40,supplementary,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+cabana/stretto-traced,cabana,np4-repeat2,4,openmpi,fix,stretto,traced,40,supplementary,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+cabana/calibrate,cabana,np4-repeat2,4,openmpi,fix,calibrate,ninja:nonoise,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+cabana/ninja-nonoise,cabana,np4-repeat2,4,openmpi,bug,ninja,nonoise,10,supplementary,4,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+cabana/ninja-nonoise,cabana,np4-repeat2,4,openmpi,fix,ninja,nonoise,10,supplementary,4,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+cabana/replay,cabana,np4-repeat2,4,openmpi,bug,stretto,replay,40,main,4,0,stretto-exp:24.04,replays.py,"every distinct alternative by its pins over the configuration's traces, a seeded sample of 40 if more; each with its control; only if the traces predict the bug"
+cabana/mpiprv,cabana,np3,3,openmpi,bug,mpiprv,attempt,1,main,3,0,mpiprv/mpiprv,experiments/mpiprv/apps.py,"attempted on every subject, Fortran ones included; build or instrumentation failure recorded"
+stempy/calibrate,stempy,np4,4,openmpi,fix,calibrate,plain:-,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+stempy/plain,stempy,np4,4,openmpi,bug,plain,-,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+stempy/plain,stempy,np4,4,openmpi,fix,plain,-,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+stempy/calibrate,stempy,np4,4,openmpi,fix,calibrate,delays:D50,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+stempy/delays-D50,stempy,np4,4,openmpi,bug,delays,D50,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+stempy/delays-D50,stempy,np4,4,openmpi,fix,delays,D50,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+stempy/calibrate,stempy,np4,4,openmpi,fix,calibrate,ninja:random,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+stempy/ninja-random,stempy,np4,4,openmpi,bug,ninja,random,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+stempy/ninja-random,stempy,np4,4,openmpi,fix,ninja,random,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+stempy/calibrate,stempy,np4,4,openmpi,fix,calibrate,ninja:system,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+stempy/ninja-system,stempy,np4,4,openmpi,bug,ninja,system,40,appendix,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+stempy/ninja-system,stempy,np4,4,openmpi,fix,ninja,system,40,appendix,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+stempy/calibrate,stempy,np4,4,openmpi,fix,calibrate,ninja:app,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+stempy/ninja-app,stempy,np4,4,openmpi,bug,ninja,app,40,appendix,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+stempy/ninja-learn,stempy,np4,4,openmpi,bug,ninja,learn,1,prerequisite,4,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+stempy/ninja-app,stempy,np4,4,openmpi,fix,ninja,app,40,appendix,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+stempy/ninja-learn,stempy,np4,4,openmpi,fix,ninja,learn,1,prerequisite,4,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+stempy/calibrate,stempy,np4,4,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,6,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+stempy/must-1.11.2,stempy,np4,4,openmpi,bug,must,1.11.2,40,main,6,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+stempy/must-1.11.2,stempy,np4,4,openmpi,fix,must,1.11.2,40,main,6,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+stempy/calibrate,stempy,np4,4,openmpi,fix,calibrate,stretto:traced,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+stempy/stretto-traced,stempy,np4,4,openmpi,bug,stretto,traced,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+stempy/stretto-traced,stempy,np4,4,openmpi,fix,stretto,traced,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+stempy/calibrate,stempy,np4,4,openmpi,fix,calibrate,ninja:nonoise,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+stempy/ninja-nonoise,stempy,np4,4,openmpi,bug,ninja,nonoise,10,check,4,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+stempy/ninja-nonoise,stempy,np4,4,openmpi,fix,ninja,nonoise,10,check,4,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+stempy/plain-serial,stempy,np4,4,openmpi,bug,plain,serial,40,check,4,1,stretto-exp:24.04,run.py,"jobs = 1, beside the 40 parallel plain runs; Fisher's exact test"
+stempy/replay,stempy,np4,4,openmpi,bug,stretto,replay,40,main,4,0,stretto-exp:24.04,replays.py,"every distinct alternative by its pins over the configuration's traces, a seeded sample of 40 if more; each with its control; only if the traces predict the bug"
+stempy/calibrate,stempy,np8,8,openmpi,fix,calibrate,plain:-,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+stempy/plain,stempy,np8,8,openmpi,bug,plain,-,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+stempy/plain,stempy,np8,8,openmpi,fix,plain,-,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+stempy/calibrate,stempy,np8,8,openmpi,fix,calibrate,delays:D50,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+stempy/delays-D50,stempy,np8,8,openmpi,bug,delays,D50,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+stempy/delays-D50,stempy,np8,8,openmpi,fix,delays,D50,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+stempy/calibrate,stempy,np8,8,openmpi,fix,calibrate,ninja:random,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+stempy/ninja-random,stempy,np8,8,openmpi,bug,ninja,random,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+stempy/ninja-random,stempy,np8,8,openmpi,fix,ninja,random,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+stempy/calibrate,stempy,np8,8,openmpi,fix,calibrate,ninja:system,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+stempy/ninja-system,stempy,np8,8,openmpi,bug,ninja,system,40,appendix,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+stempy/ninja-system,stempy,np8,8,openmpi,fix,ninja,system,40,appendix,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+stempy/calibrate,stempy,np8,8,openmpi,fix,calibrate,ninja:app,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+stempy/ninja-app,stempy,np8,8,openmpi,bug,ninja,app,40,appendix,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+stempy/ninja-learn,stempy,np8,8,openmpi,bug,ninja,learn,1,prerequisite,8,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+stempy/ninja-app,stempy,np8,8,openmpi,fix,ninja,app,40,appendix,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+stempy/ninja-learn,stempy,np8,8,openmpi,fix,ninja,learn,1,prerequisite,8,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+stempy/calibrate,stempy,np8,8,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,11,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+stempy/must-1.11.2,stempy,np8,8,openmpi,bug,must,1.11.2,40,main,11,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+stempy/must-1.11.2,stempy,np8,8,openmpi,fix,must,1.11.2,40,main,11,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+stempy/calibrate,stempy,np8,8,openmpi,fix,calibrate,stretto:traced,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+stempy/stretto-traced,stempy,np8,8,openmpi,bug,stretto,traced,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+stempy/stretto-traced,stempy,np8,8,openmpi,fix,stretto,traced,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+stempy/calibrate,stempy,np8,8,openmpi,fix,calibrate,ninja:nonoise,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+stempy/ninja-nonoise,stempy,np8,8,openmpi,bug,ninja,nonoise,10,check,8,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+stempy/ninja-nonoise,stempy,np8,8,openmpi,fix,ninja,nonoise,10,check,8,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+stempy/replay,stempy,np8,8,openmpi,bug,stretto,replay,40,main,8,0,stretto-exp:24.04,replays.py,"every distinct alternative by its pins over the configuration's traces, a seeded sample of 40 if more; each with its control; only if the traces predict the bug"
+stempy/mpiprv,stempy,np4,4,openmpi,bug,mpiprv,attempt,1,main,4,0,mpiprv/mpiprv,experiments/mpiprv/apps.py,"attempted on every subject, Fortran ones included; build or instrumentation failure recorded"
+mfem332/calibrate,mfem332,np4,4,openmpi,fix,calibrate,plain:-,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+mfem332/plain,mfem332,np4,4,openmpi,bug,plain,-,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+mfem332/plain,mfem332,np4,4,openmpi,fix,plain,-,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+mfem332/calibrate,mfem332,np4,4,openmpi,fix,calibrate,delays:D50,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+mfem332/delays-D50,mfem332,np4,4,openmpi,bug,delays,D50,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+mfem332/delays-D50,mfem332,np4,4,openmpi,fix,delays,D50,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+mfem332/calibrate,mfem332,np4,4,openmpi,fix,calibrate,ninja:random,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+mfem332/ninja-random,mfem332,np4,4,openmpi,bug,ninja,random,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+mfem332/ninja-random,mfem332,np4,4,openmpi,fix,ninja,random,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+mfem332/calibrate,mfem332,np4,4,openmpi,fix,calibrate,ninja:system,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+mfem332/ninja-system,mfem332,np4,4,openmpi,bug,ninja,system,40,appendix,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+mfem332/ninja-system,mfem332,np4,4,openmpi,fix,ninja,system,40,appendix,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+mfem332/calibrate,mfem332,np4,4,openmpi,fix,calibrate,ninja:app,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+mfem332/ninja-app,mfem332,np4,4,openmpi,bug,ninja,app,40,appendix,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+mfem332/ninja-learn,mfem332,np4,4,openmpi,bug,ninja,learn,1,prerequisite,4,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+mfem332/ninja-app,mfem332,np4,4,openmpi,fix,ninja,app,40,appendix,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+mfem332/ninja-learn,mfem332,np4,4,openmpi,fix,ninja,learn,1,prerequisite,4,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+mfem332/calibrate,mfem332,np4,4,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,6,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+mfem332/must-1.11.2,mfem332,np4,4,openmpi,bug,must,1.11.2,40,main,6,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+mfem332/must-1.11.2,mfem332,np4,4,openmpi,fix,must,1.11.2,40,main,6,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+mfem332/calibrate,mfem332,np4,4,openmpi,fix,calibrate,stretto:traced,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+mfem332/stretto-traced,mfem332,np4,4,openmpi,bug,stretto,traced,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+mfem332/stretto-traced,mfem332,np4,4,openmpi,fix,stretto,traced,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+mfem332/calibrate,mfem332,np4,4,openmpi,fix,calibrate,ninja:nonoise,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+mfem332/ninja-nonoise,mfem332,np4,4,openmpi,bug,ninja,nonoise,10,check,4,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+mfem332/ninja-nonoise,mfem332,np4,4,openmpi,fix,ninja,nonoise,10,check,4,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+mfem332/plain-serial,mfem332,np4,4,openmpi,bug,plain,serial,40,check,4,1,stretto-exp:24.04,run.py,"jobs = 1, beside the 40 parallel plain runs; Fisher's exact test"
+mfem332/replay,mfem332,np4,4,openmpi,bug,stretto,replay,40,main,4,0,stretto-exp:24.04,replays.py,"every distinct alternative by its pins over the configuration's traces, a seeded sample of 40 if more; each with its control; only if the traces predict the bug"
+mfem332/calibrate,mfem332,np8,8,openmpi,fix,calibrate,plain:-,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+mfem332/plain,mfem332,np8,8,openmpi,bug,plain,-,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+mfem332/plain,mfem332,np8,8,openmpi,fix,plain,-,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+mfem332/calibrate,mfem332,np8,8,openmpi,fix,calibrate,delays:D50,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+mfem332/delays-D50,mfem332,np8,8,openmpi,bug,delays,D50,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+mfem332/delays-D50,mfem332,np8,8,openmpi,fix,delays,D50,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+mfem332/calibrate,mfem332,np8,8,openmpi,fix,calibrate,ninja:random,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+mfem332/ninja-random,mfem332,np8,8,openmpi,bug,ninja,random,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+mfem332/ninja-random,mfem332,np8,8,openmpi,fix,ninja,random,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+mfem332/calibrate,mfem332,np8,8,openmpi,fix,calibrate,ninja:system,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+mfem332/ninja-system,mfem332,np8,8,openmpi,bug,ninja,system,40,appendix,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+mfem332/ninja-system,mfem332,np8,8,openmpi,fix,ninja,system,40,appendix,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+mfem332/calibrate,mfem332,np8,8,openmpi,fix,calibrate,ninja:app,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+mfem332/ninja-app,mfem332,np8,8,openmpi,bug,ninja,app,40,appendix,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+mfem332/ninja-learn,mfem332,np8,8,openmpi,bug,ninja,learn,1,prerequisite,8,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+mfem332/ninja-app,mfem332,np8,8,openmpi,fix,ninja,app,40,appendix,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+mfem332/ninja-learn,mfem332,np8,8,openmpi,fix,ninja,learn,1,prerequisite,8,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+mfem332/calibrate,mfem332,np8,8,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,11,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+mfem332/must-1.11.2,mfem332,np8,8,openmpi,bug,must,1.11.2,40,main,11,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+mfem332/must-1.11.2,mfem332,np8,8,openmpi,fix,must,1.11.2,40,main,11,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+mfem332/calibrate,mfem332,np8,8,openmpi,fix,calibrate,stretto:traced,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+mfem332/stretto-traced,mfem332,np8,8,openmpi,bug,stretto,traced,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+mfem332/stretto-traced,mfem332,np8,8,openmpi,fix,stretto,traced,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+mfem332/calibrate,mfem332,np8,8,openmpi,fix,calibrate,ninja:nonoise,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+mfem332/ninja-nonoise,mfem332,np8,8,openmpi,bug,ninja,nonoise,10,check,8,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+mfem332/ninja-nonoise,mfem332,np8,8,openmpi,fix,ninja,nonoise,10,check,8,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+mfem332/replay,mfem332,np8,8,openmpi,bug,stretto,replay,40,main,8,0,stretto-exp:24.04,replays.py,"every distinct alternative by its pins over the configuration's traces, a seeded sample of 40 if more; each with its control; only if the traces predict the bug"
+mfem332/mpiprv,mfem332,np4,4,openmpi,bug,mpiprv,attempt,1,main,4,0,mpiprv/mpiprv,experiments/mpiprv/apps.py,"attempted on every subject, Fortran ones included; build or instrumentation failure recorded"
+lammps/calibrate,lammps,np4,4,openmpi,fix,calibrate,plain:-,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+lammps/plain,lammps,np4,4,openmpi,bug,plain,-,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+lammps/plain,lammps,np4,4,openmpi,fix,plain,-,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+lammps/calibrate,lammps,np4,4,openmpi,fix,calibrate,delays:D50,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+lammps/delays-D50,lammps,np4,4,openmpi,bug,delays,D50,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+lammps/delays-D50,lammps,np4,4,openmpi,fix,delays,D50,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+lammps/calibrate,lammps,np4,4,openmpi,fix,calibrate,ninja:random,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+lammps/ninja-random,lammps,np4,4,openmpi,bug,ninja,random,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+lammps/ninja-random,lammps,np4,4,openmpi,fix,ninja,random,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+lammps/calibrate,lammps,np4,4,openmpi,fix,calibrate,ninja:system,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+lammps/ninja-system,lammps,np4,4,openmpi,bug,ninja,system,40,appendix,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+lammps/ninja-system,lammps,np4,4,openmpi,fix,ninja,system,40,appendix,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+lammps/calibrate,lammps,np4,4,openmpi,fix,calibrate,ninja:app,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+lammps/ninja-app,lammps,np4,4,openmpi,bug,ninja,app,40,appendix,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+lammps/ninja-learn,lammps,np4,4,openmpi,bug,ninja,learn,1,prerequisite,4,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+lammps/ninja-app,lammps,np4,4,openmpi,fix,ninja,app,40,appendix,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+lammps/ninja-learn,lammps,np4,4,openmpi,fix,ninja,learn,1,prerequisite,4,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+lammps/calibrate,lammps,np4,4,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,6,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+lammps/must-1.11.2,lammps,np4,4,openmpi,bug,must,1.11.2,40,main,6,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+lammps/must-1.11.2,lammps,np4,4,openmpi,fix,must,1.11.2,40,main,6,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+lammps/calibrate,lammps,np4,4,openmpi,fix,calibrate,stretto:traced,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+lammps/stretto-traced,lammps,np4,4,openmpi,bug,stretto,traced,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+lammps/stretto-traced,lammps,np4,4,openmpi,fix,stretto,traced,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+lammps/calibrate,lammps,np4,4,openmpi,fix,calibrate,ninja:nonoise,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+lammps/ninja-nonoise,lammps,np4,4,openmpi,bug,ninja,nonoise,10,check,4,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+lammps/ninja-nonoise,lammps,np4,4,openmpi,fix,ninja,nonoise,10,check,4,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+lammps/plain-serial,lammps,np4,4,openmpi,bug,plain,serial,40,check,4,1,stretto-exp:24.04,run.py,"jobs = 1, beside the 40 parallel plain runs; Fisher's exact test"
+lammps/replay,lammps,np4,4,openmpi,bug,stretto,replay,40,main,4,0,stretto-exp:24.04,replays.py,"every distinct alternative by its pins over the configuration's traces, a seeded sample of 40 if more; each with its control; only if the traces predict the bug"
+lammps/calibrate,lammps,np8,8,openmpi,fix,calibrate,plain:-,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+lammps/plain,lammps,np8,8,openmpi,bug,plain,-,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+lammps/plain,lammps,np8,8,openmpi,fix,plain,-,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+lammps/calibrate,lammps,np8,8,openmpi,fix,calibrate,delays:D50,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+lammps/delays-D50,lammps,np8,8,openmpi,bug,delays,D50,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+lammps/delays-D50,lammps,np8,8,openmpi,fix,delays,D50,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+lammps/calibrate,lammps,np8,8,openmpi,fix,calibrate,ninja:random,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+lammps/ninja-random,lammps,np8,8,openmpi,bug,ninja,random,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+lammps/ninja-random,lammps,np8,8,openmpi,fix,ninja,random,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+lammps/calibrate,lammps,np8,8,openmpi,fix,calibrate,ninja:system,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+lammps/ninja-system,lammps,np8,8,openmpi,bug,ninja,system,40,appendix,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+lammps/ninja-system,lammps,np8,8,openmpi,fix,ninja,system,40,appendix,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+lammps/calibrate,lammps,np8,8,openmpi,fix,calibrate,ninja:app,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+lammps/ninja-app,lammps,np8,8,openmpi,bug,ninja,app,40,appendix,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+lammps/ninja-learn,lammps,np8,8,openmpi,bug,ninja,learn,1,prerequisite,8,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+lammps/ninja-app,lammps,np8,8,openmpi,fix,ninja,app,40,appendix,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+lammps/ninja-learn,lammps,np8,8,openmpi,fix,ninja,learn,1,prerequisite,8,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+lammps/calibrate,lammps,np8,8,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,11,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+lammps/must-1.11.2,lammps,np8,8,openmpi,bug,must,1.11.2,40,main,11,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+lammps/must-1.11.2,lammps,np8,8,openmpi,fix,must,1.11.2,40,main,11,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+lammps/calibrate,lammps,np8,8,openmpi,fix,calibrate,stretto:traced,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+lammps/stretto-traced,lammps,np8,8,openmpi,bug,stretto,traced,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+lammps/stretto-traced,lammps,np8,8,openmpi,fix,stretto,traced,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+lammps/calibrate,lammps,np8,8,openmpi,fix,calibrate,ninja:nonoise,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+lammps/ninja-nonoise,lammps,np8,8,openmpi,bug,ninja,nonoise,10,check,8,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+lammps/ninja-nonoise,lammps,np8,8,openmpi,fix,ninja,nonoise,10,check,8,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+lammps/replay,lammps,np8,8,openmpi,bug,stretto,replay,40,main,8,0,stretto-exp:24.04,replays.py,"every distinct alternative by its pins over the configuration's traces, a seeded sample of 40 if more; each with its control; only if the traces predict the bug"
+lammps/calibrate,lammps,np4-eager0,4,openmpi,fix,calibrate,plain:-,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+lammps/plain,lammps,np4-eager0,4,openmpi,bug,plain,-,40,supplementary,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+lammps/plain,lammps,np4-eager0,4,openmpi,fix,plain,-,40,supplementary,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+lammps/calibrate,lammps,np4-eager0,4,openmpi,fix,calibrate,delays:D50,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+lammps/delays-D50,lammps,np4-eager0,4,openmpi,bug,delays,D50,40,supplementary,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+lammps/delays-D50,lammps,np4-eager0,4,openmpi,fix,delays,D50,40,supplementary,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+lammps/calibrate,lammps,np4-eager0,4,openmpi,fix,calibrate,ninja:random,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+lammps/ninja-random,lammps,np4-eager0,4,openmpi,bug,ninja,random,40,supplementary,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+lammps/ninja-random,lammps,np4-eager0,4,openmpi,fix,ninja,random,40,supplementary,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+lammps/calibrate,lammps,np4-eager0,4,openmpi,fix,calibrate,ninja:system,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+lammps/ninja-system,lammps,np4-eager0,4,openmpi,bug,ninja,system,40,supplementary,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+lammps/ninja-system,lammps,np4-eager0,4,openmpi,fix,ninja,system,40,supplementary,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+lammps/calibrate,lammps,np4-eager0,4,openmpi,fix,calibrate,ninja:app,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+lammps/ninja-app,lammps,np4-eager0,4,openmpi,bug,ninja,app,40,supplementary,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+lammps/ninja-learn,lammps,np4-eager0,4,openmpi,bug,ninja,learn,1,prerequisite,4,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+lammps/ninja-app,lammps,np4-eager0,4,openmpi,fix,ninja,app,40,supplementary,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+lammps/ninja-learn,lammps,np4-eager0,4,openmpi,fix,ninja,learn,1,prerequisite,4,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+lammps/calibrate,lammps,np4-eager0,4,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,6,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+lammps/must-1.11.2,lammps,np4-eager0,4,openmpi,bug,must,1.11.2,40,supplementary,6,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+lammps/must-1.11.2,lammps,np4-eager0,4,openmpi,fix,must,1.11.2,40,supplementary,6,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+lammps/calibrate,lammps,np4-eager0,4,openmpi,fix,calibrate,stretto:traced,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+lammps/stretto-traced,lammps,np4-eager0,4,openmpi,bug,stretto,traced,40,supplementary,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+lammps/stretto-traced,lammps,np4-eager0,4,openmpi,fix,stretto,traced,40,supplementary,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+lammps/calibrate,lammps,np4-eager0,4,openmpi,fix,calibrate,ninja:nonoise,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+lammps/ninja-nonoise,lammps,np4-eager0,4,openmpi,bug,ninja,nonoise,10,supplementary,4,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+lammps/ninja-nonoise,lammps,np4-eager0,4,openmpi,fix,ninja,nonoise,10,supplementary,4,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+lammps/replay,lammps,np4-eager0,4,openmpi,bug,stretto,replay,40,main,4,0,stretto-exp:24.04,replays.py,"every distinct alternative by its pins over the configuration's traces, a seeded sample of 40 if more; each with its control; only if the traces predict the bug"
+lammps/calibrate,lammps,np8-eager0,8,openmpi,fix,calibrate,plain:-,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+lammps/plain,lammps,np8-eager0,8,openmpi,bug,plain,-,40,supplementary,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+lammps/plain,lammps,np8-eager0,8,openmpi,fix,plain,-,40,supplementary,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+lammps/calibrate,lammps,np8-eager0,8,openmpi,fix,calibrate,delays:D50,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+lammps/delays-D50,lammps,np8-eager0,8,openmpi,bug,delays,D50,40,supplementary,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+lammps/delays-D50,lammps,np8-eager0,8,openmpi,fix,delays,D50,40,supplementary,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+lammps/calibrate,lammps,np8-eager0,8,openmpi,fix,calibrate,ninja:random,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+lammps/ninja-random,lammps,np8-eager0,8,openmpi,bug,ninja,random,40,supplementary,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+lammps/ninja-random,lammps,np8-eager0,8,openmpi,fix,ninja,random,40,supplementary,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+lammps/calibrate,lammps,np8-eager0,8,openmpi,fix,calibrate,ninja:system,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+lammps/ninja-system,lammps,np8-eager0,8,openmpi,bug,ninja,system,40,supplementary,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+lammps/ninja-system,lammps,np8-eager0,8,openmpi,fix,ninja,system,40,supplementary,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+lammps/calibrate,lammps,np8-eager0,8,openmpi,fix,calibrate,ninja:app,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+lammps/ninja-app,lammps,np8-eager0,8,openmpi,bug,ninja,app,40,supplementary,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+lammps/ninja-learn,lammps,np8-eager0,8,openmpi,bug,ninja,learn,1,prerequisite,8,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+lammps/ninja-app,lammps,np8-eager0,8,openmpi,fix,ninja,app,40,supplementary,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+lammps/ninja-learn,lammps,np8-eager0,8,openmpi,fix,ninja,learn,1,prerequisite,8,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+lammps/calibrate,lammps,np8-eager0,8,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,11,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+lammps/must-1.11.2,lammps,np8-eager0,8,openmpi,bug,must,1.11.2,40,supplementary,11,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+lammps/must-1.11.2,lammps,np8-eager0,8,openmpi,fix,must,1.11.2,40,supplementary,11,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+lammps/calibrate,lammps,np8-eager0,8,openmpi,fix,calibrate,stretto:traced,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+lammps/stretto-traced,lammps,np8-eager0,8,openmpi,bug,stretto,traced,40,supplementary,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+lammps/stretto-traced,lammps,np8-eager0,8,openmpi,fix,stretto,traced,40,supplementary,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+lammps/calibrate,lammps,np8-eager0,8,openmpi,fix,calibrate,ninja:nonoise,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+lammps/ninja-nonoise,lammps,np8-eager0,8,openmpi,bug,ninja,nonoise,10,supplementary,8,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+lammps/ninja-nonoise,lammps,np8-eager0,8,openmpi,fix,ninja,nonoise,10,supplementary,8,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+lammps/replay,lammps,np8-eager0,8,openmpi,bug,stretto,replay,40,main,8,0,stretto-exp:24.04,replays.py,"every distinct alternative by its pins over the configuration's traces, a seeded sample of 40 if more; each with its control; only if the traces predict the bug"
+lammps/mpiprv,lammps,np4,4,openmpi,bug,mpiprv,attempt,1,main,4,0,mpiprv/mpiprv,experiments/mpiprv/apps.py,"attempted on every subject, Fortran ones included; build or instrumentation failure recorded"
+superlu3d/calibrate,superlu3d,nos2-openmpi,3,openmpi,fix,calibrate,plain:-,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/plain,superlu3d,nos2-openmpi,3,openmpi,bug,plain,-,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/plain,superlu3d,nos2-openmpi,3,openmpi,fix,plain,-,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/calibrate,superlu3d,nos2-openmpi,3,openmpi,fix,calibrate,delays:D50,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/delays-D50,superlu3d,nos2-openmpi,3,openmpi,bug,delays,D50,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/delays-D50,superlu3d,nos2-openmpi,3,openmpi,fix,delays,D50,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/calibrate,superlu3d,nos2-openmpi,3,openmpi,fix,calibrate,ninja:random,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/ninja-random,superlu3d,nos2-openmpi,3,openmpi,bug,ninja,random,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/ninja-random,superlu3d,nos2-openmpi,3,openmpi,fix,ninja,random,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/calibrate,superlu3d,nos2-openmpi,3,openmpi,fix,calibrate,ninja:system,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/ninja-system,superlu3d,nos2-openmpi,3,openmpi,bug,ninja,system,40,appendix,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/ninja-system,superlu3d,nos2-openmpi,3,openmpi,fix,ninja,system,40,appendix,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/calibrate,superlu3d,nos2-openmpi,3,openmpi,fix,calibrate,ninja:app,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/ninja-app,superlu3d,nos2-openmpi,3,openmpi,bug,ninja,app,40,appendix,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/ninja-learn,superlu3d,nos2-openmpi,3,openmpi,bug,ninja,learn,1,prerequisite,3,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+superlu3d/ninja-app,superlu3d,nos2-openmpi,3,openmpi,fix,ninja,app,40,appendix,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/ninja-learn,superlu3d,nos2-openmpi,3,openmpi,fix,ninja,learn,1,prerequisite,3,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+superlu3d/calibrate,superlu3d,nos2-openmpi,3,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,5,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/must-1.11.2,superlu3d,nos2-openmpi,3,openmpi,bug,must,1.11.2,40,main,5,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/must-1.11.2,superlu3d,nos2-openmpi,3,openmpi,fix,must,1.11.2,40,main,5,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/calibrate,superlu3d,nos2-openmpi,3,openmpi,fix,calibrate,stretto:traced,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/stretto-traced,superlu3d,nos2-openmpi,3,openmpi,bug,stretto,traced,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/stretto-traced,superlu3d,nos2-openmpi,3,openmpi,fix,stretto,traced,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/calibrate,superlu3d,nos2-openmpi,3,openmpi,fix,calibrate,ninja:nonoise,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/ninja-nonoise,superlu3d,nos2-openmpi,3,openmpi,bug,ninja,nonoise,10,check,3,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+superlu3d/ninja-nonoise,superlu3d,nos2-openmpi,3,openmpi,fix,ninja,nonoise,10,check,3,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+superlu3d/plain-serial,superlu3d,nos2-openmpi,3,openmpi,bug,plain,serial,40,check,3,1,stretto-exp:24.04,run.py,"jobs = 1, beside the 40 parallel plain runs; Fisher's exact test"
+superlu3d/replay,superlu3d,nos2-openmpi,3,openmpi,bug,stretto,replay,40,main,3,0,stretto-exp:24.04,replays.py,"every distinct alternative by its pins over the configuration's traces, a seeded sample of 40 if more; each with its control; only if the traces predict the bug"
+superlu3d/calibrate,superlu3d,mhd3200b-openmpi,3,openmpi,fix,calibrate,plain:-,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/plain,superlu3d,mhd3200b-openmpi,3,openmpi,bug,plain,-,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/plain,superlu3d,mhd3200b-openmpi,3,openmpi,fix,plain,-,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/calibrate,superlu3d,mhd3200b-openmpi,3,openmpi,fix,calibrate,delays:D50,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/delays-D50,superlu3d,mhd3200b-openmpi,3,openmpi,bug,delays,D50,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/delays-D50,superlu3d,mhd3200b-openmpi,3,openmpi,fix,delays,D50,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/calibrate,superlu3d,mhd3200b-openmpi,3,openmpi,fix,calibrate,ninja:random,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/ninja-random,superlu3d,mhd3200b-openmpi,3,openmpi,bug,ninja,random,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/ninja-random,superlu3d,mhd3200b-openmpi,3,openmpi,fix,ninja,random,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/calibrate,superlu3d,mhd3200b-openmpi,3,openmpi,fix,calibrate,ninja:system,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/ninja-system,superlu3d,mhd3200b-openmpi,3,openmpi,bug,ninja,system,40,appendix,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/ninja-system,superlu3d,mhd3200b-openmpi,3,openmpi,fix,ninja,system,40,appendix,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/calibrate,superlu3d,mhd3200b-openmpi,3,openmpi,fix,calibrate,ninja:app,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/ninja-app,superlu3d,mhd3200b-openmpi,3,openmpi,bug,ninja,app,40,appendix,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/ninja-learn,superlu3d,mhd3200b-openmpi,3,openmpi,bug,ninja,learn,1,prerequisite,3,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+superlu3d/ninja-app,superlu3d,mhd3200b-openmpi,3,openmpi,fix,ninja,app,40,appendix,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/ninja-learn,superlu3d,mhd3200b-openmpi,3,openmpi,fix,ninja,learn,1,prerequisite,3,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+superlu3d/calibrate,superlu3d,mhd3200b-openmpi,3,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,5,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/must-1.11.2,superlu3d,mhd3200b-openmpi,3,openmpi,bug,must,1.11.2,40,main,5,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/must-1.11.2,superlu3d,mhd3200b-openmpi,3,openmpi,fix,must,1.11.2,40,main,5,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/calibrate,superlu3d,mhd3200b-openmpi,3,openmpi,fix,calibrate,stretto:traced,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/stretto-traced,superlu3d,mhd3200b-openmpi,3,openmpi,bug,stretto,traced,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/stretto-traced,superlu3d,mhd3200b-openmpi,3,openmpi,fix,stretto,traced,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/calibrate,superlu3d,mhd3200b-openmpi,3,openmpi,fix,calibrate,ninja:nonoise,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/ninja-nonoise,superlu3d,mhd3200b-openmpi,3,openmpi,bug,ninja,nonoise,10,check,3,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+superlu3d/ninja-nonoise,superlu3d,mhd3200b-openmpi,3,openmpi,fix,ninja,nonoise,10,check,3,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+superlu3d/replay,superlu3d,mhd3200b-openmpi,3,openmpi,bug,stretto,replay,40,main,3,0,stretto-exp:24.04,replays.py,"every distinct alternative by its pins over the configuration's traces, a seeded sample of 40 if more; each with its control; only if the traces predict the bug"
+superlu3d/calibrate,superlu3d,blk12x6-openmpi,3,openmpi,fix,calibrate,plain:-,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/plain,superlu3d,blk12x6-openmpi,3,openmpi,bug,plain,-,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/plain,superlu3d,blk12x6-openmpi,3,openmpi,fix,plain,-,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/calibrate,superlu3d,blk12x6-openmpi,3,openmpi,fix,calibrate,delays:D50,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/delays-D50,superlu3d,blk12x6-openmpi,3,openmpi,bug,delays,D50,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/delays-D50,superlu3d,blk12x6-openmpi,3,openmpi,fix,delays,D50,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/calibrate,superlu3d,blk12x6-openmpi,3,openmpi,fix,calibrate,ninja:random,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/ninja-random,superlu3d,blk12x6-openmpi,3,openmpi,bug,ninja,random,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/ninja-random,superlu3d,blk12x6-openmpi,3,openmpi,fix,ninja,random,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/calibrate,superlu3d,blk12x6-openmpi,3,openmpi,fix,calibrate,ninja:system,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/ninja-system,superlu3d,blk12x6-openmpi,3,openmpi,bug,ninja,system,40,appendix,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/ninja-system,superlu3d,blk12x6-openmpi,3,openmpi,fix,ninja,system,40,appendix,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/calibrate,superlu3d,blk12x6-openmpi,3,openmpi,fix,calibrate,ninja:app,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/ninja-app,superlu3d,blk12x6-openmpi,3,openmpi,bug,ninja,app,40,appendix,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/ninja-learn,superlu3d,blk12x6-openmpi,3,openmpi,bug,ninja,learn,1,prerequisite,3,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+superlu3d/ninja-app,superlu3d,blk12x6-openmpi,3,openmpi,fix,ninja,app,40,appendix,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/ninja-learn,superlu3d,blk12x6-openmpi,3,openmpi,fix,ninja,learn,1,prerequisite,3,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+superlu3d/calibrate,superlu3d,blk12x6-openmpi,3,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,5,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/must-1.11.2,superlu3d,blk12x6-openmpi,3,openmpi,bug,must,1.11.2,40,main,5,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/must-1.11.2,superlu3d,blk12x6-openmpi,3,openmpi,fix,must,1.11.2,40,main,5,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/calibrate,superlu3d,blk12x6-openmpi,3,openmpi,fix,calibrate,stretto:traced,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/stretto-traced,superlu3d,blk12x6-openmpi,3,openmpi,bug,stretto,traced,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/stretto-traced,superlu3d,blk12x6-openmpi,3,openmpi,fix,stretto,traced,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/calibrate,superlu3d,blk12x6-openmpi,3,openmpi,fix,calibrate,ninja:nonoise,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/ninja-nonoise,superlu3d,blk12x6-openmpi,3,openmpi,bug,ninja,nonoise,10,check,3,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+superlu3d/ninja-nonoise,superlu3d,blk12x6-openmpi,3,openmpi,fix,ninja,nonoise,10,check,3,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+superlu3d/replay,superlu3d,blk12x6-openmpi,3,openmpi,bug,stretto,replay,40,main,3,0,stretto-exp:24.04,replays.py,"every distinct alternative by its pins over the configuration's traces, a seeded sample of 40 if more; each with its control; only if the traces predict the bug"
+superlu3d/calibrate,superlu3d,blk8x10-openmpi,6,openmpi,fix,calibrate,plain:-,10,prerequisite,6,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/plain,superlu3d,blk8x10-openmpi,6,openmpi,bug,plain,-,40,main,6,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/plain,superlu3d,blk8x10-openmpi,6,openmpi,fix,plain,-,40,main,6,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/calibrate,superlu3d,blk8x10-openmpi,6,openmpi,fix,calibrate,delays:D50,10,prerequisite,6,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/delays-D50,superlu3d,blk8x10-openmpi,6,openmpi,bug,delays,D50,40,main,6,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/delays-D50,superlu3d,blk8x10-openmpi,6,openmpi,fix,delays,D50,40,main,6,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/calibrate,superlu3d,blk8x10-openmpi,6,openmpi,fix,calibrate,ninja:random,10,prerequisite,6,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/ninja-random,superlu3d,blk8x10-openmpi,6,openmpi,bug,ninja,random,40,main,6,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/ninja-random,superlu3d,blk8x10-openmpi,6,openmpi,fix,ninja,random,40,main,6,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/calibrate,superlu3d,blk8x10-openmpi,6,openmpi,fix,calibrate,ninja:system,10,prerequisite,6,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/ninja-system,superlu3d,blk8x10-openmpi,6,openmpi,bug,ninja,system,40,appendix,6,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/ninja-system,superlu3d,blk8x10-openmpi,6,openmpi,fix,ninja,system,40,appendix,6,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/calibrate,superlu3d,blk8x10-openmpi,6,openmpi,fix,calibrate,ninja:app,10,prerequisite,6,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/ninja-app,superlu3d,blk8x10-openmpi,6,openmpi,bug,ninja,app,40,appendix,6,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/ninja-learn,superlu3d,blk8x10-openmpi,6,openmpi,bug,ninja,learn,1,prerequisite,6,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+superlu3d/ninja-app,superlu3d,blk8x10-openmpi,6,openmpi,fix,ninja,app,40,appendix,6,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/ninja-learn,superlu3d,blk8x10-openmpi,6,openmpi,fix,ninja,learn,1,prerequisite,6,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+superlu3d/calibrate,superlu3d,blk8x10-openmpi,6,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,9,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/must-1.11.2,superlu3d,blk8x10-openmpi,6,openmpi,bug,must,1.11.2,40,main,9,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/must-1.11.2,superlu3d,blk8x10-openmpi,6,openmpi,fix,must,1.11.2,40,main,9,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/calibrate,superlu3d,blk8x10-openmpi,6,openmpi,fix,calibrate,stretto:traced,10,prerequisite,6,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/stretto-traced,superlu3d,blk8x10-openmpi,6,openmpi,bug,stretto,traced,40,main,6,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/stretto-traced,superlu3d,blk8x10-openmpi,6,openmpi,fix,stretto,traced,40,main,6,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/calibrate,superlu3d,blk8x10-openmpi,6,openmpi,fix,calibrate,ninja:nonoise,10,prerequisite,6,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/ninja-nonoise,superlu3d,blk8x10-openmpi,6,openmpi,bug,ninja,nonoise,10,check,6,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+superlu3d/ninja-nonoise,superlu3d,blk8x10-openmpi,6,openmpi,fix,ninja,nonoise,10,check,6,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+superlu3d/replay,superlu3d,blk8x10-openmpi,6,openmpi,bug,stretto,replay,40,main,6,0,stretto-exp:24.04,replays.py,"every distinct alternative by its pins over the configuration's traces, a seeded sample of 40 if more; each with its control; only if the traces predict the bug"
+superlu3d/calibrate,superlu3d,g20-openmpi,3,openmpi,fix,calibrate,plain:-,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/plain,superlu3d,g20-openmpi,3,openmpi,bug,plain,-,40,supplementary,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/plain,superlu3d,g20-openmpi,3,openmpi,fix,plain,-,40,supplementary,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/calibrate,superlu3d,g20-openmpi,3,openmpi,fix,calibrate,delays:D50,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/delays-D50,superlu3d,g20-openmpi,3,openmpi,bug,delays,D50,40,supplementary,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/delays-D50,superlu3d,g20-openmpi,3,openmpi,fix,delays,D50,40,supplementary,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/calibrate,superlu3d,g20-openmpi,3,openmpi,fix,calibrate,ninja:random,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/ninja-random,superlu3d,g20-openmpi,3,openmpi,bug,ninja,random,40,supplementary,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/ninja-random,superlu3d,g20-openmpi,3,openmpi,fix,ninja,random,40,supplementary,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/calibrate,superlu3d,g20-openmpi,3,openmpi,fix,calibrate,ninja:system,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/ninja-system,superlu3d,g20-openmpi,3,openmpi,bug,ninja,system,40,supplementary,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/ninja-system,superlu3d,g20-openmpi,3,openmpi,fix,ninja,system,40,supplementary,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/calibrate,superlu3d,g20-openmpi,3,openmpi,fix,calibrate,ninja:app,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/ninja-app,superlu3d,g20-openmpi,3,openmpi,bug,ninja,app,40,supplementary,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/ninja-learn,superlu3d,g20-openmpi,3,openmpi,bug,ninja,learn,1,prerequisite,3,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+superlu3d/ninja-app,superlu3d,g20-openmpi,3,openmpi,fix,ninja,app,40,supplementary,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/ninja-learn,superlu3d,g20-openmpi,3,openmpi,fix,ninja,learn,1,prerequisite,3,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+superlu3d/calibrate,superlu3d,g20-openmpi,3,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,5,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/must-1.11.2,superlu3d,g20-openmpi,3,openmpi,bug,must,1.11.2,40,supplementary,5,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/must-1.11.2,superlu3d,g20-openmpi,3,openmpi,fix,must,1.11.2,40,supplementary,5,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/calibrate,superlu3d,g20-openmpi,3,openmpi,fix,calibrate,stretto:traced,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/stretto-traced,superlu3d,g20-openmpi,3,openmpi,bug,stretto,traced,40,supplementary,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/stretto-traced,superlu3d,g20-openmpi,3,openmpi,fix,stretto,traced,40,supplementary,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/calibrate,superlu3d,g20-openmpi,3,openmpi,fix,calibrate,ninja:nonoise,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/ninja-nonoise,superlu3d,g20-openmpi,3,openmpi,bug,ninja,nonoise,10,supplementary,3,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+superlu3d/ninja-nonoise,superlu3d,g20-openmpi,3,openmpi,fix,ninja,nonoise,10,supplementary,3,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+superlu3d/replay,superlu3d,g20-openmpi,3,openmpi,bug,stretto,replay,40,main,3,0,stretto-exp:24.04,replays.py,"every distinct alternative by its pins over the configuration's traces, a seeded sample of 40 if more; each with its control; only if the traces predict the bug"
+superlu3d/calibrate,superlu3d,nos2-mpich,3,mpich,fix,calibrate,plain:-,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/plain,superlu3d,nos2-mpich,3,mpich,bug,plain,-,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/plain,superlu3d,nos2-mpich,3,mpich,fix,plain,-,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/calibrate,superlu3d,nos2-mpich,3,mpich,fix,calibrate,delays:D50,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/delays-D50,superlu3d,nos2-mpich,3,mpich,bug,delays,D50,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/delays-D50,superlu3d,nos2-mpich,3,mpich,fix,delays,D50,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/calibrate,superlu3d,nos2-mpich,3,mpich,fix,calibrate,ninja:random,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/ninja-random,superlu3d,nos2-mpich,3,mpich,bug,ninja,random,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/ninja-random,superlu3d,nos2-mpich,3,mpich,fix,ninja,random,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/calibrate,superlu3d,nos2-mpich,3,mpich,fix,calibrate,ninja:system,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/ninja-system,superlu3d,nos2-mpich,3,mpich,bug,ninja,system,40,appendix,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/ninja-system,superlu3d,nos2-mpich,3,mpich,fix,ninja,system,40,appendix,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/calibrate,superlu3d,nos2-mpich,3,mpich,fix,calibrate,ninja:app,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/ninja-app,superlu3d,nos2-mpich,3,mpich,bug,ninja,app,40,appendix,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/ninja-learn,superlu3d,nos2-mpich,3,mpich,bug,ninja,learn,1,prerequisite,3,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+superlu3d/ninja-app,superlu3d,nos2-mpich,3,mpich,fix,ninja,app,40,appendix,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/ninja-learn,superlu3d,nos2-mpich,3,mpich,fix,ninja,learn,1,prerequisite,3,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+superlu3d/calibrate,superlu3d,nos2-mpich,3,mpich,fix,calibrate,must:1.11.2,10,prerequisite,5,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/must-1.11.2,superlu3d,nos2-mpich,3,mpich,bug,must,1.11.2,40,main,5,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/must-1.11.2,superlu3d,nos2-mpich,3,mpich,fix,must,1.11.2,40,main,5,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/calibrate,superlu3d,nos2-mpich,3,mpich,fix,calibrate,stretto:traced,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/stretto-traced,superlu3d,nos2-mpich,3,mpich,bug,stretto,traced,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/stretto-traced,superlu3d,nos2-mpich,3,mpich,fix,stretto,traced,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/calibrate,superlu3d,nos2-mpich,3,mpich,fix,calibrate,ninja:nonoise,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/ninja-nonoise,superlu3d,nos2-mpich,3,mpich,bug,ninja,nonoise,10,check,3,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+superlu3d/ninja-nonoise,superlu3d,nos2-mpich,3,mpich,fix,ninja,nonoise,10,check,3,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+superlu3d/replay,superlu3d,nos2-mpich,3,mpich,bug,stretto,replay,40,main,3,0,stretto-exp:24.04,replays.py,"every distinct alternative by its pins over the configuration's traces, a seeded sample of 40 if more; each with its control; only if the traces predict the bug"
+superlu3d/calibrate,superlu3d,mhd3200b-mpich,3,mpich,fix,calibrate,plain:-,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/plain,superlu3d,mhd3200b-mpich,3,mpich,bug,plain,-,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/plain,superlu3d,mhd3200b-mpich,3,mpich,fix,plain,-,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/calibrate,superlu3d,mhd3200b-mpich,3,mpich,fix,calibrate,delays:D50,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/delays-D50,superlu3d,mhd3200b-mpich,3,mpich,bug,delays,D50,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/delays-D50,superlu3d,mhd3200b-mpich,3,mpich,fix,delays,D50,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/calibrate,superlu3d,mhd3200b-mpich,3,mpich,fix,calibrate,ninja:random,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/ninja-random,superlu3d,mhd3200b-mpich,3,mpich,bug,ninja,random,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/ninja-random,superlu3d,mhd3200b-mpich,3,mpich,fix,ninja,random,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/calibrate,superlu3d,mhd3200b-mpich,3,mpich,fix,calibrate,ninja:system,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/ninja-system,superlu3d,mhd3200b-mpich,3,mpich,bug,ninja,system,40,appendix,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/ninja-system,superlu3d,mhd3200b-mpich,3,mpich,fix,ninja,system,40,appendix,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/calibrate,superlu3d,mhd3200b-mpich,3,mpich,fix,calibrate,ninja:app,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/ninja-app,superlu3d,mhd3200b-mpich,3,mpich,bug,ninja,app,40,appendix,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/ninja-learn,superlu3d,mhd3200b-mpich,3,mpich,bug,ninja,learn,1,prerequisite,3,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+superlu3d/ninja-app,superlu3d,mhd3200b-mpich,3,mpich,fix,ninja,app,40,appendix,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/ninja-learn,superlu3d,mhd3200b-mpich,3,mpich,fix,ninja,learn,1,prerequisite,3,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+superlu3d/calibrate,superlu3d,mhd3200b-mpich,3,mpich,fix,calibrate,must:1.11.2,10,prerequisite,5,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/must-1.11.2,superlu3d,mhd3200b-mpich,3,mpich,bug,must,1.11.2,40,main,5,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/must-1.11.2,superlu3d,mhd3200b-mpich,3,mpich,fix,must,1.11.2,40,main,5,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/calibrate,superlu3d,mhd3200b-mpich,3,mpich,fix,calibrate,stretto:traced,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/stretto-traced,superlu3d,mhd3200b-mpich,3,mpich,bug,stretto,traced,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/stretto-traced,superlu3d,mhd3200b-mpich,3,mpich,fix,stretto,traced,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/calibrate,superlu3d,mhd3200b-mpich,3,mpich,fix,calibrate,ninja:nonoise,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/ninja-nonoise,superlu3d,mhd3200b-mpich,3,mpich,bug,ninja,nonoise,10,check,3,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+superlu3d/ninja-nonoise,superlu3d,mhd3200b-mpich,3,mpich,fix,ninja,nonoise,10,check,3,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+superlu3d/replay,superlu3d,mhd3200b-mpich,3,mpich,bug,stretto,replay,40,main,3,0,stretto-exp:24.04,replays.py,"every distinct alternative by its pins over the configuration's traces, a seeded sample of 40 if more; each with its control; only if the traces predict the bug"
+superlu3d/calibrate,superlu3d,blk12x6-mpich,3,mpich,fix,calibrate,plain:-,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/plain,superlu3d,blk12x6-mpich,3,mpich,bug,plain,-,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/plain,superlu3d,blk12x6-mpich,3,mpich,fix,plain,-,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/calibrate,superlu3d,blk12x6-mpich,3,mpich,fix,calibrate,delays:D50,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/delays-D50,superlu3d,blk12x6-mpich,3,mpich,bug,delays,D50,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/delays-D50,superlu3d,blk12x6-mpich,3,mpich,fix,delays,D50,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/calibrate,superlu3d,blk12x6-mpich,3,mpich,fix,calibrate,ninja:random,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/ninja-random,superlu3d,blk12x6-mpich,3,mpich,bug,ninja,random,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/ninja-random,superlu3d,blk12x6-mpich,3,mpich,fix,ninja,random,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/calibrate,superlu3d,blk12x6-mpich,3,mpich,fix,calibrate,ninja:system,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/ninja-system,superlu3d,blk12x6-mpich,3,mpich,bug,ninja,system,40,appendix,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/ninja-system,superlu3d,blk12x6-mpich,3,mpich,fix,ninja,system,40,appendix,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/calibrate,superlu3d,blk12x6-mpich,3,mpich,fix,calibrate,ninja:app,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/ninja-app,superlu3d,blk12x6-mpich,3,mpich,bug,ninja,app,40,appendix,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/ninja-learn,superlu3d,blk12x6-mpich,3,mpich,bug,ninja,learn,1,prerequisite,3,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+superlu3d/ninja-app,superlu3d,blk12x6-mpich,3,mpich,fix,ninja,app,40,appendix,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/ninja-learn,superlu3d,blk12x6-mpich,3,mpich,fix,ninja,learn,1,prerequisite,3,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+superlu3d/calibrate,superlu3d,blk12x6-mpich,3,mpich,fix,calibrate,must:1.11.2,10,prerequisite,5,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/must-1.11.2,superlu3d,blk12x6-mpich,3,mpich,bug,must,1.11.2,40,main,5,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/must-1.11.2,superlu3d,blk12x6-mpich,3,mpich,fix,must,1.11.2,40,main,5,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/calibrate,superlu3d,blk12x6-mpich,3,mpich,fix,calibrate,stretto:traced,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/stretto-traced,superlu3d,blk12x6-mpich,3,mpich,bug,stretto,traced,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/stretto-traced,superlu3d,blk12x6-mpich,3,mpich,fix,stretto,traced,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/calibrate,superlu3d,blk12x6-mpich,3,mpich,fix,calibrate,ninja:nonoise,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/ninja-nonoise,superlu3d,blk12x6-mpich,3,mpich,bug,ninja,nonoise,10,check,3,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+superlu3d/ninja-nonoise,superlu3d,blk12x6-mpich,3,mpich,fix,ninja,nonoise,10,check,3,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+superlu3d/replay,superlu3d,blk12x6-mpich,3,mpich,bug,stretto,replay,40,main,3,0,stretto-exp:24.04,replays.py,"every distinct alternative by its pins over the configuration's traces, a seeded sample of 40 if more; each with its control; only if the traces predict the bug"
+superlu3d/calibrate,superlu3d,blk8x10-mpich,6,mpich,fix,calibrate,plain:-,10,prerequisite,6,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/plain,superlu3d,blk8x10-mpich,6,mpich,bug,plain,-,40,main,6,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/plain,superlu3d,blk8x10-mpich,6,mpich,fix,plain,-,40,main,6,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/calibrate,superlu3d,blk8x10-mpich,6,mpich,fix,calibrate,delays:D50,10,prerequisite,6,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/delays-D50,superlu3d,blk8x10-mpich,6,mpich,bug,delays,D50,40,main,6,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/delays-D50,superlu3d,blk8x10-mpich,6,mpich,fix,delays,D50,40,main,6,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/calibrate,superlu3d,blk8x10-mpich,6,mpich,fix,calibrate,ninja:random,10,prerequisite,6,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/ninja-random,superlu3d,blk8x10-mpich,6,mpich,bug,ninja,random,40,main,6,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/ninja-random,superlu3d,blk8x10-mpich,6,mpich,fix,ninja,random,40,main,6,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/calibrate,superlu3d,blk8x10-mpich,6,mpich,fix,calibrate,ninja:system,10,prerequisite,6,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/ninja-system,superlu3d,blk8x10-mpich,6,mpich,bug,ninja,system,40,appendix,6,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/ninja-system,superlu3d,blk8x10-mpich,6,mpich,fix,ninja,system,40,appendix,6,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/calibrate,superlu3d,blk8x10-mpich,6,mpich,fix,calibrate,ninja:app,10,prerequisite,6,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/ninja-app,superlu3d,blk8x10-mpich,6,mpich,bug,ninja,app,40,appendix,6,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/ninja-learn,superlu3d,blk8x10-mpich,6,mpich,bug,ninja,learn,1,prerequisite,6,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+superlu3d/ninja-app,superlu3d,blk8x10-mpich,6,mpich,fix,ninja,app,40,appendix,6,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/ninja-learn,superlu3d,blk8x10-mpich,6,mpich,fix,ninja,learn,1,prerequisite,6,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+superlu3d/calibrate,superlu3d,blk8x10-mpich,6,mpich,fix,calibrate,must:1.11.2,10,prerequisite,9,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/must-1.11.2,superlu3d,blk8x10-mpich,6,mpich,bug,must,1.11.2,40,main,9,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/must-1.11.2,superlu3d,blk8x10-mpich,6,mpich,fix,must,1.11.2,40,main,9,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/calibrate,superlu3d,blk8x10-mpich,6,mpich,fix,calibrate,stretto:traced,10,prerequisite,6,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/stretto-traced,superlu3d,blk8x10-mpich,6,mpich,bug,stretto,traced,40,main,6,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/stretto-traced,superlu3d,blk8x10-mpich,6,mpich,fix,stretto,traced,40,main,6,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/calibrate,superlu3d,blk8x10-mpich,6,mpich,fix,calibrate,ninja:nonoise,10,prerequisite,6,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/ninja-nonoise,superlu3d,blk8x10-mpich,6,mpich,bug,ninja,nonoise,10,check,6,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+superlu3d/ninja-nonoise,superlu3d,blk8x10-mpich,6,mpich,fix,ninja,nonoise,10,check,6,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+superlu3d/replay,superlu3d,blk8x10-mpich,6,mpich,bug,stretto,replay,40,main,6,0,stretto-exp:24.04,replays.py,"every distinct alternative by its pins over the configuration's traces, a seeded sample of 40 if more; each with its control; only if the traces predict the bug"
+superlu3d/calibrate,superlu3d,g20-mpich,3,mpich,fix,calibrate,plain:-,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/plain,superlu3d,g20-mpich,3,mpich,bug,plain,-,40,supplementary,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/plain,superlu3d,g20-mpich,3,mpich,fix,plain,-,40,supplementary,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/calibrate,superlu3d,g20-mpich,3,mpich,fix,calibrate,delays:D50,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/delays-D50,superlu3d,g20-mpich,3,mpich,bug,delays,D50,40,supplementary,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/delays-D50,superlu3d,g20-mpich,3,mpich,fix,delays,D50,40,supplementary,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/calibrate,superlu3d,g20-mpich,3,mpich,fix,calibrate,ninja:random,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/ninja-random,superlu3d,g20-mpich,3,mpich,bug,ninja,random,40,supplementary,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/ninja-random,superlu3d,g20-mpich,3,mpich,fix,ninja,random,40,supplementary,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/calibrate,superlu3d,g20-mpich,3,mpich,fix,calibrate,ninja:system,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/ninja-system,superlu3d,g20-mpich,3,mpich,bug,ninja,system,40,supplementary,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/ninja-system,superlu3d,g20-mpich,3,mpich,fix,ninja,system,40,supplementary,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/calibrate,superlu3d,g20-mpich,3,mpich,fix,calibrate,ninja:app,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/ninja-app,superlu3d,g20-mpich,3,mpich,bug,ninja,app,40,supplementary,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/ninja-learn,superlu3d,g20-mpich,3,mpich,bug,ninja,learn,1,prerequisite,3,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+superlu3d/ninja-app,superlu3d,g20-mpich,3,mpich,fix,ninja,app,40,supplementary,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/ninja-learn,superlu3d,g20-mpich,3,mpich,fix,ninja,learn,1,prerequisite,3,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+superlu3d/calibrate,superlu3d,g20-mpich,3,mpich,fix,calibrate,must:1.11.2,10,prerequisite,5,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/must-1.11.2,superlu3d,g20-mpich,3,mpich,bug,must,1.11.2,40,supplementary,5,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/must-1.11.2,superlu3d,g20-mpich,3,mpich,fix,must,1.11.2,40,supplementary,5,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/calibrate,superlu3d,g20-mpich,3,mpich,fix,calibrate,stretto:traced,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/stretto-traced,superlu3d,g20-mpich,3,mpich,bug,stretto,traced,40,supplementary,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/stretto-traced,superlu3d,g20-mpich,3,mpich,fix,stretto,traced,40,supplementary,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/calibrate,superlu3d,g20-mpich,3,mpich,fix,calibrate,ninja:nonoise,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+superlu3d/ninja-nonoise,superlu3d,g20-mpich,3,mpich,bug,ninja,nonoise,10,supplementary,3,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+superlu3d/ninja-nonoise,superlu3d,g20-mpich,3,mpich,fix,ninja,nonoise,10,supplementary,3,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+superlu3d/replay,superlu3d,g20-mpich,3,mpich,bug,stretto,replay,40,main,3,0,stretto-exp:24.04,replays.py,"every distinct alternative by its pins over the configuration's traces, a seeded sample of 40 if more; each with its control; only if the traces predict the bug"
+superlu3d/mpiprv,superlu3d,nos2-openmpi,3,openmpi,bug,mpiprv,attempt,1,main,3,0,mpiprv/mpiprv,experiments/mpiprv/apps.py,"attempted on every subject, Fortran ones included; build or instrumentation failure recorded"
+qeelph/calibrate,qeelph,np3,3,mpich,fix,calibrate,plain:-,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+qeelph/plain,qeelph,np3,3,mpich,bug,plain,-,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+qeelph/plain,qeelph,np3,3,mpich,fix,plain,-,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+qeelph/calibrate,qeelph,np3,3,mpich,fix,calibrate,delays:D50,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+qeelph/delays-D50,qeelph,np3,3,mpich,bug,delays,D50,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+qeelph/delays-D50,qeelph,np3,3,mpich,fix,delays,D50,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+qeelph/calibrate,qeelph,np3,3,mpich,fix,calibrate,ninja:random,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+qeelph/ninja-random,qeelph,np3,3,mpich,bug,ninja,random,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+qeelph/ninja-random,qeelph,np3,3,mpich,fix,ninja,random,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+qeelph/calibrate,qeelph,np3,3,mpich,fix,calibrate,ninja:system,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+qeelph/ninja-system,qeelph,np3,3,mpich,bug,ninja,system,40,appendix,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+qeelph/ninja-system,qeelph,np3,3,mpich,fix,ninja,system,40,appendix,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+qeelph/calibrate,qeelph,np3,3,mpich,fix,calibrate,ninja:app,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+qeelph/ninja-app,qeelph,np3,3,mpich,bug,ninja,app,40,appendix,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+qeelph/ninja-learn,qeelph,np3,3,mpich,bug,ninja,learn,1,prerequisite,3,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+qeelph/ninja-app,qeelph,np3,3,mpich,fix,ninja,app,40,appendix,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+qeelph/ninja-learn,qeelph,np3,3,mpich,fix,ninja,learn,1,prerequisite,3,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+qeelph/calibrate,qeelph,np3,3,mpich,fix,calibrate,must:1.11.2,10,prerequisite,5,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+qeelph/must-1.11.2,qeelph,np3,3,mpich,bug,must,1.11.2,40,main,5,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+qeelph/must-1.11.2,qeelph,np3,3,mpich,fix,must,1.11.2,40,main,5,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+qeelph/calibrate,qeelph,np3,3,mpich,fix,calibrate,stretto:traced,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+qeelph/stretto-traced,qeelph,np3,3,mpich,bug,stretto,traced,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+qeelph/stretto-traced,qeelph,np3,3,mpich,fix,stretto,traced,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
+qeelph/calibrate,qeelph,np3,3,mpich,fix,calibrate,ninja:nonoise,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+qeelph/ninja-nonoise,qeelph,np3,3,mpich,bug,ninja,nonoise,10,check,3,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+qeelph/ninja-nonoise,qeelph,np3,3,mpich,fix,ninja,nonoise,10,check,3,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
+qeelph/plain-serial,qeelph,np3,3,mpich,bug,plain,serial,40,check,3,1,stretto-exp:24.04,run.py,"jobs = 1, beside the 40 parallel plain runs; Fisher's exact test"
+qeelph/replay,qeelph,np3,3,mpich,bug,stretto,replay,40,main,3,0,stretto-exp:24.04,replays.py,"every distinct alternative by its pins over the configuration's traces, a seeded sample of 40 if more; each with its control; only if the traces predict the bug"
+qeelph/mpiprv,qeelph,np3,3,mpich,bug,mpiprv,attempt,1,main,3,0,mpiprv/mpiprv,experiments/mpiprv/apps.py,"attempted on every subject, Fortran ones included; build or instrumentation failure recorded"
+mbi/openmpi-stretto-traced,mbi,115 programs,,openmpi,-,stretto,traced,10,main,np of each program,0,stretto-exp:24.04,experiments/run_remaining.sh corpus (one traced run per program per pass),"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
+mbi/openmpi-delays-D50,mbi,115 programs,,openmpi,-,delays,D50,10,main,np of each program,0,stretto-exp:24.04,experiments/stress_baseline.py --runs 1 per pass; --runs 30 for the budget,"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
+mbi/openmpi-delays-D50-budget,mbi,115 programs,,openmpi,-,delays,D50,30,main,np of each program,0,stretto-exp:24.04,experiments/stress_baseline.py --runs 1 per pass; --runs 30 for the budget,"budget view: up to 30 runs per program, stopping at the first failure"
+mbi/openmpi-ninja-random,mbi,115 programs,,openmpi,-,ninja,random,10,main,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
+mbi/openmpi-ninja-random-budget,mbi,115 programs,,openmpi,-,ninja,random,30,main,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"budget view: up to 30 runs per program, stopping at the first failure"
+mbi/openmpi-ninja-system,mbi,115 programs,,openmpi,-,ninja,system,10,appendix,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
+mbi/openmpi-ninja-system-budget,mbi,115 programs,,openmpi,-,ninja,system,30,main,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"budget view: up to 30 runs per program, stopping at the first failure"
+mbi/openmpi-ninja-app,mbi,115 programs,,openmpi,-,ninja,app,10,appendix,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
+mbi/openmpi-ninja-app-budget,mbi,115 programs,,openmpi,-,ninja,app,30,main,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"budget view: up to 30 runs per program, stopping at the first failure"
+mbi/openmpi-must-1.11.2,mbi,115 programs,,openmpi,-,must,1.11.2,10,main,np of each program,0,stretto-must-u:24.04,experiments/mbi/run_must.py (MUST_IMAGE=stretto-must-u:24.04),"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
+mbb/openmpi-stretto-traced,mbb,388 programs,,openmpi,-,stretto,traced,10,main,np of each program,0,stretto-exp:24.04,experiments/run_remaining.sh corpus (one traced run per program per pass),"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
+mbb/openmpi-delays-D50,mbb,388 programs,,openmpi,-,delays,D50,10,main,np of each program,0,stretto-exp:24.04,experiments/stress_baseline.py --runs 1 per pass; --runs 30 for the budget,"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
+mbb/openmpi-delays-D50-budget,mbb,388 programs,,openmpi,-,delays,D50,30,main,np of each program,0,stretto-exp:24.04,experiments/stress_baseline.py --runs 1 per pass; --runs 30 for the budget,"budget view: up to 30 runs per program, stopping at the first failure"
+mbb/openmpi-ninja-random,mbb,388 programs,,openmpi,-,ninja,random,10,main,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
+mbb/openmpi-ninja-random-budget,mbb,388 programs,,openmpi,-,ninja,random,30,main,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"budget view: up to 30 runs per program, stopping at the first failure"
+mbb/openmpi-ninja-system,mbb,388 programs,,openmpi,-,ninja,system,10,appendix,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
+mbb/openmpi-ninja-system-budget,mbb,388 programs,,openmpi,-,ninja,system,30,main,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"budget view: up to 30 runs per program, stopping at the first failure"
+mbb/openmpi-ninja-app,mbb,388 programs,,openmpi,-,ninja,app,10,appendix,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
+mbb/openmpi-ninja-app-budget,mbb,388 programs,,openmpi,-,ninja,app,30,main,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"budget view: up to 30 runs per program, stopping at the first failure"
+mbb/openmpi-must-1.11.2,mbb,388 programs,,openmpi,-,must,1.11.2,10,main,np of each program,0,stretto-must-u:24.04,experiments/mbi/run_must.py (MUST_IMAGE=stretto-must-u:24.04),"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
+corrbench/openmpi-stretto-traced,corrbench,513 programs,,openmpi,-,stretto,traced,10,main,np of each program,0,stretto-exp:24.04,experiments/run_remaining.sh corpus (one traced run per program per pass),"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
+corrbench/openmpi-delays-D50,corrbench,513 programs,,openmpi,-,delays,D50,10,main,np of each program,0,stretto-exp:24.04,experiments/stress_baseline.py --runs 1 per pass; --runs 30 for the budget,"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
+corrbench/openmpi-delays-D50-budget,corrbench,513 programs,,openmpi,-,delays,D50,30,main,np of each program,0,stretto-exp:24.04,experiments/stress_baseline.py --runs 1 per pass; --runs 30 for the budget,"budget view: up to 30 runs per program, stopping at the first failure"
+corrbench/openmpi-ninja-random,corrbench,513 programs,,openmpi,-,ninja,random,10,main,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
+corrbench/openmpi-ninja-random-budget,corrbench,513 programs,,openmpi,-,ninja,random,30,main,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"budget view: up to 30 runs per program, stopping at the first failure"
+corrbench/openmpi-ninja-system,corrbench,513 programs,,openmpi,-,ninja,system,10,appendix,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
+corrbench/openmpi-ninja-system-budget,corrbench,513 programs,,openmpi,-,ninja,system,30,main,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"budget view: up to 30 runs per program, stopping at the first failure"
+corrbench/openmpi-ninja-app,corrbench,513 programs,,openmpi,-,ninja,app,10,appendix,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
+corrbench/openmpi-ninja-app-budget,corrbench,513 programs,,openmpi,-,ninja,app,30,main,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"budget view: up to 30 runs per program, stopping at the first failure"
+corrbench/openmpi-must-1.11.2,corrbench,513 programs,,openmpi,-,must,1.11.2,10,main,np of each program,0,stretto-must-u:24.04,experiments/mbi/run_must.py (MUST_IMAGE=stretto-must-u:24.04),"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
+corrbench/mpich-stretto-traced,corrbench,513 programs,,mpich,-,stretto,traced,10,main,np of each program,0,stretto-exp:24.04,experiments/run_remaining.sh corpus (one traced run per program per pass),"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
+corrbench/mpich-delays-D50,corrbench,513 programs,,mpich,-,delays,D50,10,main,np of each program,0,stretto-exp:24.04,experiments/stress_baseline.py --runs 1 per pass; --runs 30 for the budget,"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
+corrbench/mpich-delays-D50-budget,corrbench,513 programs,,mpich,-,delays,D50,30,main,np of each program,0,stretto-exp:24.04,experiments/stress_baseline.py --runs 1 per pass; --runs 30 for the budget,"budget view: up to 30 runs per program, stopping at the first failure"
+corrbench/mpich-ninja-random,corrbench,513 programs,,mpich,-,ninja,random,10,main,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
+corrbench/mpich-ninja-random-budget,corrbench,513 programs,,mpich,-,ninja,random,30,main,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"budget view: up to 30 runs per program, stopping at the first failure"
+corrbench/mpich-ninja-system,corrbench,513 programs,,mpich,-,ninja,system,10,appendix,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
+corrbench/mpich-ninja-system-budget,corrbench,513 programs,,mpich,-,ninja,system,30,main,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"budget view: up to 30 runs per program, stopping at the first failure"
+corrbench/mpich-ninja-app,corrbench,513 programs,,mpich,-,ninja,app,10,appendix,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
+corrbench/mpich-ninja-app-budget,corrbench,513 programs,,mpich,-,ninja,app,30,main,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"budget view: up to 30 runs per program, stopping at the first failure"
+corrbench/mpich-must-1.11.2,corrbench,513 programs,,mpich,-,must,1.11.2,10,main,np of each program,0,stretto-must-u:24.04,experiments/mbi/run_must.py (MUST_IMAGE=stretto-must-u:24.04),"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
+corrbench-openmp/openmpi-stretto-traced,corrbench-openmp,103 programs,,openmpi,-,stretto,traced,10,main,np of each program,0,stretto-exp:24.04,experiments/run_remaining.sh corpus (one traced run per program per pass),"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
+corrbench-openmp/openmpi-delays-D50,corrbench-openmp,103 programs,,openmpi,-,delays,D50,10,main,np of each program,0,stretto-exp:24.04,experiments/stress_baseline.py --runs 1 per pass; --runs 30 for the budget,"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
+corrbench-openmp/openmpi-delays-D50-budget,corrbench-openmp,103 programs,,openmpi,-,delays,D50,30,main,np of each program,0,stretto-exp:24.04,experiments/stress_baseline.py --runs 1 per pass; --runs 30 for the budget,"budget view: up to 30 runs per program, stopping at the first failure"
+corrbench-openmp/openmpi-ninja-random,corrbench-openmp,103 programs,,openmpi,-,ninja,random,10,main,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
+corrbench-openmp/openmpi-ninja-random-budget,corrbench-openmp,103 programs,,openmpi,-,ninja,random,30,main,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"budget view: up to 30 runs per program, stopping at the first failure"
+corrbench-openmp/openmpi-ninja-system,corrbench-openmp,103 programs,,openmpi,-,ninja,system,10,appendix,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
+corrbench-openmp/openmpi-ninja-system-budget,corrbench-openmp,103 programs,,openmpi,-,ninja,system,30,main,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"budget view: up to 30 runs per program, stopping at the first failure"
+corrbench-openmp/openmpi-ninja-app,corrbench-openmp,103 programs,,openmpi,-,ninja,app,10,appendix,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
+corrbench-openmp/openmpi-ninja-app-budget,corrbench-openmp,103 programs,,openmpi,-,ninja,app,30,main,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"budget view: up to 30 runs per program, stopping at the first failure"
+corrbench-openmp/openmpi-must-1.11.2,corrbench-openmp,103 programs,,openmpi,-,must,1.11.2,10,main,np of each program,0,stretto-must-u:24.04,experiments/mbi/run_must.py (MUST_IMAGE=stretto-must-u:24.04),"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
+corrbench-openmp/mpich-stretto-traced,corrbench-openmp,103 programs,,mpich,-,stretto,traced,10,main,np of each program,0,stretto-exp:24.04,experiments/run_remaining.sh corpus (one traced run per program per pass),"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
+corrbench-openmp/mpich-delays-D50,corrbench-openmp,103 programs,,mpich,-,delays,D50,10,main,np of each program,0,stretto-exp:24.04,experiments/stress_baseline.py --runs 1 per pass; --runs 30 for the budget,"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
+corrbench-openmp/mpich-delays-D50-budget,corrbench-openmp,103 programs,,mpich,-,delays,D50,30,main,np of each program,0,stretto-exp:24.04,experiments/stress_baseline.py --runs 1 per pass; --runs 30 for the budget,"budget view: up to 30 runs per program, stopping at the first failure"
+corrbench-openmp/mpich-ninja-random,corrbench-openmp,103 programs,,mpich,-,ninja,random,10,main,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
+corrbench-openmp/mpich-ninja-random-budget,corrbench-openmp,103 programs,,mpich,-,ninja,random,30,main,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"budget view: up to 30 runs per program, stopping at the first failure"
+corrbench-openmp/mpich-ninja-system,corrbench-openmp,103 programs,,mpich,-,ninja,system,10,appendix,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
+corrbench-openmp/mpich-ninja-system-budget,corrbench-openmp,103 programs,,mpich,-,ninja,system,30,main,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"budget view: up to 30 runs per program, stopping at the first failure"
+corrbench-openmp/mpich-ninja-app,corrbench-openmp,103 programs,,mpich,-,ninja,app,10,appendix,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
+corrbench-openmp/mpich-ninja-app-budget,corrbench-openmp,103 programs,,mpich,-,ninja,app,30,main,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"budget view: up to 30 runs per program, stopping at the first failure"
+corrbench-openmp/mpich-must-1.11.2,corrbench-openmp,103 programs,,mpich,-,must,1.11.2,10,main,np of each program,0,stretto-must-u:24.04,experiments/mbi/run_must.py (MUST_IMAGE=stretto-must-u:24.04),"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
+mbi/openmpi-l2,mbi,115 programs,,openmpi,-,stretto,L2-reexecution,10,main,np of each program,0,stretto-exp:24.04,experiments/mbi/reanalyze.py (L2 by re-execution),MBI's headline stays at L1; L2 by re-execution is a row of its own
+slate/series-openmpi,slate,wide-2x2,,openmpi,bug,plain,series,40,main,ranks x threads,0,hunt-slate:24.04,experiments/slate/series.sh,"cell as committed (experiments/slate/series.csv, variant plain)"
+slate/series-openmpi,slate,wide-4x1,,openmpi,bug,plain,series,40,main,ranks x threads,0,hunt-slate:24.04,experiments/slate/series.sh,"cell as committed (experiments/slate/series.csv, variant plain)"
+slate/series-openmpi,slate,square-2x2,,openmpi,bug,plain,series,40,main,ranks x threads,0,hunt-slate:24.04,experiments/slate/series.sh,"cell as committed (experiments/slate/series.csv, variant plain)"
+slate/series-openmpi,slate,wide-2x2,,openmpi,fix,plain,series,40,main,ranks x threads,0,hunt-slate:24.04,experiments/slate/series.sh,"cell as committed (experiments/slate/series.csv, variant fixed)"
+slate/series-openmpi,slate,wide-4x1,,openmpi,fix,plain,series,40,main,ranks x threads,0,hunt-slate:24.04,experiments/slate/series.sh,"cell as committed (experiments/slate/series.csv, variant fixed)"
+slate/series-openmpi,slate,square-2x2,,openmpi,fix,plain,series,40,main,ranks x threads,0,hunt-slate:24.04,experiments/slate/series.sh,"cell as committed (experiments/slate/series.csv, variant fixed)"
+slate/series-openmpi,slate,wide-2x2-1thread,,openmpi,bug,plain,series,40,main,ranks x threads,0,hunt-slate:24.04,experiments/slate/series.sh,"cell as committed (experiments/slate/series.csv, variant plain)"
+slate/series-mpich,slate,wide-2x2,,mpich,bug,plain,series,40,main,ranks x threads,0,hunt-slate:24.04,experiments/slate/series.sh,"cell as committed (experiments/slate/series-mpich.csv, variant plain)"
+slate/series-mpich,slate,wide-4x1,,mpich,bug,plain,series,40,main,ranks x threads,0,hunt-slate:24.04,experiments/slate/series.sh,"cell as committed (experiments/slate/series-mpich.csv, variant plain)"
+slate/series-mpich,slate,square-2x2,,mpich,bug,plain,series,40,main,ranks x threads,0,hunt-slate:24.04,experiments/slate/series.sh,"cell as committed (experiments/slate/series-mpich.csv, variant plain)"
+slate/series-mpich,slate,wide-2x2,,mpich,fix,plain,series,40,main,ranks x threads,0,hunt-slate:24.04,experiments/slate/series.sh,"cell as committed (experiments/slate/series-mpich.csv, variant fixed)"
+slate/series-mpich,slate,wide-4x1,,mpich,fix,plain,series,40,main,ranks x threads,0,hunt-slate:24.04,experiments/slate/series.sh,"cell as committed (experiments/slate/series-mpich.csv, variant fixed)"
+slate/series-mpich,slate,square-2x2,,mpich,fix,plain,series,40,main,ranks x threads,0,hunt-slate:24.04,experiments/slate/series.sh,"cell as committed (experiments/slate/series-mpich.csv, variant fixed)"
+slate/series-mpich,slate,wide-2x2-1thread,,mpich,bug,plain,series,40,main,ranks x threads,0,hunt-slate:24.04,experiments/slate/series.sh,"cell as committed (experiments/slate/series-mpich.csv, variant plain)"
+slate/traced-openmpi,slate,wide-2x2,,openmpi,bug,stretto,traced,40,main,ranks x threads,0,hunt-slate:24.04,experiments/slate/traced_cells.sh,"cell as committed (experiments/slate/traced-cells-16.csv, variant plain)"
+slate/replay-after,slate,wide-2x2,,openmpi,bug,stretto,replay-after,40,main,ranks x threads,0,hunt-slate:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
+slate/replay-before,slate,wide-2x2,,openmpi,bug,stretto,replay-before,40,appendix,ranks x threads,0,hunt-slate:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
+slate/replay-yield,slate,wide-2x2,,openmpi,bug,stretto,replay-yield,40,appendix,ranks x threads,0,hunt-slate:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
+slate/replay-both,slate,wide-2x2,,openmpi,bug,stretto,replay-both,40,appendix,ranks x threads,0,hunt-slate:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
+slate/traced-openmpi,slate,wide-2x2,,openmpi,fix,stretto,traced,40,main,ranks x threads,0,hunt-slate:24.04,experiments/slate/traced_cells.sh,"cell as committed (experiments/slate/traced-cells-16.csv, variant fixed)"
+slate/traced-openmpi,slate,wide-4x1,,openmpi,bug,stretto,traced,40,main,ranks x threads,0,hunt-slate:24.04,experiments/slate/traced_cells.sh,"cell as committed (experiments/slate/traced-cells-16.csv, variant plain)"
+slate/replay-after,slate,wide-4x1,,openmpi,bug,stretto,replay-after,40,main,ranks x threads,0,hunt-slate:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
+slate/replay-before,slate,wide-4x1,,openmpi,bug,stretto,replay-before,40,appendix,ranks x threads,0,hunt-slate:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
+slate/replay-yield,slate,wide-4x1,,openmpi,bug,stretto,replay-yield,40,appendix,ranks x threads,0,hunt-slate:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
+slate/replay-both,slate,wide-4x1,,openmpi,bug,stretto,replay-both,40,appendix,ranks x threads,0,hunt-slate:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
+slate/traced-openmpi,slate,wide-4x1,,openmpi,fix,stretto,traced,40,main,ranks x threads,0,hunt-slate:24.04,experiments/slate/traced_cells.sh,"cell as committed (experiments/slate/traced-cells-16.csv, variant fixed)"
+slate/traced-openmpi,slate,square-2x2,,openmpi,bug,stretto,traced,40,main,ranks x threads,0,hunt-slate:24.04,experiments/slate/traced_cells.sh,"cell as committed (experiments/slate/traced-cells-16.csv, variant plain)"
+slate/replay-after,slate,square-2x2,,openmpi,bug,stretto,replay-after,40,main,ranks x threads,0,hunt-slate:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
+slate/replay-before,slate,square-2x2,,openmpi,bug,stretto,replay-before,40,appendix,ranks x threads,0,hunt-slate:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
+slate/replay-yield,slate,square-2x2,,openmpi,bug,stretto,replay-yield,40,appendix,ranks x threads,0,hunt-slate:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
+slate/replay-both,slate,square-2x2,,openmpi,bug,stretto,replay-both,40,appendix,ranks x threads,0,hunt-slate:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
+slate/traced-openmpi,slate,partial-2x2,,openmpi,bug,stretto,traced,40,main,ranks x threads,0,hunt-slate:24.04,experiments/slate/traced_cells.sh,"cell as committed (experiments/slate/traced-cells-16.csv, variant plain)"
+slate/replay-after,slate,partial-2x2,,openmpi,bug,stretto,replay-after,40,main,ranks x threads,0,hunt-slate:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
+slate/replay-before,slate,partial-2x2,,openmpi,bug,stretto,replay-before,40,appendix,ranks x threads,0,hunt-slate:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
+slate/replay-yield,slate,partial-2x2,,openmpi,bug,stretto,replay-yield,40,appendix,ranks x threads,0,hunt-slate:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
+slate/replay-both,slate,partial-2x2,,openmpi,bug,stretto,replay-both,40,appendix,ranks x threads,0,hunt-slate:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
+slate/traced-openmpi,slate,mt9-2x2,,openmpi,bug,stretto,traced,40,main,ranks x threads,0,hunt-slate:24.04,experiments/slate/traced_cells.sh,"cell as committed (experiments/slate/traced-cells-16.csv, variant plain)"
+slate/replay-after,slate,mt9-2x2,,openmpi,bug,stretto,replay-after,40,main,ranks x threads,0,hunt-slate:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
+slate/replay-before,slate,mt9-2x2,,openmpi,bug,stretto,replay-before,40,appendix,ranks x threads,0,hunt-slate:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
+slate/replay-yield,slate,mt9-2x2,,openmpi,bug,stretto,replay-yield,40,appendix,ranks x threads,0,hunt-slate:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
+slate/replay-both,slate,mt9-2x2,,openmpi,bug,stretto,replay-both,40,appendix,ranks x threads,0,hunt-slate:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
+dlaf/series-openmpi,dlaf,2x1-offset,,openmpi,bug,plain,series,40,main,ranks x threads,0,hunt2-dlaf:24.04,experiments/dlaf/series.sh,"cell as committed (experiments/dlaf/series.csv, variant plain)"
+dlaf/series-openmpi,dlaf,2x1-offset,,openmpi,fix,plain,series,40,main,ranks x threads,0,hunt2-dlaf:24.04,experiments/dlaf/series.sh,"cell as committed (experiments/dlaf/series.csv, variant fixed)"
+dlaf/series-openmpi,dlaf,2x1-offset-jitter,,openmpi,bug,plain,series,40,main,ranks x threads,0,hunt2-dlaf:24.04,experiments/dlaf/series.sh,"cell as committed (experiments/dlaf/series.csv, variant plain)"
+dlaf/series-openmpi,dlaf,2x1-offset-jitter,,openmpi,fix,plain,series,40,main,ranks x threads,0,hunt2-dlaf:24.04,experiments/dlaf/series.sh,"cell as committed (experiments/dlaf/series.csv, variant fixed)"
+dlaf/series-openmpi,dlaf,2x1-blocks-jitter,,openmpi,bug,plain,series,40,main,ranks x threads,0,hunt2-dlaf:24.04,experiments/dlaf/series.sh,"cell as committed (experiments/dlaf/series.csv, variant plain)"
+dlaf/series-openmpi,dlaf,2x1-blocks-jitter,,openmpi,fix,plain,series,40,main,ranks x threads,0,hunt2-dlaf:24.04,experiments/dlaf/series.sh,"cell as committed (experiments/dlaf/series.csv, variant fixed)"
+dlaf/series-openmpi,dlaf,4x1-offset-jitter,,openmpi,bug,plain,series,40,main,ranks x threads,0,hunt2-dlaf:24.04,experiments/dlaf/series.sh,"cell as committed (experiments/dlaf/series.csv, variant plain)"
+dlaf/series-openmpi,dlaf,4x1-offset-jitter,,openmpi,fix,plain,series,40,main,ranks x threads,0,hunt2-dlaf:24.04,experiments/dlaf/series.sh,"cell as committed (experiments/dlaf/series.csv, variant fixed)"
+dlaf/series-openmpi,dlaf,3x2-offset-jitter,,openmpi,bug,plain,series,40,main,ranks x threads,0,hunt2-dlaf:24.04,experiments/dlaf/series.sh,"cell as committed (experiments/dlaf/series.csv, variant plain)"
+dlaf/series-openmpi,dlaf,3x2-offset-jitter,,openmpi,fix,plain,series,40,main,ranks x threads,0,hunt2-dlaf:24.04,experiments/dlaf/series.sh,"cell as committed (experiments/dlaf/series.csv, variant fixed)"
+dlaf/series-openmpi,dlaf,2x2-offset-jitter,,openmpi,bug,plain,series,40,main,ranks x threads,0,hunt2-dlaf:24.04,experiments/dlaf/series.sh,"cell as committed (experiments/dlaf/series.csv, variant plain)"
+dlaf/series-openmpi,dlaf,2x2-offset-jitter,,openmpi,fix,plain,series,40,main,ranks x threads,0,hunt2-dlaf:24.04,experiments/dlaf/series.sh,"cell as committed (experiments/dlaf/series.csv, variant fixed)"
+dlaf/traced-openmpi,dlaf,2x1-offset-1thread,,openmpi,fix,stretto,traced,40,main,ranks x threads,0,hunt2-dlaf:24.04,experiments/dlaf/traced.sh,"cell as committed (experiments/dlaf/traced.csv, variant fixed)"
+dlaf/traced-openmpi,dlaf,2x1-offset-1thread,,openmpi,bug,stretto,traced,40,main,ranks x threads,0,hunt2-dlaf:24.04,experiments/dlaf/traced.sh,"cell as committed (experiments/dlaf/traced.csv, variant plain)"
+dlaf/replay-after,dlaf,2x1-offset-1thread,,openmpi,bug,stretto,replay-after,40,main,ranks x threads,0,hunt2-dlaf:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
+dlaf/replay-before,dlaf,2x1-offset-1thread,,openmpi,bug,stretto,replay-before,40,appendix,ranks x threads,0,hunt2-dlaf:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
+dlaf/replay-yield,dlaf,2x1-offset-1thread,,openmpi,bug,stretto,replay-yield,40,appendix,ranks x threads,0,hunt2-dlaf:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
+dlaf/replay-both,dlaf,2x1-offset-1thread,,openmpi,bug,stretto,replay-both,40,appendix,ranks x threads,0,hunt2-dlaf:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
+dlaf/traced-openmpi,dlaf,2x1-offset-jitter,,openmpi,fix,stretto,traced,40,main,ranks x threads,0,hunt2-dlaf:24.04,experiments/dlaf/traced.sh,"cell as committed (experiments/dlaf/traced.csv, variant fixed)"
+dlaf/traced-openmpi,dlaf,2x1-offset-jitter,,openmpi,bug,stretto,traced,40,main,ranks x threads,0,hunt2-dlaf:24.04,experiments/dlaf/traced.sh,"cell as committed (experiments/dlaf/traced.csv, variant plain)"
+dlaf/replay-after,dlaf,2x1-offset-jitter,,openmpi,bug,stretto,replay-after,40,main,ranks x threads,0,hunt2-dlaf:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
+dlaf/replay-before,dlaf,2x1-offset-jitter,,openmpi,bug,stretto,replay-before,40,appendix,ranks x threads,0,hunt2-dlaf:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
+dlaf/replay-yield,dlaf,2x1-offset-jitter,,openmpi,bug,stretto,replay-yield,40,appendix,ranks x threads,0,hunt2-dlaf:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
+dlaf/replay-both,dlaf,2x1-offset-jitter,,openmpi,bug,stretto,replay-both,40,appendix,ranks x threads,0,hunt2-dlaf:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
+dlaf/traced-openmpi,dlaf,2x2-offset-jitter,,openmpi,fix,stretto,traced,40,main,ranks x threads,0,hunt2-dlaf:24.04,experiments/dlaf/traced.sh,"cell as committed (experiments/dlaf/traced.csv, variant fixed)"
+dlaf/traced-openmpi,dlaf,2x2-offset-jitter,,openmpi,bug,stretto,traced,40,main,ranks x threads,0,hunt2-dlaf:24.04,experiments/dlaf/traced.sh,"cell as committed (experiments/dlaf/traced.csv, variant plain)"
+dlaf/replay-after,dlaf,2x2-offset-jitter,,openmpi,bug,stretto,replay-after,40,main,ranks x threads,0,hunt2-dlaf:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
+dlaf/replay-before,dlaf,2x2-offset-jitter,,openmpi,bug,stretto,replay-before,40,appendix,ranks x threads,0,hunt2-dlaf:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
+dlaf/replay-yield,dlaf,2x2-offset-jitter,,openmpi,bug,stretto,replay-yield,40,appendix,ranks x threads,0,hunt2-dlaf:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
+dlaf/replay-both,dlaf,2x2-offset-jitter,,openmpi,bug,stretto,replay-both,40,appendix,ranks x threads,0,hunt2-dlaf:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
+dlaf/traced-openmpi,dlaf,3x2-offset-jitter,,openmpi,fix,stretto,traced,40,main,ranks x threads,0,hunt2-dlaf:24.04,experiments/dlaf/traced.sh,"cell as committed (experiments/dlaf/traced.csv, variant fixed)"
+dlaf/traced-openmpi,dlaf,3x2-offset-jitter,,openmpi,bug,stretto,traced,40,main,ranks x threads,0,hunt2-dlaf:24.04,experiments/dlaf/traced.sh,"cell as committed (experiments/dlaf/traced.csv, variant plain)"
+dlaf/replay-after,dlaf,3x2-offset-jitter,,openmpi,bug,stretto,replay-after,40,main,ranks x threads,0,hunt2-dlaf:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
+dlaf/replay-before,dlaf,3x2-offset-jitter,,openmpi,bug,stretto,replay-before,40,appendix,ranks x threads,0,hunt2-dlaf:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
+dlaf/replay-yield,dlaf,3x2-offset-jitter,,openmpi,bug,stretto,replay-yield,40,appendix,ranks x threads,0,hunt2-dlaf:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
+dlaf/replay-both,dlaf,3x2-offset-jitter,,openmpi,bug,stretto,replay-both,40,appendix,ranks x threads,0,hunt2-dlaf:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
+dlaf/traced-openmpi,dlaf,4x1-offset-jitter,,openmpi,fix,stretto,traced,40,main,ranks x threads,0,hunt2-dlaf:24.04,experiments/dlaf/traced.sh,"cell as committed (experiments/dlaf/traced.csv, variant fixed)"
+dlaf/traced-openmpi,dlaf,4x1-offset-jitter,,openmpi,bug,stretto,traced,40,main,ranks x threads,0,hunt2-dlaf:24.04,experiments/dlaf/traced.sh,"cell as committed (experiments/dlaf/traced.csv, variant plain)"
+dlaf/replay-after,dlaf,4x1-offset-jitter,,openmpi,bug,stretto,replay-after,40,main,ranks x threads,0,hunt2-dlaf:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
+dlaf/replay-before,dlaf,4x1-offset-jitter,,openmpi,bug,stretto,replay-before,40,appendix,ranks x threads,0,hunt2-dlaf:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
+dlaf/replay-yield,dlaf,4x1-offset-jitter,,openmpi,bug,stretto,replay-yield,40,appendix,ranks x threads,0,hunt2-dlaf:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
+dlaf/replay-both,dlaf,4x1-offset-jitter,,openmpi,bug,stretto,replay-both,40,appendix,ranks x threads,0,hunt2-dlaf:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
+parsec/series-openmpi,parsec,vp2-mt,,openmpi,bug,plain,series,40,main,ranks x threads,0,hunt2-parsec:24.04,experiments/parsec/series.sh,"cell as committed (experiments/parsec/series.csv, variant plain)"
+parsec/series-openmpi,parsec,vp2-mt,,openmpi,fix,plain,series,40,main,ranks x threads,0,hunt2-parsec:24.04,experiments/parsec/series.sh,"cell as committed (experiments/parsec/series.csv, variant fixed)"
+parsec/series-openmpi,parsec,vp2-serialized,,openmpi,bug,plain,series,40,main,ranks x threads,0,hunt2-parsec:24.04,experiments/parsec/series.sh,"cell as committed (experiments/parsec/series.csv, variant plain)"
+parsec/series-openmpi,parsec,vp2-serialized,,openmpi,fix,plain,series,40,main,ranks x threads,0,hunt2-parsec:24.04,experiments/parsec/series.sh,"cell as committed (experiments/parsec/series.csv, variant fixed)"
+parsec/series-openmpi,parsec,vp1-mt,,openmpi,bug,plain,series,40,main,ranks x threads,0,hunt2-parsec:24.04,experiments/parsec/series.sh,"cell as committed (experiments/parsec/series.csv, variant plain)"
+parsec/series-openmpi,parsec,vp1-mt,,openmpi,fix,plain,series,40,main,ranks x threads,0,hunt2-parsec:24.04,experiments/parsec/series.sh,"cell as committed (experiments/parsec/series.csv, variant fixed)"
+parsec/series-openmpi,parsec,vp2-mt-4ranks,,openmpi,bug,plain,series,40,main,ranks x threads,0,hunt2-parsec:24.04,experiments/parsec/series.sh,"cell as committed (experiments/parsec/series.csv, variant plain)"
+parsec/series-openmpi,parsec,vp2-mt-4ranks,,openmpi,fix,plain,series,40,main,ranks x threads,0,hunt2-parsec:24.04,experiments/parsec/series.sh,"cell as committed (experiments/parsec/series.csv, variant fixed)"
+parsec/series-openmpi,parsec,shipped-vp2-mt,,openmpi,bug,plain,series,40,main,ranks x threads,0,hunt2-parsec:24.04,experiments/parsec/series.sh,"cell as committed (experiments/parsec/series.csv, variant plain)"
+parsec/series-openmpi,parsec,shipped-vp2-mt,,openmpi,fix,plain,series,40,main,ranks x threads,0,hunt2-parsec:24.04,experiments/parsec/series.sh,"cell as committed (experiments/parsec/series.csv, variant fixed)"
+parsec/traced-openmpi,parsec,vp1-mt,,openmpi,fix,stretto,traced,40,main,ranks x threads,0,hunt2-parsec:24.04,experiments/parsec/traced.sh,"cell as committed (experiments/parsec/traced.csv, variant fixed)"
+parsec/traced-openmpi,parsec,vp1-mt,,openmpi,bug,stretto,traced,40,main,ranks x threads,0,hunt2-parsec:24.04,experiments/parsec/traced.sh,"cell as committed (experiments/parsec/traced.csv, variant plain)"
+parsec/replay-after,parsec,vp1-mt,,openmpi,bug,stretto,replay-after,40,main,ranks x threads,0,hunt2-parsec:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
+parsec/replay-before,parsec,vp1-mt,,openmpi,bug,stretto,replay-before,40,appendix,ranks x threads,0,hunt2-parsec:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
+parsec/replay-yield,parsec,vp1-mt,,openmpi,bug,stretto,replay-yield,40,appendix,ranks x threads,0,hunt2-parsec:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
+parsec/replay-both,parsec,vp1-mt,,openmpi,bug,stretto,replay-both,40,appendix,ranks x threads,0,hunt2-parsec:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
+parsec/traced-openmpi,parsec,vp2-mt,,openmpi,fix,stretto,traced,40,main,ranks x threads,0,hunt2-parsec:24.04,experiments/parsec/traced.sh,"cell as committed (experiments/parsec/traced.csv, variant fixed)"
+parsec/traced-openmpi,parsec,vp2-mt,,openmpi,bug,stretto,traced,40,main,ranks x threads,0,hunt2-parsec:24.04,experiments/parsec/traced.sh,"cell as committed (experiments/parsec/traced.csv, variant plain)"
+parsec/replay-after,parsec,vp2-mt,,openmpi,bug,stretto,replay-after,40,main,ranks x threads,0,hunt2-parsec:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
+parsec/replay-before,parsec,vp2-mt,,openmpi,bug,stretto,replay-before,40,appendix,ranks x threads,0,hunt2-parsec:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
+parsec/replay-yield,parsec,vp2-mt,,openmpi,bug,stretto,replay-yield,40,appendix,ranks x threads,0,hunt2-parsec:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
+parsec/replay-both,parsec,vp2-mt,,openmpi,bug,stretto,replay-both,40,appendix,ranks x threads,0,hunt2-parsec:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
+parsec/traced-openmpi,parsec,vp2-mt-4ranks,,openmpi,fix,stretto,traced,40,main,ranks x threads,0,hunt2-parsec:24.04,experiments/parsec/traced.sh,"cell as committed (experiments/parsec/traced.csv, variant fixed)"
+parsec/traced-openmpi,parsec,vp2-mt-4ranks,,openmpi,bug,stretto,traced,40,main,ranks x threads,0,hunt2-parsec:24.04,experiments/parsec/traced.sh,"cell as committed (experiments/parsec/traced.csv, variant plain)"
+parsec/replay-after,parsec,vp2-mt-4ranks,,openmpi,bug,stretto,replay-after,40,main,ranks x threads,0,hunt2-parsec:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
+parsec/replay-before,parsec,vp2-mt-4ranks,,openmpi,bug,stretto,replay-before,40,appendix,ranks x threads,0,hunt2-parsec:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
+parsec/replay-yield,parsec,vp2-mt-4ranks,,openmpi,bug,stretto,replay-yield,40,appendix,ranks x threads,0,hunt2-parsec:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
+parsec/replay-both,parsec,vp2-mt-4ranks,,openmpi,bug,stretto,replay-both,40,appendix,ranks x threads,0,hunt2-parsec:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
+parsec/traced-openmpi,parsec,vp2-serialized,,openmpi,fix,stretto,traced,40,main,ranks x threads,0,hunt2-parsec:24.04,experiments/parsec/traced.sh,"cell as committed (experiments/parsec/traced.csv, variant fixed)"
+parsec/traced-openmpi,parsec,vp2-serialized,,openmpi,bug,stretto,traced,40,main,ranks x threads,0,hunt2-parsec:24.04,experiments/parsec/traced.sh,"cell as committed (experiments/parsec/traced.csv, variant plain)"
+parsec/replay-after,parsec,vp2-serialized,,openmpi,bug,stretto,replay-after,40,main,ranks x threads,0,hunt2-parsec:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
+parsec/replay-before,parsec,vp2-serialized,,openmpi,bug,stretto,replay-before,40,appendix,ranks x threads,0,hunt2-parsec:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
+parsec/replay-yield,parsec,vp2-serialized,,openmpi,bug,stretto,replay-yield,40,appendix,ranks x threads,0,hunt2-parsec:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
+parsec/replay-both,parsec,vp2-serialized,,openmpi,bug,stretto,replay-both,40,appendix,ranks x threads,0,hunt2-parsec:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
+uintah/series-openmpi,uintah,np4 -nthreads 2,,openmpi,bug,plain,series,40,main,ranks x threads,0,uintah image,experiments/uintah/series.sh,"cell as committed (experiments/uintah/series.csv, variant plain)"
+uintah/series-openmpi,uintah,np4 -nthreads 2,,openmpi,fix,plain,series,40,main,ranks x threads,0,uintah image,experiments/uintah/series.sh,"cell as committed (experiments/uintah/series.csv, variant fix)"
+uintah/series-openmpi,uintah,np4 -nthreads 4,,openmpi,bug,plain,series,40,main,ranks x threads,0,uintah image,experiments/uintah/series.sh,"cell as committed (experiments/uintah/series.csv, variant plain)"
+uintah/series-openmpi,uintah,np4 -nthreads 4,,openmpi,fix,plain,series,40,main,ranks x threads,0,uintah image,experiments/uintah/series.sh,"cell as committed (experiments/uintah/series.csv, variant fix)"
+uintah/series-openmpi,uintah,np2 -nthreads 2,,openmpi,bug,plain,series,40,main,ranks x threads,0,uintah image,experiments/uintah/series.sh,"cell as committed (experiments/uintah/series.csv, variant plain)"
+uintah/series-openmpi,uintah,np2 -nthreads 2,,openmpi,fix,plain,series,40,main,ranks x threads,0,uintah image,experiments/uintah/series.sh,"cell as committed (experiments/uintah/series.csv, variant fix)"
+uintah/series-openmpi,uintah,np4 mpi-scheduler,,openmpi,bug,plain,series,40,main,ranks x threads,0,uintah image,experiments/uintah/series.sh,"cell as committed (experiments/uintah/series.csv, variant plain)"
+uintah/series-openmpi,uintah,np4 mpi-scheduler,,openmpi,fix,plain,series,40,main,ranks x threads,0,uintah image,experiments/uintah/series.sh,"cell as committed (experiments/uintah/series.csv, variant fix)"
+uintah/series-mpich,uintah,np4 -nthreads 2,,mpich,bug,plain,series,40,main,ranks x threads,0,uintah image,experiments/uintah/series.sh,"cell as committed (experiments/uintah/series.csv, variant plain)"
+uintah/series-mpich,uintah,np4 -nthreads 2,,mpich,fix,plain,series,40,main,ranks x threads,0,uintah image,experiments/uintah/series.sh,"cell as committed (experiments/uintah/series.csv, variant fix)"
+uintah/series-mpich,uintah,np4 -nthreads 4,,mpich,bug,plain,series,40,main,ranks x threads,0,uintah image,experiments/uintah/series.sh,"cell as committed (experiments/uintah/series.csv, variant plain)"
+uintah/series-mpich,uintah,np4 -nthreads 4,,mpich,fix,plain,series,40,main,ranks x threads,0,uintah image,experiments/uintah/series.sh,"cell as committed (experiments/uintah/series.csv, variant fix)"
+uintah/series-mpich,uintah,np2 -nthreads 2,,mpich,bug,plain,series,40,main,ranks x threads,0,uintah image,experiments/uintah/series.sh,"cell as committed (experiments/uintah/series.csv, variant plain)"
+uintah/series-mpich,uintah,np2 -nthreads 2,,mpich,fix,plain,series,40,main,ranks x threads,0,uintah image,experiments/uintah/series.sh,"cell as committed (experiments/uintah/series.csv, variant fix)"
+uintah/series-mpich,uintah,np4 mpi-scheduler,,mpich,bug,plain,series,40,main,ranks x threads,0,uintah image,experiments/uintah/series.sh,"cell as committed (experiments/uintah/series.csv, variant plain)"
+uintah/series-mpich,uintah,np4 mpi-scheduler,,mpich,fix,plain,series,40,main,ranks x threads,0,uintah image,experiments/uintah/series.sh,"cell as committed (experiments/uintah/series.csv, variant fix)"
+mustvc/uintah,uintah,the thread bug's cells,,as above,bug,mustvc,vector-clock,40,main,ranks x threads,0,mustvc:1.9-omp,experiments/mustvc/apps.sh,MUST's vector-clock checks on the cells of the four thread bugs
+mustvc/slate,slate,the thread bug's cells,,as above,bug,mustvc,vector-clock,40,main,ranks x threads,0,mustvc:1.9-omp,experiments/mustvc/apps.sh,MUST's vector-clock checks on the cells of the four thread bugs
+mustvc/dlaf,dlaf,the thread bug's cells,,as above,bug,mustvc,vector-clock,40,main,ranks x threads,0,mustvc:1.9-omp,experiments/mustvc/apps.sh,MUST's vector-clock checks on the cells of the four thread bugs
+mustvc/parsec,parsec,the thread bug's cells,,as above,bug,mustvc,vector-clock,40,main,ranks x threads,0,mustvc:1.9-omp,experiments/mustvc/apps.sh,MUST's vector-clock checks on the cells of the four thread bugs
+locks/replay,locks,every L1+L finding,,,bug,stretto,replay-L1+L,2,main,,0,stretto-exp:24.04,experiments/mustvc/lock_replays.sh,"two replays per finding, as committed"

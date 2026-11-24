@@ -1,0 +1,276 @@
+"""The uniform campaign's harness (experiments/protocol): the outcome categories of RULE.md
+Section 3, the common columns, the timeout rule of Section 2.1, the plan of Sections 4-6, the
+scheduler's placement on disjoint hardware threads and its resumption, and the runner's symptom
+and MUST judgements on made-up runs."""
+import csv
+import io
+import os
+import sys
+import tempfile
+import unittest
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
+P = os.path.join(ROOT, "experiments", "protocol")
+sys.path.insert(0, P)
+sys.path.insert(0, os.path.join(ROOT, "experiments"))
+import calibrate  # noqa: E402
+import plan  # noqa: E402
+import rows  # noqa: E402
+import schedule  # noqa: E402
+
+
+class Outcome(unittest.TestCase):
+    def test_categories(self):
+        self.assertEqual(rows.outcome(False, True), "predicted")
+        self.assertEqual(rows.outcome(True, True), "observed-reported")
+        self.assertEqual(rows.outcome(True, False), "observed-not-reported")
+        self.assertEqual(rows.outcome(False, False), "missed")
+        # a tool failure decides before S and F
+        self.assertEqual(rows.outcome(True, True, failed=True), "tool-failure")
+        self.assertTrue(rows.revealed("predicted") and rows.revealed("observed-reported"))
+        self.assertFalse(rows.revealed("observed-not-reported") or rows.revealed("missed") or rows.revealed("tool-failure"))
+
+    def test_wilson(self):
+        lo, hi = rows.wilson(0, 40)
+        self.assertEqual(lo, 0.0)
+        self.assertAlmostEqual(hi, 0.0876, places=3)          # RULE.md Section 3: 8.8%
+        self.assertAlmostEqual(rows.wilson(0, 80)[1], 0.0458, places=3)
+        self.assertAlmostEqual(rows.wilson(40, 40)[0], 0.912, places=3)
+        lo, hi = rows.wilson(20, 40)
+        self.assertAlmostEqual((hi - lo) / 2, 0.15, places=2)
+
+    def test_cpuset(self):
+        self.assertEqual(rows.cpuset([41, 0, 1, 2, 40]), "0-2,40-41")
+        self.assertEqual(rows.parse_cpuset("0-2,40"), [0, 1, 2, 40])
+        self.assertEqual(rows.parse_cpuset(rows.cpuset(range(18))), list(range(18)))
+
+    def test_common_columns(self):
+        c = rows.common(60, seed="104", jobs=3, cpus="0-3", commit="abc1234", category="missed")
+        self.assertEqual(list(c), rows.COMMON)
+        self.assertEqual((c["timeout"], c["seed"], c["jobs"], c["commit"], c["superseded"]), (60, "104", 3, "abc1234", ""))
+
+
+class Tables(unittest.TestCase):
+    def setUp(self):
+        self.d = tempfile.mkdtemp()
+        self.t = os.path.join(self.d, "b.csv")
+
+    def test_append_refuses_other_columns(self):
+        rows.append(self.t, [{"a": 1, "b": 2}], ["a", "b"])
+        rows.append(self.t, [{"a": 3, "b": 4}], ["a", "b"])
+        self.assertEqual([r["a"] for r in rows.read(self.t)], ["1", "3"])
+        with self.assertRaises(ValueError):
+            rows.append(self.t, [{"a": 1}], ["a"])
+
+    def test_supersede_keeps_rows(self):
+        f = ["run", "result", "superseded"]
+        rows.append(self.t, [{"run": i, "result": "x", "superseded": ""} for i in (1, 2, 3)], f)
+        self.assertEqual(rows.supersede(self.t, lambda r: r["run"] in ("2", "3"), "disk full 24 Nov"), 2)
+        self.assertEqual(rows.supersede(self.t, lambda r: r["run"] == "3", "again"), 0)   # the first reason stays
+        got = rows.read(self.t)
+        self.assertEqual(len(got), 3)
+        self.assertEqual([r["superseded"] for r in got], ["", "disk full 24 Nov", "disk full 24 Nov"])
+        self.assertEqual([r["run"] for r in rows.current(got)], ["1"])
+
+    def test_annotate(self):
+        src = os.path.join(self.d, "own.csv")
+        rows.append(src, [{"program": "p", "found": "yes"}], ["program", "found"])
+        n = rows.annotate(src, self.t, {"host": "h", "cpus": "0-1", "jobs": 1, "timeout": 60, "commit": "c"},
+                          outcome_of=lambda r: rows.outcome(False, r["found"] == "yes"))
+        self.assertEqual(n, 1)
+        r = rows.read(self.t)[0]
+        self.assertEqual((r["host"], r["timeout"], r["outcome"], r["superseded"]), ("h", "60", "predicted", ""))
+
+
+class Adapters(unittest.TestCase):
+    """The outcome of the rows of the scripts that keep their own tables."""
+
+    def setUp(self):
+        import adapters
+        self.ad = adapters
+        self.a = type("A", (), {"must_column": "must1112"})()
+
+    def test_stress_and_series(self):
+        self.assertEqual(self.ad.stress({"first_failure": "3"}, self.a), "observed-reported")
+        self.assertEqual(self.ad.stress({"first_failure": ""}, self.a), "missed")
+        self.assertEqual(self.ad.series({"result": "wrong"}, self.a), "observed-reported")
+        self.assertEqual(self.ad.series({"outcome": "truncate"}, self.a), "observed-reported")     # Uintah
+        self.assertEqual(self.ad.series({"result": "ok"}, self.a), "missed")
+        self.assertEqual(self.ad.series({"result": "hang"}, self.a), "tool-failure")
+
+    def test_must_and_traced(self):
+        self.assertEqual(self.ad.must({"must1112": "MUST:ERROR:DEADLOCK"}, self.a), "predicted")
+        self.assertEqual(self.ad.must({"must1112": "MUST:TIMEOUT"}, self.a), "observed-not-reported")
+        self.assertEqual(self.ad.must({"must1112": "MUST:RE"}, self.a), "tool-failure")
+        self.assertEqual(self.ad.traced({"result": "WRONG", "stretto_status": "complete", "in_permuteRows": "57"}, self.a),
+                         "observed-reported")
+        self.assertEqual(self.ad.traced({"result": "ok", "stretto_status": "complete", "l1_receive_findings": "2"}, self.a),
+                         "predicted")
+        self.assertEqual(self.ad.traced({"result": "ok", "stretto_status": "degraded: x"}, self.a), "tool-failure")
+
+
+class Timeouts(unittest.TestCase):
+    def test_rule(self):
+        self.assertEqual(calibrate.timeout_of([0.5, 1.2, 2.0]), (30, False))          # the 30 s floor
+        self.assertEqual(calibrate.timeout_of([3.0, 12.31]), (124, False))            # 10 x the slowest, rounded up
+        self.assertEqual(calibrate.timeout_of([5.0, 1800.0]), (None, True))           # a run at the cap
+
+    def test_derive(self):
+        d = tempfile.mkdtemp()
+        f = os.path.join(d, "s", "calibrate.csv")
+        fields = ["subject", "config", "version", "tool", "setting", "run", "result", "seconds", "timeout", "commit",
+                  "superseded", "symptom"]
+        rs = [{"subject": "s", "config": "np4", "version": "fix", "tool": "plain", "setting": "-", "run": i,
+               "result": "FINISHED", "seconds": 1.0 + i / 10, "timeout": 1800, "commit": "c", "superseded": "",
+               "symptom": "False"} for i in range(1, 12)]
+        rs[4]["superseded"] = "killed container"          # superseded rows do not count
+        rs.append(dict(rs[0], tool="must", setting="1.11.2", seconds=4.0))     # one run only: left out
+        rows.append(f, rs, fields)
+        out, short = calibrate.derive(d, "s")
+        self.assertEqual(len(out), 1)
+        # the first 10 current runs: 1-4 and 6-11; the slowest 2.1 s -> T = 30
+        self.assertEqual((out[0]["runs"], out[0]["slowest"], out[0]["T"]), (10, 2.1, 30))
+        self.assertEqual(len(short), 1)
+        t = schedule.load_timeouts(d, "s")
+        self.assertEqual(t[("np4", "plain", "-")], 30)
+
+
+class Plan(unittest.TestCase):
+    def setUp(self):
+        self.rows = plan.plan()
+
+    def test_current(self):
+        with open(os.path.join(P, "plan.csv")) as fh:
+            self.assertEqual(fh.read(), plan.render(self.rows), "plan.csv is stale: run experiments/protocol/plan.py")
+
+    def test_one_n(self):
+        for r in self.rows:
+            if r["runner"] == "run.py" and r["setting"] not in ("learn", "nonoise"):
+                self.assertEqual(r["n"], 40, r)
+            if r["setting"] == "nonoise":
+                self.assertEqual(r["n"], 10, r)
+            if r["tool"] == "calibrate":
+                self.assertEqual((r["n"], r["version"]), (10, "fix"), r)
+
+    def test_every_tool_on_every_configuration(self):
+        apps = [r for r in self.rows if r["runner"] == "run.py" and r["setting"] not in ("learn", "nonoise", "serial")]
+        by = {}
+        for r in apps:
+            by.setdefault((r["subject"], r["config"]), set()).add((r["tool"], r["setting"], r["version"]))
+        for k, got in by.items():
+            for tool, setting, _ in plan.APP_SETTINGS:
+                for v in ("bug", "fix"):
+                    self.assertIn((tool, setting, v), got, k)
+
+    def test_npbmg_32_alone_and_concurrency_check(self):
+        mg = [r for r in self.rows if r["subject"] == "npbmg" and r["config"] == "np32" and r["runner"] == "run.py"]
+        self.assertTrue(mg and all(r["alone"] == 1 for r in mg))
+        serial = [r for r in self.rows if r["setting"] == "serial"]
+        self.assertEqual(sorted(r["subject"] for r in serial), sorted(set(r["subject"] for r in serial)))
+        self.assertTrue(all(r["alone"] == 1 and r["n"] == 40 and r["version"] == "bug" for r in serial))
+
+    def test_hypre_slow_noise_is_its_own_row(self):
+        slow = [r for r in self.rows if r["setting"] == "random-1.2s"]
+        self.assertTrue(slow and all(r["subject"] == "hypre" and r["table"] == "appendix" for r in slow))
+
+
+class Placement(unittest.TestCase):
+    def test_pool_order_pairs_siblings(self):
+        order = schedule.pool_order(rows.parse_cpuset(schedule.POOL))
+        self.assertEqual(order[:4], [0, 40, 1, 41])
+        self.assertEqual(len(order), 36)
+        self.assertNotIn(18, order)
+        self.assertNotIn(58, order)
+
+    def test_disjoint_and_alone(self):
+        p = schedule.Pool(rows.parse_cpuset(schedule.POOL))
+        a, b = p.take(4), p.take(8)
+        self.assertEqual(set(a) & set(b), set())
+        self.assertIsNone(p.take(32, alone=True))          # an alone job waits for an idle machine
+        self.assertIsNone(p.take(30))                       # 24 left
+        p.give(a)
+        p.give(b)
+        self.assertTrue(p.idle())
+        c = p.take(32, alone=True)
+        self.assertEqual(len(c), 32)
+        self.assertEqual(len(set(c)), 32)
+        p.give(c)
+        p.claim([0, 40])                                    # an earlier invocation's container
+        self.assertNotIn(0, p.take(34))
+        self.assertIsNone(p.take(1))
+
+    def test_jobs_order_and_learning(self):
+        text = plan.render(plan.plan())
+        pl = list(csv.DictReader(io.StringIO(text)))
+        jobs = schedule.jobs_of(pl, r"^cabana/(calibrate|ninja-learn|ninja-app|plain)$", 2)
+        learn = [i for i, j in enumerate(jobs) if j["setting"] == "learn"]
+        cal = [i for i, j in enumerate(jobs) if j["calibration"]]
+        self.assertEqual(learn, list(range(len(learn))))                      # the learning runs first
+        self.assertEqual(cal, list(range(len(learn), len(learn) + len(cal))))  # then the calibration
+        self.assertTrue(all(jobs[i]["run"] == 0 for i in learn))
+        first_other = len(learn) + len(cal)
+        runs = [j["run"] for j in jobs if not j["calibration"] and j["setting"] != "learn"]
+        self.assertEqual(runs, sorted(runs))                                  # run by run
+        cal = [j for j in jobs if j["calibration"]]
+        self.assertTrue(cal and all(j["version"] == "fix" for j in cal))
+        self.assertIn(("plain", "-"), {(j["tool"], j["setting"]) for j in cal})
+
+
+class Symptoms(unittest.TestCase):
+    def setUp(self):
+        import run
+        self.run = run
+
+    def test_hang_and_wrong(self):
+        hang = {"hang": True}
+        wrong = {"wrong": True, "abort": r"integer set not found"}
+        s = self.run.symptom_of
+        self.assertEqual(s(hang, "FINISHED", True, ""), (False, ""))
+        self.assertEqual(s(hang, "TIMEOUT", False, ""), (True, ""))
+        self.assertEqual(s(wrong, "TIMEOUT", False, ""), (False, "timeout"))          # Section 2.1
+        self.assertEqual(s(wrong, "FINISHED", False, ""), (True, ""))
+        self.assertEqual(s(wrong, "APP-ERROR:1", False, "... integer set not found ..."), (True, ""))
+        self.assertEqual(s(hang, "SIGNAL:6", True, "[  PASSED  ] 1 test."), (False, "SIGNAL:6"))   # NINJA's abort at exit
+
+    def test_must_by_call_site(self):
+        import json
+        d = tempfile.mkdtemp()
+        s = {"must_calls": r"MPI_(I)?[Pp]robe", "must_site": r"ParaSails"}
+        msgs = {"messages": [{"type": "Error", "error_id": "MUST_ERROR_DEADLOCK", "from": {"call": "MPI_Probe"},
+                              "references": [{"call": "MPI_Probe", "stacktrace": [{"function": "ReceiveRequest", "file": "ParaSails.c", "line": 100}]}]},
+                             {"type": "Warning", "error_id": "MUST_WARNING_X", "from": {"call": "MPI_Recv"}}]}
+        with open(os.path.join(d, "MUST_Output.json"), "w") as fh:
+            json.dump(msgs, fh)
+        hit, detail = self.run.must_report(s, d)
+        self.assertTrue(hit)
+        self.assertIn("MUST_WARNING_X(MPI_Recv)*1", detail)
+        # a warning at the racing call and site reports nothing
+        w = {"messages": [{"type": "Warning", "error_id": "MUST_WARNING_INTEGER_ZERO", "from": {"call": "MPI_Probe",
+              "stacktrace": [{"function": "ReceiveRequest", "file": "ParaSails.c"}]}}]}
+        d2 = tempfile.mkdtemp()
+        with open(os.path.join(d2, "MUST_Output.json"), "w") as fh:
+            json.dump(w, fh)
+        self.assertFalse(self.run.must_report(s, d2)[0])
+        self.assertIn("MUST_ERROR_DEADLOCK(MPI_Probe)*1", detail)
+        s2 = dict(s, must_site=r"Elsewhere")
+        self.assertFalse(self.run.must_report(s2, d)[0])          # the right call at another site is no report
+        self.assertEqual(self.run.must_report(s, tempfile.mkdtemp()), (False, "no-report"))
+
+    def test_must_ends(self):
+        r = self.run.must_result
+        self.assertEqual(r(0, 5, 60, "[MUST] Execution finished, inspect ..."), "FINISHED")
+        self.assertEqual(r(0, 5, 60, "rank 0 (of 4), pid 2 caught signal nr 11\n[MUST] Execution finished"), "CRASHED")
+        self.assertEqual(r(0, 5, 60, "rank 3 (of 4), pid 2 caught signal nr 15\n[MUST] Execution finished"), "FINISHED")
+        self.assertEqual(r(1, 5, 60, "ERROR: MUST detected a deadlock, writing output."), "MUST-DEADLOCK")
+        self.assertEqual(r(124, 60, 60, ""), "TIMEOUT")
+
+    def test_delays_are_the_committed_draws(self):
+        d = self.run.delays(4, 1)
+        import random
+        r = random.Random(104)
+        self.assertEqual(d["STRETTO_SEND_DELAY_MS"], ",".join("%d:%d" % (k, r.choice([0, 0, 0, 1, 5, 20, 50])) for k in range(4)))
+
+
+if __name__ == "__main__":
+    unittest.main()
