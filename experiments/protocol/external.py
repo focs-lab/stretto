@@ -70,12 +70,15 @@ THREAD_CELLS = {
                     "2x1-offset-1thread"],
     "parsec/series": ["vp2-mt", "vp2-serialized", "vp1-mt", "vp2-mt-4ranks", "shipped-vp2-mt"],
     "parsec/traced": ["vp2-mt", "vp2-mt-4ranks", "vp2-serialized", "vp1-mt"],
-    "uintah/series": ["np4-nthreads2", "np4-nthreads4"],
+    # every committed cell (amendment 30): np 4 with 2 and 4 threads, np 2 with 2, and the MPI
+    # scheduler's control at np 4 ("np4": no -nthreads)
+    "uintah/series": ["np4-nthreads2", "np4-nthreads4", "np2-nthreads2", "np4"],
 }
 MUSTVC_CELLS = {"slate": ["wide-2x2", "wide-2x2-compat", "wide-4x1-compat"], "parsec": ["vp2-mt", "vp2-mt-4ranks"],
                 "dlaf": ["2x1-offset-jitter", "4x1-offset-jitter"], "uintah": ["np4-t4", "np4-t2"]}
 for _app, _cells in MUSTVC_CELLS.items():
     THREAD_CELLS["mustvc/" + _app] = _cells + ["native:" + c for c in _cells]
+UINTAH_SETTINGS = "4 -nthreads 2;4 -nthreads 4;2 -nthreads 2;4"       # series.sh SETTINGS: THREAD_CELLS' Uintah cells
 REPLAY_CELL = {"slate": "wide-4x1", "parsec": "vp2-mt", "dlaf": "2x1-offset-jitter"}
 
 
@@ -265,8 +268,7 @@ def thread_spec(j, ctx):
         s["cmd"] = ("experiments/uintah/series.sh %s/series.csv %s plain=%s/%s fix=%s/%s"
                     % (jd, ups, inside, m.get(pre + "PLAIN_SUS", "plain/StandAlone/sus"), inside,
                        m.get(pre + "FIX_SUS", "fix/StandAlone/sus")))
-        if serial:
-            s["env"].update({"SETTINGS": "4 -nthreads 2"})
+        s["env"]["SETTINGS"] = "4 -nthreads 2" if serial else UINTAH_SETTINGS
         s["src"], s["kind"] = jd + "/series.csv", "series"
     else:
         raise ValueError("no thread subject %s" % subj)

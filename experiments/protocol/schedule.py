@@ -538,6 +538,9 @@ class Scheduler:
             return all(n in self.done for n in needs)
         if j["setting"] == ANALYSIS:
             return (j["block"], key_of(traced_of(j))) in self.done
+        if j["tool"] == "must" and j["setting"] != "warmup" and not j["external"]:
+            # no MUST run of a configuration, calibration included, before its warm-up has ended (amendment 31)
+            return ("%s/must-warmup" % j["subject"], "%s|%s|fix|must|warmup|0" % (j["subject"], j["config"])) in self.done
         if j["tool"] == "ninja" and j["setting"] == "app":
             block = "%s/ninja-learn" % j["subject"]
             return (block, "%s|%s|%s|ninja|learn|0" % (j["subject"], j["config"], j["version"])) in self.done

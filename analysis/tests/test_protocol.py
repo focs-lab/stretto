@@ -763,5 +763,110 @@ class Review(unittest.TestCase):
                       "--set", "commit=c"])
         self.assertEqual([r["timeout"] for r in rows.read(dst)], ["125", "40"])
 
+
+class Fixes(unittest.TestCase):
+    """The amendments after the review of the fixes (RULE.md Section 13)."""
+
+    def test_which_kill_is_a_tool_failure(self):                      # amendment 29
+        d = tempfile.mkdtemp()
+        jobs = schedule.jobs_of(plan_rows(), r"^npbmg/(delays-D50|replay|calibrate)$", 1, configs="np16")
+        sc = scheduler(d, jobs)
+        sc.a.timeout = 99
+
+        class P:
+            returncode = 137
+
+            def poll(self):
+                return 137
+        delays = [j for j in jobs if j["tool"] == "delays" and j["version"] == "bug"][0]
+        sc.done = set()
+        for oom, expect in ((False, "rerun"), (True, "tool-failure")):
+            sc.oom_killed = lambda name, oom=oom: oom
+            sc.running = {"k": (delays, P(), [0], 1)}
+            sc.started = {"k": 0.0}
+            todo = []
+            sc.reap(todo)
+            if expect == "rerun":
+                self.assertEqual(todo, [delays])                       # done again, listed in reruns.tsv
+                with open(os.path.join(sc.a.results, "reruns.tsv")) as fh:
+                    self.assertIn("not by its own memory limit", fh.read())
+            else:
+                got = rows.read(sc.table(delays))[-1]
+                self.assertEqual((got["outcome"], got["seed"]), ("tool-failure", "116"))   # the delays' seed kept
+        # a job keeps being rerun at most MAX_RERUNS times
+        sc.oom_killed = lambda name: False
+        for _ in range(schedule.MAX_RERUNS + 2):
+            sc.running = {"k": (delays, P(), [0], 1)}
+            sc.reap([])
+        self.assertIn(delays["block"], sc.broken)
+        # a killed replay keeps a verdict; a killed calibration run does not break derive
+        rp = [j for j in jobs if j["setting"] == "replay"][0]
+        os.makedirs(os.path.dirname(sc.row_file(rp)), exist_ok=True)
+        self.assertTrue(sc.killed_row(rp, 137, 5.0))
+        with open(sc.row_file(rp)) as fh:
+            self.assertEqual(json.load(fh)["outcome"], "inconclusive")
+        cal = [j for j in jobs if j["calibration"]]
+        res = os.path.join(d, "r")
+        rs = []
+        for k, j in enumerate(cal[:1] * 10, 1):
+            r = dict((c, "") for c in schedule.FIELDS)
+            r.update(subject="npbmg", config="np16", version="fix", tool=j["tool"], setting=j["setting"], run=k,
+                     result="FINISHED", seconds=2.0, timeout=1800)
+            rs.append(r)
+        rs[3].update(result="KILLED", seconds="")
+        rows.append(os.path.join(res, "npbmg", "calibrate.csv"), rs, schedule.FIELDS)
+        out, short = calibrate.derive(res, "npbmg")
+        self.assertEqual((out[0]["T"], out[0]["capped"]), (30, 1))      # left out of T, as a capped run
+
+    def test_uintah_cells(self):                                     # amendment 30
+        import external
+        committed = set()
+        for r in rows.read(os.path.join(ROOT, "experiments", "uintah", "series.csv")):
+            committed.add("np%s%s" % (r["np"], "" if r["args"] == "mpi-scheduler" else r["args"].replace(" ", "")))
+        self.assertEqual(set(external.THREAD_CELLS["uintah/series"]), committed)
+        settings = set("np%s%s" % (x.split(" ", 1)[0], x.split(" ", 1)[1].replace(" ", "") if " " in x else "")
+                       for x in external.UINTAH_SETTINGS.split(";"))
+        self.assertEqual(settings, committed)
+
+    def test_must_waits_for_its_warmup(self):                         # amendment 31
+        d = tempfile.mkdtemp()
+        jobs = schedule.jobs_of(plan_rows(), r"^npbmg/(calibrate|must-1.11.2|must-warmup)$", 1, configs="np16",
+                                tools="must")
+        sc = scheduler(d, jobs)
+        sc.done = set()
+        cal = [j for j in jobs if j["calibration"] and j["tool"] == "must"][0]
+        run = [j for j in jobs if not j["calibration"] and j["setting"] == "1.11.2"][0]
+        warm = [j for j in jobs if j["setting"] == "warmup"][0]
+        self.assertFalse(sc.ready(cal, []))
+        self.assertFalse(sc.ready(run, []))
+        self.assertTrue(sc.ready(warm, []))
+        sc.done.add((warm["block"], schedule.key_of(warm)))
+        self.assertTrue(sc.ready(cal, []) and sc.ready(run, []))
+
+    def test_unselected_adopted_alone_job_blocks(self):               # review item 12
+        d = tempfile.mkdtemp()
+        jobs = schedule.jobs_of(plan_rows(), r"^hypre/plain$", 1, configs="np4")
+        sc = scheduler(d, jobs)
+        sc.a.timeout = 99
+        sc.adopted = {"p-other": (None, [0, 40], True)}                 # another selection's alone job, by its label
+        cmd = sc.command(jobs[0], [1], 1, 99)
+        self.assertIn("protocol.alone=0", cmd)
+        self.assertTrue(sc.blocked_by_alone(jobs[0]))                   # nothing starts beside it
+        sc.adopted = {"p-other": (None, [0, 40], False)}
+        self.assertFalse(sc.blocked_by_alone(jobs[0]))
+        self.assertTrue(sc.blocked_by_alone(dict(jobs[0], alone=True)))  # an alone job waits for an idle machine
+
+    def test_warmup_checks_mustrun_processes(self):                   # amendment 1
+        import run
+        d = tempfile.mkdtemp()
+        os.makedirs(os.path.join(d, "must_temp", "src"))
+        with open(os.path.join(d, "must_temp", "src", "layout.xml"), "w") as fh:
+            fh.write('<levels>\n<level order="0" size="32" place-name="mpi_app">\n<level order="1" size="1" '
+                     'place-name="mpi_place">\n</levels>\n')
+        self.assertEqual(run.must_procs(d), 33)
+        run.check_must_procs(d, "0-16,40-55")                           # 33 threads
+        with self.assertRaises(SystemExit):
+            run.check_must_procs(d, "0-15,40-55")
+
 if __name__ == "__main__":
     unittest.main()
