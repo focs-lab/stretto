@@ -200,15 +200,19 @@ THREADS = [("slate", "experiments/slate/series.csv", ("cell", "variant"), "serie
             "stretto-uintah:24.04", "experiments/uintah/series.sh"),
            ("uintah", "experiments/uintah/series.csv", ("mpi", "build", "np", "args"), "series", "mpich", 16,
             "stretto-uintah:24.04", "experiments/uintah/series.sh")]
-REPLAY_RUNS = 20     # traced runs per replay block: with the committed per-trace samples (2 or 3), above 40 replays
+# the replays of amendment 17 (threadreplays.py): traced runs of the replay cell (SLATE's count as
+# the committed campaign's 16, of which the right ones count; 5 for the others, 15 to 20
+# alternatives each), the distinct alternatives over them, a sample of 40, in every gate mode
+REPLAY_TRACES = {"slate": 16, "parsec": 5, "dlaf": 5}
 REPLAY_MODES = {"slate": ("after", "before", "yield", "both"), "parsec": ("after", "before", "yield", "both"),
                 "dlaf": ("after",)}
+REPLAY_CPUS = {"slate": 16, "parsec": 6, "dlaf": 8}
 
 
 def thread_rows():
     """The thread campaigns: one job is one run of every cell of a block (the committed script with
-    RUNS=1, the job's number as the run), 40 runs; the replays of the committed replay.sh in each
-    gate mode (DLA-Future's has the default, after, only); MUST-vc on the four bugs' cells; the
+    RUNS=1, the job's number as the run), 40 runs; the replays of amendment 17 (threadreplays.py) in
+    each gate mode (DLA-Future's has the default, after, only); MUST-vc on the four bugs' cells; the
     L1+L lock replays, two per finding, as committed."""
     out = []
     for subject, path, keys, kind, mpi, cpus, image, runner in THREADS:
@@ -225,14 +229,18 @@ def thread_rows():
                     "mpi": mpi, "version": "-", "tool": tool, "setting": setting, "n": N, "table": "main", "cpus": cpus,
                     "alone": 0, "image": image, "runner": "external:thread",
                     "notes": "%s, RUNS=1 per job; cells of %s: %s" % (runner, path, "; ".join(cells))})
-        if kind == "traced":
-            for mode in REPLAY_MODES.get(subject, ()):
-                out.append({"block": "%s/replay-%s" % (subject, mode), "subject": subject, "config": "the bug's replay cell",
-                            "np": "", "mpi": mpi, "version": "bug", "tool": "stretto", "setting": "replay-" + mode,
-                            "n": REPLAY_RUNS, "table": "main" if mode == "after" else "appendix", "cpus": cpus, "alone": 0,
-                            "image": image, "runner": "external:thread",
-                            "notes": "experiments/%s/replay.sh, one traced run and its sampled alternatives per job "
-                                     "(experiments/replay_modes.sh %s)" % (subject, mode)})
+        if kind == "traced" and subject in REPLAY_TRACES:
+            r = {"subject": subject, "config": "the bug's replay cell", "np": "", "mpi": mpi, "version": "bug",
+                 "tool": "stretto", "alone": 0, "image": image, "runner": "external:threadreplay", "cpus": REPLAY_CPUS[subject]}
+            out.append(dict(r, block="%s/replay-traces" % subject, setting="replay-trace", n=REPLAY_TRACES[subject],
+                            table="prerequisite", notes="threadreplays.py trace: the replay cell traced with its lock order"))
+            out.append(dict(r, block="%s/replay-alternatives" % subject, setting="replay-enumerate", n=1, table="prerequisite",
+                            notes="threadreplays.py enumerate: the distinct alternatives over the traces, a seeded sample of 40"))
+            for mode in REPLAY_MODES[subject]:
+                out.append(dict(r, block="%s/replay-%s" % (subject, mode), setting="replay-" + mode, n=REPLAYS,
+                                table="main" if mode == "after" else "appendix",
+                                notes="threadreplays.py replay: each alternative twice with its control, gate mode %s%s"
+                                      % (mode, "" if len(REPLAY_MODES[subject]) > 1 else " (its replay.sh's one mode)")))
     for subject, cpus in (("uintah", 18), ("slate", 18), ("dlaf", 14), ("parsec", 10)):
         out.append({"block": "mustvc/%s" % subject, "subject": subject, "config": "the thread bug's cells", "np": "",
                     "mpi": "mpich", "version": "-", "tool": "mustvc", "setting": "vector-clock", "n": N,

@@ -151,7 +151,7 @@ def jobs_of(plan, blocks, runs_override, configs=".", tools="."):
         tool, setting = p["tool"], p["setting"]
         if tool == "calibrate":
             tool, _, setting = p["setting"].partition(":")
-        first = 0 if setting in ("learn", "warmup") or tool == "build" else 1
+        first = 0 if setting in ("learn", "warmup") or tool == "build" or (ext and setting == "replay-enumerate") else 1
         job = {"block": p["block"], "subject": p["subject"], "config": p["config"], "np": int(p["np"] or 0),
                "version": p["version"], "tool": tool, "cpus": int(p["cpus"]), "alone": p["alone"] == "1",
                "image": p["image"], "calibration": p["tool"] == "calibrate", "external": ext, "mpi": p["mpi"]}
@@ -444,6 +444,13 @@ class Scheduler:
         run; the enumeration of the alternatives, the configuration's traced runs; a replay, the
         enumeration (and an alternative of its number); an external job, what its spec needs (a
         suite's build)."""
+        if j["external"] == "threadreplay" and j["setting"] == "replay-enumerate":
+            # every traced run of the replay cell first
+            return not [x for x in todo + [r[0] for r in self.running.values()]
+                        if x["subject"] == j["subject"] and x["external"] == "threadreplay" and x["setting"] == "replay-trace"]
+        if j["external"] == "threadreplay" and j["setting"] not in ("replay-trace",):
+            return ("%s/replay-alternatives" % j["subject"],
+                    "%s|%s|bug|stretto|replay-enumerate|0" % (j["subject"], j["config"])) in self.done
         if j["external"]:
             try:
                 needs = external.spec(j, self.ctx()).get("needs", [])
@@ -467,6 +474,9 @@ class Scheduler:
         return True
 
     def replay_exists(self, j):
+        if j["external"] == "threadreplay" and j["setting"] not in ("replay-trace", "replay-enumerate"):
+            path = os.path.join(self.a.state, "threadreplays", j["subject"], "alternatives.csv")
+            return any(int(r["index"]) == j["run"] for r in rows.read(path))
         if j["setting"] != "replay":
             return True
         path = os.path.join(self.a.results, j["subject"], "replay-alternatives-%s.csv" % j["config"])

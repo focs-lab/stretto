@@ -449,5 +449,56 @@ class Symptoms(unittest.TestCase):
         self.assertEqual(d["STRETTO_SEND_DELAY_MS"], ",".join("%d:%d" % (k, r.choice([0, 0, 0, 1, 5, 20, 50])) for k in range(4)))
 
 
+
+class ThreadReplays(unittest.TestCase):
+    """Amendment 17: the thread campaigns' replays over distinct alternatives (threadreplays.py)."""
+
+    def setUp(self):
+        import adapters
+        import external
+        self.ad, self.ex = adapters, external
+        self.a = type("A", (), {"must_column": "must1112", "recorded_wrong": False})()
+        self.ctx = {"exp_image": "e", "must_image": "m", "binding": external.BINDING, "machine": {}, "commit": "c",
+                    "owner": "1:1", "select": ".", "limit": 4}
+        self.rows = plan.plan()
+
+    def test_thread_replays(self):
+        rs = [r for r in self.rows if r["runner"] == "external:threadreplay"]
+        self.assertEqual(set(r["subject"] for r in rs), {"slate", "parsec", "dlaf"})
+        modes = dict((s, set(r["setting"] for r in rs if r["subject"] == s and r["setting"] not in
+                             ("replay-trace", "replay-enumerate"))) for s in ("slate", "parsec", "dlaf"))
+        self.assertEqual(modes["dlaf"], {"replay-after"})                          # its one mode
+        self.assertEqual(len(modes["parsec"]), 4)
+        self.assertTrue(all(r["n"] == plan.REPLAYS for r in rs if r["setting"].startswith("replay-")
+                            and r["setting"] not in ("replay-trace", "replay-enumerate")))
+
+    def test_thread_replay_specs(self):
+        j = {"subject": "parsec", "tool": "stretto", "setting": "replay-before", "run": 7, "config": "the bug's replay cell",
+             "external": "threadreplay", "block": "parsec/replay-before"}
+        ctx = dict(self.ctx, machine={"PARSEC_BUILD": "/b", "PARSEC_LD_LIBRARY_PATH": "/w/tracer/bin"})
+        s = self.ex.spec(j, ctx)
+        self.assertIn("threadreplays.py replay --subject parsec --index 7 --mode before", s["cmd"])
+        self.assertEqual((s["kind"], s["mounts"], s["env"]["LD_LIBRARY_PATH"]), ("threadreplay", [("/b", "/h", "ro")],
+                                                                                 "/w/tracer/bin"))
+        s = self.ex.spec(dict(j, setting="replay-trace", run=2), ctx)
+        self.assertIn("threadreplays.py trace --subject parsec --run 2", s["cmd"])
+        self.assertEqual(s["kind"], "none")
+        # a replay's verdict knows its traced run went wrong from the row (SLATE's wrong factors)
+        self.assertEqual(self.ad.threadreplay({"recorded": "wrong", "verdict": "confirmed"}, self.a), "confirmed")
+
+    def test_results_and_jobs(self):
+        import threadreplays as tr
+        self.assertEqual(tr.result_of("slate", "rep 0 1000 2000 ok\n"), "ok")
+        self.assertEqual(tr.result_of("slate", "rep 0 1000 2000 WRONG\n"), "wrong")
+        self.assertEqual(tr.result_of("parsec", "summary reps 1 wrong 2\n"), "wrong")
+        self.assertEqual(tr.result_of("dlaf", "MPI_ABORT\n"), "crash")
+        self.assertEqual(tr.SPECS["parsec"]["env"]["STRETTO_ATOMICS"], "0")     # the atomics build, recording off
+        pl = list(csv.DictReader(io.StringIO(plan.render(self.rows))))
+        jobs = schedule.jobs_of(pl, r"^parsec/replay-(traces|alternatives|after)$", 2)
+        got = [(j["setting"], j["run"]) for j in jobs]
+        self.assertIn(("replay-enumerate", 0), got)
+        self.assertEqual(sorted(r for s, r in got if s == "replay-trace"), [1, 2])
+        self.assertEqual(sorted(r for s, r in got if s == "replay-after"), [1, 2])
+
 if __name__ == "__main__":
     unittest.main()

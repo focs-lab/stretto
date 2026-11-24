@@ -141,7 +141,7 @@ def suite_spec(j, ctx):
 
 def thread_spec(j, ctx):
     """One run of every cell of a thread campaign's block (the script with RUNS=1; the run number
-    is the job's), its replays, or MUST-vc's runs."""
+    is the job's)."""
     m, subj, k = ctx["machine"], j["subject"], j["run"]
     jd = "/state/threads/%s/%s-%02d" % (subj, j["block"].split("/")[1], k)
     s = {"env": {"RUNS": "1", "STRETTO_COMMIT": ctx["commit"]}, "needs": [], "extra": ["--set", "run=%d" % k], "mounts": []}
@@ -160,10 +160,6 @@ def thread_spec(j, ctx):
             s["env"].update({"FIRST": str(k), "JOBS": "4"})
             s["cmd"] = "experiments/slate/traced_cells.sh %s %s %s/work %s/traced.csv" % (lib, d, jd, jd)
             s["src"], s["kind"] = jd + "/traced.csv", "traced"
-        else:
-            s["env"].update({"FIRST": str(k), "MODES": j["setting"].split("-", 1)[1]})
-            s["cmd"] = "experiments/slate/replay.sh %s %s %s/work" % (lib, d, jd)
-            s["src"], s["kind"] = jd + "/work/replay.csv", "threadreplay"
     elif subj in ("dlaf", "parsec"):
         p = subj.upper()
         s["image"] = m.get(p + "_IMAGE", "atm-clang:24.04")
@@ -177,13 +173,6 @@ def thread_spec(j, ctx):
         elif kind == "traced":
             s["cmd"] = "experiments/%s/traced.sh %s %s/work %s/traced.csv" % (subj, b, jd, jd)
             s["src"], s["kind"] = jd + "/traced.csv", "traced"
-        else:
-            if subj == "parsec":
-                s["env"]["MODES"] = j["setting"].split("-", 1)[1]
-                s["cmd"] = "experiments/parsec/replay.sh %s %s/work" % (b, jd)
-            else:
-                s["cmd"] = "experiments/dlaf/replay.sh %s/copy_check %s/work" % (b, jd)
-            s["src"], s["kind"] = jd + "/work/replay.csv", "threadreplay"
     elif subj == "uintah":
         # the builds' roots are mounted where they were built (their runpaths name those paths)
         s["image"] = m.get("UINTAH_IMAGE", "stretto-uintah:24.04")
@@ -199,6 +188,33 @@ def thread_spec(j, ctx):
         s["src"], s["kind"] = jd + "/series.csv", "series"
     else:
         raise ValueError("no thread subject %s" % subj)
+    s["cmd"] = "mkdir -p %s && %s" % (jd, s["cmd"])
+    return s
+
+
+def threadreplay_spec(j, ctx):
+    """Amendment 17's replays (threadreplays.py): a traced run of the replay cell, the enumeration,
+    or one alternative's replays in one gate mode, in the subject's image with its build."""
+    m, subj, k, setting = ctx["machine"], j["subject"], j["run"], j["setting"]
+    jd = "/state/threadreplays/%s/jobs/%s-%02d" % (subj, setting, k)
+    s = {"needs": [], "extra": [], "env": {"STRETTO_COMMIT": ctx["commit"]}}
+    if subj == "slate":
+        s["image"], s["mounts"] = m.get("SLATE_IMAGE", "hunt-slate:24.04"), [(m.get("SLATE_HOME", ""), "/h", "ro")]
+    else:
+        p = subj.upper()
+        s["image"], s["mounts"] = m.get(p + "_IMAGE", "atm-clang:24.04"), [(m.get(p + "_BUILD", ""), "/h", "ro")]
+        if m.get(p + "_LD_LIBRARY_PATH"):
+            s["env"]["LD_LIBRARY_PATH"] = m[p + "_LD_LIBRARY_PATH"]
+    t = "python3 experiments/protocol/threadreplays.py"
+    if setting == "replay-trace":
+        s["cmd"], s["kind"] = "%s trace --subject %s --run %d --out %s/trace.csv" % (t, subj, k, jd), "none"
+        s["src"] = jd + "/trace.csv"
+    elif setting == "replay-enumerate":
+        s["cmd"], s["kind"] = "%s enumerate --subject %s --out %s/enumerate.csv" % (t, subj, jd), "none"
+        s["src"] = jd + "/enumerate.csv"
+    else:
+        s["cmd"] = "%s replay --subject %s --index %d --mode %s --out %s/replay.csv" % (t, subj, k, setting.split("-", 1)[1], jd)
+        s["src"], s["kind"] = jd + "/replay.csv", "threadreplay"
     s["cmd"] = "mkdir -p %s && %s" % (jd, s["cmd"])
     return s
 
@@ -246,6 +262,8 @@ def spec(j, ctx):
         return suite_spec(j, ctx)
     if k == "thread":
         return thread_spec(j, ctx)
+    if k == "threadreplay":
+        return threadreplay_spec(j, ctx)
     if k == "mustvc":
         return mustvc_spec(j, ctx)
     if k == "locks":

@@ -120,7 +120,7 @@ def threadreplay(r, a):
         return r["verdict"]
     sys.path.insert(0, os.path.join(ROOT, "experiments"))
     import replay_verdicts
-    return replay_verdicts.verdict(r, a.recorded_wrong)
+    return replay_verdicts.verdict(r, a.recorded_wrong or r.get("recorded") == "wrong")
 
 
 def mustvc(r, a):
