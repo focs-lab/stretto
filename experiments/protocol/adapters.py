@@ -83,7 +83,74 @@ def traced(r, a):
     return rows.outcome(s, f)
 
 
-RULES = {"stress": stress, "must": must, "corpus": corpus, "series": series, "traced": traced}
+def corrbench(r, a):
+    """experiments/corrbench/run.py: a native row is a plain run, a trace or guard row a traced
+    one, judged as corpus (its result is the run's end)."""
+    if r.get("mode") == "build":
+        return rows.outcome(False, False, failed=True)
+    if r.get("mode") == "native":
+        s = r.get("result") != "FINISHED"
+        return rows.outcome(s, s)
+    return corpus(dict(r, run=r.get("result", "")), a)
+
+
+def bench(r, a):
+    """experiments/mustvc/stretto_bench.sh: run 0 untraced (a plain run), the others traced, F an
+    error-class finding (errors > 0); a report that is not complete is a tool failure."""
+    s = (r.get("result") or "") not in ("FINISHED",)
+    if r.get("result") == "BUILD-FAILED":
+        return rows.outcome(False, False, failed=True)
+    if str(r.get("run")) == "0":
+        return rows.outcome(s, s)
+    if (r.get("status") or "complete") != "complete":
+        return rows.outcome(False, False, failed=True)
+    try:
+        f = int(r.get("errors") or 0) > 0
+    except ValueError:
+        f = False
+    return rows.outcome(s, f)
+
+
+def threadreplay(r, a):
+    """A replay of experiments/replay_sample.py --threads (the thread campaigns' replay.sh,
+    mustvc/lock_replays.sh): its verdict where the table has one, else the committed verdict of
+    experiments/replay_verdicts.py (docs/threads.md, sections 16 and 19), the recorded run taken as
+    right unless the row's traced run went wrong (--recorded-wrong)."""
+    if r.get("verdict"):
+        return r["verdict"]
+    sys.path.insert(0, os.path.join(ROOT, "experiments"))
+    import replay_verdicts
+    return replay_verdicts.verdict(r, a.recorded_wrong)
+
+
+def mustvc(r, a):
+    """experiments/mustvc/apps.sh: a native row is a plain run; a mustvc row reports the bug when a
+    report names its pair (culprit > 0); a MUST-vc run that did not end otherwise than by the
+    bug's symptom is a tool failure."""
+    s = (r.get("outcome") or "") in ("wrong", "truncate")
+    if r.get("tool") == "native":
+        return rows.outcome(s, s)
+    try:
+        f = int(r.get("culprit") or 0) > 0
+    except ValueError:
+        f = False
+    failed = (r.get("result") or "") != "FINISHED" and not s
+    return rows.outcome(s, f, failed=failed and not f)
+
+
+def mpiprv(r, a):
+    """experiments/mpiprv/stretto_apps.sh: one attempt, whose own verdict (outcome: supported,
+    unsupported) stays as script_outcome (rows.annotate); an attempt that cannot instrument or trace the racing calls
+    is a tool failure ("cannot run", RULE.md Section 2.6)."""
+    return "tool-failure" if r.get("outcome", "") != "supported" else "missed"
+
+
+def none(r, a):
+    return ""
+
+
+RULES = {"stress": stress, "must": must, "corpus": corpus, "series": series, "traced": traced, "corrbench": corrbench,
+         "bench": bench, "threadreplay": threadreplay, "mustvc": mustvc, "mpiprv": mpiprv, "none": none}
 
 
 def main(argv=None):
@@ -92,8 +159,9 @@ def main(argv=None):
     ap.add_argument("--kind", required=True, choices=sorted(RULES))
     ap.add_argument("src")
     ap.add_argument("dst")
-    ap.add_argument("--set", nargs="*", default=[], help="column=value for every row (host, cpus, jobs, timeout, seed, commit)")
+    ap.add_argument("--set", nargs="*", default=[], help="column=value for every row (host, cpus, jobs, timeout, seed, commit, run)")
     ap.add_argument("--must-column", default="must1112")
+    ap.add_argument("--recorded-wrong", action="store_true", help="threadreplay: the replays' traced runs went wrong")
     a = ap.parse_args(argv)
     extra = dict(kv.partition("=")[::2] for kv in a.set)
     extra.setdefault("host", rows.host())

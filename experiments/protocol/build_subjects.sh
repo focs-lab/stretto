@@ -4,7 +4,8 @@
 # MPI libraries, NINJA's libraries (experiments/ninja/build.sh, the campaign's
 # libninja-fixed-all.so among them), and each subject of RULE.md Section 4 at its version with the
 # bug and its fix, by the subject's own fetch and build steps, into their default directories
-# under third_party/apps/. One build of each program serves every tool: MUST runs in
+# under third_party/apps/; and the suites' programs (`suites`: third_party/fetch.sh corpora, MBI
+# and MPI-BugBench; MPI-CorrBench at a05644b in third_party/corrbench). One build of each program serves every tool: MUST runs in
 # stretto-must-u:24.04, which is this image with MUST added (experiments/protocol/must/).
 #   SUBJECTS   which subjects (default: all of them, the names below)
 #   MAKE_JOBS  make jobs of each build (default 8)
@@ -16,13 +17,16 @@ set -uo pipefail
 R="$(cd "$(dirname "$0")/../.." && pwd)"; cd "$R"
 export MAKE_JOBS="${MAKE_JOBS:-8}"
 STEPS="${STEPS:-fetch build}"
-ALL="tools ninja hypre hypre3 petsc npbmg dealii dealii8929 cabana stempy mfem332 lammps superlu3d qeelph"
+ALL="tools ninja suites hypre hypre3 petsc npbmg dealii dealii8929 cabana stempy mfem332 lammps superlu3d qeelph"
 LOGS="$R/third_party/apps"; mkdir -p "$LOGS"
 
 steps_of() {   # the commands of one subject and step, one per line
     local s=$1 step=$2
     case "$s:$step" in
         tools:fetch) ;;
+        suites:fetch) echo "third_party/fetch.sh corpora"
+                      echo "experiments/protocol/suites.py fetch-corrbench third_party/corrbench";;
+        suites:build) ;;
         tools:build) for d in tracer replay; do for m in openmpi mpich; do echo "make -s -C $d MPI=$m"; done; done;;
         ninja:fetch) echo "experiments/ninja/build.sh fetch";;
         ninja:build) echo "experiments/ninja/build.sh build";;

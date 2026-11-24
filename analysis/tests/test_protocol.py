@@ -110,11 +110,75 @@ class Adapters(unittest.TestCase):
         self.assertEqual(self.ad.traced({"result": "ok", "stretto_status": "degraded: x"}, self.a), "tool-failure")
 
 
+class External(unittest.TestCase):
+    """The jobs the committed scripts run: their rows' outcomes and the scheduler's specs."""
+
+    def setUp(self):
+        import adapters
+        import external
+        self.ad, self.ex = adapters, external
+        self.a = type("A", (), {"must_column": "must1112", "recorded_wrong": False})()
+        self.ctx = {"exp_image": "e", "must_image": "m", "binding": external.BINDING, "machine": {}, "commit": "c",
+                    "owner": "1:1", "select": ".", "limit": 4}
+
+    def test_more_outcomes(self):
+        self.assertEqual(self.ad.corrbench({"mode": "native", "result": "TIMEOUT"}, self.a), "observed-reported")
+        self.assertEqual(self.ad.bench({"run": "1", "result": "FINISHED", "status": "complete", "errors": "2"}, self.a),
+                         "predicted")
+        self.assertEqual(self.ad.threadreplay({"verdict": "confirmed"}, self.a), "confirmed")
+        self.assertEqual(self.ad.threadreplay({"diverged": "rank 0 chain 0"}, self.a), "inconclusive")   # replay_verdicts.py
+        self.assertEqual(self.ad.mustvc({"tool": "mustvc", "outcome": "ok", "result": "FINISHED", "culprit": "1"}, self.a),
+                         "predicted")
+        self.assertEqual(self.ad.mustvc({"tool": "mustvc", "outcome": "hang", "result": "TIMEOUT", "culprit": ""}, self.a),
+                         "tool-failure")
+        self.assertEqual(self.ad.mpiprv({"outcome": "unsupported"}, self.a), "tool-failure")
+        d = tempfile.mkdtemp()
+        src, dst = os.path.join(d, "s.csv"), os.path.join(d, "d.csv")
+        rows.append(src, [{"app": "x", "outcome": "unsupported"}], ["app", "outcome"])
+        rows.annotate(src, dst, {}, outcome_of=lambda r: self.ad.mpiprv(r, self.a))
+        r = rows.read(dst)[0]
+        self.assertEqual((r["script_outcome"], r["outcome"]), ("unsupported", "tool-failure"))   # the script's own column kept
+
+    def test_annotate_overrides_the_run(self):
+        d = tempfile.mkdtemp()
+        src, dst = os.path.join(d, "s.csv"), os.path.join(d, "d.csv")
+        rows.append(src, [{"cell": "x", "run": "1", "result": "wrong"}], ["cell", "run", "result"])
+        rows.annotate(src, dst, {"run": "7", "protocol_job": "k", "commit": "c"}, outcome_of=lambda r: "missed")
+        r = rows.read(dst)[0]
+        self.assertEqual((r["run"], r["protocol_job"], r["commit"], r["outcome"]), ("7", "k", "c", "missed"))
+        self.assertEqual(rows.header_of(dst)[-len(rows.COMMON):], rows.COMMON)
+
+    def test_suite_specs(self):
+        j = {"subject": "mbi", "mpi": "openmpi", "tool": "delays", "setting": "D50", "run": 3, "config": "115 programs",
+             "external": "suite", "block": "mbi/openmpi-delays-D50"}
+        s = self.ex.spec(j, self.ctx)
+        self.assertEqual(s["needs"], [("mbi/openmpi-build", "mbi|115 programs|-|build|corpus|0")])
+        self.assertIn("--seed %d" % (self.ex.SUITE_SEED + 3), s["cmd"])
+        self.assertEqual(s["kind"], "stress")
+        s = self.ex.spec(dict(j, tool="stretto", setting="traced"), self.ctx)
+        self.assertIn("run_mbi.py --corpus mbi", s["cmd"])
+        self.assertEqual(s["needs"], [])
+        s = self.ex.spec(dict(j, tool="must", setting="1.11.2"), self.ctx)
+        self.assertEqual((s["image"], s["kind"]), ("m", "must"))
+
+    def test_external_jobs_in_the_plan(self):
+        pl = list(csv.DictReader(io.StringIO(plan.render(plan.plan()))))
+        jobs = schedule.jobs_of(pl, r"^corrbench/mpich-", 2)
+        self.assertEqual(jobs[0]["tool"], "build")               # the build first
+        self.assertEqual(jobs[0]["run"], 0)
+        self.assertTrue(all(j["external"] == "suite" for j in jobs))
+        self.assertEqual(sorted(set(j["run"] for j in jobs if j["tool"] == "must")), [1, 2])
+        kinds = set(p["runner"] for p in pl)
+        for k in ("external:suite", "external:thread", "external:mustvc", "external:locks", "external:mpiprv"):
+            self.assertIn(k, kinds)
+
+
 class Timeouts(unittest.TestCase):
     def test_rule(self):
-        self.assertEqual(calibrate.timeout_of([0.5, 1.2, 2.0]), (30, False))          # the 30 s floor
-        self.assertEqual(calibrate.timeout_of([3.0, 12.31]), (124, False))            # 10 x the slowest, rounded up
-        self.assertEqual(calibrate.timeout_of([5.0, 1800.0]), (None, True))           # a run at the cap
+        self.assertEqual(calibrate.timeout_of([0.5, 1.2, 2.0]), (30, 0))              # the 30 s floor
+        self.assertEqual(calibrate.timeout_of([3.0, 12.31]), (124, 0))                # 10 x the slowest, rounded up
+        self.assertEqual(calibrate.timeout_of([5.0, 1800.0]), (50, 1))                # amendment 5: from those that ended
+        self.assertEqual(calibrate.timeout_of([1800.0, 1805.0]), (1800, 2))           # none ended: the cap
 
     def test_derive(self):
         d = tempfile.mkdtemp()
@@ -146,7 +210,7 @@ class Plan(unittest.TestCase):
 
     def test_one_n(self):
         for r in self.rows:
-            if r["runner"] == "run.py" and r["setting"] not in ("learn", "nonoise"):
+            if r["runner"] == "run.py" and r["setting"] not in ("learn", "nonoise", "warmup"):
                 self.assertEqual(r["n"], 40, r)
             if r["setting"] == "nonoise":
                 self.assertEqual(r["n"], 10, r)
@@ -154,7 +218,7 @@ class Plan(unittest.TestCase):
                 self.assertEqual((r["n"], r["version"]), (10, "fix"), r)
 
     def test_every_tool_on_every_configuration(self):
-        apps = [r for r in self.rows if r["runner"] == "run.py" and r["setting"] not in ("learn", "nonoise", "serial")]
+        apps = [r for r in self.rows if r["runner"] == "run.py" and r["setting"] not in ("learn", "nonoise", "serial", "warmup")]
         by = {}
         for r in apps:
             by.setdefault((r["subject"], r["config"]), set()).add((r["tool"], r["setting"], r["version"]))
@@ -264,6 +328,17 @@ class Symptoms(unittest.TestCase):
         self.assertEqual(r(0, 5, 60, "rank 3 (of 4), pid 2 caught signal nr 15\n[MUST] Execution finished"), "FINISHED")
         self.assertEqual(r(1, 5, 60, "ERROR: MUST detected a deadlock, writing output."), "MUST-DEADLOCK")
         self.assertEqual(r(124, 60, 60, ""), "TIMEOUT")
+
+    def test_lost_abort_message(self):
+        self.assertEqual(self.run.abort_class("APP-ERROR:15", "openmpi"), "MPI-ERROR:MPI_ERR_TRUNCATE")
+        self.assertEqual(self.run.abort_class("APP-ERROR:15", "mpich"), "APP-ERROR:15")
+        self.assertEqual(self.run.abort_class("APP-ERROR:1", "openmpi"), "APP-ERROR:1")
+        mfem = {"wrong": True, "abort": r"integer set not found|WRONG|MPI_ERR_TRUNCATE"}
+        self.assertEqual(self.run.symptom_of(mfem, "MPI-ERROR:MPI_ERR_TRUNCATE", False, ""), (True, ""))
+
+    def test_must_layout(self):
+        self.assertEqual(self.run.must_layout(8), ["--must:distributed", "--must:fanin", "4"])
+        self.assertEqual(self.run.must_layout(32), [])                      # centralised: 43 > 36 threads
 
     def test_delays_are_the_committed_draws(self):
         d = self.run.delays(4, 1)

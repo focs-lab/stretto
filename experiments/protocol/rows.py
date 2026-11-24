@@ -175,23 +175,33 @@ def current(rows):
 
 def annotate(src, dst, extra, outcome_of=None):
     """Append the rows of a script's own table src to the block table dst with the common
-    columns (extra: their values for every row) and, when outcome_of(row) is given, the
-    outcome of each row. Returns the number of rows appended."""
+    columns (extra: their values for every row, where the script left them empty; any other key
+    of extra replaces the script's own column, as the run number of a job that ran the script for
+    one run) and, when outcome_of(row) is given, the outcome of each row (outcome_of may keep a
+    column of its own under another name first). Returns the number of rows appended."""
     rows = read(src)
     if not rows:
         return 0
-    fields = list(rows[0].keys())
-    fields += [c for c in COMMON if c not in fields]
-    out = []
+    out, fields = [], []
     for r in rows:
         r = dict(r)
+        category = outcome_of(r) if outcome_of is not None else None
+        if "outcome" in r and "script_outcome" not in r:
+            r["script_outcome"] = r["outcome"]     # the script's own verdict column, which outcome replaces
+        for c, v in extra.items():
+            if c not in COMMON:
+                r[c] = v
+            elif not r.get(c):
+                r[c] = v
         for c in COMMON:
-            if c in extra and not r.get(c):
-                r[c] = extra[c]
             r.setdefault(c, "")
-        if outcome_of is not None:
-            r["outcome"] = outcome_of(r)
+        if category is not None:
+            r["outcome"] = category
+        for c in r:
+            if c not in fields:
+                fields.append(c)
         out.append(r)
+    fields = [c for c in fields if c not in COMMON] + COMMON
     append(dst, out, fields)
     return len(out)
 

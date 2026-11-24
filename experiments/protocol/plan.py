@@ -54,12 +54,12 @@ def block_name(tool, setting):
 
 def must_procs(np):
     """The processes of a mustrun at np ranks: MUST's distributed layout adds its tool processes, at
-    the fan-in run.py gives it (must_layout: 4, and 16 at 32 ranks), measured 24 Nov 2026 in
+    the fan-in run.py gives it (must_layout: 4, and the centralised layout at 32 ranks), measured 24 Nov 2026 in
     stretto-must-u:24.04 by mustrun's own count (must_temp/mustrun.info)."""
     return np + MUST_EXTRA[np]
 
 
-MUST_EXTRA = {3: 2, 4: 2, 6: 3, 8: 3, 16: 5, 32: 3}
+MUST_EXTRA = {3: 2, 4: 2, 6: 3, 8: 3, 16: 5, 32: 1}     # 32 ranks: the centralised layout (amendment 1)
 
 
 def app_rows():
@@ -89,6 +89,11 @@ def app_rows():
                     out.append(dict(base, block="%s/%s" % (name, block_name(tool, setting)), version=version, tool=tool,
                                     setting=setting, n=n, table=kind or table, cpus=cpus, image=image, runner="run.py",
                                     notes=notes))
+                    if tool == "must" and version == "fix":
+                        out.append(dict(base, block="%s/must-warmup" % name, version="fix", tool="must", setting="warmup",
+                                        n=1, table="prerequisite", cpus=cpus, image=image, runner="run.py",
+                                        notes="uncounted: MUST's first run per process count and library builds its "
+                                              "layout (amendment 6)"))
                     if tool == "ninja" and setting == "app":
                         out.append(dict(base, block="%s/ninja-learn" % name, version=version, tool="ninja", setting="learn",
                                         n=1, table="prerequisite", cpus=cpus, image=image, runner="run.py",
@@ -104,42 +109,54 @@ def app_rows():
                                   "of 40 if more; each with its control; only if the traces predict the bug"))
         out.append({"block": "%s/mpiprv" % name, "subject": name, "config": first, "np": configs[first]["np"],
                     "mpi": configs[first]["mpi"], "version": "bug", "tool": "mpiprv", "setting": "attempt", "n": 1,
-                    "table": "main", "cpus": configs[first]["np"], "alone": 0, "image": "mpiprv/mpiprv",
-                    "runner": "experiments/mpiprv/apps.py",
-                    "notes": "attempted on every subject, Fortran ones included; build or instrumentation failure recorded"})
+                    "table": "main", "cpus": 4, "alone": 0, "image": "mpiprv/mpiprv",
+                    "runner": "external:mpiprv",
+                    "notes": "experiments/mpiprv/stretto_apps.sh in MPI-PRV's image: attempted on every subject, Fortran "
+                             "ones included; a build or instrumentation failure is recorded"})
     return [r for r in out if r]
 
 
-SUITES = [("mbi", 115, ["openmpi"]), ("mbb", 388, ["openmpi"]), ("corrbench", 513, ["openmpi", "mpich"]),
-          ("corrbench-openmp", 103, ["openmpi", "mpich"])]
+SUITES = [("mbi", 115, ["openmpi"], 4), ("mbb", 388, ["openmpi"], 4), ("corrbench", 513, ["openmpi", "mpich"], 2),
+          ("corrbench-openmp", 103, ["openmpi", "mpich"], 4)]
 SUITE_TOOLS = [("stretto", "traced"), ("delays", "D50"), ("ninja", "random"), ("ninja", "system"), ("ninja", "app"),
                ("must", "1.11.2")]
-SUITE_RUNNERS = {"stretto": "experiments/run_remaining.sh corpus (one traced run per program per pass)",
-                 "delays": "experiments/stress_baseline.py --runs 1 per pass; --runs 30 for the budget",
-                 "ninja": "experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget",
-                 "must": "experiments/mbi/run_must.py (MUST_IMAGE=stretto-must-u:24.04)"}
+SUITE_RUNNERS = {"stretto": "run_mbi.py (MBI, MPI-BugBench), corrbench/run.py, mustvc/stretto_bench.sh (OpenMP)",
+                 "delays": "stress_baseline.py on the suite's build, D50",
+                 "ninja": "ninja/run.py corpus on the suite's build, libninja-fixed-all.so",
+                 "must": "suites.py must (scripts/must_once.sh in stretto-must-u:24.04)",
+                 "build": "suites.py build: every program compiled for the MPI"}
 
 
 def suite_rows():
+    """Section 5: R = 10 passes of every tool on every suite (a job is one pass: one run per
+    program), the budget view of the delays and of each NINJA mode (one job: up to 30 runs per
+    program, stopping at the first failure), MBI's L2 by re-execution as a row of its own; each
+    suite and MPI built once for the tools that run its binaries. Stretto on CorrBench's OpenMP
+    programs runs under Open MPI only (stretto_bench.sh traces with the Open MPI tracer)."""
     out = []
-    for suite, programs, mpis in SUITES:
+    for suite, programs, mpis, cpus in SUITES:
         for mpi in mpis:
+            b = {"subject": suite, "config": "%d programs" % programs, "np": "", "mpi": mpi, "version": "-", "alone": 0,
+                 "runner": "external:suite"}
+            out.append(dict(b, block="%s/%s-build" % (suite, mpi), tool="build", setting="corpus", n=1, table="prerequisite",
+                            cpus=cpus, image=EXP, notes=SUITE_RUNNERS["build"]))
             for tool, setting in SUITE_TOOLS:
+                if tool == "stretto" and suite == "corrbench-openmp" and mpi == "mpich":
+                    continue
                 image = MUST_IMAGE if tool == "must" else EXP
-                b = {"subject": suite, "config": "%d programs" % programs, "np": "", "mpi": mpi, "version": "-",
-                     "tool": tool, "setting": setting, "cpus": "np of each program", "alone": 0, "image": image,
-                     "runner": SUITE_RUNNERS[tool]}
-                out.append(dict(b, block="%s/%s-%s-%s" % (suite, mpi, tool, setting), n=PASSES,
-                                table="main" if (tool, setting) != ("ninja", "system") and (tool, setting) != ("ninja", "app")
-                                else "appendix",
-                                notes="R = 10 passes, one run per program per pass; per-run view and F1 per pass"))
+                c = cpus + 2 if tool == "must" else cpus
+                table = "appendix" if (tool, setting) in (("ninja", "system"), ("ninja", "app")) else "main"
+                out.append(dict(b, block="%s/%s-%s-%s" % (suite, mpi, tool, setting), tool=tool, setting=setting, n=PASSES,
+                                table=table, cpus=c, image=image,
+                                notes="R = 10 passes, one run per program per pass (%s)" % SUITE_RUNNERS[tool]))
                 if tool in ("delays", "ninja"):
-                    out.append(dict(b, block="%s/%s-%s-%s-budget" % (suite, mpi, tool, setting), n=BUDGET, table="main",
+                    out.append(dict(b, block="%s/%s-%s-%s-budget" % (suite, mpi, tool, setting), tool=tool,
+                                    setting=setting + "-budget", n=1, table="main", cpus=c, image=image,
                                     notes="budget view: up to 30 runs per program, stopping at the first failure"))
-    out.append({"block": "mbi/openmpi-l2", "subject": "mbi", "config": "115 programs", "np": "", "mpi": "openmpi",
-                "version": "-", "tool": "stretto", "setting": "L2-reexecution", "n": PASSES, "table": "main",
-                "cpus": "np of each program", "alone": 0, "image": EXP, "runner": "experiments/mbi/reanalyze.py (L2 by re-execution)",
-                "notes": "MBI's headline stays at L1; L2 by re-execution is a row of its own"})
+    out.append({"block": "mbi/openmpi-stretto-L2", "subject": "mbi", "config": "115 programs", "np": "", "mpi": "openmpi",
+                "version": "-", "tool": "stretto", "setting": "L2-reexecution", "n": PASSES, "table": "main", "cpus": 4,
+                "alone": 0, "image": EXP, "runner": "external:suite",
+                "notes": "MBI's headline stays at L1; L2 by re-execution (run_mbi.py --rerun) is a row of its own"})
     return out
 
 
@@ -154,57 +171,67 @@ def _cells(path, keys):
     return seen
 
 
-THREADS = [("slate", "experiments/slate/series.csv", ("cell", "variant"), "series", "openmpi", "hunt-slate:24.04",
+# subject, committed table (its cells), kind, MPI, threads a job takes, image, script
+THREADS = [("slate", "experiments/slate/series.csv", ("cell", "variant"), "series", "openmpi", 16, "hunt-slate:24.04",
             "experiments/slate/series.sh"),
-           ("slate", "experiments/slate/series-mpich.csv", ("cell", "variant"), "series", "mpich", "hunt-slate:24.04",
+           ("slate", "experiments/slate/series-mpich.csv", ("cell", "variant"), "series", "mpich", 16, "hunt-slate:24.04",
             "experiments/slate/series.sh"),
-           ("slate", "experiments/slate/traced-cells-16.csv", ("cell", "variant"), "traced", "openmpi", "hunt-slate:24.04",
+           ("slate", "experiments/slate/traced-cells-16.csv", ("cell", "variant"), "traced", "openmpi", 16, "hunt-slate:24.04",
             "experiments/slate/traced_cells.sh"),
-           ("dlaf", "experiments/dlaf/series.csv", ("cell", "variant"), "series", "openmpi", "hunt2-dlaf:24.04",
+           ("dlaf", "experiments/dlaf/series.csv", ("cell", "variant"), "series", "openmpi", 12, "atm-clang:24.04",
             "experiments/dlaf/series.sh"),
-           ("dlaf", "experiments/dlaf/traced.csv", ("cell", "variant"), "traced", "openmpi", "hunt2-dlaf:24.04",
+           ("dlaf", "experiments/dlaf/traced.csv", ("cell", "variant"), "traced", "openmpi", 12, "atm-clang:24.04",
             "experiments/dlaf/traced.sh"),
-           ("parsec", "experiments/parsec/series.csv", ("cell", "variant"), "series", "openmpi", "hunt2-parsec:24.04",
+           ("parsec", "experiments/parsec/series.csv", ("cell", "variant"), "series", "openmpi", 8, "atm-clang:24.04",
             "experiments/parsec/series.sh"),
-           ("parsec", "experiments/parsec/traced.csv", ("cell", "variant"), "traced", "openmpi", "hunt2-parsec:24.04",
+           ("parsec", "experiments/parsec/traced.csv", ("cell", "variant"), "traced", "openmpi", 8, "atm-clang:24.04",
             "experiments/parsec/traced.sh"),
-           ("uintah", "experiments/uintah/series.csv", ("mpi", "build", "np", "args"), "series", None, "uintah image",
-            "experiments/uintah/series.sh")]
+           ("uintah", "experiments/uintah/series.csv", ("mpi", "build", "np", "args"), "series", "openmpi", 16,
+            "stretto-uintah:24.04", "experiments/uintah/series.sh"),
+           ("uintah", "experiments/uintah/series.csv", ("mpi", "build", "np", "args"), "series", "mpich", 16,
+            "stretto-uintah:24.04", "experiments/uintah/series.sh")]
+REPLAY_RUNS = 20     # traced runs per replay block: with the committed per-trace samples (2 or 3), above 40 replays
+REPLAY_MODES = {"slate": ("after", "before", "yield", "both"), "parsec": ("after", "before", "yield", "both"),
+                "dlaf": ("after",)}
 
 
 def thread_rows():
+    """The thread campaigns: one job is one run of every cell of a block (the committed script with
+    RUNS=1, the job's number as the run), 40 runs; the replays of the committed replay.sh in each
+    gate mode (DLA-Future's has the default, after, only); MUST-vc on the four bugs' cells; the
+    L1+L lock replays, two per finding, as committed."""
     out = []
-    for subject, path, keys, kind, mpi, image, runner in THREADS:
+    for subject, path, keys, kind, mpi, cpus, image, runner in THREADS:
+        cells = []
         for k in _cells(path, keys):
             if subject == "uintah":
-                cell, variant, m = "np%s %s" % (k[2], k[3]), k[1], k[0]
+                if k[0] != mpi:
+                    continue
+                cells.append("np%s %s (%s)" % (k[2], k[3], k[1]))
             else:
-                cell, variant, m = k[0], k[1], mpi
-            version = "bug" if variant == "plain" else "fix"
-            tool = "stretto" if kind == "traced" else "plain"
-            setting = "traced" if kind == "traced" else "series"
-            out.append({"block": "%s/%s-%s" % (subject, kind, m), "subject": subject, "config": cell, "np": "",
-                        "mpi": m, "version": version if variant in ("plain", "fixed", "fix") else variant,
-                        "tool": tool, "setting": setting, "n": N, "table": "main", "cpus": "ranks x threads", "alone": 0,
-                        "image": image, "runner": runner,
-                        "notes": "cell as committed (%s, variant %s)" % (path, variant)})
-            if kind == "traced" and variant == "plain":
-                for mode, table in (("after", "main"), ("before", "appendix"), ("yield", "appendix"), ("both", "appendix")):
-                    out.append({"block": "%s/replay-%s" % (subject, mode), "subject": subject, "config": cell, "np": "",
-                                "mpi": m, "version": "bug", "tool": "stretto", "setting": "replay-" + mode, "n": REPLAYS,
-                                "table": table, "cpus": "ranks x threads", "alone": 0, "image": image,
-                                "runner": "experiments/replay_modes.sh",
-                                "notes": "gates give way after 1 000 ms; the control follows the recorded order beyond the horizon"})
-    for subject in ("uintah", "slate", "dlaf", "parsec"):
+                cells.append("%s (%s)" % (k[0], k[1]))
+        tool, setting = ("stretto", "traced") if kind == "traced" else ("plain", "series")
+        out.append({"block": "%s/%s-%s" % (subject, kind, mpi), "subject": subject, "config": "cells as committed", "np": "",
+                    "mpi": mpi, "version": "-", "tool": tool, "setting": setting, "n": N, "table": "main", "cpus": cpus,
+                    "alone": 0, "image": image, "runner": "external:thread",
+                    "notes": "%s, RUNS=1 per job; cells of %s: %s" % (runner, path, "; ".join(cells))})
+        if kind == "traced":
+            for mode in REPLAY_MODES.get(subject, ()):
+                out.append({"block": "%s/replay-%s" % (subject, mode), "subject": subject, "config": "the bug's replay cell",
+                            "np": "", "mpi": mpi, "version": "bug", "tool": "stretto", "setting": "replay-" + mode,
+                            "n": REPLAY_RUNS, "table": "main" if mode == "after" else "appendix", "cpus": cpus, "alone": 0,
+                            "image": image, "runner": "external:thread",
+                            "notes": "experiments/%s/replay.sh, one traced run and its sampled alternatives per job "
+                                     "(experiments/replay_modes.sh %s)" % (subject, mode)})
+    for subject, cpus in (("uintah", 18), ("slate", 18), ("dlaf", 14), ("parsec", 10)):
         out.append({"block": "mustvc/%s" % subject, "subject": subject, "config": "the thread bug's cells", "np": "",
-                    "mpi": "as above", "version": "bug", "tool": "mustvc", "setting": "vector-clock", "n": N,
-                    "table": "main", "cpus": "ranks x threads", "alone": 0, "image": "mustvc:1.9-omp",
-                    "runner": "experiments/mustvc/apps.sh",
-                    "notes": "MUST's vector-clock checks on the cells of the four thread bugs"})
-    out.append({"block": "locks/replay", "subject": "locks", "config": "every L1+L finding", "np": "", "mpi": "",
-                "version": "bug", "tool": "stretto", "setting": "replay-L1+L", "n": 2, "table": "main", "cpus": "",
-                "alone": 0, "image": EXP, "runner": "experiments/mustvc/lock_replays.sh",
-                "notes": "two replays per finding, as committed"})
+                    "mpi": "mpich", "version": "-", "tool": "mustvc", "setting": "vector-clock", "n": N,
+                    "table": "main", "cpus": cpus, "alone": 0, "image": "mustvc:1.9-omp", "runner": "external:mustvc",
+                    "notes": "experiments/mustvc/apps.sh, RUNS=1 per job: each cell once without MUST and once with"})
+    out.append({"block": "locks/replay", "subject": "locks", "config": "every L1+L finding", "np": "", "mpi": "openmpi",
+                "version": "bug", "tool": "stretto", "setting": "replay-L1+L", "n": 1, "table": "main", "cpus": 8,
+                "alone": 0, "image": EXP, "runner": "external:locks",
+                "notes": "experiments/mustvc/lock_replays.sh: two replays per finding, as committed (one job)"})
     return out
 
 

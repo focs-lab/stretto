@@ -181,6 +181,7 @@ def replay(a):
             shutil.copytree(s["base"], wd, dirs_exist_ok=True, symlinks=True)
         t0 = time.monotonic()
         r = run_checked(c["np"], exe, args, p, a.timeout, c["mpi"], cwd=wd)
+        r.result = runner.abort_class(r.result, c["mpi"])
         el = time.monotonic() - t0
         text = r.proc.stdout + r.proc.stderr
         ok, says = runner.judge(s, "bug", a.config, text, wd)

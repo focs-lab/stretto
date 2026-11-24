@@ -31,7 +31,7 @@ starts in this invocation.
 SIGINT or SIGTERM stops starting jobs; running jobs finish and are collected (a second signal
 kills their containers, whose runs then have no row and run again on the next invocation).
 
-usage: schedule.py [--blocks REGEX] [--configs REGEX] [--runs N] [--timeout T] [--results DIR] [--state DIR]
+usage: schedule.py [--blocks REGEX] [--configs REGEX] [--tools REGEX] [--runs N] [--timeout T] [--results DIR] [--state DIR]
                    [--pool 0-17,40-57] [--prefix proto] [--dry-run] [--max-jobs K]
 Python 3.6 runs this file (the experiment machine's host); it needs docker and the images of
 plan.csv.
@@ -51,6 +51,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
 sys.path.insert(0, HERE)
 import rows  # noqa: E402
+import external  # noqa: E402
 
 FIELDS = ["subject", "config", "np", "mpi", "version", "label", "tool", "setting", "run", "result", "seconds",
           "says", "symptom", "reported", "failure", "detail"] + rows.COMMON
@@ -132,30 +133,34 @@ def timeout_key(j):
     return tool, setting
 
 
-def jobs_of(plan, blocks, runs_override, configs="."):
+def jobs_of(plan, blocks, runs_override, configs=".", tools="."):
     out = []
     for p in plan:
         if not re.search(blocks, p["block"]) or not re.search(configs, p["config"]):
             continue
-        if p["runner"] not in ("run.py", "calibrate.py", "replays.py"):
+        ts = p["setting"] if p["tool"] == "calibrate" else "%s:%s" % (p["tool"], p["setting"])
+        if not re.search(tools, ts):
+            continue
+        ext = p["runner"][len("external:"):] if p["runner"].startswith("external:") else None
+        if p["runner"] not in ("run.py", "calibrate.py", "replays.py") and not ext:
             continue
         n = int(p["n"])
-        if runs_override is not None and p["setting"] != "learn":
+        if runs_override is not None and p["setting"] not in ("learn", "warmup"):
             n = min(n, runs_override)
         tool, setting = p["tool"], p["setting"]
         if tool == "calibrate":
             tool, _, setting = p["setting"].partition(":")
-        first = 0 if setting == "learn" else 1
-        job = {"block": p["block"], "subject": p["subject"], "config": p["config"], "np": int(p["np"]),
+        first = 0 if setting in ("learn", "warmup") or tool == "build" else 1
+        job = {"block": p["block"], "subject": p["subject"], "config": p["config"], "np": int(p["np"] or 0),
                "version": p["version"], "tool": tool, "cpus": int(p["cpus"]), "alone": p["alone"] == "1",
-               "image": p["image"], "calibration": p["tool"] == "calibrate"}
+               "image": p["image"], "calibration": p["tool"] == "calibrate", "external": ext, "mpi": p["mpi"]}
         if p["runner"] == "replays.py":
             out.append(dict(job, setting="replay-enumerate", run=0))      # the alternatives first (replays.py)
         for i in range(first, first + n):
             out.append(dict(job, setting=setting, run=i))
     # a job that runs alone drains the machine before it starts: they come last in their phase,
     # where the machine drains once for all of them
-    out.sort(key=lambda j: (0 if j["setting"] == "learn" else 1 if j["calibration"] else 3 if j["setting"].startswith("replay")
+    out.sort(key=lambda j: (0 if j["setting"] in ("learn", "warmup") or j["tool"] == "build" else 1 if j["calibration"] else 3 if j["setting"].startswith("replay")
                             else 2, j["alone"], j["run"], j["subject"], j["config"], j["version"], j["tool"], j["setting"]))
     return out
 
@@ -184,12 +189,22 @@ class Scheduler:
         return os.path.join(self.a.results, j["block"] + ".csv")
 
     def row_file(self, j):
-        return os.path.join(self.a.state, "rows", safe(j["block"]), safe(key_of(j)) + ".json")
+        return os.path.join(self.a.state, "rows", safe(j["block"]), safe(key_of(j)) + (".csv" if j["external"] else ".json"))
 
     def done_keys(self):
         done = set()
-        for b in sorted(set(j["block"] for j in self.jobs)):
+        blocks = set(j["block"] for j in self.jobs)
+        for j in self.jobs:                    # and the blocks the selected jobs need (a suite's build)
+            if j["external"]:
+                try:
+                    blocks.update(b for b, _ in external.spec(j, self.ctx()).get("needs", []))
+                except Exception:
+                    pass
+        for b in sorted(blocks):
             for r in rows.current(rows.read(os.path.join(self.a.results, b + ".csv"))):
+                if r.get("protocol_job"):       # a row of an external job's own table
+                    done.add((b, r["protocol_job"]))
+                    continue
                 done.add((b, "%s|%s|%s|%s|%s|%s" % (r["subject"], r["config"], r["version"], r["tool"], r["setting"], r["run"])))
         return done
 
@@ -213,6 +228,29 @@ class Scheduler:
         f = self.row_file(j)
         if not os.path.exists(f):
             return False
+        if j["external"]:
+            got = rows.read(f)
+            for r in got:
+                r["cpus"] = rows.cpuset(cpus) if cpus else r.get("cpus", "")
+                if jobs_at_start:
+                    r["jobs"] = jobs_at_start
+            fields = rows.header_of(f) or []
+            have = rows.header_of(self.table(j))
+            if have is not None and have != fields:
+                # another job of the block wrote other columns (a script's optional ones): the table
+                # takes the union, every row kept
+                old = rows.read(self.table(j))
+                fields = [c for c in have if c not in rows.COMMON] + [c for c in fields if c not in have and c not in rows.COMMON] + rows.COMMON
+                os.replace(self.table(j), self.table(j) + ".before-union")
+                rows.append(self.table(j), old, fields)
+            rows.append(self.table(j), got, fields)
+            os.rename(f, f + ".collected")
+            cats = {}
+            for r in got:
+                cats[r.get("outcome", "")] = cats.get(r.get("outcome", ""), 0) + 1
+            self.log("end %s %s %d rows %s" % (j["block"], safe(key_of(j)), len(got),
+                                               ";".join("%s=%d" % kv for kv in sorted(cats.items()))))
+            return True
         with open(f) as fh:
             row = json.load(fh)
         row["cpus"] = rows.cpuset(cpus) if cpus else row.get("cpus", "")
@@ -260,7 +298,10 @@ class Scheduler:
                 todo.insert(0, j)
 
     def timeout_for(self, j):
-        if j["calibration"] or j["setting"] == "learn":
+        if j["external"]:
+            # the committed scripts' own timeouts (a suite's program run: 60 s; the thread scripts' runs)
+            return external.SUITE_TIMEOUT if j["external"] == "suite" else "script"
+        if j["calibration"] or j["setting"] in ("learn", "warmup"):
             # NINJA's learning run comes before the calibration (the application-centric runs of the
             # calibration start from its files too) and is retried until one finishes: it gets the cap
             return self.a.timeout or CALIBRATION_CAP
@@ -286,6 +327,8 @@ class Scheduler:
                "-e", "STRETTO_COMMIT=" + a.commit, "-e", "KEEP_TRACES=/state/traces", "-e", "PROTOCOL_STATE=/state",
                "-v", "%s:/w" % a.repo, "-v", "%s:/state" % a.state, "-v", "%s:/results" % a.results, "-w", "/w", j["image"]]
         outputs = "/state/outputs/" + safe(j["block"])
+        if j["external"]:
+            return self.external_command(j, cmd, row, cpus, njobs, timeout)
         if j["setting"] == "replay-enumerate":
             return cmd + ["python3", "experiments/protocol/replays.py", "enumerate", "--subject", j["subject"],
                           "--config", j["config"], "--row", row, "--results", "/results", "--outputs", outputs]
@@ -300,10 +343,56 @@ class Scheduler:
             cmd.append("--calibration")
         return cmd
 
+    def ctx(self):
+        if not hasattr(self, "_ctx"):
+            self._ctx = {"exp_image": "stretto-exp:24.04", "must_image": "stretto-must-u:24.04",
+                         "binding": external.BINDING, "machine": external.machine(), "commit": self.a.commit,
+                         "owner": "%d:%d" % (os.getuid(), os.getgid()), "select": self.a.suite_select,
+                         "limit": self.a.suite_limit}
+        return self._ctx
+
+    def external_command(self, j, cmd, row, cpus, njobs, timeout):
+        """docker run of an external job: the committed script, then adapters.py on its table into
+        the job's row file (a CSV: the script's rows with the common columns, the outcome and the
+        job's key, protocol_job)."""
+        sp = external.spec(j, self.ctx())
+        i = cmd.index("--user")
+        user = sp.get("user")
+        if user == "root":
+            del cmd[i:i + 2]
+        extra = list(sp.get("docker", []))
+        for host, inside, mode in sp.get("mounts", []):
+            if not host or not os.path.exists(host):
+                raise external.MissingBuild("%s: %s is not on this machine (MACHINE_ENV)" % (j["block"], host or inside))
+            extra += ["-v", "%s:%s:%s" % (host, inside, mode)]
+        for k, v in sorted(sp.get("env", {}).items()):
+            extra += ["-e", "%s=%s" % (k, v)]
+        image = sp["image"]
+        cmd = cmd[:-1] + extra + [image]
+        sets = ["host=" + rows.host(), "cpus=" + rows.cpuset(cpus), "jobs=%d" % njobs, "timeout=%s" % timeout,
+                "commit=" + self.a.commit, "protocol_job=" + key_of(j)] + [x for x in sp.get("extra", []) if x != "--set"]
+        annotate = "python3 experiments/protocol/adapters.py annotate --kind %s %s %s.part --set %s && mv %s.part %s" % (
+            sp["kind"], external.q(sp["src"]), external.q(row), " ".join(external.q(x) for x in sets), external.q(row),
+            external.q(row))
+        tail = ("; chown %s %s 2>/dev/null" % (self.ctx()["owner"], external.q(row))) if user == "root" else ""
+        # the script's table is annotated only when the script ended well: a script that died mid-pass
+        # leaves a partial table, which is no row (the scheduler judges the job by its status and log);
+        # a rerun starts from no table, since some scripts append to theirs
+        script = "mkdir -p %s; rm -f %s; ( %s ); rc=$?; if [ $rc -eq 0 ] && [ -s %s ]; then %s; fi%s; exit $rc" % (
+            external.q(os.path.dirname(row)), external.q(sp["src"]), sp["cmd"], external.q(sp["src"]), annotate, tail)
+        return cmd + ["bash", "-c", script]
+
     def ready(self, j, todo):
         """Whether the job's prerequisites are done: an application-centric NINJA run's learning
         run; the enumeration of the alternatives, the configuration's traced runs; a replay, the
-        enumeration (and an alternative of its number)."""
+        enumeration (and an alternative of its number); an external job, what its spec needs (a
+        suite's build)."""
+        if j["external"]:
+            try:
+                needs = external.spec(j, self.ctx()).get("needs", [])
+            except Exception:
+                return True
+            return all(n in self.done for n in needs)
         if j["tool"] == "ninja" and j["setting"] == "app":
             block = "%s/ninja-learn" % j["subject"]
             return (block, "%s|%s|%s|ninja|learn|0" % (j["subject"], j["config"], j["version"])) in self.done
@@ -333,8 +422,9 @@ class Scheduler:
                 self.collect(j, None, None)
                 self.done.add((j["block"], key_of(j)))
         adopted = set((j["block"], safe(key_of(j))) for j, _ in self.adopted.values() if j)
+        selected = set((j["block"], safe(key_of(j))) for j in self.jobs)
         for b, k in sorted(self.started_before()):
-            if (b, k) not in self.done and (b, k) not in adopted:
+            if (b, k) in selected and (b, k) not in self.done and (b, k) not in adopted:
                 self.log("restarted %s %s (started by an interrupted invocation, no row)" % (b, k))
         running = set(container(a.prefix, j) for j, _ in self.adopted.values() if j)
         todo = [j for j in self.jobs if (j["block"], key_of(j)) not in self.done and container(a.prefix, j) not in running]
@@ -377,7 +467,15 @@ class Scheduler:
                             break
                         continue
                     njobs = len(self.running) + 1
-                    cmd = self.command(j, cpus, njobs, t)
+                    try:
+                        cmd = self.command(j, cpus, njobs, t)
+                    except external.MissingBuild as e:
+                        # no run: the block's build or input is missing on this machine
+                        self.log("missing-build %s %s: %s" % (j["block"], safe(key_of(j)), e))
+                        self.broken.add(j["block"])
+                        self.pool.give(cpus)
+                        todo.remove(j)
+                        continue
                     os.makedirs(os.path.dirname(self.row_file(j)), exist_ok=True)
                     log = open(os.path.join(a.state, "rows", safe(j["block"]), safe(key_of(j)) + ".log"), "w")
                     p = subprocess.Popen(cmd, stdout=log, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL)
@@ -437,6 +535,7 @@ def main():
     ap.add_argument("--plan", default=os.path.join(HERE, "plan.csv"))
     ap.add_argument("--blocks", default=".", help="a regular expression the plan's block names are searched with")
     ap.add_argument("--configs", default=".", help="a regular expression the configurations are searched with")
+    ap.add_argument("--tools", default=".", help="a regular expression the jobs' tool:setting is searched with")
     ap.add_argument("--runs", type=int, default=None, help="at most this many runs per row (the smoke test)")
     ap.add_argument("--timeout", type=int, default=None, help="T for every job instead of the calibrated ones")
     ap.add_argument("--results", default=os.path.join(HERE, "results"))
@@ -446,6 +545,8 @@ def main():
     ap.add_argument("--prefix", default="proto")
     ap.add_argument("--commit", default=os.environ.get("STRETTO_COMMIT", ""))
     ap.add_argument("--max-jobs", type=int, default=0)
+    ap.add_argument("--suite-select", default=".", help="the suites' programs (a regular expression on their names)")
+    ap.add_argument("--suite-limit", type=int, default=0, help="at most this many programs per suite (the smoke test)")
     ap.add_argument("--dry-run", action="store_true")
     a = ap.parse_args()
     if not a.commit:
@@ -454,7 +555,7 @@ def main():
     a.results, a.state, a.repo = (os.path.abspath(x) for x in (a.results, a.state, a.repo))
     with open(a.plan, newline="") as fh:
         plan = list(csv.DictReader(fh))
-    jobs = jobs_of(plan, a.blocks, a.runs, a.configs)
+    jobs = jobs_of(plan, a.blocks, a.runs, a.configs, a.tools)
     if not jobs:
         print("no job selected by --blocks %r" % a.blocks, file=sys.stderr)
         return 2

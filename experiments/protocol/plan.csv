@@ -19,6 +19,7 @@ hypre/ninja-learn,hypre,np4,4,mpich,fix,ninja,learn,1,prerequisite,4,0,stretto-e
 hypre/calibrate,hypre,np4,4,mpich,fix,calibrate,must:1.11.2,10,prerequisite,6,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 hypre/must-1.11.2,hypre,np4,4,mpich,bug,must,1.11.2,40,main,6,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
 hypre/must-1.11.2,hypre,np4,4,mpich,fix,must,1.11.2,40,main,6,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+hypre/must-warmup,hypre,np4,4,mpich,fix,must,warmup,1,prerequisite,6,0,stretto-must-u:24.04,run.py,uncounted: MUST's first run per process count and library builds its layout (amendment 6)
 hypre/calibrate,hypre,np4,4,mpich,fix,calibrate,stretto:traced,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 hypre/stretto-traced,hypre,np4,4,mpich,bug,stretto,traced,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 hypre/stretto-traced,hypre,np4,4,mpich,fix,stretto,traced,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
@@ -50,6 +51,7 @@ hypre/ninja-learn,hypre,np8,8,mpich,fix,ninja,learn,1,prerequisite,8,0,stretto-e
 hypre/calibrate,hypre,np8,8,mpich,fix,calibrate,must:1.11.2,10,prerequisite,11,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 hypre/must-1.11.2,hypre,np8,8,mpich,bug,must,1.11.2,40,main,11,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
 hypre/must-1.11.2,hypre,np8,8,mpich,fix,must,1.11.2,40,main,11,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+hypre/must-warmup,hypre,np8,8,mpich,fix,must,warmup,1,prerequisite,11,0,stretto-must-u:24.04,run.py,uncounted: MUST's first run per process count and library builds its layout (amendment 6)
 hypre/calibrate,hypre,np8,8,mpich,fix,calibrate,stretto:traced,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 hypre/stretto-traced,hypre,np8,8,mpich,bug,stretto,traced,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 hypre/stretto-traced,hypre,np8,8,mpich,fix,stretto,traced,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
@@ -60,7 +62,7 @@ hypre/calibrate,hypre,np8,8,mpich,fix,calibrate,ninja:nonoise,10,prerequisite,8,
 hypre/ninja-nonoise,hypre,np8,8,mpich,bug,ninja,nonoise,10,check,8,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
 hypre/ninja-nonoise,hypre,np8,8,mpich,fix,ninja,nonoise,10,check,8,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
 hypre/replay,hypre,np8,8,mpich,bug,stretto,replay,40,main,8,0,stretto-exp:24.04,replays.py,"every distinct alternative by its pins over the configuration's traces, a seeded sample of 40 if more; each with its control; only if the traces predict the bug"
-hypre/mpiprv,hypre,np4,4,mpich,bug,mpiprv,attempt,1,main,4,0,mpiprv/mpiprv,experiments/mpiprv/apps.py,"attempted on every subject, Fortran ones included; build or instrumentation failure recorded"
+hypre/mpiprv,hypre,np4,4,mpich,bug,mpiprv,attempt,1,main,4,0,mpiprv/mpiprv,external:mpiprv,"experiments/mpiprv/stretto_apps.sh in MPI-PRV's image: attempted on every subject, Fortran ones included; a build or instrumentation failure is recorded"
 hypre3/calibrate,hypre3,np4,4,openmpi,fix,calibrate,plain:-,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 hypre3/plain,hypre3,np4,4,openmpi,bug,plain,-,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 hypre3/plain,hypre3,np4,4,openmpi,fix,plain,-,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
@@ -81,6 +83,7 @@ hypre3/ninja-learn,hypre3,np4,4,openmpi,fix,ninja,learn,1,prerequisite,4,0,stret
 hypre3/calibrate,hypre3,np4,4,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,6,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 hypre3/must-1.11.2,hypre3,np4,4,openmpi,bug,must,1.11.2,40,main,6,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
 hypre3/must-1.11.2,hypre3,np4,4,openmpi,fix,must,1.11.2,40,main,6,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+hypre3/must-warmup,hypre3,np4,4,openmpi,fix,must,warmup,1,prerequisite,6,0,stretto-must-u:24.04,run.py,uncounted: MUST's first run per process count and library builds its layout (amendment 6)
 hypre3/calibrate,hypre3,np4,4,openmpi,fix,calibrate,stretto:traced,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 hypre3/stretto-traced,hypre3,np4,4,openmpi,bug,stretto,traced,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 hypre3/stretto-traced,hypre3,np4,4,openmpi,fix,stretto,traced,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
@@ -109,6 +112,7 @@ hypre3/ninja-learn,hypre3,np8,8,openmpi,fix,ninja,learn,1,prerequisite,8,0,stret
 hypre3/calibrate,hypre3,np8,8,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,11,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 hypre3/must-1.11.2,hypre3,np8,8,openmpi,bug,must,1.11.2,40,main,11,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
 hypre3/must-1.11.2,hypre3,np8,8,openmpi,fix,must,1.11.2,40,main,11,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+hypre3/must-warmup,hypre3,np8,8,openmpi,fix,must,warmup,1,prerequisite,11,0,stretto-must-u:24.04,run.py,uncounted: MUST's first run per process count and library builds its layout (amendment 6)
 hypre3/calibrate,hypre3,np8,8,openmpi,fix,calibrate,stretto:traced,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 hypre3/stretto-traced,hypre3,np8,8,openmpi,bug,stretto,traced,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 hypre3/stretto-traced,hypre3,np8,8,openmpi,fix,stretto,traced,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
@@ -116,7 +120,7 @@ hypre3/calibrate,hypre3,np8,8,openmpi,fix,calibrate,ninja:nonoise,10,prerequisit
 hypre3/ninja-nonoise,hypre3,np8,8,openmpi,bug,ninja,nonoise,10,check,8,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
 hypre3/ninja-nonoise,hypre3,np8,8,openmpi,fix,ninja,nonoise,10,check,8,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
 hypre3/replay,hypre3,np8,8,openmpi,bug,stretto,replay,40,main,8,0,stretto-exp:24.04,replays.py,"every distinct alternative by its pins over the configuration's traces, a seeded sample of 40 if more; each with its control; only if the traces predict the bug"
-hypre3/mpiprv,hypre3,np4,4,openmpi,bug,mpiprv,attempt,1,main,4,0,mpiprv/mpiprv,experiments/mpiprv/apps.py,"attempted on every subject, Fortran ones included; build or instrumentation failure recorded"
+hypre3/mpiprv,hypre3,np4,4,openmpi,bug,mpiprv,attempt,1,main,4,0,mpiprv/mpiprv,external:mpiprv,"experiments/mpiprv/stretto_apps.sh in MPI-PRV's image: attempted on every subject, Fortran ones included; a build or instrumentation failure is recorded"
 petsc/calibrate,petsc,np4,4,openmpi,fix,calibrate,plain:-,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 petsc/plain,petsc,np4,4,openmpi,bug,plain,-,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 petsc/plain,petsc,np4,4,openmpi,fix,plain,-,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
@@ -137,6 +141,7 @@ petsc/ninja-learn,petsc,np4,4,openmpi,fix,ninja,learn,1,prerequisite,4,0,stretto
 petsc/calibrate,petsc,np4,4,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,6,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 petsc/must-1.11.2,petsc,np4,4,openmpi,bug,must,1.11.2,40,main,6,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
 petsc/must-1.11.2,petsc,np4,4,openmpi,fix,must,1.11.2,40,main,6,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+petsc/must-warmup,petsc,np4,4,openmpi,fix,must,warmup,1,prerequisite,6,0,stretto-must-u:24.04,run.py,uncounted: MUST's first run per process count and library builds its layout (amendment 6)
 petsc/calibrate,petsc,np4,4,openmpi,fix,calibrate,stretto:traced,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 petsc/stretto-traced,petsc,np4,4,openmpi,bug,stretto,traced,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 petsc/stretto-traced,petsc,np4,4,openmpi,fix,stretto,traced,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
@@ -165,6 +170,7 @@ petsc/ninja-learn,petsc,np8,8,openmpi,fix,ninja,learn,1,prerequisite,8,0,stretto
 petsc/calibrate,petsc,np8,8,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,11,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 petsc/must-1.11.2,petsc,np8,8,openmpi,bug,must,1.11.2,40,main,11,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
 petsc/must-1.11.2,petsc,np8,8,openmpi,fix,must,1.11.2,40,main,11,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+petsc/must-warmup,petsc,np8,8,openmpi,fix,must,warmup,1,prerequisite,11,0,stretto-must-u:24.04,run.py,uncounted: MUST's first run per process count and library builds its layout (amendment 6)
 petsc/calibrate,petsc,np8,8,openmpi,fix,calibrate,stretto:traced,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 petsc/stretto-traced,petsc,np8,8,openmpi,bug,stretto,traced,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 petsc/stretto-traced,petsc,np8,8,openmpi,fix,stretto,traced,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
@@ -172,7 +178,7 @@ petsc/calibrate,petsc,np8,8,openmpi,fix,calibrate,ninja:nonoise,10,prerequisite,
 petsc/ninja-nonoise,petsc,np8,8,openmpi,bug,ninja,nonoise,10,check,8,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
 petsc/ninja-nonoise,petsc,np8,8,openmpi,fix,ninja,nonoise,10,check,8,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
 petsc/replay,petsc,np8,8,openmpi,bug,stretto,replay,40,main,8,0,stretto-exp:24.04,replays.py,"every distinct alternative by its pins over the configuration's traces, a seeded sample of 40 if more; each with its control; only if the traces predict the bug"
-petsc/mpiprv,petsc,np4,4,openmpi,bug,mpiprv,attempt,1,main,4,0,mpiprv/mpiprv,experiments/mpiprv/apps.py,"attempted on every subject, Fortran ones included; build or instrumentation failure recorded"
+petsc/mpiprv,petsc,np4,4,openmpi,bug,mpiprv,attempt,1,main,4,0,mpiprv/mpiprv,external:mpiprv,"experiments/mpiprv/stretto_apps.sh in MPI-PRV's image: attempted on every subject, Fortran ones included; a build or instrumentation failure is recorded"
 npbmg/calibrate,npbmg,np16,16,mpich,fix,calibrate,plain:-,10,prerequisite,16,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 npbmg/plain,npbmg,np16,16,mpich,bug,plain,-,40,main,16,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 npbmg/plain,npbmg,np16,16,mpich,fix,plain,-,40,main,16,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
@@ -193,6 +199,7 @@ npbmg/ninja-learn,npbmg,np16,16,mpich,fix,ninja,learn,1,prerequisite,16,0,strett
 npbmg/calibrate,npbmg,np16,16,mpich,fix,calibrate,must:1.11.2,10,prerequisite,21,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 npbmg/must-1.11.2,npbmg,np16,16,mpich,bug,must,1.11.2,40,main,21,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
 npbmg/must-1.11.2,npbmg,np16,16,mpich,fix,must,1.11.2,40,main,21,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+npbmg/must-warmup,npbmg,np16,16,mpich,fix,must,warmup,1,prerequisite,21,0,stretto-must-u:24.04,run.py,uncounted: MUST's first run per process count and library builds its layout (amendment 6)
 npbmg/calibrate,npbmg,np16,16,mpich,fix,calibrate,stretto:traced,10,prerequisite,16,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 npbmg/stretto-traced,npbmg,np16,16,mpich,bug,stretto,traced,40,main,16,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 npbmg/stretto-traced,npbmg,np16,16,mpich,fix,stretto,traced,40,main,16,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
@@ -218,9 +225,10 @@ npbmg/ninja-app,npbmg,np32,32,mpich,bug,ninja,app,40,appendix,32,1,stretto-exp:2
 npbmg/ninja-learn,npbmg,np32,32,mpich,bug,ninja,learn,1,prerequisite,32,1,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
 npbmg/ninja-app,npbmg,np32,32,mpich,fix,ninja,app,40,appendix,32,1,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 npbmg/ninja-learn,npbmg,np32,32,mpich,fix,ninja,learn,1,prerequisite,32,1,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
-npbmg/calibrate,npbmg,np32,32,mpich,fix,calibrate,must:1.11.2,10,prerequisite,35,1,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
-npbmg/must-1.11.2,npbmg,np32,32,mpich,bug,must,1.11.2,40,main,35,1,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
-npbmg/must-1.11.2,npbmg,np32,32,mpich,fix,must,1.11.2,40,main,35,1,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+npbmg/calibrate,npbmg,np32,32,mpich,fix,calibrate,must:1.11.2,10,prerequisite,33,1,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
+npbmg/must-1.11.2,npbmg,np32,32,mpich,bug,must,1.11.2,40,main,33,1,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+npbmg/must-1.11.2,npbmg,np32,32,mpich,fix,must,1.11.2,40,main,33,1,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+npbmg/must-warmup,npbmg,np32,32,mpich,fix,must,warmup,1,prerequisite,33,1,stretto-must-u:24.04,run.py,uncounted: MUST's first run per process count and library builds its layout (amendment 6)
 npbmg/calibrate,npbmg,np32,32,mpich,fix,calibrate,stretto:traced,10,prerequisite,32,1,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 npbmg/stretto-traced,npbmg,np32,32,mpich,bug,stretto,traced,40,main,32,1,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 npbmg/stretto-traced,npbmg,np32,32,mpich,fix,stretto,traced,40,main,32,1,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
@@ -228,7 +236,7 @@ npbmg/calibrate,npbmg,np32,32,mpich,fix,calibrate,ninja:nonoise,10,prerequisite,
 npbmg/ninja-nonoise,npbmg,np32,32,mpich,bug,ninja,nonoise,10,check,32,1,stretto-exp:24.04,run.py,"library loaded, no send delayed"
 npbmg/ninja-nonoise,npbmg,np32,32,mpich,fix,ninja,nonoise,10,check,32,1,stretto-exp:24.04,run.py,"library loaded, no send delayed"
 npbmg/replay,npbmg,np32,32,mpich,bug,stretto,replay,40,main,32,1,stretto-exp:24.04,replays.py,"every distinct alternative by its pins over the configuration's traces, a seeded sample of 40 if more; each with its control; only if the traces predict the bug"
-npbmg/mpiprv,npbmg,np16,16,mpich,bug,mpiprv,attempt,1,main,16,0,mpiprv/mpiprv,experiments/mpiprv/apps.py,"attempted on every subject, Fortran ones included; build or instrumentation failure recorded"
+npbmg/mpiprv,npbmg,np16,16,mpich,bug,mpiprv,attempt,1,main,4,0,mpiprv/mpiprv,external:mpiprv,"experiments/mpiprv/stretto_apps.sh in MPI-PRV's image: attempted on every subject, Fortran ones included; a build or instrumentation failure is recorded"
 dealii/calibrate,dealii,np4,4,mpich,fix,calibrate,plain:-,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 dealii/plain,dealii,np4,4,mpich,bug,plain,-,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 dealii/plain,dealii,np4,4,mpich,fix,plain,-,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
@@ -249,6 +257,7 @@ dealii/ninja-learn,dealii,np4,4,mpich,fix,ninja,learn,1,prerequisite,4,0,stretto
 dealii/calibrate,dealii,np4,4,mpich,fix,calibrate,must:1.11.2,10,prerequisite,6,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 dealii/must-1.11.2,dealii,np4,4,mpich,bug,must,1.11.2,40,main,6,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
 dealii/must-1.11.2,dealii,np4,4,mpich,fix,must,1.11.2,40,main,6,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+dealii/must-warmup,dealii,np4,4,mpich,fix,must,warmup,1,prerequisite,6,0,stretto-must-u:24.04,run.py,uncounted: MUST's first run per process count and library builds its layout (amendment 6)
 dealii/calibrate,dealii,np4,4,mpich,fix,calibrate,stretto:traced,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 dealii/stretto-traced,dealii,np4,4,mpich,bug,stretto,traced,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 dealii/stretto-traced,dealii,np4,4,mpich,fix,stretto,traced,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
@@ -257,7 +266,7 @@ dealii/ninja-nonoise,dealii,np4,4,mpich,bug,ninja,nonoise,10,check,4,0,stretto-e
 dealii/ninja-nonoise,dealii,np4,4,mpich,fix,ninja,nonoise,10,check,4,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
 dealii/plain-serial,dealii,np4,4,mpich,bug,plain,serial,40,check,4,1,stretto-exp:24.04,run.py,"jobs = 1, beside the 40 parallel plain runs; Fisher's exact test"
 dealii/replay,dealii,np4,4,mpich,bug,stretto,replay,40,main,4,0,stretto-exp:24.04,replays.py,"every distinct alternative by its pins over the configuration's traces, a seeded sample of 40 if more; each with its control; only if the traces predict the bug"
-dealii/mpiprv,dealii,np4,4,mpich,bug,mpiprv,attempt,1,main,4,0,mpiprv/mpiprv,experiments/mpiprv/apps.py,"attempted on every subject, Fortran ones included; build or instrumentation failure recorded"
+dealii/mpiprv,dealii,np4,4,mpich,bug,mpiprv,attempt,1,main,4,0,mpiprv/mpiprv,external:mpiprv,"experiments/mpiprv/stretto_apps.sh in MPI-PRV's image: attempted on every subject, Fortran ones included; a build or instrumentation failure is recorded"
 dealii8929/calibrate,dealii8929,np4,4,openmpi,fix,calibrate,plain:-,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 dealii8929/plain,dealii8929,np4,4,openmpi,bug,plain,-,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 dealii8929/plain,dealii8929,np4,4,openmpi,fix,plain,-,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
@@ -278,6 +287,7 @@ dealii8929/ninja-learn,dealii8929,np4,4,openmpi,fix,ninja,learn,1,prerequisite,4
 dealii8929/calibrate,dealii8929,np4,4,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,6,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 dealii8929/must-1.11.2,dealii8929,np4,4,openmpi,bug,must,1.11.2,40,main,6,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
 dealii8929/must-1.11.2,dealii8929,np4,4,openmpi,fix,must,1.11.2,40,main,6,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+dealii8929/must-warmup,dealii8929,np4,4,openmpi,fix,must,warmup,1,prerequisite,6,0,stretto-must-u:24.04,run.py,uncounted: MUST's first run per process count and library builds its layout (amendment 6)
 dealii8929/calibrate,dealii8929,np4,4,openmpi,fix,calibrate,stretto:traced,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 dealii8929/stretto-traced,dealii8929,np4,4,openmpi,bug,stretto,traced,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 dealii8929/stretto-traced,dealii8929,np4,4,openmpi,fix,stretto,traced,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
@@ -306,6 +316,7 @@ dealii8929/ninja-learn,dealii8929,np8,8,openmpi,fix,ninja,learn,1,prerequisite,8
 dealii8929/calibrate,dealii8929,np8,8,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,11,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 dealii8929/must-1.11.2,dealii8929,np8,8,openmpi,bug,must,1.11.2,40,main,11,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
 dealii8929/must-1.11.2,dealii8929,np8,8,openmpi,fix,must,1.11.2,40,main,11,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+dealii8929/must-warmup,dealii8929,np8,8,openmpi,fix,must,warmup,1,prerequisite,11,0,stretto-must-u:24.04,run.py,uncounted: MUST's first run per process count and library builds its layout (amendment 6)
 dealii8929/calibrate,dealii8929,np8,8,openmpi,fix,calibrate,stretto:traced,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 dealii8929/stretto-traced,dealii8929,np8,8,openmpi,bug,stretto,traced,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 dealii8929/stretto-traced,dealii8929,np8,8,openmpi,fix,stretto,traced,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
@@ -313,7 +324,7 @@ dealii8929/calibrate,dealii8929,np8,8,openmpi,fix,calibrate,ninja:nonoise,10,pre
 dealii8929/ninja-nonoise,dealii8929,np8,8,openmpi,bug,ninja,nonoise,10,check,8,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
 dealii8929/ninja-nonoise,dealii8929,np8,8,openmpi,fix,ninja,nonoise,10,check,8,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
 dealii8929/replay,dealii8929,np8,8,openmpi,bug,stretto,replay,40,main,8,0,stretto-exp:24.04,replays.py,"every distinct alternative by its pins over the configuration's traces, a seeded sample of 40 if more; each with its control; only if the traces predict the bug"
-dealii8929/mpiprv,dealii8929,np4,4,openmpi,bug,mpiprv,attempt,1,main,4,0,mpiprv/mpiprv,experiments/mpiprv/apps.py,"attempted on every subject, Fortran ones included; build or instrumentation failure recorded"
+dealii8929/mpiprv,dealii8929,np4,4,openmpi,bug,mpiprv,attempt,1,main,4,0,mpiprv/mpiprv,external:mpiprv,"experiments/mpiprv/stretto_apps.sh in MPI-PRV's image: attempted on every subject, Fortran ones included; a build or instrumentation failure is recorded"
 cabana/calibrate,cabana,np3,3,openmpi,fix,calibrate,plain:-,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 cabana/plain,cabana,np3,3,openmpi,bug,plain,-,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 cabana/plain,cabana,np3,3,openmpi,fix,plain,-,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
@@ -334,6 +345,7 @@ cabana/ninja-learn,cabana,np3,3,openmpi,fix,ninja,learn,1,prerequisite,3,0,stret
 cabana/calibrate,cabana,np3,3,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,5,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 cabana/must-1.11.2,cabana,np3,3,openmpi,bug,must,1.11.2,40,main,5,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
 cabana/must-1.11.2,cabana,np3,3,openmpi,fix,must,1.11.2,40,main,5,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+cabana/must-warmup,cabana,np3,3,openmpi,fix,must,warmup,1,prerequisite,5,0,stretto-must-u:24.04,run.py,uncounted: MUST's first run per process count and library builds its layout (amendment 6)
 cabana/calibrate,cabana,np3,3,openmpi,fix,calibrate,stretto:traced,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 cabana/stretto-traced,cabana,np3,3,openmpi,bug,stretto,traced,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 cabana/stretto-traced,cabana,np3,3,openmpi,fix,stretto,traced,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
@@ -362,6 +374,7 @@ cabana/ninja-learn,cabana,np4,4,openmpi,fix,ninja,learn,1,prerequisite,4,0,stret
 cabana/calibrate,cabana,np4,4,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,6,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 cabana/must-1.11.2,cabana,np4,4,openmpi,bug,must,1.11.2,40,main,6,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
 cabana/must-1.11.2,cabana,np4,4,openmpi,fix,must,1.11.2,40,main,6,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+cabana/must-warmup,cabana,np4,4,openmpi,fix,must,warmup,1,prerequisite,6,0,stretto-must-u:24.04,run.py,uncounted: MUST's first run per process count and library builds its layout (amendment 6)
 cabana/calibrate,cabana,np4,4,openmpi,fix,calibrate,stretto:traced,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 cabana/stretto-traced,cabana,np4,4,openmpi,bug,stretto,traced,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 cabana/stretto-traced,cabana,np4,4,openmpi,fix,stretto,traced,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
@@ -389,6 +402,7 @@ cabana/ninja-learn,cabana,np3-repeat2,3,openmpi,fix,ninja,learn,1,prerequisite,3
 cabana/calibrate,cabana,np3-repeat2,3,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,5,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 cabana/must-1.11.2,cabana,np3-repeat2,3,openmpi,bug,must,1.11.2,40,supplementary,5,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
 cabana/must-1.11.2,cabana,np3-repeat2,3,openmpi,fix,must,1.11.2,40,supplementary,5,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+cabana/must-warmup,cabana,np3-repeat2,3,openmpi,fix,must,warmup,1,prerequisite,5,0,stretto-must-u:24.04,run.py,uncounted: MUST's first run per process count and library builds its layout (amendment 6)
 cabana/calibrate,cabana,np3-repeat2,3,openmpi,fix,calibrate,stretto:traced,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 cabana/stretto-traced,cabana,np3-repeat2,3,openmpi,bug,stretto,traced,40,supplementary,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 cabana/stretto-traced,cabana,np3-repeat2,3,openmpi,fix,stretto,traced,40,supplementary,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
@@ -416,6 +430,7 @@ cabana/ninja-learn,cabana,np4-repeat2,4,openmpi,fix,ninja,learn,1,prerequisite,4
 cabana/calibrate,cabana,np4-repeat2,4,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,6,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 cabana/must-1.11.2,cabana,np4-repeat2,4,openmpi,bug,must,1.11.2,40,supplementary,6,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
 cabana/must-1.11.2,cabana,np4-repeat2,4,openmpi,fix,must,1.11.2,40,supplementary,6,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+cabana/must-warmup,cabana,np4-repeat2,4,openmpi,fix,must,warmup,1,prerequisite,6,0,stretto-must-u:24.04,run.py,uncounted: MUST's first run per process count and library builds its layout (amendment 6)
 cabana/calibrate,cabana,np4-repeat2,4,openmpi,fix,calibrate,stretto:traced,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 cabana/stretto-traced,cabana,np4-repeat2,4,openmpi,bug,stretto,traced,40,supplementary,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 cabana/stretto-traced,cabana,np4-repeat2,4,openmpi,fix,stretto,traced,40,supplementary,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
@@ -423,7 +438,7 @@ cabana/calibrate,cabana,np4-repeat2,4,openmpi,fix,calibrate,ninja:nonoise,10,pre
 cabana/ninja-nonoise,cabana,np4-repeat2,4,openmpi,bug,ninja,nonoise,10,supplementary,4,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
 cabana/ninja-nonoise,cabana,np4-repeat2,4,openmpi,fix,ninja,nonoise,10,supplementary,4,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
 cabana/replay,cabana,np4-repeat2,4,openmpi,bug,stretto,replay,40,main,4,0,stretto-exp:24.04,replays.py,"every distinct alternative by its pins over the configuration's traces, a seeded sample of 40 if more; each with its control; only if the traces predict the bug"
-cabana/mpiprv,cabana,np3,3,openmpi,bug,mpiprv,attempt,1,main,3,0,mpiprv/mpiprv,experiments/mpiprv/apps.py,"attempted on every subject, Fortran ones included; build or instrumentation failure recorded"
+cabana/mpiprv,cabana,np3,3,openmpi,bug,mpiprv,attempt,1,main,4,0,mpiprv/mpiprv,external:mpiprv,"experiments/mpiprv/stretto_apps.sh in MPI-PRV's image: attempted on every subject, Fortran ones included; a build or instrumentation failure is recorded"
 stempy/calibrate,stempy,np4,4,openmpi,fix,calibrate,plain:-,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 stempy/plain,stempy,np4,4,openmpi,bug,plain,-,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 stempy/plain,stempy,np4,4,openmpi,fix,plain,-,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
@@ -444,6 +459,7 @@ stempy/ninja-learn,stempy,np4,4,openmpi,fix,ninja,learn,1,prerequisite,4,0,stret
 stempy/calibrate,stempy,np4,4,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,6,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 stempy/must-1.11.2,stempy,np4,4,openmpi,bug,must,1.11.2,40,main,6,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
 stempy/must-1.11.2,stempy,np4,4,openmpi,fix,must,1.11.2,40,main,6,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+stempy/must-warmup,stempy,np4,4,openmpi,fix,must,warmup,1,prerequisite,6,0,stretto-must-u:24.04,run.py,uncounted: MUST's first run per process count and library builds its layout (amendment 6)
 stempy/calibrate,stempy,np4,4,openmpi,fix,calibrate,stretto:traced,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 stempy/stretto-traced,stempy,np4,4,openmpi,bug,stretto,traced,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 stempy/stretto-traced,stempy,np4,4,openmpi,fix,stretto,traced,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
@@ -472,6 +488,7 @@ stempy/ninja-learn,stempy,np8,8,openmpi,fix,ninja,learn,1,prerequisite,8,0,stret
 stempy/calibrate,stempy,np8,8,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,11,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 stempy/must-1.11.2,stempy,np8,8,openmpi,bug,must,1.11.2,40,main,11,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
 stempy/must-1.11.2,stempy,np8,8,openmpi,fix,must,1.11.2,40,main,11,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+stempy/must-warmup,stempy,np8,8,openmpi,fix,must,warmup,1,prerequisite,11,0,stretto-must-u:24.04,run.py,uncounted: MUST's first run per process count and library builds its layout (amendment 6)
 stempy/calibrate,stempy,np8,8,openmpi,fix,calibrate,stretto:traced,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 stempy/stretto-traced,stempy,np8,8,openmpi,bug,stretto,traced,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 stempy/stretto-traced,stempy,np8,8,openmpi,fix,stretto,traced,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
@@ -479,7 +496,7 @@ stempy/calibrate,stempy,np8,8,openmpi,fix,calibrate,ninja:nonoise,10,prerequisit
 stempy/ninja-nonoise,stempy,np8,8,openmpi,bug,ninja,nonoise,10,check,8,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
 stempy/ninja-nonoise,stempy,np8,8,openmpi,fix,ninja,nonoise,10,check,8,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
 stempy/replay,stempy,np8,8,openmpi,bug,stretto,replay,40,main,8,0,stretto-exp:24.04,replays.py,"every distinct alternative by its pins over the configuration's traces, a seeded sample of 40 if more; each with its control; only if the traces predict the bug"
-stempy/mpiprv,stempy,np4,4,openmpi,bug,mpiprv,attempt,1,main,4,0,mpiprv/mpiprv,experiments/mpiprv/apps.py,"attempted on every subject, Fortran ones included; build or instrumentation failure recorded"
+stempy/mpiprv,stempy,np4,4,openmpi,bug,mpiprv,attempt,1,main,4,0,mpiprv/mpiprv,external:mpiprv,"experiments/mpiprv/stretto_apps.sh in MPI-PRV's image: attempted on every subject, Fortran ones included; a build or instrumentation failure is recorded"
 mfem332/calibrate,mfem332,np4,4,openmpi,fix,calibrate,plain:-,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 mfem332/plain,mfem332,np4,4,openmpi,bug,plain,-,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 mfem332/plain,mfem332,np4,4,openmpi,fix,plain,-,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
@@ -500,6 +517,7 @@ mfem332/ninja-learn,mfem332,np4,4,openmpi,fix,ninja,learn,1,prerequisite,4,0,str
 mfem332/calibrate,mfem332,np4,4,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,6,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 mfem332/must-1.11.2,mfem332,np4,4,openmpi,bug,must,1.11.2,40,main,6,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
 mfem332/must-1.11.2,mfem332,np4,4,openmpi,fix,must,1.11.2,40,main,6,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+mfem332/must-warmup,mfem332,np4,4,openmpi,fix,must,warmup,1,prerequisite,6,0,stretto-must-u:24.04,run.py,uncounted: MUST's first run per process count and library builds its layout (amendment 6)
 mfem332/calibrate,mfem332,np4,4,openmpi,fix,calibrate,stretto:traced,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 mfem332/stretto-traced,mfem332,np4,4,openmpi,bug,stretto,traced,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 mfem332/stretto-traced,mfem332,np4,4,openmpi,fix,stretto,traced,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
@@ -528,6 +546,7 @@ mfem332/ninja-learn,mfem332,np8,8,openmpi,fix,ninja,learn,1,prerequisite,8,0,str
 mfem332/calibrate,mfem332,np8,8,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,11,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 mfem332/must-1.11.2,mfem332,np8,8,openmpi,bug,must,1.11.2,40,main,11,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
 mfem332/must-1.11.2,mfem332,np8,8,openmpi,fix,must,1.11.2,40,main,11,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+mfem332/must-warmup,mfem332,np8,8,openmpi,fix,must,warmup,1,prerequisite,11,0,stretto-must-u:24.04,run.py,uncounted: MUST's first run per process count and library builds its layout (amendment 6)
 mfem332/calibrate,mfem332,np8,8,openmpi,fix,calibrate,stretto:traced,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 mfem332/stretto-traced,mfem332,np8,8,openmpi,bug,stretto,traced,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 mfem332/stretto-traced,mfem332,np8,8,openmpi,fix,stretto,traced,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
@@ -535,7 +554,7 @@ mfem332/calibrate,mfem332,np8,8,openmpi,fix,calibrate,ninja:nonoise,10,prerequis
 mfem332/ninja-nonoise,mfem332,np8,8,openmpi,bug,ninja,nonoise,10,check,8,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
 mfem332/ninja-nonoise,mfem332,np8,8,openmpi,fix,ninja,nonoise,10,check,8,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
 mfem332/replay,mfem332,np8,8,openmpi,bug,stretto,replay,40,main,8,0,stretto-exp:24.04,replays.py,"every distinct alternative by its pins over the configuration's traces, a seeded sample of 40 if more; each with its control; only if the traces predict the bug"
-mfem332/mpiprv,mfem332,np4,4,openmpi,bug,mpiprv,attempt,1,main,4,0,mpiprv/mpiprv,experiments/mpiprv/apps.py,"attempted on every subject, Fortran ones included; build or instrumentation failure recorded"
+mfem332/mpiprv,mfem332,np4,4,openmpi,bug,mpiprv,attempt,1,main,4,0,mpiprv/mpiprv,external:mpiprv,"experiments/mpiprv/stretto_apps.sh in MPI-PRV's image: attempted on every subject, Fortran ones included; a build or instrumentation failure is recorded"
 lammps/calibrate,lammps,np4,4,openmpi,fix,calibrate,plain:-,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 lammps/plain,lammps,np4,4,openmpi,bug,plain,-,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 lammps/plain,lammps,np4,4,openmpi,fix,plain,-,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
@@ -556,6 +575,7 @@ lammps/ninja-learn,lammps,np4,4,openmpi,fix,ninja,learn,1,prerequisite,4,0,stret
 lammps/calibrate,lammps,np4,4,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,6,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 lammps/must-1.11.2,lammps,np4,4,openmpi,bug,must,1.11.2,40,main,6,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
 lammps/must-1.11.2,lammps,np4,4,openmpi,fix,must,1.11.2,40,main,6,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+lammps/must-warmup,lammps,np4,4,openmpi,fix,must,warmup,1,prerequisite,6,0,stretto-must-u:24.04,run.py,uncounted: MUST's first run per process count and library builds its layout (amendment 6)
 lammps/calibrate,lammps,np4,4,openmpi,fix,calibrate,stretto:traced,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 lammps/stretto-traced,lammps,np4,4,openmpi,bug,stretto,traced,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 lammps/stretto-traced,lammps,np4,4,openmpi,fix,stretto,traced,40,main,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
@@ -584,6 +604,7 @@ lammps/ninja-learn,lammps,np8,8,openmpi,fix,ninja,learn,1,prerequisite,8,0,stret
 lammps/calibrate,lammps,np8,8,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,11,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 lammps/must-1.11.2,lammps,np8,8,openmpi,bug,must,1.11.2,40,main,11,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
 lammps/must-1.11.2,lammps,np8,8,openmpi,fix,must,1.11.2,40,main,11,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+lammps/must-warmup,lammps,np8,8,openmpi,fix,must,warmup,1,prerequisite,11,0,stretto-must-u:24.04,run.py,uncounted: MUST's first run per process count and library builds its layout (amendment 6)
 lammps/calibrate,lammps,np8,8,openmpi,fix,calibrate,stretto:traced,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 lammps/stretto-traced,lammps,np8,8,openmpi,bug,stretto,traced,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 lammps/stretto-traced,lammps,np8,8,openmpi,fix,stretto,traced,40,main,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
@@ -611,6 +632,7 @@ lammps/ninja-learn,lammps,np4-eager0,4,openmpi,fix,ninja,learn,1,prerequisite,4,
 lammps/calibrate,lammps,np4-eager0,4,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,6,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 lammps/must-1.11.2,lammps,np4-eager0,4,openmpi,bug,must,1.11.2,40,supplementary,6,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
 lammps/must-1.11.2,lammps,np4-eager0,4,openmpi,fix,must,1.11.2,40,supplementary,6,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+lammps/must-warmup,lammps,np4-eager0,4,openmpi,fix,must,warmup,1,prerequisite,6,0,stretto-must-u:24.04,run.py,uncounted: MUST's first run per process count and library builds its layout (amendment 6)
 lammps/calibrate,lammps,np4-eager0,4,openmpi,fix,calibrate,stretto:traced,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 lammps/stretto-traced,lammps,np4-eager0,4,openmpi,bug,stretto,traced,40,supplementary,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 lammps/stretto-traced,lammps,np4-eager0,4,openmpi,fix,stretto,traced,40,supplementary,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
@@ -638,6 +660,7 @@ lammps/ninja-learn,lammps,np8-eager0,8,openmpi,fix,ninja,learn,1,prerequisite,8,
 lammps/calibrate,lammps,np8-eager0,8,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,11,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 lammps/must-1.11.2,lammps,np8-eager0,8,openmpi,bug,must,1.11.2,40,supplementary,11,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
 lammps/must-1.11.2,lammps,np8-eager0,8,openmpi,fix,must,1.11.2,40,supplementary,11,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+lammps/must-warmup,lammps,np8-eager0,8,openmpi,fix,must,warmup,1,prerequisite,11,0,stretto-must-u:24.04,run.py,uncounted: MUST's first run per process count and library builds its layout (amendment 6)
 lammps/calibrate,lammps,np8-eager0,8,openmpi,fix,calibrate,stretto:traced,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 lammps/stretto-traced,lammps,np8-eager0,8,openmpi,bug,stretto,traced,40,supplementary,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 lammps/stretto-traced,lammps,np8-eager0,8,openmpi,fix,stretto,traced,40,supplementary,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
@@ -645,7 +668,7 @@ lammps/calibrate,lammps,np8-eager0,8,openmpi,fix,calibrate,ninja:nonoise,10,prer
 lammps/ninja-nonoise,lammps,np8-eager0,8,openmpi,bug,ninja,nonoise,10,supplementary,8,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
 lammps/ninja-nonoise,lammps,np8-eager0,8,openmpi,fix,ninja,nonoise,10,supplementary,8,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
 lammps/replay,lammps,np8-eager0,8,openmpi,bug,stretto,replay,40,main,8,0,stretto-exp:24.04,replays.py,"every distinct alternative by its pins over the configuration's traces, a seeded sample of 40 if more; each with its control; only if the traces predict the bug"
-lammps/mpiprv,lammps,np4,4,openmpi,bug,mpiprv,attempt,1,main,4,0,mpiprv/mpiprv,experiments/mpiprv/apps.py,"attempted on every subject, Fortran ones included; build or instrumentation failure recorded"
+lammps/mpiprv,lammps,np4,4,openmpi,bug,mpiprv,attempt,1,main,4,0,mpiprv/mpiprv,external:mpiprv,"experiments/mpiprv/stretto_apps.sh in MPI-PRV's image: attempted on every subject, Fortran ones included; a build or instrumentation failure is recorded"
 superlu3d/calibrate,superlu3d,nos2-openmpi,3,openmpi,fix,calibrate,plain:-,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 superlu3d/plain,superlu3d,nos2-openmpi,3,openmpi,bug,plain,-,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 superlu3d/plain,superlu3d,nos2-openmpi,3,openmpi,fix,plain,-,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
@@ -666,6 +689,7 @@ superlu3d/ninja-learn,superlu3d,nos2-openmpi,3,openmpi,fix,ninja,learn,1,prerequ
 superlu3d/calibrate,superlu3d,nos2-openmpi,3,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,5,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 superlu3d/must-1.11.2,superlu3d,nos2-openmpi,3,openmpi,bug,must,1.11.2,40,main,5,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
 superlu3d/must-1.11.2,superlu3d,nos2-openmpi,3,openmpi,fix,must,1.11.2,40,main,5,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/must-warmup,superlu3d,nos2-openmpi,3,openmpi,fix,must,warmup,1,prerequisite,5,0,stretto-must-u:24.04,run.py,uncounted: MUST's first run per process count and library builds its layout (amendment 6)
 superlu3d/calibrate,superlu3d,nos2-openmpi,3,openmpi,fix,calibrate,stretto:traced,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 superlu3d/stretto-traced,superlu3d,nos2-openmpi,3,openmpi,bug,stretto,traced,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 superlu3d/stretto-traced,superlu3d,nos2-openmpi,3,openmpi,fix,stretto,traced,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
@@ -694,6 +718,7 @@ superlu3d/ninja-learn,superlu3d,mhd3200b-openmpi,3,openmpi,fix,ninja,learn,1,pre
 superlu3d/calibrate,superlu3d,mhd3200b-openmpi,3,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,5,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 superlu3d/must-1.11.2,superlu3d,mhd3200b-openmpi,3,openmpi,bug,must,1.11.2,40,main,5,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
 superlu3d/must-1.11.2,superlu3d,mhd3200b-openmpi,3,openmpi,fix,must,1.11.2,40,main,5,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/must-warmup,superlu3d,mhd3200b-openmpi,3,openmpi,fix,must,warmup,1,prerequisite,5,0,stretto-must-u:24.04,run.py,uncounted: MUST's first run per process count and library builds its layout (amendment 6)
 superlu3d/calibrate,superlu3d,mhd3200b-openmpi,3,openmpi,fix,calibrate,stretto:traced,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 superlu3d/stretto-traced,superlu3d,mhd3200b-openmpi,3,openmpi,bug,stretto,traced,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 superlu3d/stretto-traced,superlu3d,mhd3200b-openmpi,3,openmpi,fix,stretto,traced,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
@@ -721,6 +746,7 @@ superlu3d/ninja-learn,superlu3d,blk12x6-openmpi,3,openmpi,fix,ninja,learn,1,prer
 superlu3d/calibrate,superlu3d,blk12x6-openmpi,3,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,5,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 superlu3d/must-1.11.2,superlu3d,blk12x6-openmpi,3,openmpi,bug,must,1.11.2,40,main,5,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
 superlu3d/must-1.11.2,superlu3d,blk12x6-openmpi,3,openmpi,fix,must,1.11.2,40,main,5,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/must-warmup,superlu3d,blk12x6-openmpi,3,openmpi,fix,must,warmup,1,prerequisite,5,0,stretto-must-u:24.04,run.py,uncounted: MUST's first run per process count and library builds its layout (amendment 6)
 superlu3d/calibrate,superlu3d,blk12x6-openmpi,3,openmpi,fix,calibrate,stretto:traced,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 superlu3d/stretto-traced,superlu3d,blk12x6-openmpi,3,openmpi,bug,stretto,traced,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 superlu3d/stretto-traced,superlu3d,blk12x6-openmpi,3,openmpi,fix,stretto,traced,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
@@ -748,6 +774,7 @@ superlu3d/ninja-learn,superlu3d,blk8x10-openmpi,6,openmpi,fix,ninja,learn,1,prer
 superlu3d/calibrate,superlu3d,blk8x10-openmpi,6,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,9,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 superlu3d/must-1.11.2,superlu3d,blk8x10-openmpi,6,openmpi,bug,must,1.11.2,40,main,9,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
 superlu3d/must-1.11.2,superlu3d,blk8x10-openmpi,6,openmpi,fix,must,1.11.2,40,main,9,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/must-warmup,superlu3d,blk8x10-openmpi,6,openmpi,fix,must,warmup,1,prerequisite,9,0,stretto-must-u:24.04,run.py,uncounted: MUST's first run per process count and library builds its layout (amendment 6)
 superlu3d/calibrate,superlu3d,blk8x10-openmpi,6,openmpi,fix,calibrate,stretto:traced,10,prerequisite,6,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 superlu3d/stretto-traced,superlu3d,blk8x10-openmpi,6,openmpi,bug,stretto,traced,40,main,6,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 superlu3d/stretto-traced,superlu3d,blk8x10-openmpi,6,openmpi,fix,stretto,traced,40,main,6,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
@@ -775,6 +802,7 @@ superlu3d/ninja-learn,superlu3d,g20-openmpi,3,openmpi,fix,ninja,learn,1,prerequi
 superlu3d/calibrate,superlu3d,g20-openmpi,3,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,5,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 superlu3d/must-1.11.2,superlu3d,g20-openmpi,3,openmpi,bug,must,1.11.2,40,supplementary,5,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
 superlu3d/must-1.11.2,superlu3d,g20-openmpi,3,openmpi,fix,must,1.11.2,40,supplementary,5,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/must-warmup,superlu3d,g20-openmpi,3,openmpi,fix,must,warmup,1,prerequisite,5,0,stretto-must-u:24.04,run.py,uncounted: MUST's first run per process count and library builds its layout (amendment 6)
 superlu3d/calibrate,superlu3d,g20-openmpi,3,openmpi,fix,calibrate,stretto:traced,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 superlu3d/stretto-traced,superlu3d,g20-openmpi,3,openmpi,bug,stretto,traced,40,supplementary,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 superlu3d/stretto-traced,superlu3d,g20-openmpi,3,openmpi,fix,stretto,traced,40,supplementary,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
@@ -802,6 +830,7 @@ superlu3d/ninja-learn,superlu3d,nos2-mpich,3,mpich,fix,ninja,learn,1,prerequisit
 superlu3d/calibrate,superlu3d,nos2-mpich,3,mpich,fix,calibrate,must:1.11.2,10,prerequisite,5,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 superlu3d/must-1.11.2,superlu3d,nos2-mpich,3,mpich,bug,must,1.11.2,40,main,5,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
 superlu3d/must-1.11.2,superlu3d,nos2-mpich,3,mpich,fix,must,1.11.2,40,main,5,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/must-warmup,superlu3d,nos2-mpich,3,mpich,fix,must,warmup,1,prerequisite,5,0,stretto-must-u:24.04,run.py,uncounted: MUST's first run per process count and library builds its layout (amendment 6)
 superlu3d/calibrate,superlu3d,nos2-mpich,3,mpich,fix,calibrate,stretto:traced,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 superlu3d/stretto-traced,superlu3d,nos2-mpich,3,mpich,bug,stretto,traced,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 superlu3d/stretto-traced,superlu3d,nos2-mpich,3,mpich,fix,stretto,traced,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
@@ -829,6 +858,7 @@ superlu3d/ninja-learn,superlu3d,mhd3200b-mpich,3,mpich,fix,ninja,learn,1,prerequ
 superlu3d/calibrate,superlu3d,mhd3200b-mpich,3,mpich,fix,calibrate,must:1.11.2,10,prerequisite,5,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 superlu3d/must-1.11.2,superlu3d,mhd3200b-mpich,3,mpich,bug,must,1.11.2,40,main,5,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
 superlu3d/must-1.11.2,superlu3d,mhd3200b-mpich,3,mpich,fix,must,1.11.2,40,main,5,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/must-warmup,superlu3d,mhd3200b-mpich,3,mpich,fix,must,warmup,1,prerequisite,5,0,stretto-must-u:24.04,run.py,uncounted: MUST's first run per process count and library builds its layout (amendment 6)
 superlu3d/calibrate,superlu3d,mhd3200b-mpich,3,mpich,fix,calibrate,stretto:traced,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 superlu3d/stretto-traced,superlu3d,mhd3200b-mpich,3,mpich,bug,stretto,traced,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 superlu3d/stretto-traced,superlu3d,mhd3200b-mpich,3,mpich,fix,stretto,traced,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
@@ -856,6 +886,7 @@ superlu3d/ninja-learn,superlu3d,blk12x6-mpich,3,mpich,fix,ninja,learn,1,prerequi
 superlu3d/calibrate,superlu3d,blk12x6-mpich,3,mpich,fix,calibrate,must:1.11.2,10,prerequisite,5,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 superlu3d/must-1.11.2,superlu3d,blk12x6-mpich,3,mpich,bug,must,1.11.2,40,main,5,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
 superlu3d/must-1.11.2,superlu3d,blk12x6-mpich,3,mpich,fix,must,1.11.2,40,main,5,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/must-warmup,superlu3d,blk12x6-mpich,3,mpich,fix,must,warmup,1,prerequisite,5,0,stretto-must-u:24.04,run.py,uncounted: MUST's first run per process count and library builds its layout (amendment 6)
 superlu3d/calibrate,superlu3d,blk12x6-mpich,3,mpich,fix,calibrate,stretto:traced,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 superlu3d/stretto-traced,superlu3d,blk12x6-mpich,3,mpich,bug,stretto,traced,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 superlu3d/stretto-traced,superlu3d,blk12x6-mpich,3,mpich,fix,stretto,traced,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
@@ -883,6 +914,7 @@ superlu3d/ninja-learn,superlu3d,blk8x10-mpich,6,mpich,fix,ninja,learn,1,prerequi
 superlu3d/calibrate,superlu3d,blk8x10-mpich,6,mpich,fix,calibrate,must:1.11.2,10,prerequisite,9,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 superlu3d/must-1.11.2,superlu3d,blk8x10-mpich,6,mpich,bug,must,1.11.2,40,main,9,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
 superlu3d/must-1.11.2,superlu3d,blk8x10-mpich,6,mpich,fix,must,1.11.2,40,main,9,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/must-warmup,superlu3d,blk8x10-mpich,6,mpich,fix,must,warmup,1,prerequisite,9,0,stretto-must-u:24.04,run.py,uncounted: MUST's first run per process count and library builds its layout (amendment 6)
 superlu3d/calibrate,superlu3d,blk8x10-mpich,6,mpich,fix,calibrate,stretto:traced,10,prerequisite,6,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 superlu3d/stretto-traced,superlu3d,blk8x10-mpich,6,mpich,bug,stretto,traced,40,main,6,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 superlu3d/stretto-traced,superlu3d,blk8x10-mpich,6,mpich,fix,stretto,traced,40,main,6,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
@@ -910,6 +942,7 @@ superlu3d/ninja-learn,superlu3d,g20-mpich,3,mpich,fix,ninja,learn,1,prerequisite
 superlu3d/calibrate,superlu3d,g20-mpich,3,mpich,fix,calibrate,must:1.11.2,10,prerequisite,5,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 superlu3d/must-1.11.2,superlu3d,g20-mpich,3,mpich,bug,must,1.11.2,40,supplementary,5,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
 superlu3d/must-1.11.2,superlu3d,g20-mpich,3,mpich,fix,must,1.11.2,40,supplementary,5,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+superlu3d/must-warmup,superlu3d,g20-mpich,3,mpich,fix,must,warmup,1,prerequisite,5,0,stretto-must-u:24.04,run.py,uncounted: MUST's first run per process count and library builds its layout (amendment 6)
 superlu3d/calibrate,superlu3d,g20-mpich,3,mpich,fix,calibrate,stretto:traced,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 superlu3d/stretto-traced,superlu3d,g20-mpich,3,mpich,bug,stretto,traced,40,supplementary,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 superlu3d/stretto-traced,superlu3d,g20-mpich,3,mpich,fix,stretto,traced,40,supplementary,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
@@ -917,7 +950,7 @@ superlu3d/calibrate,superlu3d,g20-mpich,3,mpich,fix,calibrate,ninja:nonoise,10,p
 superlu3d/ninja-nonoise,superlu3d,g20-mpich,3,mpich,bug,ninja,nonoise,10,supplementary,3,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
 superlu3d/ninja-nonoise,superlu3d,g20-mpich,3,mpich,fix,ninja,nonoise,10,supplementary,3,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
 superlu3d/replay,superlu3d,g20-mpich,3,mpich,bug,stretto,replay,40,main,3,0,stretto-exp:24.04,replays.py,"every distinct alternative by its pins over the configuration's traces, a seeded sample of 40 if more; each with its control; only if the traces predict the bug"
-superlu3d/mpiprv,superlu3d,nos2-openmpi,3,openmpi,bug,mpiprv,attempt,1,main,3,0,mpiprv/mpiprv,experiments/mpiprv/apps.py,"attempted on every subject, Fortran ones included; build or instrumentation failure recorded"
+superlu3d/mpiprv,superlu3d,nos2-openmpi,3,openmpi,bug,mpiprv,attempt,1,main,4,0,mpiprv/mpiprv,external:mpiprv,"experiments/mpiprv/stretto_apps.sh in MPI-PRV's image: attempted on every subject, Fortran ones included; a build or instrumentation failure is recorded"
 qeelph/calibrate,qeelph,np3,3,mpich,fix,calibrate,plain:-,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 qeelph/plain,qeelph,np3,3,mpich,bug,plain,-,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 qeelph/plain,qeelph,np3,3,mpich,fix,plain,-,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
@@ -938,6 +971,7 @@ qeelph/ninja-learn,qeelph,np3,3,mpich,fix,ninja,learn,1,prerequisite,3,0,stretto
 qeelph/calibrate,qeelph,np3,3,mpich,fix,calibrate,must:1.11.2,10,prerequisite,5,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 qeelph/must-1.11.2,qeelph,np3,3,mpich,bug,must,1.11.2,40,main,5,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
 qeelph/must-1.11.2,qeelph,np3,3,mpich,fix,must,1.11.2,40,main,5,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
+qeelph/must-warmup,qeelph,np3,3,mpich,fix,must,warmup,1,prerequisite,5,0,stretto-must-u:24.04,run.py,uncounted: MUST's first run per process count and library builds its layout (amendment 6)
 qeelph/calibrate,qeelph,np3,3,mpich,fix,calibrate,stretto:traced,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 qeelph/stretto-traced,qeelph,np3,3,mpich,bug,stretto,traced,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 qeelph/stretto-traced,qeelph,np3,3,mpich,fix,stretto,traced,40,main,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
@@ -946,203 +980,93 @@ qeelph/ninja-nonoise,qeelph,np3,3,mpich,bug,ninja,nonoise,10,check,3,0,stretto-e
 qeelph/ninja-nonoise,qeelph,np3,3,mpich,fix,ninja,nonoise,10,check,3,0,stretto-exp:24.04,run.py,"library loaded, no send delayed"
 qeelph/plain-serial,qeelph,np3,3,mpich,bug,plain,serial,40,check,3,1,stretto-exp:24.04,run.py,"jobs = 1, beside the 40 parallel plain runs; Fisher's exact test"
 qeelph/replay,qeelph,np3,3,mpich,bug,stretto,replay,40,main,3,0,stretto-exp:24.04,replays.py,"every distinct alternative by its pins over the configuration's traces, a seeded sample of 40 if more; each with its control; only if the traces predict the bug"
-qeelph/mpiprv,qeelph,np3,3,mpich,bug,mpiprv,attempt,1,main,3,0,mpiprv/mpiprv,experiments/mpiprv/apps.py,"attempted on every subject, Fortran ones included; build or instrumentation failure recorded"
-mbi/openmpi-stretto-traced,mbi,115 programs,,openmpi,-,stretto,traced,10,main,np of each program,0,stretto-exp:24.04,experiments/run_remaining.sh corpus (one traced run per program per pass),"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
-mbi/openmpi-delays-D50,mbi,115 programs,,openmpi,-,delays,D50,10,main,np of each program,0,stretto-exp:24.04,experiments/stress_baseline.py --runs 1 per pass; --runs 30 for the budget,"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
-mbi/openmpi-delays-D50-budget,mbi,115 programs,,openmpi,-,delays,D50,30,main,np of each program,0,stretto-exp:24.04,experiments/stress_baseline.py --runs 1 per pass; --runs 30 for the budget,"budget view: up to 30 runs per program, stopping at the first failure"
-mbi/openmpi-ninja-random,mbi,115 programs,,openmpi,-,ninja,random,10,main,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
-mbi/openmpi-ninja-random-budget,mbi,115 programs,,openmpi,-,ninja,random,30,main,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"budget view: up to 30 runs per program, stopping at the first failure"
-mbi/openmpi-ninja-system,mbi,115 programs,,openmpi,-,ninja,system,10,appendix,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
-mbi/openmpi-ninja-system-budget,mbi,115 programs,,openmpi,-,ninja,system,30,main,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"budget view: up to 30 runs per program, stopping at the first failure"
-mbi/openmpi-ninja-app,mbi,115 programs,,openmpi,-,ninja,app,10,appendix,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
-mbi/openmpi-ninja-app-budget,mbi,115 programs,,openmpi,-,ninja,app,30,main,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"budget view: up to 30 runs per program, stopping at the first failure"
-mbi/openmpi-must-1.11.2,mbi,115 programs,,openmpi,-,must,1.11.2,10,main,np of each program,0,stretto-must-u:24.04,experiments/mbi/run_must.py (MUST_IMAGE=stretto-must-u:24.04),"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
-mbb/openmpi-stretto-traced,mbb,388 programs,,openmpi,-,stretto,traced,10,main,np of each program,0,stretto-exp:24.04,experiments/run_remaining.sh corpus (one traced run per program per pass),"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
-mbb/openmpi-delays-D50,mbb,388 programs,,openmpi,-,delays,D50,10,main,np of each program,0,stretto-exp:24.04,experiments/stress_baseline.py --runs 1 per pass; --runs 30 for the budget,"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
-mbb/openmpi-delays-D50-budget,mbb,388 programs,,openmpi,-,delays,D50,30,main,np of each program,0,stretto-exp:24.04,experiments/stress_baseline.py --runs 1 per pass; --runs 30 for the budget,"budget view: up to 30 runs per program, stopping at the first failure"
-mbb/openmpi-ninja-random,mbb,388 programs,,openmpi,-,ninja,random,10,main,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
-mbb/openmpi-ninja-random-budget,mbb,388 programs,,openmpi,-,ninja,random,30,main,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"budget view: up to 30 runs per program, stopping at the first failure"
-mbb/openmpi-ninja-system,mbb,388 programs,,openmpi,-,ninja,system,10,appendix,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
-mbb/openmpi-ninja-system-budget,mbb,388 programs,,openmpi,-,ninja,system,30,main,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"budget view: up to 30 runs per program, stopping at the first failure"
-mbb/openmpi-ninja-app,mbb,388 programs,,openmpi,-,ninja,app,10,appendix,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
-mbb/openmpi-ninja-app-budget,mbb,388 programs,,openmpi,-,ninja,app,30,main,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"budget view: up to 30 runs per program, stopping at the first failure"
-mbb/openmpi-must-1.11.2,mbb,388 programs,,openmpi,-,must,1.11.2,10,main,np of each program,0,stretto-must-u:24.04,experiments/mbi/run_must.py (MUST_IMAGE=stretto-must-u:24.04),"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
-corrbench/openmpi-stretto-traced,corrbench,513 programs,,openmpi,-,stretto,traced,10,main,np of each program,0,stretto-exp:24.04,experiments/run_remaining.sh corpus (one traced run per program per pass),"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
-corrbench/openmpi-delays-D50,corrbench,513 programs,,openmpi,-,delays,D50,10,main,np of each program,0,stretto-exp:24.04,experiments/stress_baseline.py --runs 1 per pass; --runs 30 for the budget,"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
-corrbench/openmpi-delays-D50-budget,corrbench,513 programs,,openmpi,-,delays,D50,30,main,np of each program,0,stretto-exp:24.04,experiments/stress_baseline.py --runs 1 per pass; --runs 30 for the budget,"budget view: up to 30 runs per program, stopping at the first failure"
-corrbench/openmpi-ninja-random,corrbench,513 programs,,openmpi,-,ninja,random,10,main,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
-corrbench/openmpi-ninja-random-budget,corrbench,513 programs,,openmpi,-,ninja,random,30,main,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"budget view: up to 30 runs per program, stopping at the first failure"
-corrbench/openmpi-ninja-system,corrbench,513 programs,,openmpi,-,ninja,system,10,appendix,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
-corrbench/openmpi-ninja-system-budget,corrbench,513 programs,,openmpi,-,ninja,system,30,main,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"budget view: up to 30 runs per program, stopping at the first failure"
-corrbench/openmpi-ninja-app,corrbench,513 programs,,openmpi,-,ninja,app,10,appendix,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
-corrbench/openmpi-ninja-app-budget,corrbench,513 programs,,openmpi,-,ninja,app,30,main,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"budget view: up to 30 runs per program, stopping at the first failure"
-corrbench/openmpi-must-1.11.2,corrbench,513 programs,,openmpi,-,must,1.11.2,10,main,np of each program,0,stretto-must-u:24.04,experiments/mbi/run_must.py (MUST_IMAGE=stretto-must-u:24.04),"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
-corrbench/mpich-stretto-traced,corrbench,513 programs,,mpich,-,stretto,traced,10,main,np of each program,0,stretto-exp:24.04,experiments/run_remaining.sh corpus (one traced run per program per pass),"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
-corrbench/mpich-delays-D50,corrbench,513 programs,,mpich,-,delays,D50,10,main,np of each program,0,stretto-exp:24.04,experiments/stress_baseline.py --runs 1 per pass; --runs 30 for the budget,"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
-corrbench/mpich-delays-D50-budget,corrbench,513 programs,,mpich,-,delays,D50,30,main,np of each program,0,stretto-exp:24.04,experiments/stress_baseline.py --runs 1 per pass; --runs 30 for the budget,"budget view: up to 30 runs per program, stopping at the first failure"
-corrbench/mpich-ninja-random,corrbench,513 programs,,mpich,-,ninja,random,10,main,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
-corrbench/mpich-ninja-random-budget,corrbench,513 programs,,mpich,-,ninja,random,30,main,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"budget view: up to 30 runs per program, stopping at the first failure"
-corrbench/mpich-ninja-system,corrbench,513 programs,,mpich,-,ninja,system,10,appendix,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
-corrbench/mpich-ninja-system-budget,corrbench,513 programs,,mpich,-,ninja,system,30,main,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"budget view: up to 30 runs per program, stopping at the first failure"
-corrbench/mpich-ninja-app,corrbench,513 programs,,mpich,-,ninja,app,10,appendix,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
-corrbench/mpich-ninja-app-budget,corrbench,513 programs,,mpich,-,ninja,app,30,main,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"budget view: up to 30 runs per program, stopping at the first failure"
-corrbench/mpich-must-1.11.2,corrbench,513 programs,,mpich,-,must,1.11.2,10,main,np of each program,0,stretto-must-u:24.04,experiments/mbi/run_must.py (MUST_IMAGE=stretto-must-u:24.04),"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
-corrbench-openmp/openmpi-stretto-traced,corrbench-openmp,103 programs,,openmpi,-,stretto,traced,10,main,np of each program,0,stretto-exp:24.04,experiments/run_remaining.sh corpus (one traced run per program per pass),"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
-corrbench-openmp/openmpi-delays-D50,corrbench-openmp,103 programs,,openmpi,-,delays,D50,10,main,np of each program,0,stretto-exp:24.04,experiments/stress_baseline.py --runs 1 per pass; --runs 30 for the budget,"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
-corrbench-openmp/openmpi-delays-D50-budget,corrbench-openmp,103 programs,,openmpi,-,delays,D50,30,main,np of each program,0,stretto-exp:24.04,experiments/stress_baseline.py --runs 1 per pass; --runs 30 for the budget,"budget view: up to 30 runs per program, stopping at the first failure"
-corrbench-openmp/openmpi-ninja-random,corrbench-openmp,103 programs,,openmpi,-,ninja,random,10,main,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
-corrbench-openmp/openmpi-ninja-random-budget,corrbench-openmp,103 programs,,openmpi,-,ninja,random,30,main,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"budget view: up to 30 runs per program, stopping at the first failure"
-corrbench-openmp/openmpi-ninja-system,corrbench-openmp,103 programs,,openmpi,-,ninja,system,10,appendix,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
-corrbench-openmp/openmpi-ninja-system-budget,corrbench-openmp,103 programs,,openmpi,-,ninja,system,30,main,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"budget view: up to 30 runs per program, stopping at the first failure"
-corrbench-openmp/openmpi-ninja-app,corrbench-openmp,103 programs,,openmpi,-,ninja,app,10,appendix,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
-corrbench-openmp/openmpi-ninja-app-budget,corrbench-openmp,103 programs,,openmpi,-,ninja,app,30,main,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"budget view: up to 30 runs per program, stopping at the first failure"
-corrbench-openmp/openmpi-must-1.11.2,corrbench-openmp,103 programs,,openmpi,-,must,1.11.2,10,main,np of each program,0,stretto-must-u:24.04,experiments/mbi/run_must.py (MUST_IMAGE=stretto-must-u:24.04),"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
-corrbench-openmp/mpich-stretto-traced,corrbench-openmp,103 programs,,mpich,-,stretto,traced,10,main,np of each program,0,stretto-exp:24.04,experiments/run_remaining.sh corpus (one traced run per program per pass),"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
-corrbench-openmp/mpich-delays-D50,corrbench-openmp,103 programs,,mpich,-,delays,D50,10,main,np of each program,0,stretto-exp:24.04,experiments/stress_baseline.py --runs 1 per pass; --runs 30 for the budget,"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
-corrbench-openmp/mpich-delays-D50-budget,corrbench-openmp,103 programs,,mpich,-,delays,D50,30,main,np of each program,0,stretto-exp:24.04,experiments/stress_baseline.py --runs 1 per pass; --runs 30 for the budget,"budget view: up to 30 runs per program, stopping at the first failure"
-corrbench-openmp/mpich-ninja-random,corrbench-openmp,103 programs,,mpich,-,ninja,random,10,main,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
-corrbench-openmp/mpich-ninja-random-budget,corrbench-openmp,103 programs,,mpich,-,ninja,random,30,main,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"budget view: up to 30 runs per program, stopping at the first failure"
-corrbench-openmp/mpich-ninja-system,corrbench-openmp,103 programs,,mpich,-,ninja,system,10,appendix,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
-corrbench-openmp/mpich-ninja-system-budget,corrbench-openmp,103 programs,,mpich,-,ninja,system,30,main,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"budget view: up to 30 runs per program, stopping at the first failure"
-corrbench-openmp/mpich-ninja-app,corrbench-openmp,103 programs,,mpich,-,ninja,app,10,appendix,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
-corrbench-openmp/mpich-ninja-app-budget,corrbench-openmp,103 programs,,mpich,-,ninja,app,30,main,np of each program,0,stretto-exp:24.04,experiments/ninja/run.py corpus --runs 1 per pass; --runs 30 for the budget,"budget view: up to 30 runs per program, stopping at the first failure"
-corrbench-openmp/mpich-must-1.11.2,corrbench-openmp,103 programs,,mpich,-,must,1.11.2,10,main,np of each program,0,stretto-must-u:24.04,experiments/mbi/run_must.py (MUST_IMAGE=stretto-must-u:24.04),"R = 10 passes, one run per program per pass; per-run view and F1 per pass"
-mbi/openmpi-l2,mbi,115 programs,,openmpi,-,stretto,L2-reexecution,10,main,np of each program,0,stretto-exp:24.04,experiments/mbi/reanalyze.py (L2 by re-execution),MBI's headline stays at L1; L2 by re-execution is a row of its own
-slate/series-openmpi,slate,wide-2x2,,openmpi,bug,plain,series,40,main,ranks x threads,0,hunt-slate:24.04,experiments/slate/series.sh,"cell as committed (experiments/slate/series.csv, variant plain)"
-slate/series-openmpi,slate,wide-4x1,,openmpi,bug,plain,series,40,main,ranks x threads,0,hunt-slate:24.04,experiments/slate/series.sh,"cell as committed (experiments/slate/series.csv, variant plain)"
-slate/series-openmpi,slate,square-2x2,,openmpi,bug,plain,series,40,main,ranks x threads,0,hunt-slate:24.04,experiments/slate/series.sh,"cell as committed (experiments/slate/series.csv, variant plain)"
-slate/series-openmpi,slate,wide-2x2,,openmpi,fix,plain,series,40,main,ranks x threads,0,hunt-slate:24.04,experiments/slate/series.sh,"cell as committed (experiments/slate/series.csv, variant fixed)"
-slate/series-openmpi,slate,wide-4x1,,openmpi,fix,plain,series,40,main,ranks x threads,0,hunt-slate:24.04,experiments/slate/series.sh,"cell as committed (experiments/slate/series.csv, variant fixed)"
-slate/series-openmpi,slate,square-2x2,,openmpi,fix,plain,series,40,main,ranks x threads,0,hunt-slate:24.04,experiments/slate/series.sh,"cell as committed (experiments/slate/series.csv, variant fixed)"
-slate/series-openmpi,slate,wide-2x2-1thread,,openmpi,bug,plain,series,40,main,ranks x threads,0,hunt-slate:24.04,experiments/slate/series.sh,"cell as committed (experiments/slate/series.csv, variant plain)"
-slate/series-mpich,slate,wide-2x2,,mpich,bug,plain,series,40,main,ranks x threads,0,hunt-slate:24.04,experiments/slate/series.sh,"cell as committed (experiments/slate/series-mpich.csv, variant plain)"
-slate/series-mpich,slate,wide-4x1,,mpich,bug,plain,series,40,main,ranks x threads,0,hunt-slate:24.04,experiments/slate/series.sh,"cell as committed (experiments/slate/series-mpich.csv, variant plain)"
-slate/series-mpich,slate,square-2x2,,mpich,bug,plain,series,40,main,ranks x threads,0,hunt-slate:24.04,experiments/slate/series.sh,"cell as committed (experiments/slate/series-mpich.csv, variant plain)"
-slate/series-mpich,slate,wide-2x2,,mpich,fix,plain,series,40,main,ranks x threads,0,hunt-slate:24.04,experiments/slate/series.sh,"cell as committed (experiments/slate/series-mpich.csv, variant fixed)"
-slate/series-mpich,slate,wide-4x1,,mpich,fix,plain,series,40,main,ranks x threads,0,hunt-slate:24.04,experiments/slate/series.sh,"cell as committed (experiments/slate/series-mpich.csv, variant fixed)"
-slate/series-mpich,slate,square-2x2,,mpich,fix,plain,series,40,main,ranks x threads,0,hunt-slate:24.04,experiments/slate/series.sh,"cell as committed (experiments/slate/series-mpich.csv, variant fixed)"
-slate/series-mpich,slate,wide-2x2-1thread,,mpich,bug,plain,series,40,main,ranks x threads,0,hunt-slate:24.04,experiments/slate/series.sh,"cell as committed (experiments/slate/series-mpich.csv, variant plain)"
-slate/traced-openmpi,slate,wide-2x2,,openmpi,bug,stretto,traced,40,main,ranks x threads,0,hunt-slate:24.04,experiments/slate/traced_cells.sh,"cell as committed (experiments/slate/traced-cells-16.csv, variant plain)"
-slate/replay-after,slate,wide-2x2,,openmpi,bug,stretto,replay-after,40,main,ranks x threads,0,hunt-slate:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
-slate/replay-before,slate,wide-2x2,,openmpi,bug,stretto,replay-before,40,appendix,ranks x threads,0,hunt-slate:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
-slate/replay-yield,slate,wide-2x2,,openmpi,bug,stretto,replay-yield,40,appendix,ranks x threads,0,hunt-slate:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
-slate/replay-both,slate,wide-2x2,,openmpi,bug,stretto,replay-both,40,appendix,ranks x threads,0,hunt-slate:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
-slate/traced-openmpi,slate,wide-2x2,,openmpi,fix,stretto,traced,40,main,ranks x threads,0,hunt-slate:24.04,experiments/slate/traced_cells.sh,"cell as committed (experiments/slate/traced-cells-16.csv, variant fixed)"
-slate/traced-openmpi,slate,wide-4x1,,openmpi,bug,stretto,traced,40,main,ranks x threads,0,hunt-slate:24.04,experiments/slate/traced_cells.sh,"cell as committed (experiments/slate/traced-cells-16.csv, variant plain)"
-slate/replay-after,slate,wide-4x1,,openmpi,bug,stretto,replay-after,40,main,ranks x threads,0,hunt-slate:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
-slate/replay-before,slate,wide-4x1,,openmpi,bug,stretto,replay-before,40,appendix,ranks x threads,0,hunt-slate:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
-slate/replay-yield,slate,wide-4x1,,openmpi,bug,stretto,replay-yield,40,appendix,ranks x threads,0,hunt-slate:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
-slate/replay-both,slate,wide-4x1,,openmpi,bug,stretto,replay-both,40,appendix,ranks x threads,0,hunt-slate:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
-slate/traced-openmpi,slate,wide-4x1,,openmpi,fix,stretto,traced,40,main,ranks x threads,0,hunt-slate:24.04,experiments/slate/traced_cells.sh,"cell as committed (experiments/slate/traced-cells-16.csv, variant fixed)"
-slate/traced-openmpi,slate,square-2x2,,openmpi,bug,stretto,traced,40,main,ranks x threads,0,hunt-slate:24.04,experiments/slate/traced_cells.sh,"cell as committed (experiments/slate/traced-cells-16.csv, variant plain)"
-slate/replay-after,slate,square-2x2,,openmpi,bug,stretto,replay-after,40,main,ranks x threads,0,hunt-slate:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
-slate/replay-before,slate,square-2x2,,openmpi,bug,stretto,replay-before,40,appendix,ranks x threads,0,hunt-slate:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
-slate/replay-yield,slate,square-2x2,,openmpi,bug,stretto,replay-yield,40,appendix,ranks x threads,0,hunt-slate:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
-slate/replay-both,slate,square-2x2,,openmpi,bug,stretto,replay-both,40,appendix,ranks x threads,0,hunt-slate:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
-slate/traced-openmpi,slate,partial-2x2,,openmpi,bug,stretto,traced,40,main,ranks x threads,0,hunt-slate:24.04,experiments/slate/traced_cells.sh,"cell as committed (experiments/slate/traced-cells-16.csv, variant plain)"
-slate/replay-after,slate,partial-2x2,,openmpi,bug,stretto,replay-after,40,main,ranks x threads,0,hunt-slate:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
-slate/replay-before,slate,partial-2x2,,openmpi,bug,stretto,replay-before,40,appendix,ranks x threads,0,hunt-slate:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
-slate/replay-yield,slate,partial-2x2,,openmpi,bug,stretto,replay-yield,40,appendix,ranks x threads,0,hunt-slate:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
-slate/replay-both,slate,partial-2x2,,openmpi,bug,stretto,replay-both,40,appendix,ranks x threads,0,hunt-slate:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
-slate/traced-openmpi,slate,mt9-2x2,,openmpi,bug,stretto,traced,40,main,ranks x threads,0,hunt-slate:24.04,experiments/slate/traced_cells.sh,"cell as committed (experiments/slate/traced-cells-16.csv, variant plain)"
-slate/replay-after,slate,mt9-2x2,,openmpi,bug,stretto,replay-after,40,main,ranks x threads,0,hunt-slate:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
-slate/replay-before,slate,mt9-2x2,,openmpi,bug,stretto,replay-before,40,appendix,ranks x threads,0,hunt-slate:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
-slate/replay-yield,slate,mt9-2x2,,openmpi,bug,stretto,replay-yield,40,appendix,ranks x threads,0,hunt-slate:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
-slate/replay-both,slate,mt9-2x2,,openmpi,bug,stretto,replay-both,40,appendix,ranks x threads,0,hunt-slate:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
-dlaf/series-openmpi,dlaf,2x1-offset,,openmpi,bug,plain,series,40,main,ranks x threads,0,hunt2-dlaf:24.04,experiments/dlaf/series.sh,"cell as committed (experiments/dlaf/series.csv, variant plain)"
-dlaf/series-openmpi,dlaf,2x1-offset,,openmpi,fix,plain,series,40,main,ranks x threads,0,hunt2-dlaf:24.04,experiments/dlaf/series.sh,"cell as committed (experiments/dlaf/series.csv, variant fixed)"
-dlaf/series-openmpi,dlaf,2x1-offset-jitter,,openmpi,bug,plain,series,40,main,ranks x threads,0,hunt2-dlaf:24.04,experiments/dlaf/series.sh,"cell as committed (experiments/dlaf/series.csv, variant plain)"
-dlaf/series-openmpi,dlaf,2x1-offset-jitter,,openmpi,fix,plain,series,40,main,ranks x threads,0,hunt2-dlaf:24.04,experiments/dlaf/series.sh,"cell as committed (experiments/dlaf/series.csv, variant fixed)"
-dlaf/series-openmpi,dlaf,2x1-blocks-jitter,,openmpi,bug,plain,series,40,main,ranks x threads,0,hunt2-dlaf:24.04,experiments/dlaf/series.sh,"cell as committed (experiments/dlaf/series.csv, variant plain)"
-dlaf/series-openmpi,dlaf,2x1-blocks-jitter,,openmpi,fix,plain,series,40,main,ranks x threads,0,hunt2-dlaf:24.04,experiments/dlaf/series.sh,"cell as committed (experiments/dlaf/series.csv, variant fixed)"
-dlaf/series-openmpi,dlaf,4x1-offset-jitter,,openmpi,bug,plain,series,40,main,ranks x threads,0,hunt2-dlaf:24.04,experiments/dlaf/series.sh,"cell as committed (experiments/dlaf/series.csv, variant plain)"
-dlaf/series-openmpi,dlaf,4x1-offset-jitter,,openmpi,fix,plain,series,40,main,ranks x threads,0,hunt2-dlaf:24.04,experiments/dlaf/series.sh,"cell as committed (experiments/dlaf/series.csv, variant fixed)"
-dlaf/series-openmpi,dlaf,3x2-offset-jitter,,openmpi,bug,plain,series,40,main,ranks x threads,0,hunt2-dlaf:24.04,experiments/dlaf/series.sh,"cell as committed (experiments/dlaf/series.csv, variant plain)"
-dlaf/series-openmpi,dlaf,3x2-offset-jitter,,openmpi,fix,plain,series,40,main,ranks x threads,0,hunt2-dlaf:24.04,experiments/dlaf/series.sh,"cell as committed (experiments/dlaf/series.csv, variant fixed)"
-dlaf/series-openmpi,dlaf,2x2-offset-jitter,,openmpi,bug,plain,series,40,main,ranks x threads,0,hunt2-dlaf:24.04,experiments/dlaf/series.sh,"cell as committed (experiments/dlaf/series.csv, variant plain)"
-dlaf/series-openmpi,dlaf,2x2-offset-jitter,,openmpi,fix,plain,series,40,main,ranks x threads,0,hunt2-dlaf:24.04,experiments/dlaf/series.sh,"cell as committed (experiments/dlaf/series.csv, variant fixed)"
-dlaf/traced-openmpi,dlaf,2x1-offset-1thread,,openmpi,fix,stretto,traced,40,main,ranks x threads,0,hunt2-dlaf:24.04,experiments/dlaf/traced.sh,"cell as committed (experiments/dlaf/traced.csv, variant fixed)"
-dlaf/traced-openmpi,dlaf,2x1-offset-1thread,,openmpi,bug,stretto,traced,40,main,ranks x threads,0,hunt2-dlaf:24.04,experiments/dlaf/traced.sh,"cell as committed (experiments/dlaf/traced.csv, variant plain)"
-dlaf/replay-after,dlaf,2x1-offset-1thread,,openmpi,bug,stretto,replay-after,40,main,ranks x threads,0,hunt2-dlaf:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
-dlaf/replay-before,dlaf,2x1-offset-1thread,,openmpi,bug,stretto,replay-before,40,appendix,ranks x threads,0,hunt2-dlaf:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
-dlaf/replay-yield,dlaf,2x1-offset-1thread,,openmpi,bug,stretto,replay-yield,40,appendix,ranks x threads,0,hunt2-dlaf:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
-dlaf/replay-both,dlaf,2x1-offset-1thread,,openmpi,bug,stretto,replay-both,40,appendix,ranks x threads,0,hunt2-dlaf:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
-dlaf/traced-openmpi,dlaf,2x1-offset-jitter,,openmpi,fix,stretto,traced,40,main,ranks x threads,0,hunt2-dlaf:24.04,experiments/dlaf/traced.sh,"cell as committed (experiments/dlaf/traced.csv, variant fixed)"
-dlaf/traced-openmpi,dlaf,2x1-offset-jitter,,openmpi,bug,stretto,traced,40,main,ranks x threads,0,hunt2-dlaf:24.04,experiments/dlaf/traced.sh,"cell as committed (experiments/dlaf/traced.csv, variant plain)"
-dlaf/replay-after,dlaf,2x1-offset-jitter,,openmpi,bug,stretto,replay-after,40,main,ranks x threads,0,hunt2-dlaf:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
-dlaf/replay-before,dlaf,2x1-offset-jitter,,openmpi,bug,stretto,replay-before,40,appendix,ranks x threads,0,hunt2-dlaf:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
-dlaf/replay-yield,dlaf,2x1-offset-jitter,,openmpi,bug,stretto,replay-yield,40,appendix,ranks x threads,0,hunt2-dlaf:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
-dlaf/replay-both,dlaf,2x1-offset-jitter,,openmpi,bug,stretto,replay-both,40,appendix,ranks x threads,0,hunt2-dlaf:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
-dlaf/traced-openmpi,dlaf,2x2-offset-jitter,,openmpi,fix,stretto,traced,40,main,ranks x threads,0,hunt2-dlaf:24.04,experiments/dlaf/traced.sh,"cell as committed (experiments/dlaf/traced.csv, variant fixed)"
-dlaf/traced-openmpi,dlaf,2x2-offset-jitter,,openmpi,bug,stretto,traced,40,main,ranks x threads,0,hunt2-dlaf:24.04,experiments/dlaf/traced.sh,"cell as committed (experiments/dlaf/traced.csv, variant plain)"
-dlaf/replay-after,dlaf,2x2-offset-jitter,,openmpi,bug,stretto,replay-after,40,main,ranks x threads,0,hunt2-dlaf:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
-dlaf/replay-before,dlaf,2x2-offset-jitter,,openmpi,bug,stretto,replay-before,40,appendix,ranks x threads,0,hunt2-dlaf:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
-dlaf/replay-yield,dlaf,2x2-offset-jitter,,openmpi,bug,stretto,replay-yield,40,appendix,ranks x threads,0,hunt2-dlaf:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
-dlaf/replay-both,dlaf,2x2-offset-jitter,,openmpi,bug,stretto,replay-both,40,appendix,ranks x threads,0,hunt2-dlaf:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
-dlaf/traced-openmpi,dlaf,3x2-offset-jitter,,openmpi,fix,stretto,traced,40,main,ranks x threads,0,hunt2-dlaf:24.04,experiments/dlaf/traced.sh,"cell as committed (experiments/dlaf/traced.csv, variant fixed)"
-dlaf/traced-openmpi,dlaf,3x2-offset-jitter,,openmpi,bug,stretto,traced,40,main,ranks x threads,0,hunt2-dlaf:24.04,experiments/dlaf/traced.sh,"cell as committed (experiments/dlaf/traced.csv, variant plain)"
-dlaf/replay-after,dlaf,3x2-offset-jitter,,openmpi,bug,stretto,replay-after,40,main,ranks x threads,0,hunt2-dlaf:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
-dlaf/replay-before,dlaf,3x2-offset-jitter,,openmpi,bug,stretto,replay-before,40,appendix,ranks x threads,0,hunt2-dlaf:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
-dlaf/replay-yield,dlaf,3x2-offset-jitter,,openmpi,bug,stretto,replay-yield,40,appendix,ranks x threads,0,hunt2-dlaf:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
-dlaf/replay-both,dlaf,3x2-offset-jitter,,openmpi,bug,stretto,replay-both,40,appendix,ranks x threads,0,hunt2-dlaf:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
-dlaf/traced-openmpi,dlaf,4x1-offset-jitter,,openmpi,fix,stretto,traced,40,main,ranks x threads,0,hunt2-dlaf:24.04,experiments/dlaf/traced.sh,"cell as committed (experiments/dlaf/traced.csv, variant fixed)"
-dlaf/traced-openmpi,dlaf,4x1-offset-jitter,,openmpi,bug,stretto,traced,40,main,ranks x threads,0,hunt2-dlaf:24.04,experiments/dlaf/traced.sh,"cell as committed (experiments/dlaf/traced.csv, variant plain)"
-dlaf/replay-after,dlaf,4x1-offset-jitter,,openmpi,bug,stretto,replay-after,40,main,ranks x threads,0,hunt2-dlaf:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
-dlaf/replay-before,dlaf,4x1-offset-jitter,,openmpi,bug,stretto,replay-before,40,appendix,ranks x threads,0,hunt2-dlaf:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
-dlaf/replay-yield,dlaf,4x1-offset-jitter,,openmpi,bug,stretto,replay-yield,40,appendix,ranks x threads,0,hunt2-dlaf:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
-dlaf/replay-both,dlaf,4x1-offset-jitter,,openmpi,bug,stretto,replay-both,40,appendix,ranks x threads,0,hunt2-dlaf:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
-parsec/series-openmpi,parsec,vp2-mt,,openmpi,bug,plain,series,40,main,ranks x threads,0,hunt2-parsec:24.04,experiments/parsec/series.sh,"cell as committed (experiments/parsec/series.csv, variant plain)"
-parsec/series-openmpi,parsec,vp2-mt,,openmpi,fix,plain,series,40,main,ranks x threads,0,hunt2-parsec:24.04,experiments/parsec/series.sh,"cell as committed (experiments/parsec/series.csv, variant fixed)"
-parsec/series-openmpi,parsec,vp2-serialized,,openmpi,bug,plain,series,40,main,ranks x threads,0,hunt2-parsec:24.04,experiments/parsec/series.sh,"cell as committed (experiments/parsec/series.csv, variant plain)"
-parsec/series-openmpi,parsec,vp2-serialized,,openmpi,fix,plain,series,40,main,ranks x threads,0,hunt2-parsec:24.04,experiments/parsec/series.sh,"cell as committed (experiments/parsec/series.csv, variant fixed)"
-parsec/series-openmpi,parsec,vp1-mt,,openmpi,bug,plain,series,40,main,ranks x threads,0,hunt2-parsec:24.04,experiments/parsec/series.sh,"cell as committed (experiments/parsec/series.csv, variant plain)"
-parsec/series-openmpi,parsec,vp1-mt,,openmpi,fix,plain,series,40,main,ranks x threads,0,hunt2-parsec:24.04,experiments/parsec/series.sh,"cell as committed (experiments/parsec/series.csv, variant fixed)"
-parsec/series-openmpi,parsec,vp2-mt-4ranks,,openmpi,bug,plain,series,40,main,ranks x threads,0,hunt2-parsec:24.04,experiments/parsec/series.sh,"cell as committed (experiments/parsec/series.csv, variant plain)"
-parsec/series-openmpi,parsec,vp2-mt-4ranks,,openmpi,fix,plain,series,40,main,ranks x threads,0,hunt2-parsec:24.04,experiments/parsec/series.sh,"cell as committed (experiments/parsec/series.csv, variant fixed)"
-parsec/series-openmpi,parsec,shipped-vp2-mt,,openmpi,bug,plain,series,40,main,ranks x threads,0,hunt2-parsec:24.04,experiments/parsec/series.sh,"cell as committed (experiments/parsec/series.csv, variant plain)"
-parsec/series-openmpi,parsec,shipped-vp2-mt,,openmpi,fix,plain,series,40,main,ranks x threads,0,hunt2-parsec:24.04,experiments/parsec/series.sh,"cell as committed (experiments/parsec/series.csv, variant fixed)"
-parsec/traced-openmpi,parsec,vp1-mt,,openmpi,fix,stretto,traced,40,main,ranks x threads,0,hunt2-parsec:24.04,experiments/parsec/traced.sh,"cell as committed (experiments/parsec/traced.csv, variant fixed)"
-parsec/traced-openmpi,parsec,vp1-mt,,openmpi,bug,stretto,traced,40,main,ranks x threads,0,hunt2-parsec:24.04,experiments/parsec/traced.sh,"cell as committed (experiments/parsec/traced.csv, variant plain)"
-parsec/replay-after,parsec,vp1-mt,,openmpi,bug,stretto,replay-after,40,main,ranks x threads,0,hunt2-parsec:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
-parsec/replay-before,parsec,vp1-mt,,openmpi,bug,stretto,replay-before,40,appendix,ranks x threads,0,hunt2-parsec:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
-parsec/replay-yield,parsec,vp1-mt,,openmpi,bug,stretto,replay-yield,40,appendix,ranks x threads,0,hunt2-parsec:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
-parsec/replay-both,parsec,vp1-mt,,openmpi,bug,stretto,replay-both,40,appendix,ranks x threads,0,hunt2-parsec:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
-parsec/traced-openmpi,parsec,vp2-mt,,openmpi,fix,stretto,traced,40,main,ranks x threads,0,hunt2-parsec:24.04,experiments/parsec/traced.sh,"cell as committed (experiments/parsec/traced.csv, variant fixed)"
-parsec/traced-openmpi,parsec,vp2-mt,,openmpi,bug,stretto,traced,40,main,ranks x threads,0,hunt2-parsec:24.04,experiments/parsec/traced.sh,"cell as committed (experiments/parsec/traced.csv, variant plain)"
-parsec/replay-after,parsec,vp2-mt,,openmpi,bug,stretto,replay-after,40,main,ranks x threads,0,hunt2-parsec:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
-parsec/replay-before,parsec,vp2-mt,,openmpi,bug,stretto,replay-before,40,appendix,ranks x threads,0,hunt2-parsec:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
-parsec/replay-yield,parsec,vp2-mt,,openmpi,bug,stretto,replay-yield,40,appendix,ranks x threads,0,hunt2-parsec:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
-parsec/replay-both,parsec,vp2-mt,,openmpi,bug,stretto,replay-both,40,appendix,ranks x threads,0,hunt2-parsec:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
-parsec/traced-openmpi,parsec,vp2-mt-4ranks,,openmpi,fix,stretto,traced,40,main,ranks x threads,0,hunt2-parsec:24.04,experiments/parsec/traced.sh,"cell as committed (experiments/parsec/traced.csv, variant fixed)"
-parsec/traced-openmpi,parsec,vp2-mt-4ranks,,openmpi,bug,stretto,traced,40,main,ranks x threads,0,hunt2-parsec:24.04,experiments/parsec/traced.sh,"cell as committed (experiments/parsec/traced.csv, variant plain)"
-parsec/replay-after,parsec,vp2-mt-4ranks,,openmpi,bug,stretto,replay-after,40,main,ranks x threads,0,hunt2-parsec:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
-parsec/replay-before,parsec,vp2-mt-4ranks,,openmpi,bug,stretto,replay-before,40,appendix,ranks x threads,0,hunt2-parsec:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
-parsec/replay-yield,parsec,vp2-mt-4ranks,,openmpi,bug,stretto,replay-yield,40,appendix,ranks x threads,0,hunt2-parsec:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
-parsec/replay-both,parsec,vp2-mt-4ranks,,openmpi,bug,stretto,replay-both,40,appendix,ranks x threads,0,hunt2-parsec:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
-parsec/traced-openmpi,parsec,vp2-serialized,,openmpi,fix,stretto,traced,40,main,ranks x threads,0,hunt2-parsec:24.04,experiments/parsec/traced.sh,"cell as committed (experiments/parsec/traced.csv, variant fixed)"
-parsec/traced-openmpi,parsec,vp2-serialized,,openmpi,bug,stretto,traced,40,main,ranks x threads,0,hunt2-parsec:24.04,experiments/parsec/traced.sh,"cell as committed (experiments/parsec/traced.csv, variant plain)"
-parsec/replay-after,parsec,vp2-serialized,,openmpi,bug,stretto,replay-after,40,main,ranks x threads,0,hunt2-parsec:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
-parsec/replay-before,parsec,vp2-serialized,,openmpi,bug,stretto,replay-before,40,appendix,ranks x threads,0,hunt2-parsec:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
-parsec/replay-yield,parsec,vp2-serialized,,openmpi,bug,stretto,replay-yield,40,appendix,ranks x threads,0,hunt2-parsec:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
-parsec/replay-both,parsec,vp2-serialized,,openmpi,bug,stretto,replay-both,40,appendix,ranks x threads,0,hunt2-parsec:24.04,experiments/replay_modes.sh,gates give way after 1 000 ms; the control follows the recorded order beyond the horizon
-uintah/series-openmpi,uintah,np4 -nthreads 2,,openmpi,bug,plain,series,40,main,ranks x threads,0,uintah image,experiments/uintah/series.sh,"cell as committed (experiments/uintah/series.csv, variant plain)"
-uintah/series-openmpi,uintah,np4 -nthreads 2,,openmpi,fix,plain,series,40,main,ranks x threads,0,uintah image,experiments/uintah/series.sh,"cell as committed (experiments/uintah/series.csv, variant fix)"
-uintah/series-openmpi,uintah,np4 -nthreads 4,,openmpi,bug,plain,series,40,main,ranks x threads,0,uintah image,experiments/uintah/series.sh,"cell as committed (experiments/uintah/series.csv, variant plain)"
-uintah/series-openmpi,uintah,np4 -nthreads 4,,openmpi,fix,plain,series,40,main,ranks x threads,0,uintah image,experiments/uintah/series.sh,"cell as committed (experiments/uintah/series.csv, variant fix)"
-uintah/series-openmpi,uintah,np2 -nthreads 2,,openmpi,bug,plain,series,40,main,ranks x threads,0,uintah image,experiments/uintah/series.sh,"cell as committed (experiments/uintah/series.csv, variant plain)"
-uintah/series-openmpi,uintah,np2 -nthreads 2,,openmpi,fix,plain,series,40,main,ranks x threads,0,uintah image,experiments/uintah/series.sh,"cell as committed (experiments/uintah/series.csv, variant fix)"
-uintah/series-openmpi,uintah,np4 mpi-scheduler,,openmpi,bug,plain,series,40,main,ranks x threads,0,uintah image,experiments/uintah/series.sh,"cell as committed (experiments/uintah/series.csv, variant plain)"
-uintah/series-openmpi,uintah,np4 mpi-scheduler,,openmpi,fix,plain,series,40,main,ranks x threads,0,uintah image,experiments/uintah/series.sh,"cell as committed (experiments/uintah/series.csv, variant fix)"
-uintah/series-mpich,uintah,np4 -nthreads 2,,mpich,bug,plain,series,40,main,ranks x threads,0,uintah image,experiments/uintah/series.sh,"cell as committed (experiments/uintah/series.csv, variant plain)"
-uintah/series-mpich,uintah,np4 -nthreads 2,,mpich,fix,plain,series,40,main,ranks x threads,0,uintah image,experiments/uintah/series.sh,"cell as committed (experiments/uintah/series.csv, variant fix)"
-uintah/series-mpich,uintah,np4 -nthreads 4,,mpich,bug,plain,series,40,main,ranks x threads,0,uintah image,experiments/uintah/series.sh,"cell as committed (experiments/uintah/series.csv, variant plain)"
-uintah/series-mpich,uintah,np4 -nthreads 4,,mpich,fix,plain,series,40,main,ranks x threads,0,uintah image,experiments/uintah/series.sh,"cell as committed (experiments/uintah/series.csv, variant fix)"
-uintah/series-mpich,uintah,np2 -nthreads 2,,mpich,bug,plain,series,40,main,ranks x threads,0,uintah image,experiments/uintah/series.sh,"cell as committed (experiments/uintah/series.csv, variant plain)"
-uintah/series-mpich,uintah,np2 -nthreads 2,,mpich,fix,plain,series,40,main,ranks x threads,0,uintah image,experiments/uintah/series.sh,"cell as committed (experiments/uintah/series.csv, variant fix)"
-uintah/series-mpich,uintah,np4 mpi-scheduler,,mpich,bug,plain,series,40,main,ranks x threads,0,uintah image,experiments/uintah/series.sh,"cell as committed (experiments/uintah/series.csv, variant plain)"
-uintah/series-mpich,uintah,np4 mpi-scheduler,,mpich,fix,plain,series,40,main,ranks x threads,0,uintah image,experiments/uintah/series.sh,"cell as committed (experiments/uintah/series.csv, variant fix)"
-mustvc/uintah,uintah,the thread bug's cells,,as above,bug,mustvc,vector-clock,40,main,ranks x threads,0,mustvc:1.9-omp,experiments/mustvc/apps.sh,MUST's vector-clock checks on the cells of the four thread bugs
-mustvc/slate,slate,the thread bug's cells,,as above,bug,mustvc,vector-clock,40,main,ranks x threads,0,mustvc:1.9-omp,experiments/mustvc/apps.sh,MUST's vector-clock checks on the cells of the four thread bugs
-mustvc/dlaf,dlaf,the thread bug's cells,,as above,bug,mustvc,vector-clock,40,main,ranks x threads,0,mustvc:1.9-omp,experiments/mustvc/apps.sh,MUST's vector-clock checks on the cells of the four thread bugs
-mustvc/parsec,parsec,the thread bug's cells,,as above,bug,mustvc,vector-clock,40,main,ranks x threads,0,mustvc:1.9-omp,experiments/mustvc/apps.sh,MUST's vector-clock checks on the cells of the four thread bugs
-locks/replay,locks,every L1+L finding,,,bug,stretto,replay-L1+L,2,main,,0,stretto-exp:24.04,experiments/mustvc/lock_replays.sh,"two replays per finding, as committed"
+qeelph/mpiprv,qeelph,np3,3,mpich,bug,mpiprv,attempt,1,main,4,0,mpiprv/mpiprv,external:mpiprv,"experiments/mpiprv/stretto_apps.sh in MPI-PRV's image: attempted on every subject, Fortran ones included; a build or instrumentation failure is recorded"
+mbi/openmpi-build,mbi,115 programs,,openmpi,-,build,corpus,1,prerequisite,4,0,stretto-exp:24.04,external:suite,suites.py build: every program compiled for the MPI
+mbi/openmpi-stretto-traced,mbi,115 programs,,openmpi,-,stretto,traced,10,main,4,0,stretto-exp:24.04,external:suite,"R = 10 passes, one run per program per pass (run_mbi.py (MBI, MPI-BugBench), corrbench/run.py, mustvc/stretto_bench.sh (OpenMP))"
+mbi/openmpi-delays-D50,mbi,115 programs,,openmpi,-,delays,D50,10,main,4,0,stretto-exp:24.04,external:suite,"R = 10 passes, one run per program per pass (stress_baseline.py on the suite's build, D50)"
+mbi/openmpi-delays-D50-budget,mbi,115 programs,,openmpi,-,delays,D50-budget,1,main,4,0,stretto-exp:24.04,external:suite,"budget view: up to 30 runs per program, stopping at the first failure"
+mbi/openmpi-ninja-random,mbi,115 programs,,openmpi,-,ninja,random,10,main,4,0,stretto-exp:24.04,external:suite,"R = 10 passes, one run per program per pass (ninja/run.py corpus on the suite's build, libninja-fixed-all.so)"
+mbi/openmpi-ninja-random-budget,mbi,115 programs,,openmpi,-,ninja,random-budget,1,main,4,0,stretto-exp:24.04,external:suite,"budget view: up to 30 runs per program, stopping at the first failure"
+mbi/openmpi-ninja-system,mbi,115 programs,,openmpi,-,ninja,system,10,appendix,4,0,stretto-exp:24.04,external:suite,"R = 10 passes, one run per program per pass (ninja/run.py corpus on the suite's build, libninja-fixed-all.so)"
+mbi/openmpi-ninja-system-budget,mbi,115 programs,,openmpi,-,ninja,system-budget,1,main,4,0,stretto-exp:24.04,external:suite,"budget view: up to 30 runs per program, stopping at the first failure"
+mbi/openmpi-ninja-app,mbi,115 programs,,openmpi,-,ninja,app,10,appendix,4,0,stretto-exp:24.04,external:suite,"R = 10 passes, one run per program per pass (ninja/run.py corpus on the suite's build, libninja-fixed-all.so)"
+mbi/openmpi-ninja-app-budget,mbi,115 programs,,openmpi,-,ninja,app-budget,1,main,4,0,stretto-exp:24.04,external:suite,"budget view: up to 30 runs per program, stopping at the first failure"
+mbi/openmpi-must-1.11.2,mbi,115 programs,,openmpi,-,must,1.11.2,10,main,6,0,stretto-must-u:24.04,external:suite,"R = 10 passes, one run per program per pass (suites.py must (scripts/must_once.sh in stretto-must-u:24.04))"
+mbb/openmpi-build,mbb,388 programs,,openmpi,-,build,corpus,1,prerequisite,4,0,stretto-exp:24.04,external:suite,suites.py build: every program compiled for the MPI
+mbb/openmpi-stretto-traced,mbb,388 programs,,openmpi,-,stretto,traced,10,main,4,0,stretto-exp:24.04,external:suite,"R = 10 passes, one run per program per pass (run_mbi.py (MBI, MPI-BugBench), corrbench/run.py, mustvc/stretto_bench.sh (OpenMP))"
+mbb/openmpi-delays-D50,mbb,388 programs,,openmpi,-,delays,D50,10,main,4,0,stretto-exp:24.04,external:suite,"R = 10 passes, one run per program per pass (stress_baseline.py on the suite's build, D50)"
+mbb/openmpi-delays-D50-budget,mbb,388 programs,,openmpi,-,delays,D50-budget,1,main,4,0,stretto-exp:24.04,external:suite,"budget view: up to 30 runs per program, stopping at the first failure"
+mbb/openmpi-ninja-random,mbb,388 programs,,openmpi,-,ninja,random,10,main,4,0,stretto-exp:24.04,external:suite,"R = 10 passes, one run per program per pass (ninja/run.py corpus on the suite's build, libninja-fixed-all.so)"
+mbb/openmpi-ninja-random-budget,mbb,388 programs,,openmpi,-,ninja,random-budget,1,main,4,0,stretto-exp:24.04,external:suite,"budget view: up to 30 runs per program, stopping at the first failure"
+mbb/openmpi-ninja-system,mbb,388 programs,,openmpi,-,ninja,system,10,appendix,4,0,stretto-exp:24.04,external:suite,"R = 10 passes, one run per program per pass (ninja/run.py corpus on the suite's build, libninja-fixed-all.so)"
+mbb/openmpi-ninja-system-budget,mbb,388 programs,,openmpi,-,ninja,system-budget,1,main,4,0,stretto-exp:24.04,external:suite,"budget view: up to 30 runs per program, stopping at the first failure"
+mbb/openmpi-ninja-app,mbb,388 programs,,openmpi,-,ninja,app,10,appendix,4,0,stretto-exp:24.04,external:suite,"R = 10 passes, one run per program per pass (ninja/run.py corpus on the suite's build, libninja-fixed-all.so)"
+mbb/openmpi-ninja-app-budget,mbb,388 programs,,openmpi,-,ninja,app-budget,1,main,4,0,stretto-exp:24.04,external:suite,"budget view: up to 30 runs per program, stopping at the first failure"
+mbb/openmpi-must-1.11.2,mbb,388 programs,,openmpi,-,must,1.11.2,10,main,6,0,stretto-must-u:24.04,external:suite,"R = 10 passes, one run per program per pass (suites.py must (scripts/must_once.sh in stretto-must-u:24.04))"
+corrbench/openmpi-build,corrbench,513 programs,,openmpi,-,build,corpus,1,prerequisite,2,0,stretto-exp:24.04,external:suite,suites.py build: every program compiled for the MPI
+corrbench/openmpi-stretto-traced,corrbench,513 programs,,openmpi,-,stretto,traced,10,main,2,0,stretto-exp:24.04,external:suite,"R = 10 passes, one run per program per pass (run_mbi.py (MBI, MPI-BugBench), corrbench/run.py, mustvc/stretto_bench.sh (OpenMP))"
+corrbench/openmpi-delays-D50,corrbench,513 programs,,openmpi,-,delays,D50,10,main,2,0,stretto-exp:24.04,external:suite,"R = 10 passes, one run per program per pass (stress_baseline.py on the suite's build, D50)"
+corrbench/openmpi-delays-D50-budget,corrbench,513 programs,,openmpi,-,delays,D50-budget,1,main,2,0,stretto-exp:24.04,external:suite,"budget view: up to 30 runs per program, stopping at the first failure"
+corrbench/openmpi-ninja-random,corrbench,513 programs,,openmpi,-,ninja,random,10,main,2,0,stretto-exp:24.04,external:suite,"R = 10 passes, one run per program per pass (ninja/run.py corpus on the suite's build, libninja-fixed-all.so)"
+corrbench/openmpi-ninja-random-budget,corrbench,513 programs,,openmpi,-,ninja,random-budget,1,main,2,0,stretto-exp:24.04,external:suite,"budget view: up to 30 runs per program, stopping at the first failure"
+corrbench/openmpi-ninja-system,corrbench,513 programs,,openmpi,-,ninja,system,10,appendix,2,0,stretto-exp:24.04,external:suite,"R = 10 passes, one run per program per pass (ninja/run.py corpus on the suite's build, libninja-fixed-all.so)"
+corrbench/openmpi-ninja-system-budget,corrbench,513 programs,,openmpi,-,ninja,system-budget,1,main,2,0,stretto-exp:24.04,external:suite,"budget view: up to 30 runs per program, stopping at the first failure"
+corrbench/openmpi-ninja-app,corrbench,513 programs,,openmpi,-,ninja,app,10,appendix,2,0,stretto-exp:24.04,external:suite,"R = 10 passes, one run per program per pass (ninja/run.py corpus on the suite's build, libninja-fixed-all.so)"
+corrbench/openmpi-ninja-app-budget,corrbench,513 programs,,openmpi,-,ninja,app-budget,1,main,2,0,stretto-exp:24.04,external:suite,"budget view: up to 30 runs per program, stopping at the first failure"
+corrbench/openmpi-must-1.11.2,corrbench,513 programs,,openmpi,-,must,1.11.2,10,main,4,0,stretto-must-u:24.04,external:suite,"R = 10 passes, one run per program per pass (suites.py must (scripts/must_once.sh in stretto-must-u:24.04))"
+corrbench/mpich-build,corrbench,513 programs,,mpich,-,build,corpus,1,prerequisite,2,0,stretto-exp:24.04,external:suite,suites.py build: every program compiled for the MPI
+corrbench/mpich-stretto-traced,corrbench,513 programs,,mpich,-,stretto,traced,10,main,2,0,stretto-exp:24.04,external:suite,"R = 10 passes, one run per program per pass (run_mbi.py (MBI, MPI-BugBench), corrbench/run.py, mustvc/stretto_bench.sh (OpenMP))"
+corrbench/mpich-delays-D50,corrbench,513 programs,,mpich,-,delays,D50,10,main,2,0,stretto-exp:24.04,external:suite,"R = 10 passes, one run per program per pass (stress_baseline.py on the suite's build, D50)"
+corrbench/mpich-delays-D50-budget,corrbench,513 programs,,mpich,-,delays,D50-budget,1,main,2,0,stretto-exp:24.04,external:suite,"budget view: up to 30 runs per program, stopping at the first failure"
+corrbench/mpich-ninja-random,corrbench,513 programs,,mpich,-,ninja,random,10,main,2,0,stretto-exp:24.04,external:suite,"R = 10 passes, one run per program per pass (ninja/run.py corpus on the suite's build, libninja-fixed-all.so)"
+corrbench/mpich-ninja-random-budget,corrbench,513 programs,,mpich,-,ninja,random-budget,1,main,2,0,stretto-exp:24.04,external:suite,"budget view: up to 30 runs per program, stopping at the first failure"
+corrbench/mpich-ninja-system,corrbench,513 programs,,mpich,-,ninja,system,10,appendix,2,0,stretto-exp:24.04,external:suite,"R = 10 passes, one run per program per pass (ninja/run.py corpus on the suite's build, libninja-fixed-all.so)"
+corrbench/mpich-ninja-system-budget,corrbench,513 programs,,mpich,-,ninja,system-budget,1,main,2,0,stretto-exp:24.04,external:suite,"budget view: up to 30 runs per program, stopping at the first failure"
+corrbench/mpich-ninja-app,corrbench,513 programs,,mpich,-,ninja,app,10,appendix,2,0,stretto-exp:24.04,external:suite,"R = 10 passes, one run per program per pass (ninja/run.py corpus on the suite's build, libninja-fixed-all.so)"
+corrbench/mpich-ninja-app-budget,corrbench,513 programs,,mpich,-,ninja,app-budget,1,main,2,0,stretto-exp:24.04,external:suite,"budget view: up to 30 runs per program, stopping at the first failure"
+corrbench/mpich-must-1.11.2,corrbench,513 programs,,mpich,-,must,1.11.2,10,main,4,0,stretto-must-u:24.04,external:suite,"R = 10 passes, one run per program per pass (suites.py must (scripts/must_once.sh in stretto-must-u:24.04))"
+corrbench-openmp/openmpi-build,corrbench-openmp,103 programs,,openmpi,-,build,corpus,1,prerequisite,4,0,stretto-exp:24.04,external:suite,suites.py build: every program compiled for the MPI
+corrbench-openmp/openmpi-stretto-traced,corrbench-openmp,103 programs,,openmpi,-,stretto,traced,10,main,4,0,stretto-exp:24.04,external:suite,"R = 10 passes, one run per program per pass (run_mbi.py (MBI, MPI-BugBench), corrbench/run.py, mustvc/stretto_bench.sh (OpenMP))"
+corrbench-openmp/openmpi-delays-D50,corrbench-openmp,103 programs,,openmpi,-,delays,D50,10,main,4,0,stretto-exp:24.04,external:suite,"R = 10 passes, one run per program per pass (stress_baseline.py on the suite's build, D50)"
+corrbench-openmp/openmpi-delays-D50-budget,corrbench-openmp,103 programs,,openmpi,-,delays,D50-budget,1,main,4,0,stretto-exp:24.04,external:suite,"budget view: up to 30 runs per program, stopping at the first failure"
+corrbench-openmp/openmpi-ninja-random,corrbench-openmp,103 programs,,openmpi,-,ninja,random,10,main,4,0,stretto-exp:24.04,external:suite,"R = 10 passes, one run per program per pass (ninja/run.py corpus on the suite's build, libninja-fixed-all.so)"
+corrbench-openmp/openmpi-ninja-random-budget,corrbench-openmp,103 programs,,openmpi,-,ninja,random-budget,1,main,4,0,stretto-exp:24.04,external:suite,"budget view: up to 30 runs per program, stopping at the first failure"
+corrbench-openmp/openmpi-ninja-system,corrbench-openmp,103 programs,,openmpi,-,ninja,system,10,appendix,4,0,stretto-exp:24.04,external:suite,"R = 10 passes, one run per program per pass (ninja/run.py corpus on the suite's build, libninja-fixed-all.so)"
+corrbench-openmp/openmpi-ninja-system-budget,corrbench-openmp,103 programs,,openmpi,-,ninja,system-budget,1,main,4,0,stretto-exp:24.04,external:suite,"budget view: up to 30 runs per program, stopping at the first failure"
+corrbench-openmp/openmpi-ninja-app,corrbench-openmp,103 programs,,openmpi,-,ninja,app,10,appendix,4,0,stretto-exp:24.04,external:suite,"R = 10 passes, one run per program per pass (ninja/run.py corpus on the suite's build, libninja-fixed-all.so)"
+corrbench-openmp/openmpi-ninja-app-budget,corrbench-openmp,103 programs,,openmpi,-,ninja,app-budget,1,main,4,0,stretto-exp:24.04,external:suite,"budget view: up to 30 runs per program, stopping at the first failure"
+corrbench-openmp/openmpi-must-1.11.2,corrbench-openmp,103 programs,,openmpi,-,must,1.11.2,10,main,6,0,stretto-must-u:24.04,external:suite,"R = 10 passes, one run per program per pass (suites.py must (scripts/must_once.sh in stretto-must-u:24.04))"
+corrbench-openmp/mpich-build,corrbench-openmp,103 programs,,mpich,-,build,corpus,1,prerequisite,4,0,stretto-exp:24.04,external:suite,suites.py build: every program compiled for the MPI
+corrbench-openmp/mpich-delays-D50,corrbench-openmp,103 programs,,mpich,-,delays,D50,10,main,4,0,stretto-exp:24.04,external:suite,"R = 10 passes, one run per program per pass (stress_baseline.py on the suite's build, D50)"
+corrbench-openmp/mpich-delays-D50-budget,corrbench-openmp,103 programs,,mpich,-,delays,D50-budget,1,main,4,0,stretto-exp:24.04,external:suite,"budget view: up to 30 runs per program, stopping at the first failure"
+corrbench-openmp/mpich-ninja-random,corrbench-openmp,103 programs,,mpich,-,ninja,random,10,main,4,0,stretto-exp:24.04,external:suite,"R = 10 passes, one run per program per pass (ninja/run.py corpus on the suite's build, libninja-fixed-all.so)"
+corrbench-openmp/mpich-ninja-random-budget,corrbench-openmp,103 programs,,mpich,-,ninja,random-budget,1,main,4,0,stretto-exp:24.04,external:suite,"budget view: up to 30 runs per program, stopping at the first failure"
+corrbench-openmp/mpich-ninja-system,corrbench-openmp,103 programs,,mpich,-,ninja,system,10,appendix,4,0,stretto-exp:24.04,external:suite,"R = 10 passes, one run per program per pass (ninja/run.py corpus on the suite's build, libninja-fixed-all.so)"
+corrbench-openmp/mpich-ninja-system-budget,corrbench-openmp,103 programs,,mpich,-,ninja,system-budget,1,main,4,0,stretto-exp:24.04,external:suite,"budget view: up to 30 runs per program, stopping at the first failure"
+corrbench-openmp/mpich-ninja-app,corrbench-openmp,103 programs,,mpich,-,ninja,app,10,appendix,4,0,stretto-exp:24.04,external:suite,"R = 10 passes, one run per program per pass (ninja/run.py corpus on the suite's build, libninja-fixed-all.so)"
+corrbench-openmp/mpich-ninja-app-budget,corrbench-openmp,103 programs,,mpich,-,ninja,app-budget,1,main,4,0,stretto-exp:24.04,external:suite,"budget view: up to 30 runs per program, stopping at the first failure"
+corrbench-openmp/mpich-must-1.11.2,corrbench-openmp,103 programs,,mpich,-,must,1.11.2,10,main,6,0,stretto-must-u:24.04,external:suite,"R = 10 passes, one run per program per pass (suites.py must (scripts/must_once.sh in stretto-must-u:24.04))"
+mbi/openmpi-stretto-L2,mbi,115 programs,,openmpi,-,stretto,L2-reexecution,10,main,4,0,stretto-exp:24.04,external:suite,MBI's headline stays at L1; L2 by re-execution (run_mbi.py --rerun) is a row of its own
+slate/series-openmpi,slate,cells as committed,,openmpi,-,plain,series,40,main,16,0,hunt-slate:24.04,external:thread,"experiments/slate/series.sh, RUNS=1 per job; cells of experiments/slate/series.csv: wide-2x2 (plain); wide-4x1 (plain); square-2x2 (plain); wide-2x2 (fixed); wide-4x1 (fixed); square-2x2 (fixed); wide-2x2-1thread (plain)"
+slate/series-mpich,slate,cells as committed,,mpich,-,plain,series,40,main,16,0,hunt-slate:24.04,external:thread,"experiments/slate/series.sh, RUNS=1 per job; cells of experiments/slate/series-mpich.csv: wide-2x2 (plain); wide-4x1 (plain); square-2x2 (plain); wide-2x2 (fixed); wide-4x1 (fixed); square-2x2 (fixed); wide-2x2-1thread (plain)"
+slate/traced-openmpi,slate,cells as committed,,openmpi,-,stretto,traced,40,main,16,0,hunt-slate:24.04,external:thread,"experiments/slate/traced_cells.sh, RUNS=1 per job; cells of experiments/slate/traced-cells-16.csv: wide-2x2 (plain); wide-2x2 (fixed); wide-4x1 (plain); wide-4x1 (fixed); square-2x2 (plain); partial-2x2 (plain); mt9-2x2 (plain)"
+slate/replay-after,slate,the bug's replay cell,,openmpi,bug,stretto,replay-after,20,main,16,0,hunt-slate:24.04,external:thread,"experiments/slate/replay.sh, one traced run and its sampled alternatives per job (experiments/replay_modes.sh after)"
+slate/replay-before,slate,the bug's replay cell,,openmpi,bug,stretto,replay-before,20,appendix,16,0,hunt-slate:24.04,external:thread,"experiments/slate/replay.sh, one traced run and its sampled alternatives per job (experiments/replay_modes.sh before)"
+slate/replay-yield,slate,the bug's replay cell,,openmpi,bug,stretto,replay-yield,20,appendix,16,0,hunt-slate:24.04,external:thread,"experiments/slate/replay.sh, one traced run and its sampled alternatives per job (experiments/replay_modes.sh yield)"
+slate/replay-both,slate,the bug's replay cell,,openmpi,bug,stretto,replay-both,20,appendix,16,0,hunt-slate:24.04,external:thread,"experiments/slate/replay.sh, one traced run and its sampled alternatives per job (experiments/replay_modes.sh both)"
+dlaf/series-openmpi,dlaf,cells as committed,,openmpi,-,plain,series,40,main,12,0,atm-clang:24.04,external:thread,"experiments/dlaf/series.sh, RUNS=1 per job; cells of experiments/dlaf/series.csv: 2x1-offset (plain); 2x1-offset (fixed); 2x1-offset-jitter (plain); 2x1-offset-jitter (fixed); 2x1-blocks-jitter (plain); 2x1-blocks-jitter (fixed); 4x1-offset-jitter (plain); 4x1-offset-jitter (fixed); 3x2-offset-jitter (plain); 3x2-offset-jitter (fixed); 2x2-offset-jitter (plain); 2x2-offset-jitter (fixed)"
+dlaf/traced-openmpi,dlaf,cells as committed,,openmpi,-,stretto,traced,40,main,12,0,atm-clang:24.04,external:thread,"experiments/dlaf/traced.sh, RUNS=1 per job; cells of experiments/dlaf/traced.csv: 2x1-offset-1thread (fixed); 2x1-offset-1thread (plain); 2x1-offset-jitter (fixed); 2x1-offset-jitter (plain); 2x2-offset-jitter (fixed); 2x2-offset-jitter (plain); 3x2-offset-jitter (fixed); 3x2-offset-jitter (plain); 4x1-offset-jitter (fixed); 4x1-offset-jitter (plain)"
+dlaf/replay-after,dlaf,the bug's replay cell,,openmpi,bug,stretto,replay-after,20,main,12,0,atm-clang:24.04,external:thread,"experiments/dlaf/replay.sh, one traced run and its sampled alternatives per job (experiments/replay_modes.sh after)"
+parsec/series-openmpi,parsec,cells as committed,,openmpi,-,plain,series,40,main,8,0,atm-clang:24.04,external:thread,"experiments/parsec/series.sh, RUNS=1 per job; cells of experiments/parsec/series.csv: vp2-mt (plain); vp2-mt (fixed); vp2-serialized (plain); vp2-serialized (fixed); vp1-mt (plain); vp1-mt (fixed); vp2-mt-4ranks (plain); vp2-mt-4ranks (fixed); shipped-vp2-mt (plain); shipped-vp2-mt (fixed)"
+parsec/traced-openmpi,parsec,cells as committed,,openmpi,-,stretto,traced,40,main,8,0,atm-clang:24.04,external:thread,"experiments/parsec/traced.sh, RUNS=1 per job; cells of experiments/parsec/traced.csv: vp1-mt (fixed); vp1-mt (plain); vp2-mt (fixed); vp2-mt (plain); vp2-mt-4ranks (fixed); vp2-mt-4ranks (plain); vp2-serialized (fixed); vp2-serialized (plain)"
+parsec/replay-after,parsec,the bug's replay cell,,openmpi,bug,stretto,replay-after,20,main,8,0,atm-clang:24.04,external:thread,"experiments/parsec/replay.sh, one traced run and its sampled alternatives per job (experiments/replay_modes.sh after)"
+parsec/replay-before,parsec,the bug's replay cell,,openmpi,bug,stretto,replay-before,20,appendix,8,0,atm-clang:24.04,external:thread,"experiments/parsec/replay.sh, one traced run and its sampled alternatives per job (experiments/replay_modes.sh before)"
+parsec/replay-yield,parsec,the bug's replay cell,,openmpi,bug,stretto,replay-yield,20,appendix,8,0,atm-clang:24.04,external:thread,"experiments/parsec/replay.sh, one traced run and its sampled alternatives per job (experiments/replay_modes.sh yield)"
+parsec/replay-both,parsec,the bug's replay cell,,openmpi,bug,stretto,replay-both,20,appendix,8,0,atm-clang:24.04,external:thread,"experiments/parsec/replay.sh, one traced run and its sampled alternatives per job (experiments/replay_modes.sh both)"
+uintah/series-openmpi,uintah,cells as committed,,openmpi,-,plain,series,40,main,16,0,stretto-uintah:24.04,external:thread,"experiments/uintah/series.sh, RUNS=1 per job; cells of experiments/uintah/series.csv: np4 -nthreads 2 (plain); np4 -nthreads 2 (fix); np4 -nthreads 4 (plain); np4 -nthreads 4 (fix); np2 -nthreads 2 (plain); np2 -nthreads 2 (fix); np4 mpi-scheduler (plain); np4 mpi-scheduler (fix)"
+uintah/series-mpich,uintah,cells as committed,,mpich,-,plain,series,40,main,16,0,stretto-uintah:24.04,external:thread,"experiments/uintah/series.sh, RUNS=1 per job; cells of experiments/uintah/series.csv: np4 -nthreads 2 (plain); np4 -nthreads 2 (fix); np4 -nthreads 4 (plain); np4 -nthreads 4 (fix); np2 -nthreads 2 (plain); np2 -nthreads 2 (fix); np4 mpi-scheduler (plain); np4 mpi-scheduler (fix)"
+mustvc/uintah,uintah,the thread bug's cells,,mpich,-,mustvc,vector-clock,40,main,18,0,mustvc:1.9-omp,external:mustvc,"experiments/mustvc/apps.sh, RUNS=1 per job: each cell once without MUST and once with"
+mustvc/slate,slate,the thread bug's cells,,mpich,-,mustvc,vector-clock,40,main,18,0,mustvc:1.9-omp,external:mustvc,"experiments/mustvc/apps.sh, RUNS=1 per job: each cell once without MUST and once with"
+mustvc/dlaf,dlaf,the thread bug's cells,,mpich,-,mustvc,vector-clock,40,main,14,0,mustvc:1.9-omp,external:mustvc,"experiments/mustvc/apps.sh, RUNS=1 per job: each cell once without MUST and once with"
+mustvc/parsec,parsec,the thread bug's cells,,mpich,-,mustvc,vector-clock,40,main,10,0,mustvc:1.9-omp,external:mustvc,"experiments/mustvc/apps.sh, RUNS=1 per job: each cell once without MUST and once with"
+locks/replay,locks,every L1+L finding,,openmpi,bug,stretto,replay-L1+L,1,main,8,0,stretto-exp:24.04,external:locks,"experiments/mustvc/lock_replays.sh: two replays per finding, as committed (one job)"

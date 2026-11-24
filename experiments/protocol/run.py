@@ -19,6 +19,8 @@ Tools and settings (RULE.md, Section 2):
   ninja   nonoise    the library loaded, no send delayed (random mode at 1e-6%, as the
                      ninja-check steps)
   must    1.11.2     mustrun of stretto-must-u:24.04, distributed layout, JSON report
+  must    warmup     the same, uncounted: MUST's first run per process count and library builds
+                     its layout (RULE.md, amendment 6)
   stretto traced     a traced run, its analysis (3 600 s at most), the subject's classifier;
                      the trace is kept (KEEP_TRACES, stretto.keep)
 
@@ -66,13 +68,32 @@ LAUNCHER = "/usr/bin/mpirun.openmpi"
 # the layout mustrun chooses by itself (two tool processes) reports a collective root mismatch that
 # the program does not have (MPI_Bcast in HYPRE_IJMatrixCreate, on HYPRE 3.2.0's fix as on the bug)
 # and then hangs, under both MPI libraries; with fan-in 4 (or 2, or the centralised layout) the same
-# runs end with the report of the release (24 Nov 2026, stretto-must-u:24.04). Fan-in 4 at 32 ranks
-# needs 43 processes, more than the 36 run threads, so NPB MG at 32 ranks takes fan-in 16 (35), which
-# crashed in the smoke test: open (experiments/protocol/README.md)
+# runs end with the report of the release (24 Nov 2026, stretto-must-u:24.04). Where fan-in 4 needs
+# more than the 36 run threads (32 ranks: 43 processes; fan-in 16 crashed there), the centralised
+# layout runs instead (RULE.md, amendment 1): one tool process beside the ranks
+MUST_FANIN4_EXTRA = {3: 2, 4: 2, 6: 3, 8: 3, 16: 5, 32: 11}     # tool processes, measured
+RUN_THREADS = 36
 
 
 def must_layout(np):
-    return ["--must:distributed", "--must:fanin", "4" if np <= 16 else "16"]
+    if np + MUST_FANIN4_EXTRA.get(np, np // 4 + 2) <= RUN_THREADS:
+        return ["--must:distributed", "--must:fanin", "4"]
+    return []
+
+
+# Open MPI's MPI_ERRORS_ARE_FATAL aborts with the error's class as the exit status, and the
+# message it prints can be lost when mpirun takes the other ranks down first: an exit status of
+# 15 with no message is MPI_ERR_TRUNCATE (MFEM 3.3.2 under NINJA and in replay controls)
+OMPI_ABORT_CLASSES = {15: "MPI_ERR_TRUNCATE"}
+
+
+def abort_class(result, mpi):
+    """classify_rc's result, with an Open MPI abort's lost message restored from its exit status."""
+    if mpi == "openmpi" and result.startswith("APP-ERROR:"):
+        name = OMPI_ABORT_CLASSES.get(int(result.split(":")[1]))
+        if name:
+            return "MPI-ERROR:%s" % name
+    return result
 
 
 def launcher_env(mpi):
@@ -153,7 +174,7 @@ def symptom_of(s, result, ok, text):
         return (True, "") if s.get("hang") else (False, "timeout" if result == "TIMEOUT" else result)
     if result == "FINISHED":
         return (True, "") if s.get("wrong") else (False, "finished with a wrong output")
-    if s.get("abort") and re.search(s["abort"], text):
+    if s.get("abort") and re.search(s["abort"], text + "\n" + result):
         return True, ""
     return False, result
 
@@ -311,7 +332,7 @@ def one(a):
             result = must_result(p.returncode, el, a.timeout, text)
         else:
             from stretto.confirm import classify_rc
-            result = classify_rc(p.returncode, p.stderr, el, a.timeout)
+            result = abort_class(classify_rc(p.returncode, p.stderr, el, a.timeout), mpi)
         if a.tool == "delays" and not re.search(r"^\[stretto-pin\] rank 0: loaded\b", p.stderr, re.M):
             raise SystemExit("HARNESS-ERROR: the replay library did not announce itself; the run would be a plain one")
         if a.tool in ("ninja", "delays", "stretto") and "cannot be preloaded" in p.stderr:

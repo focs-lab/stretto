@@ -9,16 +9,16 @@
 # usage: experiments/protocol/smoke.sh <subject> ...     (on the experiment machine's host)
 #        RUNS (2), CAL_TIMEOUT (600), OUT, MACHINE (a-p13), STRETTO_COMMIT (smoke), EXCLUDE (a
 #        regular expression of blocks to leave out of the second step), CONFIGS (a regular
-#        expression of the configurations to run, default all)
+#        expression of the configurations to run, default all), TOOLS (one of tool:setting)
 set -uo pipefail
 R="$(cd "$(dirname "$0")/../.." && pwd)"; cd "$R"
 RUNS="${RUNS:-2}"; OUT="${OUT:-$HOME/protocol/scratch/smoke}"
 export MACHINE="${MACHINE:-a-p13}" STRETTO_COMMIT="${STRETTO_COMMIT:-smoke}"
 mkdir -p "$OUT/results" "$OUT/state"
-S=(--results "$OUT/results" --state "$OUT/state" --commit "$STRETTO_COMMIT" --prefix smoke --runs "$RUNS" --configs "${CONFIGS:-.}")
+S=(--results "$OUT/results" --state "$OUT/state" --commit "$STRETTO_COMMIT" --prefix smoke --runs "$RUNS" --configs "${CONFIGS:-.}" --tools "${TOOLS:-.}")
 alt=$(IFS='|'; echo "$*")
 t0=$SECONDS
-python3 experiments/protocol/schedule.py --blocks "^($alt)/(ninja-learn|calibrate)\$" --timeout "${CAL_TIMEOUT:-600}" "${S[@]}"
+python3 experiments/protocol/schedule.py --blocks "^($alt)/(ninja-learn|must-warmup|calibrate)\$" --timeout "${CAL_TIMEOUT:-600}" "${S[@]}"
 python3 experiments/protocol/calibrate.py derive --results "$OUT/results" --subjects "$@" --runs "$RUNS"
 echo "smoke calibration: $((SECONDS - t0)) s"
 python3 experiments/protocol/schedule.py --blocks "^($alt)/(?!${EXCLUDE:-\$^})" "${S[@]}"
