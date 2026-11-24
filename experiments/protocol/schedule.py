@@ -136,6 +136,17 @@ def timeout_key(j):
 
 def jobs_of(plan, blocks, runs_override, configs=".", tools="."):
     out = []
+    # the counted traced runs an enumeration waits for (amendment 26): the bug's traced runs of the
+    # configuration, the replay cell's traced runs of a thread campaign
+    counted = {}
+    for p in plan:
+        k = None
+        if p["tool"] == "stretto" and p["setting"] == "traced" and p["version"] == "bug" and p["runner"] == "run.py":
+            k = (p["subject"], p["config"])
+        elif p["setting"] == "replay-trace":
+            k = (p["subject"], "replay-trace")
+        if k:
+            counted[k] = min(int(p["n"]), runs_override) if runs_override is not None else int(p["n"])
     for p in plan:
         if not re.search(blocks, p["block"]) or not re.search(configs, p["config"]):
             continue
@@ -156,14 +167,17 @@ def jobs_of(plan, blocks, runs_override, configs=".", tools="."):
                "version": p["version"], "tool": tool, "cpus": int(p["cpus"]), "alone": p["alone"] == "1",
                "image": p["image"], "calibration": p["tool"] == "calibrate", "external": ext, "mpi": p["mpi"]}
         if p["runner"] == "replays.py":
-            out.append(dict(job, setting="replay-enumerate", run=0))      # the alternatives first (replays.py)
+            # the alternatives first (replays.py), once every counted traced run is in its table
+            out.append(dict(job, setting="replay-enumerate", run=0, counted=counted.get((p["subject"], p["config"]), 0)))
+        if ext == "threadreplay" and setting == "replay-enumerate":
+            job["counted"] = counted.get((p["subject"], "replay-trace"), 0)
         # a traced run that runs alone leaves its analysis to a job of its own on one hardware
         # thread, beside the other jobs (RULE.md amendment 14)
         apart = job["alone"] and tool == "stretto" and setting == "traced" and not job["calibration"]
         for i in range(first, first + n):
             out.append(dict(job, setting=setting, run=i, defer=apart))
             if apart:
-                out.append(dict(job, setting=ANALYSIS, run=i, cpus=1, alone=False))
+                out.append(dict(job, setting=ANALYSIS, run=i, cpus=1, alone=False, memory_cpus=job["cpus"]))
     # a job that runs alone drains the machine before it starts: they come first in their phase,
     # where the machine drains once for all of them (an invocation starts idle) and the
     # analyses of their traces (next) then run beside the phase's other jobs
@@ -389,7 +403,9 @@ class Scheduler:
         return self.timeouts[j["subject"]].get((j["config"], tool, setting))
 
     def memory(self, j):
-        return max(8, 3 * j["cpus"] + 4)
+        """GB of a job's container; a deferred analysis gets its traced run's, as it would have had
+        inside that job (amendment 25)."""
+        return max(8, 3 * j.get("memory_cpus", j["cpus"]) + 4)
 
     def command(self, j, cpus, njobs, timeout):
         a = self.a
@@ -477,9 +493,8 @@ class Scheduler:
         enumeration (and an alternative of its number); an external job, what its spec needs (a
         suite's build)."""
         if j["external"] == "threadreplay" and j["setting"] == "replay-enumerate":
-            # every traced run of the replay cell first
-            return not [x for x in todo + [r[0] for r in self.running.values()]
-                        if x["subject"] == j["subject"] and x["external"] == "threadreplay" and x["setting"] == "replay-trace"]
+            # every counted traced run of the replay cell in its table (amendment 26)
+            return len(self.counted_rows(j)) >= j.get("counted", 0)
         if j["external"] == "threadreplay" and j["setting"] not in ("replay-trace",):
             return ("%s/replay-alternatives" % j["subject"],
                     "%s|%s|bug|stretto|replay-enumerate|0" % (j["subject"], j["config"])) in self.done
@@ -495,15 +510,59 @@ class Scheduler:
             block = "%s/ninja-learn" % j["subject"]
             return (block, "%s|%s|%s|ninja|learn|0" % (j["subject"], j["config"], j["version"])) in self.done
         if j["setting"] == "replay-enumerate":
-            pending = [x for x in todo + [r[0] for r in self.running.values()]
-                       if x["subject"] == j["subject"] and x["config"] == j["config"] and x["version"] == "bug"
-                       and x["tool"] == "stretto" and x["setting"] == "traced" and not x["calibration"]]
-            return not pending
+            # every counted traced run of the configuration in its table, of whatever outcome (amendment 26)
+            return len(self.counted_rows(j)) >= j.get("counted", 0)
         if j["setting"] == "replay":
             if (j["block"], "%s|%s|bug|stretto|replay-enumerate|0" % (j["subject"], j["config"])) not in self.done:
                 return False
             return True
         return True
+
+    def counted_rows(self, j):
+        """The current rows of the counted traced runs an enumeration job takes, in run order."""
+        if j["external"] == "threadreplay":
+            got = rows.current(rows.read(os.path.join(self.a.results, j["subject"], "replay-traces.csv")))
+        else:
+            got = [r for r in rows.current(rows.read(os.path.join(self.a.results, j["subject"], "stretto-traced.csv")))
+                   if r["config"] == j["config"] and r["version"] == "bug" and r["setting"] == "traced"]
+        return sorted(got, key=lambda r: int(r["run"]))
+
+    def trace_set(self, j):
+        """The set of counted traced runs as an enumeration records it (replays.py trace_set;
+        threadreplays.py: the runs that kept an analysed trace)."""
+        if j["external"] == "threadreplay":
+            return " ".join("run%02d" % int(r["run"]) for r in self.counted_rows(j)
+                            if r.get("kept") == "True" and r.get("analysis") == "complete")
+        return ["%s:%s" % (r["run"], (json.loads(r["detail"]) if r.get("detail") else {}).get("archive", ""))
+                for r in self.counted_rows(j)]
+
+    def stale_enumerations(self):
+        """An enumeration whose set of counted traced runs has changed since is superseded, with the
+        replays that followed it, and runs again (amendment 26)."""
+        for j in self.jobs:
+            if j["setting"] != "replay-enumerate" or (j["block"], key_of(j)) not in self.done:
+                continue
+            got = [r for r in rows.current(rows.read(self.table(j))) if
+                   (r.get("protocol_job") == key_of(j) if j["external"] else r.get("setting") == "replay-enumerate"
+                    and r.get("config") == j["config"])]
+            if not got:
+                continue
+            if j["external"]:
+                recorded = got[-1].get("trace_set", "")
+            else:
+                recorded = (json.loads(got[-1]["detail"]) if got[-1].get("detail") else {}).get("trace_set")
+            if recorded == self.trace_set(j):
+                continue
+            why = "the counted traced runs changed after this enumeration (amendment 26)"
+            if j["external"]:
+                rows.supersede(self.table(j), lambda r: r.get("protocol_job") == key_of(j), why)
+                for b in set(x["block"] for x in self.jobs if x["subject"] == j["subject"] and x["external"] == "threadreplay"
+                             and x["setting"] not in ("replay-trace", "replay-enumerate")):
+                    rows.supersede(os.path.join(self.a.results, b + ".csv"), lambda r: True, why)
+            else:
+                rows.supersede(self.table(j), lambda r: r.get("config") == j["config"], why)
+            self.log("superseded %s %s and its replays: %s" % (j["block"], safe(key_of(j)), why))
+        self.done = self.done_keys()
 
     def replay_exists(self, j):
         if j["external"] == "threadreplay" and j["setting"] not in ("replay-trace", "replay-enumerate"):
@@ -517,6 +576,7 @@ class Scheduler:
     def run(self):
         a = self.a
         self.done = self.done_keys()
+        self.stale_enumerations()
         self.adopt_leftovers()
         for j in self.jobs:                    # rows written after the last collection
             if (j["block"], key_of(j)) not in self.done and os.path.exists(self.row_file(j)):
@@ -610,6 +670,8 @@ class Scheduler:
             self.pool.give(cpus)
             if self.collect(j, cpus, njobs):
                 self.done.add((j["block"], key_of(j)))
+            elif self.killed_row(j, p.returncode) and self.collect(j, cpus, njobs):
+                self.done.add((j["block"], key_of(j)))
             else:
                 logf = os.path.join(self.a.state, "rows", safe(j["block"]), safe(key_of(j)) + ".log")
                 why = ""
@@ -623,6 +685,32 @@ class Scheduler:
                 else:
                     self.log("harness-error %s %s rc=%s: %s" % (j["block"], safe(key_of(j)), p.returncode, why[:300]))
                     self.broken.add(j["block"])
+
+    def killed_row(self, j, rc):
+        """The row of a run.py job whose container was killed (status 137: out of memory) before
+        it wrote one: a tool failure, never rerun (amendment 25). A deferred analysis's row is its
+        traced run's, the analysis killed. Other jobs, and kills of the second signal, write none."""
+        if rc != 137 or self.stop > 1 or j["external"] or j["setting"] in ("replay-enumerate", "learn", "warmup"):
+            return False
+        if j["setting"] == ANALYSIS:
+            with open(self.deferred_file(j)) as fh:
+                row = json.load(fh)
+            d = json.loads(row["detail"]) if row.get("detail") else {}
+            d["analysis"] = "container killed"
+            row.update({"reported": False, "failure": "analysis killed", "detail": json.dumps(d, sort_keys=True),
+                        "outcome": "tool-failure"})
+        else:
+            row = {"subject": j["subject"], "config": j["config"], "np": j["np"], "mpi": j["mpi"], "version": j["version"],
+                   "label": "", "tool": j["tool"], "setting": j["setting"], "run": j["run"], "result": "KILLED",
+                   "seconds": "", "says": "", "symptom": False, "reported": False,
+                   "failure": "container killed before T (a memory cap)",
+                   "detail": json.dumps({"analysis": "deferred", "trace": "empty"}) if j.get("defer") else ""}
+            row.update(rows.common(self.timeout_for(j) or 0, commit=self.a.commit, category="tool-failure"))
+        with open(self.row_file(j) + ".tmp", "w") as fh:
+            json.dump(row, fh)
+        os.replace(self.row_file(j) + ".tmp", self.row_file(j))
+        self.log("killed %s %s: a tool-failure row (amendment 25)" % (j["block"], safe(key_of(j))))
+        return True
 
     def on_signal(self, signum, frame):
         self.stop += 1

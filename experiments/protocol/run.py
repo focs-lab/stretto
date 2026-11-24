@@ -251,7 +251,7 @@ def analyse(a):
     cls = s["stretto"][a.version] if isinstance(s["stretto"], dict) else s["stretto"]
     found = cls(t, rep)
     n = len(found)
-    if a.pins_out and found:
+    if a.pins_out:
         # the pins of each alternative that names the bug, as the replays take them (replays.py
         # enumerate reads these instead of analysing the kept trace again)
         import replays
@@ -341,11 +341,11 @@ def one(a):
             raise SystemExit("HARNESS-ERROR: the replay library did not announce itself; the run would be a plain one")
         if a.tool in ("ninja", "delays", "stretto") and "cannot be preloaded" in p.stderr:
             raise SystemExit("HARNESS-ERROR: %s was not preloaded" % lib)
-        if result == "KILLED":
-            raise SystemExit("HARNESS-ERROR: the run was killed after %.1f s, before its timeout of %d s "
-                             "(a memory cap or an outside kill)" % (el, a.timeout))
         ok, says = judge(s, a.version, a.config, text, wd)
         S, failure = symptom_of(s, result, ok, text)
+        if result == "KILLED":
+            # killed before T, out of memory or otherwise: a tool failure, never rerun (amendment 25)
+            S, failure = False, "killed after %.1f s, before T = %d s (a memory cap or an outside kill)" % (el, a.timeout)
         reported = S
         if a.tool == "must":
             reported, detail["must"] = must_report(s, wd)
@@ -406,13 +406,15 @@ def traced(a, s, result, S, failure, trace_dir, detail):
     stem = os.path.basename(kept)[:-len(keep.EXT)] if kept else "run%02d" % a.run
     if kept:
         detail["archive"] = stem
+    if a.defer_analysis:
+        # the analysis job completes the row in every case, so that the configuration keeps its N
+        detail["analysis"] = "deferred"
     if not os.listdir(trace_dir):
-        detail["trace"] = "empty"
-        return False, failure or ("" if S else "no trace")
+        detail["trace"] = "empty"          # no trace to analyse: a tool failure (amendment 25)
+        return False, failure or "no trace"
     if a.defer_analysis:
         if not kept:
             raise SystemExit("HARNESS-ERROR: a deferred analysis needs the trace kept (KEEP_TRACES)")
-        detail["analysis"] = "deferred"
         return False, failure
     return analysed(a.subject, a.config, a.version, a.state, stem, trace_dir, S, failure, detail)
 
@@ -420,19 +422,25 @@ def traced(a, s, result, S, failure, trace_dir, detail):
 def analysed(subject, config, version, state, stem, trace_dir, S, failure, detail):
     """The analysis of a trace in a process of its own (ANALYSIS_TIMEOUT), the pins of its
     alternatives written beside the archive's name: (F, failure)."""
+    t0 = time.monotonic()
     p = subprocess.run(["/usr/bin/timeout", "-k", "5", str(ANALYSIS_TIMEOUT), sys.executable, os.path.abspath(__file__),
                         "analyse", "--subject", subject, "--version", version, "--trace", trace_dir,
                         "--pins-out", os.path.join(state, "alternatives", subject, config, version, stem + ".json")],
                        stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
-    if p.returncode == 124 or p.returncode == 137:
+    el = time.monotonic() - t0
+    if p.returncode == 124 or (p.returncode == 137 and el >= ANALYSIS_TIMEOUT):
         detail["analysis"] = "timeout"
         return False, "analysis timeout"
+    if p.returncode in (137, -9):
+        # killed before its budget ran out: out of memory (amendment 25)
+        detail["analysis"] = "killed after %.0f s" % el
+        return False, "analysis killed"
     try:
         res = json.loads(p.stdout.strip().splitlines()[-1])
     except (ValueError, IndexError):
         detail["analysis"] = ("failed rc=%d: " % p.returncode) + p.stderr.strip().splitlines()[-1][:200] if p.stderr.strip() else "failed"
-        # an unreadable trace of a run the bug struck is observed, not reported; of any other a failure
-        return False, failure or ("" if S else "analysis failed")
+        # an unreadable trace is a tool failure, struck run or not (amendment 25)
+        return False, failure or "analysis failed"
     detail.update(res)
     return res["bug"] > 0, failure
 
@@ -448,6 +456,12 @@ def analyse_row(a):
     detail = json.loads(row["detail"]) if row.get("detail") else {}
     if detail.get("analysis") != "deferred":
         raise SystemExit("HARNESS-ERROR: %s is not a row whose analysis was deferred" % a.deferred)
+    if detail.get("trace") == "empty":
+        # nothing to analyse: the row is complete as the traced run wrote it (a tool failure)
+        detail["analysis"] = "none: no trace"
+        row.update({"detail": json.dumps(detail, sort_keys=True),
+                    "outcome": rows.outcome(row["symptom"] in (True, "True"), False, True)})
+        return write_json(a.row, row)
     stem = detail["archive"]
     archive = os.path.join(keep.directory() or "", "protocol", row["subject"], row["config"], row["version"], stem + keep.EXT)
     d = tempfile.mkdtemp(prefix="protocol-analysis-")
@@ -466,13 +480,18 @@ def analyse_row(a):
     detail["analysis_cpus"] = os.environ.get("PROTOCOL_CPUS", "")
     row.update({"reported": reported, "failure": failure, "detail": json.dumps(detail, sort_keys=True),
                 "outcome": rows.outcome(S, reported, bool(failure))})
-    tmp = a.row + ".tmp"
-    os.makedirs(os.path.dirname(os.path.abspath(a.row)), exist_ok=True)
-    with open(tmp, "w") as fh:
-        json.dump(row, fh)
-    os.replace(tmp, a.row)
+    write_json(a.row, row)
     print("%s %s %s analysis of run %s: %s -> %s" % (row["subject"], row["config"], row["version"], row["run"],
                                                      "reported" if reported else "not reported", row["outcome"]), flush=True)
+    return 0
+
+
+def write_json(path, row):
+    tmp = path + ".tmp"
+    os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
+    with open(tmp, "w") as fh:
+        json.dump(row, fh)
+    os.replace(tmp, path)
     return 0
 
 

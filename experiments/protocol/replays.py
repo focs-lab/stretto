@@ -5,12 +5,13 @@ the configuration's kept traces (KEEP_TRACES/protocol/<subject>/<config>/bug/run
 run.py keeps; those of the current rows of RESULTS/<subject>/stretto-traced.csv), a sample of 40 drawn with a recorded seed if there are more; each replayed with its
 control. Two steps, both jobs of experiments/protocol/schedule.py:
 
-  enumerate  (run 0) takes, for every kept trace of the configuration, the pins run.py wrote when
-             it analysed the run (STATE/alternatives/), or else analyses the trace again as run.py
-             does: the findings of the subject's classifier (subjects.py, `stretto`), and for each its pins
-             as stretto confirm takes them (stretto.confirm: the pins of the alternative's whole
-             horizon, or, for a finding that holds in some execution only, the finding's pin and
-             its control pin); the distinct pin sets, in the order of the traces, are written to
+  enumerate  (run 0) takes, for every counted traced run of the configuration whose analysis is
+             not a tool failure, the pins run.py wrote when it analysed the run (STATE/alternatives/;
+             amendment 26: never analysed again): the findings of the subject's classifier
+             (subjects.py, `stretto`), and for each its pins as stretto confirm takes them
+             (stretto.confirm: the pins of the alternative's whole horizon, or, for a finding that
+             holds in some execution only, the finding's pin and its control pin); the set of
+             counted runs goes into its row (detail trace_set); the distinct pin sets, in the order of the traces, are written to
              RESULTS/<subject>/replay-alternatives-<config>.csv with the seed and how many there
              were. With more than 40 a sample of 40 is drawn by random.Random(SEED:<subject>:<config>).
   replay     (run k) replays alternative k with its pins (stretto.confirm.run_checked, under the
@@ -33,7 +34,6 @@ import os
 import random
 import shutil
 import sys
-import tarfile
 import tempfile
 import time
 
@@ -73,60 +73,49 @@ def pins_of(t, f, rep):
     return with_identity(t, [pin]), [cp] if cp else [], None
 
 
+def trace_set(results, subject, config):
+    """The counted traced runs of the configuration's bug: the current rows of
+    RESULTS/<subject>/stretto-traced.csv, each as run:archive (amendment 26: an enumeration is
+    redone when this set changes)."""
+    out = []
+    for r in rows.current(rows.read(os.path.join(results, subject, "stretto-traced.csv"))):
+        if r["config"] == config and r["version"] == "bug" and r["setting"] == "traced":
+            d = json.loads(r["detail"]) if r.get("detail") else {}
+            out.append("%s:%s" % (r["run"], d.get("archive", "")))
+    return sorted(out, key=lambda x: int(x.split(":")[0]))
+
+
 def enumerate_(a):
-    from stretto import keep, trace
-    from stretto.report import analyze
+    """The alternatives of the counted analyses (amendment 26): each counted traced run's sidecar
+    of pins, written by its analysis within the 3 600 s budget (run.py, empty when the run's
+    analysis found nothing); a run whose analysis is a tool failure gives none; nothing is analysed
+    again here."""
     s = subjects_mod.subjects()[a.subject]
-    base = os.path.join(keep.directory() or "", "protocol", a.subject, a.config, "bug")
-    archives = sorted(f for f in os.listdir(base) if f.endswith(keep.EXT)) if os.path.isdir(base) else []
-    # the traces of the configuration's current traced runs only: a superseded run's archive stays
-    # beside its rerun's, and its alternatives are not the campaign's
-    current = set()
-    for r in rows.current(rows.read(os.path.join(a.results, a.subject, "stretto-traced.csv"))):
-        if r["config"] == a.config and r["version"] == "bug" and r.get("detail"):
-            name = json.loads(r["detail"]).get("archive")
-            if name:
-                current.add(name + keep.EXT)
-    if current:
-        archives = [f for f in archives if f in current]
-    cls = s["stretto"]["bug"] if isinstance(s["stretto"], dict) else s["stretto"]
     distinct, order, findings, t0 = {}, [], 0, time.monotonic()
     state = os.environ.get("PROTOCOL_STATE", "/state")
-    for name in archives:
-        side = os.path.join(state, "alternatives", a.subject, a.config, "bug", name[:-len(keep.EXT)] + ".json")
-        if os.path.exists(side):
-            # the pins run.py wrote when it analysed the traced run: the same analysis, not repeated
-            with open(side) as fh:
-                got = json.load(fh)
-            findings += got["findings"]
-            for x in got["alternatives"]:
-                k = tuple(x["pins"])
-                if k not in distinct:
-                    distinct[k] = {"run": name[:-len(keep.EXT)], "cls": x["cls"], "level": x["level"], "pin": x["pin"],
-                                   "pins": json.dumps(x["pins"]), "control_pins": json.dumps(x["control_pins"]),
-                                   "required": json.dumps(x["required"])}
-                    order.append(k)
+    counted = [r for r in rows.current(rows.read(os.path.join(a.results, a.subject, "stretto-traced.csv")))
+               if r["config"] == a.config and r["version"] == "bug" and r["setting"] == "traced"]
+    used = 0
+    for r in sorted(counted, key=lambda r: int(r["run"])):
+        if r.get("outcome") == "tool-failure":
             continue
-        d = tempfile.mkdtemp(prefix="protocol-replay-trace-")
-        try:
-            with tarfile.open(os.path.join(base, name)) as tf:
-                tf.extractall(d)
-            sub = [os.path.join(d, x) for x in os.listdir(d) if os.path.isdir(os.path.join(d, x))]
-            t = trace.load(sub[0] if sub else d)
-            rep = analyze(t, with_sp=s["sp"])
-            for f in cls(t, rep):
-                findings += 1
-                got = pins_of(t, f, rep)
-                if got is None:
-                    continue
-                k = tuple(got[0])
-                if k not in distinct:
-                    distinct[k] = {"run": name[:-len(keep.EXT)], "cls": f.cls, "level": f.level, "pin": f.pin or "",
-                                   "pins": json.dumps(got[0]), "control_pins": json.dumps(got[1]),
-                                   "required": json.dumps(got[2])}
-                    order.append(k)
-        finally:
-            shutil.rmtree(d, ignore_errors=True)
+        stem = (json.loads(r["detail"]) if r.get("detail") else {}).get("archive")
+        side = os.path.join(state, "alternatives", a.subject, a.config, "bug", "%s.json" % stem)
+        if not stem or not os.path.exists(side):
+            raise SystemExit("HARNESS-ERROR: traced run %s of %s %s has no sidecar of pins (%s)" % (r["run"], a.subject,
+                                                                                                    a.config, side))
+        used += 1
+        with open(side) as fh:
+            got = json.load(fh)
+        findings += got["findings"]
+        for x in got["alternatives"]:
+            k = tuple(x["pins"])
+            if k not in distinct:
+                distinct[k] = {"run": stem, "cls": x["cls"], "level": x["level"], "pin": x["pin"],
+                               "pins": json.dumps(x["pins"]), "control_pins": json.dumps(x["control_pins"]),
+                               "required": json.dumps(x["required"])}
+                order.append(k)
+    archives = counted
     chosen = list(range(len(order)))
     sampled = len(order) > SAMPLE
     if sampled:
@@ -144,9 +133,10 @@ def enumerate_(a):
            "label": s["versions"]["bug"][0], "tool": "stretto", "setting": "replay-enumerate", "run": 0,
            "result": "ENUMERATED", "seconds": round(time.monotonic() - t0, 1), "says": "",
            "symptom": "", "reported": "", "failure": "",
-           "detail": json.dumps({"traces": len(archives), "findings": findings, "distinct": len(order),
-                                 "replayed": len(out), "sampled": sampled})}
-    row.update(rows.common("", seed=a.seed if sampled else ""))
+           "detail": json.dumps({"traces": len(archives), "analysed": used, "findings": findings, "distinct": len(order),
+                                 "replayed": len(out), "sampled": sampled,
+                                 "trace_set": trace_set(a.results, a.subject, a.config)})}
+    row.update(rows.common(0, seed=a.seed if sampled else ""))      # an enumeration runs nothing: no T
     write_row(a.row, row)
     print("%s %s: %d traces, %d findings, %d distinct alternatives, %d to replay" % (a.subject, a.config, len(archives),
                                                                                   findings, len(order), len(out)))

@@ -501,5 +501,216 @@ class ThreadReplays(unittest.TestCase):
         self.assertEqual(sorted(r for s, r in got if s == "replay-trace"), [1, 2])
         self.assertEqual(sorted(r for s, r in got if s == "replay-after"), [1, 2])
 
+def scheduler(d, jobs=()):
+    a = type("A", (), {"timeout": None, "results": os.path.join(d, "r"), "state": os.path.join(d, "s"), "prefix": "p",
+                       "repo": "/w", "commit": "c", "pool": schedule.POOL, "suite_select": ".", "suite_limit": 0})()
+    sc = schedule.Scheduler(a, list(jobs))
+    sc._ctx = {"exp_image": "e", "must_image": "m", "binding": {}, "machine": {"SLATE_HOME": d}, "commit": "c",
+               "owner": "1:1", "select": ".", "limit": 0}
+    return sc
+
+
+def plan_rows():
+    return list(csv.DictReader(io.StringIO(plan.render(plan.plan()))))
+
+
+class Review(unittest.TestCase):
+    """The amendments after the review of the harness (RULE.md Section 12)."""
+
+    def setUp(self):
+        import adapters
+        self.ad = adapters
+        self.a = type("A", (), {"must_column": "must1112", "recorded_wrong": False, "suite": "x"})()
+        adapters._LABELS["x"] = {"dl": (True, False), "race": (False, True), "other": (False, False)}
+
+    def test_enumeration_waits_for_every_counted_run(self):          # amendment 26
+        d = tempfile.mkdtemp()
+        jobs = schedule.jobs_of(plan_rows(), r"^npbmg/replay$", 2, configs="np16")
+        e = [j for j in jobs if j["setting"] == "replay-enumerate"][0]
+        self.assertEqual(e["counted"], 2)
+        sc = scheduler(d, jobs)
+        t = os.path.join(d, "r", "npbmg", "stretto-traced.csv")
+        r = dict((k, "") for k in schedule.FIELDS)
+        r.update(subject="npbmg", config="np16", version="bug", tool="stretto", setting="traced", run=1,
+                 outcome="tool-failure", detail=json.dumps({"archive": "run01"}))
+        rows.append(t, [r], schedule.FIELDS)
+        self.assertFalse(sc.ready(e, []))                          # one of two, whatever its outcome
+        rows.append(t, [dict(r, run=2, outcome="predicted", detail=json.dumps({"archive": "run02"}))], schedule.FIELDS)
+        self.assertTrue(sc.ready(e, []))
+        self.assertEqual(sc.trace_set(e), ["1:run01", "2:run02"])
+        # an enumeration recorded over another set is superseded with its replays, and runs again
+        rp = os.path.join(d, "r", "npbmg", "replay.csv")
+        en = dict(r, setting="replay-enumerate", run=0, outcome="", detail=json.dumps({"trace_set": ["1:run01"]}))
+        rows.append(rp, [en, dict(r, setting="replay", run=1, outcome="confirmed", detail="")], schedule.FIELDS)
+        sc.done = sc.done_keys()
+        self.assertIn((e["block"], schedule.key_of(e)), sc.done)
+        sc.stale_enumerations()
+        self.assertNotIn((e["block"], schedule.key_of(e)), sc.done)
+        self.assertEqual(rows.current(rows.read(rp)), [])
+
+    def test_enumeration_takes_the_counted_analyses(self):           # amendment 26
+        import replays
+        d = tempfile.mkdtemp()
+        old = os.environ.get("PROTOCOL_STATE")
+        self.addCleanup(lambda: os.environ.pop("PROTOCOL_STATE") if old is None else os.environ.update(PROTOCOL_STATE=old))
+        os.environ["PROTOCOL_STATE"] = os.path.join(d, "s")
+        t = os.path.join(d, "r", "npbmg", "stretto-traced.csv")
+        r = dict((k, "") for k in schedule.FIELDS)
+        r.update(subject="npbmg", config="np16", version="bug", tool="stretto", setting="traced")
+        rows.append(t, [dict(r, run=1, outcome="tool-failure", detail=json.dumps({"archive": "run01"})),
+                        dict(r, run=2, outcome="predicted", detail=json.dumps({"archive": "run02"}))], schedule.FIELDS)
+        side = os.path.join(d, "s", "alternatives", "npbmg", "np16", "bug")
+        os.makedirs(side)
+        a = type("A", (), {"subject": "npbmg", "config": "np16", "results": os.path.join(d, "r"), "seed": "1",
+                           "row": os.path.join(d, "row.json")})()
+        with self.assertRaises(SystemExit):                        # a counted analysis without its sidecar
+            replays.enumerate_(a)
+        with open(os.path.join(side, "run02.json"), "w") as fh:
+            json.dump({"findings": 1, "alternatives": [{"cls": "1f", "level": "L1", "pin": "", "pins": ["p"],
+                                                         "control_pins": [], "required": None}]}, fh)
+        replays.enumerate_(a)                                      # run 1, a tool failure, gives nothing and needs nothing
+        got = rows.read(replays.alternatives_path(a.results, "npbmg", "np16"))
+        self.assertEqual([x["run"] for x in got], ["run02"])
+        with open(a.row) as fh:
+            row = json.load(fh)
+        self.assertEqual(json.loads(row["detail"])["trace_set"], ["1:run01", "2:run02"])
+        self.assertEqual(row["timeout"], 0)
+
+    def test_empty_trace_is_a_tool_failure(self):                     # amendment 25
+        import run
+        empty = tempfile.mkdtemp()
+        os.environ.pop("KEEP_TRACES", None)
+        for defer in (False, True):
+            a = type("A", (), {"subject": "npbmg", "config": "np32", "version": "bug", "run": 1, "defer_analysis": defer,
+                               "state": empty})()
+            detail = {}
+            got = run.traced(a, {}, "FINISHED", True, "", empty, detail)
+            self.assertEqual(got, (False, "no trace"))             # struck run or not
+            self.assertEqual(detail.get("analysis"), "deferred" if defer else None)
+        d = tempfile.mkdtemp()
+        row = {"subject": "npbmg", "config": "np32", "version": "bug", "run": 1, "symptom": True, "reported": False,
+               "failure": "no trace", "detail": json.dumps({"analysis": "deferred", "trace": "empty"})}
+        with open(os.path.join(d, "deferred.json"), "w") as fh:
+            json.dump(row, fh)
+        b = type("A", (), {"deferred": os.path.join(d, "deferred.json"), "row": os.path.join(d, "row.json"), "state": d})()
+        run.analyse_row(b)                                         # the analysis job completes it: N stays 40
+        with open(b.row) as fh:
+            self.assertEqual(json.load(fh)["outcome"], "tool-failure")
+
+    def test_killed_container_and_analysis_memory(self):              # amendment 25
+        d = tempfile.mkdtemp()
+        jobs = schedule.jobs_of(plan_rows(), r"^npbmg/(plain|stretto-traced)$", 1, configs="np32")
+        sc = scheduler(d, jobs)
+        sc.a.timeout = 99
+        j = [x for x in jobs if x["tool"] == "plain" and x["version"] == "bug"][0]
+        os.makedirs(os.path.dirname(sc.row_file(j)))
+        self.assertTrue(sc.killed_row(j, 137))
+        self.assertTrue(sc.collect(j, [0], 1))
+        got = rows.read(sc.table(j))[0]
+        self.assertEqual((got["outcome"], got["result"], got["timeout"]), ("tool-failure", "KILLED", "99"))
+        self.assertFalse(sc.killed_row(j, 1))                      # a harness error stays one
+        an = [x for x in jobs if x["setting"] == schedule.ANALYSIS][0]
+        traced = [x for x in jobs if x.get("defer")][0]
+        self.assertEqual(sc.memory(an), sc.memory(traced))         # as much as inside its traced run's job
+
+    def test_stretto_cells_on_the_suites(self):                      # amendment 23
+        r = {"mode": "native", "result": "FINISHED"}
+        self.ad.corrbench(r, self.a)
+        self.assertEqual(r["cell"], "plain")
+        r = {"mode": "guard", "result": "FINISHED", "run": "1"}
+        self.ad.corrbench(r, self.a)
+        self.assertEqual(r["cell"], "stretto-guard")
+        r = {"run": "0", "result": "FINISHED"}
+        self.ad.bench(r, self.a)
+        self.assertEqual(r["cell"], "plain")
+        r = {"run": "1", "result": "FINISHED", "status": "complete", "errors": "0"}
+        self.ad.bench(r, self.a)
+        self.assertEqual(r["cell"], "stretto")
+
+    def test_suite_timeouts_and_must(self):                           # amendment 22
+        a = self.a
+        self.assertEqual(self.ad.stress({"program": "dl", "first_failure": "1", "outcome": "TIMEOUT"}, a), "observed-reported")
+        self.assertEqual(self.ad.stress({"program": "other", "first_failure": "1", "outcome": "TIMEOUT"}, a), "tool-failure")
+        self.assertEqual(self.ad.stress({"program": "other", "first_failure": "1", "outcome": "APP-ERROR:1"}, a),
+                         "observed-reported")
+        m = a
+        self.assertEqual(self.ad.must({"name": "other", "must1112": "MUST:TIMEOUT"}, m), "tool-failure")
+        self.assertEqual(self.ad.must({"name": "dl", "must1112": "MUST:TIMEOUT"}, m), "observed-not-reported")
+        race = "MUST:ERROR:data race (ThreadSanitizer report)"
+        self.assertEqual(self.ad.must({"name": "race", "must1112": race}, m), "predicted")
+        self.assertEqual(self.ad.must({"name": "other", "must1112": race}, m), "missed")       # not a data-race program
+        self.assertEqual(self.ad.must({"name": "other", "must1112": "MUST:ERROR:Argument 2 is negative"}, m), "predicted")
+        self.assertEqual(self.ad.corpus({"name": "other", "run": "TIMEOUT"}, m), "tool-failure")
+        self.assertEqual(self.ad.corrbench({"program": "dl.c", "mode": "native", "result": "TIMEOUT"}, m), "observed-reported")
+
+    def test_uintah_plain_build(self):                                # amendment 27
+        self.assertEqual(self.ad.series({"build": "plain", "outcome": "fail"}, self.a), "observed-reported")
+        self.assertEqual(self.ad.series({"build": "plain", "outcome": "hang"}, self.a), "observed-reported")
+        self.assertEqual(self.ad.series({"build": "fix", "outcome": "hang"}, self.a), "tool-failure")
+        self.assertEqual(self.ad.series({"build": "fix", "outcome": "pass"}, self.a), "missed")
+
+    def test_alternative_verdict(self):                               # amendment 24
+        import threadreplays as tr
+        self.assertEqual(tr.alternative_verdict(["inconclusive", "confirmed"]), ("confirmed", "1/2"))
+        self.assertEqual(tr.alternative_verdict(["realised", "inconclusive"]), ("realised", "0/2"))
+        self.assertEqual(tr.alternative_verdict(["inconclusive", "inconclusive"]), ("inconclusive", "0/2"))
+
+    def test_suite_tables(self):                                      # amendment 21
+        t = dict(((r["block"]), r["table"]) for r in plan_rows())
+        self.assertEqual(t["corrbench-openmp/openmpi-must-1.11.2-tsan"], "main")
+        self.assertEqual(t["corrbench-openmp/openmpi-must-1.11.2"], "appendix")
+        self.assertEqual(t["mbi/openmpi-must-1.11.2"], "main")
+        self.assertEqual(t["mbi/openmpi-must-1.11.2-tsan"], "appendix")
+        self.assertEqual(t["mbb/openmpi-ninja-system-budget"], "appendix")
+        self.assertEqual(t["mbb/openmpi-ninja-random-budget"], "main")
+        self.assertIn("corrbench-openmp/mpich-stretto-traced", t)                          # attempted under MPICH
+
+    def test_thread_timeouts(self):                                   # amendment 20
+        import external
+        pl = plan_rows()
+        blocks = set(r["block"] for r in pl)
+        for b in ("slate/calibrate-series-openmpi", "slate/plain-serial", "uintah/plain-serial", "mustvc/calibrate-slate"):
+            self.assertIn(b, blocks)
+        serial = [r for r in pl if r["block"] == "slate/plain-serial"][0]
+        self.assertEqual((serial["alone"], serial["n"]), ("1", "40"))
+        d = tempfile.mkdtemp()
+        cal = os.path.join(d, "r", "slate", "calibrate-series-openmpi.csv")
+        rows.append(cal, [{"name": c, "variant": "fixed", "run": k, "seconds": 2.5 + k, "rc": 0,
+                           "calibrated": "slate/series-openmpi", "commit": "c", "superseded": ""}
+                          for c in external.THREAD_CELLS["slate/series"] for k in range(1, 11)],
+                    ["name", "variant", "run", "seconds", "rc", "calibrated", "commit", "superseded"])
+        out = calibrate.derive_threads(os.path.join(d, "r"))
+        self.assertEqual(set(r["T"] for r in out), {125})          # 10 x 12.5 s
+        jobs = schedule.jobs_of(pl, r"^slate/(series-openmpi|plain-serial|calibrate-series-openmpi)$", 1)
+        sc = scheduler(d, jobs)
+        series = [j for j in jobs if j["block"] == "slate/series-openmpi"][0]
+        t = sc.timeout_for(series)
+        self.assertEqual(sorted(t), sorted(external.THREAD_CELLS["slate/series"]))
+        ser = [j for j in jobs if j["block"] == "slate/plain-serial"][0]
+        self.assertEqual(sc.timeout_for(ser), {"wide-2x2": 125})
+        ctx = {"exp_image": "e", "must_image": "m", "binding": external.BINDING, "machine": {"SLATE_HOME": "/h"},
+               "commit": "c", "owner": "1:1", "select": ".", "limit": 4}
+        s = external.spec(dict(ser, T=sc.timeout_for(ser)), ctx)
+        self.assertEqual((s["env"]["ONLY"], s["env"]["VARIANTS"], s["env"]["TIMEOUTS"]), ("wide-2x2", "plain", "wide-2x2=125"))
+        c = [j for j in jobs if j["calibration"]][0]
+        self.assertEqual(sc.timeout_for(c), calibrate.CALIBRATION_CAP)
+        s = external.spec(dict(c, T=sc.timeout_for(c)), ctx)
+        self.assertEqual((s["env"]["CAP"], s["env"]["VARIANTS"], s["kind"]), ("1800", "fixed", "none"))
+        self.assertIn("calibrated=slate/series-openmpi", s["extra"])
+        cmd = sc.command(series, [0], 1, t)
+        self.assertIn("--cell-timeouts", cmd[-1])                  # each row its cell's T, never "script"
+        self.assertNotIn("timeout=script", cmd[-1])
+        # a cell without its T blocks the job
+        os.remove(os.path.join(d, "r", "thread-timeouts.csv"))
+        self.assertIsNone(scheduler(d, jobs).timeout_for(series))
+        # rows get their cell's T
+        src, dst = os.path.join(d, "src.csv"), os.path.join(d, "dst.csv")
+        rows.append(src, [{"cell": "wide-2x2", "variant": "plain", "result": "ok"},
+                          {"mpi": "openmpi", "build": "plain", "np": "4", "args": "-nthreads 2", "outcome": "pass"}],
+                    ["cell", "variant", "result", "mpi", "build", "np", "args", "outcome"])
+        self.ad.main(["annotate", "--kind", "series", src, dst, "--cell-timeouts", "wide-2x2=125 np4-nthreads2=40",
+                      "--set", "commit=c"])
+        self.assertEqual([r["timeout"] for r in rows.read(dst)], ["125", "40"])
+
 if __name__ == "__main__":
     unittest.main()
