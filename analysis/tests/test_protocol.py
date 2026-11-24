@@ -897,5 +897,63 @@ class Fixes(unittest.TestCase):
         with self.assertRaises(SystemExit):
             run.check_must_procs(d, "0-15,40-55")
 
+
+class Passes(unittest.TestCase):
+    """A suite pass's table counts only when its script ended well and has every program."""
+
+    def test_partial_table_is_no_row(self):
+        import external
+        d = tempfile.mkdtemp()
+        jobs = schedule.jobs_of(plan_rows(), r"^mbi/openmpi-delays-D50$", 1)
+        sc = scheduler(d, jobs)
+        cmd = sc.command(jobs[0], [0], 1, 60)
+        script = cmd[-1]
+        # annotated (a row) only when the script's status is 0; its old table removed first
+        self.assertIn("rc=$?; if [ $rc -eq 0 ] && [ -s ", script)
+        self.assertLess(script.index("rm -f "), script.index("( "))
+        # the pass's cmd ends with the check of its programs, against the build for a tool that runs it
+        sp = external.spec(dict(jobs[0], T=60), sc.ctx())
+        self.assertIn("suites.py check --suite mbi", sp["cmd"])
+        self.assertIn("--built", sp["cmd"])
+        st = external.spec(dict(jobs[0], tool="stretto", setting="traced", T=60), sc.ctx())
+        self.assertIn("suites.py check --suite mbi", st["cmd"])
+        self.assertNotIn("--built", st["cmd"])
+        cal = external.spec(dict(jobs[0], calibration=True), sc.ctx())
+        self.assertIn("--correct", cal["cmd"].split("suites.py check")[1])
+
+    def test_missing_programs(self):
+        import suites
+        rows_ = [{"program": "a", "outcome": ""}, {"name": "b"}, {"program": "coll/c.c"}]
+        self.assertEqual(suites.missing(["a", "b", "coll__c", "d"], rows_), ["d"])
+        self.assertEqual(suites.missing(["a"], rows_), [])
+
+    def test_no_row_after_a_dead_script(self):
+        # a script that died with a traceback stops its block; one that was killed runs again
+        d = tempfile.mkdtemp()
+        jobs = schedule.jobs_of(plan_rows(), r"^mbi/openmpi-delays-D50$", 1)
+        sc = scheduler(d, jobs)
+        sc.a.timeout = 60
+        sc.done = set()
+        j = jobs[0]
+        log = os.path.join(sc.a.state, "rows", schedule.safe(j["block"]), schedule.safe(schedule.key_of(j)) + ".log")
+        os.makedirs(os.path.dirname(log))
+
+        class P:
+            def __init__(self, rc):
+                self.returncode = rc
+
+            def poll(self):
+                return self.returncode
+        for rc, text, again in ((3, "HARNESS-ERROR: stress.csv has 3 of the pass's 4 programs", False),
+                                (1, "Traceback (most recent call last):\n", False), (137, "", True)):
+            with open(log, "w") as fh:
+                fh.write(text)
+            sc.ended = lambda name, rc=rc: (rc, False)
+            sc.running = {"k": (j, P(rc), [0], 1)}
+            sc.broken, sc.reruns, todo = set(), {}, []
+            sc.reap(todo)
+            self.assertEqual((todo == [j], j["block"] in sc.broken), (again, not again), (rc, text))
+            self.assertFalse(os.path.exists(sc.table(j)))
+
 if __name__ == "__main__":
     unittest.main()

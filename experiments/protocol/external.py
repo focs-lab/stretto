@@ -184,7 +184,7 @@ def suite_spec(j, ctx):
             s["cmd"] = ("REPS=1 TIMEOUT=%d MPI=%s ONLY=%s experiments/mustvc/stretto_bench.sh corrbench "
                         "third_party/corrbench/micro-benches/0-level/openmp %s/bench.csv %s/work" % (T, mpi, regex("path"), jd, jd))
             s["src"], s["kind"] = jd + "/bench.csv", "bench"
-        s["cmd"] = "mkdir -p %s && %s" % (jd, s["cmd"])
+        s["cmd"] = "mkdir -p %s && %s && %s" % (jd, s["cmd"], pass_check(suite, s["src"], sel, limit, cal))
         return s
     s["needs"] = [("%s/%s-build" % (suite, mpi), "%s|%s|-|build|corpus|0" % (suite, j["config"]))]
     budget = setting.endswith("-budget")
@@ -212,8 +212,14 @@ def suite_spec(j, ctx):
         s["annotate"] += ["--must-column", "must1112tsan" if tsan else "must1112"]
     else:
         raise ValueError("no suite tool %s" % tool)
-    s["cmd"] = "mkdir -p %s && %s" % (jd, s["cmd"])
+    s["cmd"] = "mkdir -p %s && %s && %s" % (jd, s["cmd"], pass_check(suite, s["src"], sel, limit, cal, table))
     return s
+
+
+def pass_check(suite, src, sel, limit, cal, built=None):
+    """suites.py check on a pass's table: every program the pass selected has its rows."""
+    return "python3 experiments/protocol/suites.py check --suite %s --table %s --select %s --limit %d%s%s" % (
+        suite, q(src), q(sel), limit, " --correct" if cal else "", " --built %s" % q(built) if built else "")
 
 
 def thread_spec(j, ctx):

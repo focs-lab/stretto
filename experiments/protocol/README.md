@@ -273,23 +273,26 @@ cache, kept traces, the alternatives' pins, the suites' builds and passes, the o
 run that did not end correctly) is under `--state` (default `~/protocol/state`, `/state` in each
 container); the tables and the journal under `--results`.
 
-To resume after an interruption, run the same command again. A job whose row is in its table is
-done; a row file not yet in its table is appended first; containers of an earlier invocation
-keep their threads until they end and are collected then; every other job runs, and the journal
-says which runs were started before and had no row; they run again, listed in
-`results/reruns.tsv`. SIGINT or SIGTERM stops starting jobs and lets the running ones finish; a
-second signal kills them (their runs have no row and run again). A job that ends without a row
-because it was killed by anything but its own container's memory limit, or went away, runs
-again, twice at most, each rerun in `results/reruns.tsv`, then stops its block for that
-invocation; a missing build stops it at once. A run killed by the job's own memory limit is a
-tool-failure row instead, never rerun (amendments 25 and 33); a job's own harness error stops
-its block without a rerun. Containers are kept until the scheduler has read how they ended (for
-a rerun's reason) and then removed; they carry their job and whether it runs alone as labels, so
-that containers adopted from an earlier invocation count in the jobs column and an adopted job
-that runs alone, selected or not, keeps every other job from starting until it ends. schedule.py
-refuses to start without `MACHINE`. summary.py shows a suite block per cell and label (`expect`,
-CorrBench's `label`), with the share of its reveals that are timeouts (amendment 28), and a
-thread replay block per alternative and mode as well as per replay (amendment 24).
+A committed script's table becomes rows only when the script ended with status 0, and a suite
+pass's script then checks that its table has every program the pass selected (suites.py check; a
+shortfall is a harness error); a rerun starts from no table. To resume after an interruption,
+run the same command again. A job whose row is in its table is done; a row file not yet in its
+table is appended first; containers of an earlier invocation keep their threads until they end
+and are collected then; every other job runs, and the journal says which runs were started
+before and had no row; they run again, listed in `results/reruns.tsv`. SIGINT or SIGTERM stops
+starting jobs and lets the running ones finish; a second signal kills them (their runs have no
+row and run again). A job that ends without a row because it was killed by anything but its own
+container's memory limit, or went away, runs again, twice at most, each rerun in
+`results/reruns.tsv`, then stops its block for that invocation; a missing build stops it at
+once. A run killed by the job's own memory limit is a tool-failure row instead, never rerun
+(amendments 25 and 33); a job's own harness error stops its block without a rerun. Containers
+are kept until the scheduler has read how they ended (for a rerun's reason) and then removed;
+they carry their job and whether it runs alone as labels, so that containers adopted from an
+earlier invocation count in the jobs column and an adopted job that runs alone, selected or not,
+keeps every other job from starting until it ends. schedule.py refuses to start without
+`MACHINE`. summary.py shows a suite block per cell and label (`expect`, CorrBench's `label`),
+with the share of its reveals that are timeouts (amendment 28), and a thread replay block per
+alternative and mode as well as per replay (amendment 24).
 
 ## Smoke test
 

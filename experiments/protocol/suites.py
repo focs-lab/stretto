@@ -28,6 +28,11 @@ usage: suites.py fetch-corrbench DIR
        suites.py build --suite S --mpi M --out DIR [--select REGEX] [--limit N] [--jobs J]
        suites.py must --suite S --mpi M --table CSV --out CSV [--timeout S] [--jobs J] [--select REGEX]
        suites.py regex --suite S [--select REGEX] [--limit N] [--form name|path] [--correct]
+       suites.py check --suite S --table CSV [--select REGEX] [--limit N] [--correct] [--built CSV]
+
+check: a pass's table has a row of every program the pass selected (those the build compiled,
+--built, for the tools that run its binaries); a program missing is a harness error (exit 3),
+since a script that stopped mid-pass would count as a whole pass without it.
 """
 import argparse
 import csv
@@ -239,6 +244,36 @@ def regex(a):
     return 0
 
 
+def program_name(r):
+    """The suite name of a script table's row: its name, or its program's path as a name."""
+    name = r.get("name") or r.get("program") or ""
+    if name.endswith(".c") or name.endswith(".cpp"):
+        name = name.rsplit(".", 1)[0].replace("/", "__")
+    return name
+
+
+def missing(expected, table_rows):
+    """The programs of expected that no row of the table is of."""
+    have = set(program_name(r) for r in table_rows)
+    return [n for n in expected if n not in have]
+
+
+def check(a):
+    expected = [n for n, _, _, _ in programs(a.suite, a.select, a.limit, a.correct)]
+    if a.built:
+        with open(a.built, newline="") as fh:
+            ok = set(r["name"] for r in csv.DictReader(fh) if r["build"] == "ok")
+        expected = [n for n in expected if n in ok]
+    with open(a.table, newline="") as fh:
+        gone = missing(expected, csv.DictReader(fh))
+    if gone:
+        print("HARNESS-ERROR: %s has %d of the pass's %d programs; missing %s" % (
+            a.table, len(expected) - len(gone), len(expected), " ".join(gone[:5])), file=sys.stderr)
+        return 3
+    print("%s: every one of the pass's %d programs" % (a.table, len(expected)))
+    return 0
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -263,8 +298,15 @@ def main():
     r.add_argument("--limit", type=int, default=0)
     r.add_argument("--form", default="name", choices=("name", "path"))
     r.add_argument("--correct", action="store_true", help="only the programs the suite labels correct (a calibration)")
+    c = sub.add_parser("check")
+    c.add_argument("--suite", required=True, choices=sorted(SOURCES))
+    c.add_argument("--table", required=True)
+    c.add_argument("--select", default=".")
+    c.add_argument("--limit", type=int, default=0)
+    c.add_argument("--correct", action="store_true")
+    c.add_argument("--built", default=None, help="the build's table: only the programs it compiled")
     a = ap.parse_args()
-    return {"fetch-corrbench": fetch_corrbench, "build": build, "must": must, "regex": regex}[a.cmd](a)
+    return {"fetch-corrbench": fetch_corrbench, "build": build, "must": must, "regex": regex, "check": check}[a.cmd](a)
 
 
 if __name__ == "__main__":
