@@ -97,7 +97,7 @@ def app_rows():
                     if tool == "ninja" and setting == "app":
                         out.append(dict(base, block="%s/ninja-learn" % name, version=version, tool="ninja", setting="learn",
                                         n=1, table="prerequisite", cpus=cpus, image=image, runner="run.py",
-                                        notes="system-centric learning run (T of ninja-system), up to 3 tries; "
+                                        notes="system-centric learning run (1 800 s cap), up to 3 tries; "
                                               "the app runs start from its files"))
             if config == first:
                 out.append(dict(base, block="%s/plain-serial" % name, version="bug", tool="plain", setting="serial", n=N,

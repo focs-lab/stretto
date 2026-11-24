@@ -440,8 +440,8 @@ class Symptoms(unittest.TestCase):
         self.assertEqual(self.run.symptom_of(mfem, "MPI-ERROR:MPI_ERR_TRUNCATE", False, ""), (True, ""))
 
     def test_must_layout(self):
-        self.assertEqual(self.run.must_layout(8), ["--must:distributed", "--must:fanin", "4"])
-        self.assertEqual(self.run.must_layout(32), [])                      # centralised: 43 > 36 threads
+        self.assertEqual(self.run.must_layout(8)[0], ["--must:distributed", "--must:fanin", "4"])
+        self.assertEqual(self.run.must_layout(32), ([], self.run.CENTRALISED))   # centralised: 43 > 36 threads, named
 
     def test_delays_are_the_committed_draws(self):
         d = self.run.delays(4, 1)

@@ -13,9 +13,9 @@ hypre/ninja-system,hypre,np4,4,mpich,bug,ninja,system,40,appendix,4,0,stretto-ex
 hypre/ninja-system,hypre,np4,4,mpich,fix,ninja,system,40,appendix,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 hypre/calibrate,hypre,np4,4,mpich,fix,calibrate,ninja:app,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 hypre/ninja-app,hypre,np4,4,mpich,bug,ninja,app,40,appendix,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-hypre/ninja-learn,hypre,np4,4,mpich,bug,ninja,learn,1,prerequisite,4,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+hypre/ninja-learn,hypre,np4,4,mpich,bug,ninja,learn,1,prerequisite,4,0,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 hypre/ninja-app,hypre,np4,4,mpich,fix,ninja,app,40,appendix,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-hypre/ninja-learn,hypre,np4,4,mpich,fix,ninja,learn,1,prerequisite,4,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+hypre/ninja-learn,hypre,np4,4,mpich,fix,ninja,learn,1,prerequisite,4,0,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 hypre/calibrate,hypre,np4,4,mpich,fix,calibrate,must:1.11.2,10,prerequisite,6,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 hypre/must-1.11.2,hypre,np4,4,mpich,bug,must,1.11.2,40,main,6,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
 hypre/must-1.11.2,hypre,np4,4,mpich,fix,must,1.11.2,40,main,6,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
@@ -45,9 +45,9 @@ hypre/ninja-system,hypre,np8,8,mpich,bug,ninja,system,40,appendix,8,0,stretto-ex
 hypre/ninja-system,hypre,np8,8,mpich,fix,ninja,system,40,appendix,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 hypre/calibrate,hypre,np8,8,mpich,fix,calibrate,ninja:app,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 hypre/ninja-app,hypre,np8,8,mpich,bug,ninja,app,40,appendix,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-hypre/ninja-learn,hypre,np8,8,mpich,bug,ninja,learn,1,prerequisite,8,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+hypre/ninja-learn,hypre,np8,8,mpich,bug,ninja,learn,1,prerequisite,8,0,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 hypre/ninja-app,hypre,np8,8,mpich,fix,ninja,app,40,appendix,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-hypre/ninja-learn,hypre,np8,8,mpich,fix,ninja,learn,1,prerequisite,8,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+hypre/ninja-learn,hypre,np8,8,mpich,fix,ninja,learn,1,prerequisite,8,0,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 hypre/calibrate,hypre,np8,8,mpich,fix,calibrate,must:1.11.2,10,prerequisite,11,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 hypre/must-1.11.2,hypre,np8,8,mpich,bug,must,1.11.2,40,main,11,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
 hypre/must-1.11.2,hypre,np8,8,mpich,fix,must,1.11.2,40,main,11,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
@@ -77,9 +77,9 @@ hypre3/ninja-system,hypre3,np4,4,openmpi,bug,ninja,system,40,appendix,4,0,strett
 hypre3/ninja-system,hypre3,np4,4,openmpi,fix,ninja,system,40,appendix,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 hypre3/calibrate,hypre3,np4,4,openmpi,fix,calibrate,ninja:app,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 hypre3/ninja-app,hypre3,np4,4,openmpi,bug,ninja,app,40,appendix,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-hypre3/ninja-learn,hypre3,np4,4,openmpi,bug,ninja,learn,1,prerequisite,4,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+hypre3/ninja-learn,hypre3,np4,4,openmpi,bug,ninja,learn,1,prerequisite,4,0,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 hypre3/ninja-app,hypre3,np4,4,openmpi,fix,ninja,app,40,appendix,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-hypre3/ninja-learn,hypre3,np4,4,openmpi,fix,ninja,learn,1,prerequisite,4,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+hypre3/ninja-learn,hypre3,np4,4,openmpi,fix,ninja,learn,1,prerequisite,4,0,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 hypre3/calibrate,hypre3,np4,4,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,6,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 hypre3/must-1.11.2,hypre3,np4,4,openmpi,bug,must,1.11.2,40,main,6,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
 hypre3/must-1.11.2,hypre3,np4,4,openmpi,fix,must,1.11.2,40,main,6,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
@@ -106,9 +106,9 @@ hypre3/ninja-system,hypre3,np8,8,openmpi,bug,ninja,system,40,appendix,8,0,strett
 hypre3/ninja-system,hypre3,np8,8,openmpi,fix,ninja,system,40,appendix,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 hypre3/calibrate,hypre3,np8,8,openmpi,fix,calibrate,ninja:app,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 hypre3/ninja-app,hypre3,np8,8,openmpi,bug,ninja,app,40,appendix,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-hypre3/ninja-learn,hypre3,np8,8,openmpi,bug,ninja,learn,1,prerequisite,8,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+hypre3/ninja-learn,hypre3,np8,8,openmpi,bug,ninja,learn,1,prerequisite,8,0,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 hypre3/ninja-app,hypre3,np8,8,openmpi,fix,ninja,app,40,appendix,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-hypre3/ninja-learn,hypre3,np8,8,openmpi,fix,ninja,learn,1,prerequisite,8,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+hypre3/ninja-learn,hypre3,np8,8,openmpi,fix,ninja,learn,1,prerequisite,8,0,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 hypre3/calibrate,hypre3,np8,8,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,11,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 hypre3/must-1.11.2,hypre3,np8,8,openmpi,bug,must,1.11.2,40,main,11,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
 hypre3/must-1.11.2,hypre3,np8,8,openmpi,fix,must,1.11.2,40,main,11,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
@@ -135,9 +135,9 @@ petsc/ninja-system,petsc,np4,4,openmpi,bug,ninja,system,40,appendix,4,0,stretto-
 petsc/ninja-system,petsc,np4,4,openmpi,fix,ninja,system,40,appendix,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 petsc/calibrate,petsc,np4,4,openmpi,fix,calibrate,ninja:app,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 petsc/ninja-app,petsc,np4,4,openmpi,bug,ninja,app,40,appendix,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-petsc/ninja-learn,petsc,np4,4,openmpi,bug,ninja,learn,1,prerequisite,4,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+petsc/ninja-learn,petsc,np4,4,openmpi,bug,ninja,learn,1,prerequisite,4,0,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 petsc/ninja-app,petsc,np4,4,openmpi,fix,ninja,app,40,appendix,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-petsc/ninja-learn,petsc,np4,4,openmpi,fix,ninja,learn,1,prerequisite,4,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+petsc/ninja-learn,petsc,np4,4,openmpi,fix,ninja,learn,1,prerequisite,4,0,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 petsc/calibrate,petsc,np4,4,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,6,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 petsc/must-1.11.2,petsc,np4,4,openmpi,bug,must,1.11.2,40,main,6,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
 petsc/must-1.11.2,petsc,np4,4,openmpi,fix,must,1.11.2,40,main,6,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
@@ -164,9 +164,9 @@ petsc/ninja-system,petsc,np8,8,openmpi,bug,ninja,system,40,appendix,8,0,stretto-
 petsc/ninja-system,petsc,np8,8,openmpi,fix,ninja,system,40,appendix,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 petsc/calibrate,petsc,np8,8,openmpi,fix,calibrate,ninja:app,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 petsc/ninja-app,petsc,np8,8,openmpi,bug,ninja,app,40,appendix,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-petsc/ninja-learn,petsc,np8,8,openmpi,bug,ninja,learn,1,prerequisite,8,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+petsc/ninja-learn,petsc,np8,8,openmpi,bug,ninja,learn,1,prerequisite,8,0,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 petsc/ninja-app,petsc,np8,8,openmpi,fix,ninja,app,40,appendix,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-petsc/ninja-learn,petsc,np8,8,openmpi,fix,ninja,learn,1,prerequisite,8,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+petsc/ninja-learn,petsc,np8,8,openmpi,fix,ninja,learn,1,prerequisite,8,0,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 petsc/calibrate,petsc,np8,8,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,11,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 petsc/must-1.11.2,petsc,np8,8,openmpi,bug,must,1.11.2,40,main,11,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
 petsc/must-1.11.2,petsc,np8,8,openmpi,fix,must,1.11.2,40,main,11,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
@@ -193,9 +193,9 @@ npbmg/ninja-system,npbmg,np16,16,mpich,bug,ninja,system,40,appendix,16,0,stretto
 npbmg/ninja-system,npbmg,np16,16,mpich,fix,ninja,system,40,appendix,16,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 npbmg/calibrate,npbmg,np16,16,mpich,fix,calibrate,ninja:app,10,prerequisite,16,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 npbmg/ninja-app,npbmg,np16,16,mpich,bug,ninja,app,40,appendix,16,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-npbmg/ninja-learn,npbmg,np16,16,mpich,bug,ninja,learn,1,prerequisite,16,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+npbmg/ninja-learn,npbmg,np16,16,mpich,bug,ninja,learn,1,prerequisite,16,0,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 npbmg/ninja-app,npbmg,np16,16,mpich,fix,ninja,app,40,appendix,16,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-npbmg/ninja-learn,npbmg,np16,16,mpich,fix,ninja,learn,1,prerequisite,16,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+npbmg/ninja-learn,npbmg,np16,16,mpich,fix,ninja,learn,1,prerequisite,16,0,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 npbmg/calibrate,npbmg,np16,16,mpich,fix,calibrate,must:1.11.2,10,prerequisite,21,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 npbmg/must-1.11.2,npbmg,np16,16,mpich,bug,must,1.11.2,40,main,21,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
 npbmg/must-1.11.2,npbmg,np16,16,mpich,fix,must,1.11.2,40,main,21,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
@@ -222,9 +222,9 @@ npbmg/ninja-system,npbmg,np32,32,mpich,bug,ninja,system,40,appendix,32,1,stretto
 npbmg/ninja-system,npbmg,np32,32,mpich,fix,ninja,system,40,appendix,32,1,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 npbmg/calibrate,npbmg,np32,32,mpich,fix,calibrate,ninja:app,10,prerequisite,32,1,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 npbmg/ninja-app,npbmg,np32,32,mpich,bug,ninja,app,40,appendix,32,1,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-npbmg/ninja-learn,npbmg,np32,32,mpich,bug,ninja,learn,1,prerequisite,32,1,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+npbmg/ninja-learn,npbmg,np32,32,mpich,bug,ninja,learn,1,prerequisite,32,1,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 npbmg/ninja-app,npbmg,np32,32,mpich,fix,ninja,app,40,appendix,32,1,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-npbmg/ninja-learn,npbmg,np32,32,mpich,fix,ninja,learn,1,prerequisite,32,1,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+npbmg/ninja-learn,npbmg,np32,32,mpich,fix,ninja,learn,1,prerequisite,32,1,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 npbmg/calibrate,npbmg,np32,32,mpich,fix,calibrate,must:1.11.2,10,prerequisite,33,1,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 npbmg/must-1.11.2,npbmg,np32,32,mpich,bug,must,1.11.2,40,main,33,1,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
 npbmg/must-1.11.2,npbmg,np32,32,mpich,fix,must,1.11.2,40,main,33,1,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
@@ -251,9 +251,9 @@ dealii/ninja-system,dealii,np4,4,mpich,bug,ninja,system,40,appendix,4,0,stretto-
 dealii/ninja-system,dealii,np4,4,mpich,fix,ninja,system,40,appendix,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 dealii/calibrate,dealii,np4,4,mpich,fix,calibrate,ninja:app,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 dealii/ninja-app,dealii,np4,4,mpich,bug,ninja,app,40,appendix,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-dealii/ninja-learn,dealii,np4,4,mpich,bug,ninja,learn,1,prerequisite,4,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+dealii/ninja-learn,dealii,np4,4,mpich,bug,ninja,learn,1,prerequisite,4,0,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 dealii/ninja-app,dealii,np4,4,mpich,fix,ninja,app,40,appendix,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-dealii/ninja-learn,dealii,np4,4,mpich,fix,ninja,learn,1,prerequisite,4,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+dealii/ninja-learn,dealii,np4,4,mpich,fix,ninja,learn,1,prerequisite,4,0,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 dealii/calibrate,dealii,np4,4,mpich,fix,calibrate,must:1.11.2,10,prerequisite,6,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 dealii/must-1.11.2,dealii,np4,4,mpich,bug,must,1.11.2,40,main,6,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
 dealii/must-1.11.2,dealii,np4,4,mpich,fix,must,1.11.2,40,main,6,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
@@ -281,9 +281,9 @@ dealii8929/ninja-system,dealii8929,np4,4,openmpi,bug,ninja,system,40,appendix,4,
 dealii8929/ninja-system,dealii8929,np4,4,openmpi,fix,ninja,system,40,appendix,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 dealii8929/calibrate,dealii8929,np4,4,openmpi,fix,calibrate,ninja:app,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 dealii8929/ninja-app,dealii8929,np4,4,openmpi,bug,ninja,app,40,appendix,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-dealii8929/ninja-learn,dealii8929,np4,4,openmpi,bug,ninja,learn,1,prerequisite,4,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+dealii8929/ninja-learn,dealii8929,np4,4,openmpi,bug,ninja,learn,1,prerequisite,4,0,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 dealii8929/ninja-app,dealii8929,np4,4,openmpi,fix,ninja,app,40,appendix,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-dealii8929/ninja-learn,dealii8929,np4,4,openmpi,fix,ninja,learn,1,prerequisite,4,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+dealii8929/ninja-learn,dealii8929,np4,4,openmpi,fix,ninja,learn,1,prerequisite,4,0,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 dealii8929/calibrate,dealii8929,np4,4,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,6,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 dealii8929/must-1.11.2,dealii8929,np4,4,openmpi,bug,must,1.11.2,40,main,6,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
 dealii8929/must-1.11.2,dealii8929,np4,4,openmpi,fix,must,1.11.2,40,main,6,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
@@ -310,9 +310,9 @@ dealii8929/ninja-system,dealii8929,np8,8,openmpi,bug,ninja,system,40,appendix,8,
 dealii8929/ninja-system,dealii8929,np8,8,openmpi,fix,ninja,system,40,appendix,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 dealii8929/calibrate,dealii8929,np8,8,openmpi,fix,calibrate,ninja:app,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 dealii8929/ninja-app,dealii8929,np8,8,openmpi,bug,ninja,app,40,appendix,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-dealii8929/ninja-learn,dealii8929,np8,8,openmpi,bug,ninja,learn,1,prerequisite,8,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+dealii8929/ninja-learn,dealii8929,np8,8,openmpi,bug,ninja,learn,1,prerequisite,8,0,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 dealii8929/ninja-app,dealii8929,np8,8,openmpi,fix,ninja,app,40,appendix,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-dealii8929/ninja-learn,dealii8929,np8,8,openmpi,fix,ninja,learn,1,prerequisite,8,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+dealii8929/ninja-learn,dealii8929,np8,8,openmpi,fix,ninja,learn,1,prerequisite,8,0,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 dealii8929/calibrate,dealii8929,np8,8,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,11,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 dealii8929/must-1.11.2,dealii8929,np8,8,openmpi,bug,must,1.11.2,40,main,11,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
 dealii8929/must-1.11.2,dealii8929,np8,8,openmpi,fix,must,1.11.2,40,main,11,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
@@ -339,9 +339,9 @@ cabana/ninja-system,cabana,np3,3,openmpi,bug,ninja,system,40,appendix,3,0,strett
 cabana/ninja-system,cabana,np3,3,openmpi,fix,ninja,system,40,appendix,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 cabana/calibrate,cabana,np3,3,openmpi,fix,calibrate,ninja:app,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 cabana/ninja-app,cabana,np3,3,openmpi,bug,ninja,app,40,appendix,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-cabana/ninja-learn,cabana,np3,3,openmpi,bug,ninja,learn,1,prerequisite,3,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+cabana/ninja-learn,cabana,np3,3,openmpi,bug,ninja,learn,1,prerequisite,3,0,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 cabana/ninja-app,cabana,np3,3,openmpi,fix,ninja,app,40,appendix,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-cabana/ninja-learn,cabana,np3,3,openmpi,fix,ninja,learn,1,prerequisite,3,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+cabana/ninja-learn,cabana,np3,3,openmpi,fix,ninja,learn,1,prerequisite,3,0,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 cabana/calibrate,cabana,np3,3,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,5,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 cabana/must-1.11.2,cabana,np3,3,openmpi,bug,must,1.11.2,40,main,5,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
 cabana/must-1.11.2,cabana,np3,3,openmpi,fix,must,1.11.2,40,main,5,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
@@ -368,9 +368,9 @@ cabana/ninja-system,cabana,np4,4,openmpi,bug,ninja,system,40,appendix,4,0,strett
 cabana/ninja-system,cabana,np4,4,openmpi,fix,ninja,system,40,appendix,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 cabana/calibrate,cabana,np4,4,openmpi,fix,calibrate,ninja:app,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 cabana/ninja-app,cabana,np4,4,openmpi,bug,ninja,app,40,appendix,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-cabana/ninja-learn,cabana,np4,4,openmpi,bug,ninja,learn,1,prerequisite,4,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+cabana/ninja-learn,cabana,np4,4,openmpi,bug,ninja,learn,1,prerequisite,4,0,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 cabana/ninja-app,cabana,np4,4,openmpi,fix,ninja,app,40,appendix,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-cabana/ninja-learn,cabana,np4,4,openmpi,fix,ninja,learn,1,prerequisite,4,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+cabana/ninja-learn,cabana,np4,4,openmpi,fix,ninja,learn,1,prerequisite,4,0,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 cabana/calibrate,cabana,np4,4,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,6,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 cabana/must-1.11.2,cabana,np4,4,openmpi,bug,must,1.11.2,40,main,6,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
 cabana/must-1.11.2,cabana,np4,4,openmpi,fix,must,1.11.2,40,main,6,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
@@ -396,9 +396,9 @@ cabana/ninja-system,cabana,np3-repeat2,3,openmpi,bug,ninja,system,40,supplementa
 cabana/ninja-system,cabana,np3-repeat2,3,openmpi,fix,ninja,system,40,supplementary,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 cabana/calibrate,cabana,np3-repeat2,3,openmpi,fix,calibrate,ninja:app,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 cabana/ninja-app,cabana,np3-repeat2,3,openmpi,bug,ninja,app,40,supplementary,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-cabana/ninja-learn,cabana,np3-repeat2,3,openmpi,bug,ninja,learn,1,prerequisite,3,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+cabana/ninja-learn,cabana,np3-repeat2,3,openmpi,bug,ninja,learn,1,prerequisite,3,0,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 cabana/ninja-app,cabana,np3-repeat2,3,openmpi,fix,ninja,app,40,supplementary,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-cabana/ninja-learn,cabana,np3-repeat2,3,openmpi,fix,ninja,learn,1,prerequisite,3,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+cabana/ninja-learn,cabana,np3-repeat2,3,openmpi,fix,ninja,learn,1,prerequisite,3,0,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 cabana/calibrate,cabana,np3-repeat2,3,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,5,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 cabana/must-1.11.2,cabana,np3-repeat2,3,openmpi,bug,must,1.11.2,40,supplementary,5,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
 cabana/must-1.11.2,cabana,np3-repeat2,3,openmpi,fix,must,1.11.2,40,supplementary,5,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
@@ -424,9 +424,9 @@ cabana/ninja-system,cabana,np4-repeat2,4,openmpi,bug,ninja,system,40,supplementa
 cabana/ninja-system,cabana,np4-repeat2,4,openmpi,fix,ninja,system,40,supplementary,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 cabana/calibrate,cabana,np4-repeat2,4,openmpi,fix,calibrate,ninja:app,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 cabana/ninja-app,cabana,np4-repeat2,4,openmpi,bug,ninja,app,40,supplementary,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-cabana/ninja-learn,cabana,np4-repeat2,4,openmpi,bug,ninja,learn,1,prerequisite,4,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+cabana/ninja-learn,cabana,np4-repeat2,4,openmpi,bug,ninja,learn,1,prerequisite,4,0,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 cabana/ninja-app,cabana,np4-repeat2,4,openmpi,fix,ninja,app,40,supplementary,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-cabana/ninja-learn,cabana,np4-repeat2,4,openmpi,fix,ninja,learn,1,prerequisite,4,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+cabana/ninja-learn,cabana,np4-repeat2,4,openmpi,fix,ninja,learn,1,prerequisite,4,0,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 cabana/calibrate,cabana,np4-repeat2,4,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,6,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 cabana/must-1.11.2,cabana,np4-repeat2,4,openmpi,bug,must,1.11.2,40,supplementary,6,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
 cabana/must-1.11.2,cabana,np4-repeat2,4,openmpi,fix,must,1.11.2,40,supplementary,6,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
@@ -453,9 +453,9 @@ stempy/ninja-system,stempy,np4,4,openmpi,bug,ninja,system,40,appendix,4,0,strett
 stempy/ninja-system,stempy,np4,4,openmpi,fix,ninja,system,40,appendix,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 stempy/calibrate,stempy,np4,4,openmpi,fix,calibrate,ninja:app,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 stempy/ninja-app,stempy,np4,4,openmpi,bug,ninja,app,40,appendix,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-stempy/ninja-learn,stempy,np4,4,openmpi,bug,ninja,learn,1,prerequisite,4,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+stempy/ninja-learn,stempy,np4,4,openmpi,bug,ninja,learn,1,prerequisite,4,0,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 stempy/ninja-app,stempy,np4,4,openmpi,fix,ninja,app,40,appendix,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-stempy/ninja-learn,stempy,np4,4,openmpi,fix,ninja,learn,1,prerequisite,4,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+stempy/ninja-learn,stempy,np4,4,openmpi,fix,ninja,learn,1,prerequisite,4,0,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 stempy/calibrate,stempy,np4,4,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,6,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 stempy/must-1.11.2,stempy,np4,4,openmpi,bug,must,1.11.2,40,main,6,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
 stempy/must-1.11.2,stempy,np4,4,openmpi,fix,must,1.11.2,40,main,6,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
@@ -482,9 +482,9 @@ stempy/ninja-system,stempy,np8,8,openmpi,bug,ninja,system,40,appendix,8,0,strett
 stempy/ninja-system,stempy,np8,8,openmpi,fix,ninja,system,40,appendix,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 stempy/calibrate,stempy,np8,8,openmpi,fix,calibrate,ninja:app,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 stempy/ninja-app,stempy,np8,8,openmpi,bug,ninja,app,40,appendix,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-stempy/ninja-learn,stempy,np8,8,openmpi,bug,ninja,learn,1,prerequisite,8,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+stempy/ninja-learn,stempy,np8,8,openmpi,bug,ninja,learn,1,prerequisite,8,0,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 stempy/ninja-app,stempy,np8,8,openmpi,fix,ninja,app,40,appendix,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-stempy/ninja-learn,stempy,np8,8,openmpi,fix,ninja,learn,1,prerequisite,8,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+stempy/ninja-learn,stempy,np8,8,openmpi,fix,ninja,learn,1,prerequisite,8,0,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 stempy/calibrate,stempy,np8,8,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,11,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 stempy/must-1.11.2,stempy,np8,8,openmpi,bug,must,1.11.2,40,main,11,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
 stempy/must-1.11.2,stempy,np8,8,openmpi,fix,must,1.11.2,40,main,11,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
@@ -511,9 +511,9 @@ mfem332/ninja-system,mfem332,np4,4,openmpi,bug,ninja,system,40,appendix,4,0,stre
 mfem332/ninja-system,mfem332,np4,4,openmpi,fix,ninja,system,40,appendix,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 mfem332/calibrate,mfem332,np4,4,openmpi,fix,calibrate,ninja:app,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 mfem332/ninja-app,mfem332,np4,4,openmpi,bug,ninja,app,40,appendix,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-mfem332/ninja-learn,mfem332,np4,4,openmpi,bug,ninja,learn,1,prerequisite,4,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+mfem332/ninja-learn,mfem332,np4,4,openmpi,bug,ninja,learn,1,prerequisite,4,0,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 mfem332/ninja-app,mfem332,np4,4,openmpi,fix,ninja,app,40,appendix,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-mfem332/ninja-learn,mfem332,np4,4,openmpi,fix,ninja,learn,1,prerequisite,4,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+mfem332/ninja-learn,mfem332,np4,4,openmpi,fix,ninja,learn,1,prerequisite,4,0,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 mfem332/calibrate,mfem332,np4,4,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,6,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 mfem332/must-1.11.2,mfem332,np4,4,openmpi,bug,must,1.11.2,40,main,6,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
 mfem332/must-1.11.2,mfem332,np4,4,openmpi,fix,must,1.11.2,40,main,6,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
@@ -540,9 +540,9 @@ mfem332/ninja-system,mfem332,np8,8,openmpi,bug,ninja,system,40,appendix,8,0,stre
 mfem332/ninja-system,mfem332,np8,8,openmpi,fix,ninja,system,40,appendix,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 mfem332/calibrate,mfem332,np8,8,openmpi,fix,calibrate,ninja:app,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 mfem332/ninja-app,mfem332,np8,8,openmpi,bug,ninja,app,40,appendix,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-mfem332/ninja-learn,mfem332,np8,8,openmpi,bug,ninja,learn,1,prerequisite,8,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+mfem332/ninja-learn,mfem332,np8,8,openmpi,bug,ninja,learn,1,prerequisite,8,0,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 mfem332/ninja-app,mfem332,np8,8,openmpi,fix,ninja,app,40,appendix,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-mfem332/ninja-learn,mfem332,np8,8,openmpi,fix,ninja,learn,1,prerequisite,8,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+mfem332/ninja-learn,mfem332,np8,8,openmpi,fix,ninja,learn,1,prerequisite,8,0,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 mfem332/calibrate,mfem332,np8,8,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,11,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 mfem332/must-1.11.2,mfem332,np8,8,openmpi,bug,must,1.11.2,40,main,11,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
 mfem332/must-1.11.2,mfem332,np8,8,openmpi,fix,must,1.11.2,40,main,11,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
@@ -569,9 +569,9 @@ lammps/ninja-system,lammps,np4,4,openmpi,bug,ninja,system,40,appendix,4,0,strett
 lammps/ninja-system,lammps,np4,4,openmpi,fix,ninja,system,40,appendix,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 lammps/calibrate,lammps,np4,4,openmpi,fix,calibrate,ninja:app,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 lammps/ninja-app,lammps,np4,4,openmpi,bug,ninja,app,40,appendix,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-lammps/ninja-learn,lammps,np4,4,openmpi,bug,ninja,learn,1,prerequisite,4,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+lammps/ninja-learn,lammps,np4,4,openmpi,bug,ninja,learn,1,prerequisite,4,0,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 lammps/ninja-app,lammps,np4,4,openmpi,fix,ninja,app,40,appendix,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-lammps/ninja-learn,lammps,np4,4,openmpi,fix,ninja,learn,1,prerequisite,4,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+lammps/ninja-learn,lammps,np4,4,openmpi,fix,ninja,learn,1,prerequisite,4,0,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 lammps/calibrate,lammps,np4,4,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,6,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 lammps/must-1.11.2,lammps,np4,4,openmpi,bug,must,1.11.2,40,main,6,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
 lammps/must-1.11.2,lammps,np4,4,openmpi,fix,must,1.11.2,40,main,6,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
@@ -598,9 +598,9 @@ lammps/ninja-system,lammps,np8,8,openmpi,bug,ninja,system,40,appendix,8,0,strett
 lammps/ninja-system,lammps,np8,8,openmpi,fix,ninja,system,40,appendix,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 lammps/calibrate,lammps,np8,8,openmpi,fix,calibrate,ninja:app,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 lammps/ninja-app,lammps,np8,8,openmpi,bug,ninja,app,40,appendix,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-lammps/ninja-learn,lammps,np8,8,openmpi,bug,ninja,learn,1,prerequisite,8,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+lammps/ninja-learn,lammps,np8,8,openmpi,bug,ninja,learn,1,prerequisite,8,0,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 lammps/ninja-app,lammps,np8,8,openmpi,fix,ninja,app,40,appendix,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-lammps/ninja-learn,lammps,np8,8,openmpi,fix,ninja,learn,1,prerequisite,8,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+lammps/ninja-learn,lammps,np8,8,openmpi,fix,ninja,learn,1,prerequisite,8,0,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 lammps/calibrate,lammps,np8,8,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,11,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 lammps/must-1.11.2,lammps,np8,8,openmpi,bug,must,1.11.2,40,main,11,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
 lammps/must-1.11.2,lammps,np8,8,openmpi,fix,must,1.11.2,40,main,11,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
@@ -626,9 +626,9 @@ lammps/ninja-system,lammps,np4-eager0,4,openmpi,bug,ninja,system,40,supplementar
 lammps/ninja-system,lammps,np4-eager0,4,openmpi,fix,ninja,system,40,supplementary,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 lammps/calibrate,lammps,np4-eager0,4,openmpi,fix,calibrate,ninja:app,10,prerequisite,4,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 lammps/ninja-app,lammps,np4-eager0,4,openmpi,bug,ninja,app,40,supplementary,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-lammps/ninja-learn,lammps,np4-eager0,4,openmpi,bug,ninja,learn,1,prerequisite,4,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+lammps/ninja-learn,lammps,np4-eager0,4,openmpi,bug,ninja,learn,1,prerequisite,4,0,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 lammps/ninja-app,lammps,np4-eager0,4,openmpi,fix,ninja,app,40,supplementary,4,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-lammps/ninja-learn,lammps,np4-eager0,4,openmpi,fix,ninja,learn,1,prerequisite,4,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+lammps/ninja-learn,lammps,np4-eager0,4,openmpi,fix,ninja,learn,1,prerequisite,4,0,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 lammps/calibrate,lammps,np4-eager0,4,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,6,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 lammps/must-1.11.2,lammps,np4-eager0,4,openmpi,bug,must,1.11.2,40,supplementary,6,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
 lammps/must-1.11.2,lammps,np4-eager0,4,openmpi,fix,must,1.11.2,40,supplementary,6,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
@@ -654,9 +654,9 @@ lammps/ninja-system,lammps,np8-eager0,8,openmpi,bug,ninja,system,40,supplementar
 lammps/ninja-system,lammps,np8-eager0,8,openmpi,fix,ninja,system,40,supplementary,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 lammps/calibrate,lammps,np8-eager0,8,openmpi,fix,calibrate,ninja:app,10,prerequisite,8,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 lammps/ninja-app,lammps,np8-eager0,8,openmpi,bug,ninja,app,40,supplementary,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-lammps/ninja-learn,lammps,np8-eager0,8,openmpi,bug,ninja,learn,1,prerequisite,8,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+lammps/ninja-learn,lammps,np8-eager0,8,openmpi,bug,ninja,learn,1,prerequisite,8,0,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 lammps/ninja-app,lammps,np8-eager0,8,openmpi,fix,ninja,app,40,supplementary,8,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-lammps/ninja-learn,lammps,np8-eager0,8,openmpi,fix,ninja,learn,1,prerequisite,8,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+lammps/ninja-learn,lammps,np8-eager0,8,openmpi,fix,ninja,learn,1,prerequisite,8,0,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 lammps/calibrate,lammps,np8-eager0,8,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,11,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 lammps/must-1.11.2,lammps,np8-eager0,8,openmpi,bug,must,1.11.2,40,supplementary,11,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
 lammps/must-1.11.2,lammps,np8-eager0,8,openmpi,fix,must,1.11.2,40,supplementary,11,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
@@ -683,9 +683,9 @@ superlu3d/ninja-system,superlu3d,nos2-openmpi,3,openmpi,bug,ninja,system,40,appe
 superlu3d/ninja-system,superlu3d,nos2-openmpi,3,openmpi,fix,ninja,system,40,appendix,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 superlu3d/calibrate,superlu3d,nos2-openmpi,3,openmpi,fix,calibrate,ninja:app,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 superlu3d/ninja-app,superlu3d,nos2-openmpi,3,openmpi,bug,ninja,app,40,appendix,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-superlu3d/ninja-learn,superlu3d,nos2-openmpi,3,openmpi,bug,ninja,learn,1,prerequisite,3,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+superlu3d/ninja-learn,superlu3d,nos2-openmpi,3,openmpi,bug,ninja,learn,1,prerequisite,3,0,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 superlu3d/ninja-app,superlu3d,nos2-openmpi,3,openmpi,fix,ninja,app,40,appendix,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-superlu3d/ninja-learn,superlu3d,nos2-openmpi,3,openmpi,fix,ninja,learn,1,prerequisite,3,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+superlu3d/ninja-learn,superlu3d,nos2-openmpi,3,openmpi,fix,ninja,learn,1,prerequisite,3,0,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 superlu3d/calibrate,superlu3d,nos2-openmpi,3,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,5,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 superlu3d/must-1.11.2,superlu3d,nos2-openmpi,3,openmpi,bug,must,1.11.2,40,main,5,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
 superlu3d/must-1.11.2,superlu3d,nos2-openmpi,3,openmpi,fix,must,1.11.2,40,main,5,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
@@ -712,9 +712,9 @@ superlu3d/ninja-system,superlu3d,mhd3200b-openmpi,3,openmpi,bug,ninja,system,40,
 superlu3d/ninja-system,superlu3d,mhd3200b-openmpi,3,openmpi,fix,ninja,system,40,appendix,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 superlu3d/calibrate,superlu3d,mhd3200b-openmpi,3,openmpi,fix,calibrate,ninja:app,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 superlu3d/ninja-app,superlu3d,mhd3200b-openmpi,3,openmpi,bug,ninja,app,40,appendix,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-superlu3d/ninja-learn,superlu3d,mhd3200b-openmpi,3,openmpi,bug,ninja,learn,1,prerequisite,3,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+superlu3d/ninja-learn,superlu3d,mhd3200b-openmpi,3,openmpi,bug,ninja,learn,1,prerequisite,3,0,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 superlu3d/ninja-app,superlu3d,mhd3200b-openmpi,3,openmpi,fix,ninja,app,40,appendix,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-superlu3d/ninja-learn,superlu3d,mhd3200b-openmpi,3,openmpi,fix,ninja,learn,1,prerequisite,3,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+superlu3d/ninja-learn,superlu3d,mhd3200b-openmpi,3,openmpi,fix,ninja,learn,1,prerequisite,3,0,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 superlu3d/calibrate,superlu3d,mhd3200b-openmpi,3,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,5,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 superlu3d/must-1.11.2,superlu3d,mhd3200b-openmpi,3,openmpi,bug,must,1.11.2,40,main,5,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
 superlu3d/must-1.11.2,superlu3d,mhd3200b-openmpi,3,openmpi,fix,must,1.11.2,40,main,5,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
@@ -740,9 +740,9 @@ superlu3d/ninja-system,superlu3d,blk12x6-openmpi,3,openmpi,bug,ninja,system,40,a
 superlu3d/ninja-system,superlu3d,blk12x6-openmpi,3,openmpi,fix,ninja,system,40,appendix,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 superlu3d/calibrate,superlu3d,blk12x6-openmpi,3,openmpi,fix,calibrate,ninja:app,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 superlu3d/ninja-app,superlu3d,blk12x6-openmpi,3,openmpi,bug,ninja,app,40,appendix,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-superlu3d/ninja-learn,superlu3d,blk12x6-openmpi,3,openmpi,bug,ninja,learn,1,prerequisite,3,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+superlu3d/ninja-learn,superlu3d,blk12x6-openmpi,3,openmpi,bug,ninja,learn,1,prerequisite,3,0,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 superlu3d/ninja-app,superlu3d,blk12x6-openmpi,3,openmpi,fix,ninja,app,40,appendix,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-superlu3d/ninja-learn,superlu3d,blk12x6-openmpi,3,openmpi,fix,ninja,learn,1,prerequisite,3,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+superlu3d/ninja-learn,superlu3d,blk12x6-openmpi,3,openmpi,fix,ninja,learn,1,prerequisite,3,0,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 superlu3d/calibrate,superlu3d,blk12x6-openmpi,3,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,5,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 superlu3d/must-1.11.2,superlu3d,blk12x6-openmpi,3,openmpi,bug,must,1.11.2,40,main,5,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
 superlu3d/must-1.11.2,superlu3d,blk12x6-openmpi,3,openmpi,fix,must,1.11.2,40,main,5,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
@@ -768,9 +768,9 @@ superlu3d/ninja-system,superlu3d,blk8x10-openmpi,6,openmpi,bug,ninja,system,40,a
 superlu3d/ninja-system,superlu3d,blk8x10-openmpi,6,openmpi,fix,ninja,system,40,appendix,6,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 superlu3d/calibrate,superlu3d,blk8x10-openmpi,6,openmpi,fix,calibrate,ninja:app,10,prerequisite,6,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 superlu3d/ninja-app,superlu3d,blk8x10-openmpi,6,openmpi,bug,ninja,app,40,appendix,6,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-superlu3d/ninja-learn,superlu3d,blk8x10-openmpi,6,openmpi,bug,ninja,learn,1,prerequisite,6,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+superlu3d/ninja-learn,superlu3d,blk8x10-openmpi,6,openmpi,bug,ninja,learn,1,prerequisite,6,0,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 superlu3d/ninja-app,superlu3d,blk8x10-openmpi,6,openmpi,fix,ninja,app,40,appendix,6,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-superlu3d/ninja-learn,superlu3d,blk8x10-openmpi,6,openmpi,fix,ninja,learn,1,prerequisite,6,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+superlu3d/ninja-learn,superlu3d,blk8x10-openmpi,6,openmpi,fix,ninja,learn,1,prerequisite,6,0,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 superlu3d/calibrate,superlu3d,blk8x10-openmpi,6,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,9,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 superlu3d/must-1.11.2,superlu3d,blk8x10-openmpi,6,openmpi,bug,must,1.11.2,40,main,9,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
 superlu3d/must-1.11.2,superlu3d,blk8x10-openmpi,6,openmpi,fix,must,1.11.2,40,main,9,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
@@ -796,9 +796,9 @@ superlu3d/ninja-system,superlu3d,g20-openmpi,3,openmpi,bug,ninja,system,40,suppl
 superlu3d/ninja-system,superlu3d,g20-openmpi,3,openmpi,fix,ninja,system,40,supplementary,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 superlu3d/calibrate,superlu3d,g20-openmpi,3,openmpi,fix,calibrate,ninja:app,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 superlu3d/ninja-app,superlu3d,g20-openmpi,3,openmpi,bug,ninja,app,40,supplementary,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-superlu3d/ninja-learn,superlu3d,g20-openmpi,3,openmpi,bug,ninja,learn,1,prerequisite,3,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+superlu3d/ninja-learn,superlu3d,g20-openmpi,3,openmpi,bug,ninja,learn,1,prerequisite,3,0,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 superlu3d/ninja-app,superlu3d,g20-openmpi,3,openmpi,fix,ninja,app,40,supplementary,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-superlu3d/ninja-learn,superlu3d,g20-openmpi,3,openmpi,fix,ninja,learn,1,prerequisite,3,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+superlu3d/ninja-learn,superlu3d,g20-openmpi,3,openmpi,fix,ninja,learn,1,prerequisite,3,0,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 superlu3d/calibrate,superlu3d,g20-openmpi,3,openmpi,fix,calibrate,must:1.11.2,10,prerequisite,5,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 superlu3d/must-1.11.2,superlu3d,g20-openmpi,3,openmpi,bug,must,1.11.2,40,supplementary,5,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
 superlu3d/must-1.11.2,superlu3d,g20-openmpi,3,openmpi,fix,must,1.11.2,40,supplementary,5,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
@@ -824,9 +824,9 @@ superlu3d/ninja-system,superlu3d,nos2-mpich,3,mpich,bug,ninja,system,40,appendix
 superlu3d/ninja-system,superlu3d,nos2-mpich,3,mpich,fix,ninja,system,40,appendix,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 superlu3d/calibrate,superlu3d,nos2-mpich,3,mpich,fix,calibrate,ninja:app,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 superlu3d/ninja-app,superlu3d,nos2-mpich,3,mpich,bug,ninja,app,40,appendix,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-superlu3d/ninja-learn,superlu3d,nos2-mpich,3,mpich,bug,ninja,learn,1,prerequisite,3,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+superlu3d/ninja-learn,superlu3d,nos2-mpich,3,mpich,bug,ninja,learn,1,prerequisite,3,0,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 superlu3d/ninja-app,superlu3d,nos2-mpich,3,mpich,fix,ninja,app,40,appendix,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-superlu3d/ninja-learn,superlu3d,nos2-mpich,3,mpich,fix,ninja,learn,1,prerequisite,3,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+superlu3d/ninja-learn,superlu3d,nos2-mpich,3,mpich,fix,ninja,learn,1,prerequisite,3,0,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 superlu3d/calibrate,superlu3d,nos2-mpich,3,mpich,fix,calibrate,must:1.11.2,10,prerequisite,5,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 superlu3d/must-1.11.2,superlu3d,nos2-mpich,3,mpich,bug,must,1.11.2,40,main,5,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
 superlu3d/must-1.11.2,superlu3d,nos2-mpich,3,mpich,fix,must,1.11.2,40,main,5,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
@@ -852,9 +852,9 @@ superlu3d/ninja-system,superlu3d,mhd3200b-mpich,3,mpich,bug,ninja,system,40,appe
 superlu3d/ninja-system,superlu3d,mhd3200b-mpich,3,mpich,fix,ninja,system,40,appendix,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 superlu3d/calibrate,superlu3d,mhd3200b-mpich,3,mpich,fix,calibrate,ninja:app,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 superlu3d/ninja-app,superlu3d,mhd3200b-mpich,3,mpich,bug,ninja,app,40,appendix,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-superlu3d/ninja-learn,superlu3d,mhd3200b-mpich,3,mpich,bug,ninja,learn,1,prerequisite,3,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+superlu3d/ninja-learn,superlu3d,mhd3200b-mpich,3,mpich,bug,ninja,learn,1,prerequisite,3,0,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 superlu3d/ninja-app,superlu3d,mhd3200b-mpich,3,mpich,fix,ninja,app,40,appendix,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-superlu3d/ninja-learn,superlu3d,mhd3200b-mpich,3,mpich,fix,ninja,learn,1,prerequisite,3,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+superlu3d/ninja-learn,superlu3d,mhd3200b-mpich,3,mpich,fix,ninja,learn,1,prerequisite,3,0,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 superlu3d/calibrate,superlu3d,mhd3200b-mpich,3,mpich,fix,calibrate,must:1.11.2,10,prerequisite,5,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 superlu3d/must-1.11.2,superlu3d,mhd3200b-mpich,3,mpich,bug,must,1.11.2,40,main,5,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
 superlu3d/must-1.11.2,superlu3d,mhd3200b-mpich,3,mpich,fix,must,1.11.2,40,main,5,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
@@ -880,9 +880,9 @@ superlu3d/ninja-system,superlu3d,blk12x6-mpich,3,mpich,bug,ninja,system,40,appen
 superlu3d/ninja-system,superlu3d,blk12x6-mpich,3,mpich,fix,ninja,system,40,appendix,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 superlu3d/calibrate,superlu3d,blk12x6-mpich,3,mpich,fix,calibrate,ninja:app,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 superlu3d/ninja-app,superlu3d,blk12x6-mpich,3,mpich,bug,ninja,app,40,appendix,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-superlu3d/ninja-learn,superlu3d,blk12x6-mpich,3,mpich,bug,ninja,learn,1,prerequisite,3,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+superlu3d/ninja-learn,superlu3d,blk12x6-mpich,3,mpich,bug,ninja,learn,1,prerequisite,3,0,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 superlu3d/ninja-app,superlu3d,blk12x6-mpich,3,mpich,fix,ninja,app,40,appendix,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-superlu3d/ninja-learn,superlu3d,blk12x6-mpich,3,mpich,fix,ninja,learn,1,prerequisite,3,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+superlu3d/ninja-learn,superlu3d,blk12x6-mpich,3,mpich,fix,ninja,learn,1,prerequisite,3,0,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 superlu3d/calibrate,superlu3d,blk12x6-mpich,3,mpich,fix,calibrate,must:1.11.2,10,prerequisite,5,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 superlu3d/must-1.11.2,superlu3d,blk12x6-mpich,3,mpich,bug,must,1.11.2,40,main,5,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
 superlu3d/must-1.11.2,superlu3d,blk12x6-mpich,3,mpich,fix,must,1.11.2,40,main,5,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
@@ -908,9 +908,9 @@ superlu3d/ninja-system,superlu3d,blk8x10-mpich,6,mpich,bug,ninja,system,40,appen
 superlu3d/ninja-system,superlu3d,blk8x10-mpich,6,mpich,fix,ninja,system,40,appendix,6,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 superlu3d/calibrate,superlu3d,blk8x10-mpich,6,mpich,fix,calibrate,ninja:app,10,prerequisite,6,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 superlu3d/ninja-app,superlu3d,blk8x10-mpich,6,mpich,bug,ninja,app,40,appendix,6,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-superlu3d/ninja-learn,superlu3d,blk8x10-mpich,6,mpich,bug,ninja,learn,1,prerequisite,6,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+superlu3d/ninja-learn,superlu3d,blk8x10-mpich,6,mpich,bug,ninja,learn,1,prerequisite,6,0,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 superlu3d/ninja-app,superlu3d,blk8x10-mpich,6,mpich,fix,ninja,app,40,appendix,6,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-superlu3d/ninja-learn,superlu3d,blk8x10-mpich,6,mpich,fix,ninja,learn,1,prerequisite,6,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+superlu3d/ninja-learn,superlu3d,blk8x10-mpich,6,mpich,fix,ninja,learn,1,prerequisite,6,0,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 superlu3d/calibrate,superlu3d,blk8x10-mpich,6,mpich,fix,calibrate,must:1.11.2,10,prerequisite,9,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 superlu3d/must-1.11.2,superlu3d,blk8x10-mpich,6,mpich,bug,must,1.11.2,40,main,9,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
 superlu3d/must-1.11.2,superlu3d,blk8x10-mpich,6,mpich,fix,must,1.11.2,40,main,9,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
@@ -936,9 +936,9 @@ superlu3d/ninja-system,superlu3d,g20-mpich,3,mpich,bug,ninja,system,40,supplemen
 superlu3d/ninja-system,superlu3d,g20-mpich,3,mpich,fix,ninja,system,40,supplementary,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 superlu3d/calibrate,superlu3d,g20-mpich,3,mpich,fix,calibrate,ninja:app,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 superlu3d/ninja-app,superlu3d,g20-mpich,3,mpich,bug,ninja,app,40,supplementary,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-superlu3d/ninja-learn,superlu3d,g20-mpich,3,mpich,bug,ninja,learn,1,prerequisite,3,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+superlu3d/ninja-learn,superlu3d,g20-mpich,3,mpich,bug,ninja,learn,1,prerequisite,3,0,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 superlu3d/ninja-app,superlu3d,g20-mpich,3,mpich,fix,ninja,app,40,supplementary,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-superlu3d/ninja-learn,superlu3d,g20-mpich,3,mpich,fix,ninja,learn,1,prerequisite,3,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+superlu3d/ninja-learn,superlu3d,g20-mpich,3,mpich,fix,ninja,learn,1,prerequisite,3,0,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 superlu3d/calibrate,superlu3d,g20-mpich,3,mpich,fix,calibrate,must:1.11.2,10,prerequisite,5,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 superlu3d/must-1.11.2,superlu3d,g20-mpich,3,mpich,bug,must,1.11.2,40,supplementary,5,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
 superlu3d/must-1.11.2,superlu3d,g20-mpich,3,mpich,fix,must,1.11.2,40,supplementary,5,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
@@ -965,9 +965,9 @@ qeelph/ninja-system,qeelph,np3,3,mpich,bug,ninja,system,40,appendix,3,0,stretto-
 qeelph/ninja-system,qeelph,np3,3,mpich,fix,ninja,system,40,appendix,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
 qeelph/calibrate,qeelph,np3,3,mpich,fix,calibrate,ninja:app,10,prerequisite,3,0,stretto-exp:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 qeelph/ninja-app,qeelph,np3,3,mpich,bug,ninja,app,40,appendix,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-qeelph/ninja-learn,qeelph,np3,3,mpich,bug,ninja,learn,1,prerequisite,3,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+qeelph/ninja-learn,qeelph,np3,3,mpich,bug,ninja,learn,1,prerequisite,3,0,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 qeelph/ninja-app,qeelph,np3,3,mpich,fix,ninja,app,40,appendix,3,0,stretto-exp:24.04,run.py,T calibrated (calibrate.py)
-qeelph/ninja-learn,qeelph,np3,3,mpich,fix,ninja,learn,1,prerequisite,3,0,stretto-exp:24.04,run.py,"system-centric learning run (T of ninja-system), up to 3 tries; the app runs start from its files"
+qeelph/ninja-learn,qeelph,np3,3,mpich,fix,ninja,learn,1,prerequisite,3,0,stretto-exp:24.04,run.py,"system-centric learning run (1 800 s cap), up to 3 tries; the app runs start from its files"
 qeelph/calibrate,qeelph,np3,3,mpich,fix,calibrate,must:1.11.2,10,prerequisite,5,0,stretto-must-u:24.04,calibrate.py,"T = max(30 s, 10 x the slowest of these runs of the fix)"
 qeelph/must-1.11.2,qeelph,np3,3,mpich,bug,must,1.11.2,40,main,5,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)
 qeelph/must-1.11.2,qeelph,np3,3,mpich,fix,must,1.11.2,40,main,5,0,stretto-must-u:24.04,run.py,T calibrated (calibrate.py)

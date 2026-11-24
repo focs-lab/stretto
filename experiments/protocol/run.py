@@ -79,10 +79,39 @@ MUST_FANIN4_EXTRA = {3: 2, 4: 2, 6: 3, 8: 3, 16: 5, 32: 11}     # tool processes
 RUN_THREADS = 36
 
 
+CENTRALISED = "centralised"
+# MUST 1.11.2's mustrun has no option that names its centralised layout: it is the layout of a run
+# without --must:distributed (and without --must:fanin), and mustrun says so ("centralized checks"),
+# which must_result checks for a run that asked for it
+CENTRALISED_MARK = "centralized checks"
+
+
 def must_layout(np):
+    """mustrun's layout options and the layout's name: distributed at fan-in 4 where its tool
+    processes fit beside the ranks in the run threads, else the centralised one (amendment 1)."""
     if np + MUST_FANIN4_EXTRA.get(np, np // 4 + 2) <= RUN_THREADS:
-        return ["--must:distributed", "--must:fanin", "4"]
-    return []
+        return ["--must:distributed", "--must:fanin", "4"], "distributed, fan-in 4"
+    return [], CENTRALISED
+
+
+def must_procs(wd):
+    """The processes mustrun started (its layout's levels: the ranks and the tool processes), from
+    must_temp/src/layout.xml; None if it wrote none."""
+    try:
+        with open(os.path.join(wd, "must_temp", "src", "layout.xml")) as fh:
+            return sum(int(x) for x in re.findall(r'<level [^>]*size="(\d+)"', fh.read()))
+    except (OSError, ValueError):
+        return None
+
+
+def check_must_procs(wd, cpuset):
+    """A warm-up's check (amendment 1): mustrun's processes are the job's threads, one each."""
+    if not cpuset:
+        return
+    want, got = len(rows.parse_cpuset(cpuset)), must_procs(wd)
+    if got != want:
+        raise SystemExit("HARNESS-ERROR: mustrun started %s processes (must_temp/src/layout.xml) for the job's %d threads"
+                         % (got, want))
 
 
 # Open MPI's MPI_ERRORS_ARE_FATAL aborts with the error's class as the exit status, and the
@@ -315,11 +344,13 @@ def one(a):
                 return finish(a, s, c, label, "NO-LEARNING-RUN", 0.0, "", False, False, "no learning run finished", {}, "")
             shutil.copytree(learned, os.path.join(wd, ".ninja"))
         if a.tool == "must":
-            cache = os.path.join(a.state, "must-cache")
+            # the layouts MUST builds at run time, per MPI library, in the cache suites.py must uses
+            cache = os.path.join(a.state, "must-cache", mpi)
             os.makedirs(cache, exist_ok=True)
             env["XDG_CACHE_HOME"] = cache
+            layout, detail["must_layout"] = must_layout(np)
             cmd = [os.path.join("/opt/must", mpi, "bin", "mustrun"), "-np", str(np), "--must:mpiexec", LAUNCHER] \
-                + must_layout(np) + ["--must:output", "json"]
+                + layout + ["--must:output", "json"]
             if s.get("fortran"):
                 cmd += ["--must:language", "fortran"]
             for k, v in subjects_mod.env_of(s, a.config).items():
@@ -330,8 +361,19 @@ def one(a):
             if a.tool == "stretto":
                 cmd += rank_env(mpi, "LD_PRELOAD", lib) + rank_env(mpi, "STRETTO_TRACE_DIR", trace_dir)
             cmd += [exe] + args
-        p, el = execute(cmd, env, wd, a.timeout)
+        if a.tool == "must" and a.setting == "warmup":
+            # one warm-up builds a layout at a time, as suites.py must's (amendment 6)
+            import fcntl
+            with open(os.path.join(cache, ".warmup.lock"), "w") as lock:
+                fcntl.flock(lock, fcntl.LOCK_EX)
+                p, el = execute(cmd, env, wd, a.timeout)
+            check_must_procs(wd, os.environ.get("PROTOCOL_CPUS", ""))
+        else:
+            p, el = execute(cmd, env, wd, a.timeout)
         text = p.stdout + p.stderr
+        if a.tool == "must" and detail.get("must_layout") == CENTRALISED and CENTRALISED_MARK not in text \
+                and "[MUST] Executing application" in text:
+            raise SystemExit("HARNESS-ERROR: mustrun did not take the centralised layout")
         if a.tool == "must":
             result = must_result(p.returncode, el, a.timeout, text)
         else:
