@@ -11,7 +11,9 @@
 # processes, as under MUST-vc (an idiom on its idiom_np, scripts/env.sh, with its env file),
 # with the OpenMP threads of its RUN line (artifact) or 2, REPS traced runs, each analysed by `stretto analyze --json`; one untraced run
 # for the time. Settings: REPS (3), TIMEOUT (60 s per run), ATIMEOUT (600 s per analysis),
-# ONLY (a regular expression on the path), STRETTO_COMMIT (the commit column).
+# ONLY (a regular expression on the path), STRETTO_COMMIT (the commit column), MPI (openmpi; mpich
+# builds with MPICH's wrapper and traces with the MPICH tracer, launched by Open MPI's mpirun, as
+# the uniform campaign runs MPICH programs).
 # Row: suite,group,label,program,threads,run,result,seconds,status,errors,warnings,classes,
 # analysis_seconds,commit. run 0 is the untraced run. errors counts findings of an error class
 # (stretto.report.ERROR_CLASSES), warnings the others; classes lists class@level*count.
@@ -20,7 +22,8 @@ SUITE=${1:?usage: stretto_bench.sh artifact|corrbench|idioms DIR OUT.csv WORK}; 
 REPS=${REPS:-3}; TO=${TIMEOUT:-60}; ATO=${ATIMEOUT:-600}
 R=$(cd "$(dirname "$0")/../.." && pwd)
 COMMIT=${STRETTO_COMMIT:-$(cat "$R/COMMIT" 2>/dev/null || echo unknown)}
-LIB=$R/tracer/bin/openmpi/libstretto-trace.so
+MPI=${MPI:-openmpi}
+LIB=$R/tracer/bin/$MPI/libstretto-trace.so
 [ -f "$LIB" ] || { echo "no tracer at $LIB" >&2; exit 1; }
 export PYTHONPATH=$R/analysis OMPI_MCA_rmaps_base_oversubscribe=1 OMPI_MCA_btl_vader_single_copy_mechanism=none
 mkdir -p "$W/bin"
@@ -62,7 +65,7 @@ for f in $(grep -E "${ONLY:-.}" <<< "$list"); do
   fi
   case $f in */correct/*) label=correct;; *) label=erroneous;; esac
   name=$(echo "${f%.*}" | sed 's|/|__|g')
-  case $f in *.cpp) cc=/usr/bin/mpicxx.openmpi;; *) cc=/usr/bin/mpicc.openmpi;; esac
+  case $f in *.cpp) cc=/usr/bin/mpicxx.$MPI;; *) cc=/usr/bin/mpicc.$MPI;; esac
   # shellcheck disable=SC2086
   if ! $cc -g -O0 $flags -I"$D" -I"$(dirname "$D/$f")" "$D/$f" -o "$W/bin/$name" -lm > "$W/bin/$name.build.log" 2>&1; then
     echo "$suite,$group,$label,$f,$th,0,BUILD-FAILED,,,,,,,$COMMIT" >> "$OUT"; continue
@@ -72,7 +75,7 @@ for f in $(grep -E "${ONLY:-.}" <<< "$list"); do
     pre=""; [ "$k" -gt 0 ] && pre="-x LD_PRELOAD=$LIB -x STRETTO_TRACE_DIR=$o/trace"
     t0=$(date +%s.%N)
     # shellcheck disable=SC2086
-    (cd "$o/run" && timeout -k 5 "$TO" mpirun -np "$np" -x OMP_NUM_THREADS="$th" ${envs[@]+"${envs[@]}"} $pre "$W/bin/$name" > ../stdout.log 2> ../stderr.log < /dev/null)
+    (cd "$o/run" && timeout -k 5 "$TO" /usr/bin/mpirun.openmpi -np "$np" -x OMP_NUM_THREADS="$th" ${envs[@]+"${envs[@]}"} $pre "$W/bin/$name" > ../stdout.log 2> ../stderr.log < /dev/null)
     rc=$?; t1=$(date +%s.%N)
     res=FINISHED; [ $rc = 124 ] || [ $rc = 137 ] && res=TIMEOUT; [ $rc != 0 ] && [ $res = FINISHED ] && res="rc=$rc"
     secs=$(echo "$t1 - $t0" | bc | awk '{printf "%.2f", $1}')

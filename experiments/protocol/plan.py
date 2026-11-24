@@ -129,13 +129,29 @@ SUITE_RUNNERS = {"stretto": "run_mbi.py (MBI, MPI-BugBench), corrbench/run.py, m
                  "build": "suites.py build: every program compiled for the MPI"}
 
 
+def suite_table(suite, tool, setting):
+    """The table a suite block's cell goes to (amendment 21): NINJA's system-centric and
+    application-centric modes, budget view included, in the appendix; MUST with ThreadSanitizer the
+    main cell on CorrBench's OpenMP programs and without it the appendix there, the other way round
+    on MBI."""
+    mode = setting[:-len("-budget")] if setting.endswith("-budget") else setting
+    if tool == "ninja" and mode in ("system", "app"):
+        return "appendix"
+    if tool == "must" and suite == "corrbench-openmp":
+        return "main" if mode.endswith("-tsan") else "appendix"
+    if tool == "must" and mode.endswith("-tsan"):
+        return "appendix"
+    return "main"
+
+
 def suite_rows():
     """Section 5: R = 10 passes of every tool on every suite (a job is one pass: one run per
     program), the budget view of the delays and of each NINJA mode (one job: up to 30 runs per
     program, stopping at the first failure), MBI's L2 by re-execution as a row of its own; each
     suite and MPI built once for the tools that run its binaries. Stretto on CorrBench's OpenMP
-    programs runs under Open MPI only (stretto_bench.sh traces with the Open MPI tracer); MUST
-    with ThreadSanitizer on MBI and CorrBench's OpenMP programs (amendment 16). Before the passes,
+    programs is attempted under both MPIs (stretto_bench.sh with MPI=mpich: a cell that cannot run
+    says so from its attempt); MUST with ThreadSanitizer on MBI and CorrBench's OpenMP programs
+    (amendment 16), the main cell on the OpenMP ones and the appendix on MBI (amendment 21). Before the passes,
     each tool setting runs every program the suite labels correct once, at most 300 s each, the
     calibration of the suite's T per tool (amendment 15, calibrate.py derive-suites)."""
     out = []
@@ -146,8 +162,6 @@ def suite_rows():
             out.append(dict(b, block="%s/%s-build" % (suite, mpi), tool="build", setting="corpus", n=1, table="prerequisite",
                             cpus=cpus, image=EXP, notes=SUITE_RUNNERS["build"]))
             for tool, setting in SUITE_TOOLS:
-                if tool == "stretto" and suite == "corrbench-openmp" and mpi == "mpich":
-                    continue
                 if setting.endswith("-tsan") and suite not in MUST_TSAN_SUITES:
                     continue
                 image = MUST_IMAGE if tool == "must" else EXP
@@ -155,13 +169,13 @@ def suite_rows():
                 out.append(dict(b, block="%s/%s-calibrate" % (suite, mpi), tool="calibrate", setting="%s:%s" % (tool, setting),
                                 n=1, table="prerequisite", cpus=c, image=image,
                                 notes="the programs labelled correct once, 300 s at most each (amendment 15)"))
-                table = "appendix" if (tool, setting) in (("ninja", "system"), ("ninja", "app")) else "main"
+                table = suite_table(suite, tool, setting)
                 out.append(dict(b, block="%s/%s-%s-%s" % (suite, mpi, tool, setting), tool=tool, setting=setting, n=PASSES,
                                 table=table, cpus=c, image=image,
                                 notes="R = 10 passes, one run per program per pass (%s)" % SUITE_RUNNERS[tool]))
                 if tool in ("delays", "ninja"):
                     out.append(dict(b, block="%s/%s-%s-%s-budget" % (suite, mpi, tool, setting), tool=tool,
-                                    setting=setting + "-budget", n=1, table="main", cpus=c, image=image,
+                                    setting=setting + "-budget", n=1, table=table, cpus=c, image=image,
                                     notes="budget view: up to 30 runs per program, stopping at the first failure"))
     out.append({"block": "mbi/openmpi-stretto-L2", "subject": "mbi", "config": "115 programs", "np": "", "mpi": "openmpi",
                 "version": "-", "tool": "stretto", "setting": "L2-reexecution", "n": PASSES, "table": "main", "cpus": 4,

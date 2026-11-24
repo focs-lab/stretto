@@ -168,7 +168,8 @@ class External(unittest.TestCase):
         s = self.ex.spec(j, self.ctx)
         self.assertIn("--timeout %d" % self.ex.SUITE_CAL_CAP, s["cmd"])
         self.assertIn("--correct", s["cmd"])                                       # the programs labelled correct
-        self.assertEqual(s["extra"], ["--set", "calibrated=delays:D50"])
+        self.assertEqual(s["extra"][:2], ["--set", "calibrated=delays:D50"])
+        self.assertIn("seed=%d" % (self.ex.SUITE_SEED + 1), s["extra"])          # the pass's seed recorded (amendment 22)
         s = self.ex.spec(dict(j, tool="stretto", setting="traced", block="mbi/openmpi-stretto-traced", calibration=False,
                               T=70), self.ctx)
         self.assertIn("--timeout 70", s["cmd"])                                    # a pass at the suite's T
@@ -176,7 +177,7 @@ class External(unittest.TestCase):
         s = self.ex.spec(dict(j, subject="corrbench-openmp", tool="must", setting="1.11.2-tsan", calibration=False,
                               T=40), self.ctx)
         self.assertIn("--tsan", s["cmd"])
-        self.assertEqual(s["annotate"], ["--must-column", "must1112tsan"])
+        self.assertEqual(s["annotate"], ["--suite", "corrbench-openmp", "--must-column", "must1112tsan"])
         r = {"must1112tsan": "MUST:ERROR:Data race", "expect": "ERROR"}
         a = type("A", (), {"must_column": "must1112tsan", "recorded_wrong": False})()
         self.assertEqual(self.ad.must(r, a), self.ad.must({"must1112": r["must1112tsan"], "expect": "ERROR"}, self.a))

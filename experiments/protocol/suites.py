@@ -87,6 +87,39 @@ def programs(suite, select=".", limit=0, correct=False):
     return [p for p in out if p[3] == "OK"] if correct else out
 
 
+def labels(suite):
+    """{name: (deadlock, datarace)} of a suite's programs (RULE.md amendment 22): whether the
+    program's label makes it a deadlock (a timeout is its symptom) and a data race (a data-race
+    report of MUST's ThreadSanitizer build counts). MBI and MPI-BugBench: the header (description
+    and expected result) of an erroneous program mentions a deadlock, or a data race or one of the
+    concurrency classes; CorrBench: its error's description in experiments/corrbench/programs.csv;
+    its OpenMP programs: the path (a deadlock in the name, an erroneous one under data_race/)."""
+    out = {}
+    why = {}
+    if suite == "corrbench":
+        with open(os.path.join(ROOT, "experiments", "corrbench", "programs.csv"), newline="") as fh:
+            why = dict((r["program"][:-2].replace("/", "__"), r["why"]) for r in csv.DictReader(fh))
+    for name, src, _, expect in programs(suite):
+        if expect == "OK":
+            out[name] = (False, False)
+        elif suite in ("mbi", "mbb"):
+            head = []
+            with open(src, errors="replace") as fh:
+                for line in fh:
+                    head.append(line)
+                    if "END_MBI_TESTS" in line or "END_MBB_TESTS" in line:
+                        break
+            text = "".join(head)
+            out[name] = (bool(re.search(r"dead ?lock", text, re.I)), bool(re.search(r"concurrency|data ?race", text, re.I)))
+        elif suite == "corrbench":
+            w = why.get(name, "")
+            out[name] = ("deadlock" in w, bool(re.search(r"race|buffer is written|write one buffer", w)))
+        else:
+            rel = os.path.relpath(src, SOURCES[suite])
+            out[name] = ("deadlock" in rel, rel.startswith("data_race/"))
+    return out
+
+
 def cflags(suite, source):
     if suite.startswith("corrbench"):
         f = ["-I", os.path.dirname(source), "-I", os.path.join(SOURCES["corrbench"], "correct", "include")]
@@ -165,7 +198,9 @@ def must(a):
         for np_ in sorted(set(r["np"] for r in todo), key=int):
             mark = os.path.join(cache, ".warm-np%s" % np_)
             if not os.path.exists(mark):
-                got = one(next(r for r in todo if r["np"] == np_), timeout=WARMUP_TIMEOUT)
+                # a correct program where there is one: an erroneous one may hang until the warm-up's cap
+                same = [r for r in todo if r["np"] == np_]
+                got = one(next((r for r in same if r["expect"] == "OK"), same[0]), timeout=WARMUP_TIMEOUT)
                 print("warm-up np %s: %s, %.1f s (uncounted)" % (np_, got[column], got["seconds"]), flush=True)
                 if not got[column].startswith("MUST:HARNESS-ERROR") and got[column] != "MUST:TIMEOUT":
                     open(mark, "w").close()

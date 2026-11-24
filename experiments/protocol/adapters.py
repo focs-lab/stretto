@@ -26,8 +26,17 @@ on a program or variant without the bug the same categories are written and read
             findings at the bug's site (SLATE in_permuteRows > 0; DLA-Future and PaRSEC
             l1_receive_findings > 0); a report that is not complete is a tool failure
 
+On a suite (--suite, RULE.md amendment 22) a timeout is the symptom only of a program labelled a
+deadlock (suites.py labels) and a tool failure on any other; MUST's report counts when it holds
+an error, a data race alone (its summary "data race...") only on a program labelled a data race.
+Stretto's suite rows say which cell they belong to (column cell, amendment 23): the traced runs
+"stretto", corrbench/run.py's native runs and stretto_bench.sh's untraced run 0 "plain", the
+buffer guard's runs "stretto-guard" (an appendix cell). Uintah's plain build: every run that does
+not pass is the symptom (amendment 27). --cell-timeouts "cell=T ..." writes each row's own T (the
+thread campaigns, amendment 20; MUST-vc's runs without MUST as native:<cell>).
+
 usage: adapters.py annotate --kind KIND <script table> <block table> [--set column=value ...]
-       [--program-column name|program] [--must-column must1112]
+       [--must-column must1112] [--suite S] [--cell-timeouts "cell=T ..."]
 Python 3.6 runs this file.
 """
 import argparse
@@ -41,23 +50,65 @@ sys.path.insert(0, os.path.join(ROOT, "experiments", "mbi"))
 import rows  # noqa: E402
 
 
+_LABELS = {}
+
+
+def label_of(r, a):
+    """(deadlock, datarace) of the suite program a row is of; (None, None) off a suite."""
+    if not getattr(a, "suite", None):
+        return None, None
+    if a.suite not in _LABELS:
+        import suites
+        _LABELS[a.suite] = suites.labels(a.suite)
+    name = r.get("name") or r.get("program") or ""
+    if name.endswith(".c") or name.endswith(".cpp"):
+        name = name.rsplit(".", 1)[0].replace("/", "__")
+    return _LABELS[a.suite].get(name, (False, False))
+
+
+def timed_out(r, a, end):
+    """outcome() of a run that ended by its timeout (amendment 22): the symptom of a program labelled
+    a deadlock, a tool failure on any other suite program; None off a suite (the caller decides)."""
+    deadlock, _ = label_of(r, a)
+    if deadlock is None:
+        return None
+    return rows.outcome(True, end) if deadlock else rows.outcome(False, False, failed=True)
+
+
 def stress(r, a):
     s = bool((r.get("first_failure") or "").strip())
+    if s and r.get("outcome") == "TIMEOUT":
+        got = timed_out(r, a, True)
+        if got is not None:
+            return got
     return rows.outcome(s, s)
 
 
 def must(r, a):
     import score
-    k = score.must_kind({"must": r.get(a.must_column) or ""})
+    v = r.get(a.must_column) or ""
+    k = score.must_kind({"must": v})
     if k in ("RE", "HARNESS-ERROR", "CE", ""):
         return rows.outcome(False, False, failed=True)
-    return rows.outcome(k == "TIMEOUT", k == "ERROR")
+    f = k == "ERROR"
+    if f and (v[5:] if v.startswith("MUST:") else v).startswith("ERROR:data race"):
+        f = bool(label_of(r, a)[1]) or label_of(r, a)[1] is None      # a data race counts on data-race programs
+    if k == "TIMEOUT":
+        got = timed_out(r, a, f)
+        if got is not None:
+            return got
+    return rows.outcome(k == "TIMEOUT", f)
 
 
 def corpus(r, a):
     import score
+    r.setdefault("cell", "stretto")
     if score.crashed(r):
         return rows.outcome(False, False, failed=True)
+    if r.get("run") == "TIMEOUT":
+        got = timed_out(r, a, score.verdict(r) == "ERROR")
+        if got is not None:
+            return got
     return rows.outcome(score.observed_verdict(r) == "ERROR", score.verdict(r) == "ERROR")
 
 
@@ -86,10 +137,15 @@ def traced(r, a):
 def corrbench(r, a):
     """experiments/corrbench/run.py: a native row is a plain run, a trace or guard row a traced
     one, judged as corpus (its result is the run's end)."""
+    r["cell"] = {"native": "plain", "guard": "stretto-guard"}.get(r.get("mode"), "stretto")
     if r.get("mode") == "build":
         return rows.outcome(False, False, failed=True)
     if r.get("mode") == "native":
         s = r.get("result") != "FINISHED"
+        if s and r.get("result") == "TIMEOUT":
+            got = timed_out(r, a, True)
+            if got is not None:
+                return got
         return rows.outcome(s, s)
     return corpus(dict(r, run=r.get("result", "")), a)
 
@@ -98,9 +154,14 @@ def bench(r, a):
     """experiments/mustvc/stretto_bench.sh: run 0 untraced (a plain run), the others traced, F an
     error-class finding (errors > 0); a report that is not complete is a tool failure."""
     s = (r.get("result") or "") not in ("FINISHED",)
+    r["cell"] = "plain" if str(r.get("run")) == "0" else "stretto"
     if r.get("result") == "BUILD-FAILED":
         return rows.outcome(False, False, failed=True)
     if str(r.get("run")) == "0":
+        if r.get("result") == "TIMEOUT":
+            got = timed_out(r, a, True)
+            if got is not None:
+                return got
         return rows.outcome(s, s)
     if (r.get("status") or "complete") != "complete":
         return rows.outcome(False, False, failed=True)
@@ -108,6 +169,10 @@ def bench(r, a):
         f = int(r.get("errors") or 0) > 0
     except ValueError:
         f = False
+    if r.get("result") == "TIMEOUT":
+        got = timed_out(r, a, f)
+        if got is not None:
+            return got
     return rows.outcome(s, f)
 
 
@@ -149,6 +214,15 @@ def none(r, a):
     return ""
 
 
+def cell_key(r):
+    """The cell a thread campaign's row is of, as experiments/thread_timeouts.sh names it."""
+    if r.get("cell"):
+        return ("native:" if r.get("tool") == "native" else "") + r["cell"]
+    if r.get("args") is not None and r.get("np"):           # Uintah's series
+        return "np%s%s" % (r["np"], "" if r["args"] == "mpi-scheduler" else r["args"].replace(" ", ""))
+    return ""
+
+
 RULES = {"stress": stress, "must": must, "corpus": corpus, "series": series, "traced": traced, "corrbench": corrbench,
          "bench": bench, "threadreplay": threadreplay, "mustvc": mustvc, "mpiprv": mpiprv, "none": none}
 
@@ -162,11 +236,19 @@ def main(argv=None):
     ap.add_argument("--set", nargs="*", default=[], help="column=value for every row (host, cpus, jobs, timeout, seed, commit, run)")
     ap.add_argument("--must-column", default="must1112")
     ap.add_argument("--recorded-wrong", action="store_true", help="threadreplay: the replays' traced runs went wrong")
+    ap.add_argument("--suite", default=None, help="the suite the rows are of (its programs' labels, amendment 22)")
+    ap.add_argument("--cell-timeouts", default="", help='"cell=T ...": each row\'s T by its cell (amendment 20)')
     a = ap.parse_args(argv)
     extra = dict(kv.partition("=")[::2] for kv in a.set)
     extra.setdefault("host", rows.host())
     extra.setdefault("commit", os.environ.get("STRETTO_COMMIT", ""))
-    n = rows.annotate(a.src, a.dst, extra, outcome_of=lambda r: RULES[a.kind](r, a))
+    per_cell = dict(kv.rsplit("=", 1) for kv in a.cell_timeouts.split())
+
+    def outcome_of(r):
+        if per_cell:
+            r["timeout"] = per_cell.get(cell_key(r), "")
+        return RULES[a.kind](r, a)
+    n = rows.annotate(a.src, a.dst, extra, outcome_of=outcome_of)
     print("%d rows of %s appended to %s" % (n, a.src, a.dst))
     return 0
 

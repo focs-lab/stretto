@@ -80,7 +80,8 @@ def suite_spec(j, ctx):
         return '"$(python3 experiments/protocol/suites.py regex --suite %s --select %s --limit %d --form %s%s)"' % (
             suite, q(sel), limit, form, " --correct" if cal else "")
     jobs = 1
-    s = {"image": ctx["exp_image"], "env": {"OMP_NUM_THREADS": "2"}, "needs": [], "extra": []}
+    s = {"image": ctx["exp_image"], "env": {"OMP_NUM_THREADS": "2"}, "needs": [], "extra": [],
+         "annotate": ["--suite", suite]}
     if suite != "corrbench-openmp":
         s["env"].update(ctx["binding"])          # amendment 8
     else:
@@ -89,6 +90,7 @@ def suite_spec(j, ctx):
         s["env"].update({"OMPI_MCA_hwloc_base_use_hwthreads_as_cpus": "1", "OMPI_MCA_hwloc_base_binding_policy": "none",
                          "OMPI_MCA_btl_vader_single_copy_mechanism": "none"})
     if tool == "build":
+        s["annotate"] = []
         s["cmd"] = "python3 experiments/protocol/suites.py build --suite %s --mpi %s --out %s --select %s --limit %d --jobs 4" % (
             suite, mpi, build, q(sel), limit)
         s["src"], s["kind"] = table, "none"
@@ -106,8 +108,9 @@ def suite_spec(j, ctx):
                         "third_party/corrbench/micro-benches/0-level %s/run.csv %s/work" % (T, mpi, regex("path"), jobs, jd, jd))
             s["src"], s["kind"] = jd + "/run.csv", "corrbench"
         else:
-            s["cmd"] = ("REPS=1 TIMEOUT=%d ONLY=%s experiments/mustvc/stretto_bench.sh corrbench "
-                        "third_party/corrbench/micro-benches/0-level/openmp %s/bench.csv %s/work" % (T, regex("path"), jd, jd))
+            # attempted under MPICH too (amendment 9 of the review: a cell that cannot run says so from its attempt)
+            s["cmd"] = ("REPS=1 TIMEOUT=%d MPI=%s ONLY=%s experiments/mustvc/stretto_bench.sh corrbench "
+                        "third_party/corrbench/micro-benches/0-level/openmp %s/bench.csv %s/work" % (T, mpi, regex("path"), jd, jd))
             s["src"], s["kind"] = jd + "/bench.csv", "bench"
         s["cmd"] = "mkdir -p %s && %s" % (jd, s["cmd"])
         return s
@@ -117,6 +120,8 @@ def suite_spec(j, ctx):
     runs = 30 if budget else 1
     pick = " --select %s" % regex("name") if cal else ""
     if tool == "delays":
+        # the committed per-program seeding, Random("<seed>:<program>"), with the pass's seed recorded (amendment 22)
+        s["extra"] += ["--set", "seed=%d" % (SUITE_SEED + j["run"])]
         s["cmd"] = ("python3 experiments/stress_baseline.py %s --mpi %s --runs %d --jobs %d --timeout %d --seed %d --out %s/stress.csv%s"
                     % (table, mpi, runs, jobs, T, SUITE_SEED + j["run"], jd, pick))
         s["src"], s["kind"] = jd + "/stress.csv", "stress"
@@ -132,7 +137,7 @@ def suite_spec(j, ctx):
         s["cmd"] = ("python3 experiments/protocol/suites.py must --suite %s --mpi %s --table %s --out %s/must.csv --timeout %d --jobs %d%s%s"
                     % (suite, mpi, table, jd, T, jobs, " --tsan" if tsan else "", pick))
         s["src"], s["kind"] = jd + "/must.csv", "must"
-        s["annotate"] = ["--must-column", "must1112tsan" if tsan else "must1112"]
+        s["annotate"] += ["--must-column", "must1112tsan" if tsan else "must1112"]
     else:
         raise ValueError("no suite tool %s" % tool)
     s["cmd"] = "mkdir -p %s && %s" % (jd, s["cmd"])
