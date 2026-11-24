@@ -7,14 +7,20 @@
 # usage: scripts/must_once.sh <np> <timeout-seconds>
 # Environment: STRETTO_MUST_DIR (MUST's installation), STRETTO_MUST_TSAN (1: MUST's
 # ThreadSanitizer analysis, scripts/must_run.sh), STRETTO_MUST_CFLAGS (extra compiler flags).
+# The uniform campaign (experiments/protocol/suites.py) runs MUST of stretto-must-u:24.04 with the
+# MPI library's own wrapper, Open MPI's launcher and an explicit fan-in: STRETTO_MUST_CC (default
+# mpicc.mpich), STRETTO_MUST_MPIEXEC (default mpirun.mpich) and STRETTO_MUST_LAYOUT (default
+# --must:distributed) choose them; the defaults are the earlier MUST images' runs.
 np="$1"; to="$2"
 export PATH=$STRETTO_MUST_DIR/bin:$PATH
-cc=(mpicc.mpich); tsan=()
-[ "${STRETTO_MUST_TSAN:-0}" = 1 ] && { cc=(must-tsan-cc --wrap-target mpicc.mpich); tsan=(--must:tsan); }
+mcc=${STRETTO_MUST_CC:-mpicc.mpich}
+cc=("$mcc"); tsan=()
+[ "${STRETTO_MUST_TSAN:-0}" = 1 ] && { cc=(must-tsan-cc --wrap-target "$mcc"); tsan=(--must:tsan); }
+read -r -a layout <<< "${STRETTO_MUST_LAYOUT:---must:distributed}"
 # shellcheck disable=SC2086
 "${cc[@]}" -O0 -g -I.. ${STRETTO_MUST_CFLAGS:-} -o prog prog.c -lm 2> build.err || { echo "CE:$(head -c 160 build.err | tr "\n" " ")"; exit 0; }
 t0=$SECONDS
-/usr/bin/timeout -k 5 "$to" mustrun -np "$np" --must:mpiexec mpirun.mpich --must:distributed "${tsan[@]}" --must:output json ./prog > run.out 2> run.err
+/usr/bin/timeout -k 5 "$to" mustrun -np "$np" --must:mpiexec "${STRETTO_MUST_MPIEXEC:-mpirun.mpich}" "${layout[@]}" "${tsan[@]}" --must:output json ./prog > run.out 2> run.err
 rc=$?; took=$((SECONDS - t0))
 json=""
 [ -s MUST_Output.json ] && json="$(python3 - <<'PY'

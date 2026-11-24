@@ -43,7 +43,7 @@ set -uo pipefail
 R="$(cd "$(dirname "$0")/../.." && pwd)"; cd "$R"
 M="${MUST_APPS_DIR:-$R/third_party/apps/must}"
 W="$R/experiments/mpiprv/work/apps"; mkdir -p "$W"
-OUT="$R/experiments/results/mpiprv/stretto-apps.csv"
+OUT="${MPIPRV_OUT:-$R/experiments/results/mpiprv/stretto-apps.csv}"   # MPIPRV_OUT: the uniform campaign's attempts (experiments/protocol)
 COMMIT="${STRETTO_COMMIT:-$(python3 experiments/provenance.py)}"
 OMPI=/usr/lib/x86_64-linux-gnu/openmpi
 [ -f "$OUT" ] || echo "app,version,configurations,step,result,outcome,reason,commit" > "$OUT"
