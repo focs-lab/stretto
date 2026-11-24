@@ -1,6 +1,6 @@
 # The uniform campaign: harness
 
-[RULE.md](RULE.md) fixes the protocol, with its amendments of 24 Nov 2026 (Sections 10 to 12); this
+[RULE.md](RULE.md) fixes the protocol, with its amendments of 24 and 25 Nov 2026 (Sections 10 to 13); this
 directory is the harness that runs it. Nothing here is a result yet: `results/` is written by the
 campaign itself.
 
@@ -108,10 +108,15 @@ same categories are written, and there F is a false alarm. A replay row's outcom
   counts the alternatives of the bug's kind, whose pins run.py keeps for the replays (a sidecar
   for every analysis, empty when it found none; the replays take only these, amendment 26).
 - Runs that end early or leave nothing are rows with outcome tool failure, never rerun
-  (amendment 25): a run killed before T (run.py's `KILLED`; a container killed out of memory
-  gets its row from the scheduler), a traced run whose trace is empty or unreadable, an analysis
-  killed before its budget ("analysis killed", not "analysis timeout"). A deferred analysis gets
-  the memory its traced run's job had.
+  (amendments 25 and 29): a run killed before T by the job's own memory limit (run.py's `KILLED`
+  when the job's cgroup counted the kill, `memory.events`; a container Docker records as
+  `State.OOMKilled` gets its row from the scheduler: a replay's with a verdict, inconclusive, a
+  delays run's with its seed, a calibration run's with the seconds it lasted, left out of T as a
+  capped run), a traced run whose trace is empty or unreadable, an analysis killed before its
+  budget ("analysis killed", not "analysis timeout"). Any other kill, and any job that leaves no
+  row, is a harness failure (Section 1.8): the job runs again, at most twice in an invocation
+  (then its block stops), and every rerun is listed in [`results/reruns.tsv`](results/) (time,
+  block, job, reason). A deferred analysis gets the memory its traced run's job had.
 - F for MUST: an error (not a warning, amendment 4) of MUST's report whose call, or one of whose
   referenced calls, is a racing call with a stack at the racing site. A run MUST stops at a
   deadlock shows no symptom: at the racing calls "predicted", elsewhere a tool failure
@@ -122,14 +127,25 @@ same categories are written, and there F is a false alarm. A replay row's outcom
   row and stops with a harness error if mustrun does not say "centralized checks". MUST's layouts
   are cached per MPI library (`STATE/must-cache/<mpi>`, the suites' cache too), and every warm-up,
   the applications' and the suites', takes the cache's lock, so that one layout is built at a time.
+  No MUST run of a configuration, calibration included, starts before its warm-up has ended
+  (amendment 31), and the warm-up checks that mustrun started one process per thread of the job
+  (the levels of `must_temp/src/layout.xml`: 21 at 16 ranks, 33 at 32; a harness error otherwise).
 - F = S for plain runs, random delays and NINJA.
 - The suites: the committed scripts' verdicts, by adapters.py (`stress`, `corpus`, `corrbench`,
   `bench`, `must`): S what the run itself showed, F a report of an error class (Stretto, MUST) or
-  S (delays, NINJA). A timeout is the symptom only of a program labelled a deadlock and a tool
-  failure on any other (suites.py `labels`: the program's header, CorrBench's description, the
-  OpenMP program's path); MUST's report counts when it holds an error, a data race alone only on
-  a program labelled a data race (amendment 22; must_once.sh says "data race:" when the race is
-  all MUST reported). Stretto's suite rows carry `cell` (amendment 23): `stretto` for the traced
+  S (delays, NINJA). A run of a program labelled erroneous that does not finish within T shows
+  the symptom (amendment 28); on a program labelled correct a timeout counts as the committed
+  `tab:rq2` scripts count it: a failing run for the delays and NINJA (experiments/tables.py
+  `stress`, any `first_failure`), no report for MUST on MBI and MPI-BugBench (experiments/mbi/
+  score.py `must_verdict`: TIMEOUT is not ERROR), a run without a verdict, a tool failure, for
+  MUST on CorrBench (experiments/corrbench/summary.py), Stretto's report for Stretto. Against the
+  committed MBI and MPI-BugBench tables (stress.csv, the corpus tables' must1112 and Stretto
+  columns) and CorrBench's (must.csv, stretto-openmpi.csv) the adapters give the committed
+  reveals per tool and label (a unit test); CorrBench's "failed run only" (an error finding
+  observed on a run that did not finish) is observed-reported under Section 3. MUST's report
+  counts when it holds an error, a data race alone only on a program labelled a data race
+  (amendment 22; must_once.sh says "data race:" when the race is all MUST reported; suites.py
+  `labels`). Stretto's suite rows carry `cell` (amendment 23): `stretto` for the traced
   runs, `plain` for corrbench/run.py's native runs and stretto_bench.sh's untraced run 0,
   `stretto-guard` for the buffer guard's runs (appendix). The random delays keep the committed
   per-program seeding, `Random("<seed>:<program>")`, the pass's seed in the rows.
@@ -191,7 +207,9 @@ cap, then `calibrate.py derive-threads`; `<subject>/plain-serial`, 40 plain runs
 (SLATE wide-2x2, DLA-Future 2x1-offset, PaRSEC vp2-mt, Uintah 4 ranks with 2 threads) alone on
 the machine, the concurrency check of Section 1.9; `slate/series-openmpi`, `series-mpich`,
 `traced-openmpi`; `dlaf/series-openmpi`, `traced-openmpi`; `parsec/series-openmpi`,
-`traced-openmpi`; `uintah/series-openmpi`, `series-mpich`, 40 jobs each; the replays of
+`traced-openmpi`; `uintah/series-openmpi`, `series-mpich` (every committed cell, amendment 30:
+4 ranks with 2 and with 4 threads, 2 ranks with 2, and the MPI scheduler's control at 4 ranks),
+40 jobs each; the replays of
 threadreplays.py (amendment 17): `<subject>/replay-traces` (the replay cell traced with its lock
 order: SLATE 16 runs, of which those with a right factor are kept, as the committed campaign of
 2 Nov; PaRSEC and DLA-Future 5), `<subject>/replay-alternatives` (the distinct alternatives over
@@ -236,14 +254,20 @@ container); the tables and the journal under `--results`.
 To resume after an interruption, run the same command again. A job whose row is in its table is
 done; a row file not yet in its table is appended first; containers of an earlier invocation
 keep their threads until they end and are collected then; every other job runs, and the journal
-says which runs were started before and had no row ("restarted"). SIGINT or SIGTERM stops
-starting jobs and lets the running ones finish; a second signal kills them (their runs have no row
-and run again). A job that ends without a row (a library that did not load, a trace that could
-not be kept, a script that wrote no table) stops its block for that invocation; so does a
-missing build. A run killed before its T, or a run.py container killed out of memory, is a
-tool-failure row instead, never rerun (amendment 25). Containers adopted from an earlier
-invocation count in the jobs column, and an adopted job that runs alone keeps every other job
-from starting until it ends. schedule.py refuses to start without `MACHINE`.
+says which runs were started before and had no row; they run again, listed in
+`results/reruns.tsv`. SIGINT or SIGTERM stops starting jobs and lets the running ones finish; a
+second signal kills them (their runs have no row and run again). A job that ends without a row
+(a library that did not load, a trace that could not be kept, a script that wrote no table, a
+kill that is not its memory limit's) runs again, twice at most, each rerun in
+`results/reruns.tsv`, then stops its block for that invocation; a missing build stops it at once.
+A run killed by the job's own memory limit is a tool-failure row instead, never rerun (amendments
+25 and 29). Containers are kept until the scheduler has read Docker's verdict on them and then
+removed; they carry their job and whether it runs alone as labels, so that containers adopted
+from an earlier invocation count in the jobs column and an adopted job that runs alone, selected
+or not, keeps every other job from starting until it ends. schedule.py refuses to start without
+`MACHINE`. summary.py shows a suite block per cell and label, with the share of its reveals that
+are timeouts (amendment 28), and a thread replay block per alternative and mode as well as per
+replay (amendment 24).
 
 ## Smoke test
 
@@ -369,6 +393,25 @@ of 10 per mode in the committed campaign); DLA-Future, 2 traced runs, 129 distin
   program where there is one (MBI's two erroneous programs then hung until T = 60 s,
   observed-not-reported, as committed).
 
+**What changed with Section 13, smoked again (25 Nov 2026, a-p13; one run a block).**
+
+- *Timeouts on the suites (amendment 28).* MBI's and MPI-BugBench's first four programs under the
+  delays, MUST and Stretto at T = 30 s: the erroneous programs that hang until T (MBI's two
+  CallMatching programs, MPI-BugBench's four CallOrdering ones) are revealed by the delays and by
+  Stretto (observed-reported, "timeouts 2/2" and "4/4" in summary.py) and are observed-not-reported
+  under MUST on MBI, which reports nothing there, as in `mbi.csv`; MUST predicts MPI-BugBench's
+  four; the correct programs are missed by every tool. With the rule of Section 12 these hangs were
+  tool failures.
+- *MUST's warm-up first, and its processes (amendment 31, item 6 of the review).* NPB MG at 32 and
+  16 ranks: each warm-up started 33 and 21 processes, its job's threads, and the MUST calibration
+  runs of each configuration started after it.
+- *Uintah's cells (amendment 30).* The MPICH calibration ran the four committed cells (T = 44 or
+  45 s each), then a series run of each, 8 rows: the plain build at 4 ranks with 2 and with 4
+  threads did not pass (the symptom, observed-reported), the plain build at 2 ranks and with the
+  MPI scheduler passed, as did every run of the fixed build.
+- Amendment 29's kills and the adopted containers' labels are pinned by unit tests; no container
+  was killed on purpose.
+
 ## Wall time
 
 From the smoke test's job times, perfect packing on the 36 run threads (lower bounds):
@@ -381,7 +424,7 @@ From the smoke test's job times, perfect packing on the 36 run threads (lower bo
 | MPI-BugBench | about 12 to 24 | 171 of its 388 programs hang until T, 10 passes x 6 tools, and the budget view: 24 h at 60 s, half at 30 s |
 | MPI-CorrBench, both MPIs | about 15 | 77 of 513 programs hang; Stretto's passes run native, traced and guard runs (its T was 30 s already) |
 | CorrBench's OpenMP programs | about 4 | the budget views under MPICH, MUST with ThreadSanitizer under both MPIs |
-| thread campaigns, MUST-vc, lock replays | about 12 | SLATE's replays (6 minutes an alternative and mode on 16 threads, 160 jobs: 7 h), the traced cells with their analyses, the lock replays (34 min); PaRSEC's and DLA-Future's replays take seconds each; the calibrations and concurrency checks of amendment 20 under 1 h, except MUST-vc on Uintah (below) |
+| thread campaigns, MUST-vc, lock replays | about 12 | SLATE's replays (6 minutes an alternative and mode on 16 threads, 160 jobs: 7 h), the traced cells with their analyses, the lock replays (34 min); PaRSEC's and DLA-Future's replays take seconds each; the calibrations and concurrency checks of amendment 20 under 1 h, except MUST-vc on Uintah (below); Uintah's series with all four committed cells (amendment 30) about 1 h for both MPIs (5 s a run) |
 | MUST-vc on Uintah | about 45 | every MUST-vc run of Uintah hangs (the committed campaign killed them at its 300 s): its calibration's 20 runs reach the 1 800 s cap, so T is the cap (amendment 5), and its 40 jobs of 4 MUST-vc runs each wait 1 800 s apiece on 18 threads (7 h at the committed 300 s) |
 | MPI-PRV attempts | under 1 | deal.II's instrumentation (9 min) |
 | **whole campaign** | **about 145 to 155** | with packing below perfect, 6 to 8 days of the machine; the suites' share follows their calibrated T, and MUST-vc on Uintah is a third of it |
