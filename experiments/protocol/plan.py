@@ -119,11 +119,13 @@ def app_rows():
 SUITES = [("mbi", 115, ["openmpi"], 4), ("mbb", 388, ["openmpi"], 4), ("corrbench", 513, ["openmpi", "mpich"], 2),
           ("corrbench-openmp", 103, ["openmpi", "mpich"], 4)]
 SUITE_TOOLS = [("stretto", "traced"), ("delays", "D50"), ("ninja", "random"), ("ninja", "system"), ("ninja", "app"),
-               ("must", "1.11.2")]
+               ("must", "1.11.2"), ("must", "1.11.2-tsan")]
+# MUST with ThreadSanitizer on the programs with threads, and on MBI as its committed column (amendment 16)
+MUST_TSAN_SUITES = ("mbi", "corrbench-openmp")
 SUITE_RUNNERS = {"stretto": "run_mbi.py (MBI, MPI-BugBench), corrbench/run.py, mustvc/stretto_bench.sh (OpenMP)",
                  "delays": "stress_baseline.py on the suite's build, D50",
                  "ninja": "ninja/run.py corpus on the suite's build, libninja-fixed-all.so",
-                 "must": "suites.py must (scripts/must_once.sh in stretto-must-u:24.04)",
+                 "must": "suites.py must (scripts/must_once.sh in stretto-must-u:24.04; 1.11.2-tsan with --tsan)",
                  "build": "suites.py build: every program compiled for the MPI"}
 
 
@@ -132,7 +134,10 @@ def suite_rows():
     program), the budget view of the delays and of each NINJA mode (one job: up to 30 runs per
     program, stopping at the first failure), MBI's L2 by re-execution as a row of its own; each
     suite and MPI built once for the tools that run its binaries. Stretto on CorrBench's OpenMP
-    programs runs under Open MPI only (stretto_bench.sh traces with the Open MPI tracer)."""
+    programs runs under Open MPI only (stretto_bench.sh traces with the Open MPI tracer); MUST
+    with ThreadSanitizer on MBI and CorrBench's OpenMP programs (amendment 16). Before the passes,
+    each tool setting runs every program the suite labels correct once, at most 300 s each, the
+    calibration of the suite's T per tool (amendment 15, calibrate.py derive-suites)."""
     out = []
     for suite, programs, mpis, cpus in SUITES:
         for mpi in mpis:
@@ -143,8 +148,13 @@ def suite_rows():
             for tool, setting in SUITE_TOOLS:
                 if tool == "stretto" and suite == "corrbench-openmp" and mpi == "mpich":
                     continue
+                if setting.endswith("-tsan") and suite not in MUST_TSAN_SUITES:
+                    continue
                 image = MUST_IMAGE if tool == "must" else EXP
                 c = cpus + 2 if tool == "must" else cpus
+                out.append(dict(b, block="%s/%s-calibrate" % (suite, mpi), tool="calibrate", setting="%s:%s" % (tool, setting),
+                                n=1, table="prerequisite", cpus=c, image=image,
+                                notes="the programs labelled correct once, 300 s at most each (amendment 15)"))
                 table = "appendix" if (tool, setting) in (("ninja", "system"), ("ninja", "app")) else "main"
                 out.append(dict(b, block="%s/%s-%s-%s" % (suite, mpi, tool, setting), tool=tool, setting=setting, n=PASSES,
                                 table=table, cpus=c, image=image,

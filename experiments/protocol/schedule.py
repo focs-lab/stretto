@@ -339,9 +339,20 @@ class Scheduler:
                 todo.insert(0, j)
 
     def timeout_for(self, j):
+        if j["external"] == "suite" and j["tool"] != "build":
+            # a suite's T per tool, from its calibration (amendment 15); the calibration's cap
+            if j["calibration"]:
+                return external.SUITE_CAL_CAP
+            if self.a.timeout:
+                return self.a.timeout
+            key = ("suite", j["subject"])
+            if key not in self.timeouts:
+                self.timeouts[key] = dict((r["tool"], int(r["T"])) for r in rows.read(
+                    os.path.join(self.a.results, j["subject"], "suite-timeouts.csv")) if r["T"])
+            return self.timeouts[key].get(j["tool"])
         if j["external"]:
-            # the committed scripts' own timeouts (a suite's program run: 60 s; the thread scripts' runs)
-            return external.SUITE_TIMEOUT if j["external"] == "suite" else "script"
+            # the thread scripts' own timeouts; a suite's build has none
+            return "script"
         if j["calibration"] or j["setting"] in ("learn", "warmup"):
             # NINJA's learning run comes before the calibration (the application-centric runs of the
             # calibration start from its files too) and is retried until one finishes: it gets the cap
@@ -401,7 +412,7 @@ class Scheduler:
         """docker run of an external job: the committed script, then adapters.py on its table into
         the job's row file (a CSV: the script's rows with the common columns, the outcome and the
         job's key, protocol_job)."""
-        sp = external.spec(j, self.ctx())
+        sp = external.spec(dict(j, T=timeout), self.ctx())
         i = cmd.index("--user")
         user = sp.get("user")
         if user == "root":
@@ -417,9 +428,9 @@ class Scheduler:
         cmd = cmd[:-1] + extra + [image]
         sets = ["host=" + rows.host(), "cpus=" + rows.cpuset(cpus), "jobs=%d" % njobs, "timeout=%s" % timeout,
                 "commit=" + self.a.commit, "protocol_job=" + key_of(j)] + [x for x in sp.get("extra", []) if x != "--set"]
-        annotate = "python3 experiments/protocol/adapters.py annotate --kind %s %s %s.part --set %s && mv %s.part %s" % (
-            sp["kind"], external.q(sp["src"]), external.q(row), " ".join(external.q(x) for x in sets), external.q(row),
-            external.q(row))
+        annotate = "python3 experiments/protocol/adapters.py annotate --kind %s %s %s.part%s --set %s && mv %s.part %s" % (
+            sp["kind"], external.q(sp["src"]), external.q(row), "".join(" " + external.q(x) for x in sp.get("annotate", [])),
+            " ".join(external.q(x) for x in sets), external.q(row), external.q(row))
         tail = ("; chown %s %s 2>/dev/null" % (self.ctx()["owner"], external.q(row))) if user == "root" else ""
         # the script's table is annotated only when the script ended well: a script that died mid-pass
         # leaves a partial table, which is no row (the scheduler judges the job by its status and log);

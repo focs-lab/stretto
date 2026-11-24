@@ -147,6 +147,7 @@ def run_one(name: str, args) -> dict:
     open(os.path.join(out, "run.stdout"), "w").write(r.stdout)
     open(os.path.join(out, "run.stderr"), "w").write(r.stderr)
     row["run"] = classify_rc(r.returncode, r.stderr, time.monotonic() - t0, args.timeout)
+    row["seconds"] = f"{time.monotonic() - t0:.1f}"          # the traced run's (a timeout's calibration)
     keep.keep(tracedir, kept_as(args), row["name"], commit=row["commit"])
     analyse(row, out, exe, tracedir, args)
     if args.must:
@@ -422,7 +423,7 @@ def main() -> int:
     keys = ["name", "category", "expect", "detail", "can_deadlock", "np", "anysrc", "anytag", "probe", "persistent", "waitany",
             "build", "run", "wildcard_recvs", "events", "findings", "l1_alternatives", "classes", "levels", "analysis", "confirmed", "confirmed_strict",
             "not_confirmed", "replays", "must", "notes", "commit", "analysis_commit"]
-    keys += other_must
+    keys += other_must + ["seconds"]
     if args.rerun:
         keys += ["l2", "l2_dismissed", "l2_undetermined", "rerun_runs", "rerun_seconds", "rerun_unreliable"]
     with open(args.out, "w", newline="") as fh:

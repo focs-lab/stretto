@@ -13,7 +13,10 @@ suite, inside the job's container:
   must                  one pass of MUST 1.11.2 (stretto-must-u:24.04) over a build's programs, each
                         compiled by MUST's run (scripts/must_once.sh: the MPI library's mpicc,
                         Open MPI's mpirun, MUST's distributed layout at fan-in 4, RULE.md amendments
-                        1 and 2): OUT (name, expect, np, must1112, seconds, commit)
+                        1 and 2): OUT (name, expect, np, must1112, seconds, commit). --tsan: MUST's
+                        ThreadSanitizer analysis (must-tsan-cc, --must:tsan; amendment 16), column
+                        must1112tsan. Before the pass, one uncounted run per process count builds
+                        MUST's layout into the cache, one pass at a time (amendment 6)
 
 Names: an MBI program by its file name, an MPI-BugBench one and a CorrBench one by its path with
 "/" as "__", without ".c". Expect: MBI's and MPI-BugBench's headers (run_mbi.parse_header);
@@ -24,10 +27,11 @@ the OpenMP ones with 2 threads each.
 usage: suites.py fetch-corrbench DIR
        suites.py build --suite S --mpi M --out DIR [--select REGEX] [--limit N] [--jobs J]
        suites.py must --suite S --mpi M --table CSV --out CSV [--timeout S] [--jobs J] [--select REGEX]
-       suites.py regex --suite S [--select REGEX] [--limit N] [--form name|path]
+       suites.py regex --suite S [--select REGEX] [--limit N] [--form name|path] [--correct]
 """
 import argparse
 import csv
+import fcntl
 import os
 import re
 import shutil
@@ -47,10 +51,12 @@ SOURCES = {"mbi": os.path.join(ROOT, "study", "apps", "MBI", "gencodes"),
            "corrbench": os.path.join(CORRBENCH, "micro-benches", "0-level"),
            "corrbench-openmp": os.path.join(CORRBENCH, "micro-benches", "0-level", "openmp")}
 FIELDS = ["name", "np", "expect", "build", "source"]
+WARMUP_TIMEOUT = 1800     # MUST's warm-up run per process count (it builds the layout), uncounted
 
 
-def programs(suite, select=".", limit=0):
-    """[(name, source path, np, expect)] of a suite, in a fixed order."""
+def programs(suite, select=".", limit=0, correct=False):
+    """[(name, source path, np, expect)] of a suite, in a fixed order (correct: only the programs
+    the suite labels correct, expect OK)."""
     src = SOURCES[suite]
     out = []
     if suite in ("mbi", "mbb"):
@@ -77,7 +83,8 @@ def programs(suite, select=".", limit=0):
                     rel = os.path.relpath(path, src)
                     out.append((rel[:-2].replace("/", "__"), path, 2, "OK" if "correct/" in rel else "ERROR"))
     out = [p for p in out if re.search(select, p[0])]
-    return out[:limit] if limit else out
+    out = out[:limit] if limit else out
+    return [p for p in out if p[3] == "OK"] if correct else out
 
 
 def cflags(suite, source):
@@ -114,12 +121,24 @@ def must(a):
     container: the program's source compiled by MUST's run with the MPI's mpicc."""
     with open(a.table, newline="") as fh:
         todo = [r for r in csv.DictReader(fh) if r["build"] == "ok" and re.search(a.select, r["name"])]
+    # the layouts MUST builds at run time, per MPI library and analysis
+    cache = os.path.join(a.cache, a.mpi + ("-tsan" if a.tsan else ""))
     env = dict(os.environ, STRETTO_MUST_DIR="/opt/must/%s" % a.mpi, STRETTO_MUST_CC="mpicc.%s" % a.mpi,
                STRETTO_MUST_MPIEXEC="/usr/bin/mpirun.openmpi", STRETTO_MUST_LAYOUT="--must:distributed --must:fanin 4",
-               XDG_CACHE_HOME=a.cache, OMP_NUM_THREADS="2")
+               XDG_CACHE_HOME=cache, OMP_NUM_THREADS="2")
+    if a.tsan:
+        # MUST_DISABLE_TSAN_ONREPORT as scripts/must_run.sh sets it for clang 14 and later; PMIx's
+        # shared-memory store maps its segment where ThreadSanitizer's shadow lies (a SEGV in
+        # pmix_gds_shmem_fetch under MPI_Init_thread), so the store is PMIx's hash one
+        env.update(STRETTO_MUST_TSAN="1", MUST_DISABLE_TSAN_ONREPORT="1", PMIX_MCA_gds="hash")
+        if a.mpi == "openmpi":
+            # Open MPI's shared-memory transport hangs these runs at random (a correct two-rank
+            # MBI program: 5 of 7 runs past 60 s, a-p13, 24 Nov 2026); over TCP 12 of 12 ended in 2 s
+            env["OMPI_MCA_btl"] = "self,tcp"
+    column = "must1112tsan" if a.tsan else "must1112"
     commit = os.environ.get("STRETTO_COMMIT", "")
 
-    def one(r):
+    def one(r, timeout=None):
         w = tempfile.mkdtemp(prefix="suite-must-")
         try:
             os.makedirs(os.path.join(w, "src"))
@@ -130,19 +149,31 @@ def must(a):
             shutil.copy(src, os.path.join(w, "src", "prog.c"))
             e = dict(env, STRETTO_MUST_CFLAGS=" ".join(cflags(a.suite, src)))
             t0 = time.monotonic()
-            p = subprocess.run([os.path.join(ROOT, "scripts", "must_once.sh"), str(r["np"]), str(a.timeout)],
+            p = subprocess.run([os.path.join(ROOT, "scripts", "must_once.sh"), str(r["np"]), str(timeout or a.timeout)],
                                cwd=os.path.join(w, "src"), env=e, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
                                universal_newlines=True)
             v = (p.stdout.strip().splitlines() or ["HARNESS-ERROR:must_once.sh printed nothing"])[-1]
-            return {"name": r["name"], "expect": r["expect"], "np": r["np"], "must1112": "MUST:" + v,
+            return {"name": r["name"], "expect": r["expect"], "np": r["np"], column: "MUST:" + v,
                     "seconds": round(time.monotonic() - t0, 1), "commit": commit}
         finally:
             shutil.rmtree(w, ignore_errors=True)
-    os.makedirs(a.cache, exist_ok=True)
+    os.makedirs(cache, exist_ok=True)
+    # the warm-up (amendment 6): MUST's first run of a process count builds its layout, which a
+    # timed run must not pay; one pass builds at a time (the lock), the others then find it built
+    with open(os.path.join(cache, ".warmup.lock"), "w") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        for np_ in sorted(set(r["np"] for r in todo), key=int):
+            mark = os.path.join(cache, ".warm-np%s" % np_)
+            if not os.path.exists(mark):
+                got = one(next(r for r in todo if r["np"] == np_), timeout=WARMUP_TIMEOUT)
+                print("warm-up np %s: %s, %.1f s (uncounted)" % (np_, got[column], got["seconds"]), flush=True)
+                if not got[column].startswith("MUST:HARNESS-ERROR") and got[column] != "MUST:TIMEOUT":
+                    open(mark, "w").close()
+        fcntl.flock(lock, fcntl.LOCK_UN)
     with ThreadPoolExecutor(max_workers=a.jobs) as ex:
         rows = list(ex.map(one, todo))
     with open(a.out, "w", newline="") as fh:
-        w = csv.DictWriter(fh, fieldnames=["name", "expect", "np", "must1112", "seconds", "commit"], lineterminator="\n")
+        w = csv.DictWriter(fh, fieldnames=["name", "expect", "np", column, "seconds", "commit"], lineterminator="\n")
         w.writeheader()
         w.writerows(rows)
     print("MUST on %d programs of %s into %s" % (len(rows), a.table, a.out))
@@ -161,10 +192,10 @@ def regex(a):
     """A regular expression that selects exactly the programs --select and --limit choose: by name
     (run_mbi.py --select, stress_baseline.py, ninja/run.py corpus) or by path relative to the
     suite's directory (corrbench/run.py --select, stretto_bench.sh ONLY)."""
-    if a.select == "." and not a.limit and a.suite not in ("mbi", "mbb"):
+    if a.select == "." and not a.limit and not a.correct and a.suite not in ("mbi", "mbb"):
         print(".")       # every program; MBI's and MPI-BugBench's are the committed tables' programs, named
         return 0
-    ps = programs(a.suite, a.select, a.limit)
+    ps = programs(a.suite, a.select, a.limit, a.correct)
     if a.form == "name":
         items = [re.escape(n) for n, _, _, _ in ps]
     else:
@@ -190,11 +221,13 @@ def main():
     m.add_argument("--table", required=True)
     m.add_argument("--timeout", type=int, default=60)
     m.add_argument("--cache", default=os.path.join(os.environ.get("PROTOCOL_STATE", "/state"), "must-cache"))
+    m.add_argument("--tsan", action="store_true", help="MUST's ThreadSanitizer analysis, column must1112tsan")
     r = sub.add_parser("regex")
     r.add_argument("--suite", required=True, choices=sorted(SOURCES))
     r.add_argument("--select", default=".")
     r.add_argument("--limit", type=int, default=0)
     r.add_argument("--form", default="name", choices=("name", "path"))
+    r.add_argument("--correct", action="store_true", help="only the programs the suite labels correct (a calibration)")
     a = ap.parse_args()
     return {"fetch-corrbench": fetch_corrbench, "build": build, "must": must, "regex": regex}[a.cmd](a)
 

@@ -162,6 +162,25 @@ class External(unittest.TestCase):
         s = self.ex.spec(dict(j, tool="must", setting="1.11.2"), self.ctx)
         self.assertEqual((s["image"], s["kind"]), ("m", "must"))
 
+    def test_suite_calibration_specs(self):
+        j = {"subject": "mbi", "mpi": "openmpi", "tool": "delays", "setting": "D50", "run": 1, "config": "115 programs",
+             "external": "suite", "block": "mbi/openmpi-calibrate", "calibration": True}
+        s = self.ex.spec(j, self.ctx)
+        self.assertIn("--timeout %d" % self.ex.SUITE_CAL_CAP, s["cmd"])
+        self.assertIn("--correct", s["cmd"])                                       # the programs labelled correct
+        self.assertEqual(s["extra"], ["--set", "calibrated=delays:D50"])
+        s = self.ex.spec(dict(j, tool="stretto", setting="traced", block="mbi/openmpi-stretto-traced", calibration=False,
+                              T=70), self.ctx)
+        self.assertIn("--timeout 70", s["cmd"])                                    # a pass at the suite's T
+        self.assertNotIn("--correct", s["cmd"])
+        s = self.ex.spec(dict(j, subject="corrbench-openmp", tool="must", setting="1.11.2-tsan", calibration=False,
+                              T=40), self.ctx)
+        self.assertIn("--tsan", s["cmd"])
+        self.assertEqual(s["annotate"], ["--must-column", "must1112tsan"])
+        r = {"must1112tsan": "MUST:ERROR:Data race", "expect": "ERROR"}
+        a = type("A", (), {"must_column": "must1112tsan", "recorded_wrong": False})()
+        self.assertEqual(self.ad.must(r, a), self.ad.must({"must1112": r["must1112tsan"], "expect": "ERROR"}, self.a))
+
     def test_external_jobs_in_the_plan(self):
         pl = list(csv.DictReader(io.StringIO(plan.render(plan.plan()))))
         jobs = schedule.jobs_of(pl, r"^corrbench/mpich-", 2)
@@ -175,6 +194,29 @@ class External(unittest.TestCase):
 
 
 class Timeouts(unittest.TestCase):
+    def test_suites(self):
+        d = tempfile.mkdtemp()
+        f = os.path.join(d, "corrbench", "openmpi-calibrate.csv")
+        fields = ["mode", "run", "seconds", "calibrated", "mpi", "commit", "superseded"]
+        rs = [{"mode": "native", "run": 0, "seconds": 9.0, "calibrated": "stretto:traced", "mpi": "openmpi"},   # untraced
+              {"mode": "L1", "run": 1, "seconds": 2.5, "calibrated": "stretto:traced", "mpi": "openmpi"},
+              {"mode": "", "run": "", "seconds": 4.2, "calibrated": "ninja:random", "mpi": "openmpi"},
+              {"mode": "", "run": "", "seconds": 1.0, "calibrated": "ninja:app", "mpi": "openmpi"},
+              {"mode": "", "run": "", "seconds": 300.0, "calibrated": "ninja:app", "mpi": "openmpi"},       # capped
+              {"mode": "", "run": "", "seconds": 0.4, "calibrated": "delays:D50", "mpi": "openmpi"}]
+        rows.append(f, [dict(r, commit="c", superseded="") for r in rs], fields)
+        out = dict((r["tool"], r) for r in calibrate.derive_suites(d, "corrbench"))
+        self.assertEqual((out["stretto"]["T"], out["stretto"]["runs"]), (30, 1))
+        self.assertEqual((out["ninja"]["T"], out["ninja"]["capped"]), (42, 1))       # one T over the tool's settings
+        self.assertEqual(out["delays"]["T"], 30)
+        a = type("A", (), {"timeout": None, "results": d, "state": d, "pool": schedule.POOL})()
+        sc = schedule.Scheduler(a, [])
+        j = {"external": "suite", "subject": "corrbench", "tool": "ninja", "calibration": False}
+        self.assertEqual(sc.timeout_for(j), 42)
+        self.assertEqual(sc.timeout_for(dict(j, tool="must")), None)                 # not calibrated: no T
+        self.assertEqual(sc.timeout_for(dict(j, calibration=True)), 300)
+
+
     def test_rule(self):
         self.assertEqual(calibrate.timeout_of([0.5, 1.2, 2.0]), (30, 0))              # the 30 s floor
         self.assertEqual(calibrate.timeout_of([3.0, 12.31]), (124, 0))                # 10 x the slowest, rounded up
@@ -215,8 +257,19 @@ class Plan(unittest.TestCase):
                 self.assertEqual(r["n"], 40, r)
             if r["setting"] == "nonoise":
                 self.assertEqual(r["n"], 10, r)
-            if r["tool"] == "calibrate":
+            if r["tool"] == "calibrate" and r["runner"] != "external:suite":
                 self.assertEqual((r["n"], r["version"]), (10, "fix"), r)
+            if r["tool"] == "calibrate" and r["runner"] == "external:suite":
+                self.assertEqual((r["n"], r["block"]), (1, "%s/%s-calibrate" % (r["subject"], r["mpi"])), r)
+
+    def test_suite_calibration_and_must_tsan(self):
+        suite = [r for r in self.rows if r["runner"] == "external:suite"]
+        tsan = set(r["subject"] for r in suite if r["setting"] == "1.11.2-tsan")
+        self.assertEqual(tsan, {"mbi", "corrbench-openmp"})                        # amendment 16
+        passes = set((r["subject"], r["mpi"], r["setting"]) for r in suite if r["tool"] not in ("build", "calibrate")
+                     and not r["setting"].endswith("-budget") and r["setting"] != "L2-reexecution")
+        cal = set((r["subject"], r["mpi"], r["setting"].split(":", 1)[1]) for r in suite if r["tool"] == "calibrate")
+        self.assertEqual(passes, cal)                                              # every pass's setting calibrated
 
     def test_every_tool_on_every_configuration(self):
         apps = [r for r in self.rows if r["runner"] == "run.py" and r["setting"] not in ("learn", "nonoise", "serial", "warmup")]

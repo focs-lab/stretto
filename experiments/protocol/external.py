@@ -20,7 +20,7 @@ import shlex
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SUITE_SEED = 20261124          # stress_baseline.py's seed of pass k is SUITE_SEED + k
-SUITE_TIMEOUT = 60             # seconds per program run, as the committed suite runs
+SUITE_CAL_CAP = 300            # seconds per program run of a suite's calibration (amendment 15)
 NINJA_LIB = "libninja-fixed-all.so"
 MPIPRV_IMAGE = "mpiprv/mpiprv@sha256:af980da29375ffca673d1e5a16aa8c1d06a9d69211e79b6f948a137ba95c43cf"
 MPIPRV_STEP = {"hypre": "hypre", "hypre3": "hypre", "petsc": "hypre", "npbmg": "mg", "dealii": "dealii",
@@ -69,10 +69,16 @@ def suite_spec(j, ctx):
     build = base + "/build"
     table = "%s/%s.csv" % (build, suite)
     sel, limit = ctx.get("select", "."), ctx.get("limit", 0)
+    # a calibration runs the programs labelled correct once, at most 300 s each; a pass, at the
+    # suite's T for the tool (amendment 15, calibrate.py derive-suites)
+    cal = j.get("calibration", False)
+    T = int(j["T"]) if not cal and str(j.get("T", "")).isdigit() else SUITE_CAL_CAP    # a build has none
+    if cal:
+        jd = "%s/calibrate-%s-%s" % (base, tool, setting)
 
     def regex(form):
-        return '"$(python3 experiments/protocol/suites.py regex --suite %s --select %s --limit %d --form %s)"' % (
-            suite, q(sel), limit, form)
+        return '"$(python3 experiments/protocol/suites.py regex --suite %s --select %s --limit %d --form %s%s)"' % (
+            suite, q(sel), limit, form, " --correct" if cal else "")
     jobs = 1
     s = {"image": ctx["exp_image"], "env": {"OMP_NUM_THREADS": "2"}, "needs": [], "extra": []}
     if suite != "corrbench-openmp":
@@ -87,19 +93,21 @@ def suite_spec(j, ctx):
             suite, mpi, build, q(sel), limit)
         s["src"], s["kind"] = table, "none"
         return s
+    if cal:
+        s["extra"] = ["--set", "calibrated=%s:%s" % (tool, setting)]
     if tool == "stretto":
         if suite in ("mbi", "mbb"):
             rerun = " --rerun" if setting == "L2-reexecution" else ""
             s["cmd"] = ("python3 experiments/mbi/run_mbi.py --corpus %s --out %s/%s.csv --jobs %d --timeout %d --select %s%s"
-                        % (suite, jd, suite, jobs, SUITE_TIMEOUT, regex("name"), rerun))
+                        % (suite, jd, suite, jobs, T, regex("name"), rerun))
             s["src"], s["kind"] = "%s/%s.csv" % (jd, suite), "corpus"
         elif suite == "corrbench":
-            s["cmd"] = ("REPS=1 python3 experiments/corrbench/run.py --mpi %s --select %s --jobs %d "
-                        "third_party/corrbench/micro-benches/0-level %s/run.csv %s/work" % (mpi, regex("path"), jobs, jd, jd))
+            s["cmd"] = ("REPS=1 TIMEOUT=%d python3 experiments/corrbench/run.py --mpi %s --select %s --jobs %d "
+                        "third_party/corrbench/micro-benches/0-level %s/run.csv %s/work" % (T, mpi, regex("path"), jobs, jd, jd))
             s["src"], s["kind"] = jd + "/run.csv", "corrbench"
         else:
-            s["cmd"] = ("REPS=1 ONLY=%s experiments/mustvc/stretto_bench.sh corrbench "
-                        "third_party/corrbench/micro-benches/0-level/openmp %s/bench.csv %s/work" % (regex("path"), jd, jd))
+            s["cmd"] = ("REPS=1 TIMEOUT=%d ONLY=%s experiments/mustvc/stretto_bench.sh corrbench "
+                        "third_party/corrbench/micro-benches/0-level/openmp %s/bench.csv %s/work" % (T, regex("path"), jd, jd))
             s["src"], s["kind"] = jd + "/bench.csv", "bench"
         s["cmd"] = "mkdir -p %s && %s" % (jd, s["cmd"])
         return s
@@ -107,21 +115,24 @@ def suite_spec(j, ctx):
     budget = setting.endswith("-budget")
     mode = setting[:-len("-budget")] if budget else setting
     runs = 30 if budget else 1
+    pick = " --select %s" % regex("name") if cal else ""
     if tool == "delays":
-        s["cmd"] = ("python3 experiments/stress_baseline.py %s --mpi %s --runs %d --jobs %d --timeout %d --seed %d --out %s/stress.csv"
-                    % (table, mpi, runs, jobs, SUITE_TIMEOUT, SUITE_SEED + j["run"], jd))
+        s["cmd"] = ("python3 experiments/stress_baseline.py %s --mpi %s --runs %d --jobs %d --timeout %d --seed %d --out %s/stress.csv%s"
+                    % (table, mpi, runs, jobs, T, SUITE_SEED + j["run"], jd, pick))
         s["src"], s["kind"] = jd + "/stress.csv", "stress"
     elif tool == "ninja":
         extra = " --rand-ratio 10 --rand-delay 50000" if mode == "random" else ""
         s["env"]["NINJA_LIBRARY"] = NINJA_LIB
-        s["cmd"] = ("python3 experiments/ninja/run.py corpus %s --mode %s%s --mpi %s --runs %d --jobs %d --timeout %d --out %s/ninja.csv"
-                    % (table, mode, extra, mpi, runs, jobs, SUITE_TIMEOUT, jd))
+        s["cmd"] = ("python3 experiments/ninja/run.py corpus %s --mode %s%s --mpi %s --runs %d --jobs %d --timeout %d --out %s/ninja.csv%s"
+                    % (table, mode, extra, mpi, runs, jobs, T, jd, pick))
         s["src"], s["kind"] = jd + "/ninja.csv", "stress"
     elif tool == "must":
         s["image"] = ctx["must_image"]
-        s["cmd"] = ("python3 experiments/protocol/suites.py must --suite %s --mpi %s --table %s --out %s/must.csv --timeout %d --jobs %d"
-                    % (suite, mpi, table, jd, SUITE_TIMEOUT, jobs))
+        tsan = setting.endswith("-tsan")
+        s["cmd"] = ("python3 experiments/protocol/suites.py must --suite %s --mpi %s --table %s --out %s/must.csv --timeout %d --jobs %d%s%s"
+                    % (suite, mpi, table, jd, T, jobs, " --tsan" if tsan else "", pick))
         s["src"], s["kind"] = jd + "/must.csv", "must"
+        s["annotate"] = ["--must-column", "must1112tsan" if tsan else "must1112"]
     else:
         raise ValueError("no suite tool %s" % tool)
     s["cmd"] = "mkdir -p %s && %s" % (jd, s["cmd"])
