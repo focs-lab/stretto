@@ -514,6 +514,9 @@ def plan_rows():
     return list(csv.DictReader(io.StringIO(plan.render(plan.plan()))))
 
 
+REVEALED = ("predicted", "observed-reported")
+
+
 class Review(unittest.TestCase):
     """The amendments after the review of the harness (RULE.md Section 12)."""
 
@@ -627,21 +630,69 @@ class Review(unittest.TestCase):
         self.ad.bench(r, self.a)
         self.assertEqual(r["cell"], "stretto")
 
-    def test_suite_timeouts_and_must(self):                           # amendment 22
+    def test_suite_timeouts_and_must(self):                           # amendments 22 and 28
         a = self.a
-        self.assertEqual(self.ad.stress({"program": "dl", "first_failure": "1", "outcome": "TIMEOUT"}, a), "observed-reported")
-        self.assertEqual(self.ad.stress({"program": "other", "first_failure": "1", "outcome": "TIMEOUT"}, a), "tool-failure")
-        self.assertEqual(self.ad.stress({"program": "other", "first_failure": "1", "outcome": "APP-ERROR:1"}, a),
+        # a timeout on an erroneous program is the symptom, whatever its class
+        self.assertEqual(self.ad.stress({"program": "e", "expect": "ERROR", "first_failure": "1", "outcome": "TIMEOUT"}, a),
                          "observed-reported")
-        m = a
-        self.assertEqual(self.ad.must({"name": "other", "must1112": "MUST:TIMEOUT"}, m), "tool-failure")
-        self.assertEqual(self.ad.must({"name": "dl", "must1112": "MUST:TIMEOUT"}, m), "observed-not-reported")
+        # on a correct one as committed: the delays flag it (tables.py stress, any first_failure)
+        self.assertEqual(self.ad.stress({"program": "c", "expect": "OK", "first_failure": "1", "outcome": "TIMEOUT"}, a),
+                         "observed-reported")
+        self.assertEqual(self.ad.must({"name": "e", "expect": "ERROR", "must1112": "MUST:TIMEOUT"}, a), "observed-not-reported")
+        self.assertEqual(self.ad.must({"name": "c", "expect": "OK", "must1112": "MUST:TIMEOUT"}, a), "missed")  # MBI: no report
+        cb = type("A", (), {"must_column": "must1112", "recorded_wrong": False, "suite": "corrbench"})()
+        self.assertEqual(self.ad.must({"name": "c", "expect": "OK", "must1112": "MUST:TIMEOUT"}, cb), "tool-failure")  # no verdict
         race = "MUST:ERROR:data race (ThreadSanitizer report)"
-        self.assertEqual(self.ad.must({"name": "race", "must1112": race}, m), "predicted")
-        self.assertEqual(self.ad.must({"name": "other", "must1112": race}, m), "missed")       # not a data-race program
-        self.assertEqual(self.ad.must({"name": "other", "must1112": "MUST:ERROR:Argument 2 is negative"}, m), "predicted")
-        self.assertEqual(self.ad.corpus({"name": "other", "run": "TIMEOUT"}, m), "tool-failure")
-        self.assertEqual(self.ad.corrbench({"program": "dl.c", "mode": "native", "result": "TIMEOUT"}, m), "observed-reported")
+        self.assertEqual(self.ad.must({"name": "race", "expect": "ERROR", "must1112": race}, a), "predicted")
+        self.assertEqual(self.ad.must({"name": "dl", "expect": "ERROR", "must1112": race}, a), "missed")   # not a data race
+        self.assertEqual(self.ad.must({"name": "dl", "expect": "ERROR", "must1112": "MUST:ERROR:Argument 2 is negative"}, a),
+                         "predicted")
+        self.assertEqual(self.ad.corpus({"name": "e", "expect": "ERROR", "run": "TIMEOUT"}, a), "observed-not-reported")
+        self.assertEqual(self.ad.corrbench({"program": "e.c", "label": "erroneous", "expect": "ERROR", "mode": "native",
+                                            "result": "TIMEOUT"}, a), "observed-reported")
+
+    def test_committed_suite_reveals(self):                           # amendment 28 against tab:rq2's tables
+        import score
+        res = os.path.join(ROOT, "experiments", "results")
+        for suite in ("mbi", "mbb"):
+            a = type("A", (), {"must_column": "must1112", "recorded_wrong": False, "suite": suite})()
+            corpus = dict((r["name"], r) for r in score.compiled(rows.read(os.path.join(res, suite, suite + ".csv"))))
+            st = [r for r in rows.read(os.path.join(res, suite, "stress.csv")) if r["program"] in corpus]
+            for expect in ("ERROR", "OK"):
+                committed = sum(1 for r in st if r["expect"] == expect and r["first_failure"])     # tables.py stress
+                got = sum(1 for r in st if r["expect"] == expect and self.ad.stress(dict(r), a) in REVEALED)
+                self.assertEqual(got, committed, (suite, "delays", expect))
+                mine = [r for r in corpus.values() if r["expect"] == expect]
+                committed = sum(1 for r in mine if score.must_verdict({"must": r["must1112"]}) == "ERROR")
+                got = sum(1 for r in mine if self.ad.must(dict(r), a) in REVEALED)
+                self.assertEqual(got, committed, (suite, "MUST", expect))
+                committed = sum(1 for r in mine if score.verdict(r) == "ERROR")
+                got = sum(1 for r in mine if self.ad.corpus(dict(r), a) in REVEALED)
+                self.assertEqual(got, committed, (suite, "Stretto", expect))
+            self.assertFalse([r for r in st if self.ad.stress(dict(r), a) == "tool-failure"])
+        # CorrBench's labels the same way: its committed tables' flags (experiments/corrbench/summary.py)
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("corrbench_summary", os.path.join(ROOT, "experiments", "corrbench",
+                                                                                         "summary.py"))
+        cbs = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(cbs)
+        a = type("A", (), {"must_column": "must", "recorded_wrong": False, "suite": "corrbench"})()
+        cb = os.path.join(ROOT, "experiments", "corrbench")
+        for label in ("erroneous", "correct"):
+            ms = [r for r in rows.read(os.path.join(cb, "must.csv")) if r["label"] == label]
+            committed = sum(1 for r in ms if score.must_kind({"must": r["must"]}) == "ERROR")
+            self.assertEqual(sum(1 for r in ms if self.ad.must(dict(r), a) in REVEALED), committed, ("CorrBench MUST", label))
+            ss = [r for r in rows.read(os.path.join(cb, "stretto-openmpi.csv")) if r["label"] == label and r["mode"] == "trace"]
+            # flagged, and "failed run only" (an error finding observed on a run that did not finish),
+            # which Section 3 counts as observed-reported
+            flags = [cbs.stretto_flag(r, False) for r in ss]
+            got = [self.ad.corrbench(dict(r), a) for r in ss]
+            self.assertEqual(sum(1 for g in got if g in REVEALED), flags.count(True) + flags.count("abort"), ("CorrBench Stretto", label))
+            self.assertFalse([1 for f, g in zip(flags, got) if f is True and g not in REVEALED])
+        # the counts the review named: 53 of MBI's erroneous programs revealed by the delays, 172 of
+        # MPI-BugBench's (of them 49 and 168 by a timeout)
+        mbi = [r for r in rows.read(os.path.join(res, "mbi", "stress.csv")) if r["expect"] == "ERROR" and r["first_failure"]]
+        self.assertEqual((len(mbi), sum(r["outcome"] == "TIMEOUT" for r in mbi)), (53, 49))
 
     def test_uintah_plain_build(self):                                # amendment 27
         self.assertEqual(self.ad.series({"build": "plain", "outcome": "fail"}, self.a), "observed-reported")

@@ -88,12 +88,12 @@ def programs(suite, select=".", limit=0, correct=False):
 
 
 def labels(suite):
-    """{name: (deadlock, datarace)} of a suite's programs (RULE.md amendment 22): whether the
-    program's label makes it a deadlock (a timeout is its symptom) and a data race (a data-race
-    report of MUST's ThreadSanitizer build counts). MBI and MPI-BugBench: the header (description
-    and expected result) of an erroneous program mentions a deadlock, or a data race or one of the
-    concurrency classes; CorrBench: its error's description in experiments/corrbench/programs.csv;
-    its OpenMP programs: the path (a deadlock in the name, an erroneous one under data_race/)."""
+    """{name: (erroneous, datarace)} of a suite's programs: whether the suite labels the program
+    erroneous (a run of it that does not finish within T shows the symptom, amendment 28) and a data
+    race (a data-race report of MUST's ThreadSanitizer build counts, amendment 22). MBI and
+    MPI-BugBench: the header of an erroneous program names a data race or one of the concurrency
+    classes; CorrBench: its error's description in experiments/corrbench/programs.csv; its OpenMP
+    programs: the path (an erroneous one under data_race/)."""
     out = {}
     why = {}
     if suite == "corrbench":
@@ -110,13 +110,13 @@ def labels(suite):
                     if "END_MBI_TESTS" in line or "END_MBB_TESTS" in line:
                         break
             text = "".join(head)
-            out[name] = (bool(re.search(r"dead ?lock", text, re.I)), bool(re.search(r"concurrency|data ?race", text, re.I)))
+            out[name] = (True, bool(re.search(r"concurrency|data ?race", text, re.I)))
         elif suite == "corrbench":
             w = why.get(name, "")
-            out[name] = ("deadlock" in w, bool(re.search(r"race|buffer is written|write one buffer", w)))
+            out[name] = (True, bool(re.search(r"race|buffer is written|write one buffer", w)))
         else:
             rel = os.path.relpath(src, SOURCES[suite])
-            out[name] = ("deadlock" in rel, rel.startswith("data_race/"))
+            out[name] = (True, rel.startswith("data_race/"))
     return out
 
 

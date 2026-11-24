@@ -26,9 +26,14 @@ on a program or variant without the bug the same categories are written and read
             findings at the bug's site (SLATE in_permuteRows > 0; DLA-Future and PaRSEC
             l1_receive_findings > 0); a report that is not complete is a tool failure
 
-On a suite (--suite, RULE.md amendment 22) a timeout is the symptom only of a program labelled a
-deadlock (suites.py labels) and a tool failure on any other; MUST's report counts when it holds
-an error, a data race alone (its summary "data race...") only on a program labelled a data race.
+On a suite (--suite, RULE.md amendment 28) a run of a program labelled erroneous that does not
+finish within T shows the symptom; on a program labelled correct a timeout counts as the committed
+tab:rq2 scripts count it: the delays' and NINJA's as a failing run (experiments/tables.py stress:
+any first_failure), MUST's on MBI and MPI-BugBench as no report (experiments/mbi/score.py
+must_verdict: TIMEOUT is not ERROR) and on CorrBench as a run without a verdict, a tool failure
+(experiments/corrbench/summary.py), Stretto's by its report (score.verdict, the run's end aside).
+MUST's report counts when it holds an error, a data race alone (its summary "data race...") only
+on a program labelled a data race (amendment 22).
 Stretto's suite rows say which cell they belong to (column cell, amendment 23): the traced runs
 "stretto", corrbench/run.py's native runs and stretto_bench.sh's untraced run 0 "plain", the
 buffer guard's runs "stretto-guard" (an appendix cell). Uintah's plain build: every run that does
@@ -53,26 +58,33 @@ import rows  # noqa: E402
 _LABELS = {}
 
 
-def label_of(r, a):
-    """(deadlock, datarace) of the suite program a row is of; (None, None) off a suite."""
+def label_of(r, a, race=False):
+    """(erroneous, datarace) of the suite program a row is of; (None, None) off a suite. The row's
+    own expect column says whether it is erroneous where it has one; the data-race label, which
+    needs the suite's sources (suites.labels), only when race is asked for."""
     if not getattr(a, "suite", None):
         return None, None
-    if a.suite not in _LABELS:
-        import suites
-        _LABELS[a.suite] = suites.labels(a.suite)
     name = r.get("name") or r.get("program") or ""
     if name.endswith(".c") or name.endswith(".cpp"):
         name = name.rsplit(".", 1)[0].replace("/", "__")
-    return _LABELS[a.suite].get(name, (False, False))
+    if r.get("expect") in ("OK", "ERROR") and not race:
+        return r["expect"] == "ERROR", None
+    if r.get("label") in ("correct", "erroneous") and not race:         # CorrBench's rows
+        return r["label"] == "erroneous", None
+    if a.suite not in _LABELS:
+        import suites
+        _LABELS[a.suite] = suites.labels(a.suite)
+    return _LABELS[a.suite].get(name, (r.get("expect") == "ERROR", False))
 
 
-def timed_out(r, a, end):
-    """outcome() of a run that ended by its timeout (amendment 22): the symptom of a program labelled
-    a deadlock, a tool failure on any other suite program; None off a suite (the caller decides)."""
-    deadlock, _ = label_of(r, a)
-    if deadlock is None:
+def timed_out(r, a, end, correct=None):
+    """outcome() of a run that did not finish within T (amendment 28): the symptom on a program
+    labelled erroneous; on a correct one `correct`, the committed count (None: the caller's own
+    rule); None off a suite (the caller decides)."""
+    erroneous, _ = label_of(r, a)
+    if erroneous is None:
         return None
-    return rows.outcome(True, end) if deadlock else rows.outcome(False, False, failed=True)
+    return rows.outcome(True, end) if erroneous else correct
 
 
 def stress(r, a):
@@ -92,9 +104,14 @@ def must(r, a):
         return rows.outcome(False, False, failed=True)
     f = k == "ERROR"
     if f and (v[5:] if v.startswith("MUST:") else v).startswith("ERROR:data race"):
-        f = bool(label_of(r, a)[1]) or label_of(r, a)[1] is None      # a data race counts on data-race programs
+        race = label_of(r, a, race=True)[1]
+        f = race is None or bool(race)      # a data race counts on data-race programs
     if k == "TIMEOUT":
-        got = timed_out(r, a, f)
+        # on a correct program: no report as tab:rq2 counts MUST on MBI and MPI-BugBench, no verdict
+        # (a tool failure) as CorrBench's summary does
+        corr = rows.outcome(False, False, failed=True) if (getattr(a, "suite", "") or "").startswith("corrbench") \
+            else rows.outcome(False, False)
+        got = timed_out(r, a, f, corr)
         if got is not None:
             return got
     return rows.outcome(k == "TIMEOUT", f)
