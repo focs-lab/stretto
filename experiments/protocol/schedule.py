@@ -350,9 +350,33 @@ class Scheduler:
                 self.timeouts[key] = dict((r["tool"], int(r["T"])) for r in rows.read(
                     os.path.join(self.a.results, j["subject"], "suite-timeouts.csv")) if r["T"])
             return self.timeouts[key].get(j["tool"])
-        if j["external"]:
-            # the thread scripts' own timeouts; a suite's build has none
-            return "script"
+        if j["external"] == "suite" or (j["external"] == "threadreplay" and j["setting"] == "replay-enumerate"):
+            return 0                     # a build or an enumeration: no run, no T
+        if j["external"] in ("thread", "mustvc", "threadreplay"):
+            # T per cell, from the thread campaigns' calibrations (amendment 20; calibrate.py derive-threads)
+            if j["calibration"]:
+                return CALIBRATION_CAP
+            if self.a.timeout:
+                return self.a.timeout
+            if "threads" not in self.timeouts:
+                t = {}
+                for r in rows.read(os.path.join(self.a.results, "thread-timeouts.csv")):
+                    if r["T"]:
+                        t.setdefault(r["block"], {})[r["cell"]] = int(r["T"])
+                self.timeouts["threads"] = t
+            have = self.timeouts["threads"].get(external.target_block(j), {})
+            need = external.cells_of(j)
+            return dict((c, have[c]) for c in need) if all(c in have for c in need) else None
+        if j["external"] == "locks":
+            # the lock replays' programs are CorrBench's OpenMP ones and the idioms: Stretto's T there
+            if self.a.timeout:
+                return self.a.timeout
+            return self.timeout_for(dict(j, external="suite", subject="corrbench-openmp", tool="stretto", calibration=False))
+        if j["external"] == "mpiprv":
+            # its one program run (LAMMPS) at the subject's plain T
+            if self.a.timeout:
+                return self.a.timeout
+            return self.timeout_for(dict(j, external=None, tool="plain", setting="-", calibration=False))
         if j["calibration"] or j["setting"] in ("learn", "warmup"):
             # NINJA's learning run comes before the calibration (the application-centric runs of the
             # calibration start from its files too) and is retried until one finishes: it gets the cap
@@ -426,10 +450,18 @@ class Scheduler:
             extra += ["-e", "%s=%s" % (k, v)]
         image = sp["image"]
         cmd = cmd[:-1] + extra + [image]
-        sets = ["host=" + rows.host(), "cpus=" + rows.cpuset(cpus), "jobs=%d" % njobs, "timeout=%s" % timeout,
+        sets = ["host=" + rows.host(), "cpus=" + rows.cpuset(cpus), "jobs=%d" % njobs,
                 "commit=" + self.a.commit, "protocol_job=" + key_of(j)] + [x for x in sp.get("extra", []) if x != "--set"]
+        ann = list(sp.get("annotate", []))
+        if isinstance(timeout, dict):
+            if j["external"] == "threadreplay":
+                sets.append("timeout=%d" % list(timeout.values())[0])
+            else:
+                ann += ["--cell-timeouts", " ".join("%s=%d" % kv for kv in sorted(timeout.items()))]
+        else:
+            sets.append("timeout=%s" % timeout)
         annotate = "python3 experiments/protocol/adapters.py annotate --kind %s %s %s.part%s --set %s && mv %s.part %s" % (
-            sp["kind"], external.q(sp["src"]), external.q(row), "".join(" " + external.q(x) for x in sp.get("annotate", [])),
+            sp["kind"], external.q(sp["src"]), external.q(row), "".join(" " + external.q(x) for x in ann),
             " ".join(external.q(x) for x in sets), external.q(row), external.q(row))
         tail = ("; chown %s %s 2>/dev/null" % (self.ctx()["owner"], external.q(row))) if user == "root" else ""
         # the script's table is annotated only when the script ended well: a script that died mid-pass
@@ -522,7 +554,7 @@ class Scheduler:
                         todo.remove(j)       # fewer distinct alternatives than the plan's most
                         continue
                     t = self.timeout_for(j)
-                    if not t:
+                    if t is None:          # 0: a build or an enumeration, which runs nothing
                         if (j["subject"], j["config"], j["tool"], j["setting"]) not in blocked:
                             blocked.add((j["subject"], j["config"], j["tool"], j["setting"]))
                             self.log("no T for %s %s %s %s (calibrate.py first)" % (j["subject"], j["config"], j["tool"], j["setting"]))

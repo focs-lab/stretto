@@ -57,6 +57,75 @@ def q(x):
     return shlex.quote(str(x))
 
 
+# The cells of the thread campaigns' blocks by the names their scripts give them (TIMEOUTS of
+# experiments/thread_timeouts.sh), each with its T (amendment 20); MUST-vc's runs without MUST as
+# native:<cell>. The first cell is the concurrency check's (plain-serial); the replay cell the
+# traced cell whose T the replays of threadreplays.py take.
+THREAD_CELLS = {
+    "slate/series": ["wide-2x2", "wide-4x1", "square-2x2", "wide-2x2-1thread"],
+    "slate/traced": ["wide-2x2", "wide-4x1", "square-2x2", "partial-2x2", "mt9-2x2"],
+    "dlaf/series": ["2x1-offset", "2x1-offset-jitter", "2x1-blocks-jitter", "4x1-offset-jitter", "3x2-offset-jitter",
+                    "2x2-offset-jitter"],
+    "dlaf/traced": ["2x1-offset-jitter", "4x1-offset-jitter", "3x2-offset-jitter", "2x2-offset-jitter",
+                    "2x1-offset-1thread"],
+    "parsec/series": ["vp2-mt", "vp2-serialized", "vp1-mt", "vp2-mt-4ranks", "shipped-vp2-mt"],
+    "parsec/traced": ["vp2-mt", "vp2-mt-4ranks", "vp2-serialized", "vp1-mt"],
+    "uintah/series": ["np4-nthreads2", "np4-nthreads4"],
+}
+MUSTVC_CELLS = {"slate": ["wide-2x2", "wide-2x2-compat", "wide-4x1-compat"], "parsec": ["vp2-mt", "vp2-mt-4ranks"],
+                "dlaf": ["2x1-offset-jitter", "4x1-offset-jitter"], "uintah": ["np4-t4", "np4-t2"]}
+for _app, _cells in MUSTVC_CELLS.items():
+    THREAD_CELLS["mustvc/" + _app] = _cells + ["native:" + c for c in _cells]
+REPLAY_CELL = {"slate": "wide-4x1", "parsec": "vp2-mt", "dlaf": "2x1-offset-jitter"}
+
+
+def target_block(j):
+    """The block whose cells' T a thread job takes (thread-timeouts.csv): a calibration's own
+    target, the concurrency check's series, the replays' traced cells."""
+    b, subj = j["block"], j["subject"]
+    if "/calibrate-" in b:
+        return b.replace("/calibrate-", "/")
+    if j.get("external") == "thread" and j.get("setting") == "serial":
+        return "%s/series-openmpi" % subj
+    if j.get("external") == "threadreplay":
+        return "%s/traced-openmpi" % subj
+    return b
+
+
+def cells_of(j):
+    """The cells a thread job needs a T for."""
+    t = target_block(j)
+    if t.startswith("mustvc/"):
+        return THREAD_CELLS[t]
+    subj, rest = t.split("/", 1)
+    cells = THREAD_CELLS["%s/%s" % (subj, rest.split("-", 1)[0])]
+    if j.get("setting") == "serial":
+        return cells[:1]
+    if j.get("external") == "threadreplay":
+        return [REPLAY_CELL[subj]]
+    return cells
+
+
+def thread_timeouts(j, env):
+    """TIMEOUTS (or a calibration's CAP) of experiments/thread_timeouts.sh for the job's T: a dict
+    per cell, or one number (a calibration, or --timeout)."""
+    T = j.get("T")
+    if isinstance(T, dict):
+        env["TIMEOUTS"] = " ".join("%s=%d" % (c, T[c]) for c in sorted(T))
+    elif T not in (None, ""):
+        env["CAP"] = str(int(T))
+
+
+def calibrating(j, s, jd):
+    """A calibration job of a thread block: the fixed variant only, RUNS=1, the traced runs not
+    analysed, each run's seconds into its own table."""
+    s["env"].update({"VARIANTS": "fix" if j["subject"] == "uintah" and not j["block"].startswith("mustvc/") else "fixed",
+                     "ANALYSE": "0", "SECONDS_OUT": jd + "/seconds.csv"})
+    s["extra"] += ["--set", "calibrated=" + target_block(j)]
+    s["cmd"] = "mkdir -p %s && echo name,variant,run,seconds,rc > %s/seconds.csv && %s" % (jd, jd, s["cmd"])
+    s["src"], s["kind"] = jd + "/seconds.csv", "none"
+
+
 def suite_spec(j, ctx):
     """One pass of one tool on one suite under one MPI library, or the suite's build. The selection
     (ctx select and limit: every program in the campaign, a handful in the smoke test) is the build's
@@ -150,7 +219,13 @@ def thread_spec(j, ctx):
     m, subj, k = ctx["machine"], j["subject"], j["run"]
     jd = "/state/threads/%s/%s-%02d" % (subj, j["block"].split("/")[1], k)
     s = {"env": {"RUNS": "1", "STRETTO_COMMIT": ctx["commit"]}, "needs": [], "extra": ["--set", "run=%d" % k], "mounts": []}
-    kind, mpi = j["block"].split("/")[1].split("-", 1) if "-" in j["block"].split("/")[1] else (j["block"].split("/")[1], "")
+    tb = target_block(j).split("/")[1]
+    kind, mpi = tb.split("-", 1) if "-" in tb else (tb, "")
+    thread_timeouts(j, s["env"])
+    serial = j.get("setting") == "serial"
+    if serial:
+        # the concurrency check (amendment 20): the first cell's plain variant, alone on the machine
+        s["env"].update({"ONLY": cells_of(j)[0], "VARIANTS": "plain"})
     if subj == "slate":
         # experiments/slate/build-lib.sh's output under SLATE_HOME, mounted at /h where it was built
         # (the driver's runpath names its build directory)
@@ -190,10 +265,14 @@ def thread_spec(j, ctx):
         s["cmd"] = ("experiments/uintah/series.sh %s/series.csv %s plain=%s/%s fix=%s/%s"
                     % (jd, ups, inside, m.get(pre + "PLAIN_SUS", "plain/StandAlone/sus"), inside,
                        m.get(pre + "FIX_SUS", "fix/StandAlone/sus")))
+        if serial:
+            s["env"].update({"SETTINGS": "4 -nthreads 2"})
         s["src"], s["kind"] = jd + "/series.csv", "series"
     else:
         raise ValueError("no thread subject %s" % subj)
     s["cmd"] = "mkdir -p %s && %s" % (jd, s["cmd"])
+    if j.get("calibration"):
+        calibrating(j, s, jd)
     return s
 
 
@@ -211,14 +290,17 @@ def threadreplay_spec(j, ctx):
         if m.get(p + "_LD_LIBRARY_PATH"):
             s["env"]["LD_LIBRARY_PATH"] = m[p + "_LD_LIBRARY_PATH"]
     t = "python3 experiments/protocol/threadreplays.py"
+    T = j.get("T")
+    T = T[REPLAY_CELL[subj]] if isinstance(T, dict) else (T or 0)
     if setting == "replay-trace":
-        s["cmd"], s["kind"] = "%s trace --subject %s --run %d --out %s/trace.csv" % (t, subj, k, jd), "none"
+        s["cmd"], s["kind"] = "%s trace --subject %s --run %d --timeout %d --out %s/trace.csv" % (t, subj, k, int(T), jd), "none"
         s["src"] = jd + "/trace.csv"
     elif setting == "replay-enumerate":
         s["cmd"], s["kind"] = "%s enumerate --subject %s --out %s/enumerate.csv" % (t, subj, jd), "none"
         s["src"] = jd + "/enumerate.csv"
     else:
-        s["cmd"] = "%s replay --subject %s --index %d --mode %s --out %s/replay.csv" % (t, subj, k, setting.split("-", 1)[1], jd)
+        s["cmd"] = "%s replay --subject %s --index %d --mode %s --timeout %d --out %s/replay.csv" % (
+            t, subj, k, setting.split("-", 1)[1], int(T), jd)
         s["src"], s["kind"] = jd + "/replay.csv", "threadreplay"
     s["cmd"] = "mkdir -p %s && %s" % (jd, s["cmd"])
     return s
@@ -226,23 +308,27 @@ def threadreplay_spec(j, ctx):
 
 def mustvc_spec(j, ctx):
     m, app, k = ctx["machine"], j["subject"], j["run"]
-    jd = "/state/mustvc/%s-%02d" % (app, k)
+    jd = "/state/mustvc/%s-%s%02d" % (app, "calibrate-" if j.get("calibration") else "", k)
     mvc = m.get("MUSTVC_WORK", "")
     s = {"image": m.get("MUSTVC_IMAGE", "mustvc:1.9-omp"), "needs": [], "extra": ["--set", "run=%d" % k],
          "mounts": [(mvc, "/mvc", "rw")], "env": {"RUNS": "1", "WARMUP": "1" if k == 1 else "0", "STRETTO_COMMIT": ctx["commit"]}}
     if app in ("parsec", "dlaf"):
         s["mounts"].append((os.path.join(mvc, app), "/h", "ro"))
     if app == "uintah":
-        s["env"].update({"TIMEOUT": "300", "NTIMEOUT": "120", "WARMUP": "0"})
+        s["env"]["WARMUP"] = "0"         # its MUST runs all time out (apps.sh)
+    thread_timeouts(j, s["env"])
     s["cmd"] = "mkdir -p %s && experiments/mustvc/apps.sh %s %s/apps.csv %s/work" % (jd, app, jd, jd)
     s["src"], s["kind"] = jd + "/apps.csv", "mustvc"
+    if j.get("calibration"):
+        calibrating(j, s, jd)
     return s
 
 
 def locks_spec(j, ctx):
     m = ctx["machine"]
     jd = "/state/locks/run%02d" % j["run"]
-    return {"image": ctx["exp_image"], "needs": [], "extra": [], "env": {"STRETTO_COMMIT": ctx["commit"]},
+    return {"image": ctx["exp_image"], "needs": [], "extra": [],
+            "env": {"STRETTO_COMMIT": ctx["commit"], "TIMEOUT": str(int(j.get("T") or 0))},
             "mounts": [(m.get("LOCKS_CORRBENCH_OPENMP", ""), "/l/cb", "ro"), (m.get("LOCKS_ARTIFACT_TESTS", ""), "/l/at", "ro")],
             "cmd": "mkdir -p %s && make -s -C idioms MPI=openmpi && experiments/mustvc/lock_replays.sh /l/cb /l/at %s/work %s/locks.csv"
                    % (jd, jd, jd),
@@ -255,6 +341,7 @@ def mpiprv_spec(j, ctx):
     return {"image": MPIPRV_IMAGE, "user": "root", "docker": ["--cap-add", "SYS_PTRACE"], "needs": [], "extra": [],
             "mounts": [], "env": {"MUST_APPS_DIR": "/w/third_party/apps", "HIST_APPS_DIR": "/w/third_party/apps",
                                   "MPIPRV_OUT": jd + "/attempt.csv", "STRETTO_COMMIT": ctx["commit"],
+                                  "TIMEOUT": str(int(j.get("T") or 0)),
                                   "PYTHONDONTWRITEBYTECODE": "1"},   # the image runs as root: nothing of root's in /w
             "cmd": "source /root/.bashrc; mkdir -p %s && rm -f %s/attempt.csv && experiments/mpiprv/stretto_apps.sh %s; rc=$?; chown -R %s /state/mpiprv /w/experiments/mpiprv/work 2>/dev/null; exit $rc"
                    % (jd, jd, step, ctx["owner"]),

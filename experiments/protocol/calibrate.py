@@ -32,8 +32,13 @@ own: the traced run's (run_mbi.py, corrbench/run.py's traced mode, stretto_bench
 the untraced one), stress_baseline.py's and ninja/run.py corpus's per program, suites.py must's
 (MUST's compilation of the program included).
 
+The thread campaigns (amendment 20): their "<subject>/calibrate-<block>" blocks (MUST-vc's
+"mustvc/calibrate-<app>") run each cell's fixed variant (a control cell's plain one) 10 times at
+the 1 800 s cap; `derive-threads` writes RESULTS/thread-timeouts.csv, one T per block and cell.
+
 usage: calibrate.py derive [--results DIR] [--subjects S ...] [--buggy S ...] [--runs 10]
        calibrate.py derive-suites [--results DIR] [--subjects S ...]
+       calibrate.py derive-threads [--results DIR] [--runs 10]
 Python 3.6 runs this file.
 """
 import argparse
@@ -53,6 +58,7 @@ CALIBRATION_CAP = 1800
 SUITE_CAP = 300
 FIELDS = ["subject", "config", "tool", "setting", "runs", "slowest", "T", "capped", "results", "commit"]
 SUITE_FIELDS = ["suite", "tool", "runs", "slowest", "T", "capped", "settings", "commit"]
+THREAD_FIELDS = ["block", "cell", "runs", "slowest", "T", "capped", "commit"]
 
 
 def timeout_of(seconds, cap=CALIBRATION_CAP):
@@ -134,14 +140,53 @@ def derive_suites(results, suite):
     return out
 
 
+def derive_threads(results, runs=RUNS):
+    """The thread campaigns' T per block and cell (amendment 20): RESULTS/*/calibrate-*.csv, the
+    seconds experiments/thread_timeouts.sh noted for each run of a cell's fixed (or control)
+    variant, the first `runs` current runs of each; RESULTS/thread-timeouts.csv: block, cell, runs,
+    slowest, T, capped, commit (T empty with fewer runs: that cell's block cannot start)."""
+    import glob
+    by, commits = collections.defaultdict(list), collections.defaultdict(set)
+    for path in sorted(glob.glob(os.path.join(results, "*", "calibrate-*.csv"))):
+        for r in rows.current(rows.read(path)):
+            block = r.get("calibrated", "")
+            if "/" not in block:
+                continue
+            try:
+                by[(block, r["name"])].append((int(r["run"]), float(r["seconds"])))
+            except (KeyError, ValueError):
+                continue
+            commits[(block, r["name"])].add(r.get("commit", ""))
+    out = []
+    for (block, cell), got in sorted(by.items()):
+        secs = [x for _, x in sorted(got)[:runs]]
+        t, capped = timeout_of(secs, CALIBRATION_CAP) if len(secs) >= runs else ("", 0)
+        out.append({"block": block, "cell": cell, "runs": len(secs), "slowest": max(secs), "T": t, "capped": capped,
+                    "commit": ";".join(sorted(commits[(block, cell)]))})
+    dest = os.path.join(results, "thread-timeouts.csv")
+    if out:
+        if os.path.exists(dest):
+            os.replace(dest, dest + ".previous")
+        rows.append(dest, out, THREAD_FIELDS)
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("cmd", choices=["derive", "derive-suites"])
+    ap.add_argument("cmd", choices=["derive", "derive-suites", "derive-threads"])
     ap.add_argument("--results", default=os.path.join(HERE, "results"))
     ap.add_argument("--subjects", nargs="*", default=None)
     ap.add_argument("--buggy", nargs="*", default=[])
     ap.add_argument("--runs", type=int, default=RUNS, help="calibration runs per setting (10; fewer only for the smoke test)")
     a = ap.parse_args()
+    if a.cmd == "derive-threads":
+        bad = 0
+        for r in derive_threads(a.results, a.runs):
+            print("%s %s: %d runs, slowest %.1f s -> T %s%s" % (r["block"], r["cell"], r["runs"], r["slowest"],
+                                                              r["T"] or "none (too few runs)",
+                                                              " (%d reached the cap)" % r["capped"] if r["capped"] else ""))
+            bad += r["T"] == ""
+        return 1 if bad else 0
     if a.cmd == "derive-suites":
         import glob
         subs = a.subjects if a.subjects else sorted(d for d in os.listdir(a.results)

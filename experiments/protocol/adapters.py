@@ -118,6 +118,10 @@ def series(r, a):
         return rows.outcome(False, False)
     if v in ("wrong", "truncate"):
         return rows.outcome(True, True)
+    if v.startswith("crash") and str(r.get("rc")) == "15":
+        return rows.outcome(True, True)       # Open MPI's abort of MPI_ERR_TRUNCATE whose message was lost (run.py abort_class)
+    if r.get("build") == "plain" and v in ("fail", "hang"):
+        return rows.outcome(True, True)       # Uintah's plain build: the garbage reduction's abort and its hang alike (amendment 27)
     return rows.outcome(False, False, failed=True)
 
 

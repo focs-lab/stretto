@@ -41,6 +41,7 @@
 #            against the installed headers and the generated mpi.inst of the Open MPI build of
 #            experiments/dealii8929/run.sh, DEALII8929_DIR)
 # Writes experiments/results/mpiprv/stretto-apps.csv; logs under experiments/mpiprv/work/apps/.
+# TIMEOUT bounds LAMMPS's instrumented run (120 s; the uniform campaign passes its calibrated T).
 # usage: experiments/mpiprv/prv.sh experiments/mpiprv/stretto_apps.sh
 #        [hypre|dealii|mg|cabana|stempy|mfem332|lammps|superlu|qe|dealii8929 ...]
 set -uo pipefail
@@ -197,7 +198,7 @@ step_lammps() {
          && make mpi CC=mpicxx LINK=mpicxx CCFLAGS="-g -O2 -std=c++11" MPI_LIB="$W/aspect/libaspect.a" >> "$d/make.log" 2>&1) \
         || { row lammps 3a2da51a "in.displace, 4 ranks" "LAMMPS built with the instrumented irregular.cpp" "build failed: $(tail -1 "$d/make.log" | tr '"' "'")" unsupported "the instrumented build does not link"; return 0; }
     local r="$d/run"; rm -rf "$r" && mkdir -p "$r" && cd "$r" || return 1
-    /usr/bin/timeout -k 5 120 mpirun --allow-run-as-root -np 4 "$b/lmp_mpi" -in "$R/experiments/lammps/in.displace" -log none \
+    /usr/bin/timeout -k 5 "${TIMEOUT:-120}" mpirun --allow-run-as-root -np 4 "$b/lmp_mpi" -in "$R/experiments/lammps/in.displace" -log none \
         > run.log 2>&1 < /dev/null
     local rc=$? ev=0 res=() n
     [ -f output.txt ] && ev=$(grep -c "^event" output.txt)

@@ -230,6 +230,19 @@ def thread_rows():
     L1+L lock replays, two per finding, as committed."""
     out = []
     for subject, path, keys, kind, mpi, cpus, image, runner in THREADS:
+        tool, setting = ("stretto", "traced") if kind == "traced" else ("plain", "series")
+        # amendment 20: T per cell from 10 runs of its fixed (or, for a control cell, plain) variant
+        out.append({"block": "%s/calibrate-%s-%s" % (subject, kind, mpi), "subject": subject, "config": "cells as committed",
+                    "np": "", "mpi": mpi, "version": "fix", "tool": "calibrate", "setting": "%s:%s" % (tool, setting),
+                    "n": CALIBRATION_RUNS, "table": "prerequisite", "cpus": cpus, "alone": 0, "image": image,
+                    "runner": "external:thread",
+                    "notes": "%s with VARIANTS=fixed, RUNS=1 per job, 1 800 s cap: T = max(30 s, 10 x the slowest) per cell"
+                             % runner})
+        if kind == "series" and mpi == "openmpi":
+            out.append({"block": "%s/plain-serial" % subject, "subject": subject, "config": "the first cell",
+                        "np": "", "mpi": mpi, "version": "bug", "tool": "plain", "setting": "serial", "n": N,
+                        "table": "check", "cpus": cpus, "alone": 1, "image": image, "runner": "external:thread",
+                        "notes": "%s, the first cell's plain variant alone on the machine (Section 1.9, amendment 20)" % runner})
         cells = []
         for k in _cells(path, keys):
             if subject == "uintah":
@@ -238,7 +251,6 @@ def thread_rows():
                 cells.append("np%s %s (%s)" % (k[2], k[3], k[1]))
             else:
                 cells.append("%s (%s)" % (k[0], k[1]))
-        tool, setting = ("stretto", "traced") if kind == "traced" else ("plain", "series")
         out.append({"block": "%s/%s-%s" % (subject, kind, mpi), "subject": subject, "config": "cells as committed", "np": "",
                     "mpi": mpi, "version": "-", "tool": tool, "setting": setting, "n": N, "table": "main", "cpus": cpus,
                     "alone": 0, "image": image, "runner": "external:thread",
@@ -256,6 +268,11 @@ def thread_rows():
                                 notes="threadreplays.py replay: each alternative twice with its control, gate mode %s%s"
                                       % (mode, "" if len(REPLAY_MODES[subject]) > 1 else " (its replay.sh's one mode)")))
     for subject, cpus in (("uintah", 18), ("slate", 18), ("dlaf", 14), ("parsec", 10)):
+        out.append({"block": "mustvc/calibrate-%s" % subject, "subject": subject, "config": "the thread bug's cells",
+                    "np": "", "mpi": "mpich", "version": "fix", "tool": "calibrate", "setting": "mustvc:vector-clock",
+                    "n": CALIBRATION_RUNS, "table": "prerequisite", "cpus": cpus, "alone": 0, "image": "mustvc:1.9-omp",
+                    "runner": "external:mustvc",
+                    "notes": "experiments/mustvc/apps.sh with VARIANTS=fixed: T per cell, with MUST-vc and without"})
         out.append({"block": "mustvc/%s" % subject, "subject": subject, "config": "the thread bug's cells", "np": "",
                     "mpi": "mpich", "version": "-", "tool": "mustvc", "setting": "vector-clock", "n": N,
                     "table": "main", "cpus": cpus, "alone": 0, "image": "mustvc:1.9-omp", "runner": "external:mustvc",
