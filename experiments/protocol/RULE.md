@@ -321,3 +321,25 @@ These amendments settle what the review found the rule left open.
     table. It is redone, and the earlier enumeration superseded, if that set of runs changes.
 27. **Uintah's symptom (3).** As committed, every run of the plain builds that does not pass is the
     symptom: the garbage reduction's abort ("fail") and a hang alike.
+
+## 13. Amendments after the review of the harness's fixes (25 Nov 2026)
+
+The same reviewer read the fixes of Section 12 before any counted run. Two of the amendments of
+Section 12 were worded against what the suites and the machine can tell apart; these replace
+them.
+
+28. **Timeouts on the suites (replaces the second point of 22).** MBI and MPI-BugBench label a
+    bug's class (MessageRace, CallOrdering, ...), not its symptom, and most of their bugs show
+    as a hang. As in `tab:rq2`, a run of a program labelled erroneous that does not finish within
+    T shows the symptom. On a program labelled correct, a timeout is counted as committed. The
+    share of each column's reveals that are timeouts is given beside it.
+29. **Which kill is a tool failure (25, 1.8).** A run whose container exits 137 before T is a
+    tool failure only when Docker records it as killed by the job's own memory limit. Any other
+    kill (by an operator, by the host's memory cap, by a stopped daemon) is a harness failure
+    under 1.8. The same applies to a container that leaves no row. Its run is done again, the
+    replaced row, where there is one, is kept with `superseded` set, and the rerun is listed in
+    `README.md`.
+30. **Uintah's cells (4).** Every cell of `experiments/uintah` as committed is run, the
+    `-nthreads 2` cell at np 2 and the `mpi-scheduler` control at np 4 included.
+31. **MUST's warm-up comes first (amendment 6).** No MUST run of a configuration, calibration
+    included, starts before that configuration's warm-up has ended.
