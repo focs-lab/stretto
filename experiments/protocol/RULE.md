@@ -204,3 +204,43 @@ the mean and range are given.
 The configuration sweep (`experiments/sweep/`) keeps its own rule, one traced run per cell, since
 it answers a different question. The blind scans keep theirs. Timed overhead legs (`e4`) keep
 their announced protocol.
+
+## 10. Amendments before the first run (24 Nov 2026)
+
+Building the harness and its smoke test (two uncounted runs per path, discarded) showed where the
+rule above could not be applied as written. These amendments are made before any counted run, and
+they override the sections they name.
+
+1. **MUST's layout (2.3).** At 8 ranks, MUST's default layout reports a collective root mismatch
+   that is not there (`MPI_Bcast` in `HYPRE_IJMatrixCreate`, on the fixed version too), then
+   hangs, under both MPI libraries. MUST runs with `--must:fanin 4` at every process count. Its
+   tool processes get hardware threads of their own. Where that layout needs more than the 36 run
+   threads (32 ranks), the centralised layout is tried. If it fails too, the cell is "cannot run",
+   with the attempt recorded.
+2. **Launcher (1.6).** Every tool launches with Open MPI's `mpirun`, under either library, as the
+   committed harness already did for MPICH programs: under the image's `mpiexec.hydra` every rank
+   of a MUST run starts as a singleton.
+3. **A run MUST stops at a deadlock (3).** The symptom is not observed. If the deadlock is at the
+   bug's racing calls, the run is "predicted". If it is elsewhere, the run is a tool failure. S / N
+   under MUST is therefore a lower bound, and the table says so.
+4. **What MUST reports (2.3).** Only MUST's errors count, not its warnings: `INTEGER_ZERO` and
+   other warnings sit at racing sites on fixed versions too.
+5. **Calibration that does not end (2.1).** A calibration run that does not end within 1 800 s
+   is a tool failure. T comes from the calibration runs that ended. If none ended, T = 1 800 s.
+6. **MUST's warm-up (2.1).** MUST's first run per process count and library builds its layout. One
+   uncounted warm-up run precedes calibration.
+7. **NINJA's learning run (2.4).** The NINJA mode that needs a learning run learns from one run
+   before calibration. That run gets the 1 800 s cap and up to 3 tries. A configuration whose
+   learning run never finishes has the runs of that mode counted as tool failures.
+8. **Binding (1.5).** Every rank is bound to its own hardware thread, by Open MPI's launcher. The
+   committed scripts did not bind, so earlier rates and these may differ, and both are kept.
+9. **Where Stretto's analysis runs (1.5).** It runs on the job's own threads, after the traced run
+   ends, not on CPUs 18-19 and 58-59. Analyses do not then compete with each other for 4 threads.
+10. **Replay rows (6).** Their outcome column holds the replay's verdict: confirmed,
+    not-confirmed or inconclusive. The categories of Section 3 describe tool runs.
+11. **MUST's vector-clock checks (2.3).** They are a separate tool, run from their artifact's image
+    as committed in `experiments/mustvc/`. "Only release 1.11.2" applies to MUST itself.
+12. **MFEM's symptom (3).** MPI_ERR_TRUNCATE counts besides "integer set not found": a receive
+    takes the next mesh's longer row, the same wrong match.
+13. **`tables.py` (7).** Its changes compute from the campaign's tables and do not affect a run.
+    They are made after the campaign, against the committed CSVs.
