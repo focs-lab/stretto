@@ -343,3 +343,18 @@ them.
     `-nthreads 2` cell at np 2 and the `mpi-scheduler` control at np 4 included.
 31. **MUST's warm-up comes first (amendment 6).** No MUST run of a configuration, calibration
     included, starts before that configuration's warm-up has ended.
+32. **Stretto's F on the suites (3).** A suite program carries one labelled bug and no site, so
+    F is any finding of an error class, with two exceptions that only restate the run's own
+    failure: an observed abort alone, and observed-only findings on a run that ended in its own
+    error (an MPI error, a signal, a nonzero exit). Such a run is observed, not reported. An
+    observed deadlock on a hung run counts: it names the blocked calls, as MUST's deadlock report
+    does. This holds on all three suites. `tab:rq2`'s committed count is recomputed under this
+    rule, and any difference is reported.
+33. **Which kill is a tool failure (replaces the first sentences of 29).** A run killed before T is
+    a tool failure only when its own container's memory limit was hit: the `oom` counter of the
+    container's `memory.events` rose during the run. A kill by the host's or a parent slice's
+    memory cap, by an operator or by a stopped daemon is a harness failure under 1.8 and is run
+    again. So is a container that disappears and leaves no row. A job that ends with a harness
+    error of its own (an exception in the harness or in a judge) is not run again: its block
+    stops until the error is fixed, and that is a declared deviation. A replaced row is kept in
+    its table with `superseded` set.
