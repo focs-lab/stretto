@@ -33,7 +33,11 @@ any first_failure), MUST's on MBI and MPI-BugBench as no report (experiments/mbi
 must_verdict: TIMEOUT is not ERROR) and on CorrBench as a run without a verdict, a tool failure
 (experiments/corrbench/summary.py), Stretto's by its report (score.verdict, the run's end aside).
 MUST's report counts when it holds an error, a data race alone (its summary "data race...") only
-on a program labelled a data race (amendment 22).
+on a program labelled a data race (amendment 22). Stretto's F on a suite (amendment 32) is a
+finding of an error class that does more than record the run's own failure: a run whose error
+findings are only an observed abort, or only observed ones on a run that ended in its own error
+(an MPI error, a signal, a nonzero exit), is observed and not reported. An observed deadlock on a
+run that hung counts: it names the blocked calls, as MUST's deadlock report does.
 Stretto's suite rows say which cell they belong to (column cell, amendment 23): the traced runs
 "stretto", corrbench/run.py's native runs and stretto_bench.sh's untraced run 0 "plain", the
 buffer guard's runs "stretto-guard" (an appendix cell). Uintah's plain build: every run that does
@@ -117,16 +121,33 @@ def must(r, a):
     return rows.outcome(k == "TIMEOUT", f)
 
 
+def stretto_f(levels, end, l2=""):
+    """Stretto's F on a suite program (amendment 32): an error-class finding that is not only the
+    record of the run's own failure, which is an observed abort alone, or observed findings alone
+    on a run that ended in its own error (end neither FINISHED nor TIMEOUT: an MPI error, a signal,
+    a nonzero exit). An observed deadlock of a run that hung counts. L2 by re-execution's abort or
+    deadlock is a claim about another run and counts."""
+    import score
+    errs = set(lv for lv in levels if lv.split(":", 1)[-1] in score.ERROR)
+    if set((l2 or "").split()) & {"abort", "deadlock"}:
+        errs.add("L2")
+    if not errs:
+        return False
+    own_error = not (end or "").startswith(("FINISHED", "TIMEOUT"))
+    return not (errs == {"observed:abort"} or (own_error and all(e.startswith("observed:") for e in errs)))
+
+
 def corpus(r, a):
     import score
     r.setdefault("cell", "stretto")
     if score.crashed(r):
         return rows.outcome(False, False, failed=True)
+    f = stretto_f(score.levels(r), r.get("run"), r.get("l2"))
     if r.get("run") == "TIMEOUT":
-        got = timed_out(r, a, score.verdict(r) == "ERROR")
+        got = timed_out(r, a, f)
         if got is not None:
             return got
-    return rows.outcome(score.observed_verdict(r) == "ERROR", score.verdict(r) == "ERROR")
+    return rows.outcome(score.observed_verdict(r) == "ERROR", f)
 
 
 def series(r, a):
@@ -186,10 +207,9 @@ def bench(r, a):
         return rows.outcome(s, s)
     if (r.get("status") or "complete") != "complete":
         return rows.outcome(False, False, failed=True)
-    try:
-        f = int(r.get("errors") or 0) > 0
-    except ValueError:
-        f = False
+    # its classes, cls@level*count, as levels level:cls (amendment 32)
+    lv = ["%s:%s" % tuple(reversed(c.split("*", 1)[0].split("@", 1))) for c in (r.get("classes") or "").split(";") if "@" in c]
+    f = stretto_f(lv, r.get("result"))
     if r.get("result") == "TIMEOUT":
         got = timed_out(r, a, f)
         if got is not None:

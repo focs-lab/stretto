@@ -124,7 +124,8 @@ class External(unittest.TestCase):
 
     def test_more_outcomes(self):
         self.assertEqual(self.ad.corrbench({"mode": "native", "result": "TIMEOUT"}, self.a), "observed-reported")
-        self.assertEqual(self.ad.bench({"run": "1", "result": "FINISHED", "status": "complete", "errors": "2"}, self.a),
+        self.assertEqual(self.ad.bench({"run": "1", "result": "FINISHED", "status": "complete", "errors": "2",
+                                        "classes": "3-race@L1*2"}, self.a),
                          "predicted")
         self.assertEqual(self.ad.threadreplay({"verdict": "confirmed"}, self.a), "confirmed")
         self.assertEqual(self.ad.threadreplay({"diverged": "rank 0 chain 0"}, self.a), "inconclusive")   # replay_verdicts.py
@@ -515,6 +516,9 @@ def plan_rows():
 
 
 REVEALED = ("predicted", "observed-reported")
+# Stretto's reveals on MBI's and MPI-BugBench's committed corpus tables: (score.verdict's, as
+# tab:rq2 counts them; under amendment 32)
+STRETTO_SUITES = {("mbi", "ERROR"): (62, 61), ("mbi", "OK"): (0, 0), ("mbb", "ERROR"): (216, 212), ("mbb", "OK"): (4, 0)}
 
 
 class Review(unittest.TestCase):
@@ -666,9 +670,12 @@ class Review(unittest.TestCase):
                 committed = sum(1 for r in mine if score.must_verdict({"must": r["must1112"]}) == "ERROR")
                 got = sum(1 for r in mine if self.ad.must(dict(r), a) in REVEALED)
                 self.assertEqual(got, committed, (suite, "MUST", expect))
+                # Stretto under amendment 32: score.verdict counts every error class, observed ones
+                # included; a run whose error findings only record its own failure is observed-not-reported
+                got = [self.ad.corpus(dict(r), a) for r in mine]
                 committed = sum(1 for r in mine if score.verdict(r) == "ERROR")
-                got = sum(1 for r in mine if self.ad.corpus(dict(r), a) in REVEALED)
-                self.assertEqual(got, committed, (suite, "Stretto", expect))
+                self.assertEqual((committed, sum(1 for g in got if g in REVEALED)), STRETTO_SUITES[(suite, expect)],
+                                 (suite, "Stretto", expect))
             self.assertFalse([r for r in st if self.ad.stress(dict(r), a) == "tool-failure"])
         # CorrBench's labels the same way: its committed tables' flags (experiments/corrbench/summary.py)
         import importlib.util
@@ -682,13 +689,24 @@ class Review(unittest.TestCase):
             ms = [r for r in rows.read(os.path.join(cb, "must.csv")) if r["label"] == label]
             committed = sum(1 for r in ms if score.must_kind({"must": r["must"]}) == "ERROR")
             self.assertEqual(sum(1 for r in ms if self.ad.must(dict(r), a) in REVEALED), committed, ("CorrBench MUST", label))
-            ss = [r for r in rows.read(os.path.join(cb, "stretto-openmpi.csv")) if r["label"] == label and r["mode"] == "trace"]
-            # flagged, and "failed run only" (an error finding observed on a run that did not finish),
-            # which Section 3 counts as observed-reported
+        for mpi, label, committed, revealed in (("openmpi", "erroneous", 693, 96), ("openmpi", "correct", 144, 24),
+                                                ("mpich", "erroneous", 639, 96), ("mpich", "correct", 6, 3)):
+            # amendment 32: the committed flag and its "failed run only" (summary.py) against F, which
+            # leaves out an observed abort alone and observed findings alone on a run that ended in its
+            # own error, and keeps an observed deadlock of a hung run
+            ss = [r for r in rows.read(os.path.join(cb, "stretto-%s.csv" % mpi)) if r["label"] == label and r["mode"] == "trace"]
             flags = [cbs.stretto_flag(r, False) for r in ss]
             got = [self.ad.corrbench(dict(r), a) for r in ss]
-            self.assertEqual(sum(1 for g in got if g in REVEALED), flags.count(True) + flags.count("abort"), ("CorrBench Stretto", label))
+            self.assertEqual(flags.count(True) + flags.count("abort"), committed, (mpi, label))
+            self.assertEqual(sum(1 for g in got if g in REVEALED), revealed, ("CorrBench Stretto", mpi, label))
             self.assertFalse([1 for f, g in zip(flags, got) if f is True and g not in REVEALED])
+            # with the committed summary's replacements (-again, -recheck: rqfreeb's false alarm fixed in
+            # 385f919) the correct runs left are the one-sided programs that hang natively under Open MPI
+            if label == "correct":
+                ss = [r for r in ss if r["program"] != "correct/pt2pt/rqfreeb.c"]
+                left = sorted(set(r["program"] for r in ss if self.ad.corrbench(dict(r), a) in REVEALED))
+                self.assertEqual(len(left), 7 if mpi == "openmpi" else 0)
+                self.assertTrue(all(p.startswith("correct/rma/") for p in left))
         # the counts the review named: 53 of MBI's erroneous programs revealed by the delays, 172 of
         # MPI-BugBench's (of them 49 and 168 by a timeout)
         mbi = [r for r in rows.read(os.path.join(res, "mbi", "stress.csv")) if r["expect"] == "ERROR" and r["first_failure"]]
