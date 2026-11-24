@@ -244,3 +244,30 @@ they override the sections they name.
     takes the next mesh's longer row, the same wrong match.
 13. **`tables.py` (7).** Its changes compute from the campaign's tables and do not affect a run.
     They are made after the campaign, against the committed CSVs.
+
+## 11. Amendments after the smoke of the suites and thread campaigns (24 Nov 2026)
+
+These were also made before any counted run.
+
+14. **The analysis of a job that runs alone (9).** NPB MG at 32 ranks runs alone. Its trace is
+    analysed afterwards as a job of its own on one hardware thread, beside the other jobs, so that
+    31 threads do not wait for one analysis. The analysis budget of 2.1 is unchanged.
+15. **Timeouts of the suites (2.1).** Each suite gets one T per tool, calibrated before its passes.
+    - Every program the suite labels correct runs once under the tool, with at most 300 s.
+    - T = max(30 s, 10 × the slowest of those runs).
+    - The committed tables' 60 s and 30 s are not used.
+16. **MUST on programs with threads (2.3).** Data races are MUST's to report only with its
+    ThreadSanitizer build, so MUST runs on the OpenMP programs of CorrBench, and on MBI as in the
+    committed `must1112tsan` column, with TSan on. A cell without it would measure a
+    configuration in which MUST is not designed to report what is asked.
+17. **Thread replays (6).** Section 6 applies to the thread campaigns as to the applications:
+    - the replays cover the distinct alternatives over a cell's traces, with a seeded sample of 40
+      if there are more, not samples per trace;
+    - DLA-Future, which has no gate modes, replays in its one mode, and the table says so;
+    - before any thread replay is counted, the smoke's result (every replay inconclusive, unlike
+      the committed campaigns) is explained and the cause fixed or stated.
+18. **Builds of the thread campaigns (1.7).** The DLA-Future, PaRSEC, MPICH Uintah and MUST-vc
+    builds that survived from the committed campaigns are used. Each is checked against the
+    commit its campaign records, and the check is written in `README.md`.
+19. **MPI-PRV on Fortran subjects (2.6).** The instrumenter is run on NPB MG and Quantum ESPRESSO.
+    The cell records what it did, not what it would do.
