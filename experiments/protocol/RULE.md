@@ -271,3 +271,53 @@ These were also made before any counted run.
     commit its campaign records, and the check is written in `README.md`.
 19. **MPI-PRV on Fortran subjects (2.6).** The instrumenter is run on NPB MG and Quantum ESPRESSO.
     The cell records what it did, not what it would do.
+
+## 12. Amendments after an independent review of the harness (24 Nov 2026)
+
+A reviewer who had not written the harness read it against this rule before any counted run.
+These amendments settle what the review found the rule left open.
+
+20. **Thread campaigns (2.1, 1.9).** Section 2.1 and the concurrency check of 1.9 apply to them as
+    to the applications: T is calibrated on 10 runs of each cell's fixed or control version, and
+    each thread bug gets 40 plain runs of its first cell run alone. A script's own fixed timeout
+    is not used, and no row carries a timeout that is not a number.
+21. **MUST's cells on the suites (2.3, 1.4).**
+    - On the OpenMP programs of CorrBench, MUST with TSan is the main cell and MUST without TSan
+      goes to the appendix.
+    - On MBI, MUST without TSan stays the main cell, as in `tab:rq2`, and MUST with TSan is the
+      appendix column `must1112tsan`.
+    - NINJA's system-centric and application-centric modes go to the appendix in the budget view
+      too.
+22. **Verdicts on the suites (3, 2.1, 2.3).**
+    - A suite program carries one labelled bug, so MUST's report counts when it holds any MUST
+      error. Data-race reports of the TSan build count on data-race programs; no other warning
+      counts.
+    - A timeout is the symptom only on programs labelled as deadlocks. On any other program it is
+      a tool failure.
+    - The suites' random delays keep the committed per-program seeding,
+      `Random("<seed>:<program>")`, with the pass's seed recorded. `Random(i*100+np)` is the
+      applications' seeding.
+23. **Stretto's run on a suite (5).** Stretto's run is the traced run.
+    - The untraced (native) runs the suite scripts make go to the plain cell.
+    - The buffer guard's runs go to a separate appendix cell.
+    - No untraced run is counted under Stretto.
+24. **A thread alternative's verdict (6).** Each thread alternative is replayed twice in each gate
+    mode. It counts as confirmed in a mode if at least one of its replays is confirmed. A
+    confirmed replay is a witness that the alternative occurs. The share of confirmed replays is
+    given beside it.
+    - SLATE's replays start only from traces whose factor came out right, since a wrong-factor
+      trace's control cannot be right.
+    - This restricts the replays, not the counted traced runs, and the table says so.
+25. **Runs that end early or leave nothing (3, 1.3).** Each of these is a row with outcome "tool
+    failure" and is never rerun:
+    - a run killed before T, out of memory or otherwise;
+    - a traced run whose trace is empty or unreadable;
+    - an analysis killed for memory.
+
+    Only a harness failure under 1.8 reruns anything.
+26. **Replays use the counted analysis (6, 2.1).** The alternatives replayed are those of the
+    counted analyses, within their 3 600 s budget. A trace whose analysis is a tool failure gives
+    none. Enumeration starts only when every counted traced run of the configuration is in its
+    table. It is redone, and the earlier enumeration superseded, if that set of runs changes.
+27. **Uintah's symptom (3).** As committed, every run of the plain builds that does not pass is the
+    symptom: the garbage reduction's abort ("fail") and a hang alike.
