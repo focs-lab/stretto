@@ -225,12 +225,14 @@ def keep_output(a, name, cmd, rc, out, err, wd=None):
 
 
 def oom_kills(path="/sys/fs/cgroup/memory.events"):
-    """The kills of the job's own memory limit so far (its cgroup's oom_kill count), None if unknown."""
+    """How often the job's own container hit its memory limit so far (the oom counter of its
+    cgroup's memory.events, amendment 33: not oom_kill, which a parent's limit raises too), None if
+    unknown."""
     try:
         with open(path) as fh:
             for line in fh:
                 k, _, v = line.partition(" ")
-                if k == "oom_kill":
+                if k == "oom":
                     return int(v)
     except (OSError, ValueError):
         pass
@@ -400,9 +402,9 @@ def one(a):
         ok, says = judge(s, a.version, a.config, text, wd)
         S, failure = symptom_of(s, result, ok, text)
         if result == "KILLED":
-            # killed before T: a tool failure only when the job's own memory limit killed it
-            # (amendment 29: its cgroup counts the kill); any other kill is the harness's, and the
-            # run is done again (the scheduler reruns a job that leaves no row)
+            # killed before T: a tool failure only when the job's own container hit its memory
+            # limit (amendment 33: its cgroup's oom counter rose); any other kill is the harness's,
+            # and the run is done again (the scheduler reruns a HARNESS-RERUN)
             if oom0 is None or oom_kills() in (None, oom0):
                 raise SystemExit("HARNESS-RERUN: the run was killed after %.1f s, before T = %d s, not by the job's "
                                  "memory limit" % (el, a.timeout))

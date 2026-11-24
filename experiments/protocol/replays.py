@@ -170,8 +170,12 @@ def replay(a):
         if s.get("base"):
             shutil.copytree(s["base"], wd, dirs_exist_ok=True, symlinks=True)
         t0 = time.monotonic()
+        oom0 = runner.oom_kills()
         r = run_checked(c["np"], exe, args, p, a.timeout, c["mpi"], cwd=wd)
         r.result = runner.abort_class(r.result, c["mpi"])
+        if r.result == "KILLED" and (oom0 is None or runner.oom_kills() in (None, oom0)):
+            # killed before T, not by its container's memory limit: the harness's failure, done again (amendment 33)
+            raise SystemExit("HARNESS-RERUN: the %s was killed before T, not by the job's memory limit" % role)
         el = time.monotonic() - t0
         text = r.proc.stdout + r.proc.stderr
         ok, says = runner.judge(s, "bug", a.config, text, wd)
@@ -185,8 +189,8 @@ def replay(a):
         shutil.rmtree(wd, ignore_errors=True)
     rp, ct = out["replay"], out["control"]
     control_ok = ct is not None and ct["result"] == "FINISHED" and ct["ok"]
-    if rp["misapplied"] or (ct and ct["misapplied"]):
-        verdict = "inconclusive"
+    if rp["misapplied"] or (ct and ct["misapplied"]) or "KILLED" in (rp["result"], ct and ct["result"]):
+        verdict = "inconclusive"          # a pin fell elsewhere, or a run hit the job's memory limit
     elif rp["matched"] and rp["symptom"] and control_ok:
         verdict = "confirmed"
     elif rp["matched"] and rp["symptom"]:

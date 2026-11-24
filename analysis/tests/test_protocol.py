@@ -604,18 +604,10 @@ class Review(unittest.TestCase):
         with open(b.row) as fh:
             self.assertEqual(json.load(fh)["outcome"], "tool-failure")
 
-    def test_killed_container_and_analysis_memory(self):              # amendment 25
+    def test_analysis_memory(self):                                   # amendment 25
         d = tempfile.mkdtemp()
         jobs = schedule.jobs_of(plan_rows(), r"^npbmg/(plain|stretto-traced)$", 1, configs="np32")
         sc = scheduler(d, jobs)
-        sc.a.timeout = 99
-        j = [x for x in jobs if x["tool"] == "plain" and x["version"] == "bug"][0]
-        os.makedirs(os.path.dirname(sc.row_file(j)))
-        self.assertTrue(sc.killed_row(j, 137))
-        self.assertTrue(sc.collect(j, [0], 1))
-        got = rows.read(sc.table(j))[0]
-        self.assertEqual((got["outcome"], got["result"], got["timeout"]), ("tool-failure", "KILLED", "99"))
-        self.assertFalse(sc.killed_row(j, 1))                      # a harness error stays one
         an = [x for x in jobs if x["setting"] == schedule.ANALYSIS][0]
         traced = [x for x in jobs if x.get("defer")][0]
         self.assertEqual(sc.memory(an), sc.memory(traced))         # as much as inside its traced run's job
@@ -785,44 +777,63 @@ class Review(unittest.TestCase):
 class Fixes(unittest.TestCase):
     """The amendments after the review of the fixes (RULE.md Section 13)."""
 
-    def test_which_kill_is_a_tool_failure(self):                      # amendment 29
+    def test_which_kill_is_a_tool_failure(self):                      # amendment 33
+        import run
         d = tempfile.mkdtemp()
+        ev = os.path.join(d, "memory.events")
+        with open(ev, "w") as fh:
+            fh.write("low 0\nhigh 0\nmax 3\noom 2\noom_kill 5\n")
+        self.assertEqual(run.oom_kills(ev), 2)                          # the container's own limit: oom, not oom_kill
         jobs = schedule.jobs_of(plan_rows(), r"^npbmg/(delays-D50|replay|calibrate)$", 1, configs="np16")
         sc = scheduler(d, jobs)
         sc.a.timeout = 99
+        sc.done = set()
 
         class P:
-            returncode = 137
+            def __init__(self, rc):
+                self.returncode = rc
 
             def poll(self):
-                return 137
+                return self.returncode
         delays = [j for j in jobs if j["tool"] == "delays" and j["version"] == "bug"][0]
-        sc.done = set()
-        for oom, expect in ((False, "rerun"), (True, "tool-failure")):
-            sc.oom_killed = lambda name, oom=oom: oom
-            sc.running = {"k": (delays, P(), [0], 1)}
-            sc.started = {"k": 0.0}
+        log = os.path.join(sc.a.state, "rows", schedule.safe(delays["block"]), schedule.safe(schedule.key_of(delays)) + ".log")
+        os.makedirs(os.path.dirname(log))
+
+        def ends(rc, oom, text):
+            with open(log, "w") as fh:
+                fh.write(text)
+            sc.ended = lambda name: (rc, oom)
+            sc.running = {"k": (delays, P(rc), [0], 1)}
             todo = []
             sc.reap(todo)
-            if expect == "rerun":
-                self.assertEqual(todo, [delays])                       # done again, listed in reruns.tsv
-                with open(os.path.join(sc.a.results, "reruns.tsv")) as fh:
-                    self.assertIn("not by its own memory limit", fh.read())
-            else:
-                got = rows.read(sc.table(delays))[-1]
-                self.assertEqual((got["outcome"], got["seed"]), ("tool-failure", "116"))   # the delays' seed kept
-        # a job keeps being rerun at most MAX_RERUNS times
-        sc.oom_killed = lambda name: False
-        for _ in range(schedule.MAX_RERUNS + 2):
-            sc.running = {"k": (delays, P(), [0], 1)}
-            sc.reap([])
+            return todo
+        # Docker's OOMKilled alone is a harness failure: run again, listed in reruns.tsv, no row
+        self.assertEqual(ends(137, True, ""), [delays])
+        with open(os.path.join(sc.a.results, "reruns.tsv")) as fh:
+            self.assertIn("OOMKilled", fh.read())
+        self.assertFalse(os.path.exists(sc.table(delays)))
+        # run.py's own judgement of a kill that is not the container's limit: run again
+        sc.reruns = {}
+        self.assertEqual(ends(1, False, "SystemExit: HARNESS-RERUN: the run was killed"), [delays])
+        # a harness error of its own (an exception): not run again, its block stops
+        sc.reruns = {}
+        self.assertEqual(ends(1, False, "Traceback (most recent call last):\n  KeyError: 'x'\n"), [])
         self.assertIn(delays["block"], sc.broken)
-        # a killed replay keeps a verdict; a killed calibration run does not break derive
-        rp = [j for j in jobs if j["setting"] == "replay"][0]
-        os.makedirs(os.path.dirname(sc.row_file(rp)), exist_ok=True)
-        self.assertTrue(sc.killed_row(rp, 137, 5.0))
-        with open(sc.row_file(rp)) as fh:
-            self.assertEqual(json.load(fh)["outcome"], "inconclusive")
+        # a replaced row stays in its table, superseded
+        sc.broken = set()
+        r = dict((c, "") for c in schedule.FIELDS)
+        r.update(subject="npbmg", config="np16", version="bug", tool="delays", setting="D50", run=1, outcome="missed")
+        rows.append(sc.table(delays), [r], schedule.FIELDS)
+        self.assertTrue(sc.rerun(delays, "a test"))
+        got = rows.read(sc.table(delays))
+        self.assertEqual((len(got), got[0]["superseded"]), (1, "rerun: a test"))
+        self.assertFalse([f for f in os.listdir(os.path.dirname(sc.row_file(delays))) if f.endswith(".superseded")])
+        # a job keeps being rerun at most MAX_RERUNS times
+        sc.reruns = {}
+        for _ in range(schedule.MAX_RERUNS + 1):
+            ends(137, False, "")
+        self.assertIn(delays["block"], sc.broken)
+        # a killed calibration run does not break derive
         cal = [j for j in jobs if j["calibration"]]
         res = os.path.join(d, "r")
         rs = []

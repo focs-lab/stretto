@@ -330,12 +330,34 @@ class Scheduler:
                            universal_newlines=True)
         return p.stdout.strip()
 
-    def oom_killed(self, name):
-        """Whether Docker records the container as killed by its own memory limit, and the container
-        removed (amendment 29: only that kill is the tool's failure)."""
+    def ended(self, name):
+        """The container's exit status and whether Docker records it as OOMKilled, the container
+        removed. Neither makes a kill the tool's failure (amendment 33: only the job's own cgroup
+        counter, which run.py reads, does); they go into the rerun's reason."""
+        rc = self.inspect(name, "{{.State.ExitCode}}")
         oom = self.inspect(name, "{{.State.OOMKilled}}") == "true"
         subprocess.run(["docker", "rm", name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        return oom
+        return int(rc) if rc.lstrip("-").isdigit() else None, oom
+
+    def why_no_row(self, j, rc, oom):
+        """(rerun, reason) for a job that left no row (amendment 33): a kill or a container that
+        went away is a harness failure and runs again; a harness error of its own (run.py's
+        HARNESS-ERROR, an exception in the harness or a judge: a traceback) is not, and stops its
+        block."""
+        logf = os.path.join(self.a.state, "rows", safe(j["block"]), safe(key_of(j)) + ".log")
+        try:
+            with open(logf, errors="replace") as fh:
+                text = fh.read()
+        except OSError:
+            text = ""
+        tail = " | ".join(ln.strip() for ln in text.strip().splitlines()[-3:])[:300]
+        if "HARNESS-RERUN" in text:
+            return True, "run.py: a kill that is not the job's memory limit's: " + tail
+        if "Traceback (most recent call last)" in text or "HARNESS-ERROR" in text:
+            return False, "a harness error of its own (rc=%s): %s" % (rc, tail)
+        if rc is None or rc in (137, 143, -9, -15, 125):
+            return True, "killed or gone (status %s%s), no row" % (rc, ", Docker: OOMKilled" if oom else "")
+        return False, "no row (status %s): %s" % (rc, tail)
 
     def adopt_leftovers(self):
         """An earlier invocation's containers keep their threads until they end; a job of this
@@ -354,12 +376,14 @@ class Scheduler:
                             "--filter", "name=^%s-" % self.a.prefix], stdout=subprocess.PIPE, universal_newlines=True)
         for name in p.stdout.split():
             j = by_name.get(name)
-            if j is not None and not os.path.exists(self.row_file(j)) and self.oom_killed(name):
-                self.killed_row(j, 137)
-            elif j is not None and not os.path.exists(self.row_file(j)):
-                self.rerun(j, "its container of an earlier invocation ended without a row")
-            else:
-                subprocess.run(["docker", "rm", name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            rc, oom = self.ended(name)
+            if j is not None and not os.path.exists(self.row_file(j)):
+                again, why = self.why_no_row(j, rc, oom)
+                if again:
+                    self.rerun(j, "its container of an earlier invocation: " + why)
+                else:
+                    self.log("harness-error %s %s: %s" % (j["block"], safe(key_of(j)), why))
+                    self.broken.add(j["block"])
 
     def reap_adopted(self, todo):
         if not self.adopted or time.time() - self.last_poll < 10:
@@ -371,15 +395,18 @@ class Scheduler:
                 continue
             del self.adopted[name]
             self.pool.give(cpus)
-            oom = self.oom_killed(name)
+            rc, oom = self.ended(name)
             if j is None:
                 continue
             if self.collect(j, cpus, None):
                 self.done.add((j["block"], key_of(j)))
-            elif oom and self.killed_row(j, 137) and self.collect(j, cpus, None):
-                self.done.add((j["block"], key_of(j)))
-            elif self.rerun(j, "its container of an earlier invocation left no row"):
+                continue
+            again, why = self.why_no_row(j, rc, oom)
+            if again and self.rerun(j, "its container of an earlier invocation: " + why):
                 todo.insert(0, j)
+            elif not again:
+                self.log("harness-error %s %s: %s" % (j["block"], safe(key_of(j)), why))
+                self.broken.add(j["block"])
 
     def timeout_for(self, j):
         if j["external"] == "suite" and j["tool"] != "build":
@@ -441,8 +468,8 @@ class Scheduler:
         name = container(a.prefix, j)
         state_in = "/state"
         row = os.path.join(state_in, os.path.relpath(self.row_file(j), a.state))
-        # no --rm: the scheduler reads Docker's verdict on the container (State.OOMKilled) and
-        # removes it; the labels let a later invocation know the job and whether it runs alone
+        # no --rm: the scheduler reads how the container ended (its status, for a rerun's reason)
+        # and removes it; the labels let a later invocation know the job and whether it runs alone
         cmd = ["docker", "run", "--label", "protocol.job=%s@%s" % (j["block"], key_of(j)),
                "--label", "protocol.alone=%d" % bool(j["alone"]), "--ulimit", "core=0", "--name", name, "--hostname", rows.host(),
                "--cpuset-cpus", rows.cpuset(cpus), "--memory", "%dg" % self.memory(j), "--memory-swap", "%dg" % self.memory(j),
@@ -704,22 +731,28 @@ class Scheduler:
         return 1 if self.broken or todo else 0
 
     def rerun(self, j, why):
-        """A harness failure (Section 1.8, amendment 29): the job runs again, at most MAX_RERUNS
-        times in an invocation, each rerun listed in RESULTS/reruns.tsv (README.md); a row the job
-        left is kept, superseded. False when the job has had its reruns: its block stops."""
+        """A harness failure (Section 1.8, amendment 33): the job runs again, at most MAX_RERUNS
+        times in an invocation, each rerun listed in RESULTS/reruns.tsv (README.md); a row of the job
+        already in its table is kept there with superseded set. False when the job has had its
+        reruns: its block stops."""
         k = (j["block"], key_of(j))
         self.reruns[k] = self.reruns.get(k, 0) + 1
         if self.reruns[k] > MAX_RERUNS:
             return False
-        if os.path.exists(self.row_file(j)):
-            os.replace(self.row_file(j), self.row_file(j) + ".superseded")
+        if os.path.exists(self.table(j)):
+            if j["external"]:
+                rows.supersede(self.table(j), lambda r: r.get("protocol_job") == key_of(j), "rerun: " + why)
+            else:
+                rows.supersede(self.table(j), lambda r: "%s|%s|%s|%s|%s|%s" % (
+                    r.get("subject"), r.get("config"), r.get("version"), r.get("tool"), r.get("setting"), r.get("run")) == key_of(j),
+                    "rerun: " + why)
         path = os.path.join(self.a.results, "reruns.tsv")
         new = not os.path.exists(path)
         with open(path, "a") as fh:
             if new:
                 fh.write("time\tblock\tjob\treason\n")
             fh.write("%s\t%s\t%s\t%s\n" % (time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), j["block"], key_of(j), why))
-        self.log("rerun %s %s: %s (amendment 29)" % (j["block"], safe(key_of(j)), why))
+        self.log("rerun %s %s: %s (amendment 33)" % (j["block"], safe(key_of(j)), why))
         return True
 
     def reap(self, todo=None):
@@ -728,60 +761,21 @@ class Scheduler:
                 continue
             del self.running[k]
             self.pool.give(cpus)
-            oom = self.oom_killed(container(self.a.prefix, j))
-            elapsed = time.time() - self.started.pop(k, time.time())
+            _, oom = self.ended(container(self.a.prefix, j))
+            self.started.pop(k, None)
             if self.collect(j, cpus, njobs):
                 self.done.add((j["block"], key_of(j)))
-            elif oom and self.killed_row(j, 137, elapsed) and self.collect(j, cpus, njobs):
-                self.done.add((j["block"], key_of(j)))
-            elif self.stop <= 1 and todo is not None and self.rerun(
-                    j, "killed (status %s), not by its own memory limit" % p.returncode if p.returncode in (137, -9)
-                    else "no row (status %s)" % p.returncode):
+                continue
+            if self.stop > 1:
+                self.log("discarded %s %s (killed by the second signal)" % (j["block"], safe(key_of(j))))
+                continue
+            again, why = self.why_no_row(j, p.returncode, oom)
+            if again and todo is not None and self.rerun(j, why):
                 todo.insert(0, j)
             else:
-                logf = os.path.join(self.a.state, "rows", safe(j["block"]), safe(key_of(j)) + ".log")
-                why = ""
-                try:
-                    with open(logf) as fh:
-                        why = " | ".join(ln.strip() for ln in fh.read().strip().splitlines()[-3:])
-                except OSError:
-                    pass
-                if self.stop > 1:
-                    self.log("discarded %s %s (killed by the second signal)" % (j["block"], safe(key_of(j))))
-                else:
-                    self.log("harness-error %s %s rc=%s: %s" % (j["block"], safe(key_of(j)), p.returncode, why[:300]))
-                    self.broken.add(j["block"])
-
-    def killed_row(self, j, rc, elapsed=None):
-        """The row of a run.py job whose container Docker killed for its own memory limit
-        (State.OOMKilled, amendment 29) before it wrote one: a tool failure, never rerun (amendment
-        25). A deferred analysis's row is its traced run's, the analysis killed; a replay's keeps a
-        verdict (inconclusive), a delays run its seed, a calibration run the seconds it lasted.
-        Other jobs, and kills of the second signal, write none."""
-        if rc != 137 or self.stop > 1 or j["external"] or j["setting"] in ("replay-enumerate", "learn", "warmup"):
-            return False
-        if j["setting"] == ANALYSIS:
-            with open(self.deferred_file(j)) as fh:
-                row = json.load(fh)
-            d = json.loads(row["detail"]) if row.get("detail") else {}
-            d["analysis"] = "container killed"
-            row.update({"reported": False, "failure": "analysis killed", "detail": json.dumps(d, sort_keys=True),
-                        "outcome": "tool-failure"})
-        else:
-            row = {"subject": j["subject"], "config": j["config"], "np": j["np"], "mpi": j["mpi"], "version": j["version"],
-                   "label": "", "tool": j["tool"], "setting": j["setting"], "run": j["run"], "result": "KILLED",
-                   "seconds": round(elapsed, 1) if elapsed is not None else "", "says": "", "symptom": False,
-                   "reported": False, "failure": "container killed by its memory limit before T",
-                   "detail": json.dumps({"analysis": "deferred", "trace": "empty"}) if j.get("defer") else ""}
-            seed = str(j["run"] * 100 + j["np"]) if j["tool"] == "delays" else ""
-            row.update(rows.common(self.timeout_for(j) or 0, seed=seed, commit=self.a.commit,
-                                   category="inconclusive" if j["setting"] == "replay" else "tool-failure"))
-        os.makedirs(os.path.dirname(self.row_file(j)), exist_ok=True)
-        with open(self.row_file(j) + ".tmp", "w") as fh:
-            json.dump(row, fh)
-        os.replace(self.row_file(j) + ".tmp", self.row_file(j))
-        self.log("killed %s %s: a tool-failure row (amendment 25)" % (j["block"], safe(key_of(j))))
-        return True
+                # its own harness error, or a job out of reruns: the block stops, a declared deviation
+                self.log("harness-error %s %s rc=%s: %s" % (j["block"], safe(key_of(j)), p.returncode, why))
+                self.broken.add(j["block"])
 
     def on_signal(self, signum, frame):
         self.stop += 1
