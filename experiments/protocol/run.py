@@ -22,7 +22,10 @@ Tools and settings (RULE.md, Section 2):
   must    warmup     the same, uncounted: MUST's first run per process count and library builds
                      its layout (RULE.md, amendment 6)
   stretto traced     a traced run, its analysis (3 600 s at most), the subject's classifier;
-                     the trace is kept (KEEP_TRACES, stretto.keep)
+                     the trace is kept (KEEP_TRACES, stretto.keep). With --defer-analysis (a
+                     job that runs alone, RULE.md amendment 14) the run writes its row without
+                     the analysis, and analyse-row analyses the kept trace afterwards, as a job
+                     of its own on one hardware thread, and writes the row complete
 
 The row: the run's identity, how it ended (stretto.confirm.classify_rc; MUST's FINISHED, CRASHED
 or TIMEOUT), its seconds, the judge's verdict (says), symptom (S), reported (F), the tool's own
@@ -30,8 +33,9 @@ details, and the common columns of experiments/protocol/rows.py with the outcome
 The output of every run that did not end correctly goes to --outputs.
 
 usage: run.py run --subject S --config C --version bug|fix --tool T --setting X --run I
-                  --timeout T --row FILE [--state DIR] [--outputs DIR] [--calibration]
+                  --timeout T --row FILE [--state DIR] [--outputs DIR] [--calibration] [--defer-analysis]
        run.py analyse --subject S --version V --trace DIR      (the analysis, in a process of its own)
+       run.py analyse-row --deferred FILE --row FILE           (a deferred row's analysis)
 """
 import argparse
 import json
@@ -391,7 +395,8 @@ def one(a):
 
 
 def traced(a, s, result, S, failure, trace_dir, detail):
-    """Keep the trace and analyse it (struck runs too, RULE.md Section 3): (F, failure)."""
+    """Keep the trace and analyse it (struck runs too, RULE.md Section 3): (F, failure). With
+    --defer-analysis the analysis is left to analyse-row: F is False until then."""
     from stretto import keep
     try:
         kept = keep.keep(trace_dir, "protocol/%s/%s/%s" % (a.subject, a.config, a.version), "run%02d" % a.run)
@@ -404,10 +409,20 @@ def traced(a, s, result, S, failure, trace_dir, detail):
     if not os.listdir(trace_dir):
         detail["trace"] = "empty"
         return False, failure or ("" if S else "no trace")
+    if a.defer_analysis:
+        if not kept:
+            raise SystemExit("HARNESS-ERROR: a deferred analysis needs the trace kept (KEEP_TRACES)")
+        detail["analysis"] = "deferred"
+        return False, failure
+    return analysed(a.subject, a.config, a.version, a.state, stem, trace_dir, S, failure, detail)
+
+
+def analysed(subject, config, version, state, stem, trace_dir, S, failure, detail):
+    """The analysis of a trace in a process of its own (ANALYSIS_TIMEOUT), the pins of its
+    alternatives written beside the archive's name: (F, failure)."""
     p = subprocess.run(["/usr/bin/timeout", "-k", "5", str(ANALYSIS_TIMEOUT), sys.executable, os.path.abspath(__file__),
-                        "analyse", "--subject", a.subject, "--version", a.version, "--trace", trace_dir,
-                        "--pins-out", os.path.join(a.state, "alternatives", a.subject, a.config, a.version,
-                                                   stem + ".json")],
+                        "analyse", "--subject", subject, "--version", version, "--trace", trace_dir,
+                        "--pins-out", os.path.join(state, "alternatives", subject, config, version, stem + ".json")],
                        stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
     if p.returncode == 124 or p.returncode == 137:
         detail["analysis"] = "timeout"
@@ -420,6 +435,45 @@ def traced(a, s, result, S, failure, trace_dir, detail):
         return False, failure or ("" if S else "analysis failed")
     detail.update(res)
     return res["bug"] > 0, failure
+
+
+def analyse_row(a):
+    """The deferred analysis of a traced run that ran alone (RULE.md amendment 14): its kept trace
+    unpacked, analysed as run.py run would have, and its row written complete, with the outcome
+    of Section 3 from the run's symptom and the analysis's report."""
+    import tarfile
+    from stretto import keep
+    with open(a.deferred) as fh:
+        row = json.load(fh)
+    detail = json.loads(row["detail"]) if row.get("detail") else {}
+    if detail.get("analysis") != "deferred":
+        raise SystemExit("HARNESS-ERROR: %s is not a row whose analysis was deferred" % a.deferred)
+    stem = detail["archive"]
+    archive = os.path.join(keep.directory() or "", "protocol", row["subject"], row["config"], row["version"], stem + keep.EXT)
+    d = tempfile.mkdtemp(prefix="protocol-analysis-")
+    t0 = time.monotonic()
+    try:
+        with tarfile.open(archive) as tf:
+            tf.extractall(d)
+        subdirs = [os.path.join(d, x) for x in os.listdir(d) if os.path.isdir(os.path.join(d, x))]
+        detail["analysis"] = "apart"
+        S = row["symptom"] in (True, "True")
+        reported, failure = analysed(row["subject"], row["config"], row["version"], a.state, stem,
+                                     subdirs[0] if subdirs else d, S, row["failure"], detail)
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+    detail["analysis_seconds"] = round(time.monotonic() - t0, 1)
+    detail["analysis_cpus"] = os.environ.get("PROTOCOL_CPUS", "")
+    row.update({"reported": reported, "failure": failure, "detail": json.dumps(detail, sort_keys=True),
+                "outcome": rows.outcome(S, reported, bool(failure))})
+    tmp = a.row + ".tmp"
+    os.makedirs(os.path.dirname(os.path.abspath(a.row)), exist_ok=True)
+    with open(tmp, "w") as fh:
+        json.dump(row, fh)
+    os.replace(tmp, a.row)
+    print("%s %s %s analysis of run %s: %s -> %s" % (row["subject"], row["config"], row["version"], row["run"],
+                                                     "reported" if reported else "not reported", row["outcome"]), flush=True)
+    return 0
 
 
 def finish(a, s, c, label, result, el, says, S, reported, failure, detail, seed):
@@ -450,13 +504,19 @@ def main():
     r.add_argument("--outputs", default="")
     r.add_argument("--calibration", action="store_true",
                    help="a run of the timeout calibration: a traced run's trace is neither kept nor analysed")
+    r.add_argument("--defer-analysis", action="store_true",
+                   help="keep the trace and leave its analysis to analyse-row (a job that runs alone)")
+    ar = sub.add_parser("analyse-row")
+    ar.add_argument("--deferred", required=True, help="the row run.py run wrote with --defer-analysis")
+    ar.add_argument("--row", required=True)
+    ar.add_argument("--state", default=os.environ.get("PROTOCOL_STATE", "/state"))
     an = sub.add_parser("analyse")
     an.add_argument("--subject", required=True)
     an.add_argument("--version", required=True)
     an.add_argument("--trace", required=True)
     an.add_argument("--pins-out", default="", help="write the pins of the alternatives that name the bug here")
     a = ap.parse_args()
-    return analyse(a) if a.cmd == "analyse" else one(a)
+    return analyse(a) if a.cmd == "analyse" else analyse_row(a) if a.cmd == "analyse-row" else one(a)
 
 
 if __name__ == "__main__":

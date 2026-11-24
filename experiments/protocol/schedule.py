@@ -53,6 +53,7 @@ sys.path.insert(0, HERE)
 import rows  # noqa: E402
 import external  # noqa: E402
 
+ANALYSIS = "traced-analysis"   # the analysis job of a traced run that runs alone (amendment 14)
 FIELDS = ["subject", "config", "np", "mpi", "version", "label", "tool", "setting", "run", "result", "seconds",
           "says", "symptom", "reported", "failure", "detail"] + rows.COMMON
 POOL = "0-17,40-57"
@@ -128,7 +129,7 @@ def timeout_key(j):
         return "ninja", "system"
     if tool == "plain" and setting == "serial":
         return "plain", "-"
-    if tool == "stretto" and setting in ("replay", "replay-enumerate"):
+    if tool == "stretto" and setting in ("replay", "replay-enumerate", ANALYSIS):
         return "stretto", "traced"
     return tool, setting
 
@@ -156,13 +157,25 @@ def jobs_of(plan, blocks, runs_override, configs=".", tools="."):
                "image": p["image"], "calibration": p["tool"] == "calibrate", "external": ext, "mpi": p["mpi"]}
         if p["runner"] == "replays.py":
             out.append(dict(job, setting="replay-enumerate", run=0))      # the alternatives first (replays.py)
+        # a traced run that runs alone leaves its analysis to a job of its own on one hardware
+        # thread, beside the other jobs (RULE.md amendment 14)
+        apart = job["alone"] and tool == "stretto" and setting == "traced" and not job["calibration"]
         for i in range(first, first + n):
-            out.append(dict(job, setting=setting, run=i))
-    # a job that runs alone drains the machine before it starts: they come last in their phase,
-    # where the machine drains once for all of them
+            out.append(dict(job, setting=setting, run=i, defer=apart))
+            if apart:
+                out.append(dict(job, setting=ANALYSIS, run=i, cpus=1, alone=False))
+    # a job that runs alone drains the machine before it starts: they come first in their phase,
+    # where the machine drains once for all of them (an invocation starts idle) and the
+    # analyses of their traces (next) then run beside the phase's other jobs
     out.sort(key=lambda j: (0 if j["setting"] in ("learn", "warmup") or j["tool"] == "build" else 1 if j["calibration"] else 3 if j["setting"].startswith("replay")
-                            else 2, j["alone"], j["run"], j["subject"], j["config"], j["version"], j["tool"], j["setting"]))
+                            else 2, 0 if j["alone"] else 1 if j["setting"] == ANALYSIS else 2, j["run"], j["subject"],
+                            j["config"], j["version"], j["tool"], j["setting"]))
     return out
+
+
+def traced_of(j):
+    """The traced run an analysis job analyses."""
+    return dict(j, setting="traced")
 
 
 class Scheduler:
@@ -191,6 +204,11 @@ class Scheduler:
     def row_file(self, j):
         return os.path.join(self.a.state, "rows", safe(j["block"]), safe(key_of(j)) + (".csv" if j["external"] else ".json"))
 
+    def deferred_file(self, j):
+        """The row of a traced run whose analysis is a job of its own: kept here until that job
+        writes the row complete (the traced run is done once it exists)."""
+        return os.path.join(self.a.state, "rows", safe(j["block"]), safe(key_of(traced_of(j))) + ".deferred.json")
+
     def done_keys(self):
         done = set()
         blocks = set(j["block"] for j in self.jobs)
@@ -205,7 +223,13 @@ class Scheduler:
                 if r.get("protocol_job"):       # a row of an external job's own table
                     done.add((b, r["protocol_job"]))
                     continue
-                done.add((b, "%s|%s|%s|%s|%s|%s" % (r["subject"], r["config"], r["version"], r["tool"], r["setting"], r["run"])))
+                k = "%s|%s|%s|%s|%s|%s" % (r["subject"], r["config"], r["version"], r["tool"], r["setting"], r["run"])
+                done.add((b, k))
+                if r["setting"] == "traced" and '"analysis": "apart"' in r.get("detail", ""):
+                    done.add((b, "%s|%s|%s|%s|%s|%s" % (r["subject"], r["config"], r["version"], r["tool"], ANALYSIS, r["run"])))
+        for j in self.jobs:                    # traced runs whose analysis is still to come
+            if j.get("defer") and os.path.exists(self.deferred_file(j)):
+                done.add((j["block"], key_of(j)))
         return done
 
     def started_before(self):
@@ -225,6 +249,22 @@ class Scheduler:
         return started
 
     def collect(self, j, cpus, jobs_at_start):
+        if j.get("defer"):
+            # the traced run of a job that runs alone: its row waits for its analysis job
+            f = self.deferred_file(j)
+            if not os.path.exists(self.row_file(j)):
+                return os.path.exists(f)
+            with open(self.row_file(j)) as fh:
+                row = json.load(fh)
+            row["cpus"] = rows.cpuset(cpus) if cpus else row.get("cpus", "")
+            if jobs_at_start:
+                row["jobs"] = jobs_at_start
+            with open(f + ".tmp", "w") as fh:
+                json.dump(row, fh)
+            os.replace(f + ".tmp", f)
+            os.remove(self.row_file(j))
+            self.log("end %s %s %s (analysis apart)" % (j["block"], safe(key_of(j)), row["result"]))
+            return True
         f = self.row_file(j)
         if not os.path.exists(f):
             return False
@@ -253,9 +293,10 @@ class Scheduler:
             return True
         with open(f) as fh:
             row = json.load(fh)
-        row["cpus"] = rows.cpuset(cpus) if cpus else row.get("cpus", "")
-        if jobs_at_start:
-            row["jobs"] = jobs_at_start
+        if j["setting"] != ANALYSIS:           # an analysis job's row keeps its traced run's
+            row["cpus"] = rows.cpuset(cpus) if cpus else row.get("cpus", "")
+            if jobs_at_start:
+                row["jobs"] = jobs_at_start
         rows.append(self.table(j), [row], FIELDS)
         os.rename(f, f + ".collected")
         self.log("end %s %s %s %s" % (j["block"], safe(key_of(j)).replace(" ", "_"), row["result"], row["outcome"]))
@@ -332,6 +373,9 @@ class Scheduler:
         if j["setting"] == "replay-enumerate":
             return cmd + ["python3", "experiments/protocol/replays.py", "enumerate", "--subject", j["subject"],
                           "--config", j["config"], "--row", row, "--results", "/results", "--outputs", outputs]
+        if j["setting"] == ANALYSIS:
+            deferred = os.path.join(state_in, os.path.relpath(self.deferred_file(j), a.state))
+            return cmd + ["python3", "experiments/protocol/run.py", "analyse-row", "--deferred", deferred, "--row", row]
         if j["setting"] == "replay":
             return cmd + ["python3", "experiments/protocol/replays.py", "replay", "--subject", j["subject"],
                           "--config", j["config"], "--index", str(j["run"]), "--timeout", str(timeout), "--row", row,
@@ -341,6 +385,8 @@ class Scheduler:
                 "--timeout", str(timeout), "--row", row, "--outputs", outputs]
         if j["calibration"]:
             cmd.append("--calibration")
+        if j.get("defer"):
+            cmd.append("--defer-analysis")
         return cmd
 
     def ctx(self):
@@ -393,6 +439,8 @@ class Scheduler:
             except Exception:
                 return True
             return all(n in self.done for n in needs)
+        if j["setting"] == ANALYSIS:
+            return (j["block"], key_of(traced_of(j))) in self.done
         if j["tool"] == "ninja" and j["setting"] == "app":
             block = "%s/ninja-learn" % j["subject"]
             return (block, "%s|%s|%s|ninja|learn|0" % (j["subject"], j["config"], j["version"])) in self.done
@@ -459,14 +507,17 @@ class Scheduler:
                             self.log("no T for %s %s %s %s (calibrate.py first)" % (j["subject"], j["config"], j["tool"], j["setting"]))
                         todo.remove(j)
                         continue
-                    if j["alone"] and self.running:
+                    if any(r[0]["alone"] for r in self.running.values()) or \
+                            any(x is not None and x["alone"] for x, _ in self.adopted.values()):
+                        break                  # nothing starts beside a job that runs alone, an adopted one too
+                    if j["alone"] and (self.running or self.adopted):
                         break                  # nothing starts until the machine is idle for it
                     cpus = self.pool.take(j["cpus"], alone=j["alone"])
                     if cpus is None:
                         if j["alone"]:
                             break
                         continue
-                    njobs = len(self.running) + 1
+                    njobs = len(self.running) + len(self.adopted) + 1       # the jobs column counts adopted ones
                     try:
                         cmd = self.command(j, cpus, njobs, t)
                     except external.MissingBuild as e:

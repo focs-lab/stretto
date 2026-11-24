@@ -4,6 +4,7 @@ scheduler's placement on disjoint hardware threads and its resumption, and the r
 and MUST judgements on made-up runs."""
 import csv
 import io
+import json
 import os
 import sys
 import tempfile
@@ -279,6 +280,54 @@ class Placement(unittest.TestCase):
         cal = [j for j in jobs if j["calibration"]]
         self.assertTrue(cal and all(j["version"] == "fix" for j in cal))
         self.assertIn(("plain", "-"), {(j["tool"], j["setting"]) for j in cal})
+
+
+class AnalysisApart(unittest.TestCase):
+    """Amendment 14: a traced run that runs alone, its analysis a one-thread job of its own."""
+
+    def test_jobs(self):
+        pl = list(csv.DictReader(io.StringIO(plan.render(plan.plan()))))
+        jobs = schedule.jobs_of(pl, r"^npbmg/stretto-traced$", 2, configs="np32")
+        alone = [j for j in jobs if j["alone"]]
+        apart = [j for j in jobs if j["setting"] == schedule.ANALYSIS]
+        self.assertEqual(len(alone), 4)
+        self.assertEqual(len(apart), 4)
+        self.assertTrue(all(j["defer"] for j in alone))
+        self.assertTrue(all(j["cpus"] == 1 and not j["alone"] for j in apart))
+        self.assertEqual(jobs[:4], alone)                       # the alone runs first, their analyses next
+        jobs = schedule.jobs_of(pl, r"^npbmg/stretto-traced$", 2, configs="np16")
+        self.assertFalse([j for j in jobs if j["setting"] == schedule.ANALYSIS or j.get("defer")])
+
+    def test_deferred_row_and_its_analysis(self):
+        d = tempfile.mkdtemp()
+        a = type("A", (), {"timeout": None, "results": os.path.join(d, "r"), "state": os.path.join(d, "s"), "prefix": "p",
+                           "repo": "/w", "commit": "c",
+                           "pool": schedule.POOL})()
+        pl = list(csv.DictReader(io.StringIO(plan.render(plan.plan()))))
+        jobs = schedule.jobs_of(pl, r"^npbmg/stretto-traced$", 1, configs="np32")
+        sc = schedule.Scheduler(a, jobs)
+        t = [j for j in jobs if j.get("defer") and j["version"] == "bug"][0]
+        an = [j for j in jobs if j["setting"] == schedule.ANALYSIS and j["version"] == "bug"][0]
+        row = {"subject": "npbmg", "config": "np32", "version": "bug", "tool": "stretto", "setting": "traced", "run": 1,
+               "result": "FINISHED", "symptom": True, "reported": False, "failure": "", "detail": '{"analysis": "deferred"}'}
+        os.makedirs(os.path.dirname(sc.row_file(t)))
+        with open(sc.row_file(t), "w") as fh:
+            json.dump(row, fh)
+        self.assertTrue(sc.collect(t, [0, 40], 1))              # kept for its analysis, not in the table
+        self.assertFalse(os.path.exists(sc.table(t)))
+        sc.done = sc.done_keys()
+        self.assertIn((t["block"], schedule.key_of(t)), sc.done)
+        self.assertTrue(sc.ready(an, []))
+        self.assertIn("analyse-row", sc.command(an, [5], 2, 100))
+        with open(sc.row_file(an), "w") as fh:
+            json.dump(dict(row, cpus="0,40", detail='{"analysis": "apart"}', reported=True, outcome="predicted",
+                           **dict((k, "") for k in rows.COMMON if k not in ("cpus", "outcome"))), fh)
+        self.assertTrue(sc.collect(an, [5], 2))
+        got = rows.read(sc.table(an))
+        self.assertEqual((len(got), got[0]["setting"], got[0]["cpus"]), (1, "traced", "0,40"))   # the traced run's threads
+        done = sc.done_keys()
+        self.assertIn((an["block"], schedule.key_of(an)), done)
+        self.assertIn((t["block"], schedule.key_of(t)), done)
 
 
 class Symptoms(unittest.TestCase):
