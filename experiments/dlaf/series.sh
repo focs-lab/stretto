@@ -6,7 +6,9 @@
 #   experiments/dlaf/series.sh BUILD OUT.csv
 # BUILD holds copy_check and copy_check_fixed. Settings: RUNS (runs per cell and variant, 20),
 # REPS (copies per run, 5), CELLS (name:ranks:threads:M:N:mb_src:nb_src:mb_dst:nb_dst:P:Q:src_r:src_c:dst_r:dst_c:jitter).
+# Also the settings of experiments/thread_timeouts.sh (a cell's T, 120 s by default).
 set -u
+source "$(cd "$(dirname "$0")/.." && pwd)/thread_timeouts.sh"   # TIMEOUTS, ONLY, VARIANTS, SECONDS_OUT, ANALYSE
 B=${1:?usage: series.sh BUILD OUT.csv}; OUT=${2:?}
 RUNS=${RUNS:-20}; REPS=${REPS:-5}
 CELLS=${CELLS:-"2x1-offset:2:4:512:512:64:64:64:64:2:1:0:0:1:0:0
@@ -20,9 +22,10 @@ echo "cell,variant,run,ranks,threads,colliding_pairs,reps,wrong_reps,rc,result" 
 for i in $(seq 1 "$RUNS"); do
   for c in $CELLS; do
     IFS=: read -r name np t m n mbs nbs mbd nbd p q sr sc dr dc jit <<< "$c"
-    for v in plain fixed; do
+    cell_wanted "$name" || continue
+    for v in $(variants); do
       exe=$B/copy_check; [ $v = fixed ] && exe=$B/copy_check_fixed
-      log=$(timeout 120 mpirun --bind-to none -np "$np" "$exe" "$m" "$n" "$mbs" "$nbs" "$mbd" "$nbd" "$p" "$q" \
+      log=$(timed "$name" "$v" "$i" "$(cell_timeout "$name" 120)" mpirun --bind-to none -np "$np" "$exe" "$m" "$n" "$mbs" "$nbs" "$mbd" "$nbd" "$p" "$q" \
             "$sr" "$sc" "$dr" "$dc" "$REPS" "$jit" --pika:threads="$t" --pika:bind=none 2>&1)
       rc=$?
       pairs=$(echo "$log" | sed -n 's/^provided .* colliding pairs \([0-9]*\)$/\1/p')

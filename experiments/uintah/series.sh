@@ -11,8 +11,11 @@
 # iterations. outcome is pass (exit 0), truncate (MPI_ERR_TRUNCATE or MPICH's "Message
 # truncated"), hang (killed after TMO seconds) or fail; provided is the thread level sus
 # reports ("Provided: 3" is MPI_THREAD_MULTIPLE); iterations is the solver's count in the last
-# time step.
+# time step. Also the settings of experiments/thread_timeouts.sh: a cell (a setting) is named
+# np<np><args without spaces> ("np4-nthreads2"), its T in TIMEOUTS (default TMO); VARIANTS names
+# the builds to run (default all given).
 set -u
+source "$(cd "$(dirname "$0")/.." && pwd)/thread_timeouts.sh"   # TIMEOUTS, ONLY, VARIANTS, SECONDS_OUT, ANALYSE
 OUT=$(readlink -f "${1:?usage: series.sh OUT.csv UPS NAME=SUS ...}"); UPS=$(readlink -f "${2:?UPS}"); shift 2
 RUNS=${RUNS:-40}; MPIRUN=${MPIRUN:-/usr/bin/mpirun.openmpi}; MPI=${MPI:-openmpi}; TMO=${TMO:-60}
 SETTINGS=${SETTINGS:-4 -nthreads 2;4 -nthreads 4}
@@ -25,9 +28,12 @@ for i in $(seq 1 "$RUNS"); do
   for cfg in "${CFG[@]}"; do
     for b in "${BUILDS[@]}"; do
       name=${b%%=*}; sus=${b#*=}; read -r np args <<< "$cfg"
+      cell=np$np${args// /}
+      cell_wanted "$cell" || continue
+      [ -z "${VARIANTS:-}" ] || case " $VARIANTS " in *" $name "*) ;; *) continue ;; esac
       rm -rf solvertest.uda*
       s=$(date +%s.%N)
-      timeout -k 5 "$TMO" "$MPIRUN" -np "$np" "$sus" $args "$UPS" > out.log 2>&1
+      timed "$cell" "$name" "$i" "$(cell_timeout "$cell" "$TMO")" --kill "$MPIRUN" -np "$np" "$sus" $args "$UPS" > out.log 2>&1
       rc=$?; e=$(date +%s.%N)
       if [ $rc -eq 0 ]; then o=pass
       elif grep -q -i -E 'MPI_ERR_TRUNCATE|message truncated' out.log; then o=truncate

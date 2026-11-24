@@ -9,8 +9,10 @@
 #   experiments/parsec/series.sh BUILD OUT.csv
 # BUILD holds parsec-plain and parsec-fixed. Settings: RUNS (runs per cell and variant, 20),
 # REPS (taskpools per reshape_check run, 5),
-# CELLS (name:program:ranks:cores:mt:packages, packages 0 for the flat default vpmap).
+# CELLS (name:program:ranks:cores:mt:packages, packages 0 for the flat default vpmap), and the
+# settings of experiments/thread_timeouts.sh (a cell's T, 300 s by default).
 set -u
+source "$(cd "$(dirname "$0")/.." && pwd)/thread_timeouts.sh"   # TIMEOUTS, ONLY, VARIANTS, SECONDS_OUT, ANALYSE
 B=${1:?usage: series.sh BUILD OUT.csv}; OUT=${2:?}
 RUNS=${RUNS:-20}; export REPS=${REPS:-5}
 CELLS=${CELLS:-"vp2-mt:reshape_check:1:6:1:2 vp2-serialized:reshape_check:1:6:0:2 vp1-mt:reshape_check:1:6:1:0
@@ -20,12 +22,13 @@ echo "cell,variant,run,ranks,cores,mt,vps,reps,wrong_reps,failed_tests,rc,result
 for i in $(seq 1 "$RUNS"); do
   for c in $CELLS; do
     IFS=: read -r name prog np cores mt pk <<< "$c"
-    for v in plain fixed; do
+    cell_wanted "$name" || continue
+    for v in $(variants); do
       env=(); vpmap=()
       if [ "$pk" -gt 0 ]; then
         env=(-x HWLOC_SYNTHETIC="package:$pk core:$((cores / pk)) pu:1"); vpmap=(-- --mca runtime_vpmap hwloc)
       fi
-      log=$(timeout 300 mpirun --bind-to none -np "$np" "${env[@]}" -x REPS \
+      log=$(timed "$name" "$v" "$i" "$(cell_timeout "$name" 300)" mpirun --bind-to none -np "$np" "${env[@]}" -x REPS \
             "$B/parsec-$v/tests/collections/reshape/$prog" -N 120 -t 9 -c "$cores" -m "$mt" "${vpmap[@]}" 2>&1)
       rc=$?
       vps=$(echo "$log" | sed -n 's/^provided [0-9]* vps \([0-9]*\) .*/\1/p')

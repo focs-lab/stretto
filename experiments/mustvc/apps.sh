@@ -6,7 +6,9 @@
 # built):
 #   experiments/mustvc/apps.sh APP OUT.csv WORK
 # APP is slate, parsec, dlaf or uintah. Settings: RUNS (5), TIMEOUT (seconds per MUST run, 900),
-# NTIMEOUT (per run without MUST, 300), CELLS (names, default all of APP's), STRETTO_COMMIT.
+# NTIMEOUT (per run without MUST, 300), CELLS (names, default all of APP's), STRETTO_COMMIT, and the
+# settings of experiments/thread_timeouts.sh (a cell's T for its MUST runs by its name, for its runs
+# without MUST by native:<name>; VARIANTS).
 # Row: app,cell,variant,np,threads,run,tool,result,outcome,seconds,errors,warnings,early,
 # culprit,messages,commit (early: once.sh). tool is native or mustvc; result as once.sh says; outcome is the driver's
 # verdict (ok, wrong, truncate, crash, hang); culprit counts MUST reports that name the pair of
@@ -15,6 +17,7 @@
 # communicator; DLA-Future: concurrent receives at all (only colliding tags give two pending
 # receives of one source and tag); Uintah: concurrent collectives on one communicator).
 set -u
+source "$(cd "$(dirname "$0")/.." && pwd)/thread_timeouts.sh"   # TIMEOUTS, ONLY, VARIANTS, SECONDS_OUT, ANALYSE
 APP=${1:?usage: apps.sh slate|parsec|dlaf|uintah OUT.csv WORK}; OUT=${2:?}; W=${3:?}
 RUNS=${RUNS:-5}; TO=${TIMEOUT:-900}; NTO=${NTIMEOUT:-300}
 R=$(cd "$(dirname "$0")/../.." && pwd)
@@ -86,17 +89,18 @@ culprit() {   # run.out -> MUST reports that name the bug's pair
 for c in ${CELLS:-$ALL}; do
   [ "${WARMUP:-1}" = 1 ] || break   # WARMUP=0: none (Uintah, whose MUST runs all time out)
   setup "$c" plain
-  (cd "$W" && "$R/experiments/mustvc/once.sh" "$NP" "$TO" "$W/warmup-$c" "${CMD[@]}" > /dev/null)
+  (cd "$W" && "$R/experiments/mustvc/once.sh" "$NP" "$(cell_timeout "$c" "$TO")" "$W/warmup-$c" "${CMD[@]}" > /dev/null)
 done
 for i in $(seq 1 "$RUNS"); do
   for c in ${CELLS:-$ALL}; do
-    for v in plain fixed; do
+    for v in $(variants); do
       setup "$c" "$v"
       for tool in native mustvc; do
         o=$W/$c-$v-$i-$tool; rm -rf "$o"; mkdir -p "$o"
-        if [ $tool = native ]; then row=$(cd "$W" && NATIVE=1 "$R/experiments/mustvc/once.sh" "$NP" "$NTO" "$o" "${CMD[@]}")
-        else row=$(cd "$W" && "$R/experiments/mustvc/once.sh" "$NP" "$TO" "$o" "${CMD[@]}"); fi
+        if [ $tool = native ]; then row=$(cd "$W" && NATIVE=1 "$R/experiments/mustvc/once.sh" "$NP" "$(cell_timeout "native:$c" "$NTO")" "$o" "${CMD[@]}")
+        else row=$(cd "$W" && "$R/experiments/mustvc/once.sh" "$NP" "$(cell_timeout "$c" "$TO")" "$o" "${CMD[@]}"); fi
         IFS=, read -r res rc secs ne nw early msgs <<< "$row"
+        note_seconds "$([ $tool = native ] && echo "native:")$c" "$v" "$i" "$secs" "$rc"
         cu=; [ $tool = mustvc ] && cu=$(culprit "$o/run.out")
         [ $tool = native ] && ne= nw= early=
         echo "$APP,$c,$v,$NP,$TH,$i,$tool,$res,$(outcome "$o/run.out" "$o/run.err"),$secs,$ne,$nw,$early,$cu,$msgs,$COMMIT" >> "$OUT"
