@@ -224,6 +224,19 @@ def keep_output(a, name, cmd, rc, out, err, wd=None):
         shutil.copy(os.path.join(wd, "MUST_Output.json"), stem + ".must.json")
 
 
+def oom_kills(path="/sys/fs/cgroup/memory.events"):
+    """The kills of the job's own memory limit so far (its cgroup's oom_kill count), None if unknown."""
+    try:
+        with open(path) as fh:
+            for line in fh:
+                k, _, v = line.partition(" ")
+                if k == "oom_kill":
+                    return int(v)
+    except (OSError, ValueError):
+        pass
+    return None
+
+
 def execute(cmd, env, cwd, timeout):
     t0 = time.monotonic()
     p = subprocess.run(["/usr/bin/timeout", "-k", "5", str(timeout)] + cmd, cwd=cwd, env=env, stdin=subprocess.DEVNULL,
@@ -361,6 +374,7 @@ def one(a):
             if a.tool == "stretto":
                 cmd += rank_env(mpi, "LD_PRELOAD", lib) + rank_env(mpi, "STRETTO_TRACE_DIR", trace_dir)
             cmd += [exe] + args
+        oom0 = oom_kills()
         if a.tool == "must" and a.setting == "warmup":
             # one warm-up builds a layout at a time, as suites.py must's (amendment 6)
             import fcntl
@@ -386,8 +400,13 @@ def one(a):
         ok, says = judge(s, a.version, a.config, text, wd)
         S, failure = symptom_of(s, result, ok, text)
         if result == "KILLED":
-            # killed before T, out of memory or otherwise: a tool failure, never rerun (amendment 25)
-            S, failure = False, "killed after %.1f s, before T = %d s (a memory cap or an outside kill)" % (el, a.timeout)
+            # killed before T: a tool failure only when the job's own memory limit killed it
+            # (amendment 29: its cgroup counts the kill); any other kill is the harness's, and the
+            # run is done again (the scheduler reruns a job that leaves no row)
+            if oom0 is None or oom_kills() in (None, oom0):
+                raise SystemExit("HARNESS-RERUN: the run was killed after %.1f s, before T = %d s, not by the job's "
+                                 "memory limit" % (el, a.timeout))
+            S, failure = False, "killed by the job's memory limit after %.1f s, before T = %d s" % (el, a.timeout)
         reported = S
         if a.tool == "must":
             reported, detail["must"] = must_report(s, wd)

@@ -54,6 +54,7 @@ import rows  # noqa: E402
 import external  # noqa: E402
 
 ANALYSIS = "traced-analysis"   # the analysis job of a traced run that runs alone (amendment 14)
+MAX_RERUNS = 2       # reruns of a job after a harness failure in one invocation (amendment 29), then its block stops
 FIELDS = ["subject", "config", "np", "mpi", "version", "label", "tool", "setting", "run", "result", "seconds",
           "says", "symptom", "reported", "failure", "detail"] + rows.COMMON
 POOL = "0-17,40-57"
@@ -197,6 +198,8 @@ class Scheduler:
         self.a, self.jobs = a, jobs
         self.pool = Pool(rows.parse_cpuset(a.pool))
         self.running = {}            # key -> (job, Popen, cpus, started)
+        self.started = {}            # key -> time.time() at its start
+        self.reruns = {}             # (block, key) -> reruns in this invocation (amendment 29)
         self.stop = 0
         self.broken = set()          # blocks stopped by a harness error
         self.timeouts = {}
@@ -322,34 +325,60 @@ class Scheduler:
                            stdout=subprocess.PIPE, universal_newlines=True)
         return [n for n in p.stdout.split() if n.startswith(self.a.prefix + "-")]
 
+    def inspect(self, name, fmt):
+        p = subprocess.run(["docker", "inspect", "--format", fmt, name], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                           universal_newlines=True)
+        return p.stdout.strip()
+
+    def oom_killed(self, name):
+        """Whether Docker records the container as killed by its own memory limit, and the container
+        removed (amendment 29: only that kill is the tool's failure)."""
+        oom = self.inspect(name, "{{.State.OOMKilled}}") == "true"
+        subprocess.run(["docker", "rm", name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return oom
+
     def adopt_leftovers(self):
         """An earlier invocation's containers keep their threads until they end; a job of this
-        selection among them is collected when it does (and runs again if it left no row)."""
+        selection among them is collected when it does (and runs again if it left no row). A
+        container of a job this invocation did not select counts as alone if its label says so.
+        Containers that ended before this invocation are judged and removed."""
         by_name = dict((container(self.a.prefix, j), j) for j in self.jobs)
         for name in self.leftovers():
-            p = subprocess.run(["docker", "inspect", "--format", "{{.HostConfig.CpusetCpus}}", name],
-                               stdout=subprocess.PIPE, universal_newlines=True)
-            cpus = rows.parse_cpuset(p.stdout.strip())
+            cpus = rows.parse_cpuset(self.inspect(name, "{{.HostConfig.CpusetCpus}}"))
+            alone = self.inspect(name, '{{index .Config.Labels "protocol.alone"}}') == "1"
             self.pool.claim(cpus)
-            self.adopted[name] = (by_name.get(name), cpus)
-            self.log("adopted %s cpus=%s %s" % (name, rows.cpuset(cpus), safe(key_of(by_name[name])) if name in by_name else "(not selected)"))
+            self.adopted[name] = (by_name.get(name), cpus, alone)
+            self.log("adopted %s cpus=%s%s %s" % (name, rows.cpuset(cpus), " alone" if alone else "",
+                                                   safe(key_of(by_name[name])) if name in by_name else "(not selected)"))
+        p = subprocess.run(["docker", "ps", "-a", "--format", "{{.Names}}", "--filter", "status=exited",
+                            "--filter", "name=^%s-" % self.a.prefix], stdout=subprocess.PIPE, universal_newlines=True)
+        for name in p.stdout.split():
+            j = by_name.get(name)
+            if j is not None and not os.path.exists(self.row_file(j)) and self.oom_killed(name):
+                self.killed_row(j, 137)
+            elif j is not None and not os.path.exists(self.row_file(j)):
+                self.rerun(j, "its container of an earlier invocation ended without a row")
+            else:
+                subprocess.run(["docker", "rm", name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     def reap_adopted(self, todo):
         if not self.adopted or time.time() - self.last_poll < 10:
             return
         self.last_poll = time.time()
         alive = set(self.leftovers())
-        for name, (j, cpus) in list(self.adopted.items()):
+        for name, (j, cpus, _) in list(self.adopted.items()):
             if name in alive:
                 continue
             del self.adopted[name]
             self.pool.give(cpus)
+            oom = self.oom_killed(name)
             if j is None:
                 continue
             if self.collect(j, cpus, None):
                 self.done.add((j["block"], key_of(j)))
-            else:
-                self.log("restarted %s %s (its container of an earlier invocation left no row)" % (j["block"], safe(key_of(j))))
+            elif oom and self.killed_row(j, 137) and self.collect(j, cpus, None):
+                self.done.add((j["block"], key_of(j)))
+            elif self.rerun(j, "its container of an earlier invocation left no row"):
                 todo.insert(0, j)
 
     def timeout_for(self, j):
@@ -412,7 +441,10 @@ class Scheduler:
         name = container(a.prefix, j)
         state_in = "/state"
         row = os.path.join(state_in, os.path.relpath(self.row_file(j), a.state))
-        cmd = ["docker", "run", "--rm", "--ulimit", "core=0", "--name", name, "--hostname", rows.host(),
+        # no --rm: the scheduler reads Docker's verdict on the container (State.OOMKilled) and
+        # removes it; the labels let a later invocation know the job and whether it runs alone
+        cmd = ["docker", "run", "--label", "protocol.job=%s@%s" % (j["block"], key_of(j)),
+               "--label", "protocol.alone=%d" % bool(j["alone"]), "--ulimit", "core=0", "--name", name, "--hostname", rows.host(),
                "--cpuset-cpus", rows.cpuset(cpus), "--memory", "%dg" % self.memory(j), "--memory-swap", "%dg" % self.memory(j),
                "--shm-size", "4g", "--user", "%d:%d" % (os.getuid(), os.getgid()), "-e", "HOME=/tmp",
                "-e", "MACHINE=" + rows.host(), "-e", "PROTOCOL_CPUS=" + rows.cpuset(cpus), "-e", "PROTOCOL_JOBS=%d" % njobs,
@@ -518,6 +550,13 @@ class Scheduler:
             return True
         return True
 
+    def blocked_by_alone(self, j):
+        """Nothing starts beside a job that runs alone, an adopted one too (its label says so when
+        this invocation did not select it), and a job that runs alone waits for an idle machine."""
+        if any(r[0]["alone"] for r in self.running.values()) or any(alone for _, _, alone in self.adopted.values()):
+            return True
+        return bool(j["alone"] and (self.running or self.adopted))
+
     def counted_rows(self, j):
         """The current rows of the counted traced runs an enumeration job takes, in run order."""
         if j["external"] == "threadreplay":
@@ -582,12 +621,13 @@ class Scheduler:
             if (j["block"], key_of(j)) not in self.done and os.path.exists(self.row_file(j)):
                 self.collect(j, None, None)
                 self.done.add((j["block"], key_of(j)))
-        adopted = set((j["block"], safe(key_of(j))) for j, _ in self.adopted.values() if j)
+        adopted = set((j["block"], safe(key_of(j))) for j, _, _ in self.adopted.values() if j)
         selected = set((j["block"], safe(key_of(j))) for j in self.jobs)
+        by_safe = dict(((j["block"], safe(key_of(j))), j) for j in self.jobs)
         for b, k in sorted(self.started_before()):
             if (b, k) in selected and (b, k) not in self.done and (b, k) not in adopted:
-                self.log("restarted %s %s (started by an interrupted invocation, no row)" % (b, k))
-        running = set(container(a.prefix, j) for j, _ in self.adopted.values() if j)
+                self.rerun(by_safe[(b, k)], "started by an interrupted invocation, no row")
+        running = set(container(a.prefix, j) for j, _, _ in self.adopted.values() if j)
         todo = [j for j in self.jobs if (j["block"], key_of(j)) not in self.done and container(a.prefix, j) not in running]
         self.log("%d jobs, %d done, %d to run" % (len(self.jobs), len(self.jobs) - len(todo), len(todo)))
         if a.dry_run:
@@ -598,7 +638,7 @@ class Scheduler:
         signal.signal(signal.SIGTERM, self.on_signal)
         blocked = set()
         while todo or self.running or self.adopted:
-            self.reap()
+            self.reap(todo)
             self.reap_adopted(todo)
             started = False
             if not self.stop:
@@ -620,11 +660,8 @@ class Scheduler:
                             self.log("no T for %s %s %s %s (calibrate.py first)" % (j["subject"], j["config"], j["tool"], j["setting"]))
                         todo.remove(j)
                         continue
-                    if any(r[0]["alone"] for r in self.running.values()) or \
-                            any(x is not None and x["alone"] for x, _ in self.adopted.values()):
-                        break                  # nothing starts beside a job that runs alone, an adopted one too
-                    if j["alone"] and (self.running or self.adopted):
-                        break                  # nothing starts until the machine is idle for it
+                    if self.blocked_by_alone(j):
+                        break
                     cpus = self.pool.take(j["cpus"], alone=j["alone"])
                     if cpus is None:
                         if j["alone"]:
@@ -645,6 +682,7 @@ class Scheduler:
                     p = subprocess.Popen(cmd, stdout=log, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL)
                     log.close()
                     self.running[key_of(j) + "@" + j["block"]] = (j, p, cpus, njobs)
+                    self.started[key_of(j) + "@" + j["block"]] = time.time()
                     self.log("start %s %s cpus=%s jobs=%d T=%s" % (j["block"], safe(key_of(j)), rows.cpuset(cpus), njobs, t))
                     todo.remove(j)
                     started = True
@@ -662,16 +700,41 @@ class Scheduler:
         self.log("finished: %d left%s" % (len(todo), ", stopped blocks: " + " ".join(sorted(self.broken)) if self.broken else ""))
         return 1 if self.broken or todo else 0
 
-    def reap(self):
+    def rerun(self, j, why):
+        """A harness failure (Section 1.8, amendment 29): the job runs again, at most MAX_RERUNS
+        times in an invocation, each rerun listed in RESULTS/reruns.tsv (README.md); a row the job
+        left is kept, superseded. False when the job has had its reruns: its block stops."""
+        k = (j["block"], key_of(j))
+        self.reruns[k] = self.reruns.get(k, 0) + 1
+        if self.reruns[k] > MAX_RERUNS:
+            return False
+        if os.path.exists(self.row_file(j)):
+            os.replace(self.row_file(j), self.row_file(j) + ".superseded")
+        path = os.path.join(self.a.results, "reruns.tsv")
+        new = not os.path.exists(path)
+        with open(path, "a") as fh:
+            if new:
+                fh.write("time\tblock\tjob\treason\n")
+            fh.write("%s\t%s\t%s\t%s\n" % (time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), j["block"], key_of(j), why))
+        self.log("rerun %s %s: %s (amendment 29)" % (j["block"], safe(key_of(j)), why))
+        return True
+
+    def reap(self, todo=None):
         for k, (j, p, cpus, njobs) in list(self.running.items()):
             if p.poll() is None:
                 continue
             del self.running[k]
             self.pool.give(cpus)
+            oom = self.oom_killed(container(self.a.prefix, j))
+            elapsed = time.time() - self.started.pop(k, time.time())
             if self.collect(j, cpus, njobs):
                 self.done.add((j["block"], key_of(j)))
-            elif self.killed_row(j, p.returncode) and self.collect(j, cpus, njobs):
+            elif oom and self.killed_row(j, 137, elapsed) and self.collect(j, cpus, njobs):
                 self.done.add((j["block"], key_of(j)))
+            elif self.stop <= 1 and todo is not None and self.rerun(
+                    j, "killed (status %s), not by its own memory limit" % p.returncode if p.returncode in (137, -9)
+                    else "no row (status %s)" % p.returncode):
+                todo.insert(0, j)
             else:
                 logf = os.path.join(self.a.state, "rows", safe(j["block"]), safe(key_of(j)) + ".log")
                 why = ""
@@ -686,10 +749,12 @@ class Scheduler:
                     self.log("harness-error %s %s rc=%s: %s" % (j["block"], safe(key_of(j)), p.returncode, why[:300]))
                     self.broken.add(j["block"])
 
-    def killed_row(self, j, rc):
-        """The row of a run.py job whose container was killed (status 137: out of memory) before
-        it wrote one: a tool failure, never rerun (amendment 25). A deferred analysis's row is its
-        traced run's, the analysis killed. Other jobs, and kills of the second signal, write none."""
+    def killed_row(self, j, rc, elapsed=None):
+        """The row of a run.py job whose container Docker killed for its own memory limit
+        (State.OOMKilled, amendment 29) before it wrote one: a tool failure, never rerun (amendment
+        25). A deferred analysis's row is its traced run's, the analysis killed; a replay's keeps a
+        verdict (inconclusive), a delays run its seed, a calibration run the seconds it lasted.
+        Other jobs, and kills of the second signal, write none."""
         if rc != 137 or self.stop > 1 or j["external"] or j["setting"] in ("replay-enumerate", "learn", "warmup"):
             return False
         if j["setting"] == ANALYSIS:
@@ -702,10 +767,13 @@ class Scheduler:
         else:
             row = {"subject": j["subject"], "config": j["config"], "np": j["np"], "mpi": j["mpi"], "version": j["version"],
                    "label": "", "tool": j["tool"], "setting": j["setting"], "run": j["run"], "result": "KILLED",
-                   "seconds": "", "says": "", "symptom": False, "reported": False,
-                   "failure": "container killed before T (a memory cap)",
+                   "seconds": round(elapsed, 1) if elapsed is not None else "", "says": "", "symptom": False,
+                   "reported": False, "failure": "container killed by its memory limit before T",
                    "detail": json.dumps({"analysis": "deferred", "trace": "empty"}) if j.get("defer") else ""}
-            row.update(rows.common(self.timeout_for(j) or 0, commit=self.a.commit, category="tool-failure"))
+            seed = str(j["run"] * 100 + j["np"]) if j["tool"] == "delays" else ""
+            row.update(rows.common(self.timeout_for(j) or 0, seed=seed, commit=self.a.commit,
+                                   category="inconclusive" if j["setting"] == "replay" else "tool-failure"))
+        os.makedirs(os.path.dirname(self.row_file(j)), exist_ok=True)
         with open(self.row_file(j) + ".tmp", "w") as fh:
             json.dump(row, fh)
         os.replace(self.row_file(j) + ".tmp", self.row_file(j))

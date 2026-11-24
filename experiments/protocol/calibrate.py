@@ -88,8 +88,10 @@ def derive(results, subject, buggy=False, runs=RUNS):
         if len(rs) < runs:
             short.append("%s %s %s: %d runs" % (config, tool, setting, len(rs)))
             continue
-        secs = [float(r["seconds"]) for r in rs]
         cap = min(max(int(r["timeout"]) for r in rs), CALIBRATION_CAP)
+        # a run killed by its memory limit is a tool failure: left out of T as a capped run is (amendment 5)
+        secs = [float(r["seconds"]) if r["result"] != "KILLED" and r.get("seconds") not in ("", None) else float(cap)
+                for r in rs]
         t, capped = timeout_of(secs, cap)
         ends = collections.Counter(r["result"] for r in rs)
         out.append({"subject": subject, "config": config, "tool": tool, "setting": setting, "runs": len(rs),
