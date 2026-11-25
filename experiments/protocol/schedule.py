@@ -31,8 +31,13 @@ starts in this invocation.
 SIGINT or SIGTERM stops starting jobs; running jobs finish and are collected (a second signal
 kills their containers, whose runs then have no row and run again on the next invocation).
 
+Disk: before every job starts, the free space of --state and --results is read (os.statvfs). Below
+--min-free-gb (12) nothing more starts, the journal says so, the running jobs finish and are
+collected, and the scheduler exits with status 75 (RESUMABLE): once space is freed, the same
+command resumes.
+
 usage: schedule.py [--blocks REGEX] [--configs REGEX] [--tools REGEX] [--runs N] [--timeout T] [--results DIR] [--state DIR]
-                   [--pool 0-17,40-57] [--prefix proto] [--dry-run] [--max-jobs K]
+                   [--pool 0-17,40-57] [--prefix proto] [--dry-run] [--max-jobs K] [--min-free-gb 12]
 Python 3.6 runs this file (the experiment machine's host); it needs docker and the images of
 plan.csv.
 """
@@ -54,6 +59,8 @@ import rows  # noqa: E402
 import external  # noqa: E402
 
 ANALYSIS = "traced-analysis"   # the analysis job of a traced run that runs alone (amendment 14)
+MIN_FREE_GB = 12     # free space on the state's and the results' file systems below which no job starts
+RESUMABLE = 75       # exit status of a stop the same command resumes (the disk floor)
 MAX_RERUNS = 2       # reruns of a job after a harness failure in one invocation (amendment 29), then its block stops
 FIELDS = ["subject", "config", "np", "mpi", "version", "label", "tool", "setting", "run", "result", "seconds",
           "says", "symptom", "reported", "failure", "detail"] + rows.COMMON
@@ -207,6 +214,7 @@ class Scheduler:
         self.running = {}            # key -> (job, Popen, cpus, started)
         self.started = {}            # key -> time.time() at its start
         self.reruns = {}             # (block, key) -> reruns in this invocation (amendment 29)
+        self.disk_stop = False       # the free space fell below the floor: a resumable stop
         self.stop = 0
         self.broken = set()          # blocks stopped by a harness error
         self.timeouts = {}
@@ -833,6 +841,13 @@ class Scheduler:
                         continue
                     if self.blocked_by_alone(j):
                         break
+                    low = self.low_disk()
+                    if low:
+                        # below the floor: nothing more starts; the running jobs finish (a resumable stop)
+                        self.stop, self.disk_stop = max(self.stop, 1), True
+                        self.log("disk: %s; no new jobs, the running ones finish, then a resumable stop (status %d)"
+                                 % (low, RESUMABLE))
+                        break
                     cpus = self.pool.take(j["cpus"], alone=j["alone"])
                     if cpus is None:
                         if j["alone"]:
@@ -869,7 +884,22 @@ class Scheduler:
                     break
                 time.sleep(1)
         self.log("finished: %d left%s" % (len(todo), ", stopped blocks: " + " ".join(sorted(self.broken)) if self.broken else ""))
+        if self.disk_stop:
+            return RESUMABLE
         return 1 if self.broken or todo else 0
+
+    def low_disk(self):
+        """A description of the space that is short, or "" (every directory a job writes to has at
+        least --min-free-gb free)."""
+        for d in (self.a.state, self.a.results):
+            try:
+                st = os.statvfs(d)
+            except OSError:
+                continue
+            free = st.f_bavail * st.f_frsize / 1e9
+            if free < getattr(self.a, "min_free_gb", MIN_FREE_GB):
+                return "%.1f GB free under %s, below %d GB" % (free, d, getattr(self.a, "min_free_gb", MIN_FREE_GB))
+        return ""
 
     def rerun(self, j, why):
         """A harness failure (Section 1.8, amendment 33): the job runs again, at most MAX_RERUNS
@@ -946,6 +976,8 @@ def main():
     ap.add_argument("--suite-select", default=".", help="the suites' programs (a regular expression on their names)")
     ap.add_argument("--suite-limit", type=int, default=0, help="at most this many programs per suite (the smoke test)")
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--min-free-gb", type=float, default=MIN_FREE_GB,
+                    help="no job starts while --state or --results has less free space (exit status %d)" % RESUMABLE)
     a = ap.parse_args()
     if not a.commit:
         from provenance import code_commit  # noqa: E402
