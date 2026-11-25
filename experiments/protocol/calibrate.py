@@ -37,16 +37,20 @@ the untraced one), stress_baseline.py's and ninja/run.py corpus's per program, s
 The thread campaigns (amendment 20): their "<subject>/calibrate-<block>" blocks (MUST-vc's
 "mustvc/calibrate-<app>") run each cell's fixed variant (a control cell's plain one) 10 times at
 the 1 800 s cap; `derive-threads` writes RESULTS/thread-timeouts.csv, one T per block and cell.
+With --blocks REGEX it derives only the blocks the expression finds (the blocks whose T the
+calibrations give, as "mustvc/uintah") and keeps the file's other rows as they are: the blocks run
+again after the campaign (amendment 36).
 
 usage: calibrate.py derive [--results DIR] [--subjects S ...] [--buggy S ...] [--runs 10]
        calibrate.py derive-suites [--results DIR] [--subjects S ...]
-       calibrate.py derive-threads [--results DIR] [--runs 10]
+       calibrate.py derive-threads [--results DIR] [--runs 10] [--blocks REGEX]
 Python 3.6 runs this file.
 """
 import argparse
 import collections
 import math
 import os
+import re
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -159,17 +163,18 @@ def derive_suites(results, suite):
     return out
 
 
-def derive_threads(results, runs=RUNS):
+def derive_threads(results, runs=RUNS, blocks=None):
     """The thread campaigns' T per block and cell (amendment 20): RESULTS/*/calibrate-*.csv, the
     seconds experiments/thread_timeouts.sh noted for each run of a cell's fixed (or control)
     variant, the first `runs` current runs of each; RESULTS/thread-timeouts.csv: block, cell, runs,
-    slowest, T, capped, commit (T empty with fewer runs: that cell's block cannot start)."""
+    slowest, T, capped, commit (T empty with fewer runs: that cell's block cannot start). blocks,
+    a regular expression: only the blocks it finds, the file's rows of every other block kept."""
     import glob
     by, commits = collections.defaultdict(list), collections.defaultdict(set)
     for path in sorted(glob.glob(os.path.join(results, "*", "calibrate-*.csv"))):
         for r in rows.current(rows.read(path)):
             block = r.get("calibrated", "")
-            if "/" not in block:
+            if "/" not in block or (blocks and not re.search(blocks, block)):
                 continue
             try:
                 by[(block, r["name"])].append((int(r["run"]), float(r["seconds"])))
@@ -193,9 +198,10 @@ def derive_threads(results, runs=RUNS):
             r.update(T="", cannot_run=gone[r["block"]][r["cell"][7:]])
     dest = os.path.join(results, "thread-timeouts.csv")
     if out:
+        keep = [r for r in rows.read(dest) if blocks and not re.search(blocks, r["block"])]
         if os.path.exists(dest):
             os.replace(dest, dest + ".previous")
-        rows.append(dest, out, THREAD_FIELDS)
+        rows.append(dest, sorted(keep + out, key=lambda r: (r["block"], r["cell"])), THREAD_FIELDS)
     return out
 
 
@@ -206,10 +212,11 @@ def main():
     ap.add_argument("--subjects", nargs="*", default=None)
     ap.add_argument("--buggy", nargs="*", default=[])
     ap.add_argument("--runs", type=int, default=RUNS, help="calibration runs per setting (10; fewer only for the smoke test)")
+    ap.add_argument("--blocks", default=None, help="derive-threads: only these blocks (a regular expression), the others' rows kept")
     a = ap.parse_args()
     if a.cmd == "derive-threads":
         bad = 0
-        for r in derive_threads(a.results, a.runs):
+        for r in derive_threads(a.results, a.runs, a.blocks):
             print("%s %s: %d runs, slowest %.1f s -> T %s%s" % (r["block"], r["cell"], r["runs"], r["slowest"],
                                                               r["T"] or r["cannot_run"] or "none (too few runs)",
                                                               " (%d reached the cap)" % r["capped"] if r["capped"] else ""))

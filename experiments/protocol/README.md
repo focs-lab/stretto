@@ -81,7 +81,7 @@ docker run --rm --ulimit core=0 --cpuset-cpus 0-17,40-57 --user $(id -u):$(id -g
 | [subjects.py](subjects.py) | the application subjects of Section 4: programs, arguments, MPI, judges, the bug's symptom, Stretto's classifier, MUST's racing call and site |
 | [run.py](run.py) | one run of one tool on one application configuration, inside its container; writes the row |
 | [replays.py](replays.py) | Section 6 for the applications: the distinct alternatives of a configuration's kept traces (a seeded sample of 40 if more), each with its control |
-| [calibrate.py](calibrate.py) | Section 2.1 and amendment 5: `derive` turns the calibration runs into `results/<subject>/timeouts.csv`; `derive-suites` the suites' into `results/<suite>/suite-timeouts.csv` (amendment 15); `derive-threads` the thread campaigns' into `results/thread-timeouts.csv`, one T per block and cell (amendment 20) |
+| [calibrate.py](calibrate.py) | Section 2.1 and amendment 5: `derive` turns the calibration runs into `results/<subject>/timeouts.csv`; `derive-suites` the suites' into `results/<suite>/suite-timeouts.csv` (amendment 15); `derive-threads` the thread campaigns' into `results/thread-timeouts.csv`, one T per block and cell (amendment 20; `--blocks`: only those blocks' rows, amendment 36) |
 | [../thread_timeouts.sh](../thread_timeouts.sh) | what the thread campaigns' scripts take from the harness: a T per cell (`TIMEOUTS`, a calibration's `CAP`), the cells and variants to run (`ONLY`, `VARIANTS`), each run's seconds (`SECONDS_OUT`), `ANALYSE=0`; without them a script runs as committed |
 | [suites.py](suites.py) | Section 5: a suite's build for the tools that run its binaries, MUST 1.11.2 over a build (`--tsan`: with ThreadSanitizer, amendment 16), the selection of a suite's programs (`--correct`: those labelled correct) |
 | [threadreplays.py](threadreplays.py) | Section 6 for SLATE, PaRSEC and DLA-Future (amendment 17): traced runs of the replay cell, the distinct alternatives over their traces (a seeded sample of 40), each replayed twice with its control per gate mode |
@@ -258,7 +258,8 @@ then `slate/replay-<mode>` and `parsec/replay-<mode>` for the gate modes after (
 yield and both (appendix), one job per alternative, each replayed twice with its control; and
 `dlaf/replay-after`, DLA-Future in its one mode (its replay.sh has no gate modes; its table says
 so in the notes); `mustvc/<app>` for the four bugs, 40 jobs, each cell once without MUST-vc and
-once with; `locks/replay`, one job, every L1+L finding replayed twice at CorrBench OpenMP's
+once with, in the artifact's MPICH image, and `mustvc/dlaf-openmpi`, DLA-Future's cells in
+`mustvc:1.9-omp-openmpi` (amendment 36); `locks/replay`, one job, every L1+L finding replayed twice at CorrBench OpenMP's
 Stretto T. The replays' traced runs and replays take the replay cell's T (SLATE wide-4x1, PaRSEC
 vp2-mt, DLA-Future 2x1-offset-jitter of the traced block). The enumeration waits for every
 counted traced run in its table (whatever its outcome) and takes the alternatives of their
@@ -327,6 +328,43 @@ keeps every other job from starting until it ends. schedule.py refuses to start 
 `MACHINE`. summary.py shows a suite block per cell and label (`expect`, CorrBench's `label`),
 with the share of its reveals that are timeouts (amendment 28), and a thread replay block per
 alternative and mode as well as per replay (amendment 24).
+
+### After the campaign: MUST-vc's blocks of amendment 36
+
+`mustvc/uintah` and its calibration run again, now with `MUSTVC_WORK/src` at `/src` (a sus whose
+output says `ERROR caught while parsing UPS file` is a harness error, no row), and
+`mustvc/dlaf-openmpi` with its calibration runs for the first time, with `MUSTVC_WORK/dlaf-openmpi`
+at `/h`. Both run into the campaign's results and state, once campaign.sh has ended (its
+`campaign.log` says `campaign done`), from a copy of the repository at the commit that adds them
+(experiments/RUNBOOK.md, "Where experiments run"), not from the campaign's copy. Their rows carry
+that commit, every other row the frozen one.
+
+```bash
+export MACHINE=a-p13 STRETTO_COMMIT=<this commit, 12 hex digits>    # the copy's COMMIT
+R=~/protocol/campaign/results S=~/protocol/campaign/state
+docker image inspect --format '{{.Id}}' mustvc:1.9-omp-openmpi         # sha256:3aef055d75da...
+ls ~/mvc-work/src/uintah/src/StandAlone/inputs/UPS_SPEC/ups_spec.xml ~/mvc-work/dlaf-openmpi/build/copy_check{,_fixed}
+# 1. the frozen commit's Uintah rows superseded (every current row: superseded is empty), once;
+#    their state aside, since the rerun writes the same directories
+why="amendment 36: run without the source tree at /src, sus stopped at parsing its input"
+python3 experiments/protocol/rows.py supersede $R/mustvc/calibrate-uintah.csv superseded= "$why"
+python3 experiments/protocol/rows.py supersede $R/mustvc/uintah.csv superseded= "$why"
+mkdir -p $S/superseded-36/rows && mv $S/mustvc/uintah-* $S/superseded-36/ &&
+  mv $S/rows/mustvc_uintah $S/rows/mustvc_calibrate-uintah $S/superseded-36/rows/
+# 2. the calibrations; 3. their T only (the other blocks' rows of thread-timeouts.csv are kept);
+# 4. the counted jobs
+python3 experiments/protocol/schedule.py --state $S --results $R --commit $STRETTO_COMMIT \
+  --blocks '^mustvc/calibrate-(uintah|dlaf-openmpi)$'
+python3 experiments/protocol/calibrate.py derive-threads --results $R --blocks '^mustvc/(uintah|dlaf-openmpi)$'
+python3 experiments/protocol/schedule.py --state $S --results $R --commit $STRETTO_COMMIT \
+  --blocks '^mustvc/(uintah|dlaf-openmpi)$'
+```
+
+Each schedule.py takes `--dry-run` first. derive-threads keeps the previous file as
+`thread-timeouts.csv.previous`. If Uintah's first 3 MUST-vc runs of both cells reach the cap,
+amendment 34 makes the block's rows `cannot-run`. Once step 1 is done, campaign.sh is not run
+again from the frozen copy: it would run the superseded Uintah jobs again without `/src`. The
+commit is then written at the top of this file, beside the frozen one.
 
 ## Smoke test
 

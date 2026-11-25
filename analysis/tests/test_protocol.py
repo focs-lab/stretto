@@ -1024,6 +1024,98 @@ class CannotRun(unittest.TestCase):
         self.assertEqual((reason, cells), (calibrate.CANNOT_RUN, None))   # the whole job: rows that say so
 
 
+class MustvcRerun(unittest.TestCase):
+    """Amendment 36: Uintah's MUST-vc block with its source tree, DLA-Future's in the Open MPI image."""
+
+    def jobs(self, d, blocks):
+        jobs = schedule.jobs_of(plan_rows(), blocks, 40)
+        sc = scheduler(d, jobs)
+        sc._ctx["machine"] = {"MUSTVC_WORK": "/mw", "MUSTVC_IMAGE": "mustvc:1.9-omp"}
+        return jobs, sc
+
+    def test_dlaf_in_both_images(self):
+        import external
+        d = tempfile.mkdtemp()
+        jobs, sc = self.jobs(d, r"^mustvc/(calibrate-)?dlaf(-openmpi)?$")
+        self.assertEqual(set(j["block"] for j in jobs), {"mustvc/calibrate-dlaf", "mustvc/dlaf", "mustvc/calibrate-dlaf-openmpi",
+                                                          "mustvc/dlaf-openmpi"})
+        by = dict((j["block"], j) for j in jobs if j["run"] == 2)
+        omp, mpich = by["mustvc/dlaf-openmpi"], by["mustvc/dlaf"]
+        self.assertEqual((omp["subject"], omp["mpi"], omp["cpus"], omp["image"]), ("dlaf", "openmpi", 14, "mustvc:1.9-omp-openmpi"))
+        s = external.spec(dict(omp, T={}), sc.ctx())
+        self.assertEqual(s["image"], "mustvc:1.9-omp-openmpi")       # the plan's, not MUSTVC_IMAGE
+        self.assertEqual(s["mounts"], [("/mw", "/mvc", "rw"), ("/mw/dlaf-openmpi", "/h", "ro")])
+        self.assertEqual(s["env"]["OMPI_MCA_rmaps_base_oversubscribe"], "1")
+        self.assertTrue(s["src"].startswith("/state/mustvc/dlaf-openmpi-02/"))
+        m = external.spec(dict(mpich, T={}), sc.ctx())
+        self.assertEqual((m["image"], m["mounts"][1], m["src"]), ("mustvc:1.9-omp", ("/mw/dlaf", "/h", "ro"),
+                                                                  "/state/mustvc/dlaf-02/apps.csv"))
+        self.assertNotIn("OMPI_MCA_rmaps_base_oversubscribe", m["env"])
+        c = external.spec(dict(by["mustvc/calibrate-dlaf-openmpi"], T=1800), sc.ctx())
+        self.assertIn("calibrated=mustvc/dlaf-openmpi", c["extra"])
+        self.assertTrue(c["src"].startswith("/state/mustvc/dlaf-openmpi-calibrate-02/"))
+        # its T and cannot-run cells are its own block's, its cells DLA-Future's
+        self.assertEqual(external.cells_of(omp), external.THREAD_CELLS["mustvc/dlaf"])
+        cal = os.path.join(d, "r", "mustvc", "calibrate-dlaf-openmpi.csv")
+        rs = [{"name": c, "variant": "fixed", "run": k, "seconds": 1800.2 if c == "4x1-offset-jitter" else 3.0, "rc": 0,
+               "calibrated": "mustvc/dlaf-openmpi", "commit": "c", "superseded": ""}
+              for c in external.THREAD_CELLS["mustvc/dlaf-openmpi"] for k in range(1, 4)]
+        rows.append(cal, rs, list(rs[0]))
+        calibrate.derive_threads(os.path.join(d, "r"), 10)
+        self.assertEqual(sc.timeout_for(mpich), None)                       # the MPICH block has no T from it
+        reason, cells = sc.cannot_run(omp)
+        self.assertEqual((reason, cells), (calibrate.CANNOT_RUN, ["4x1-offset-jitter"]))
+        s = external.spec(dict(omp, T={}, cannot_cells=cells), sc.ctx())
+        self.assertEqual(s["env"]["CELLS"], "2x1-offset-jitter")
+
+    def test_uintah_source_tree_and_its_check(self):
+        import external
+        import subprocess
+        d = tempfile.mkdtemp()
+        jobs, sc = self.jobs(d, r"^mustvc/(calibrate-)?uintah$")
+        for j in (jobs[0], [j for j in jobs if not j["calibration"]][0]):
+            s = external.spec(dict(j, T=1800 if j["calibration"] else {}), sc.ctx())
+            self.assertIn(("/mw/src", "/src", "ro"), s["mounts"])
+            self.assertIn("HARNESS-ERROR", s["cmd"])
+        # the check after apps.sh: a run that could not parse its input is a harness error, no row
+        jd = s["src"][:-len("/apps.csv")]
+        w = os.path.join(d, "jd")
+        check = s["cmd"].replace("experiments/mustvc/apps.sh", "true").replace(jd, w).replace("rm -rf %s/work && " % w, "")
+        for text, rc in (("Sus: going down successfully\n", 0), ("ERROR caught while parsing UPS file\n", 3)):
+            os.makedirs(os.path.join(w, "work", "np4-t4-plain-1-native"), exist_ok=True)
+            with open(os.path.join(w, "work", "np4-t4-plain-1-native", "run.out"), "w") as fh:
+                fh.write(text)
+            p = subprocess.run(["bash", "-c", check], stdout=subprocess.PIPE, universal_newlines=True)
+            self.assertEqual(p.returncode, rc, p.stdout)
+        log = os.path.join(d, "s", "rows", schedule.safe(jobs[0]["block"]), schedule.safe(schedule.key_of(jobs[0])) + ".log")
+        os.makedirs(os.path.dirname(log), exist_ok=True)
+        with open(log, "w") as fh:
+            fh.write(p.stdout)
+        self.assertFalse(sc.why_no_row(jobs[0], 3, False)[0])                 # stops its block, no rerun
+
+    def test_derive_some_blocks(self):
+        import external
+        d = tempfile.mkdtemp()
+        res = os.path.join(d, "r")
+        for block, secs in (("mustvc/uintah", 2.0), ("mustvc/slate", 5.0)):
+            rs = [{"name": c, "variant": "fixed", "run": k, "seconds": secs, "rc": 0, "calibrated": block, "commit": "c",
+                   "superseded": ""} for c in external.THREAD_CELLS[block] for k in range(1, 11)]
+            rows.append(os.path.join(res, "mustvc", "calibrate-%s.csv" % block.split("/")[1]), rs, list(rs[0]))
+        calibrate.derive_threads(res)
+        before = rows.read(os.path.join(res, "thread-timeouts.csv"))
+        # the rerun: the old rows superseded, new ones; the other block's calibration changed since
+        cal = os.path.join(res, "mustvc", "calibrate-uintah.csv")
+        rows.supersede(cal, lambda r: True, "amendment 36")
+        rows.append(cal, [dict(r, seconds=40.0, superseded="") for r in rows.read(cal)], rows.header_of(cal))
+        rows.supersede(os.path.join(res, "mustvc", "calibrate-slate.csv"), lambda r: True, "not derived")
+        out = calibrate.derive_threads(res, blocks=r"^mustvc/uintah$")
+        self.assertEqual(set((r["block"], r["T"]) for r in out), {("mustvc/uintah", 400)})
+        after = rows.read(os.path.join(res, "thread-timeouts.csv"))
+        self.assertEqual([r for r in after if r["block"] == "mustvc/slate"], [r for r in before if r["block"] == "mustvc/slate"])
+        self.assertEqual(set(r["T"] for r in after if r["block"] == "mustvc/uintah"), {"400"})
+        self.assertEqual([(r["block"], r["cell"]) for r in after], [(r["block"], r["cell"]) for r in before])
+
+
 class Campaign(unittest.TestCase):
     """The disk floor and campaign.sh's phases."""
 
