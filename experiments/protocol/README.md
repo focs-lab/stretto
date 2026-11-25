@@ -1,7 +1,7 @@
 # The uniform campaign: harness
 
 [RULE.md](RULE.md) fixes the protocol, with its amendments of 24 and 25 Nov 2026 (Sections 10 to
-13, amendments 14 to 33); this directory is the harness that runs it. Nothing here is a result
+13, amendments 14 to 34); this directory is the harness that runs it. Nothing here is a result
 yet: `results/` is written by the campaign itself.
 
 Frozen commit: (set before the first run)
@@ -135,6 +135,15 @@ same categories are written, and there F is a false alarm. A replay row's outcom
   No MUST run of a configuration, calibration included, starts before its warm-up has ended
   (amendment 31), and the warm-up checks that mustrun started one process per thread of the job
   (the levels of `must_temp/src/layout.xml`: 21 at 16 ranks, 33 at 32; a harness error otherwise).
+- A cell that cannot run (amendment 34): when the first 3 calibration runs of a cell's fixed or
+  control version all reach the 1 800 s cap, the scheduler starts no more of that cell's
+  calibration runs (they wait for the first 3, and a thread job runs only its other cells, ONLY
+  or CELLS), `derive` and `derive-threads` write the cell with an empty T and the reason in the
+  column `cannot_run` (a suite tool whose calibration ended no run alike, `derive-suites`), and
+  the scheduler then makes none of its counted runs: each is a row with result CANNOT-RUN,
+  outcome `cannot-run`, its reason in `failure`, T 0, in the block's table (a thread job's
+  other cells run, and the cell gets its row beside theirs). summary.py counts them as
+  "cannot".
 - F = S for plain runs, random delays and NINJA.
 - The suites: the committed scripts' verdicts, by adapters.py (`stress`, `corpus`, `corrbench`,
   `bench`, `must`): S what the run itself showed, F a report of an error class (Stretto, MUST) or
@@ -450,9 +459,9 @@ From the smoke test's job times, perfect packing on the 36 run threads (lower bo
 | MPI-CorrBench, both MPIs | about 15 | 77 of 513 programs hang; Stretto's passes run native, traced and guard runs (its T was 30 s already) |
 | CorrBench's OpenMP programs | about 4 | the budget views under MPICH, MUST with ThreadSanitizer under both MPIs |
 | thread campaigns, MUST-vc, lock replays | about 12 | SLATE's replays (6 minutes an alternative and mode on 16 threads, 160 jobs: 7 h), the traced cells with their analyses, the lock replays (34 min); PaRSEC's and DLA-Future's replays take seconds each; the calibrations and concurrency checks of amendment 20 under 1 h, except MUST-vc on Uintah (below); Uintah's series with all four committed cells (amendment 30) about 1 h for both MPIs (5 s a run) |
-| MUST-vc on Uintah | about 45 | every MUST-vc run of Uintah hangs (the committed campaign killed them at its 300 s): its calibration's 20 runs reach the 1 800 s cap, so T is the cap (amendment 5), and its 40 jobs of 4 MUST-vc runs each wait 1 800 s apiece on 18 threads (7 h at the committed 300 s) |
+| MUST-vc on Uintah | about 1.5 | every MUST-vc run of Uintah hangs (the committed campaign killed them at its 300 s): its calibration stops after the first 3 runs of each cell reach the 1 800 s cap (3 jobs of 2 cells, 1 h each on 18 threads, at most 3 x 1 800 s a cell), and both cells are "cannot run" (amendment 34): its 40 counted jobs are rows that say so, and run nothing |
 | MPI-PRV attempts | under 1 | deal.II's instrumentation (9 min) |
-| **whole campaign** | **about 145 to 155** | with packing below perfect, 6 to 8 days of the machine; the suites' share follows their calibrated T, and MUST-vc on Uintah is a third of it |
+| **whole campaign** | **about 100 to 110** | with packing below perfect, 4 to 6 days of the machine; the suites' share follows their calibrated T |
 
 ## Disk
 
@@ -465,16 +474,14 @@ keep every trace of every traced run, about 3 GB. The builds take about 11 GB (`
 
 ## Open points
 
-Sections 11 and 12 settled those of the earlier versions. Left open:
+Sections 11 to 13 settled those of the earlier versions (MUST-vc on Uintah by amendment 34).
+Left open:
 
-1. **MUST-vc on Uintah** under amendment 20 takes about 45 of the campaign's hours: its MUST-vc
-   runs all hang, so its calibrated T is the 1 800 s cap. A decision for the rule: keep it, or
-   give that cell fewer runs or a smaller cap.
-2. **MUST with ThreadSanitizer under Open MPI** still timed out on one of four correct OpenMP
+1. **MUST with ThreadSanitizer under Open MPI** still timed out on one of four correct OpenMP
    programs in the earlier smoke pass over TCP; under MPICH none did. Its hangs are tool failures
    of the cells they fall in (amendment 22: a timeout on a program not labelled a deadlock).
-3. **SLATE's replays diverge often** (5 of 6 in the earlier smoke, after a gate gave way): the
+2. **SLATE's replays diverge often** (5 of 6 in the earlier smoke, after a gate gave way): the
    counted replays will say how often; the committed campaign had 3 to 6 of 10 per mode.
-4. **MUST 1.11.2 has no option that names its centralised layout** (review item 12): run.py
+3. **MUST 1.11.2 has no option that names its centralised layout** (review item 12): run.py
    takes the layout of a run without `--must:distributed` and checks mustrun's own announcement
    of it, which is as explicit as MUST allows.
