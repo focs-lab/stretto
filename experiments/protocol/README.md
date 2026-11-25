@@ -267,13 +267,29 @@ thread row's is its cell's T, a build's and an enumeration's 0 (they run nothing
 
 ```bash
 export MACHINE=a-p13 STRETTO_COMMIT=<frozen commit>
+nohup experiments/protocol/campaign.sh ~/protocol/campaign/state ~/protocol/campaign/results \
+  > ~/protocol/campaign/campaign.out 2>&1 < /dev/null &                 # the whole campaign, detached
+tail ~/protocol/campaign/results/campaign.log ~/protocol/campaign/results/journal.log    # status
+python3 experiments/protocol/summary.py --results ~/protocol/campaign/results --blocks '^hypre/'
+```
+
+campaign.sh runs the phases one after the other, each only if the one before it exited 0:
+
+```bash
 python3 experiments/protocol/schedule.py --blocks '/(ninja-learn|must-warmup|calibrate|[a-z]+-build|[a-z]+-calibrate|calibrate-.*)$'
 python3 experiments/protocol/calibrate.py derive
 python3 experiments/protocol/calibrate.py derive-suites
 python3 experiments/protocol/calibrate.py derive-threads
-python3 experiments/protocol/schedule.py            # every other block of plan.csv
-python3 experiments/protocol/summary.py --blocks '^hypre/'
+python3 experiments/protocol/schedule.py            # every other block of plan.csv, replays included
 ```
+
+and stops with the status of the step that failed; running it again (the same command) resumes.
+It runs on the host, where schedule.py only starts the containers. Before every job starts the
+scheduler reads the free space of the state and results directories: below 12 GB
+(`--min-free-gb`) nothing more starts, the running jobs finish, the journal says why, and it exits
+with status 75, a resumable stop, which halts campaign.sh too; after space is freed the same
+command resumes. `DRY_RUN=1 campaign.sh ...` lists the jobs of both scheduler phases and runs
+no derive.
 
 `--blocks`, `--configs` and `--tools` (tool:setting) are regular expressions that select jobs;
 `--dry-run` lists what would start; `--suite-select` and `--suite-limit` narrow the suites'

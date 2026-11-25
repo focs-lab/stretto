@@ -1023,5 +1023,58 @@ class CannotRun(unittest.TestCase):
         reason, cells = sc.cannot_run(main)
         self.assertEqual((reason, cells), (calibrate.CANNOT_RUN, None))   # the whole job: rows that say so
 
+
+class Campaign(unittest.TestCase):
+    """The disk floor and campaign.sh's phases."""
+
+    def test_disk_floor_is_a_resumable_stop(self):
+        d = tempfile.mkdtemp()
+        jobs = schedule.jobs_of(plan_rows(), r"^hypre/plain$", 1, configs="np4")
+        sc = scheduler(d, jobs)
+        sc.a.timeout, sc.a.min_free_gb = 60, 1e12          # more than any disk has
+        sc.adopt_leftovers = lambda: None
+        started = []
+        real = schedule.subprocess.Popen
+        schedule.subprocess.Popen = lambda *x, **k: started.append(x)
+        try:
+            rc = sc.run()
+        finally:
+            schedule.subprocess.Popen = real
+        self.assertEqual((rc, started), (schedule.RESUMABLE, []))
+        with open(os.path.join(d, "r", "journal.log")) as fh:
+            self.assertIn("disk: ", fh.read())
+        sc.a.min_free_gb = 0
+        self.assertEqual(sc.low_disk(), "")
+
+    def run_campaign(self, fail=None):
+        import subprocess
+        d = tempfile.mkdtemp()
+        stub = os.path.join(d, "py")
+        with open(stub, "w") as fh:
+            fh.write("#!/usr/bin/env python3\nimport os, sys\n"
+                     "open(os.environ['LOG'], 'a').write(' '.join(sys.argv[1:]) + '\\n')\n"
+                     "sys.exit(int(os.environ.get('FAIL_RC', '0')) if os.environ.get('FAIL', '-') in ' '.join(sys.argv) else 0)\n")
+        os.chmod(stub, 0o755)
+        log = os.path.join(d, "calls")
+        env = dict(os.environ, MACHINE="m", STRETTO_COMMIT="c", PYTHON=stub, LOG=log)
+        if fail:
+            env.update(FAIL=fail[0], FAIL_RC=str(fail[1]))
+        p = subprocess.run([os.path.join(P, "campaign.sh"), os.path.join(d, "s"), os.path.join(d, "r"), "--runs", "1"], env=env)
+        with open(log) as fh:
+            calls = [ln.split()[0].split("/")[-1] + " " + " ".join(ln.split()[1:2]) for ln in fh.read().splitlines()]
+        return p.returncode, calls
+
+    def test_phases_in_order(self):
+        rc, calls = self.run_campaign()
+        self.assertEqual(rc, 0)
+        self.assertEqual(calls, ["schedule.py --state", "calibrate.py derive", "calibrate.py derive-suites",
+                                 "calibrate.py derive-threads", "schedule.py --state"])
+
+    def test_a_stop_halts_it(self):
+        rc, calls = self.run_campaign(("--blocks", schedule.RESUMABLE))     # the calibration phase stops on the disk floor
+        self.assertEqual((rc, len(calls)), (schedule.RESUMABLE, 1))
+        rc, calls = self.run_campaign(("derive-threads", 1))
+        self.assertEqual((rc, calls[-1]), (1, "calibrate.py derive-threads"))
+
 if __name__ == "__main__":
     unittest.main()
