@@ -6,6 +6,7 @@ or an error). This is what a developer without a predictive tool can do: shake t
 and wait for the bad order. Stretto is compared with it from one recorded run.
 
 usage: stress_baseline.py <corpus csv> [--runs N] [--timeout S] [--jobs J] [--select REGEX] [--seed K] [--eager B] [--out CSV]
+                          [--mpi openmpi|mpich]
 
 Writes stress.csv next to the corpus table: program, expect, runs (how many were made),
 first_failure (the run that first did not finish, empty if none), outcome of that run,
@@ -65,7 +66,8 @@ def stress(row: dict, exe: str, args) -> dict:
     if args.out:
         out["seed"] = args.seed
     for i in range(1, args.runs + 1):
-        r = run_pinned(np, exe, [], None, timeout=args.timeout, mpirun_args=args.mpirun_args, extra_env=delays(rng, np))
+        r = run_pinned(np, exe, [], None, timeout=args.timeout, mpi=args.mpi, mpirun_args=args.mpirun_args,
+                       extra_env=delays(rng, np))
         res = classify_rc(r.returncode, r.stderr, r.elapsed, args.timeout)
         out["runs"] = i
         if res != "FINISHED":
@@ -82,6 +84,7 @@ def main() -> int:
     ap.add_argument("--timeout", type=int, default=60)
     ap.add_argument("--jobs", type=int, default=6)
     ap.add_argument("--select", default=".")
+    ap.add_argument("--mpi", default="openmpi", choices=("openmpi", "mpich"), help="the replay library's build (the programs' MPI)")
     ap.add_argument("--seed", type=int, default=20261020)
     ap.add_argument("--eager", type=int, metavar="B", help="force the eager threshold of every run down to B payload bytes")
     ap.add_argument("--out", metavar="CSV", help="the table to write (default: stress.csv or stress-eager.csv next to the corpus table)")

@@ -18,7 +18,9 @@
 #            include/deal.II/base/mpi_remote_point_evaluation.h, instantiated in the test's own
 #            translation unit; wacxx on tests/remote_point_evaluation/mapping_01.cc, against the
 #            installed headers, and a count of the monitor calls woven before its MPI calls
-#   mg       NPB MG 2.4.1 is Fortran; wac instruments C and C++ only (its --compile_language)
+#   mg       NPB MG 2.4.1 is Fortran: wacc on MG/mg.f with the build's flags (config/make.def), the
+#            headers beside it (mpif.h of Open MPI), and a count of the monitor calls in the
+#            object (weave_fortran)
 # The bugs of the projects' histories and the two found since, from the sources of
 # experiments/must/apps.sh CASES=hist (HIST_APPS_DIR, default third_party/must/apps-hist): wacc
 # or wacxx on the translation unit that holds (or instantiates) the racing calls, with the
@@ -32,18 +34,21 @@
 #   mfem332  MFEM 3.3.2: GroupTopology::Create in general/communication.cpp (C++11)
 #   lammps   LAMMPS 3a2da51a: Irregular::create_atom and create_data in src/irregular.cpp
 #   superlu  SuperLU_DIST 9.3.1: the 3D solve's receive loops in SRC/double/pdgstrs3d.c (C)
-#   qe       Quantum ESPRESSO 615e40cf: elph_prt in PHonon/PH/elphon.f90 is Fortran
+#   qe       Quantum ESPRESSO 615e40cf: elph_prt in PHonon/PH/elphon.f90 is Fortran: wacc on it
+#            (as elphon.F90, preprocessed with -D__MPI) with the modules of the Open MPI build
+#            of experiments/qeelph (build-615e40c) beside it (weave_fortran)
 #   dealii8929  deal.II 2c1b27fb: ConsensusAlgorithm_NBX::run() in source/base/mpi.cc (C++17,
 #            against the installed headers and the generated mpi.inst of the Open MPI build of
 #            experiments/dealii8929/run.sh, DEALII8929_DIR)
 # Writes experiments/results/mpiprv/stretto-apps.csv; logs under experiments/mpiprv/work/apps/.
+# TIMEOUT bounds LAMMPS's instrumented run (120 s; the uniform campaign passes its calibrated T).
 # usage: experiments/mpiprv/prv.sh experiments/mpiprv/stretto_apps.sh
 #        [hypre|dealii|mg|cabana|stempy|mfem332|lammps|superlu|qe|dealii8929 ...]
 set -uo pipefail
 R="$(cd "$(dirname "$0")/../.." && pwd)"; cd "$R"
 M="${MUST_APPS_DIR:-$R/third_party/apps/must}"
 W="$R/experiments/mpiprv/work/apps"; mkdir -p "$W"
-OUT="$R/experiments/results/mpiprv/stretto-apps.csv"
+OUT="${MPIPRV_OUT:-$R/experiments/results/mpiprv/stretto-apps.csv}"   # MPIPRV_OUT: the uniform campaign's attempts (experiments/protocol)
 COMMIT="${STRETTO_COMMIT:-$(python3 experiments/provenance.py)}"
 OMPI=/usr/lib/x86_64-linux-gnu/openmpi
 [ -f "$OUT" ] || echo "app,version,configurations,step,result,outcome,reason,commit" > "$OUT"
@@ -103,8 +108,34 @@ step_dealii() {
             "the instrumenter weaves no event into the translation unit that instantiates RemotePointEvaluation (its MPI calls are header templates); the trace would hold no event of the racing calls"
     fi
 }
+weave_fortran() {   # weave_fortran <app> <version> <configurations> <source> <what> <files to copy beside it> -- <flags...>: a row
+    local app=$1 ver=$2 cfg=$3 src=$4 what=$5; shift 5
+    local d="$W/$app" f; f=$(basename "$src")
+    mkdir -p "$d" && cp "$src" "$d/$f" || { row "$app" "$ver" "$cfg" "wacc on $f" "source missing: $src" unsupported "no source"; return; }
+    while [ $# -gt 0 ] && [ "$1" != -- ]; do cp $1 "$d/" 2>/dev/null; shift; done; shift
+    rm -f "$d/${f%.*}.o" "$d/${f%.*}"_instrumentation.*
+    (cd "$d" && env aspect_ah="$W/aspect/MPIMonitorAspect.ah" aspect_lib="$W/aspect" MPI=1 \
+         wacc "$@" -c "$f" -o "$d/${f%.*}.o" > "$d/wacc.log" 2>&1)
+    local rc=$? i n=0 first
+    i=$(ls "$d/${f%.*}"_instrumentation.* 2>/dev/null | head -1)
+    [ -n "$i" ] && n=$(woven "$i")
+    [ -f "$d/${f%.*}.o" ] && n=$((n + $(nm "$d/${f%.*}.o" | grep -c "__RVC_")))
+    # what the instrumenter ran: its last command line, and the compiler's first error
+    local ran; ran=$(grep -E "^(clang|clang\+\+|gcc) " "$d/wacc.log" | tail -1 | cut -c1-160 | tr '"' "'")
+    first=$(grep -m1 -E "Error|error:" "$d/wacc.log" | cut -c1-160 | tr '"' "'")
+    # wac/aspect/compilers.py weaves the aspect into a unit only when its name ends in .c, .cpp,
+    # .cc, .cxx or .c++; any other unit goes to the compiler as it is
+    if [ -z "$i" ] && [ "$n" = 0 ]; then
+        row "$app" "$ver" "$cfg" "wacc on $f" "status $rc; no instrumented unit, $n monitor calls; it ran: ${ran:--}; first error: ${first:--}" unsupported \
+            "the instrumenter weaves only units named .c, .cpp, .cc, .cxx or .c++ (wac/aspect/compilers.py) and handed $f, the unit that holds $what, to clang as it is (clang drives gfortran without the build's include paths and flags); the trace would hold no event of the racing calls"
+    else
+        row "$app" "$ver" "$cfg" "wacc on $f" "status $rc; $n monitor calls woven; first error: ${first:--}" supported ""
+    fi
+}
 step_mg() {
-    row npbmg 2.4.1 "class S, 16 ranks" "-" "-" unsupported "NPB MG is Fortran; MPI-PRV's instrumenter (wac, wacc, wacxx) weaves C and C++ sources only"
+    local s="$M/npb-mg/NPB2.4.1/NPB2.4-MPI" o=/usr/lib/x86_64-linux-gnu/openmpi/include
+    weave_fortran npbmg 2.4.1 "class S, 16 ranks" "$s/MG/mg.f" "comm3's receives (give3, take3)" \
+        "$s/MG/globals.h" "$s/MG/mpinpb.h" "$s/MG/npbparams.h" "$o/mpif*.h" -- -O2 -fallow-argument-mismatch -std=legacy
 }
 H="${HIST_APPS_DIR:-$R/third_party/must/apps-hist}"
 weave() {    # weave <app> <version> <configurations> <wacc|wacxx> <source> <what> <flags...>: one unit, a row
@@ -167,7 +198,7 @@ step_lammps() {
          && make mpi CC=mpicxx LINK=mpicxx CCFLAGS="-g -O2 -std=c++11" MPI_LIB="$W/aspect/libaspect.a" >> "$d/make.log" 2>&1) \
         || { row lammps 3a2da51a "in.displace, 4 ranks" "LAMMPS built with the instrumented irregular.cpp" "build failed: $(tail -1 "$d/make.log" | tr '"' "'")" unsupported "the instrumented build does not link"; return 0; }
     local r="$d/run"; rm -rf "$r" && mkdir -p "$r" && cd "$r" || return 1
-    /usr/bin/timeout -k 5 120 mpirun --allow-run-as-root -np 4 "$b/lmp_mpi" -in "$R/experiments/lammps/in.displace" -log none \
+    /usr/bin/timeout -k 5 "${TIMEOUT:-120}" mpirun --allow-run-as-root -np 4 "$b/lmp_mpi" -in "$R/experiments/lammps/in.displace" -log none \
         > run.log 2>&1 < /dev/null
     local rc=$? ev=0 res=() n
     [ -f output.txt ] && ev=$(grep -c "^event" output.txt)
@@ -190,8 +221,12 @@ step_superlu() {
         "the 3D solve's wildcard receive loops" -I"$s/SRC/include" -I"$s/SRC/double" -I"$s/SRC/prec-independent" -I"$H/superlu/build/SRC/include"
 }
 step_qe() {
-    row qe 615e40cf "ph.x, Ni at X, 3 ranks in 3 pools" "-" "-" unsupported \
-        "elph_prt (PHonon/PH/elphon.f90) is Fortran; MPI-PRV's instrumenter (wac, wacc, wacxx) weaves C and C++ sources only"
+    local q="${QE_DIR:-$H/qeelph}" c=615e40cfa30dc8ac1e95161b32d29f326c71ae65 m="$W/qe-modules"
+    # elphon.f90's modules, from the build that experiments/qeelph ran, one directory beside it
+    [ -d "$m" ] || { mkdir -p "$m" && find "$q/build-${c:0:7}" -name "*.mod" -exec cp {} "$m/" \; ; }
+    mkdir -p "$W/qe-src" && cp "$q/q-e-$c/PHonon/PH/elphon.f90" "$W/qe-src/elphon.F90" || { row qe 615e40cf "ph.x, Ni at X, 3 ranks in 3 pools" "wacc on elphon.F90" "source missing" unsupported "no source"; return; }
+    weave_fortran qe 615e40cf "ph.x, Ni at X, 3 ranks in 3 pools" "$W/qe-src/elphon.F90" "elph_prt's mp_sum of the pools" \
+        "$m/*.mod" -- -O2 -D__MPI
 }
 step_dealii8929() {
     # the Open MPI build of experiments/dealii8929/run.sh (DEALII8929_DIR): its installed headers

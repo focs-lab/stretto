@@ -6,8 +6,10 @@
 # Run inside a container of the image built from Dockerfile here, after build.sh:
 #   experiments/parsec/traced.sh BUILD WORK OUT.csv
 # BUILD holds parsec-plain and parsec-fixed; the traces and reports stay under WORK. RUNS (traced
-# runs per cell and variant, 5), JOBS (analyses at once, 4).
+# runs per cell and variant, 5), JOBS (analyses at once, 4), and the settings of
+# experiments/thread_timeouts.sh (a cell's T, 300 s by default).
 set -u
+source "$(cd "$(dirname "$0")/.." && pwd)/thread_timeouts.sh"   # TIMEOUTS, ONLY, VARIANTS, SECONDS_OUT, ANALYSE
 B=${1:?usage: traced.sh BUILD WORK OUT.csv}; W=${2:?}; OUT=${3:?}
 RUNS=${RUNS:-5}; JOBS=${JOBS:-4}
 REPO=$(cd "$(dirname "$0")/../.." && pwd)
@@ -19,11 +21,12 @@ mkdir -p "$W"
 for i in $(seq 1 "$RUNS"); do
   for c in $CELLS; do
     IFS=: read -r name np cores mt pk <<< "$c"
-    for v in plain fixed; do
+    cell_wanted "$name" || continue
+    for v in $(variants); do
       d=$W/$name-$v-$i; rm -rf "$d"; mkdir -p "$d/trace"
       env=(); vpmap=()
       if [ "$pk" -gt 0 ]; then env=(-x HWLOC_SYNTHETIC="package:$pk core:$((cores / pk)) pu:1"); vpmap=(-- --mca runtime_vpmap hwloc); fi
-      timeout 300 mpirun --bind-to none -np "$np" "${env[@]}" -x REPS=1 -x STRETTO_TRACE_DIR="$d/trace" -x LD_PRELOAD="$T" \
+      timed "$name" "$v" "$i" "$(cell_timeout "$name" 300)" mpirun --bind-to none -np "$np" "${env[@]}" -x REPS=1 -x STRETTO_TRACE_DIR="$d/trace" -x LD_PRELOAD="$T" \
         "$B/parsec-$v/tests/collections/reshape/reshape_check" -N 120 -t 9 -c "$cores" -m "$mt" "${vpmap[@]}" > "$d/log" 2>&1
       rc=$?
       w=$(sed -n 's/^summary reps [0-9]* wrong \([0-9]*\)$/\1/p' "$d/log")
@@ -32,5 +35,6 @@ for i in $(seq 1 "$RUNS"); do
     done
   done
 done
+[ "${ANALYSE:-1}" = 0 ] && { rm -rf "$W"/*/trace; exit 0; }
 ls -d "$W"/*/trace | xargs -P "$JOBS" -I{} sh -c 'timeout 3600 python3 -m stretto analyze --json "{}" > "{}/../report.json" 2> "{}/../report.err"'
 python3 -I "$REPO/experiments/dlaf/traced_csv.py" "$W" > "$OUT"

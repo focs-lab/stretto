@@ -204,3 +204,163 @@ the mean and range are given.
 The configuration sweep (`experiments/sweep/`) keeps its own rule, one traced run per cell, since
 it answers a different question. The blind scans keep theirs. Timed overhead legs (`e4`) keep
 their announced protocol.
+
+## 10. Amendments before the first run (24 Nov 2026)
+
+Building the harness and its smoke test (two uncounted runs per path, discarded) showed where the
+rule above could not be applied as written. These amendments are made before any counted run, and
+they override the sections they name.
+
+1. **MUST's layout (2.3).** At 8 ranks, MUST's default layout reports a collective root mismatch
+   that is not there (`MPI_Bcast` in `HYPRE_IJMatrixCreate`, on the fixed version too), then
+   hangs, under both MPI libraries. MUST runs with `--must:fanin 4` at every process count. Its
+   tool processes get hardware threads of their own. Where that layout needs more than the 36 run
+   threads (32 ranks), the centralised layout is tried. If it fails too, the cell is "cannot run",
+   with the attempt recorded.
+2. **Launcher (1.6).** Every tool launches with Open MPI's `mpirun`, under either library, as the
+   committed harness already did for MPICH programs: under the image's `mpiexec.hydra` every rank
+   of a MUST run starts as a singleton.
+3. **A run MUST stops at a deadlock (3).** The symptom is not observed. If the deadlock is at the
+   bug's racing calls, the run is "predicted". If it is elsewhere, the run is a tool failure. S / N
+   under MUST is therefore a lower bound, and the table says so.
+4. **What MUST reports (2.3).** Only MUST's errors count, not its warnings: `INTEGER_ZERO` and
+   other warnings sit at racing sites on fixed versions too.
+5. **Calibration that does not end (2.1).** A calibration run that does not end within 1 800 s
+   is a tool failure. T comes from the calibration runs that ended. If none ended, T = 1 800 s.
+6. **MUST's warm-up (2.1).** MUST's first run per process count and library builds its layout. One
+   uncounted warm-up run precedes calibration.
+7. **NINJA's learning run (2.4).** The NINJA mode that needs a learning run learns from one run
+   before calibration. That run gets the 1 800 s cap and up to 3 tries. A configuration whose
+   learning run never finishes has the runs of that mode counted as tool failures.
+8. **Binding (1.5).** Every rank is bound to its own hardware thread, by Open MPI's launcher. The
+   committed scripts did not bind, so earlier rates and these may differ, and both are kept.
+9. **Where Stretto's analysis runs (1.5).** It runs on the job's own threads, after the traced run
+   ends, not on CPUs 18-19 and 58-59. Analyses do not then compete with each other for 4 threads.
+10. **Replay rows (6).** Their outcome column holds the replay's verdict: confirmed,
+    not-confirmed or inconclusive. The categories of Section 3 describe tool runs.
+11. **MUST's vector-clock checks (2.3).** They are a separate tool, run from their artifact's image
+    as committed in `experiments/mustvc/`. "Only release 1.11.2" applies to MUST itself.
+12. **MFEM's symptom (3).** MPI_ERR_TRUNCATE counts besides "integer set not found": a receive
+    takes the next mesh's longer row, the same wrong match.
+13. **`tables.py` (7).** Its changes compute from the campaign's tables and do not affect a run.
+    They are made after the campaign, against the committed CSVs.
+
+## 11. Amendments after the smoke of the suites and thread campaigns (24 Nov 2026)
+
+These were also made before any counted run.
+
+14. **The analysis of a job that runs alone (9).** NPB MG at 32 ranks runs alone. Its trace is
+    analysed afterwards as a job of its own on one hardware thread, beside the other jobs, so that
+    31 threads do not wait for one analysis. The analysis budget of 2.1 is unchanged.
+15. **Timeouts of the suites (2.1).** Each suite gets one T per tool, calibrated before its passes.
+    - Every program the suite labels correct runs once under the tool, with at most 300 s.
+    - T = max(30 s, 10 × the slowest of those runs).
+    - The committed tables' 60 s and 30 s are not used.
+16. **MUST on programs with threads (2.3).** Data races are MUST's to report only with its
+    ThreadSanitizer build, so MUST runs on the OpenMP programs of CorrBench, and on MBI as in the
+    committed `must1112tsan` column, with TSan on. A cell without it would measure a
+    configuration in which MUST is not designed to report what is asked.
+17. **Thread replays (6).** Section 6 applies to the thread campaigns as to the applications:
+    - the replays cover the distinct alternatives over a cell's traces, with a seeded sample of 40
+      if there are more, not samples per trace;
+    - DLA-Future, which has no gate modes, replays in its one mode, and the table says so;
+    - before any thread replay is counted, the smoke's result (every replay inconclusive, unlike
+      the committed campaigns) is explained and the cause fixed or stated.
+18. **Builds of the thread campaigns (1.7).** The DLA-Future, PaRSEC, MPICH Uintah and MUST-vc
+    builds that survived from the committed campaigns are used. Each is checked against the
+    commit its campaign records, and the check is written in `README.md`.
+19. **MPI-PRV on Fortran subjects (2.6).** The instrumenter is run on NPB MG and Quantum ESPRESSO.
+    The cell records what it did, not what it would do.
+
+## 12. Amendments after an independent review of the harness (24 Nov 2026)
+
+A reviewer who had not written the harness read it against this rule before any counted run.
+These amendments settle what the review found the rule left open.
+
+20. **Thread campaigns (2.1, 1.9).** Section 2.1 and the concurrency check of 1.9 apply to them as
+    to the applications: T is calibrated on 10 runs of each cell's fixed or control version, and
+    each thread bug gets 40 plain runs of its first cell run alone. A script's own fixed timeout
+    is not used, and no row carries a timeout that is not a number.
+21. **MUST's cells on the suites (2.3, 1.4).**
+    - On the OpenMP programs of CorrBench, MUST with TSan is the main cell and MUST without TSan
+      goes to the appendix.
+    - On MBI, MUST without TSan stays the main cell, as in `tab:rq2`, and MUST with TSan is the
+      appendix column `must1112tsan`.
+    - NINJA's system-centric and application-centric modes go to the appendix in the budget view
+      too.
+22. **Verdicts on the suites (3, 2.1, 2.3).**
+    - A suite program carries one labelled bug, so MUST's report counts when it holds any MUST
+      error. Data-race reports of the TSan build count on data-race programs; no other warning
+      counts.
+    - A timeout is the symptom only on programs labelled as deadlocks. On any other program it is
+      a tool failure.
+    - The suites' random delays keep the committed per-program seeding,
+      `Random("<seed>:<program>")`, with the pass's seed recorded. `Random(i*100+np)` is the
+      applications' seeding.
+23. **Stretto's run on a suite (5).** Stretto's run is the traced run.
+    - The untraced (native) runs the suite scripts make go to the plain cell.
+    - The buffer guard's runs go to a separate appendix cell.
+    - No untraced run is counted under Stretto.
+24. **A thread alternative's verdict (6).** Each thread alternative is replayed twice in each gate
+    mode. It counts as confirmed in a mode if at least one of its replays is confirmed. A
+    confirmed replay is a witness that the alternative occurs. The share of confirmed replays is
+    given beside it.
+    - SLATE's replays start only from traces whose factor came out right, since a wrong-factor
+      trace's control cannot be right.
+    - This restricts the replays, not the counted traced runs, and the table says so.
+25. **Runs that end early or leave nothing (3, 1.3).** Each of these is a row with outcome "tool
+    failure" and is never rerun:
+    - a run killed before T, out of memory or otherwise;
+    - a traced run whose trace is empty or unreadable;
+    - an analysis killed for memory.
+
+    Only a harness failure under 1.8 reruns anything.
+26. **Replays use the counted analysis (6, 2.1).** The alternatives replayed are those of the
+    counted analyses, within their 3 600 s budget. A trace whose analysis is a tool failure gives
+    none. Enumeration starts only when every counted traced run of the configuration is in its
+    table. It is redone, and the earlier enumeration superseded, if that set of runs changes.
+27. **Uintah's symptom (3).** As committed, every run of the plain builds that does not pass is the
+    symptom: the garbage reduction's abort ("fail") and a hang alike.
+
+## 13. Amendments after the review of the harness's fixes (25 Nov 2026)
+
+The same reviewer read the fixes of Section 12 before any counted run. Two of the amendments of
+Section 12 were worded against what the suites and the machine can tell apart; these replace
+them.
+
+28. **Timeouts on the suites (replaces the second point of 22).** MBI and MPI-BugBench label a
+    bug's class (MessageRace, CallOrdering, ...), not its symptom, and most of their bugs show
+    as a hang. As in `tab:rq2`, a run of a program labelled erroneous that does not finish within
+    T shows the symptom. On a program labelled correct, a timeout is counted as committed. The
+    share of each column's reveals that are timeouts is given beside it.
+29. **Which kill is a tool failure (25, 1.8).** A run whose container exits 137 before T is a
+    tool failure only when Docker records it as killed by the job's own memory limit. Any other
+    kill (by an operator, by the host's memory cap, by a stopped daemon) is a harness failure
+    under 1.8. The same applies to a container that leaves no row. Its run is done again, the
+    replaced row, where there is one, is kept with `superseded` set, and the rerun is listed in
+    `README.md`.
+30. **Uintah's cells (4).** Every cell of `experiments/uintah` as committed is run, the
+    `-nthreads 2` cell at np 2 and the `mpi-scheduler` control at np 4 included.
+31. **MUST's warm-up comes first (amendment 6).** No MUST run of a configuration, calibration
+    included, starts before that configuration's warm-up has ended.
+32. **Stretto's F on the suites (3).** A suite program carries one labelled bug and no site, so
+    F is any finding of an error class, with two exceptions that only restate the run's own
+    failure: an observed abort alone, and observed-only findings on a run that ended in its own
+    error (an MPI error, a signal, a nonzero exit). Such a run is observed, not reported. An
+    observed deadlock on a hung run counts: it names the blocked calls, as MUST's deadlock report
+    does. This holds on all three suites. `tab:rq2`'s committed count is recomputed under this
+    rule, and any difference is reported.
+33. **Which kill is a tool failure (replaces the first sentences of 29).** A run killed before T is
+    a tool failure only when its own container's memory limit was hit: the `oom` counter of the
+    container's `memory.events` rose during the run. A kill by the host's or a parent slice's
+    memory cap, by an operator or by a stopped daemon is a harness failure under 1.8 and is run
+    again. So is a container that disappears and leaves no row. A job that ends with a harness
+    error of its own (an exception in the harness or in a judge) is not run again: its block
+    stops until the error is fixed, and that is a declared deviation. A replaced row is kept in
+    its table with `superseded` set.
+34. **A tool that cannot run its fixed version (1.1, 2.1, amendment 5).** If the first 3
+    calibration runs of a cell's fixed or control version all reach the 1 800 s cap, calibration
+    stops and the cell is "cannot run", with that attempt as its reason. Its counted runs are not
+    made. This is decided by the calibration alone, for every tool and cell alike; the only cell
+    known to be affected beforehand is MUST's vector-clock checks on Uintah, whose every committed
+    run hangs.

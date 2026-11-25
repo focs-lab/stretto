@@ -50,7 +50,8 @@
 # usage: experiments/petsc/run.sh [fetch|build|parasails|predict|stress|ninja|scan|all]
 #        RUNS (5), STRESS_RUNS (40), SCAN_RUNS (2), TIMEOUT (30), JOBS (1), MAKE_JOBS (12), SAME_SAMPLE (20),
 #        PETSC_SRC_DIR (third_party/apps/petsc), NINJA_DIR (third_party/ninja), MPI_CC and MPI_CXX
-#        (the build's MPI wrappers, default Open MPI's), PETSC_ARCH (arch-ompi-opt)
+#        (the build's MPI wrappers, default Open MPI's), PETSC_ARCH (arch-ompi-opt, with VARIANT=fix
+#        arch-ompi-opt-fix), VARIANT (release; fix: fetch and build against the fixed HYPRE, above)
 set -uo pipefail
 R="$(cd "$(dirname "$0")/../.." && pwd)"; cd "$R"
 D="${PETSC_SRC_DIR:-$R/third_party/apps/petsc}"
@@ -61,7 +62,12 @@ MPI_CC="${MPI_CC:-/usr/bin/mpicc.openmpi}"; MPI_CXX="${MPI_CXX:-/usr/bin/mpicxx.
 source "$R/experiments/harness.sh"
 export STRETTO_COMMIT="${STRETTO_COMMIT:-$(python3 "$R/experiments/provenance.py")}"
 V=3.26.0
-export PETSC_DIR="$D/petsc-$V" PETSC_ARCH="${PETSC_ARCH:-arch-ompi-opt}"
+# VARIANT=fix: PETSc configured with HYPRE 3.2.0 under experiments/hypre3/'s fix (the requests
+# of even ParaSails levels under a tag of their own), the fixed version of the uniform campaign
+# (experiments/protocol/RULE.md, Section 4), in an arch of its own; its ex2 is built from the
+# same source in tutorials-fix/, so that both builds' ex2 stay
+case "${VARIANT:-release}" in release) SUF=;; fix) SUF=-fix;; *) echo "VARIANT is release or fix" >&2; exit 2;; esac
+export PETSC_DIR="$D/petsc-$V" PETSC_ARCH="${PETSC_ARCH:-arch-ompi-opt$SUF}"
 TUT="$PETSC_DIR/src/ksp/ksp/tutorials"
 declare -A SHA=([petsc-3.26.0.tar.gz]=3f1d722dd3b189a6c5ed0a114abcaae624feb9f525023d8db45d514872da64bd
                 [f2cblaslapack-3.8.0.q2.tar.gz]=12fa8d5001e313aeeea22eb2054883f59e3e3c656f11129f31abb02ddbf8ad60
@@ -95,14 +101,28 @@ step_fetch() {
     done
     [ -d "petsc-$V" ] || tar xzf "petsc-$V.tar.gz"
     cd "$R"
+    if [ -n "$SUF" ] && [ ! -f "$D/hypre-3.2.0-fix.tar.gz" ]; then
+        # the fixed HYPRE as an archive for --download-hypre, made by experiments/hypre3/run.sh's
+        # own patch step from the same archive
+        mkdir -p "$D/hypre-fix-src" && cp "$D/hypre-3.2.0.tar.gz" "$D/hypre-fix-src/" \
+            && HYPRE3_DIR="$D/hypre-fix-src" VARIANT=fix experiments/hypre3/run.sh fetch \
+            && tar czf "$D/hypre-3.2.0-fix.tar.gz" -C "$D/hypre-fix-src" hypre-3.2.0-fix \
+            && rm -rf "$D/hypre-fix-src" || return 1
+    fi
 }
 step_build() {
     if [ ! -f "$PETSC_DIR/$PETSC_ARCH/lib/libpetsc.so" ]; then
         (cd "$PETSC_DIR" && ./configure --with-cc="$MPI_CC" --with-cxx="$MPI_CXX" --with-fc=0 \
              --with-debugging=0 COPTFLAGS="-O2 -g" CXXOPTFLAGS="-O2 -g" --with-x=0 \
-             --download-f2cblaslapack="$D/f2cblaslapack-3.8.0.q2.tar.gz" --download-hypre="$D/hypre-3.2.0.tar.gz" \
-             --with-make-np="${MAKE_JOBS:-12}" > "$D/configure.log" 2>&1 \
-         && make MAKE_NP="${MAKE_JOBS:-12}" all > "$D/make.log" 2>&1) || { echo "build of PETSc $V failed" >&2; return 1; }
+             --download-f2cblaslapack="$D/f2cblaslapack-3.8.0.q2.tar.gz" --download-hypre="$D/hypre-3.2.0$SUF.tar.gz" \
+             --with-make-np="${MAKE_JOBS:-12}" > "$D/configure$SUF.log" 2>&1 \
+         && make MAKE_NP="${MAKE_JOBS:-12}" all > "$D/make$SUF.log" 2>&1) || { echo "build of PETSc $V$SUF failed" >&2; return 1; }
+    fi
+    if [ -n "$SUF" ]; then
+        mkdir -p "$D/tutorials-fix" && cp "$TUT/ex2.c" "$D/tutorials-fix/" \
+            && printf 'include ${PETSC_DIR}/lib/petsc/conf/variables\ninclude ${PETSC_DIR}/lib/petsc/conf/rules\n' > "$D/tutorials-fix/makefile" \
+            && make -C "$D/tutorials-fix" ex2 > "$D/tutorials-fix.log" 2>&1 || { echo "build of the fix's ex2 failed" >&2; return 1; }
+        return 0
     fi
     make -C "$TUT" ex2 ex3 ex45 > "$D/tutorials.log" 2>&1 || { echo "build of the tutorials failed" >&2; return 1; }
 }
