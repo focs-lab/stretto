@@ -222,6 +222,15 @@ REPLAY_TRACES = {"slate": 16, "parsec": 5, "dlaf": 5}
 REPLAY_MODES = {"slate": ("after", "before", "yield", "both"), "parsec": ("after", "before", "yield", "both"),
                 "dlaf": ("after",)}
 REPLAY_CPUS = {"slate": 16, "parsec": 6, "dlaf": 8}
+# MUST-vc's blocks: name, subject, MPI, image, threads a job takes; DLA-Future also in the Open
+# MPI image, in which the committed comparison was made (amendment 36)
+MUSTVC_IMAGE = "mustvc:1.9-omp"
+MUSTVC = [("uintah", "uintah", "mpich", MUSTVC_IMAGE, 18), ("slate", "slate", "mpich", MUSTVC_IMAGE, 18),
+          ("dlaf", "dlaf", "mpich", MUSTVC_IMAGE, 14), ("dlaf-openmpi", "dlaf", "openmpi", "mustvc:1.9-omp-openmpi", 14),
+          ("parsec", "parsec", "mpich", MUSTVC_IMAGE, 10)]
+MUSTVC_NOTES = {"uintah": "; the source tree at /src, run again after the campaign (amendment 36)",
+                "dlaf-openmpi": "; MUSTVC_WORK/dlaf-openmpi at /h, OMPI_MCA_rmaps_base_oversubscribe=1, after the "
+                                "campaign (amendment 36)"}
 
 
 def thread_rows():
@@ -268,18 +277,19 @@ def thread_rows():
                                 table="main" if mode == "after" else "appendix",
                                 notes="threadreplays.py replay: each alternative twice with its control, gate mode %s%s"
                                       % (mode, "" if len(REPLAY_MODES[subject]) > 1 else " (its replay.sh's one mode)")))
-    for subject, cpus in (("uintah", 18), ("slate", 18), ("dlaf", 14), ("parsec", 10)):
-        out.append({"block": "mustvc/calibrate-%s" % subject, "subject": subject, "config": "the thread bug's cells",
-                    "np": "", "mpi": "mpich", "version": "fix", "tool": "calibrate", "setting": "mustvc:vector-clock",
-                    "n": CALIBRATION_RUNS, "table": "prerequisite", "cpus": cpus, "alone": 0, "image": "mustvc:1.9-omp",
+    for name, subject, mpi, image, cpus in MUSTVC:
+        where = MUSTVC_NOTES.get(name, "")
+        out.append({"block": "mustvc/calibrate-%s" % name, "subject": subject, "config": "the thread bug's cells",
+                    "np": "", "mpi": mpi, "version": "fix", "tool": "calibrate", "setting": "mustvc:vector-clock",
+                    "n": CALIBRATION_RUNS, "table": "prerequisite", "cpus": cpus, "alone": 0, "image": image,
                     "runner": "external:mustvc",
                     "notes": "experiments/mustvc/apps.sh with VARIANTS=fixed: T per cell, with MUST-vc and without; "
                              "a cell whose first 3 MUST-vc runs reach the 1 800 s cap cannot run (amendment 34: Uintah, "
-                             "at most 3 x 1 800 s a cell)"})
-        out.append({"block": "mustvc/%s" % subject, "subject": subject, "config": "the thread bug's cells", "np": "",
-                    "mpi": "mpich", "version": "-", "tool": "mustvc", "setting": "vector-clock", "n": N,
-                    "table": "main", "cpus": cpus, "alone": 0, "image": "mustvc:1.9-omp", "runner": "external:mustvc",
-                    "notes": "experiments/mustvc/apps.sh, RUNS=1 per job: each cell once without MUST and once with"})
+                             "at most 3 x 1 800 s a cell)" + where})
+        out.append({"block": "mustvc/%s" % name, "subject": subject, "config": "the thread bug's cells", "np": "",
+                    "mpi": mpi, "version": "-", "tool": "mustvc", "setting": "vector-clock", "n": N,
+                    "table": "main", "cpus": cpus, "alone": 0, "image": image, "runner": "external:mustvc",
+                    "notes": "experiments/mustvc/apps.sh, RUNS=1 per job: each cell once without MUST and once with" + where})
     out.append({"block": "locks/replay", "subject": "locks", "config": "every L1+L finding", "np": "", "mpi": "openmpi",
                 "version": "bug", "tool": "stretto", "setting": "replay-L1+L", "n": 1, "table": "main", "cpus": 8,
                 "alone": 0, "image": EXP, "runner": "external:locks",

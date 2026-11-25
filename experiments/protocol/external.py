@@ -76,8 +76,13 @@ THREAD_CELLS = {
 }
 MUSTVC_CELLS = {"slate": ["wide-2x2", "wide-2x2-compat", "wide-4x1-compat"], "parsec": ["vp2-mt", "vp2-mt-4ranks"],
                 "dlaf": ["2x1-offset-jitter", "4x1-offset-jitter"], "uintah": ["np4-t4", "np4-t2"]}
-for _app, _cells in MUSTVC_CELLS.items():
-    THREAD_CELLS["mustvc/" + _app] = _cells + ["native:" + c for c in _cells]
+# MUST-vc's blocks by name, each with its subject, whose cells it runs: DLA-Future also in the Open
+# MPI image (amendment 36)
+MUSTVC_BLOCKS = {"slate": "slate", "parsec": "parsec", "dlaf": "dlaf", "dlaf-openmpi": "dlaf", "uintah": "uintah"}
+for _name, _app in MUSTVC_BLOCKS.items():
+    THREAD_CELLS["mustvc/" + _name] = MUSTVC_CELLS[_app] + ["native:" + c for c in MUSTVC_CELLS[_app]]
+# what Uintah's sus prints when it cannot read its input's validation file, and ends with status 0
+UINTAH_UPS_ERROR = "ERROR caught while parsing UPS file"
 UINTAH_SETTINGS = "4 -nthreads 2;4 -nthreads 4;2 -nthreads 2;4"       # series.sh SETTINGS: THREAD_CELLS' Uintah cells
 REPLAY_CELL = {"slate": "wide-4x1", "parsec": "vp2-mt", "dlaf": "2x1-offset-jitter"}
 
@@ -329,21 +334,45 @@ def threadreplay_spec(j, ctx):
     return s
 
 
+def mustvc_block(j):
+    """The name of a MUST-vc job's block, its calibration's the same: the job's state directory,
+    and the directory of MUSTVC_WORK that holds its PaRSEC or DLA-Future build."""
+    name = j["block"].split("/", 1)[1]
+    return name[len("calibrate-"):] if name.startswith("calibrate-") else name
+
+
 def mustvc_spec(j, ctx):
+    """One run of every cell of a MUST-vc block (apps.sh, RUNS=1), mounted as the committed runs
+    were (experiments/mustvc/README.md): the work directory at /mvc, PaRSEC's and DLA-Future's
+    builds at /h, Uintah's source tree at /src, where its build's input directory links. The image
+    is the plan's; MUSTVC_IMAGE replaces only the MPICH one."""
     m, app, k = ctx["machine"], j["subject"], j["run"]
-    jd = "/state/mustvc/%s-%s%02d" % (app, "calibrate-" if j.get("calibration") else "", k)
+    name = mustvc_block(j)
+    jd = "/state/mustvc/%s-%s%02d" % (name, "calibrate-" if j.get("calibration") else "", k)
     mvc = m.get("MUSTVC_WORK", "")
-    s = {"image": m.get("MUSTVC_IMAGE", "mustvc:1.9-omp"), "needs": [], "extra": ["--set", "run=%d" % k],
+    image = j.get("image") or "mustvc:1.9-omp"
+    if image == "mustvc:1.9-omp":
+        image = m.get("MUSTVC_IMAGE", image)
+    s = {"image": image, "needs": [], "extra": ["--set", "run=%d" % k],
          "mounts": [(mvc, "/mvc", "rw")], "env": {"RUNS": "1", "WARMUP": "1" if k == 1 else "0", "STRETTO_COMMIT": ctx["commit"]}}
     if app in ("parsec", "dlaf"):
-        s["mounts"].append((os.path.join(mvc, app), "/h", "ro"))
+        s["mounts"].append((os.path.join(mvc, name), "/h", "ro"))
+    if j.get("mpi") == "openmpi":
+        s["env"]["OMPI_MCA_rmaps_base_oversubscribe"] = "1"     # as the committed run in the Open MPI image
     if app == "uintah":
+        s["mounts"].append((os.path.join(mvc, "src"), "/src", "ro"))     # amendment 36
         s["env"]["WARMUP"] = "0"         # its MUST runs all time out (apps.sh)
     thread_timeouts(j, s["env"])
     left = runnable(j)
     if left is not None:
         s["env"]["CELLS"] = " ".join(left)     # the cells that can run (amendment 34)
     s["cmd"] = "mkdir -p %s && experiments/mustvc/apps.sh %s %s/apps.csv %s/work" % (jd, app, jd, jd)
+    if app == "uintah":
+        # a sus that cannot read its input stops at once with status 0, a run that did nothing: no
+        # row, a harness error (amendment 36); the work directory holds this job's runs only
+        s["cmd"] = "rm -rf %s/work && %s && if grep -r -l -F --include run.out --include run.err %s %s/work; then " \
+                   "echo 'HARNESS-ERROR: sus could not parse its input in the runs above (is the source tree at /src?)'; " \
+                   "exit 3; fi" % (jd, s["cmd"], q(UINTAH_UPS_ERROR), jd)
     s["src"], s["kind"] = jd + "/apps.csv", "mustvc"
     if j.get("calibration"):
         calibrating(j, s, jd)
