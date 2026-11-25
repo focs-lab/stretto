@@ -4,7 +4,7 @@
 13, amendments 14 to 34); this directory is the harness that runs it. Nothing here is a result
 yet: `results/` is written by the campaign itself.
 
-Frozen commit: 6185733e1da1 (the merge of the harness into main, 25 Nov 2026). Every row's `commit` is this hash.
+Frozen commit: b4946e30c054 (the merge of the disk guard and the driver into main, 25 Nov 2026; it replaces 6185733e1da1, frozen earlier the same day, from which nothing ran). Every row's `commit` is this hash.
 
 Declared deviations: none yet. A change to a tool during the campaign is listed here with its
 date and reason, and every block it can affect is run again (RULE.md, Section 1.7). A block
