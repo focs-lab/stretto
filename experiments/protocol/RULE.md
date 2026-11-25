@@ -364,3 +364,37 @@ them.
     made. This is decided by the calibration alone, for every tool and cell alike; the only cell
     known to be affected beforehand is MUST's vector-clock checks on Uintah, whose every committed
     run hangs.
+
+## 14. Amendments during the counted phase (25 Nov 2026)
+
+These were made after the calibration had ended and the counted phase had begun, on outcomes
+already seen. They are declared deviations under 1.7 and 1.8. Neither leaves a run out.
+
+35. **The launcher's own abort after the program ended (3, amendment 2).** Open MPI's `mpirun`,
+    the launcher of every tool under either library, sometimes aborts in glibc's heap check as it
+    shuts down. This happens after every rank has ended and the program has printed its normal
+    end. The kept output shows `tcache_thread_shutdown(): unaligned tcache chunk detected`,
+    reported by Open MPI's own signal handler, which MPICH's ranks do not have. Before this
+    amendment it was seen only on NPB MG at 32 ranks under MPICH with a preloaded library: 7 of
+    the 40 calibration runs under NINJA and Stretto, 0 of 10 plain runs, and 4 counted runs.
+    - Such a run is not a tool failure. Its S is decided from the program's output, as if the
+      run had ended with status 0 (the `says` column). Stretto's F comes from its trace's
+      analysis (the `reported` column).
+    - The rule holds for every subject and tool. A run qualifies by that signature in its kept
+      output and by the program's normal end. The outcome it would get does not decide.
+    - The raw rows are not changed. `tables.py` reclassifies them from the kept outputs, and
+      gives the number of rows moved beside each cell. The counts without this amendment go to
+      the appendix.
+36. **MUST-vc on Uintah and DLA-Future run again after the campaign (11, 34, 1.8).**
+    - **Uintah.** The harness ran Uintah's MUST-vc block without the source tree that the build's
+      input directory links to (`/src`, as committed in `experiments/mustvc/README.md`). So
+      `sus` stopped at parsing its input in every run of the block, with and without MUST-vc.
+      This is a harness failure under 1.8. The block's calibration and counted rows are kept
+      with `superseded` set. The block then runs again after the campaign, from its calibration,
+      at a commit that mounts `/src`. Amendment 34 then decides whether its cells run.
+    - **DLA-Future.** The plan ran DLA-Future's MUST-vc cells only in the artifact's MPICH
+      image, where the program crashes without MUST too, as committed. It left out the Open MPI
+      image `mustvc:1.9-omp-openmpi`, in which the committed comparison was made. That block (a
+      calibration and 40 counted jobs, with `OMPI_MCA_rmaps_base_oversubscribe=1` as committed)
+      runs after the campaign at the same later commit. Both DLA-Future blocks are reported.
+    - These rows carry the later commit. Every other row keeps the frozen one.

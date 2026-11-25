@@ -1,12 +1,21 @@
 # The uniform campaign: harness
 
 [RULE.md](RULE.md) fixes the protocol, with its amendments of 24 and 25 Nov 2026 (Sections 10 to
-13, amendments 14 to 34); this directory is the harness that runs it. Nothing here is a result
+14, amendments 14 to 36); this directory is the harness that runs it. Nothing here is a result
 yet: `results/` is written by the campaign itself.
 
-Frozen commit: b4946e30c054 (the merge of the disk guard and the driver into main, 25 Nov 2026; it replaces 6185733e1da1, frozen earlier the same day, from which nothing ran). Every row's `commit` is this hash.
+Frozen commit: b4946e30c054 (the merge of the disk guard and the driver into main, 25 Nov 2026; it replaces 6185733e1da1, frozen earlier the same day, from which nothing ran). Every row's `commit` is this hash, except the rows of amendment 36's blocks.
 
-Declared deviations: none yet. A change to a tool during the campaign is listed here with its
+Declared deviations (RULE.md, Section 14, both 25 Nov 2026, during the counted phase):
+
+- Amendment 35. On NPB MG at 32 ranks under MPICH, Open MPI's launcher sometimes aborts in
+  glibc's heap check after the program has ended normally. Those rows are reclassified by
+  `tables.py` from their kept outputs. The raw rows are unchanged.
+- Amendment 36. The `mustvc/calibrate-uintah` and `mustvc/uintah` blocks ran without `/src`
+  mounted, so Uintah stopped at parsing its input. Both are superseded and run again after the
+  campaign. MUST-vc on DLA-Future in the Open MPI image is added and runs at the same time.
+
+A change to a tool during the campaign is listed here with its
 date and reason, and every block it can affect is run again (RULE.md, Section 1.7). A block
 replaced for a harness failure is named here, and its rows stay in its table with `superseded`
 set (Section 1.8; `rows.py supersede`).
