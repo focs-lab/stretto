@@ -358,3 +358,9 @@ them.
     error of its own (an exception in the harness or in a judge) is not run again: its block
     stops until the error is fixed, and that is a declared deviation. A replaced row is kept in
     its table with `superseded` set.
+34. **A tool that cannot run its fixed version (1.1, 2.1, amendment 5).** If the first 3
+    calibration runs of a cell's fixed or control version all reach the 1 800 s cap, calibration
+    stops and the cell is "cannot run", with that attempt as its reason. Its counted runs are not
+    made. This is decided by the calibration alone, for every tool and cell alike; the only cell
+    known to be affected beforehand is MUST's vector-clock checks on Uintah, whose every committed
+    run hangs.
