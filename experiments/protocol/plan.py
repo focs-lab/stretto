@@ -82,7 +82,8 @@ def app_rows():
                 out.append(dict(base, block="%s/calibrate" % name, version="fix", tool="calibrate",
                                 setting="%s:%s" % (tool, setting), n=CALIBRATION_RUNS, table="prerequisite",
                                 cpus=cpus, image=image, runner="calibrate.py",
-                                notes="T = max(30 s, 10 x the slowest of these runs of the fix)"))
+                                notes="T = max(30 s, 10 x the slowest of these runs of the fix); cannot run if "
+                                      "the first 3 reach the 1 800 s cap (amendment 34)"))
                 n, notes = (NONOISE_RUNS, "library loaded, no send delayed") if setting == "nonoise" else \
                     (N, "T calibrated (calibrate.py)")
                 for version in ("bug", "fix"):
@@ -236,8 +237,8 @@ def thread_rows():
                     "np": "", "mpi": mpi, "version": "fix", "tool": "calibrate", "setting": "%s:%s" % (tool, setting),
                     "n": CALIBRATION_RUNS, "table": "prerequisite", "cpus": cpus, "alone": 0, "image": image,
                     "runner": "external:thread",
-                    "notes": "%s with VARIANTS=fixed, RUNS=1 per job, 1 800 s cap: T = max(30 s, 10 x the slowest) per cell"
-                             % runner})
+                    "notes": "%s with VARIANTS=fixed, RUNS=1 per job, 1 800 s cap: T = max(30 s, 10 x the slowest) per "
+                             "cell; a cell whose first 3 runs reach the cap cannot run (amendment 34)" % runner})
         if kind == "series" and mpi == "openmpi":
             out.append({"block": "%s/plain-serial" % subject, "subject": subject, "config": "the first cell",
                         "np": "", "mpi": mpi, "version": "bug", "tool": "plain", "setting": "serial", "n": N,
@@ -272,7 +273,9 @@ def thread_rows():
                     "np": "", "mpi": "mpich", "version": "fix", "tool": "calibrate", "setting": "mustvc:vector-clock",
                     "n": CALIBRATION_RUNS, "table": "prerequisite", "cpus": cpus, "alone": 0, "image": "mustvc:1.9-omp",
                     "runner": "external:mustvc",
-                    "notes": "experiments/mustvc/apps.sh with VARIANTS=fixed: T per cell, with MUST-vc and without"})
+                    "notes": "experiments/mustvc/apps.sh with VARIANTS=fixed: T per cell, with MUST-vc and without; "
+                             "a cell whose first 3 MUST-vc runs reach the 1 800 s cap cannot run (amendment 34: Uintah, "
+                             "at most 3 x 1 800 s a cell)"})
         out.append({"block": "mustvc/%s" % subject, "subject": subject, "config": "the thread bug's cells", "np": "",
                     "mpi": "mpich", "version": "-", "tool": "mustvc", "setting": "vector-clock", "n": N,
                     "table": "main", "cpus": cpus, "alone": 0, "image": "mustvc:1.9-omp", "runner": "external:mustvc",

@@ -58,7 +58,7 @@ MAX_RERUNS = 2       # reruns of a job after a harness failure in one invocation
 FIELDS = ["subject", "config", "np", "mpi", "version", "label", "tool", "setting", "run", "result", "seconds",
           "says", "symptom", "reported", "failure", "detail"] + rows.COMMON
 POOL = "0-17,40-57"
-from calibrate import CALIBRATION_CAP  # noqa: E402  (seconds of a calibration run)
+from calibrate import CALIBRATION_CAP, STOP_AFTER  # noqa: E402  (seconds of a calibration run; amendment 34)
 
 
 def pool_order(cpus):
@@ -121,6 +121,13 @@ def load_timeouts(results, subject):
         if r["T"]:                       # a capped calibration leaves T empty: that block cannot start
             t[(r["config"], r["tool"], r["setting"])] = int(r["T"])
     return t
+
+
+def load_cannot(results, subject):
+    """{(config, tool, setting): reason} of the cells whose calibration made them "cannot run"
+    (amendment 34)."""
+    return dict(((r["config"], r["tool"], r["setting"]), r["cannot_run"])
+                for r in rows.read(os.path.join(results, subject, "timeouts.csv")) if r.get("cannot_run"))
 
 
 def timeout_key(j):
@@ -292,6 +299,15 @@ class Scheduler:
                 if jobs_at_start:
                     r["jobs"] = jobs_at_start
             fields = rows.header_of(f) or []
+            for c in j.get("cannot_cells") or []:
+                # a cell that cannot run (amendment 34): its row beside the cells that ran
+                r = dict((k, "") for k in fields)
+                r.update({"cell": c, "run": j["run"], "result": "CANNOT-RUN", "failure": j["cannot_reason"],
+                          "protocol_job": key_of(j), "outcome": "cannot-run", "timeout": 0, "commit": self.a.commit,
+                          "host": rows.host(), "cpus": rows.cpuset(cpus) if cpus else "", "jobs": jobs_at_start or ""})
+                got.append(r)
+                fields = fields + [k for k in ("cell", "run", "result", "failure") if k not in fields]
+                fields = [k for k in fields if k not in rows.COMMON] + rows.COMMON
             have = rows.header_of(self.table(j))
             if have is not None and have != fields:
                 # another job of the block wrote other columns (a script's optional ones): the table
@@ -428,15 +444,12 @@ class Scheduler:
                 return CALIBRATION_CAP
             if self.a.timeout:
                 return self.a.timeout
-            if "threads" not in self.timeouts:
-                t = {}
-                for r in rows.read(os.path.join(self.a.results, "thread-timeouts.csv")):
-                    if r["T"]:
-                        t.setdefault(r["block"], {})[r["cell"]] = int(r["T"])
-                self.timeouts["threads"] = t
-            have = self.timeouts["threads"].get(external.target_block(j), {})
+            have = self.thread_timeouts().get(external.target_block(j), {})
+            cannot = self.thread_cannot().get(external.target_block(j), {})
             need = external.cells_of(j)
-            return dict((c, have[c]) for c in need) if all(c in have for c in need) else None
+            if not all(c in have or c in cannot for c in need):
+                return None
+            return dict((c, have[c]) for c in need if c in have)
         if j["external"] == "locks":
             # the lock replays' programs are CorrBench's OpenMP ones and the idioms: Stretto's T there
             if self.a.timeout:
@@ -457,6 +470,107 @@ class Scheduler:
             self.timeouts[j["subject"]] = load_timeouts(self.a.results, j["subject"])
         tool, setting = timeout_key(j)
         return self.timeouts[j["subject"]].get((j["config"], tool, setting))
+
+    def thread_timeouts(self):
+        if "threads" not in self.timeouts:
+            t = {}
+            for r in rows.read(os.path.join(self.a.results, "thread-timeouts.csv")):
+                if r["T"]:
+                    t.setdefault(r["block"], {})[r["cell"]] = int(r["T"])
+            self.timeouts["threads"] = t
+        return self.timeouts["threads"]
+
+    def thread_cannot(self):
+        if "threads-cannot" not in self.timeouts:
+            c = {}
+            for r in rows.read(os.path.join(self.a.results, "thread-timeouts.csv")):
+                if r.get("cannot_run"):
+                    c.setdefault(r["block"], {})[r["cell"]] = r["cannot_run"]
+            self.timeouts["threads-cannot"] = c
+        return self.timeouts["threads-cannot"]
+
+    def cannot_run(self, j):
+        """Amendment 34: (reason, cells) when the job's cell cannot run, or some of a thread job's
+        cells: cells None for the whole job; (None, None) otherwise. Calibrations, builds,
+        learning and warm-up runs, replays and the MPI-PRV attempts are never "cannot run" here."""
+        if j["calibration"] or j["setting"] in ("learn", "warmup", "replay", "replay-enumerate") or j["tool"] == "build" \
+                or j["external"] in ("mpiprv", "locks") or self.a.timeout:
+            return None, None
+        if j["external"] in ("thread", "mustvc", "threadreplay"):
+            if j["external"] == "threadreplay" and j["setting"] == "replay-enumerate":
+                return None, None
+            cannot = self.thread_cannot().get(external.target_block(j), {})
+            cells = [c for c in external.cells_of(j) if c in cannot]
+            if not cells:
+                return None, None
+            if j["external"] == "mustvc":                 # a MUST-vc cell goes with its runs without MUST
+                cells = sorted(set(c.split(":", 1)[-1] for c in cells))
+                left = [c for c in external.MUSTVC_CELLS[j["subject"]] if c not in cells]
+            else:
+                left = [c for c in external.cells_of(j) if c not in cells]
+            reason = cannot.get(cells[0]) or cannot.get("native:" + cells[0]) or "cannot run (amendment 34)"
+            return reason, (None if not left else cells)
+        if j["external"] == "suite":
+            for r in rows.read(os.path.join(self.a.results, j["subject"], "suite-timeouts.csv")):
+                if r["tool"] == j["tool"] and r.get("cannot_run"):
+                    return r["cannot_run"], None
+            return None, None
+        if j["subject"] + "-cannot" not in self.timeouts:
+            self.timeouts[j["subject"] + "-cannot"] = load_cannot(self.a.results, j["subject"])
+        tool, setting = timeout_key(j)
+        reason = self.timeouts[j["subject"] + "-cannot"].get((j["config"], tool, setting))
+        return reason, None
+
+    def calibration_state(self, j):
+        """Amendment 34: a calibration run after the first STOP_AFTER of its cell waits for them, and
+        is not made if they all reached the cap: "wait", "stop", or the cells it still runs (None:
+        all of them)."""
+        if not j["calibration"] or j["run"] <= STOP_AFTER or j["external"] == "suite":
+            return None
+        got = rows.current(rows.read(self.table(j)))
+        if j["external"] is None:
+            rs = [r for r in got if r["config"] == j["config"] and r["tool"] == j["tool"] and r["setting"] == j["setting"]
+                  and r["version"] == j["version"] and 1 <= int(r["run"]) <= STOP_AFTER]
+            if len(rs) < STOP_AFTER:
+                return "wait"
+            capped = [float(r["seconds"] or 0) >= float(r["timeout"] or CALIBRATION_CAP) or r["result"] == "KILLED" for r in rs]
+            return "stop" if all(capped) else None
+        cells = external.cells_of(dict(j, calibration=False))
+        stopped = []
+        for c in cells:
+            rs = [r for r in got if r.get("name") == c and 1 <= int(r.get("run") or 0) <= STOP_AFTER]
+            if len(set(r["run"] for r in rs)) < STOP_AFTER:
+                return "wait"
+            if all(float(r["seconds"] or 0) >= CALIBRATION_CAP for r in rs):
+                stopped.append(c)
+        if j["external"] == "mustvc":
+            stopped = [c for c in stopped if not c.startswith("native:")]
+            left = [c for c in external.MUSTVC_CELLS[j["subject"]] if c not in stopped]
+        else:
+            left = [c for c in cells if c not in stopped]
+        if not left:
+            return "stop"
+        return left if stopped else None
+
+    def write_cannot(self, j, reason):
+        """The rows of a job whose cell cannot run (amendment 34): one per planned run, outcome
+        cannot-run, nothing run."""
+        os.makedirs(os.path.dirname(self.row_file(j)), exist_ok=True)
+        common = rows.common(0, commit=self.a.commit, category="cannot-run")
+        if j["external"]:
+            r = {"subject": j["subject"], "config": j["config"], "tool": j["tool"], "setting": j["setting"], "run": j["run"],
+                 "result": "CANNOT-RUN", "failure": reason, "protocol_job": key_of(j)}
+            r.update(common)
+            rows.append(self.row_file(j) + ".tmp", [r], [c for c in r if c not in rows.COMMON] + rows.COMMON)
+            os.replace(self.row_file(j) + ".tmp", self.row_file(j))
+        else:
+            r = {"subject": j["subject"], "config": j["config"], "np": j["np"], "mpi": j["mpi"], "version": j["version"],
+                 "label": "", "tool": j["tool"], "setting": j["setting"], "run": j["run"], "result": "CANNOT-RUN",
+                 "seconds": 0, "says": "", "symptom": False, "reported": False, "failure": reason, "detail": ""}
+            r.update(common)
+            with open(self.row_file(j) + ".tmp", "w") as fh:
+                json.dump(r, fh)
+            os.replace(self.row_file(j) + ".tmp", self.row_file(j))
 
     def memory(self, j):
         """GB of a job's container; a deferred analysis gets its traced run's, as it would have had
@@ -667,6 +781,10 @@ class Scheduler:
         signal.signal(signal.SIGINT, self.on_signal)
         signal.signal(signal.SIGTERM, self.on_signal)
         blocked = set()
+
+        def drop(x):
+            """todo without the job x (which the loop may have copied with its cells, amendment 34)."""
+            todo[:] = [y for y in todo if (y["block"], key_of(y)) != (x["block"], key_of(x))]
         while todo or self.running or self.adopted:
             self.reap(todo)
             self.reap_adopted(todo)
@@ -676,19 +794,42 @@ class Scheduler:
                     if a.max_jobs and len(self.running) >= a.max_jobs:
                         break
                     if j["block"] in self.broken:
-                        todo.remove(j)
+                        drop(j)
                         continue
+                    st = self.calibration_state(j)
+                    if st == "wait":
+                        continue
+                    if st == "stop":
+                        drop(j)
+                        self.log("calibration stopped %s %s: its first %d runs reached the cap: cannot run (amendment 34)"
+                                 % (j["block"], safe(key_of(j)), STOP_AFTER))
+                        continue
+                    if isinstance(st, list):
+                        j = dict(j, only_cells=st)
                     if not self.ready(j, todo):
                         continue
+                    reason, cells = self.cannot_run(j)
+                    if reason and cells is None:
+                        drop(j)
+                        if j["setting"] == ANALYSIS:   # its traced run's row says so already
+                            self.done.add((j["block"], key_of(j)))
+                            continue
+                        self.write_cannot(dict(j, defer=False), reason)
+                        if self.collect(dict(j, defer=False), None, None):
+                            self.done.add((j["block"], key_of(j)))
+                        self.log("cannot-run %s %s: %s" % (j["block"], safe(key_of(j)), reason))
+                        continue
+                    if reason:
+                        j = dict(j, cannot_cells=cells, cannot_reason=reason)
                     if not self.replay_exists(j):
-                        todo.remove(j)       # fewer distinct alternatives than the plan's most
+                        drop(j)       # fewer distinct alternatives than the plan's most
                         continue
                     t = self.timeout_for(j)
                     if t is None:          # 0: a build or an enumeration, which runs nothing
                         if (j["subject"], j["config"], j["tool"], j["setting"]) not in blocked:
                             blocked.add((j["subject"], j["config"], j["tool"], j["setting"]))
                             self.log("no T for %s %s %s %s (calibrate.py first)" % (j["subject"], j["config"], j["tool"], j["setting"]))
-                        todo.remove(j)
+                        drop(j)
                         continue
                     if self.blocked_by_alone(j):
                         break
@@ -705,7 +846,7 @@ class Scheduler:
                         self.log("missing-build %s %s: %s" % (j["block"], safe(key_of(j)), e))
                         self.broken.add(j["block"])
                         self.pool.give(cpus)
-                        todo.remove(j)
+                        drop(j)
                         continue
                     os.makedirs(os.path.dirname(self.row_file(j)), exist_ok=True)
                     log = open(os.path.join(a.state, "rows", safe(j["block"]), safe(key_of(j)) + ".log"), "w")
@@ -714,7 +855,7 @@ class Scheduler:
                     self.running[key_of(j) + "@" + j["block"]] = (j, p, cpus, njobs)
                     self.started[key_of(j) + "@" + j["block"]] = time.time()
                     self.log("start %s %s cpus=%s jobs=%d T=%s" % (j["block"], safe(key_of(j)), rows.cpuset(cpus), njobs, t))
-                    todo.remove(j)
+                    drop(j)
                     started = True
                     if j["alone"]:
                         break

@@ -504,7 +504,8 @@ class ThreadReplays(unittest.TestCase):
 
 def scheduler(d, jobs=()):
     a = type("A", (), {"timeout": None, "results": os.path.join(d, "r"), "state": os.path.join(d, "s"), "prefix": "p",
-                       "repo": "/w", "commit": "c", "pool": schedule.POOL, "suite_select": ".", "suite_limit": 0})()
+                       "repo": "/w", "commit": "c", "pool": schedule.POOL, "suite_select": ".", "suite_limit": 0,
+                       "dry_run": False, "max_jobs": 0})()
     sc = schedule.Scheduler(a, list(jobs))
     sc._ctx = {"exp_image": "e", "must_image": "m", "binding": {}, "machine": {"SLATE_HOME": d}, "commit": "c",
                "owner": "1:1", "select": ".", "limit": 0}
@@ -954,6 +955,73 @@ class Passes(unittest.TestCase):
             sc.reap(todo)
             self.assertEqual((todo == [j], j["block"] in sc.broken), (again, not again), (rc, text))
             self.assertFalse(os.path.exists(sc.table(j)))
+
+
+class CannotRun(unittest.TestCase):
+    """Amendment 34: a cell whose fixed version never ends in calibration cannot run."""
+
+    def calibration(self, d, seconds):
+        r0 = dict((c, "") for c in schedule.FIELDS)
+        rs = [dict(r0, subject="npbmg", config="np16", version="fix", tool="plain", setting="-", run=k, timeout=1800,
+                   result="TIMEOUT" if s >= 1800 else "FINISHED", seconds=s, commit="c") for k, s in enumerate(seconds, 1)]
+        rows.append(os.path.join(d, "r", "npbmg", "calibrate.csv"), rs, schedule.FIELDS)
+
+    def test_three_capped_runs(self):
+        d = tempfile.mkdtemp()
+        self.calibration(d, [1800.4, 1801.0, 1800.2])
+        jobs = schedule.jobs_of(plan_rows(), r"^npbmg/(calibrate|plain)$", 10, configs="np16", tools="plain:-")
+        sc = scheduler(d, jobs)
+        cal4 = [j for j in jobs if j["calibration"] and j["run"] == 4][0]
+        self.assertEqual(sc.calibration_state(cal4), "stop")         # no more calibration runs
+        out, short = calibrate.derive(os.path.join(d, "r"), "npbmg")
+        self.assertEqual((out[0]["T"], out[0]["cannot_run"]), ("", calibrate.CANNOT_RUN))
+        self.assertEqual(short, [])
+        # the counted runs are rows that say so; no job starts
+        counted = [j for j in jobs if not j["calibration"]]
+        sc = scheduler(d, counted)
+        sc.adopt_leftovers = lambda: None
+        started = []
+        real = schedule.subprocess.Popen
+        schedule.subprocess.Popen = lambda *x, **k: started.append(x)
+        try:
+            sc.run()
+        finally:
+            schedule.subprocess.Popen = real
+        self.assertEqual(started, [])
+        got = rows.read(os.path.join(d, "r", "npbmg", "plain.csv"))
+        self.assertEqual(len(got), len(counted))
+        self.assertEqual(set((r["outcome"], r["result"], r["timeout"]) for r in got), {("cannot-run", "CANNOT-RUN", "0")})
+
+    def test_two_capped_one_ended(self):
+        d = tempfile.mkdtemp()
+        self.calibration(d, [1800.4, 12.0, 1801.0, 9.0, 8.0, 11.5, 10.0, 9.5, 10.5, 11.0])
+        jobs = schedule.jobs_of(plan_rows(), r"^npbmg/calibrate$", 10, configs="np16", tools="plain:-")
+        sc = scheduler(d, jobs)
+        self.assertIsNone(sc.calibration_state([j for j in jobs if j["run"] == 4][0]))   # the calibration goes on
+        out, _ = calibrate.derive(os.path.join(d, "r"), "npbmg")
+        self.assertEqual((out[0]["T"], out[0]["capped"], out[0]["cannot_run"]), (120, 2, ""))   # amendment 5: from the 8 ended
+
+    def test_thread_cells(self):
+        import external
+        d = tempfile.mkdtemp()
+        res = os.path.join(d, "r")
+        rs = []
+        for k in (1, 2, 3):
+            for c in external.MUSTVC_CELLS["uintah"]:
+                rs.append({"name": c, "variant": "fixed", "run": k, "seconds": 1800.1, "rc": 124,
+                           "calibrated": "mustvc/uintah", "commit": "c", "superseded": ""})
+                rs.append({"name": "native:" + c, "variant": "fixed", "run": k, "seconds": 4.0, "rc": 0,
+                           "calibrated": "mustvc/uintah", "commit": "c", "superseded": ""})
+        rows.append(os.path.join(res, "mustvc", "calibrate-uintah.csv"), rs, list(rs[0]))
+        jobs = schedule.jobs_of(plan_rows(), r"^mustvc/(calibrate-uintah|uintah)$", 40)
+        sc = scheduler(d, jobs)
+        self.assertEqual(sc.calibration_state([j for j in jobs if j["calibration"] and j["run"] == 4][0]), "stop")
+        out = calibrate.derive_threads(res, 10)
+        self.assertTrue(all(r["cannot_run"] for r in out))          # the MUST-vc cells and their runs without MUST
+        main = [j for j in jobs if not j["calibration"]][0]
+        self.assertEqual(sc.timeout_for(main), {})
+        reason, cells = sc.cannot_run(main)
+        self.assertEqual((reason, cells), (calibrate.CANNOT_RUN, None))   # the whole job: rows that say so
 
 if __name__ == "__main__":
     unittest.main()

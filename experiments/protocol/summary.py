@@ -26,7 +26,7 @@ sys.path.insert(0, HERE)
 import rows  # noqa: E402
 
 SHORT = {"predicted": "pred", "observed-reported": "obs+rep", "observed-not-reported": "obs-rep", "missed": "missed",
-         "tool-failure": "fail"}
+         "tool-failure": "fail", "cannot-run": "cannot"}
 
 
 def ended_by_timeout(r):

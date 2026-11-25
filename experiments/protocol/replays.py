@@ -97,7 +97,7 @@ def enumerate_(a):
                if r["config"] == a.config and r["version"] == "bug" and r["setting"] == "traced"]
     used = 0
     for r in sorted(counted, key=lambda r: int(r["run"])):
-        if r.get("outcome") == "tool-failure":
+        if r.get("outcome") in ("tool-failure", "cannot-run"):
             continue
         stem = (json.loads(r["detail"]) if r.get("detail") else {}).get("archive")
         side = os.path.join(state, "alternatives", a.subject, a.config, "bug", "%s.json" % stem)

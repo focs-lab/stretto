@@ -119,6 +119,18 @@ def thread_timeouts(j, env):
         env["CAP"] = str(int(T))
 
 
+def runnable(j):
+    """The cells a thread or MUST-vc job still runs when some cannot (amendment 34: their
+    calibration stopped, or they are "cannot run"), as the script names them; None: all."""
+    if j.get("only_cells"):
+        return list(j["only_cells"])
+    if j.get("cannot_cells"):
+        if j.get("external") == "mustvc":
+            return [c for c in MUSTVC_CELLS[j["subject"]] if c not in j["cannot_cells"]]
+        return [c for c in cells_of(j) if c not in j["cannot_cells"]]
+    return None
+
+
 def calibrating(j, s, jd):
     """A calibration job of a thread block: the fixed variant only, RUNS=1, the traced runs not
     analysed, each run's seconds into its own table."""
@@ -235,6 +247,9 @@ def thread_spec(j, ctx):
     if serial:
         # the concurrency check (amendment 20): the first cell's plain variant, alone on the machine
         s["env"].update({"ONLY": cells_of(j)[0], "VARIANTS": "plain"})
+    left = runnable(j)
+    if left is not None:
+        s["env"]["ONLY"] = " ".join(left)      # the cells that can run (amendment 34)
     if subj == "slate":
         # experiments/slate/build-lib.sh's output under SLATE_HOME, mounted at /h where it was built
         # (the driver's runpath names its build directory)
@@ -325,6 +340,9 @@ def mustvc_spec(j, ctx):
     if app == "uintah":
         s["env"]["WARMUP"] = "0"         # its MUST runs all time out (apps.sh)
     thread_timeouts(j, s["env"])
+    left = runnable(j)
+    if left is not None:
+        s["env"]["CELLS"] = " ".join(left)     # the cells that can run (amendment 34)
     s["cmd"] = "mkdir -p %s && experiments/mustvc/apps.sh %s %s/apps.csv %s/work" % (jd, app, jd, jd)
     s["src"], s["kind"] = jd + "/apps.csv", "mustvc"
     if j.get("calibration"):

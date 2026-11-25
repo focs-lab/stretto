@@ -15,7 +15,9 @@ CALIBRATION_CAP seconds each; a traced run's trace is neither kept nor analysed 
 config, tool, setting, runs, slowest, T, capped (how many runs did not end within the cap: tool
 failures, left out of T; if none ended, T is the cap, RULE.md amendment 5), results (how the runs
 ended), commit. A setting with fewer than 10 current (not superseded) runs is left out and named. Only
-the first 10 current runs of a setting count, in the order of their run numbers.
+the first 10 current runs of a setting count, in the order of their run numbers. If the first 3
+of them all reached the cap, the scheduler starts no more (amendment 34) and the setting is
+"cannot run" (T empty, column cannot_run): its counted runs are rows that say so.
 
 A subject without a fixed version takes 10 runs of the buggy version whose symptom did not strike
 (--buggy SUBJECT: the rows of the subject's version "bug" whose outcome is not a symptom); every
@@ -56,9 +58,12 @@ FLOOR = 30
 FACTOR = 10
 CALIBRATION_CAP = 1800
 SUITE_CAP = 300
-FIELDS = ["subject", "config", "tool", "setting", "runs", "slowest", "T", "capped", "results", "commit"]
-SUITE_FIELDS = ["suite", "tool", "runs", "slowest", "T", "capped", "settings", "commit"]
-THREAD_FIELDS = ["block", "cell", "runs", "slowest", "T", "capped", "commit"]
+STOP_AFTER = 3        # amendment 34: the calibration runs whose all reaching the cap make a cell "cannot run"
+CANNOT_RUN = "cannot run: its first 3 calibration runs reached the 1 800 s cap (amendment 34)"
+SUITE_CANNOT_RUN = "cannot run: every run of its calibration reached the 300 s cap (amendment 34)"
+FIELDS = ["subject", "config", "tool", "setting", "runs", "slowest", "T", "capped", "results", "commit", "cannot_run"]
+SUITE_FIELDS = ["suite", "tool", "runs", "slowest", "T", "capped", "settings", "commit", "cannot_run"]
+THREAD_FIELDS = ["block", "cell", "runs", "slowest", "T", "capped", "commit", "cannot_run"]
 
 
 def timeout_of(seconds, cap=CALIBRATION_CAP):
@@ -70,6 +75,12 @@ def timeout_of(seconds, cap=CALIBRATION_CAP):
     if not ended:
         return cap, capped
     return max(FLOOR, int(math.ceil(FACTOR * max(ended)))), capped
+
+
+def stopped(seconds, cap=CALIBRATION_CAP):
+    """Whether a cell's calibration stops (amendment 34): its first STOP_AFTER runs, in run order,
+    all reached the cap."""
+    return len(seconds) >= STOP_AFTER and all(s >= cap for s in seconds[:STOP_AFTER])
 
 
 def derive(results, subject, buggy=False, runs=RUNS):
@@ -85,19 +96,23 @@ def derive(results, subject, buggy=False, runs=RUNS):
     out, short = [], []
     for (config, tool, setting), rs in sorted(by.items()):
         rs = sorted(rs, key=lambda r: int(r["run"]))[:runs]
-        if len(rs) < runs:
-            short.append("%s %s %s: %d runs" % (config, tool, setting, len(rs)))
-            continue
         cap = min(max(int(r["timeout"]) for r in rs), CALIBRATION_CAP)
         # a run killed by its memory limit is a tool failure: left out of T as a capped run is (amendment 5)
         secs = [float(r["seconds"]) if r["result"] != "KILLED" and r.get("seconds") not in ("", None) else float(cap)
                 for r in rs]
-        t, capped = timeout_of(secs, cap)
         ends = collections.Counter(r["result"] for r in rs)
-        out.append({"subject": subject, "config": config, "tool": tool, "setting": setting, "runs": len(rs),
-                    "slowest": max(secs), "T": t, "capped": capped,
-                    "results": ";".join("%s=%d" % kv for kv in sorted(ends.items())),
-                    "commit": ";".join(sorted(set(r["commit"] for r in rs)))})
+        row = {"subject": subject, "config": config, "tool": tool, "setting": setting, "runs": len(rs),
+               "slowest": max(secs), "results": ";".join("%s=%d" % kv for kv in sorted(ends.items())),
+               "commit": ";".join(sorted(set(r["commit"] for r in rs)))}
+        if stopped(secs, cap):
+            # the fixed version never ended: the cell cannot run, its counted runs are not made (amendment 34)
+            out.append(dict(row, T="", capped=STOP_AFTER, cannot_run=CANNOT_RUN))
+            continue
+        if len(rs) < runs:
+            short.append("%s %s %s: %d runs" % (config, tool, setting, len(rs)))
+            continue
+        t, capped = timeout_of(secs, cap)
+        out.append(dict(row, T=t, capped=capped, cannot_run=""))
     dest = os.path.join(results, subject, "timeouts.csv")
     if out:
         if os.path.exists(dest):
@@ -132,8 +147,10 @@ def derive_suites(results, suite):
     out = []
     for tool, secs in sorted(by.items()):
         t, capped = timeout_of(secs, SUITE_CAP)
-        out.append({"suite": suite, "tool": tool, "runs": len(secs), "slowest": max(secs), "T": t, "capped": capped,
-                    "settings": ";".join(sorted(settings[tool])), "commit": ";".join(sorted(commits[tool]))})
+        cannot = SUITE_CANNOT_RUN if capped == len(secs) else ""      # no run of the tool ended (amendment 34)
+        out.append({"suite": suite, "tool": tool, "runs": len(secs), "slowest": max(secs), "T": "" if cannot else t,
+                    "capped": capped, "settings": ";".join(sorted(settings[tool])), "commit": ";".join(sorted(commits[tool])),
+                    "cannot_run": cannot})
     dest = os.path.join(results, suite, "suite-timeouts.csv")
     if out:
         if os.path.exists(dest):
@@ -162,9 +179,18 @@ def derive_threads(results, runs=RUNS):
     out = []
     for (block, cell), got in sorted(by.items()):
         secs = [x for _, x in sorted(got)[:runs]]
-        t, capped = timeout_of(secs, CALIBRATION_CAP) if len(secs) >= runs else ("", 0)
+        cannot = CANNOT_RUN if stopped(secs) else ""
+        t, capped = timeout_of(secs, CALIBRATION_CAP) if len(secs) >= runs and not cannot else ("", STOP_AFTER if cannot else 0)
         out.append({"block": block, "cell": cell, "runs": len(secs), "slowest": max(secs), "T": t, "capped": capped,
-                    "commit": ";".join(sorted(commits[(block, cell)]))})
+                    "commit": ";".join(sorted(commits[(block, cell)])), "cannot_run": cannot})
+    # a MUST-vc cell that cannot run takes its runs without MUST along (they are its block's runs)
+    gone = dict((r["block"], {}) for r in out)
+    for r in out:
+        if r["cannot_run"]:
+            gone[r["block"]][r["cell"]] = r["cannot_run"]
+    for r in out:
+        if r["block"].startswith("mustvc/") and r["cell"].startswith("native:") and r["cell"][7:] in gone[r["block"]]:
+            r.update(T="", cannot_run=gone[r["block"]][r["cell"][7:]])
     dest = os.path.join(results, "thread-timeouts.csv")
     if out:
         if os.path.exists(dest):
@@ -185,9 +211,9 @@ def main():
         bad = 0
         for r in derive_threads(a.results, a.runs):
             print("%s %s: %d runs, slowest %.1f s -> T %s%s" % (r["block"], r["cell"], r["runs"], r["slowest"],
-                                                              r["T"] or "none (too few runs)",
+                                                              r["T"] or r["cannot_run"] or "none (too few runs)",
                                                               " (%d reached the cap)" % r["capped"] if r["capped"] else ""))
-            bad += r["T"] == ""
+            bad += r["T"] == "" and not r["cannot_run"]
         return 1 if bad else 0
     if a.cmd == "derive-suites":
         import glob
@@ -206,8 +232,9 @@ def main():
         out, short = derive(a.results, s, buggy=s in a.buggy, runs=a.runs)
         for r in out:
             print("%s %s %s %s: slowest %.1f s -> T %s%s" % (s, r["config"], r["tool"], r["setting"], r["slowest"],
-                                                             r["T"], " (%d runs reached the cap: tool failures)" % r["capped"]
-                                                             if r["capped"] else ""))
+                                                             r["T"] or r["cannot_run"],
+                                                             " (%d runs reached the cap: tool failures)" % r["capped"]
+                                                             if r["capped"] and not r["cannot_run"] else ""))
         for x in short:
             print("%s %s: too few calibration runs" % (s, x))
             bad += 1
