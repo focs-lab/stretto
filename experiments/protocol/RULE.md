@@ -441,3 +441,22 @@ already seen. They are declared deviations under 1.7 and 1.8. None leaves a run 
       were calibrated. They run beside the campaign on the hardware threads 18-19 and 58-59 of
       its node, which the scheduler's pool leaves out, and on the whole pool once the campaign
       has ended. These rows carry that commit.
+39. **MUST with ThreadSanitizer under MPICH back to the experiment machine (1.8, 37; 27 Nov
+    2026).** On focs, ThreadSanitizer's runtime stopped most runs of
+    `corrbench-openmp/mpich-must-1.11.2-tsan` at their start, with `FATAL: ThreadSanitizer:
+    unexpected memory mapping`. That runtime comes from the image's clang. It rejects some of the
+    addresses at which the host's kernel maps the program, and the kernel picks them at random.
+    - In 9 passes, 789 of the 927 runs were tool failures after about 1 s. 55 of the 103
+      programs had both outcomes. One program, rerun by hand in the same image, failed 6 times of
+      8 with that message.
+    - On the experiment machine, the same runtime in the same image gave no such failure in a
+      pass of `corrbench-openmp/openmpi-must-1.11.2-tsan`: its 10 tool failures are timeouts.
+    - This is a harness failure under 1.8: the host, not MUST or the program, decided these
+      outcomes. Amendment 37's premise, that a MUST block's outcome depends least on the
+      machine, does not hold for this one.
+    - The block's rows from focs are kept beside its table and not counted. The block runs in
+      full on the experiment machine, from the frozen commit. It never had a pass there:
+      amendment 37 said otherwise, wrongly. Its cell thus has one host.
+    - The other moved blocks run MUST without ThreadSanitizer. Their passes on focs and apollo
+      match the experiment machine's first pass within a few programs per outcome, and stay
+      where they are.

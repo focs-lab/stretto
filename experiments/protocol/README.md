@@ -1,12 +1,12 @@
 # The uniform campaign: harness
 
 [RULE.md](RULE.md) fixes the protocol, with its amendments of 24 and 25 Nov 2026 (Sections 10 to
-14, amendments 14 to 38); this directory is the harness that runs it. Nothing here is a result
+14, amendments 14 to 39); this directory is the harness that runs it. Nothing here is a result
 yet: `results/` is written by the campaign itself.
 
 Frozen commit: b4946e30c054 (the merge of the disk guard and the driver into main, 25 Nov 2026; it replaces 6185733e1da1, frozen earlier the same day, from which nothing ran). Every row's `commit` is this hash, except the rows of amendment 36's and 38's blocks.
 
-Declared deviations (RULE.md, Section 14, 25 and 26 Nov 2026, during the counted phase):
+Declared deviations (RULE.md, Section 14, 25 to 27 Nov 2026, during the counted phase):
 
 - Amendment 35. On NPB MG at 32 ranks under MPICH, Open MPI's launcher sometimes aborts in
   glibc's heap check after the program has ended normally. Those rows are reclassified by
@@ -23,6 +23,10 @@ Declared deviations (RULE.md, Section 14, 25 and 26 Nov 2026, during the counted
   first pass on a harness error. A program that fails before `MPI_Init` never shows the replay
   library's announcement. They run in full at the fix's commit, on the experiment machine's
   hardware threads 18-19 and 58-59 beside the campaign.
+- Amendment 39 (27 Nov 2026). On focs, ThreadSanitizer's runtime rejects the host kernel's
+  memory layout in most runs ("unexpected memory mapping"), so
+  `corrbench-openmp/mpich-must-1.11.2-tsan` runs in full on the experiment machine. Its focs rows
+  are kept apart and not counted.
 
 A change to a tool during the campaign is listed here with its
 date and reason, and every block it can affect is run again (RULE.md, Section 1.7). A block
@@ -362,6 +366,15 @@ After the campaign, each moved block's `RESULTS/<block>.csv` from its machine re
 experiment machine's, and its journal and `campaign.log` are kept beside it as
 `journal.<machine>.log` and `campaign.<machine>.log`.
 
+Amendment 39 brings `corrbench-openmp/mpich-must-1.11.2-tsan` back: the experiment machine's
+scheduler is killed again and restarted with that block taken out of `MOVED`. Its table from
+focs is not merged. It is kept as `RESULTS/corrbench-openmp/mpich-must-1.11.2-tsan.focs.csv`, beside
+the experiment machine's.
+
+```bash
+MOVED='^(corrbench/(mpich|openmpi)-must-1\.11\.2|corrbench-openmp/(mpich-must-1\.11\.2|openmpi-must-1\.11\.2)|corrbench/(mpich|openmpi)-delays-D50(-budget)?)$'
+```
+
 ### Beside the campaign: the random delays of amendment 38
 
 The four blocks run from a second copy of the repository at amendment 38's commit, whose replay
@@ -383,7 +396,7 @@ MACHINE=a-p13 STRETTO_COMMIT=<amendment 38's commit> nohup python3 experiments/p
 output says `ERROR caught while parsing UPS file` is a harness error, no row), and
 `mustvc/dlaf-openmpi` with its calibration runs for the first time, with `MUSTVC_WORK/dlaf-openmpi`
 at `/h`. Both run into the campaign's results and state, once the counted phase has ended (the
-last `end counted-38` line of `campaign.log`, amendments 37 and 38), from a copy of the repository
+last `end counted-39` line of `campaign.log`, amendments 37 to 39), from a copy of the repository
 at the commit that adds them, or a later one such as amendment 38's
 (experiments/RUNBOOK.md, "Where experiments run"), not from the campaign's copy. Their rows carry
 that commit, every other row the frozen one.
