@@ -440,7 +440,9 @@ int main(int argc, char **argv) {
 
 class NodeLocalFiles(unittest.TestCase):
     """On a cluster the ranks of one run see different file systems: a directory the job made on
-    its first node is not on the others (docs/cluster.md)."""
+    its first node, or a file the harness wrote into its own temporary directory, is not on the
+    others. Open MPI's app contexts, each with a working directory of its own, give the ranks of
+    one node such different views (docs/cluster.md)."""
 
     def built(self):
         exe = os.path.join(ROOT, "idioms", "01_master_worker_anysource", "bin", MPI, "main")
@@ -463,6 +465,30 @@ class NodeLocalFiles(unittest.TestCase):
             self.assertEqual(r.returncode, 0, r.stderr[-2000:])
             self.assertEqual(sorted(os.listdir(tdir)), ["rank-0.jsonl", "rank-1.jsonl", "rank-2.jsonl"])
             self.assertEqual(trace.load(tdir).node, {0: 0, 1: 0, 2: 0})
+
+    def test_a_pin_file_that_one_rank_cannot_read_reaches_it(self):
+        """STRETTO_PIN=@file, the form of a long horizon: rank 0's working directory has no such
+        file, the others' has; rank 0 gets the pins from them and applies its own."""
+        exe = self.built()
+        with tempfile.TemporaryDirectory() as d:
+            here, there = os.path.join(d, "node0"), os.path.join(d, "node1")
+            os.mkdir(here)
+            os.mkdir(there)
+            with open(os.path.join(there, "pins"), "w") as fh:
+                fh.write("0:0:2\n")
+            env = ["-x", f"LD_PRELOAD={PINLIB}", "-x", "STRETTO_PIN=@pins"]
+            r = subprocess.run(["/usr/bin/timeout", "-k", "5", "60", "/usr/bin/mpirun.openmpi", "--oversubscribe",
+                                "-np", "1", "-wdir", here, *env, exe, ":", "-np", "2", "-wdir", there, *env, exe],
+                               capture_output=True, text=True, stdin=subprocess.DEVNULL)
+            self.assertEqual(r.returncode, 0, r.stderr[-2000:])
+            self.assertRegex(r.stderr, r"(?m)^\[stretto-pin\] rank 0: 1 pin\(s\) active")
+            self.assertTrue(C.pins_matched("STRETTO_PIN=0:0:2", r.stderr), r.stderr[-2000:])
+            # no rank can read it: the run ends before the program does anything
+            os.remove(os.path.join(there, "pins"))
+            r = subprocess.run(["/usr/bin/timeout", "-k", "5", "60", "/usr/bin/mpirun.openmpi", "--oversubscribe",
+                                "-np", "3", "-wdir", there, *env, exe], capture_output=True, text=True, stdin=subprocess.DEVNULL)
+            self.assertNotEqual(r.returncode, 0)
+            self.assertIn("cannot read STRETTO_PIN from pins on any rank", r.stderr)
 
 
 class OmpChainsPerThread(unittest.TestCase):

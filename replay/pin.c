@@ -1,6 +1,7 @@
 #define _GNU_SOURCE
 #include "pin.h"
 #include <dlfcn.h>
+#include <limits.h>
 #include <mpi.h>
 #include <pthread.h>
 #include <stdint.h>
@@ -74,8 +75,12 @@ static int parse_rank_ms(const char *spec, int rank) {
 
 /* The value of a pin variable: the variable itself, or, if it starts with '@', the file it
    names. A horizon of thousands of wildcard receives does not fit into one environment
-   string (Linux limits each to 128 KiB), so long specs go to a file. A file that cannot be
-   read ends the run: replaying with no pins would look like a replay of the alternative. */
+   string (Linux limits each to 128 KiB), so long specs go to a file.
+   The harness writes that file where it runs, and on a cluster the ranks of the other nodes
+   may not see it (a node-local temporary directory). The launcher gives every rank the same
+   variable, so every rank comes here for it, and the lowest rank that could read the file
+   sends its contents to the others. A file that no rank can read ends the run: replaying
+   with no pins would look like a replay of the alternative. */
 static char *pin_spec(const char *name, int rank) {
     const char *v = getenv(name);
     if (!v) return NULL;
@@ -83,15 +88,25 @@ static char *pin_spec(const char *name, int rank) {
     FILE *f = fopen(v + 1, "r");
     char *buf = NULL;
     long n = -1;
-    if (f && fseek(f, 0, SEEK_END) == 0 && (n = ftell(f)) >= 0 && fseek(f, 0, SEEK_SET) == 0) {
+    if (f && fseek(f, 0, SEEK_END) == 0 && (n = ftell(f)) >= 0 && n < INT_MAX && fseek(f, 0, SEEK_SET) == 0) {
         buf = malloc(n + 1);
         if (buf && fread(buf, 1, n, f) != (size_t)n) { free(buf); buf = NULL; }
     }
     if (f) fclose(f);
-    if (!buf) {
-        fprintf(stderr, "[stretto-pin] rank %d: cannot read %s from %s\n", rank, name, v + 1);
+    int np = 1, mine, from;
+    PMPI_Comm_size(MPI_COMM_WORLD, &np);
+    mine = buf ? rank : np;
+    PMPI_Allreduce(&mine, &from, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
+    if (from == np) {
+        if (rank == 0) fprintf(stderr, "[stretto-pin] rank %d: cannot read %s from %s on any rank\n", rank, name, v + 1);
         PMPI_Abort(MPI_COMM_WORLD, 3);
     }
+    PMPI_Bcast(&n, 1, MPI_LONG, from, MPI_COMM_WORLD);
+    if (rank != from) {
+        free(buf);
+        buf = malloc(n + 1);
+    }
+    PMPI_Bcast(buf, (int)n, MPI_CHAR, from, MPI_COMM_WORLD);
     buf[n] = '\0';
     return buf;
 }
