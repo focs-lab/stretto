@@ -20,7 +20,11 @@ as remote, so that messages go through its netmod, UCX, with UCX's own choice of
 and the same with UCX restricted to TCP, the netmod path with no shared memory under it.
 Output: experiments/results/b_impl.csv, or b_impl_mpich.csv with --mpi mpich (setting, path,
 mpirun arguments, largest eager payload, smallest hanging payload, commit).
-usage: b_impl.py [--mpi openmpi|mpich] [--timeout S] [--max-bytes N] [--out CSV]"""
+The placement is the launcher's, so the environment decides it: in a multi-node job with the
+mapping by node (experiments/cluster/job.py bimpl) the two ranks run on two nodes, the launcher
+and the compilers are the job's (STRETTO_MPIRUN, STRETTO_MPICC_<MPI>), and the TCP setting needs
+the interface between the nodes (STRETTO_TCP_IF).
+usage: b_impl.py [--mpi openmpi|mpich] [--timeout S] [--max-bytes N] [--out CSV] [--settings NAME...]"""
 from __future__ import annotations
 import argparse
 import csv
@@ -35,8 +39,11 @@ from provenance import code_commit  # noqa: E402
 from stretto.confirm import classify_rc  # noqa: E402
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-MPICC = {"openmpi": "/usr/bin/mpicc.openmpi", "mpich": "/usr/bin/mpicc.mpich"}
-MPIRUN = "/usr/bin/mpirun.openmpi"
+# the wrappers and the launcher; on a cluster the job's (experiments/cluster/job.py): a compiler
+# command inside the image (STRETTO_MPICC_<MPI>, split at spaces) and srun's front end
+# (STRETTO_MPIRUN, as stretto.confirm takes it)
+MPICC = {m: os.environ.get("STRETTO_MPICC_" + m.upper(), "/usr/bin/mpicc." + m).split() for m in ("openmpi", "mpich")}
+MPIRUN = os.environ.get("STRETTO_MPIRUN") or "/usr/bin/mpirun.openmpi"
 PROGRAM = r'''
 #include <mpi.h>
 #include <stdlib.h>
@@ -62,9 +69,11 @@ VADER = ["--mca", "btl", "self,vader", "--mca", "btl_vader_eager_limit", "64", "
          "--mca", "btl_vader_fbox_max", "0"]
 
 
-def tcp(limit: int):
-    """TCP transport with eager limit `limit` (bytes on the wire, header included)."""
-    return ["--mca", "btl", "self,tcp", "--mca", "btl_tcp_if_include", "lo", "--mca", "btl_tcp_eager_limit", str(limit),
+def tcp(limit: int, iface: str = ""):
+    """TCP transport with eager limit `limit` (bytes on the wire, header included), on the
+    interface STRETTO_TCP_IF, else the loopback, which carries no message between two nodes."""
+    iface = iface or os.environ.get("STRETTO_TCP_IF") or "lo"
+    return ["--mca", "btl", "self,tcp", "--mca", "btl_tcp_if_include", iface, "--mca", "btl_tcp_eager_limit", str(limit),
             "--mca", "btl_self_eager_limit", str(limit)]
 
 
@@ -107,14 +116,17 @@ def main() -> int:
     ap.add_argument("--timeout", type=int, default=5)
     ap.add_argument("--max-bytes", type=int, default=1 << 20)
     ap.add_argument("--out", default=None)
+    ap.add_argument("--settings", nargs="+", default=None,
+                    help="only these settings (two ranks on two nodes reach each other by no shared-memory setting)")
     args = ap.parse_args()
+    settings = SETTINGS[args.mpi] if args.settings is None else {k: SETTINGS[args.mpi][k] for k in args.settings}
     args.out = args.out or TABLES[args.mpi]
     rows = []
     with tempfile.TemporaryDirectory() as d:
         src, exe = os.path.join(d, "h2h.c"), os.path.join(d, "h2h")
         open(src, "w").write(PROGRAM)
-        subprocess.run([MPICC[args.mpi], "-O0", "-o", exe, src], check=True)
-        for name, margs in SETTINGS[args.mpi].items():
+        subprocess.run(MPICC[args.mpi] + ["-O0", "-o", exe, src], check=True)
+        for name, margs in settings.items():
             for path in PATHS:
                 row = {"setting": name, "path": path, "mpirun_args": " ".join(margs)}
                 lo, hi = 0, args.max_bytes          # lo finishes, hi hangs (or is the cap)

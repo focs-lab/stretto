@@ -469,5 +469,46 @@ class ShellHarness(unittest.TestCase):
             os.unlink(fh.name)
 
 
+class EagerTcp(unittest.TestCase):
+    """The TCP setting of experiments/b_impl.py, which E2 and the stress baselines reuse, runs on
+    the loopback unless STRETTO_TCP_IF names another interface: two nodes reach each other
+    through none of the loopbacks (docs/cluster.md)."""
+
+    def test_the_interface(self):
+        sys.path.insert(0, os.path.join(ROOT, "experiments"))
+        import b_impl
+        old = os.environ.pop("STRETTO_TCP_IF", None)
+        try:
+            self.assertIn("btl_tcp_if_include lo", " ".join(b_impl.tcp(64)))
+            os.environ["STRETTO_TCP_IF"] = "eth0"
+            margs = " ".join(b_impl.tcp(64))
+            self.assertIn("btl_tcp_if_include eth0", margs)
+            self.assertIn("btl_tcp_eager_limit 64", margs)
+            self.assertIn("btl_tcp_if_include ib0", " ".join(b_impl.tcp(64, "ib0")))
+        finally:
+            os.environ.pop("STRETTO_TCP_IF", None)
+            if old is not None:
+                os.environ["STRETTO_TCP_IF"] = old
+
+    def test_the_launcher_and_compilers_of_a_job(self):
+        """In a multi-node job the launcher is the job's (srun's front end) and the compiler
+        runs inside the image."""
+        keys = ("STRETTO_MPIRUN", "STRETTO_MPICC_MPICH")
+        old = {k: os.environ.pop(k, None) for k in keys}
+        try:
+            m = module("experiments/b_impl.py", "b_impl_defaults")
+            self.assertEqual((m.MPIRUN, m.MPICC["mpich"]), ("/usr/bin/mpirun.openmpi", ["/usr/bin/mpicc.mpich"]))
+            os.environ.update({"STRETTO_MPIRUN": "/x/srun-mpirun", "STRETTO_MPICC_MPICH": "apptainer exec a.sif mpicc.mpich"})
+            m = module("experiments/b_impl.py", "b_impl_job")
+            self.assertEqual(m.MPIRUN, "/x/srun-mpirun")
+            self.assertEqual(m.MPICC["mpich"], ["apptainer", "exec", "a.sif", "mpicc.mpich"])
+            self.assertEqual(m.MPICC["openmpi"], ["/usr/bin/mpicc.openmpi"])
+        finally:
+            for k, v in old.items():
+                os.environ.pop(k, None)
+                if v is not None:
+                    os.environ[k] = v
+
+
 if __name__ == "__main__":
     unittest.main()
