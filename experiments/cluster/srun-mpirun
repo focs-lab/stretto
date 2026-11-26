@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# The harness's mpirun on a Slurm cluster whose compute nodes take no ssh: it starts the ranks
+# with srun, as a step of the job's allocation, through Slurm's PMIx or PMI-2 server. The harness
+# (stretto.confirm, experiments/b_impl.py, experiments/cluster/job.py, and run.py's launcher as
+# the job sets it) builds Open MPI mpirun command lines; this script takes the part of that
+# syntax they use and says "Open MPI" in --version, so that stretto.confirm passes the ranks'
+# environment as -x NAME=VALUE.
+#   -np N | -n N          ranks
+#   -x NAME[=VALUE]       the variable, for every rank: set by env(1) in front of the program,
+#                         so that srun itself never runs with the ranks' LD_PRELOAD (a tracer
+#                         linked to the image's MPI), and values may hold commas (pins), which
+#                         srun --export cannot take
+#   --mca K V | -mca K V  OMPI_MCA_K=V, for every rank, the same way
+#   --map-by node|slot|core|hwthread|ppr:1:node   by node: rank r on node r mod n, as many nodes as
+#                         ranks up to the allocation's; otherwise PPN ranks per node, filled in
+#                         turn (default: OMPI_MCA_rmaps_base_mapping_policy, else slot)
+#   --bind-to X           ignored: srun binds every rank to its own cores (--cpu-bind=cores)
+#   --oversubscribe       srun --overcommit
+#   -wdir D | --wdir D    the ranks' working directory
+#   --version             what this is, and srun's version
+# Environment:
+#   STRETTO_SRUN_MPI   srun --mpi: pmix (default) or pmi2 (the image's Open MPI has both; its
+#                      MPICH, built for PMIx, only pmix)
+#   STRETTO_NODE_EXEC  the prefix that runs a rank's program inside the image
+#                      ("apptainer exec --bind ... stretto-exp.sif"); empty for a native build
+#   STRETTO_PPN        ranks per node (default SLURM_NTASKS_PER_NODE, else SLURM_CPUS_ON_NODE)
+#   STRETTO_SRUN       the srun command (default srun)
+#   STRETTO_SRUN_ARGS  more srun options, split at spaces
+# usage: srun-mpirun -np N [options] program [arguments]
+set -euo pipefail
+np=""; map="${OMPI_MCA_rmaps_base_mapping_policy:-slot}"; wdir=""; over=(); vars=()
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -np|-n|--np) np="$2"; shift 2;;
+        -x) case "$2" in *=*) vars+=("$2");; *) vars+=("$2=${!2:-}");; esac; shift 2;;
+        --mca|-mca) vars+=("OMPI_MCA_$2=$3"); shift 3;;
+        --map-by|-map-by) map="$2"; shift 2;;
+        --bind-to|-bind-to) shift 2;;
+        --oversubscribe|-oversubscribe) over=(--overcommit); shift;;
+        -wdir|--wdir|-wd) wdir="$2"; shift 2;;
+        --version|-V)
+            echo "srun-mpirun: an Open MPI-style front end of srun (mpirun -x NAME=VALUE), experiments/cluster"
+            ${STRETTO_SRUN:-srun} --version; exit 0;;
+        --) shift; break;;
+        -*) echo "srun-mpirun: option $1 is not taken" >&2; exit 2;;
+        *) break;;
+    esac
+done
+[ -n "$np" ] && [ $# -gt 0 ] || { echo "usage: srun-mpirun -np N [options] program [arguments]" >&2; exit 2; }
+nodes="${SLURM_JOB_NUM_NODES:-${SLURM_NNODES:-1}}"
+ppn="${STRETTO_PPN:-${SLURM_NTASKS_PER_NODE:-${SLURM_CPUS_ON_NODE:-1}}}"
+ppn="${ppn%%(*}"; ppn="${ppn%%,*}"           # "8(x2)" or "8,8": the first node's
+case "$map" in
+    node|node:*|ppr:1:node*) n=$(( np < nodes ? np : nodes )); dist=cyclic;;
+    *) n=$(( (np + ppn - 1) / ppn )); [ "$n" -le "$nodes" ] || n="$nodes"; dist=block;;
+esac
+read -r -a extra <<< "${STRETTO_SRUN_ARGS:-}"
+read -r -a prefix <<< "${STRETTO_NODE_EXEC:-}"
+exec ${STRETTO_SRUN:-srun} --mpi="${STRETTO_SRUN_MPI:-pmix}" -n "$np" -N "$n" --distribution="$dist" \
+    --cpu-bind=cores --kill-on-bad-exit=1 ${over[@]+"${over[@]}"} ${wdir:+--chdir="$wdir"} \
+    ${extra[@]+"${extra[@]}"} ${prefix[@]+"${prefix[@]}"} /usr/bin/env ${vars[@]+"${vars[@]}"} "$@"

@@ -288,6 +288,13 @@ with the hunt notes, outside this repository.
   (premise S9): true for lock acquires, joins and barriers, not for a semaphore another post
   satisfies or a polled flag, which `locks.lock_deadlocks` does not tell apart. Not changed.
   None of the committed thread results was rerun with fixes (1) and (2).
+- Across nodes (26 Nov, two-node Slurm emulation, [cluster.md](cluster.md)): the tracer made
+  only the last directory of `STRETTO_TRACE_DIR`, and a pin file of a long horizon was read by
+  every rank from its own node: both fixed. The image's MPICH hangs in `MPI_Init` across nodes
+  under `srun --mpi=pmix` (it runs under Open MPI's `mpirun`); open. Under MPICH a truncation
+  replay ends with exit status 14 and "Message truncated", which `classify_rc` does not read
+  as `MPI_ERR_TRUNCATE`, so idiom 05's replays are not confirmed under MPICH, on one node as
+  on two; not changed.
 
 ## Multithreaded benchmarks (L1, and L1+L since 30 Oct)
 

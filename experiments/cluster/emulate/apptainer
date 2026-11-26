@@ -1,0 +1,17 @@
+#!/bin/sh
+# The emulation's stand-in for apptainer: the node already is the image, so "apptainer exec
+# [options] IMAGE command..." runs the command; options with a value (--bind X, -B X) are
+# skipped with it. Anything else is refused.
+[ "${1:-}" = exec ] || { echo "apptainer (emulation stand-in): only exec" >&2; exit 2; }
+shift
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --bind|-B|--env|--home|--pwd) shift 2;;
+        --*=*|--cleanenv|-e|--contain|--writable-tmpfs) shift;;
+        -*) echo "apptainer (emulation stand-in): option $1" >&2; exit 2;;
+        *) break;;
+    esac
+done
+[ -f "$1" ] || { echo "apptainer (emulation stand-in): no image $1" >&2; exit 2; }
+shift
+exec "$@"

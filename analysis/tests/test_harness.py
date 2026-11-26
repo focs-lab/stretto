@@ -469,5 +469,120 @@ class ShellHarness(unittest.TestCase):
             os.unlink(fh.name)
 
 
+class EagerTcp(unittest.TestCase):
+    """The TCP setting of experiments/b_impl.py, which E2 and the stress baselines reuse, runs on
+    the loopback unless STRETTO_TCP_IF names another interface: two nodes reach each other
+    through none of the loopbacks (docs/cluster.md)."""
+
+    def test_the_interface(self):
+        sys.path.insert(0, os.path.join(ROOT, "experiments"))
+        import b_impl
+        old = os.environ.pop("STRETTO_TCP_IF", None)
+        try:
+            self.assertIn("btl_tcp_if_include lo", " ".join(b_impl.tcp(64)))
+            os.environ["STRETTO_TCP_IF"] = "eth0"
+            margs = " ".join(b_impl.tcp(64))
+            self.assertIn("btl_tcp_if_include eth0", margs)
+            self.assertIn("btl_tcp_eager_limit 64", margs)
+            self.assertIn("btl_tcp_if_include ib0", " ".join(b_impl.tcp(64, "ib0")))
+        finally:
+            os.environ.pop("STRETTO_TCP_IF", None)
+            if old is not None:
+                os.environ["STRETTO_TCP_IF"] = old
+
+    def test_the_launcher_and_compilers_of_a_job(self):
+        """In a multi-node job the launcher is the job's (srun's front end) and the compiler
+        runs inside the image."""
+        keys = ("STRETTO_MPIRUN", "STRETTO_MPICC_MPICH")
+        old = {k: os.environ.pop(k, None) for k in keys}
+        try:
+            m = module("experiments/b_impl.py", "b_impl_defaults")
+            self.assertEqual((m.MPIRUN, m.MPICC["mpich"]), ("/usr/bin/mpirun.openmpi", ["/usr/bin/mpicc.mpich"]))
+            os.environ.update({"STRETTO_MPIRUN": "/x/srun-mpirun", "STRETTO_MPICC_MPICH": "apptainer exec a.sif mpicc.mpich"})
+            m = module("experiments/b_impl.py", "b_impl_job")
+            self.assertEqual(m.MPIRUN, "/x/srun-mpirun")
+            self.assertEqual(m.MPICC["mpich"], ["apptainer", "exec", "a.sif", "mpicc.mpich"])
+            self.assertEqual(m.MPICC["openmpi"], ["/usr/bin/mpicc.openmpi"])
+        finally:
+            for k, v in old.items():
+                os.environ.pop(k, None)
+                if v is not None:
+                    os.environ[k] = v
+
+
+class ClusterJob(unittest.TestCase):
+    """experiments/cluster/job.py: the job's nodes from what a scheduler writes, and the
+    environment every launch of the job runs under; srun-mpirun, the launcher's front end."""
+
+    def setUp(self):
+        self.job = module("experiments/cluster/job.py", "cluster_job_under_test")
+
+    def test_hosts_and_tasks(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            for text in ("n1\nn1\nn1\nn2\nn2\nn2\n",          # one line per slot
+                         "n1\nn2\n",                          # scontrol show hostnames
+                         "n1 slots=4\n# a comment\nn2 slots=4\n"):   # an Open MPI hostfile
+                p = os.path.join(d, "hosts")
+                with open(p, "w") as fh:
+                    fh.write(text)
+                self.assertEqual(self.job.read_hosts(p), ["n1", "n2"])
+        self.assertEqual([self.job.tasks_per_node(x) for x in ("8", "8(x2)", "8,4", "")], [8, 8, 8, 1])
+
+    def test_the_environment(self):
+        job = {"mpirun": self.job.SRUN_MPIRUN, "ppn": 8, "tmp": "/shared/out/tmp", "hostfile": "", "launcher": "srun",
+               "pmi": "pmix", "node_exec": "apptainer exec --bind /scratch x.sif", "net": "ib0"}
+        env = self.job.mpi_env(job)
+        self.assertEqual(env["STRETTO_MPIRUN"], self.job.SRUN_MPIRUN)
+        self.assertEqual((env["STRETTO_SRUN_MPI"], env["STRETTO_PPN"]), ("pmix", "8"))
+        self.assertEqual(env["STRETTO_NODE_EXEC"], "apptainer exec --bind /scratch x.sif")
+        self.assertEqual(env["STRETTO_MPICC_MPICH"], "apptainer exec --bind /scratch x.sif /usr/bin/mpicc.mpich")
+        self.assertEqual(env["OMPI_MCA_rmaps_base_mapping_policy"], "node")
+        self.assertEqual(self.job.mpi_env(job, "slot")["OMPI_MCA_rmaps_base_mapping_policy"], "slot")
+        # the harness's files on the shared file system, MPI's session directory node-local
+        self.assertEqual((env["TMPDIR"], env["OMPI_MCA_orte_tmpdir_base"]), ("/shared/out/tmp", "/tmp"))
+        self.assertEqual((env["OMPI_MCA_btl_tcp_if_include"], env["STRETTO_TCP_IF"], env["UCX_NET_DEVICES"]),
+                         ("ib0", "ib0", "ib0"))
+        self.assertNotIn("OMPI_MCA_orte_default_hostfile", env)
+        native = self.job.mpi_env(dict(job, launcher="mpirun", mpirun="/opt/ompi/bin/mpirun", node_exec="", net=""))
+        self.assertEqual(native["STRETTO_MPIRUN"], "/opt/ompi/bin/mpirun")
+        self.assertNotIn("STRETTO_SRUN_MPI", native)
+        self.assertNotIn("STRETTO_MPICC_OPENMPI", native)
+        self.assertNotIn("OMPI_MCA_btl_tcp_if_include", native)
+
+    def test_the_front_end_of_srun(self):
+        """srun-mpirun turns the harness's mpirun lines into srun's: the ranks' variables go to
+        env(1) in front of the program (inside the image's prefix), never into srun's own
+        environment; the placement by node uses as many nodes as ranks."""
+        import shutil
+        import subprocess
+        import tempfile
+        if shutil.which("bash") is None:
+            self.skipTest("no bash")
+        with tempfile.TemporaryDirectory() as d:
+            fake = os.path.join(d, "srun")
+            with open(fake, "w") as fh:
+                fh.write('#!/bin/sh\necho "LD_PRELOAD=${LD_PRELOAD:-}"\nprintf "%s\\n" "$@"\n')
+            os.chmod(fake, 0o755)
+            env = dict(os.environ, STRETTO_SRUN=fake, SLURM_JOB_NUM_NODES="2", STRETTO_PPN="8",
+                       STRETTO_NODE_EXEC="apptainer exec x.sif", STRETTO_SRUN_MPI="pmix")
+            env.pop("LD_PRELOAD", None)
+            env.pop("OMPI_MCA_rmaps_base_mapping_policy", None)
+            out = subprocess.run([os.path.join(ROOT, "experiments", "cluster", "srun-mpirun"), "-np", "3", "--map-by", "node",
+                                  "-x", "LD_PRELOAD=/lib/t.so", "-x", "STRETTO_PIN=0:0:2,1:0:0", "--mca", "btl", "self,tcp",
+                                  "./main", "a b"], env=env, capture_output=True, text=True, check=True).stdout.splitlines()
+            self.assertEqual(out[0], "LD_PRELOAD=")
+            self.assertEqual(out[1:], ["--mpi=pmix", "-n", "3", "-N", "2", "--distribution=cyclic", "--cpu-bind=cores",
+                                       "--kill-on-bad-exit=1", "apptainer", "exec", "x.sif", "/usr/bin/env",
+                                       "LD_PRELOAD=/lib/t.so", "STRETTO_PIN=0:0:2,1:0:0", "OMPI_MCA_btl=self,tcp",
+                                       "./main", "a b"])
+            out = subprocess.run([os.path.join(ROOT, "experiments", "cluster", "srun-mpirun"), "-np", "16", "./main"],
+                                 env=env, capture_output=True, text=True, check=True).stdout.splitlines()
+            self.assertEqual(out[4:8], ["-N", "2", "--distribution=block", "--cpu-bind=cores"])
+            v = subprocess.run([os.path.join(ROOT, "experiments", "cluster", "srun-mpirun"), "--version"],
+                               env=env, capture_output=True, text=True).stdout
+            self.assertIn("Open MPI", v)        # stretto.confirm then passes variables as -x NAME=VALUE
+
+
 if __name__ == "__main__":
     unittest.main()
