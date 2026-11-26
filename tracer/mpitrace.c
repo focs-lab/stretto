@@ -6,6 +6,7 @@
 
    Record kinds (all carry "r" and "seq"):
      init      np, thread (provided level), version (of this format, TRACE_VERSION),
+               node (the lowest world rank on this rank's node, by MPI_COMM_TYPE_SHARED),
                [issue:1] (MPI_THREAD_MULTIPLE: the issue lock and the blocking rewrite are on,
                and point-to-point records carry iseq), [lockorder:1] (records carry hafter and
                locks where they apply), [atomics:1] (code compiled with ThreadSanitizer's
@@ -1597,6 +1598,18 @@ static void open_trace(int provided) {
 #endif
     if (!g_threads_on) rb_printf(&b, ",\"threads\":0");
     if (g_guard_asked) rb_printf(&b, ",\"guard\":%d", g_guard);
+#ifndef STRETTO_PIN_ONLY
+    {   /* the node: the lowest world rank that shares memory with this one. Whether two ranks
+           share a node decides the transport between them, and with it the eager limit */
+        MPI_Comm sh;
+        int node = -1;
+        if (PMPI_Comm_split_type(MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, 0, MPI_INFO_NULL, &sh) == MPI_SUCCESS) {
+            PMPI_Allreduce(&g_rank, &node, 1, MPI_INT, MPI_MIN, sh);
+            PMPI_Comm_free(&sh);
+        }
+        if (node >= 0) rb_printf(&b, ",\"node\":%d", node);
+    }
+#endif
     rb_emit(&b);
     comm_register("world", MPI_COMM_WORLD, MPI_COMM_WORLD, -1);   /* local id 0 */
     comm_register("self", MPI_COMM_WORLD, MPI_COMM_SELF, -1);     /* local id 1 */

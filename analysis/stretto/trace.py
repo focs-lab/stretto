@@ -305,6 +305,7 @@ class Trace:
     version: int = 1                                    # trace format; 2: every member records a communicator creation
     thread_level: int = 0                               # MPI_THREAD_* level the run was given (3 = MULTIPLE)
     threads: Dict[int, int] = field(default_factory=dict)   # rank -> number of threads that made MPI calls
+    node: Dict[int, int] = field(default_factory=dict)      # rank -> its node, the lowest world rank on it (traces since Nov 2026)
     comm_ranks: Dict[int, List[int]] = field(default_factory=dict)   # global comm id -> world ranks, in comm-rank order (the remote group of an intercommunicator)
     comm_members: Dict[int, List[int]] = field(default_factory=dict) # global comm id -> every rank that takes part in its collectives
     comm_ranks_by_rank: Dict[Tuple[int, int], List[int]] = field(default_factory=dict)  # (rank, comm id) -> peer ranks of an intercommunicator seen from that rank
@@ -744,6 +745,8 @@ def _build(t: Trace, raw_ranks: Dict[int, List[dict]]) -> None:
                 t.np = max(t.np, r.get("np", 0))
                 t.version = max(t.version, r.get("version", 1))
                 t.thread_level = max(t.thread_level, r.get("thread", 0))
+                if "node" in r:
+                    t.node[rank] = r["node"]
                 if "guard" in r:
                     t.guard[rank] = r["guard"]
                 if r.get("atomics"):

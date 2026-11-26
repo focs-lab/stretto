@@ -452,7 +452,9 @@ class NodeLocalFiles(unittest.TestCase):
         return exe
 
     def test_the_trace_directory_is_made_with_its_parents(self):
-        """A trace directory whose parents do not exist yet gets them, and every rank's file."""
+        """A trace directory whose parents do not exist yet gets them, and every rank's file;
+        each rank's init record names its node, here one node for all."""
+        from stretto import trace
         exe = self.built()
         with tempfile.TemporaryDirectory() as d:
             tdir = os.path.join(d, "node-local", "job", "run01")
@@ -460,6 +462,7 @@ class NodeLocalFiles(unittest.TestCase):
                                 "-x", f"STRETTO_TRACE_DIR={tdir}", exe], capture_output=True, text=True, timeout=60)
             self.assertEqual(r.returncode, 0, r.stderr[-2000:])
             self.assertEqual(sorted(os.listdir(tdir)), ["rank-0.jsonl", "rank-1.jsonl", "rank-2.jsonl"])
+            self.assertEqual(trace.load(tdir).node, {0: 0, 1: 0, 2: 0})
 
 
 class OmpChainsPerThread(unittest.TestCase):
