@@ -1524,6 +1524,18 @@ static int req_start(MPI_Request r, int *kind) {
 }
 
 /* ------------------------------------------------------------- init/fini */
+#ifndef STRETTO_PIN_ONLY
+/* The trace directory with its parents, as mkdir -p does. On a cluster the directory is often
+   on a node-local disk that the job prepared on the launching node only; there a single mkdir
+   failed on every other node, whose ranks then wrote no trace. */
+static void make_dirs(const char *dir) {
+    char p[1024];
+    snprintf(p, sizeof p, "%s", dir);
+    for (char *s = p + 1; *s; s++)
+        if (*s == '/') { *s = '\0'; mkdir(p, 0777); *s = '/'; }
+    mkdir(p, 0777);
+}
+#endif
 static void open_trace(int provided) {
     PMPI_Comm_rank(MPI_COMM_WORLD, &g_rank);
 #ifndef STRETTO_PIN_ONLY
@@ -1537,7 +1549,7 @@ static void open_trace(int provided) {
     g_bufs = bufs && atoi(bufs) > 0;
     const char *dir = getenv("STRETTO_TRACE_DIR");
     if (!dir) dir = "traces";
-    mkdir(dir, 0777);
+    make_dirs(dir);
     char path[1024];
     snprintf(path, sizeof path, "%s/rank-%d.jsonl", dir, g_rank);
     g_out = fopen(path, "w");

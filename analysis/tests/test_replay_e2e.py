@@ -438,6 +438,30 @@ int main(int argc, char **argv) {
 """
 
 
+class NodeLocalFiles(unittest.TestCase):
+    """On a cluster the ranks of one run see different file systems: a directory the job made on
+    its first node is not on the others (docs/cluster.md)."""
+
+    def built(self):
+        exe = os.path.join(ROOT, "idioms", "01_master_worker_anysource", "bin", MPI, "main")
+        missing = [p for p in (TRACER, PINLIB, exe) if not os.path.exists(p)]
+        if missing:
+            if REQUIRE:
+                self.fail(f"not built: {missing}")
+            self.skipTest(f"not built: {missing}")
+        return exe
+
+    def test_the_trace_directory_is_made_with_its_parents(self):
+        """A trace directory whose parents do not exist yet gets them, and every rank's file."""
+        exe = self.built()
+        with tempfile.TemporaryDirectory() as d:
+            tdir = os.path.join(d, "node-local", "job", "run01")
+            r = subprocess.run(["/usr/bin/mpirun.openmpi", "--oversubscribe", "-np", "3", "-x", f"LD_PRELOAD={TRACER}",
+                                "-x", f"STRETTO_TRACE_DIR={tdir}", exe], capture_output=True, text=True, timeout=60)
+            self.assertEqual(r.returncode, 0, r.stderr[-2000:])
+            self.assertEqual(sorted(os.listdir(tdir)), ["rank-0.jsonl", "rank-1.jsonl", "rank-2.jsonl"])
+
+
 class OmpChainsPerThread(unittest.TestCase):
     """STRETTO_OMP_CHAINS=thread (tracer): the implicit tasks of thread j > 0 in a chain's
     successive parallel regions are one chain, so a code that enters a region per time step
