@@ -1,10 +1,10 @@
 # The uniform campaign: harness
 
 [RULE.md](RULE.md) fixes the protocol, with its amendments of 24 and 25 Nov 2026 (Sections 10 to
-14, amendments 14 to 37); this directory is the harness that runs it. Nothing here is a result
+14, amendments 14 to 38); this directory is the harness that runs it. Nothing here is a result
 yet: `results/` is written by the campaign itself.
 
-Frozen commit: b4946e30c054 (the merge of the disk guard and the driver into main, 25 Nov 2026; it replaces 6185733e1da1, frozen earlier the same day, from which nothing ran). Every row's `commit` is this hash, except the rows of amendment 36's blocks.
+Frozen commit: b4946e30c054 (the merge of the disk guard and the driver into main, 25 Nov 2026; it replaces 6185733e1da1, frozen earlier the same day, from which nothing ran). Every row's `commit` is this hash, except the rows of amendment 36's and 38's blocks.
 
 Declared deviations (RULE.md, Section 14, 25 and 26 Nov 2026, during the counted phase):
 
@@ -19,6 +19,10 @@ Declared deviations (RULE.md, Section 14, 25 and 26 Nov 2026, during the counted
   other than `openmpi-must-1.11.2-tsan` to focs. They run from the frozen tree and images, at
   the same T. `quiet.sh` keeps them off a machine while another project times a benchmark there.
   The experiment machine's scheduler was restarted without them (`--blocks '^(?!MOVED)'`).
+- Amendment 38 (26 Nov 2026). The four random-delay blocks on MPI-CorrBench stopped at their
+  first pass on a harness error. A program that fails before `MPI_Init` never shows the replay
+  library's announcement. They run in full at the fix's commit, on the experiment machine's
+  hardware threads 18-19 and 58-59 beside the campaign.
 
 A change to a tool during the campaign is listed here with its
 date and reason, and every block it can affect is run again (RULE.md, Section 1.7). A block
@@ -358,13 +362,29 @@ After the campaign, each moved block's `RESULTS/<block>.csv` from its machine re
 experiment machine's, and its journal and `campaign.log` are kept beside it as
 `journal.<machine>.log` and `campaign.<machine>.log`.
 
+### Beside the campaign: the random delays of amendment 38
+
+The four blocks run from a second copy of the repository at amendment 38's commit, whose replay
+library is the frozen copy's build (`replay/` is unchanged since the frozen commit), under their
+own container prefix and on the threads the campaign's pool leaves out. Once the campaign's
+scheduler has ended, the same command without `--pool` (the default pool) takes the whole node:
+kill the first invocation, whose containers the second adopts.
+
+```bash
+cd ~/protocol/repo38 && rsync -a ~/protocol/repo/replay/bin/ replay/bin/
+MACHINE=a-p13 STRETTO_COMMIT=<amendment 38's commit> nohup python3 experiments/protocol/schedule.py \
+  --state $S --results $R --commit $STRETTO_COMMIT --prefix proto38 --pool 18-19,58-59 \
+  --blocks '^corrbench/(mpich|openmpi)-delays-D50(-budget)?$' > ~/protocol/campaign/delays-38.out 2>&1 < /dev/null &
+```
+
 ### After the campaign: MUST-vc's blocks of amendment 36
 
 `mustvc/uintah` and its calibration run again, now with `MUSTVC_WORK/src` at `/src` (a sus whose
 output says `ERROR caught while parsing UPS file` is a harness error, no row), and
 `mustvc/dlaf-openmpi` with its calibration runs for the first time, with `MUSTVC_WORK/dlaf-openmpi`
-at `/h`. Both run into the campaign's results and state, once campaign.sh has ended (its
-`campaign.log` says `campaign done`), from a copy of the repository at the commit that adds them
+at `/h`. Both run into the campaign's results and state, once the counted phase has ended (the
+last `end counted-38` line of `campaign.log`, amendments 37 and 38), from a copy of the repository
+at the commit that adds them, or a later one such as amendment 38's
 (experiments/RUNBOOK.md, "Where experiments run"), not from the campaign's copy. Their rows carry
 that commit, every other row the frozen one.
 

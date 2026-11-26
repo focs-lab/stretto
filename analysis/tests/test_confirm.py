@@ -84,6 +84,34 @@ class PinsApplied(unittest.TestCase):
         self.assertFalse(pins_applied("STRETTO_PIN_PROBE=1:1:2", APPLIED))
 
 
+class Announcement(unittest.TestCase):
+    """run_pinned without MPI: the launcher is stubbed, the run's status and output given."""
+
+    def run_with(self, returncode, stderr, **kw):
+        saved = C.need_preload, C.launcher, C.subprocess.run
+        C.need_preload = lambda lib: None
+        C.launcher = lambda mpi: ("mpirun", "openmpi")
+        C.subprocess.run = lambda *a, **k: C.subprocess.CompletedProcess(a[0], returncode, "", stderr)
+        try:
+            return C.run_pinned(2, "prog", [], None, extra_env={"STRETTO_SEND_DELAY_MS": "0,1"}, **kw)
+        finally:
+            C.need_preload, C.launcher, C.subprocess.run = saved
+
+    def test_a_run_without_the_announcement_is_a_harness_error(self):
+        with self.assertRaises(C.HarnessError):
+            self.run_with(0, "")
+        with self.assertRaises(C.HarnessError):
+            self.run_with(1, "")
+
+    def test_a_failed_run_may_lack_it_when_the_caller_judges(self):
+        # a program that fails before MPI_Init, where the library announces itself
+        self.assertEqual(self.run_with(1, "", failed_unannounced=True).returncode, 1)
+        self.assertEqual(self.run_with(124, "", failed_unannounced=True).returncode, 124)
+        with self.assertRaises(C.HarnessError):      # a run that ends well must have loaded it
+            self.run_with(0, "", failed_unannounced=True)
+        self.assertEqual(self.run_with(0, "[stretto-pin] rank 0: loaded\n", failed_unannounced=True).returncode, 0)
+
+
 class PinsMatched(unittest.TestCase):
     """'applied' is printed when the source argument is rewritten; only 'matched', printed when
     the pinned receive completes, shows that the forced match happened (an impossible forced

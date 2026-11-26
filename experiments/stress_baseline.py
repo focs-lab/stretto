@@ -67,7 +67,7 @@ def stress(row: dict, exe: str, args) -> dict:
         out["seed"] = args.seed
     for i in range(1, args.runs + 1):
         r = run_pinned(np, exe, [], None, timeout=args.timeout, mpi=args.mpi, mpirun_args=args.mpirun_args,
-                       extra_env=delays(rng, np))
+                       extra_env=delays(rng, np), failed_unannounced=True)
         res = classify_rc(r.returncode, r.stderr, r.elapsed, args.timeout)
         out["runs"] = i
         if res != "FINISHED":

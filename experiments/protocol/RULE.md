@@ -425,3 +425,19 @@ already seen. They are declared deviations under 1.7 and 1.8. None leaves a run 
       running containers. After the campaign, each moved block's table from its machine
       replaces the experiment machine's. It started as a copy of it, so it holds the first pass
       too. Each machine keeps its own journal.
+38. **Random delays on MPI-CorrBench run again after a harness fix (1.8; 26 Nov 2026).** The
+    random delays are applied by the replay library, preloaded, which announces itself when MPI
+    starts. The harness took a run without that announcement for a library that did not load,
+    and stopped the pass. Some erroneous programs of MPI-CorrBench fail before `MPI_Init`, such
+    as `conflo/pt2pt/MisplacedCall-MPISend`, which calls `MPI_Send` first. Some others crash in
+    a way that loses rank 0's output. So the first pass of all four blocks stopped, on
+    25 Nov, and none of their rows was written:
+    `corrbench/{mpich,openmpi}-delays-D50` and `corrbench/{mpich,openmpi}-delays-D50-budget`.
+    - This is a harness failure under 1.8. From the fix on, a run that did not end with status 0
+      may lack the announcement, and its outcome is judged as usual. A run that ends with
+      status 0 without the announcement is still a harness error. The calibration is not
+      affected: it runs only the programs labelled correct, which all start MPI, so T stays.
+    - The four blocks run in full at the fix's commit, on the experiment machine, where they
+      were calibrated. They run beside the campaign on the hardware threads 18-19 and 58-59 of
+      its node, which the scheduler's pool leaves out, and on the whole pool once the campaign
+      has ended. These rows carry that commit.

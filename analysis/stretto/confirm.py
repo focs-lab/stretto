@@ -1980,14 +1980,17 @@ def launcher_env(style: str, name: str, value: str) -> List[str]:
 
 def run_pinned(np: int, exe: str, args: List[str], pin, timeout: int = 20, mpi: str = "openmpi",
                mpirun_args: Optional[List[str]] = None, extra_env: Optional[dict] = None,
-               cwd: Optional[str] = None, preload: Optional[str] = None) -> subprocess.CompletedProcess:
+               cwd: Optional[str] = None, preload: Optional[str] = None,
+               failed_unannounced: bool = False) -> subprocess.CompletedProcess:
     """pin: one "STRETTO_PIN=..." assignment, a list of them, or None. args and cwd must be
     those of the traced run: the pins number the wildcard operations of that execution.
     preload: the library that applies the pins, the replay library by default; the tracer
     applies them too and records the replay (with STRETTO_TRACE_DIR in extra_env). A library
     that is missing, or that does not announce itself in the run's output (the replay library
     always does, the tracer when it applies pins or delays), raises HarnessError: the run would
-    otherwise be a plain one."""
+    otherwise be a plain one. failed_unannounced: a run that did not end with status 0 may lack
+    the announcement (a program that fails before MPI_Init, where the library announces itself,
+    as some erroneous programs of the suites do); it is returned for the caller to judge."""
     pinlib = preload or os.path.join(ROOT, "replay", "bin", mpi, "libstretto-pin.so")
     need_preload(pinlib)
     announces = preload is None or bool(pin) or any(k in (extra_env or {}) for k in DELAY_VARS)
@@ -2007,7 +2010,7 @@ def run_pinned(np: int, exe: str, args: List[str], pin, timeout: int = 20, mpi: 
         r = subprocess.run(cmd, capture_output=True, text=True, stdin=subprocess.DEVNULL, cwd=cwd,
                            env={**os.environ, "OMPI_MCA_rmaps_base_oversubscribe": "1"})
         r.elapsed = time.monotonic() - t0   # for classify_rc: a SIGKILL past the timeout is the timeout's
-    if announces:
+    if announces and not (failed_unannounced and r.returncode != 0):
         check_loaded(pinlib, r.stderr)
     return r
 
