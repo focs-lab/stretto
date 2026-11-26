@@ -368,7 +368,7 @@ them.
 ## 14. Amendments during the counted phase (25 Nov 2026)
 
 These were made after the calibration had ended and the counted phase had begun, on outcomes
-already seen. They are declared deviations under 1.7 and 1.8. Neither leaves a run out.
+already seen. They are declared deviations under 1.7 and 1.8. None leaves a run out.
 
 35. **The launcher's own abort after the program ended (3, amendment 2).** Open MPI's `mpirun`,
     the launcher of every tool under either library, sometimes aborts in glibc's heap check as it
@@ -398,3 +398,30 @@ already seen. They are declared deviations under 1.7 and 1.8. Neither leaves a r
       calibration and 40 counted jobs, with `OMPI_MCA_rmaps_base_oversubscribe=1` as committed)
       runs after the campaign at the same later commit. Both DLA-Future blocks are reported.
     - These rows carry the later commit. Every other row keeps the frozen one.
+37. **More machines for MUST's passes over MPI-CorrBench (1.5, 2.1, 15; 26 Nov 2026).** A
+    change of logistics, made for wall time on each block's remaining cost, before any pass it
+    moves had run. Five blocks move whole from their next pass on:
+    - `corrbench/mpich-must-1.11.2` and `corrbench/openmpi-must-1.11.2` to apollo (AMD EPYC 9115,
+      hardware threads 4-15 and 36-47);
+    - `corrbench-openmp/mpich-must-1.11.2`, `corrbench-openmp/mpich-must-1.11.2-tsan` and
+      `corrbench-openmp/openmpi-must-1.11.2` to focs (Intel Xeon w9-3495X, hardware threads
+      44-55 and 100-111).
+
+    They run from the frozen commit's tree, in the same images (the same layers; apollo's Docker
+    gives them other IDs), on the suites' builds copied from the experiment machine, at the T
+    calibrated there. Each row records its host.
+    - These are the blocks whose outcome depends least on the processor. MUST judges each program
+      by the run it sees, and the experiment machine stays the only host of NINJA, random delays,
+      Stretto and every application, whose cells were calibrated there.
+      `corrbench-openmp/openmpi-must-1.11.2-tsan` stays too, since a pass of it was running.
+    - The first pass of each moved block ran on the experiment machine, so each of these cells
+      holds passes from two hosts. The appendix gives each cell's passes per host, and flags a
+      program whose verdict differs between them.
+    - focs and apollo are shared with projects that time benchmarks. While a marker of theirs
+      exists, nothing of the campaign runs there: `quiet.sh` stops the scheduler, killing its
+      running passes, and starts it again after. A killed pass is run again from its start and
+      its partial table is discarded, as for any stop (amendment 33).
+    - The experiment machine's scheduler was restarted without these blocks, adopting its
+      running containers. After the campaign, each moved block's table from its machine
+      replaces the experiment machine's. It started as a copy of it, so it holds the first pass
+      too. Each machine keeps its own journal.

@@ -1,12 +1,12 @@
 # The uniform campaign: harness
 
 [RULE.md](RULE.md) fixes the protocol, with its amendments of 24 and 25 Nov 2026 (Sections 10 to
-14, amendments 14 to 36); this directory is the harness that runs it. Nothing here is a result
+14, amendments 14 to 37); this directory is the harness that runs it. Nothing here is a result
 yet: `results/` is written by the campaign itself.
 
 Frozen commit: b4946e30c054 (the merge of the disk guard and the driver into main, 25 Nov 2026; it replaces 6185733e1da1, frozen earlier the same day, from which nothing ran). Every row's `commit` is this hash, except the rows of amendment 36's blocks.
 
-Declared deviations (RULE.md, Section 14, both 25 Nov 2026, during the counted phase):
+Declared deviations (RULE.md, Section 14, 25 and 26 Nov 2026, during the counted phase):
 
 - Amendment 35. On NPB MG at 32 ranks under MPICH, Open MPI's launcher sometimes aborts in
   glibc's heap check after the program has ended normally. Those rows are reclassified by
@@ -14,6 +14,11 @@ Declared deviations (RULE.md, Section 14, both 25 Nov 2026, during the counted p
 - Amendment 36. The `mustvc/calibrate-uintah` and `mustvc/uintah` blocks ran without `/src`
   mounted, so Uintah stopped at parsing its input. Both are superseded and run again after the
   campaign. MUST-vc on DLA-Future in the Open MPI image is added and runs at the same time.
+- Amendment 37 (26 Nov 2026). MUST's passes over MPI-CorrBench move to two more machines:
+  `corrbench/{mpich,openmpi}-must-1.11.2` to apollo, and the three `corrbench-openmp` MUST blocks
+  other than `openmpi-must-1.11.2-tsan` to focs. They run from the frozen tree and images, at
+  the same T. `quiet.sh` keeps them off a machine while another project times a benchmark there.
+  The experiment machine's scheduler was restarted without them (`--blocks '^(?!MOVED)'`).
 
 A change to a tool during the campaign is listed here with its
 date and reason, and every block it can affect is run again (RULE.md, Section 1.7). A block
@@ -328,6 +333,30 @@ keeps every other job from starting until it ends. schedule.py refuses to start 
 `MACHINE`. summary.py shows a suite block per cell and label (`expect`, CorrBench's `label`),
 with the share of its reveals that are timeouts (amendment 28), and a thread replay block per
 alternative and mode as well as per replay (amendment 24).
+
+### More machines: amendment 37
+
+Each other machine gets the frozen tree (an `rsync` of the experiment machine's copy without
+`third_party/apps`, which `git diff --stat <frozen>` shows equal to the commit), the two images
+(`docker save`, then `docker load`), the moved suites' builds under `STATE/suites/<suite>-<mpi>/build`
+and a copy of `RESULTS/<suite>/`, with this directory's `quiet.sh` beside `schedule.py`. On the
+experiment machine the scheduler is killed (its containers keep running) and restarted without
+the moved blocks; the new invocation adopts the containers:
+
+```bash
+MOVED='^(corrbench/(mpich|openmpi)-must-1\.11\.2|corrbench-openmp/(mpich-must-1\.11\.2|mpich-must-1\.11\.2-tsan|openmpi-must-1\.11\.2))$'
+MACHINE=a-p13 python3 experiments/protocol/schedule.py --state $S --results $R --commit $STRETTO_COMMIT --blocks "^(?!$MOVED)"
+# apollo, between the markers of the projects timing benchmarks there
+MACHINE=apollo experiments/protocol/quiet.sh "$HOME/APOLLO_LEG" $R --state $S --commit $STRETTO_COMMIT \
+  --pool 4-15,36-47 --max-jobs 5 --blocks '^corrbench/(mpich|openmpi)-must-1\.11\.2$'
+# focs, likewise
+MACHINE=focs experiments/protocol/quiet.sh "$LEGS/FOCS_LEG $LEGS/HOST_PAUSE*" $R --state $S --commit $STRETTO_COMMIT \
+  --pool 44-55,100-111 --blocks '^corrbench-openmp/(mpich-must-1\.11\.2|mpich-must-1\.11\.2-tsan|openmpi-must-1\.11\.2)$'
+```
+
+After the campaign, each moved block's `RESULTS/<block>.csv` from its machine replaces the
+experiment machine's, and its journal and `campaign.log` are kept beside it as
+`journal.<machine>.log` and `campaign.<machine>.log`.
 
 ### After the campaign: MUST-vc's blocks of amendment 36
 
