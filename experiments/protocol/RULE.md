@@ -460,3 +460,13 @@ already seen. They are declared deviations under 1.7 and 1.8. None leaves a run 
     - The other moved blocks run MUST without ThreadSanitizer. Their passes on focs and apollo
       match the experiment machine's first pass within a few programs per outcome, and stay
       where they are.
+40. **The tables read fields beyond 128 KiB (1.8; 28 Nov 2026).** Python's csv module refuses a
+    field longer than 128 KiB by default. The pins of an alternative at NPB MG's 32 ranks are
+    longer. On the cluster (job 1218021), `replays.py enumerate` wrote them, and the next read
+    of that table, in `rows.read`, stopped with `field larger than field limit (131072)`. The
+    campaign's replays, which have not started, read the same tables the same way.
+    - `rows.py` raises the limit when it is imported, so every reader of the campaign's tables
+      takes such fields. Nothing that read before reads differently: a field under the limit
+      is unchanged, and the only change is that a read which raised now succeeds.
+    - No counted row was read with the old limit and none is replaced. The replays (Section 6)
+      run at a commit that has this fix, and their rows carry it in `commit`.

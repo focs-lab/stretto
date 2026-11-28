@@ -31,6 +31,11 @@ import math
 import os
 import sys
 
+# A field may exceed the csv module's default limit of 128 KiB: the pins of an alternative in
+# replays.py's table do for NPB MG at 32 ranks (RULE.md, amendment 40). Every reader of the
+# campaign's tables imports this module.
+csv.field_size_limit(sys.maxsize)
+
 COMMON = ["host", "cpus", "jobs", "timeout", "seed", "commit", "superseded", "outcome"]
 OUTCOMES = ("predicted", "observed-reported", "observed-not-reported", "missed", "tool-failure")
 Z95 = 1.959963984540054

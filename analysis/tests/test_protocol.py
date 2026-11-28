@@ -64,6 +64,14 @@ class Tables(unittest.TestCase):
         with self.assertRaises(ValueError):
             rows.append(self.t, [{"a": 1}], ["a"])
 
+    def test_a_field_beyond_128_kib_reads(self):
+        """The pins of an alternative at 32 ranks exceed the csv module's default field limit
+        (amendment 40): rows.read takes them."""
+        pins = ",".join("%d:%d:%d" % (i % 32, i, (i + 1) % 32) for i in range(30000))
+        self.assertGreater(len(pins), 131072)
+        rows.append(self.t, [{"a": 1, "pins": pins}], ["a", "pins"])
+        self.assertEqual(rows.read(self.t)[0]["pins"], pins)
+
     def test_supersede_keeps_rows(self):
         f = ["run", "result", "superseded"]
         rows.append(self.t, [{"run": i, "result": "x", "superseded": ""} for i in (1, 2, 3)], f)

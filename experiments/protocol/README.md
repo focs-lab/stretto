@@ -1,12 +1,12 @@
 # The uniform campaign: harness
 
 [RULE.md](RULE.md) fixes the protocol, with its amendments of 24 and 25 Nov 2026 (Sections 10 to
-14, amendments 14 to 39); this directory is the harness that runs it. Nothing here is a result
+14, amendments 14 to 40); this directory is the harness that runs it. Nothing here is a result
 yet: `results/` is written by the campaign itself.
 
 Frozen commit: b4946e30c054 (the merge of the disk guard and the driver into main, 25 Nov 2026; it replaces 6185733e1da1, frozen earlier the same day, from which nothing ran). Every row's `commit` is this hash, except the rows of amendment 36's and 38's blocks.
 
-Declared deviations (RULE.md, Section 14, 25 to 27 Nov 2026, during the counted phase):
+Declared deviations (RULE.md, Section 14, 25 to 28 Nov 2026, during the counted phase):
 
 - Amendment 35. On NPB MG at 32 ranks under MPICH, Open MPI's launcher sometimes aborts in
   glibc's heap check after the program has ended normally. Those rows are reclassified by
@@ -27,6 +27,8 @@ Declared deviations (RULE.md, Section 14, 25 to 27 Nov 2026, during the counted 
   memory layout in most runs ("unexpected memory mapping"), so
   `corrbench-openmp/mpich-must-1.11.2-tsan` runs in full on the experiment machine. Its focs rows
   are kept apart and not counted.
+- Amendment 40 (28 Nov 2026). `rows.py` raises the csv module's field limit of 128 KiB, which
+  the pins of NPB MG's alternatives at 32 ranks exceed; the replays run at a commit with it.
 
 A change to a tool during the campaign is listed here with its
 date and reason, and every block it can affect is run again (RULE.md, Section 1.7). A block
