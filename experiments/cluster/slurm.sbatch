@@ -6,7 +6,8 @@
 #   MACHINE=<cluster> sbatch --nodes 2 experiments/cluster/slurm.sbatch
 #       (srun --mpi=pmix, every rank in build/sif/stretto-exp_24.04.sif)
 #   MACHINE=<cluster> RUNTIME=native LAUNCHER=mpirun STEPS="build setup idioms" sbatch --nodes 2 experiments/cluster/slurm.sbatch
-#       (the cluster's MPI modules, loaded below from MODULES)
+#       (the system's Open MPI and experiments/cluster/mpich.sh's MPICH, or the cluster's MPI
+#       modules loaded below from MODULES; the SoC cluster's way)
 # Ranks start through Slurm only: srun, or an mpirun that uses srun itself; never ssh. The
 # #SBATCH lines are defaults, the command line overrides them. The defaults fit the SoC cluster
 # (docs/cluster.md, "The SoC cluster"): partition normal, whose limit is 3 h (a longer job goes to
@@ -24,6 +25,9 @@
 #SBATCH --output=build/cluster/slurm-%j.out
 set -euo pipefail
 cd "${SLURM_SUBMIT_DIR:-$PWD}"
+# the subnet of MPI's traffic between the nodes: unset, Open MPI's daemons and MPICH's UCX try
+# both of the nodes' subnets and hang (docs/cluster.md)
+export NET="${NET:-192.168.48.0/21}"
 mkdir -p build/cluster
 if [ -n "${MODULES:-}" ]; then
     # shellcheck disable=SC2086

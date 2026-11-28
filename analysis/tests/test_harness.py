@@ -549,6 +549,16 @@ class ClusterJob(unittest.TestCase):
         self.assertNotIn("STRETTO_SRUN_MPI", native)
         self.assertNotIn("STRETTO_MPICC_OPENMPI", native)
         self.assertNotIn("OMPI_MCA_btl_tcp_if_include", native)
+        # natively on a subnet: Open MPI takes the subnet, UCX the node's interface on it; the
+        # compilers are the system's Open MPI and mpich.sh's MPICH
+        subnet = self.job.mpi_env(dict(job, launcher="mpirun", mpirun="/usr/bin/mpirun", node_exec="",
+                                       mpich_prefix="/opt/mpich", net="10.0.0.0/8", net_iface="eth1"))
+        self.assertEqual((subnet["OMPI_MCA_btl_tcp_if_include"], subnet["OMPI_MCA_oob_tcp_if_include"],
+                          subnet["UCX_NET_DEVICES"]), ("10.0.0.0/8", "10.0.0.0/8", "eth1"))
+        self.assertEqual((subnet["STRETTO_MPICC_OPENMPI"], subnet["STRETTO_MPICC_MPICH"]),
+                         ("/usr/bin/mpicc.openmpi", "/opt/mpich/bin/mpicc.mpich"))
+        self.assertEqual(self.job.iface_of("ib0"), "ib0")
+        self.assertEqual(self.job.iface_of("127.0.0.0/8"), "lo")
 
     def test_the_front_end_of_srun(self):
         """srun-mpirun turns the harness's mpirun lines into srun's: the ranks' variables go to

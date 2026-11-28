@@ -10,8 +10,10 @@
 #            did not start under pmi2 either in the emulation (docs/cluster.md)
 #   MPIS     the libraries of the bimpl and idioms steps (default "openmpi mpich")
 #   RUNTIME  apptainer (default): every rank runs inside SIF (apptainer exec; Singularity's
-#            singularity exec takes the same options: APPTAINER=singularity); native: the cluster's
-#            MPI modules, after experiments/cluster/modules.sh
+#            singularity exec takes the same options: APPTAINER=singularity); native: the system's
+#            Open MPI and the image's MPICH unpacked by experiments/cluster/mpich.sh (MPICH_PREFIX),
+#            built by experiments/cluster/modules.sh
+#   MPICH_PREFIX  native: mpich.sh's PREFIX (default ~/opt/mpich-4.2.0-ubuntu)
 #   SIF      the image (default build/sif/stretto-exp_24.04.sif)
 #   BINDS    what the image needs bound besides $HOME and the working directory, comma-separated
 #            (default: the repository, OUT and LOCAL)
@@ -19,7 +21,8 @@
 #   OUT      the job's output directory on the shared file system (default build/cluster/<job id>);
 #            the shared home has no backup: copy OUT out after the job
 #   LOCAL    a node-local directory for the traces (default: TMPDIR as the job started, else /tmp)
-#   NET      the network interface of MPI's TCP transport between the nodes, if any (ib0, eth0)
+#   NET      the network interface or subnet of MPI's traffic between the nodes, if any (ib0, eth0,
+#            192.168.48.0/21: slurm.sbatch's default on the SoC cluster)
 #   MACHINE  the cluster's name, written into every row (rows.py host)
 #   STEPS    the steps (default "setup bimpl idioms"): build (tracer, replay library, idioms, both
 #            libraries, inside the image or with the modules), setup, bimpl, idioms (three idioms,
@@ -38,6 +41,7 @@ LOCAL="${LOCAL:-${TMPDIR:-/tmp}}"
 SIF="${SIF:-$R/build/sif/stretto-exp_24.04.sif}"
 BINDS="${BINDS:-$R,$(dirname "$OUT"),$LOCAL}"
 PYTHON="${PYTHON:-python3}"
+export MPICH_PREFIX="${MPICH_PREFIX:-$HOME/opt/mpich-4.2.0-ubuntu}"
 RUNS="${RUNS:-5}"; REPLAYS="${REPLAYS:-10}"
 SUBJECTS="${SUBJECTS:-npbmg:np16 hypre:np8}"
 export MACHINE="${MACHINE:-cluster}" PYTHONPATH="$R/analysis"
@@ -57,11 +61,14 @@ step_build() {
     if [ "$RUNTIME" = apptainer ]; then
         "${IN[@]}" bash -c 'for m in openmpi mpich; do make -s -j8 -C tracer MPI=$m && make -s -j8 -C replay MPI=$m && make -s -j8 -C idioms MPI=$m || exit 1; done'
     else
-        experiments/cluster/modules.sh
+        # the system's Open MPI, and the image's MPICH from experiments/cluster/mpich.sh
+        MPI=openmpi MPICC=/usr/bin/mpicc.openmpi experiments/cluster/modules.sh
+        MPI=mpich MPICC="$MPICH_PREFIX/bin/mpicc.mpich" experiments/cluster/modules.sh
     fi
 }
 step_setup() {
     "${J[@]}" setup --out "$OUT" --launcher "$LAUNCHER" --pmi "$PMI" --runtime "$RUNTIME" --local "$LOCAL" \
+        --mpich-prefix "$MPICH_PREFIX" \
         ${NET:+--net "$NET"} $( [ "$RUNTIME" = apptainer ] && echo --sif "$SIF" --binds "$BINDS")
 }
 step_bimpl() {

@@ -123,8 +123,8 @@ one node each), with the limits read from `sinfo` and `sacctmgr` on a login node
 | question | answer | what follows |
 |---|---|---|
 | Apptainer or Singularity on the compute nodes? | neither (nor Docker, Podman, Charliecloud, Enroot); no `module` command, `MODULEPATH` empty | `RUNTIME=native`, `MODULES` empty; `sif.sh`'s image does not run here |
-| Slurm's MPI plugins, its PMIx | Slurm 26.05.2; `srun --mpi=list`: none, pmi2, pmix (pmix_v5), cray_shasta | `PMI=pmix` first |
-| MPI on the nodes | the system's Open MPI 4.1.6 (Ubuntu 4.1.6-7ubuntu2, the image's version), with `plm slurm`, `ess slurm`, `pmix ext3x` on PMIx 5.0.1, `btl tcp, vader, self, ofi, openib`, UCX 1.16 runtime; no MPICH | Open MPI: `LAUNCHER=mpirun` (its daemons start with `srun`) or `srun --mpi=pmix`; MPICH 4.2.0 is built from source under the home directory, inside a job |
+| Slurm's MPI plugins, its PMIx | Slurm 26.05.2; `srun --mpi=list`: none, pmi2, pmix (pmix_v5), cray_shasta; `NamespaceType=job_container/tmpfs` (a private `/tmp` per job, from `/temp`) | `srun --mpi=pmix` starts neither library (table below): `LAUNCHER=mpirun` |
+| MPI on the nodes | the system's Open MPI 4.1.6 (Ubuntu 4.1.6-7ubuntu2, the image's version), with `plm slurm`, `ess slurm`, `pmix ext3x` on PMIx 5.0.1, `btl tcp, vader, self, ofi, openib`, UCX 1.16 runtime; no MPICH | Open MPI: the system's; MPICH: the image's own packages (Ubuntu 4.2.0-5build3, ch4:ucx, PMIx client only), unpacked without root by `experiments/cluster/mpich.sh` from the image's snapshot, on the system's UCX and PMIx (the image's versions) |
 | compilers, Python | gcc/g++/gfortran 13.3.0, clang 18.1.3, CMake 3.28.3, Python 3.12.3, git 2.43: the image's versions; no Spack | the system toolchain, as in the image |
 | OS | Ubuntu 24.04 (24.04.5 on xcnf, 24.04.4 on xcni), kernel 6.8.0, glibc 2.39; `ptrace_scope` 2, ASLR on | the image's distribution |
 | interconnect | Ethernet only: two 10 GbE ports up per node (192.168.48.0/21 and 192.168.56.0/21, both on both families), MTU 1500; no InfiniBand, RoCE or Omni-Path device | Open MPI `pml ob1`, `btl tcp`; MPICH over TCP; `NET` one of the two subnets, the same on every node of a job |
@@ -132,6 +132,38 @@ one node each), with the limits read from `sinfo` and `sacctmgr` on a login node
 | jobs per user | QOS `normal`: 256 CPUs (hardware threads) per user over all running jobs; 16 running, 32 submitted | `--exclusive` fits 2 nodes of xcnf or xcni, not 4: 4-node jobs take at most 64 threads per node and share the nodes; one job at a time at that size |
 | node-local scratch | `/tmp` (`TMPDIR=/tmp`), XFS on NVMe, 3.2 TB free on both families; wiped from time to time | `LOCAL=/tmp/...`, copied off within the job |
 | the shared home | NFS (`cfs`), 24 TB free of 192 TB; no `quota` command, no backup | builds and traces fit; results leave by git |
+
+**Which launch starts a two-node program** (`experiments/cluster/launch-matrix.sbatch`, 4 ranks
+by node on xcni0 and xcni1, an `MPI_Allreduce`; jobs 1216780, 1216833, 1216871 on 28 Nov 2026):
+
+| launch | Open MPI 4.1.6 | MPICH 4.2.0 |
+|---|---|---|
+| `srun --mpi=pmix` | segfault in `MPI_Init`: `PMIX_ERR_FILE_OPEN_FAILURE` in `pmix_shmem.c` | the same |
+| `srun --mpi=pmix`, `PMIX_MCA_gds=hash` | `MPI_Init` fails: the ORTE session directory cannot be made | hangs: Slurm's server refuses the client's request for rank -1 (`pmixp_dmdx.c: ... asked for -1`) |
+| `srun --mpi=pmix`, `SLURM_PMIX_TMPDIR` on the shared home (with or without the hash store and direct connections) | `task launch failed` | the same |
+| `srun --mpi=pmi2` | `MPI_Init` fails (no PMI-2 client in Ubuntu's build) | every rank a singleton (PMIx client only) |
+| hydra `mpiexec -launcher slurm` | | every rank a singleton (hydra serves PMI-1/2, the package's MPICH speaks PMIx only) |
+| Open MPI's `mpirun`, no network setting | hangs (no output): the daemons try both subnets | hangs after `pmix_server_fence ... Not found` |
+| Open MPI's `mpirun`, TCP on 192.168.48.0/21 | **works** | hangs |
+| the same, MPICH's UCX on that subnet's interface (`UCX_NET_DEVICES`, optionally `UCX_TLS=tcp,self,sm`) | | **works** |
+| Open MPI's `mpirun` on one node | | works |
+
+So both libraries start across nodes as in the image: Open MPI's `mpirun` inside the allocation,
+its daemons started with `srun`, with Open MPI's TCP traffic on one subnet and UCX on that
+subnet's interface. `slurm.sbatch` sets `NET=192.168.48.0/21`, and `job.py setup` resolves it to
+the node's interface for UCX (the same name on every node of one family: `enp225s0f0np0` on
+xcni, `enp131s0f0` on xcnf). Direct launch with `srun` stays open: the private `/tmp` of
+`job_container/tmpfs` hides the PMIx server's files from its clients, and only the cluster's
+administrators can move them; nothing here needs it.
+
+**Build and idioms** (job 1216902, `RUNTIME=native LAUNCHER=mpirun`, 2 nodes, 3 runs each): the
+tracer, replay library and idioms build against both libraries inside the job; idioms 01, 04
+and 05 at 3 ranks by node (ranks 0 and 2 on xcni0, rank 1 on xcni1, as every init record says)
+report what they report on one node and in the emulation. Idiom 04's deadlock is confirmed by
+every replay under both libraries, each control finishing; idiom 05's truncation by every
+replay under Open MPI, and under MPICH not confirmed for the reason known from one node (exit
+status 14, not read as `MPI_ERR_TRUNCATE`). The alternatives of the three idioms take their
+message from rank 2, on rank 0's node: none crosses nodes.
 
 ## The two-node emulation
 

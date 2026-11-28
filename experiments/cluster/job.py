@@ -42,7 +42,7 @@ TMPDIR=OUT/tmp; Open MPI's session directory, which holds sockets, stays node-lo
 (orte_tmpdir_base=/tmp).
 
 usage: job.py setup --out OUT [--launcher srun|mpirun] [--pmi pmix|pmi2] [--runtime apptainer|native]
-                    [--sif SIF] [--binds DIRS] [--mpirun PATH] [--local DIR] [--net IFACE]
+                    [--sif SIF] [--binds DIRS] [--mpirun PATH] [--local DIR] [--net IFACE|SUBNET]
                     [--hosts FILE] [--ppn N]       (--hosts outside Slurm only)
        job.py bimpl --out OUT [--mpi M]
        job.py run --out OUT --name NAME --tool plain|traced|delays --np N [--mpi M] [--runs R]
@@ -136,16 +136,37 @@ def mpi_env(job, mapping="node"):
         # b_impl.py compiles its program with the image's wrappers
         env.update({"STRETTO_MPICC_OPENMPI": job["node_exec"] + " /usr/bin/mpicc.openmpi",
                     "STRETTO_MPICC_MPICH": job["node_exec"] + " /usr/bin/mpicc.mpich"})
+    elif job.get("mpich_prefix"):
+        # natively: the system's Open MPI, the image's MPICH unpacked by mpich.sh
+        env.update({"STRETTO_MPICC_OPENMPI": "/usr/bin/mpicc.openmpi",
+                    "STRETTO_MPICC_MPICH": os.path.join(job["mpich_prefix"], "bin", "mpicc.mpich")})
     if job.get("net"):
         # MPI's TCP transport (and Open MPI's own traffic) on that interface, MPICH's UCX too
+        # (Open MPI takes an interface or a subnet, UCX only an interface: the subnet's on this node,
+        # the same name on every node of one family)
         env.update({"OMPI_MCA_btl_tcp_if_include": job["net"], "OMPI_MCA_oob_tcp_if_include": job["net"],
-                    "UCX_NET_DEVICES": job["net"], "STRETTO_TCP_IF": job["net"]})
+                    "UCX_NET_DEVICES": job.get("net_iface") or job["net"], "STRETTO_TCP_IF": job["net"]})
     return env
 
 
 def apply_env(job, mapping="node"):
     os.environ.update(mpi_env(job, mapping))
     os.makedirs(job["tmp"], exist_ok=True)
+
+
+def iface_of(net):
+    """The interface of this node on the subnet net ("192.168.48.0/21"); net itself if it names an
+    interface."""
+    if "/" not in net:
+        return net
+    import ipaddress
+    want = ipaddress.ip_network(net, strict=False)
+    out = subprocess.run(["ip", "-o", "-4", "addr", "show"], stdout=subprocess.PIPE, universal_newlines=True).stdout
+    for line in out.splitlines():
+        f = line.split()
+        if len(f) > 3 and ipaddress.ip_interface(f[3]).ip in want:
+            return f[1]
+    raise SystemExit("job.py: no interface of this node is on %s" % net)
 
 
 def version_of(cmd):
@@ -190,14 +211,19 @@ def setup(a):
         node_exec = "apptainer exec" + (" --bind " + a.binds if a.binds else "") + " " + os.path.abspath(a.sif)
     mpirun = SRUN_MPIRUN if a.launcher == "srun" else (a.mpirun or shutil.which("mpirun") or "/usr/bin/mpirun.openmpi")
     inside = node_exec.split()
+    mpich_prefix = ""
+    if a.runtime == "native":
+        mpich_prefix = os.path.abspath(a.mpich_prefix or os.environ.get("MPICH_PREFIX")
+                                       or os.path.expanduser("~/opt/mpich-4.2.0-ubuntu"))
+    mpichversion = os.path.join(mpich_prefix, "bin", "mpichversion") if mpich_prefix else "mpichversion"
     from provenance import code_commit
     job = {"machine": rows.host(), "scheduler": sched, "job": jid, "nodes": hosts, "ppn": ppn, "hostfile": hostfile,
            "tmp": os.path.join(out, "tmp"), "local": a.local or os.environ.get("STRETTO_LOCAL") or "/tmp",
            "launcher": a.launcher, "pmi": a.pmi, "runtime": a.runtime, "mpirun": mpirun, "node_exec": node_exec,
-           "net": a.net,
+           "mpich_prefix": mpich_prefix, "net": a.net, "net_iface": iface_of(a.net) if a.net else "",
            "versions": {"openmpi": version_of(inside + ["/usr/bin/mpirun.openmpi", "--version"]) if inside or a.launcher == "srun"
                         else version_of([mpirun, "--version"]),
-                        "mpich": version_of(inside + ["mpichversion"]),
+                        "mpich": version_of(inside + [mpichversion]),
                         "srun": version_of(["srun", "--version"]) if sched == "slurm" else "",
                         "python": sys.version.split()[0]},
            "commit": os.environ.get("STRETTO_COMMIT") or code_commit(),
@@ -486,8 +512,11 @@ def main():
     s.add_argument("--sif", default="", help="the image (runtime apptainer); its sha256 is recorded")
     s.add_argument("--binds", default="", help="apptainer --bind: the shared and node-local directories, comma-separated")
     s.add_argument("--mpirun", default="", help="the MPI's mpirun (launcher mpirun; default: mpirun on PATH)")
+    s.add_argument("--mpich-prefix", default="", help="runtime native: the MPICH of experiments/cluster/mpich.sh "
+                   "(default MPICH_PREFIX, else ~/opt/mpich-4.2.0-ubuntu)")
     s.add_argument("--local", default="", help="node-local directory for traces (default STRETTO_LOCAL, else /tmp)")
-    s.add_argument("--net", default="", help="the network interface MPI's TCP transport uses between nodes")
+    s.add_argument("--net", default="", help="the network interface or subnet (a.b.c.d/n) of MPI's TCP "
+                   "transport between nodes")
     s.add_argument("--hosts", default="", help="outside Slurm: the host list")
     s.add_argument("--ppn", type=int, default=0, help="ranks per node (default: Slurm's tasks per node)")
     for name in ("bimpl", "run", "analyse", "replay", "protocol", "protocol-replays"):
