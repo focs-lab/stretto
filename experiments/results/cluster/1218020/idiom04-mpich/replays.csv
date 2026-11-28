@@ -1,0 +1,16 @@
+name,run,cls,level,B,cross_node,pin,result,pin_matched,control,run_valid,misapplied,verdict,strict,nodes,ppn,map,scheduler,job,host,cpus,jobs,timeout,seed,commit,superseded,outcome
+idiom04-mpich,run01,1f,L1,any B,False,STRETTO_PIN=0:0:2@0:4:137c,TIMEOUT,True,,True,,n/a,n/a,2,8,node,slurm,1218020,soc-cluster,,1,30,,ca5b216,,n/a
+idiom04-mpich,run01,1d,L1+SP,"B=0,inf",False,STRETTO_PIN=0:0:2@0:4:137c,TIMEOUT,True,FINISHED,True,,confirmed,confirmed,2,8,node,slurm,1218020,soc-cluster,,1,30,,ca5b216,,confirmed
+idiom04-mpich,run01,1c,L1+SP,"B=0,inf",False,STRETTO_PIN=0:0:2@0:4:137c,TIMEOUT,True,FINISHED,True,,confirmed,confirmed,2,8,node,slurm,1218020,soc-cluster,,1,30,,ca5b216,,confirmed
+idiom04-mpich,run02,1f,L1,any B,False,STRETTO_PIN=0:0:2@0:4:137c,TIMEOUT,True,,True,,n/a,n/a,2,8,node,slurm,1218020,soc-cluster,,1,30,,ca5b216,,n/a
+idiom04-mpich,run02,1d,L1+SP,"B=0,inf",False,STRETTO_PIN=0:0:2@0:4:137c,TIMEOUT,True,FINISHED,True,,confirmed,confirmed,2,8,node,slurm,1218020,soc-cluster,,1,30,,ca5b216,,confirmed
+idiom04-mpich,run02,1c,L1+SP,"B=0,inf",False,STRETTO_PIN=0:0:2@0:4:137c,TIMEOUT,True,FINISHED,True,,confirmed,confirmed,2,8,node,slurm,1218020,soc-cluster,,1,30,,ca5b216,,confirmed
+idiom04-mpich,run03,1f,L1,any B,False,STRETTO_PIN=0:0:2@0:4:137c,TIMEOUT,True,,True,,n/a,n/a,2,8,node,slurm,1218020,soc-cluster,,1,30,,ca5b216,,n/a
+idiom04-mpich,run03,1d,L1+SP,"B=0,inf",False,STRETTO_PIN=0:0:2@0:4:137c,TIMEOUT,True,FINISHED,True,,confirmed,confirmed,2,8,node,slurm,1218020,soc-cluster,,1,30,,ca5b216,,confirmed
+idiom04-mpich,run03,1c,L1+SP,"B=0,inf",False,STRETTO_PIN=0:0:2@0:4:137c,TIMEOUT,True,FINISHED,True,,confirmed,confirmed,2,8,node,slurm,1218020,soc-cluster,,1,30,,ca5b216,,confirmed
+idiom04-mpich,run04,1f,L1,any B,False,STRETTO_PIN=0:0:2@0:4:137c,TIMEOUT,True,,True,,n/a,n/a,2,8,node,slurm,1218020,soc-cluster,,1,30,,ca5b216,,n/a
+idiom04-mpich,run04,1d,L1+SP,"B=0,inf",False,STRETTO_PIN=0:0:2@0:4:137c,TIMEOUT,True,FINISHED,True,,confirmed,confirmed,2,8,node,slurm,1218020,soc-cluster,,1,30,,ca5b216,,confirmed
+idiom04-mpich,run04,1c,L1+SP,"B=0,inf",False,STRETTO_PIN=0:0:2@0:4:137c,TIMEOUT,True,FINISHED,True,,confirmed,confirmed,2,8,node,slurm,1218020,soc-cluster,,1,30,,ca5b216,,confirmed
+idiom04-mpich,run05,1f,L1,any B,False,STRETTO_PIN=0:0:2@0:4:137c,TIMEOUT,True,,True,,n/a,n/a,2,8,node,slurm,1218020,soc-cluster,,1,30,,ca5b216,,n/a
+idiom04-mpich,run05,1d,L1+SP,"B=0,inf",False,STRETTO_PIN=0:0:2@0:4:137c,TIMEOUT,True,FINISHED,True,,confirmed,confirmed,2,8,node,slurm,1218020,soc-cluster,,1,30,,ca5b216,,confirmed
+idiom04-mpich,run05,1c,L1+SP,"B=0,inf",False,STRETTO_PIN=0:0:2@0:4:137c,TIMEOUT,True,FINISHED,True,,confirmed,confirmed,2,8,node,slurm,1218020,soc-cluster,,1,30,,ca5b216,,confirmed

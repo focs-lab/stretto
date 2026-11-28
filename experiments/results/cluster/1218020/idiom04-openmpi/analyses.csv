@@ -1,0 +1,6 @@
+name,run,np,records,analyse_s,status,trace_nodes,findings,cross_node,nodes,ppn,map,scheduler,job,host,cpus,jobs,timeout,seed,commit,superseded,outcome
+idiom04-openmpi,run01,3,16,0.0,complete,2,1c/L1+SP=1;1d/L1+SP=1;1f/L1=1,0,2,8,,slurm,1218020,soc-cluster,,1,0,,ca5b216,,
+idiom04-openmpi,run02,3,16,0.0,complete,2,1c/L1+SP=1;1d/L1+SP=1;1f/L1=1,0,2,8,,slurm,1218020,soc-cluster,,1,0,,ca5b216,,
+idiom04-openmpi,run03,3,16,0.0,complete,2,1c/L1+SP=1;1d/L1+SP=1;1f/L1=1,0,2,8,,slurm,1218020,soc-cluster,,1,0,,ca5b216,,
+idiom04-openmpi,run04,3,16,0.0,complete,2,1c/L1+SP=1;1d/L1+SP=1;1f/L1=1,0,2,8,,slurm,1218020,soc-cluster,,1,0,,ca5b216,,
+idiom04-openmpi,run05,3,16,0.0,complete,2,1c/L1+SP=1;1d/L1+SP=1;1f/L1=1,0,2,8,,slurm,1218020,soc-cluster,,1,0,,ca5b216,,

@@ -1,0 +1,228 @@
+job 1218020 on xcni[0-1], 8 tasks per node; srun slurm 26.05.2
+MPI plugin types are... 	none 	pmix 	pmi2 	cray_shasta specific pmix plugin versions available: pmix_v5 
+== setup (2026-11-28T11:45:54Z)
+xcni0 shared
+xcni1 shared
+== idioms (2026-11-28T11:45:54Z)
+idiom01-openmpi plain run 1: FINISHED 0.6 s ok=True
+idiom01-openmpi plain run 2: FINISHED 0.5 s ok=True
+idiom01-openmpi plain run 3: FINISHED 0.5 s ok=True
+idiom01-openmpi plain run 4: FINISHED 0.5 s ok=True
+idiom01-openmpi plain run 5: FINISHED 0.5 s ok=True
+idiom01-openmpi traced run 1: FINISHED 0.6 s ok=True ranks traced 3/3
+idiom01-openmpi traced run 2: FINISHED 0.6 s ok=True ranks traced 3/3
+idiom01-openmpi traced run 3: FINISHED 0.5 s ok=True ranks traced 3/3
+idiom01-openmpi traced run 4: FINISHED 0.5 s ok=True ranks traced 3/3
+idiom01-openmpi traced run 5: FINISHED 0.6 s ok=True ranks traced 3/3
+idiom01-openmpi run01: complete, 1c/L1+SP=1;1d/L1+SP=1;1f/L1=1, 0 of them across nodes
+idiom01-openmpi run02: complete, 1c/L1+SP=1;1d/L1+SP=1;1f/L1=1, 0 of them across nodes
+idiom01-openmpi run03: complete, 1c/L1+SP=1;1d/L1+SP=1;1f/L1=1, 0 of them across nodes
+idiom01-openmpi run04: complete, 1c/L1+SP=1;1d/L1+SP=1;1f/L1=1, 0 of them across nodes
+idiom01-openmpi run05: complete, 1c/L1+SP=1;1d/L1+SP=1;1f/L1=1, 0 of them across nodes
+idiom01-openmpi run01 [1f L1] STRETTO_PIN=0:0:2@0:7:139d -> FINISHED, control -: n/a (strict n/a)
+idiom01-openmpi run01 [1d L1+SP] STRETTO_PIN=0:0:2@0:7:139d -> FINISHED, control -: not-confirmed (strict not-confirmed)
+idiom01-openmpi run01 [1c L1+SP] STRETTO_PIN=0:0:2@0:7:139d -> FINISHED, control -: not-confirmed (strict not-confirmed)
+idiom01-openmpi run02 [1f L1] STRETTO_PIN=0:0:2@0:7:139d -> FINISHED, control -: n/a (strict n/a)
+idiom01-openmpi run02 [1d L1+SP] STRETTO_PIN=0:0:2@0:7:139d -> FINISHED, control -: not-confirmed (strict not-confirmed)
+idiom01-openmpi run02 [1c L1+SP] STRETTO_PIN=0:0:2@0:7:139d -> FINISHED, control -: not-confirmed (strict not-confirmed)
+idiom01-openmpi run03 [1f L1] STRETTO_PIN=0:0:2@0:7:139d -> FINISHED, control -: n/a (strict n/a)
+idiom01-openmpi run03 [1d L1+SP] STRETTO_PIN=0:0:2@0:7:139d -> FINISHED, control -: not-confirmed (strict not-confirmed)
+idiom01-openmpi run03 [1c L1+SP] STRETTO_PIN=0:0:2@0:7:139d -> FINISHED, control -: not-confirmed (strict not-confirmed)
+idiom01-openmpi run04 [1f L1] STRETTO_PIN=0:0:2@0:7:139d -> FINISHED, control -: n/a (strict n/a)
+idiom01-openmpi run04 [1d L1+SP] STRETTO_PIN=0:0:2@0:7:139d -> FINISHED, control -: not-confirmed (strict not-confirmed)
+idiom01-openmpi run04 [1c L1+SP] STRETTO_PIN=0:0:2@0:7:139d -> FINISHED, control -: not-confirmed (strict not-confirmed)
+idiom01-openmpi run05 [1f L1] STRETTO_PIN=0:0:2@0:7:139d -> FINISHED, control -: n/a (strict n/a)
+idiom01-openmpi run05 [1d L1+SP] STRETTO_PIN=0:0:2@0:7:139d -> FINISHED, control -: not-confirmed (strict not-confirmed)
+idiom01-openmpi run05 [1c L1+SP] STRETTO_PIN=0:0:2@0:7:139d -> FINISHED, control -: not-confirmed (strict not-confirmed)
+idiom04-openmpi plain run 1: FINISHED 0.5 s ok=True
+idiom04-openmpi plain run 2: FINISHED 0.5 s ok=True
+idiom04-openmpi plain run 3: FINISHED 0.5 s ok=True
+idiom04-openmpi plain run 4: FINISHED 0.5 s ok=True
+idiom04-openmpi plain run 5: FINISHED 0.5 s ok=True
+idiom04-openmpi traced run 1: FINISHED 0.5 s ok=True ranks traced 3/3
+idiom04-openmpi traced run 2: FINISHED 0.5 s ok=True ranks traced 3/3
+idiom04-openmpi traced run 3: FINISHED 0.5 s ok=True ranks traced 3/3
+idiom04-openmpi traced run 4: FINISHED 0.6 s ok=True ranks traced 3/3
+idiom04-openmpi traced run 5: FINISHED 0.6 s ok=True ranks traced 3/3
+idiom04-openmpi run01: complete, 1c/L1+SP=1;1d/L1+SP=1;1f/L1=1, 0 of them across nodes
+idiom04-openmpi run02: complete, 1c/L1+SP=1;1d/L1+SP=1;1f/L1=1, 0 of them across nodes
+idiom04-openmpi run03: complete, 1c/L1+SP=1;1d/L1+SP=1;1f/L1=1, 0 of them across nodes
+idiom04-openmpi run04: complete, 1c/L1+SP=1;1d/L1+SP=1;1f/L1=1, 0 of them across nodes
+idiom04-openmpi run05: complete, 1c/L1+SP=1;1d/L1+SP=1;1f/L1=1, 0 of them across nodes
+idiom04-openmpi run01 [1f L1] STRETTO_PIN=0:0:2@0:4:138b -> TIMEOUT, control -: n/a (strict n/a)
+idiom04-openmpi run01 [1d L1+SP] STRETTO_PIN=0:0:2@0:4:138b -> TIMEOUT, control FINISHED: confirmed (strict confirmed)
+idiom04-openmpi run01 [1c L1+SP] STRETTO_PIN=0:0:2@0:4:138b -> TIMEOUT, control FINISHED: confirmed (strict confirmed)
+idiom04-openmpi run02 [1f L1] STRETTO_PIN=0:0:2@0:4:138b -> TIMEOUT, control -: n/a (strict n/a)
+idiom04-openmpi run02 [1d L1+SP] STRETTO_PIN=0:0:2@0:4:138b -> TIMEOUT, control FINISHED: confirmed (strict confirmed)
+idiom04-openmpi run02 [1c L1+SP] STRETTO_PIN=0:0:2@0:4:138b -> TIMEOUT, control FINISHED: confirmed (strict confirmed)
+idiom04-openmpi run03 [1f L1] STRETTO_PIN=0:0:2@0:4:138b -> TIMEOUT, control -: n/a (strict n/a)
+idiom04-openmpi run03 [1d L1+SP] STRETTO_PIN=0:0:2@0:4:138b -> TIMEOUT, control FINISHED: confirmed (strict confirmed)
+idiom04-openmpi run03 [1c L1+SP] STRETTO_PIN=0:0:2@0:4:138b -> TIMEOUT, control FINISHED: confirmed (strict confirmed)
+idiom04-openmpi run04 [1f L1] STRETTO_PIN=0:0:2@0:4:138b -> TIMEOUT, control -: n/a (strict n/a)
+idiom04-openmpi run04 [1d L1+SP] STRETTO_PIN=0:0:2@0:4:138b -> TIMEOUT, control FINISHED: confirmed (strict confirmed)
+idiom04-openmpi run04 [1c L1+SP] STRETTO_PIN=0:0:2@0:4:138b -> TIMEOUT, control FINISHED: confirmed (strict confirmed)
+idiom04-openmpi run05 [1f L1] STRETTO_PIN=0:0:2@0:4:138b -> TIMEOUT, control -: n/a (strict n/a)
+idiom04-openmpi run05 [1d L1+SP] STRETTO_PIN=0:0:2@0:4:138b -> TIMEOUT, control FINISHED: confirmed (strict confirmed)
+idiom04-openmpi run05 [1c L1+SP] STRETTO_PIN=0:0:2@0:4:138b -> TIMEOUT, control FINISHED: confirmed (strict confirmed)
+idiom05-openmpi plain run 1: FINISHED 0.5 s ok=True
+idiom05-openmpi plain run 2: FINISHED 0.5 s ok=True
+idiom05-openmpi plain run 3: FINISHED 0.5 s ok=True
+idiom05-openmpi plain run 4: FINISHED 0.5 s ok=True
+idiom05-openmpi plain run 5: FINISHED 0.5 s ok=True
+idiom05-openmpi traced run 1: FINISHED 0.6 s ok=True ranks traced 3/3
+idiom05-openmpi traced run 2: FINISHED 0.5 s ok=True ranks traced 3/3
+idiom05-openmpi traced run 3: FINISHED 0.5 s ok=True ranks traced 3/3
+idiom05-openmpi traced run 4: FINISHED 0.5 s ok=True ranks traced 3/3
+idiom05-openmpi traced run 5: FINISHED 0.5 s ok=True ranks traced 3/3
+idiom05-openmpi run01: complete, 1a/L1=1;1a/L1+SP=1;1c/L1+SP=1;1d/L1+SP=1, 0 of them across nodes
+idiom05-openmpi run02: complete, 1a/L1=1;1a/L1+SP=1;1c/L1+SP=1;1d/L1+SP=1, 0 of them across nodes
+idiom05-openmpi run03: complete, 1a/L1=1;1a/L1+SP=1;1c/L1+SP=1;1d/L1+SP=1, 0 of them across nodes
+idiom05-openmpi run04: complete, 1a/L1=1;1a/L1+SP=1;1c/L1+SP=1;1d/L1+SP=1, 0 of them across nodes
+idiom05-openmpi run05: complete, 1a/L1=1;1a/L1+SP=1;1c/L1+SP=1;1d/L1+SP=1, 0 of them across nodes
+idiom05-openmpi run01 [1a L1] STRETTO_PIN=0:0:2@0:5:138b -> MPI-ERROR:MPI_ERR_TRUNCATE, control FINISHED: confirmed (strict confirmed)
+idiom05-openmpi run01 [1d L1+SP] STRETTO_PIN=0:0:2@0:5:138b -> MPI-ERROR:MPI_ERR_TRUNCATE, control -: not-confirmed (strict not-confirmed)
+idiom05-openmpi run01 [1c L1+SP] STRETTO_PIN=0:0:2@0:5:138b -> MPI-ERROR:MPI_ERR_TRUNCATE, control -: not-confirmed (strict not-confirmed)
+idiom05-openmpi run02 [1a L1] STRETTO_PIN=0:0:2@0:5:138b -> MPI-ERROR:MPI_ERR_TRUNCATE, control FINISHED: confirmed (strict confirmed)
+idiom05-openmpi run02 [1d L1+SP] STRETTO_PIN=0:0:2@0:5:138b -> MPI-ERROR:MPI_ERR_TRUNCATE, control -: not-confirmed (strict not-confirmed)
+idiom05-openmpi run02 [1c L1+SP] STRETTO_PIN=0:0:2@0:5:138b -> MPI-ERROR:MPI_ERR_TRUNCATE, control -: not-confirmed (strict not-confirmed)
+idiom05-openmpi run03 [1a L1] STRETTO_PIN=0:0:2@0:5:138b -> MPI-ERROR:MPI_ERR_TRUNCATE, control FINISHED: confirmed (strict confirmed)
+idiom05-openmpi run03 [1d L1+SP] STRETTO_PIN=0:0:2@0:5:138b -> MPI-ERROR:MPI_ERR_TRUNCATE, control -: not-confirmed (strict not-confirmed)
+idiom05-openmpi run03 [1c L1+SP] STRETTO_PIN=0:0:2@0:5:138b -> MPI-ERROR:MPI_ERR_TRUNCATE, control -: not-confirmed (strict not-confirmed)
+idiom05-openmpi run04 [1a L1] STRETTO_PIN=0:0:2@0:5:138b -> MPI-ERROR:MPI_ERR_TRUNCATE, control FINISHED: confirmed (strict confirmed)
+idiom05-openmpi run04 [1d L1+SP] STRETTO_PIN=0:0:2@0:5:138b -> MPI-ERROR:MPI_ERR_TRUNCATE, control -: not-confirmed (strict not-confirmed)
+idiom05-openmpi run04 [1c L1+SP] STRETTO_PIN=0:0:2@0:5:138b -> MPI-ERROR:MPI_ERR_TRUNCATE, control -: not-confirmed (strict not-confirmed)
+idiom05-openmpi run05 [1a L1] STRETTO_PIN=0:0:2@0:5:138b -> MPI-ERROR:MPI_ERR_TRUNCATE, control FINISHED: confirmed (strict confirmed)
+idiom05-openmpi run05 [1d L1+SP] STRETTO_PIN=0:0:2@0:5:138b -> MPI-ERROR:MPI_ERR_TRUNCATE, control -: not-confirmed (strict not-confirmed)
+idiom05-openmpi run05 [1c L1+SP] STRETTO_PIN=0:0:2@0:5:138b -> MPI-ERROR:MPI_ERR_TRUNCATE, control -: not-confirmed (strict not-confirmed)
+idiom01-mpich plain run 1: FINISHED 0.4 s ok=True
+idiom01-mpich plain run 2: FINISHED 0.4 s ok=True
+idiom01-mpich plain run 3: FINISHED 0.4 s ok=True
+idiom01-mpich plain run 4: FINISHED 0.4 s ok=True
+idiom01-mpich plain run 5: FINISHED 0.4 s ok=True
+idiom01-mpich traced run 1: FINISHED 0.4 s ok=True ranks traced 3/3
+idiom01-mpich traced run 2: FINISHED 0.3 s ok=True ranks traced 3/3
+idiom01-mpich traced run 3: FINISHED 0.3 s ok=True ranks traced 3/3
+idiom01-mpich traced run 4: FINISHED 0.4 s ok=True ranks traced 3/3
+idiom01-mpich traced run 5: FINISHED 0.4 s ok=True ranks traced 3/3
+idiom01-mpich run01: complete, 1c/L1+SP=1;1d/L1+SP=1;1f/L1=1, 0 of them across nodes
+idiom01-mpich run02: complete, 1c/L1+SP=1;1d/L1+SP=1;1f/L1=1, 0 of them across nodes
+idiom01-mpich run03: complete, 1c/L1+SP=1;1d/L1+SP=1;1f/L1=1, 0 of them across nodes
+idiom01-mpich run04: complete, 1c/L1+SP=1;1d/L1+SP=1;1f/L1=1, 0 of them across nodes
+idiom01-mpich run05: complete, 1c/L1+SP=1;1d/L1+SP=1;1f/L1=1, 0 of them across nodes
+idiom01-mpich run01 [1f L1] STRETTO_PIN=0:0:2@0:7:138e -> FINISHED, control -: n/a (strict n/a)
+idiom01-mpich run01 [1d L1+SP] STRETTO_PIN=0:0:2@0:7:138e -> FINISHED, control -: not-confirmed (strict not-confirmed)
+idiom01-mpich run01 [1c L1+SP] STRETTO_PIN=0:0:2@0:7:138e -> FINISHED, control -: not-confirmed (strict not-confirmed)
+idiom01-mpich run02 [1f L1] STRETTO_PIN=0:0:2@0:7:138e -> FINISHED, control -: n/a (strict n/a)
+idiom01-mpich run02 [1d L1+SP] STRETTO_PIN=0:0:2@0:7:138e -> FINISHED, control -: not-confirmed (strict not-confirmed)
+idiom01-mpich run02 [1c L1+SP] STRETTO_PIN=0:0:2@0:7:138e -> FINISHED, control -: not-confirmed (strict not-confirmed)
+idiom01-mpich run03 [1f L1] STRETTO_PIN=0:0:2@0:7:138e -> FINISHED, control -: n/a (strict n/a)
+idiom01-mpich run03 [1d L1+SP] STRETTO_PIN=0:0:2@0:7:138e -> FINISHED, control -: not-confirmed (strict not-confirmed)
+idiom01-mpich run03 [1c L1+SP] STRETTO_PIN=0:0:2@0:7:138e -> FINISHED, control -: not-confirmed (strict not-confirmed)
+idiom01-mpich run04 [1f L1] STRETTO_PIN=0:0:2@0:7:138e -> FINISHED, control -: n/a (strict n/a)
+idiom01-mpich run04 [1d L1+SP] STRETTO_PIN=0:0:2@0:7:138e -> FINISHED, control -: not-confirmed (strict not-confirmed)
+idiom01-mpich run04 [1c L1+SP] STRETTO_PIN=0:0:2@0:7:138e -> FINISHED, control -: not-confirmed (strict not-confirmed)
+idiom01-mpich run05 [1f L1] STRETTO_PIN=0:0:2@0:7:138e -> FINISHED, control -: n/a (strict n/a)
+idiom01-mpich run05 [1d L1+SP] STRETTO_PIN=0:0:2@0:7:138e -> FINISHED, control -: not-confirmed (strict not-confirmed)
+idiom01-mpich run05 [1c L1+SP] STRETTO_PIN=0:0:2@0:7:138e -> FINISHED, control -: not-confirmed (strict not-confirmed)
+idiom04-mpich plain run 1: FINISHED 0.3 s ok=True
+idiom04-mpich plain run 2: FINISHED 0.4 s ok=True
+idiom04-mpich plain run 3: FINISHED 0.4 s ok=True
+idiom04-mpich plain run 4: FINISHED 0.4 s ok=True
+idiom04-mpich plain run 5: FINISHED 0.3 s ok=True
+idiom04-mpich traced run 1: FINISHED 0.4 s ok=True ranks traced 3/3
+idiom04-mpich traced run 2: FINISHED 0.4 s ok=True ranks traced 3/3
+idiom04-mpich traced run 3: FINISHED 0.4 s ok=True ranks traced 3/3
+idiom04-mpich traced run 4: FINISHED 0.4 s ok=True ranks traced 3/3
+idiom04-mpich traced run 5: FINISHED 0.4 s ok=True ranks traced 3/3
+idiom04-mpich run01: complete, 1c/L1+SP=1;1d/L1+SP=1;1f/L1=1, 0 of them across nodes
+idiom04-mpich run02: complete, 1c/L1+SP=1;1d/L1+SP=1;1f/L1=1, 0 of them across nodes
+idiom04-mpich run03: complete, 1c/L1+SP=1;1d/L1+SP=1;1f/L1=1, 0 of them across nodes
+idiom04-mpich run04: complete, 1c/L1+SP=1;1d/L1+SP=1;1f/L1=1, 0 of them across nodes
+idiom04-mpich run05: complete, 1c/L1+SP=1;1d/L1+SP=1;1f/L1=1, 0 of them across nodes
+idiom04-mpich run01 [1f L1] STRETTO_PIN=0:0:2@0:4:137c -> TIMEOUT, control -: n/a (strict n/a)
+idiom04-mpich run01 [1d L1+SP] STRETTO_PIN=0:0:2@0:4:137c -> TIMEOUT, control FINISHED: confirmed (strict confirmed)
+idiom04-mpich run01 [1c L1+SP] STRETTO_PIN=0:0:2@0:4:137c -> TIMEOUT, control FINISHED: confirmed (strict confirmed)
+idiom04-mpich run02 [1f L1] STRETTO_PIN=0:0:2@0:4:137c -> TIMEOUT, control -: n/a (strict n/a)
+idiom04-mpich run02 [1d L1+SP] STRETTO_PIN=0:0:2@0:4:137c -> TIMEOUT, control FINISHED: confirmed (strict confirmed)
+idiom04-mpich run02 [1c L1+SP] STRETTO_PIN=0:0:2@0:4:137c -> TIMEOUT, control FINISHED: confirmed (strict confirmed)
+idiom04-mpich run03 [1f L1] STRETTO_PIN=0:0:2@0:4:137c -> TIMEOUT, control -: n/a (strict n/a)
+idiom04-mpich run03 [1d L1+SP] STRETTO_PIN=0:0:2@0:4:137c -> TIMEOUT, control FINISHED: confirmed (strict confirmed)
+idiom04-mpich run03 [1c L1+SP] STRETTO_PIN=0:0:2@0:4:137c -> TIMEOUT, control FINISHED: confirmed (strict confirmed)
+idiom04-mpich run04 [1f L1] STRETTO_PIN=0:0:2@0:4:137c -> TIMEOUT, control -: n/a (strict n/a)
+idiom04-mpich run04 [1d L1+SP] STRETTO_PIN=0:0:2@0:4:137c -> TIMEOUT, control FINISHED: confirmed (strict confirmed)
+idiom04-mpich run04 [1c L1+SP] STRETTO_PIN=0:0:2@0:4:137c -> TIMEOUT, control FINISHED: confirmed (strict confirmed)
+idiom04-mpich run05 [1f L1] STRETTO_PIN=0:0:2@0:4:137c -> TIMEOUT, control -: n/a (strict n/a)
+idiom04-mpich run05 [1d L1+SP] STRETTO_PIN=0:0:2@0:4:137c -> TIMEOUT, control FINISHED: confirmed (strict confirmed)
+idiom04-mpich run05 [1c L1+SP] STRETTO_PIN=0:0:2@0:4:137c -> TIMEOUT, control FINISHED: confirmed (strict confirmed)
+idiom05-mpich plain run 1: FINISHED 0.4 s ok=True
+idiom05-mpich plain run 2: FINISHED 0.4 s ok=True
+idiom05-mpich plain run 3: FINISHED 0.4 s ok=True
+idiom05-mpich plain run 4: FINISHED 0.4 s ok=True
+idiom05-mpich plain run 5: FINISHED 0.4 s ok=True
+idiom05-mpich traced run 1: FINISHED 0.4 s ok=True ranks traced 3/3
+idiom05-mpich traced run 2: FINISHED 0.4 s ok=True ranks traced 3/3
+idiom05-mpich traced run 3: FINISHED 0.4 s ok=True ranks traced 3/3
+idiom05-mpich traced run 4: FINISHED 0.4 s ok=True ranks traced 3/3
+idiom05-mpich traced run 5: FINISHED 0.4 s ok=True ranks traced 3/3
+idiom05-mpich run01: complete, 1a/L1=1;1a/L1+SP=1;1c/L1+SP=1;1d/L1+SP=1, 0 of them across nodes
+idiom05-mpich run02: complete, 1a/L1=1;1a/L1+SP=1;1c/L1+SP=1;1d/L1+SP=1, 0 of them across nodes
+idiom05-mpich run03: complete, 1a/L1=1;1a/L1+SP=1;1c/L1+SP=1;1d/L1+SP=1, 0 of them across nodes
+idiom05-mpich run04: complete, 1a/L1=1;1a/L1+SP=1;1c/L1+SP=1;1d/L1+SP=1, 0 of them across nodes
+idiom05-mpich run05: complete, 1a/L1=1;1a/L1+SP=1;1c/L1+SP=1;1d/L1+SP=1, 0 of them across nodes
+idiom05-mpich run01 [1a L1] STRETTO_PIN=0:0:2@0:5:137c -> APP-ERROR:14, control -: not-confirmed (strict not-confirmed)
+idiom05-mpich run01 [1d L1+SP] STRETTO_PIN=0:0:2@0:5:137c -> APP-ERROR:14, control -: not-confirmed (strict not-confirmed)
+idiom05-mpich run01 [1c L1+SP] STRETTO_PIN=0:0:2@0:5:137c -> APP-ERROR:14, control -: not-confirmed (strict not-confirmed)
+idiom05-mpich run02 [1a L1] STRETTO_PIN=0:0:2@0:5:137c -> APP-ERROR:14, control -: not-confirmed (strict not-confirmed)
+idiom05-mpich run02 [1d L1+SP] STRETTO_PIN=0:0:2@0:5:137c -> APP-ERROR:14, control -: not-confirmed (strict not-confirmed)
+idiom05-mpich run02 [1c L1+SP] STRETTO_PIN=0:0:2@0:5:137c -> APP-ERROR:14, control -: not-confirmed (strict not-confirmed)
+idiom05-mpich run03 [1a L1] STRETTO_PIN=0:0:2@0:5:137c -> APP-ERROR:14, control -: not-confirmed (strict not-confirmed)
+idiom05-mpich run03 [1d L1+SP] STRETTO_PIN=0:0:2@0:5:137c -> APP-ERROR:14, control -: not-confirmed (strict not-confirmed)
+idiom05-mpich run03 [1c L1+SP] STRETTO_PIN=0:0:2@0:5:137c -> APP-ERROR:14, control -: not-confirmed (strict not-confirmed)
+idiom05-mpich run04 [1a L1] STRETTO_PIN=0:0:2@0:5:137c -> APP-ERROR:14, control -: not-confirmed (strict not-confirmed)
+idiom05-mpich run04 [1d L1+SP] STRETTO_PIN=0:0:2@0:5:137c -> APP-ERROR:14, control -: not-confirmed (strict not-confirmed)
+idiom05-mpich run04 [1c L1+SP] STRETTO_PIN=0:0:2@0:5:137c -> APP-ERROR:14, control -: not-confirmed (strict not-confirmed)
+idiom05-mpich run05 [1a L1] STRETTO_PIN=0:0:2@0:5:137c -> APP-ERROR:14, control -: not-confirmed (strict not-confirmed)
+idiom05-mpich run05 [1d L1+SP] STRETTO_PIN=0:0:2@0:5:137c -> APP-ERROR:14, control -: not-confirmed (strict not-confirmed)
+idiom05-mpich run05 [1c L1+SP] STRETTO_PIN=0:0:2@0:5:137c -> APP-ERROR:14, control -: not-confirmed (strict not-confirmed)
+== subjects (2026-11-28T12:03:35Z)
+npbmg np16 bug plain - run 1: FINISHED 0.3 s ok -> missed
+npbmg np16 bug delays D50 run 1: FINISHED 45.3 s ok -> missed
+npbmg np16 bug stretto traced run 1: FINISHED 0.4 s ok -> predicted
+npbmg np16 bug plain - run 2: FINISHED 0.4 s ok -> missed
+npbmg np16 bug delays D50 run 2: FINISHED 24.9 s ok -> missed
+npbmg np16 bug stretto traced run 2: FINISHED 0.4 s ok -> predicted
+npbmg np16 bug plain - run 3: FINISHED 0.4 s ok -> missed
+npbmg np16 bug delays D50 run 3: FINISHED 42.1 s ok -> missed
+npbmg np16 bug stretto traced run 3: FINISHED 0.4 s ok -> predicted
+npbmg np16 bug plain - run 4: FINISHED 0.4 s ok -> missed
+npbmg np16 bug delays D50 run 4: FINISHED 24.9 s ok -> missed
+npbmg np16 bug stretto traced run 4: FINISHED 0.4 s ok -> predicted
+npbmg np16 bug plain - run 5: FINISHED 0.4 s ok -> missed
+npbmg np16 bug delays D50 run 5: FINISHED 29.9 s ok -> missed
+npbmg np16 bug stretto traced run 5: FINISHED 0.4 s ok -> predicted
+npbmg np16 fix plain - run 1: FINISHED 0.4 s ok -> missed
+npbmg np16 fix delays D50 run 1: FINISHED 45.3 s ok -> missed
+npbmg np16 fix stretto traced run 1: FINISHED 0.4 s ok -> missed
+npbmg np16 fix plain - run 2: FINISHED 0.4 s ok -> missed
+npbmg np16 fix delays D50 run 2: FINISHED 24.9 s ok -> missed
+npbmg np16 fix stretto traced run 2: FINISHED 0.4 s ok -> missed
+npbmg np16 fix plain - run 3: FINISHED 0.4 s ok -> missed
+npbmg np16 fix delays D50 run 3: FINISHED 42.1 s ok -> missed
+npbmg np16 fix stretto traced run 3: FINISHED 0.4 s ok -> missed
+npbmg np16 fix plain - run 4: FINISHED 0.4 s ok -> missed
+npbmg np16 fix delays D50 run 4: FINISHED 24.9 s ok -> missed
+npbmg np16 fix stretto traced run 4: FINISHED 0.4 s ok -> missed
+npbmg np16 fix plain - run 5: FINISHED 0.4 s ok -> missed
+npbmg np16 fix delays D50 run 5: FINISHED 29.9 s ok -> missed
+npbmg np16 fix stretto traced run 5: FINISHED 0.4 s ok -> missed
+npbmg np16: 5 traces, 800 findings, 160 distinct alternatives, 40 to replay
+npbmg np16 replay 1: FINISHED matched=True symptom=False; control FINISHED -> not-confirmed
+npbmg np16 replay 2: FINISHED matched=True symptom=True; control FINISHED -> confirmed
+npbmg np16 replay 3: FINISHED matched=True symptom=True; control FINISHED -> confirmed
+npbmg np16 replay 4: FINISHED matched=True symptom=True; control FINISHED -> confirmed
+npbmg np16 replay 5: FINISHED matched=True symptom=True; control FINISHED -> confirmed
+npbmg np16 replay 6: FINISHED matched=True symptom=False; control FINISHED -> not-confirmed
+npbmg np16 replay 7: FINISHED matched=True symptom=False; control FINISHED -> not-confirmed
+npbmg np16 replay 8: FINISHED matched=True symptom=False; control FINISHED -> not-confirmed
+npbmg np16 replay 9: FINISHED matched=True symptom=True; control FINISHED -> confirmed
+npbmg np16 replay 10: FINISHED matched=True symptom=True; control FINISHED -> confirmed

@@ -1,0 +1,16 @@
+name,run,cls,level,B,cross_node,pin,result,pin_matched,control,run_valid,misapplied,verdict,strict,nodes,ppn,map,scheduler,job,host,cpus,jobs,timeout,seed,commit,superseded,outcome
+idiom05-openmpi,run01,1a,L1,any B,False,STRETTO_PIN=0:0:2@0:5:138b,MPI-ERROR:MPI_ERR_TRUNCATE,True,FINISHED,True,,confirmed,confirmed,2,8,node,slurm,1218020,soc-cluster,,1,30,,ca5b216,,confirmed
+idiom05-openmpi,run01,1d,L1+SP,"B=0,inf",False,STRETTO_PIN=0:0:2@0:5:138b,MPI-ERROR:MPI_ERR_TRUNCATE,False,,True,,not-confirmed,not-confirmed,2,8,node,slurm,1218020,soc-cluster,,1,30,,ca5b216,,not-confirmed
+idiom05-openmpi,run01,1c,L1+SP,"B=0,inf",False,STRETTO_PIN=0:0:2@0:5:138b,MPI-ERROR:MPI_ERR_TRUNCATE,False,,True,,not-confirmed,not-confirmed,2,8,node,slurm,1218020,soc-cluster,,1,30,,ca5b216,,not-confirmed
+idiom05-openmpi,run02,1a,L1,any B,False,STRETTO_PIN=0:0:2@0:5:138b,MPI-ERROR:MPI_ERR_TRUNCATE,True,FINISHED,True,,confirmed,confirmed,2,8,node,slurm,1218020,soc-cluster,,1,30,,ca5b216,,confirmed
+idiom05-openmpi,run02,1d,L1+SP,"B=0,inf",False,STRETTO_PIN=0:0:2@0:5:138b,MPI-ERROR:MPI_ERR_TRUNCATE,False,,True,,not-confirmed,not-confirmed,2,8,node,slurm,1218020,soc-cluster,,1,30,,ca5b216,,not-confirmed
+idiom05-openmpi,run02,1c,L1+SP,"B=0,inf",False,STRETTO_PIN=0:0:2@0:5:138b,MPI-ERROR:MPI_ERR_TRUNCATE,False,,True,,not-confirmed,not-confirmed,2,8,node,slurm,1218020,soc-cluster,,1,30,,ca5b216,,not-confirmed
+idiom05-openmpi,run03,1a,L1,any B,False,STRETTO_PIN=0:0:2@0:5:138b,MPI-ERROR:MPI_ERR_TRUNCATE,True,FINISHED,True,,confirmed,confirmed,2,8,node,slurm,1218020,soc-cluster,,1,30,,ca5b216,,confirmed
+idiom05-openmpi,run03,1d,L1+SP,"B=0,inf",False,STRETTO_PIN=0:0:2@0:5:138b,MPI-ERROR:MPI_ERR_TRUNCATE,False,,True,,not-confirmed,not-confirmed,2,8,node,slurm,1218020,soc-cluster,,1,30,,ca5b216,,not-confirmed
+idiom05-openmpi,run03,1c,L1+SP,"B=0,inf",False,STRETTO_PIN=0:0:2@0:5:138b,MPI-ERROR:MPI_ERR_TRUNCATE,False,,True,,not-confirmed,not-confirmed,2,8,node,slurm,1218020,soc-cluster,,1,30,,ca5b216,,not-confirmed
+idiom05-openmpi,run04,1a,L1,any B,False,STRETTO_PIN=0:0:2@0:5:138b,MPI-ERROR:MPI_ERR_TRUNCATE,True,FINISHED,True,,confirmed,confirmed,2,8,node,slurm,1218020,soc-cluster,,1,30,,ca5b216,,confirmed
+idiom05-openmpi,run04,1d,L1+SP,"B=0,inf",False,STRETTO_PIN=0:0:2@0:5:138b,MPI-ERROR:MPI_ERR_TRUNCATE,False,,True,,not-confirmed,not-confirmed,2,8,node,slurm,1218020,soc-cluster,,1,30,,ca5b216,,not-confirmed
+idiom05-openmpi,run04,1c,L1+SP,"B=0,inf",False,STRETTO_PIN=0:0:2@0:5:138b,MPI-ERROR:MPI_ERR_TRUNCATE,False,,True,,not-confirmed,not-confirmed,2,8,node,slurm,1218020,soc-cluster,,1,30,,ca5b216,,not-confirmed
+idiom05-openmpi,run05,1a,L1,any B,False,STRETTO_PIN=0:0:2@0:5:138b,MPI-ERROR:MPI_ERR_TRUNCATE,True,FINISHED,True,,confirmed,confirmed,2,8,node,slurm,1218020,soc-cluster,,1,30,,ca5b216,,confirmed
+idiom05-openmpi,run05,1d,L1+SP,"B=0,inf",False,STRETTO_PIN=0:0:2@0:5:138b,MPI-ERROR:MPI_ERR_TRUNCATE,False,,True,,not-confirmed,not-confirmed,2,8,node,slurm,1218020,soc-cluster,,1,30,,ca5b216,,not-confirmed
+idiom05-openmpi,run05,1c,L1+SP,"B=0,inf",False,STRETTO_PIN=0:0:2@0:5:138b,MPI-ERROR:MPI_ERR_TRUNCATE,False,,True,,not-confirmed,not-confirmed,2,8,node,slurm,1218020,soc-cluster,,1,30,,ca5b216,,not-confirmed

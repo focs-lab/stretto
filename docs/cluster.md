@@ -118,7 +118,12 @@ MPICH subjects need a launch that starts the image's MPICH across nodes (below).
 ## The SoC cluster
 
 Probed 28 Nov 2026 (`experiments/cluster/probe.sh`, jobs 1216684 on xcnf0 and 1216685 on xcni0,
-one node each), with the limits read from `sinfo` and `sacctmgr` on a login node.
+one node each), with the limits read from `sinfo` and `sacctmgr` on a login node and from SoC's
+guides (dochub.comp.nus.edu.sg, cf/guides/compute-cluster/): slurm-info (last modified
+2025/07/12: partitions, priorities, MAXJOBS), slurm-quick (2026/07/29: batch jobs preferred, idle
+allocations count against fairshare), hardware (2026/11/24) and access (2026/07/21: nothing heavy
+on the login nodes). The usage policy (compute-cluster/policy) governs how the cluster may be
+used; jobs here are plain batch jobs submitted by hand.
 
 | question | answer | what follows |
 |---|---|---|
@@ -164,6 +169,56 @@ every replay under both libraries, each control finishing; idiom 05's truncation
 replay under Open MPI, and under MPICH not confirmed for the reason known from one node (exit
 status 14, not read as `MPI_ERR_TRUNCATE`). The alternatives of the three idioms take their
 message from rank 2, on rank 0's node: none crosses nodes.
+
+## Runs
+
+Step 3, correctness on two nodes, at commit ca5b216 (`RUNTIME=native LAUNCHER=mpirun`, xcni,
+shared nodes, no timing claims). Each job's CSVs are kept in `experiments/results/cluster/<job>/`
+(`experiments/cluster/keep.sh <job>`); traces and outputs stay in `build/cluster/<job>/`.
+
+| job | what | layout | state |
+|---|---|---|---|
+| 1218019 | `bimpl`: eager limits of both libraries across the nodes and on one | 2x2 | running |
+| 1218020 | idioms 01, 04, 05 (5 runs each, both libraries); NPB MG np16 through the campaign's `run.py` and `replays.py` | 2x8 | done, kept |
+| 1218021 | NPB MG np32 | 2x16 | running |
+| 1218022 | HYPRE 2.10.1 `ij` np8 (MPICH), HYPRE 3.2.0 `ex5` two levels np8 (Open MPI) | 2x4 | running (partition long, 8 h limit) |
+
+**NPB MG 2.4.1, 16 ranks, 8 per node** (job 1218020, 5 runs per tool and version):
+
+| | bug (2.4.1) | fix (3.3.1) |
+|---|---|---|
+| plain runs with a wrong residual | 0 of 5 | 0 of 5 |
+| D50 runs with a wrong residual | 0 of 5 | 0 of 5 |
+| traced runs that predict the bug | 5 of 5 (160 alternatives each, all 1f at L1; 21 792 records) | 0 of 5 |
+| replays (10 of 40 sampled distinct alternatives) | 6 confirmed (another residual, every pin matched, control correct), 4 not confirmed (the residual unchanged) | |
+
+The ten replayed alternatives pin receives of ranks 4 and 5 (on the first node) to senders 12
+and 13 (on the second): every one crosses nodes. The rate of confirmed replays (6 of 10) is
+that of the emulation (4 of 6) and of one node (384 of 480). The idioms give the verdicts of job
+1216902 above, now at a clean commit.
+
+**Hand-off.** Nothing else is queued. When the running jobs end, from a login node:
+
+```bash
+experiments/cluster/keep.sh 1218019 1218021 1218022     # CSVs into experiments/results/cluster/
+```
+
+The rest of step 3 (4 nodes, correctness only; ranks fill a node's tasks before the next):
+
+```bash
+C="MACHINE=soc-cluster RUNTIME=native LAUNCHER=mpirun RUNS=5 REPLAYS=10"
+env $C STEPS="setup subjects" SUBJECTS="npbmg:np32" \
+  sbatch -J stretto-s3-mg32x4 --nodes 4 --ntasks-per-node 8 --mem-per-cpu 2G --time 02:30:00 experiments/cluster/slurm.sbatch
+env $C STEPS="setup subjects" SUBJECTS="hypre:np8 hypre3:np8" \
+  sbatch -J stretto-s3-hypre-x4 -p long --nodes 4 --ntasks-per-node 2 --mem-per-cpu 2G --time 08:00:00 experiments/cluster/slurm.sbatch
+```
+
+(the builds exist under `third_party/apps/`; `experiments/cluster/mpich.sh` must have run once.)
+Step 5, the scale series, is not started: it needs NPB LU (`third_party/fetch.sh npb`, built
+with the MPICH wrappers of `mpich.sh` first on PATH), AMG's source (`study/apps/AMG` is not in
+the repository), NPB MG class A and B builds (`CLASS=A NPS="16 32 64" experiments/npbmg/run.sh
+build`), and a multi-node variant of `experiments/scale/run.sh`, whose launcher is
+`mpirun.openmpi --oversubscribe` on one node; none of these has been written or tested here.
 
 ## The two-node emulation
 

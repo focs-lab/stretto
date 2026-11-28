@@ -1,0 +1,11 @@
+name,exe,args,tool,run,np,mpi,result,seconds,ok,trace_ranks,nodes,ppn,map,scheduler,job,host,cpus,jobs,timeout,seed,commit,superseded,outcome
+idiom04-openmpi,./idioms/04_orphan_send/bin/openmpi/main,,plain,1,3,openmpi,FINISHED,0.5,True,,2,8,node,slurm,1218020,soc-cluster,,1,60,,ca5b216,,missed
+idiom04-openmpi,./idioms/04_orphan_send/bin/openmpi/main,,plain,2,3,openmpi,FINISHED,0.5,True,,2,8,node,slurm,1218020,soc-cluster,,1,60,,ca5b216,,missed
+idiom04-openmpi,./idioms/04_orphan_send/bin/openmpi/main,,plain,3,3,openmpi,FINISHED,0.5,True,,2,8,node,slurm,1218020,soc-cluster,,1,60,,ca5b216,,missed
+idiom04-openmpi,./idioms/04_orphan_send/bin/openmpi/main,,plain,4,3,openmpi,FINISHED,0.5,True,,2,8,node,slurm,1218020,soc-cluster,,1,60,,ca5b216,,missed
+idiom04-openmpi,./idioms/04_orphan_send/bin/openmpi/main,,plain,5,3,openmpi,FINISHED,0.5,True,,2,8,node,slurm,1218020,soc-cluster,,1,60,,ca5b216,,missed
+idiom04-openmpi,./idioms/04_orphan_send/bin/openmpi/main,,traced,1,3,openmpi,FINISHED,0.5,True,3,2,8,node,slurm,1218020,soc-cluster,,1,60,,ca5b216,,missed
+idiom04-openmpi,./idioms/04_orphan_send/bin/openmpi/main,,traced,2,3,openmpi,FINISHED,0.5,True,3,2,8,node,slurm,1218020,soc-cluster,,1,60,,ca5b216,,missed
+idiom04-openmpi,./idioms/04_orphan_send/bin/openmpi/main,,traced,3,3,openmpi,FINISHED,0.5,True,3,2,8,node,slurm,1218020,soc-cluster,,1,60,,ca5b216,,missed
+idiom04-openmpi,./idioms/04_orphan_send/bin/openmpi/main,,traced,4,3,openmpi,FINISHED,0.6,True,3,2,8,node,slurm,1218020,soc-cluster,,1,60,,ca5b216,,missed
+idiom04-openmpi,./idioms/04_orphan_send/bin/openmpi/main,,traced,5,3,openmpi,FINISHED,0.6,True,3,2,8,node,slurm,1218020,soc-cluster,,1,60,,ca5b216,,missed

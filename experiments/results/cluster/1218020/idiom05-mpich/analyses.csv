@@ -1,0 +1,6 @@
+name,run,np,records,analyse_s,status,trace_nodes,findings,cross_node,nodes,ppn,map,scheduler,job,host,cpus,jobs,timeout,seed,commit,superseded,outcome
+idiom05-mpich,run01,3,16,0.0,complete,2,1a/L1=1;1a/L1+SP=1;1c/L1+SP=1;1d/L1+SP=1,0,2,8,,slurm,1218020,soc-cluster,,1,0,,ca5b216,,
+idiom05-mpich,run02,3,16,0.0,complete,2,1a/L1=1;1a/L1+SP=1;1c/L1+SP=1;1d/L1+SP=1,0,2,8,,slurm,1218020,soc-cluster,,1,0,,ca5b216,,
+idiom05-mpich,run03,3,16,0.0,complete,2,1a/L1=1;1a/L1+SP=1;1c/L1+SP=1;1d/L1+SP=1,0,2,8,,slurm,1218020,soc-cluster,,1,0,,ca5b216,,
+idiom05-mpich,run04,3,16,0.0,complete,2,1a/L1=1;1a/L1+SP=1;1c/L1+SP=1;1d/L1+SP=1,0,2,8,,slurm,1218020,soc-cluster,,1,0,,ca5b216,,
+idiom05-mpich,run05,3,16,0.0,complete,2,1a/L1=1;1a/L1+SP=1;1c/L1+SP=1;1d/L1+SP=1,0,2,8,,slurm,1218020,soc-cluster,,1,0,,ca5b216,,

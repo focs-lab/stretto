@@ -10,6 +10,7 @@ nodes, and the compute nodes take no ssh, so every rank starts through Slurm: `s
 |---|---|
 | [probe.sh](probe.sh) | a compute node's software and hardware in a few minutes on one node: containers, modules, MPIs, Slurm's MPI plugins, compilers, network, CPUs, memory, node-local disk |
 | [mpich.sh](mpich.sh) | the image's MPICH (Ubuntu 4.2.0-5build3) without containers or root: its packages from the image's Ubuntu snapshot, checked against their SHA256, unpacked under `~/opt/mpich-4.2.0-ubuntu`, with compiler wrappers that point there |
+| [keep.sh](keep.sh) | a finished job's CSVs and `job.json` into `experiments/results/cluster/<job>/`, home paths removed |
 | [launch-matrix.sbatch](launch-matrix.sbatch) | which launches start a two-node program with either library: `srun --mpi=pmix` and `pmi2` with the settings tried, Open MPI's `mpirun` with and without a subnet, hydra |
 | [sif.sh](sif.sh) | the experiment images as Apptainer images (`build/sif/*.sif`, `manifest.tsv` with the Docker image id and the .sif's sha256), built on this machine with Apptainer in a container from `docker save` archives; checks that every package of the image is in the .sif at its version |
 | [modules.sh](modules.sh) | the fallback without containers: tracer, replay library, re-execution shim and idioms built against the cluster's MPI module (`MPICC`), a trace of idiom 04 analysed on the cluster's Python |

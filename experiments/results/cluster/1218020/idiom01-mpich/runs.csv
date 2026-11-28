@@ -1,0 +1,11 @@
+name,exe,args,tool,run,np,mpi,result,seconds,ok,trace_ranks,nodes,ppn,map,scheduler,job,host,cpus,jobs,timeout,seed,commit,superseded,outcome
+idiom01-mpich,./idioms/01_master_worker_anysource/bin/mpich/main,,plain,1,3,mpich,FINISHED,0.4,True,,2,8,node,slurm,1218020,soc-cluster,,1,60,,ca5b216,,missed
+idiom01-mpich,./idioms/01_master_worker_anysource/bin/mpich/main,,plain,2,3,mpich,FINISHED,0.4,True,,2,8,node,slurm,1218020,soc-cluster,,1,60,,ca5b216,,missed
+idiom01-mpich,./idioms/01_master_worker_anysource/bin/mpich/main,,plain,3,3,mpich,FINISHED,0.4,True,,2,8,node,slurm,1218020,soc-cluster,,1,60,,ca5b216,,missed
+idiom01-mpich,./idioms/01_master_worker_anysource/bin/mpich/main,,plain,4,3,mpich,FINISHED,0.4,True,,2,8,node,slurm,1218020,soc-cluster,,1,60,,ca5b216,,missed
+idiom01-mpich,./idioms/01_master_worker_anysource/bin/mpich/main,,plain,5,3,mpich,FINISHED,0.4,True,,2,8,node,slurm,1218020,soc-cluster,,1,60,,ca5b216,,missed
+idiom01-mpich,./idioms/01_master_worker_anysource/bin/mpich/main,,traced,1,3,mpich,FINISHED,0.4,True,3,2,8,node,slurm,1218020,soc-cluster,,1,60,,ca5b216,,missed
+idiom01-mpich,./idioms/01_master_worker_anysource/bin/mpich/main,,traced,2,3,mpich,FINISHED,0.3,True,3,2,8,node,slurm,1218020,soc-cluster,,1,60,,ca5b216,,missed
+idiom01-mpich,./idioms/01_master_worker_anysource/bin/mpich/main,,traced,3,3,mpich,FINISHED,0.3,True,3,2,8,node,slurm,1218020,soc-cluster,,1,60,,ca5b216,,missed
+idiom01-mpich,./idioms/01_master_worker_anysource/bin/mpich/main,,traced,4,3,mpich,FINISHED,0.4,True,3,2,8,node,slurm,1218020,soc-cluster,,1,60,,ca5b216,,missed
+idiom01-mpich,./idioms/01_master_worker_anysource/bin/mpich/main,,traced,5,3,mpich,FINISHED,0.4,True,3,2,8,node,slurm,1218020,soc-cluster,,1,60,,ca5b216,,missed
