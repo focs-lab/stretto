@@ -115,19 +115,23 @@ MPICH subjects need a launch that starts the image's MPICH across nodes (below).
 | NINJA (random, system, app) | preloaded on every rank; the learning run's files are in the run's directory, on the shared home | its noise adds to a larger latency: rates may rise or fall |
 | random delays (D50) | unchanged | the same |
 
-## Open until the cluster's details are known
+## The SoC cluster
 
-| question | what depends on it |
-|---|---|
-| Apptainer or Singularity on the compute nodes? (`module avail`) | `RUNTIME=apptainer` (`APPTAINER=singularity` takes the same options), else `RUNTIME=native` with `modules.sh`: another MPI, another configuration |
-| Slurm's MPI plugins (`srun --mpi=list`), its PMIx version | `PMI`; whether the image's MPICH starts under `srun --mpi=pmix` (it hung in the emulation, below) |
-| MPI modules: an Open MPI 4.1 with Slurm support? an MPICH? | `LAUNCHER=mpirun` natively; with only an MPICH `mpiexec` (hydra syntax), `LAUNCHER=srun` |
-| interconnect: Ethernet, InfiniBand, Omni-Path, Slingshot | Open MPI's `pml` (`ob1` or `ucx`), UCX's transports, the eager limits, `NET` |
-| partitions, nodes per job, wall time, jobs in the queue, exclusive nodes | N per cell and cells per job; `--exclusive` in `slurm.sbatch` |
-| node-local scratch: does it exist, where (`$TMPDIR`, `/scratch`, `/tmp`), how large | `LOCAL`; traces of NPB MG class A and Nekbone size (tens of GB) |
-| Python 3.10+ outside the image (a module) | the harness under `RUNTIME=apptainer`, and `modules.sh` |
-| cores, hardware threads and sockets per node | ranks per node, binding as on one node; PaRSEC's two virtual processes |
-| the shared home's quota | the subjects' builds (third_party/apps) and kept traces; copy results off after each job (no backup) |
+Probed 28 Nov 2026 (`experiments/cluster/probe.sh`, jobs 1216684 on xcnf0 and 1216685 on xcni0,
+one node each), with the limits read from `sinfo` and `sacctmgr` on a login node.
+
+| question | answer | what follows |
+|---|---|---|
+| Apptainer or Singularity on the compute nodes? | neither (nor Docker, Podman, Charliecloud, Enroot); no `module` command, `MODULEPATH` empty | `RUNTIME=native`, `MODULES` empty; `sif.sh`'s image does not run here |
+| Slurm's MPI plugins, its PMIx | Slurm 26.05.2; `srun --mpi=list`: none, pmi2, pmix (pmix_v5), cray_shasta | `PMI=pmix` first |
+| MPI on the nodes | the system's Open MPI 4.1.6 (Ubuntu 4.1.6-7ubuntu2, the image's version), with `plm slurm`, `ess slurm`, `pmix ext3x` on PMIx 5.0.1, `btl tcp, vader, self, ofi, openib`, UCX 1.16 runtime; no MPICH | Open MPI: `LAUNCHER=mpirun` (its daemons start with `srun`) or `srun --mpi=pmix`; MPICH 4.2.0 is built from source under the home directory, inside a job |
+| compilers, Python | gcc/g++/gfortran 13.3.0, clang 18.1.3, CMake 3.28.3, Python 3.12.3, git 2.43: the image's versions; no Spack | the system toolchain, as in the image |
+| OS | Ubuntu 24.04 (24.04.5 on xcnf, 24.04.4 on xcni), kernel 6.8.0, glibc 2.39; `ptrace_scope` 2, ASLR on | the image's distribution |
+| interconnect | Ethernet only: two 10 GbE ports up per node (192.168.48.0/21 and 192.168.56.0/21, both on both families), MTU 1500; no InfiniBand, RoCE or Omni-Path device | Open MPI `pml ob1`, `btl tcp`; MPICH over TCP; `NET` one of the two subnets, the same on every node of a job |
+| nodes | `normal` (3 h, default 15 min), `long` (3 days, default 5 h); families xcnc/xcnd (24 threads, 2x6x2, 63 GB, 1 GbE), xcne (80, 2x20x2), xcnf (AMD EPYC 7763, 128 threads, 1x64x2, one NUMA node, 1 TB), xcni (2x AMD EPYC 9355, 128 threads, 2x32x2, two NUMA nodes, 256 GB), xcnh (512); a family is chosen with `-C` | one family per job (`-C xcnf` or `-C xcni`), never a node list; xcni has the two sockets PaRSEC's virtual processes need |
+| jobs per user | QOS `normal`: 256 CPUs (hardware threads) per user over all running jobs; 16 running, 32 submitted | `--exclusive` fits 2 nodes of xcnf or xcni, not 4: 4-node jobs take at most 64 threads per node and share the nodes; one job at a time at that size |
+| node-local scratch | `/tmp` (`TMPDIR=/tmp`), XFS on NVMe, 3.2 TB free on both families; wiped from time to time | `LOCAL=/tmp/...`, copied off within the job |
+| the shared home | NFS (`cfs`), 24 TB free of 192 TB; no `quota` command, no backup | builds and traces fit; results leave by git |
 
 ## The two-node emulation
 

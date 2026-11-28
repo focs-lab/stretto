@@ -1,6 +1,6 @@
 # Multi-node runs on the cluster
 
-What the runs must show, and what is open until the cluster's details are known:
+What the runs must show, and what the SoC cluster offers (probed 28 Nov 2026):
 [docs/cluster.md](../../docs/cluster.md). The cluster runs Slurm; users reach only its login
 nodes, and the compute nodes take no ssh, so every rank starts through Slurm: `srun`, or an
 `mpirun` that uses `srun` itself. The launcher and the container runtime are parameters
@@ -8,6 +8,7 @@ nodes, and the compute nodes take no ssh, so every rank starts through Slurm: `s
 
 | file | what it does |
 |---|---|
+| [probe.sh](probe.sh) | a compute node's software and hardware in a few minutes on one node: containers, modules, MPIs, Slurm's MPI plugins, compilers, network, CPUs, memory, node-local disk |
 | [sif.sh](sif.sh) | the experiment images as Apptainer images (`build/sif/*.sif`, `manifest.tsv` with the Docker image id and the .sif's sha256), built on this machine with Apptainer in a container from `docker save` archives; checks that every package of the image is in the .sif at its version |
 | [modules.sh](modules.sh) | the fallback without containers: tracer, replay library, re-execution shim and idioms built against the cluster's MPI module (`MPICC`), a trace of idiom 04 analysed on the cluster's Python |
 | [slurm.sbatch](slurm.sbatch) | the job script: loads `MODULES`, prints Slurm's MPI plugins, runs `job.sh` |
