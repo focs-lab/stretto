@@ -25,7 +25,8 @@
 #            192.168.48.0/21: slurm.sbatch's default on the SoC cluster)
 #   MACHINE  the cluster's name, written into every row (rows.py host)
 #   STEPS    the steps (default "setup bimpl idioms"): build (tracer, replay library, idioms, both
-#            libraries, inside the image or with the modules), setup, bimpl, idioms (three idioms,
+#            libraries, inside the image or with the modules), buildsubjects (the subjects of
+#            SUBJECTS, experiments/protocol/build_subjects.sh), setup, bimpl, idioms (three idioms,
 #            both libraries: plain, traced, analysed, replayed), subjects (the campaign's subjects of
 #            SUBJECTS through experiments/protocol/run.py and replays.py; their builds must exist)
 #   SUBJECTS "subject:config ..." for the subjects step (default "npbmg:np16 hypre:np8")
@@ -64,6 +65,18 @@ step_build() {
         # the system's Open MPI, and the image's MPICH from experiments/cluster/mpich.sh
         MPI=openmpi MPICC=/usr/bin/mpicc.openmpi experiments/cluster/modules.sh
         MPI=mpich MPICC="$MPICH_PREFIX/bin/mpicc.mpich" experiments/cluster/modules.sh
+    fi
+}
+step_buildsubjects() {
+    # the subjects of SUBJECTS by the campaign's own fetch and build steps, into third_party/apps/
+    local names
+    names="$(for sc in $SUBJECTS; do echo "${sc%%:*}"; done | sort -u | tr '\n' ' ')"
+    # (build_subjects.sh reads SUBJECTS and STEPS, which here hold this job's pairs and steps)
+    if [ "$RUNTIME" = apptainer ]; then
+        "${IN[@]}" env SUBJECTS="$names" STEPS="fetch build" experiments/protocol/build_subjects.sh
+    else
+        PATH="$MPICH_PREFIX/bin:$PATH" MPICH_BIN="$MPICH_PREFIX/bin" MAKE_JOBS="${MAKE_JOBS:-$(nproc)}" \
+            SUBJECTS="$names" STEPS="fetch build" experiments/protocol/build_subjects.sh
     fi
 }
 step_setup() {

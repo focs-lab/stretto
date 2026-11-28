@@ -6,10 +6,12 @@
 # PMIx 5.0.1, hwloc 2.10) are the system's, at the image's versions (docs/cluster.md); hydra's
 # libslurm.so.40 (Slurm 23.11), which a cluster with another Slurm lacks, comes from the same
 # snapshot and serves hydra's host-list parsing only.
-# PREFIX/bin gets the compiler wrappers, with the package's /usr replaced by PREFIX/usr and an
-# rpath to the library directory (the package's wrappers have none), so that programs and the
-# preloaded tracer find this MPICH with no LD_LIBRARY_PATH; mpiexec.hydra and mpichversion run
-# with PREFIX's libraries. Nothing goes on PATH: /usr/bin/mpirun stays Open MPI's.
+# PREFIX/bin gets the compiler wrappers under the package's names (mpicc, mpicxx, mpifort, mpif77
+# and mpif90 .mpich), with the package's /usr replaced by PREFIX/usr and an rpath to the library
+# directory (the package's wrappers have none), so that programs and the preloaded tracer find
+# this MPICH with no LD_LIBRARY_PATH; mpiexec.hydra and mpichversion run with PREFIX's libraries.
+# PREFIX/bin holds only these names, so a build may put it first on PATH (the subjects' builds
+# call mpicc.mpich and the others by name) and /usr/bin/mpirun stays Open MPI's.
 #   PREFIX   where to unpack (default $HOME/opt/mpich-4.2.0-ubuntu); replaced if it exists
 # Fetching and unpacking take seconds and run anywhere, a login node included.
 # usage: experiments/cluster/mpich.sh
@@ -39,6 +41,7 @@ for w in mpicc mpicxx mpifort; do
     chmod +x "$PREFIX/bin/$w.mpich"
     grep -q "^libdir=$PREFIX/" "$PREFIX/bin/$w.mpich" || { echo "mpich.sh: $w.mpich kept the package's paths" >&2; exit 1; }
 done
+for w in mpif77 mpif90; do ln -sf mpifort.mpich "$PREFIX/bin/$w.mpich"; done
 for x in mpiexec.hydra mpichversion; do
     printf '#!/bin/sh\nLD_LIBRARY_PATH=%s${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH} exec %s "$@"\n' "$LIB" "$PREFIX/usr/bin/$x" > "$PREFIX/bin/$x"
     chmod +x "$PREFIX/bin/$x"

@@ -15,7 +15,8 @@
 #   all
 # Writes experiments/results/npbmg/{predict-2.4.1,predict-3.3.1,stress}.csv.
 # usage: experiments/npbmg/run.sh [fetch|build|predict|stress|all]
-#        NPS (default "16 32"), CLASS (S), RUNS (5), JOBS (1), NPB_MG_DIR (third_party/apps/npb-mg)
+#        NPS (default "16 32"), CLASS (S), RUNS (5), JOBS (1), NPB_MG_DIR (third_party/apps/npb-mg),
+#        MPICH_BIN (the MPICH wrappers' directory, default the image's /usr/bin)
 set -uo pipefail
 R="$(cd "$(dirname "$0")/../.." && pwd)"; cd "$R"
 D="${NPB_MG_DIR:-$R/third_party/apps/npb-mg}"
@@ -41,15 +42,15 @@ step_fetch() {
 step_build() {
     for v in 2.4.1 3.3.1; do
         local src="$D/NPB$v/NPB${v%.*}-MPI"
-        cat > "$src/config/make.def" <<'DEF'
-MPIF77 = /usr/bin/mpifort.mpich
-FLINK = $(MPIF77)
+        cat > "$src/config/make.def" <<DEF
+MPIF77 = ${MPICH_BIN:-/usr/bin}/mpifort.mpich
+FLINK = \$(MPIF77)
 FMPI_LIB =
 FMPI_INC =
 FFLAGS = -O2 -fallow-argument-mismatch -std=legacy
 FLINKFLAGS = -O2
-MPICC = /usr/bin/mpicc.mpich
-CLINK = $(MPICC)
+MPICC = ${MPICH_BIN:-/usr/bin}/mpicc.mpich
+CLINK = \$(MPICC)
 CMPI_LIB =
 CMPI_INC =
 CFLAGS = -O2
