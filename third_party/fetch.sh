@@ -4,6 +4,7 @@
 #
 #   third_party/fetch.sh corpora   MBI and MPI-BugBench at the pinned commits, their generated programs
 #   third_party/fetch.sh apps      AMG, MACSio, Nekbone (WP0a study, AMG for E5), built with the system MPI
+#   third_party/fetch.sh amg       AMG alone
 #   third_party/fetch.sh npb       NPB 3.4.3, built twice (Open MPI and MPICH wrappers) for E4
 #   third_party/fetch.sh must      the MPI-BugBench MUST container image (MUST 1.9.2 + MPICH)
 #   third_party/fetch.sh all
@@ -46,9 +47,13 @@ corpora() {
 }
 
 apps() {
-    clone_at https://github.com/LLNL/AMG.git study/apps/AMG "$AMG_COMMIT"
     clone_at https://github.com/LLNL/MACSio.git study/apps/MACSio "$MACSIO_COMMIT"
     clone_at https://github.com/Nek5000/Nekbone.git study/apps/Nekbone "$NEKBONE_COMMIT"
+    amg
+}
+
+amg() {
+    clone_at https://github.com/LLNL/AMG.git study/apps/AMG "$AMG_COMMIT"
     # AMG with the system Open MPI wrapper (the flags the E5 binary was built with; OpenMP is
     # compiled in and run with one thread): the binary experiments/amg/run.sh traces
     (cd study/apps/AMG && sed -i 's|^CC = .*|CC = /usr/bin/mpicc.openmpi|; s|^INCLUDE_CFLAGS = .*|INCLUDE_CFLAGS = -O2 -DTIMER_USE_MPI -DHYPRE_USING_OPENMP -fopenmp -DHYPRE_HOPSCOTCH -DHYPRE_USING_PERSISTENT_COMM -DHYPRE_BIGINT|; s|^INCLUDE_LFLAGS = .*|INCLUDE_LFLAGS = -lm -fopenmp|' Makefile.include && make -j8 > build.log 2>&1 && ls -l test/amg)
@@ -58,19 +63,22 @@ npb() {
     mkdir -p third_party/apps && cd third_party/apps
     [ -f NPB3.4.3.tar.gz ] || wget -q "$NPB_URL"
     echo "$NPB_SHA256  NPB3.4.3.tar.gz" | sha256sum -c -
-    for mpi in openmpi mpich; do
+    # NPB_MPIS, NPB_BENCHES, NPB_CLASSES narrow the builds (experiments/cluster/scale.sh needs
+    # LU's MPICH build only); MPICH_BIN is the MPICH wrappers' directory (default the image's)
+    for mpi in ${NPB_MPIS:-openmpi mpich}; do
         dir=NPB3.4.3; [ "$mpi" = mpich ] && dir=NPB-mpich
-        [ -d "$dir" ] || { mkdir -p "$dir" && tar xzf NPB3.4.3.tar.gz -C "$dir" --strip-components=1; }
+        wrap=/usr/bin; [ "$mpi" = mpich ] && wrap="${MPICH_BIN:-/usr/bin}"
+        [ -d "$dir/NPB3.4-MPI" ] || { mkdir -p "$dir" && tar xzf NPB3.4.3.tar.gz -C "$dir" --strip-components=1; }
         # Fortran kernels are traced only through the MPICH wrappers (Open MPI's Fortran
         # bindings call PMPI directly); the Open MPI build is the plain-run reference
         cat > "$dir/NPB3.4-MPI/config/make.def" <<DEF
-MPIFC = /usr/bin/mpifort.$mpi
+MPIFC = $wrap/mpifort.$mpi
 FLINK = \$(MPIFC)
 FMPI_LIB =
 FMPI_INC =
 FFLAGS = -O2 -fallow-argument-mismatch
 FLINKFLAGS = -O2
-MPICC = /usr/bin/mpicc.$mpi
+MPICC = $wrap/mpicc.$mpi
 CLINK = \$(MPICC)
 CMPI_LIB =
 CMPI_INC =
@@ -81,7 +89,8 @@ BINDIR = ../bin
 RAND = randi8
 WTIME = wtime.c
 DEF
-        (cd "$dir/NPB3.4-MPI" && for b in is ep cg mg lu; do for c in S A; do make -s "$b" CLASS=$c > /dev/null; done; done && ls bin | wc -l)
+        (cd "$dir/NPB3.4-MPI" && for b in ${NPB_BENCHES:-is ep cg mg lu}; do for c in ${NPB_CLASSES:-S A}; do
+            make -s "$b" CLASS=$c > /dev/null; done; done && ls bin | wc -l)
     done
 }
 
@@ -94,8 +103,9 @@ must() {
 case "${1:-all}" in
     corpora) corpora;;
     apps) apps;;
+    amg) amg;;
     npb) npb;;
     must) must;;
     all) corpora; apps; npb; must;;
-    *) echo "usage: $0 corpora|apps|npb|must|all" >&2; exit 2;;
+    *) echo "usage: $0 corpora|apps|amg|npb|must|all" >&2; exit 2;;
 esac

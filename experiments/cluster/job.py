@@ -46,7 +46,9 @@ usage: job.py setup --out OUT [--launcher srun|mpirun] [--pmi pmix|pmi2] [--runt
                     [--hosts FILE] [--ppn N]       (--hosts outside Slurm only)
        job.py bimpl --out OUT [--mpi M]
        job.py run --out OUT --name NAME --tool plain|traced|delays --np N [--mpi M] [--runs R]
-                  [--timeout T] [--ok REGEX] [--map node|slot] [--cwd DIR] -- EXE [ARGS...]
+                  [--timeout T] [--ok REGEX] [--map node|slot|block] [--bind core|hwthread|none]
+                  [--cwd DIR] [--env NAME=VALUE ...] [--keep-traces K] -- EXE [ARGS...]
+       job.py env --out OUT [--map node|slot|block] [--np N] [--bind core|hwthread|none]
        job.py analyse --out OUT --name NAME [--sp]
        job.py replay --out OUT --name NAME [--timeout T] [--all] [--max K] -- EXE [ARGS...]
        job.py protocol --out OUT -- <run.py run arguments without --row>
@@ -117,17 +119,29 @@ def load(out):
         return json.load(fh)
 
 
-def mpi_env(job, mapping="node"):
+def placement(job, mapping, np=0):
+    """Open MPI's mapping policy: by node (rank r on node r mod n), by slot (PPN ranks on a node
+    before the next), or in blocks (np / n consecutive ranks on each node, ppr:K:node, so that a
+    program of fewer ranks than the allocation's slots still spans every node)."""
+    if mapping == "block":
+        n = len(job["nodes"])
+        return "ppr:%d:node" % max(1, -(-np // n)) if np else "slot"
+    return "node" if mapping == "node" else "slot"
+
+
+def mpi_env(job, mapping="node", np=0, bind="core"):
     """The environment of every launch of the job: the launcher (STRETTO_MPIRUN, which
-    stretto.confirm and b_impl.py take too), the placement (by node: rank r on node r mod n; by
-    slot: PPN ranks on a node before the next), one core per rank, the image's prefix and
-    compilers, the network interface; MPI's session directory node-local, the harness's
-    temporary files on the shared file system."""
+    stretto.confirm and b_impl.py take too), the placement (placement()), the binding (one core
+    per rank by default; hwthread when a node runs more ranks than it has cores, none), the
+    image's prefix and compilers, the network interface; MPI's session directory node-local, the
+    harness's temporary files on the shared file system."""
     env = {"STRETTO_MPIRUN": job["mpirun"], "STRETTO_PPN": str(job["ppn"]),
-           "OMPI_MCA_rmaps_base_mapping_policy": "node" if mapping == "node" else "slot",
-           "OMPI_MCA_hwloc_base_binding_policy": "core",
+           "OMPI_MCA_rmaps_base_mapping_policy": placement(job, mapping, np),
+           "OMPI_MCA_hwloc_base_binding_policy": bind,
            "OMPI_MCA_orte_tmpdir_base": "/tmp",
            "TMPDIR": job["tmp"]}
+    if bind == "hwthread":
+        env["OMPI_MCA_hwloc_base_use_hwthreads_as_cpus"] = "1"
     if job.get("hostfile"):
         env["OMPI_MCA_orte_default_hostfile"] = job["hostfile"]
     if job["launcher"] == "srun":
@@ -149,8 +163,8 @@ def mpi_env(job, mapping="node"):
     return env
 
 
-def apply_env(job, mapping="node"):
-    os.environ.update(mpi_env(job, mapping))
+def apply_env(job, mapping="node", np=0, bind="core"):
+    os.environ.update(mpi_env(job, mapping, np, bind))
     os.makedirs(job["tmp"], exist_ok=True)
 
 
@@ -249,8 +263,11 @@ def setup(a):
 
 # ------------------------------------------------------------------ rows
 
-def job_columns(job, mapping):
-    return {"nodes": len(job["nodes"]), "ppn": job["ppn"], "map": mapping, "scheduler": job["scheduler"], "job": job["job"]}
+def job_columns(job, mapping, np=0):
+    """The job's columns; in blocks, ppn is the ranks placed on a node (np / nodes), not the
+    allocation's tasks per node."""
+    ppn = -(-np // len(job["nodes"])) if mapping == "block" and np else job["ppn"]
+    return {"nodes": len(job["nodes"]), "ppn": ppn, "map": mapping, "scheduler": job["scheduler"], "job": job["job"]}
 
 
 def append(path, row):
@@ -303,6 +320,22 @@ def collect(job, src, dest):
         raise SystemExit("job.py: collecting %s failed: %s" % (src, p.stderr[-1000:]))
 
 
+def discard(job, src):
+    """Remove a node-local directory on every node (a traced run kept for its time only)."""
+    subprocess.run(["/usr/bin/timeout", "600", job["mpirun"], "-np", str(len(job["nodes"])), "--map-by", "node",
+                    "rm", "-rf", src], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL)
+
+
+def env(a):
+    """The job's launch environment as shell assignments, for a harness run outside job.py on the
+    job's nodes (experiments/replay_sample.py in experiments/cluster/scale.sh)."""
+    job = load(a.out)
+    os.makedirs(job["tmp"], exist_ok=True)
+    for k, v in sorted(mpi_env(job, a.map, a.np, a.bind).items()):
+        print("export %s=%s" % (k, shlex.quote(v)))
+    return 0
+
+
 def delays(np, i):
     """The campaign's random delays of run i (experiments/protocol/run.py, D50)."""
     import run as protocol_run
@@ -312,7 +345,7 @@ def delays(np, i):
 def run(a):
     from stretto.confirm import classify_rc
     job = load(a.out)
-    apply_env(job, a.map)
+    apply_env(job, a.map, a.np, a.bind)
     exe, args = a.cmd[0], a.cmd[1:]
     base = os.path.join(os.path.abspath(a.out), a.name)
     lib = (TRACER if a.tool == "traced" else PINLIB).format(mpi=a.mpi)
@@ -323,12 +356,12 @@ def run(a):
         if os.path.exists(rd):
             shutil.rmtree(rd)
         os.makedirs(rd)
-        xs, seed = [], ""
+        xs, seed = [x for kv in a.env for x in ("-x", kv)], ""
         if a.tool == "traced":
             local = os.path.join(job["local"], "stretto-%s" % re.sub(r"[^A-Za-z0-9._-]", "_", job["job"]), a.name, "run%02d" % i)
-            xs = ["-x", "LD_PRELOAD=" + lib, "-x", "STRETTO_TRACE_DIR=" + local]
+            xs += ["-x", "LD_PRELOAD=" + lib, "-x", "STRETTO_TRACE_DIR=" + local]
         elif a.tool == "delays":
-            xs = ["-x", "LD_PRELOAD=" + lib]
+            xs += ["-x", "LD_PRELOAD=" + lib]
             for k, v in delays(a.np, i).items():
                 xs += ["-x", "%s=%s" % (k, v)]
             seed = str(i * 100 + a.np)
@@ -343,12 +376,14 @@ def run(a):
         result = classify_rc(p.returncode, p.stderr, el, a.timeout)
         ok = result == "FINISHED" and (not a.ok or bool(re.search(a.ok, p.stdout + p.stderr)))
         ranks = ""
-        if a.tool == "traced":
+        if a.tool == "traced" and (not a.keep_traces or i <= a.keep_traces):
             collect(job, local, os.path.join(rd, "trace"))
             ranks = len([f for f in os.listdir(os.path.join(rd, "trace")) if f.startswith("rank-")])
+        elif a.tool == "traced":
+            discard(job, local)
         row = {"name": a.name, "exe": exe, "args": " ".join(args), "tool": a.tool, "run": i, "np": a.np, "mpi": a.mpi,
-               "result": result, "seconds": round(el, 1), "ok": ok, "trace_ranks": ranks}
-        row.update(job_columns(job, a.map))
+               "result": result, "seconds": round(el, 1), "ok": ok, "trace_ranks": ranks, "bind": a.bind}
+        row.update(job_columns(job, a.map, a.np))
         row.update(common(job, a.timeout, seed, rows.outcome(not ok, not ok)))
         append(os.path.join(base, "runs.csv"), row)
         print("%s %s run %d: %s %.1f s ok=%s%s" % (a.name, a.tool, i, result, el, ok,
@@ -519,6 +554,11 @@ def main():
                    "transport between nodes")
     s.add_argument("--hosts", default="", help="outside Slurm: the host list")
     s.add_argument("--ppn", type=int, default=0, help="ranks per node (default: Slurm's tasks per node)")
+    e = sub.add_parser("env")
+    e.add_argument("--out", required=True)
+    e.add_argument("--map", default="node", choices=["node", "slot", "block"])
+    e.add_argument("--np", type=int, default=0)
+    e.add_argument("--bind", default="core", choices=["core", "hwthread", "none"])
     for name in ("bimpl", "run", "analyse", "replay", "protocol", "protocol-replays"):
         p = sub.add_parser(name)
         p.add_argument("--out", required=True)
@@ -531,7 +571,9 @@ def main():
             p.add_argument("--mpi", default="openmpi", choices=["openmpi", "mpich"])
             # b_impl.py's: the seconds after which an exchange counts as hung
             p.add_argument("--timeout", type=int, default=10 if name == "bimpl" else 60)
-            p.add_argument("--map", default="node", choices=["node", "slot"])
+            p.add_argument("--map", default="node", choices=["node", "slot", "block"])
+            p.add_argument("--bind", default="core", choices=["core", "hwthread", "none"],
+                           help="Open MPI's binding: hwthread when a node runs more ranks than it has cores")
         if name in ("run", "analyse", "replay"):
             p.add_argument("--name", required=True)
             p.add_argument("--sp", action="store_true", help="run the single-path explorer too")
@@ -541,6 +583,10 @@ def main():
             p.add_argument("--runs", type=int, default=1)
             p.add_argument("--ok", default="", help="a regular expression a correct run's output matches")
             p.add_argument("--cwd", default="", help="the program's working directory (default: the run's own)")
+            p.add_argument("--env", action="append", default=[], metavar="NAME=VALUE",
+                           help="give every rank this variable (mpirun -x)")
+            p.add_argument("--keep-traces", type=int, default=0,
+                           help="traced: collect the traces of the first K runs only, the others are timed and removed")
         if name == "replay":
             p.add_argument("--all", action="store_true", help="also replay informational findings")
             p.add_argument("--max", type=int, default=0, help="at most this many findings per trace")
@@ -549,7 +595,7 @@ def main():
     a = ap.parse_args()
     if getattr(a, "cmd", None) and a.cmd[0] == "--":
         a.cmd = a.cmd[1:]
-    return {"setup": setup, "bimpl": bimpl, "run": run, "analyse": analyse, "replay": replay, "protocol": protocol,
+    return {"setup": setup, "env": env, "bimpl": bimpl, "run": run, "analyse": analyse, "replay": replay, "protocol": protocol,
             "protocol-replays": protocol_replays}[a.step](a)
 
 

@@ -30,6 +30,7 @@
 #            both libraries: plain, traced, analysed, replayed), subjects (the campaign's subjects of
 #            SUBJECTS through experiments/protocol/run.py and replays.py; their builds must exist)
 #   SUBJECTS "subject:config ..." for the subjects step (default "npbmg:np16 hypre:np8")
+#            scaleruns, scaleanalyse, scalereplays: the scale series of APP (experiments/cluster/scale.sh)
 #   RUNS     runs per tool and configuration (default 5); REPLAYS replays per configuration (default 10)
 # usage: experiments/cluster/job.sh        (from the repository root, inside the allocation)
 set -euo pipefail
@@ -115,6 +116,8 @@ step_subjects() {
         "${J[@]}" protocol-replays --out "$OUT" --subject "$s" --config "$c" --timeout 300 --max "$REPLAYS"
     done
 }
+# the scale series' steps (scaleruns, scaleanalyse, scalereplays) and their parameters
+source "$R/experiments/cluster/scale.sh"
 for s in ${STEPS:-setup bimpl idioms}; do
     echo "== $s ($(date -u +%FT%TZ))"
     "step_$s"

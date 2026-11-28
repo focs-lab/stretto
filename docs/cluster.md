@@ -197,28 +197,40 @@ and 13 (on the second): every one crosses nodes. The rate of confirmed replays (
 that of the emulation (4 of 6) and of one node (384 of 480). The idioms give the verdicts of job
 1216902 above, now at a clean commit.
 
-**Hand-off.** Nothing else is queued. When the running jobs end, from a login node:
+**What follows, as one submission.** From a login node, in the checkout on the branch
+`cluster-runs`:
 
 ```bash
-experiments/cluster/keep.sh 1218019 1218021 1218022     # CSVs into experiments/results/cluster/
+git pull -q --ff-only && experiments/cluster/submit-scale.sh
 ```
 
-The rest of step 3 (4 nodes, correctness only; ranks fill a node's tasks before the next):
+`submit-scale.sh` submits plain batch jobs, chained by dependencies, and returns; nothing of it
+stays on the login node. `DRY=1` prints the `sbatch` commands instead.
 
-```bash
-C="MACHINE=soc-cluster RUNTIME=native LAUNCHER=mpirun RUNS=5 REPLAYS=10"
-env $C STEPS="setup subjects" SUBJECTS="npbmg:np32" \
-  sbatch -J stretto-s3-mg32x4 --nodes 4 --ntasks-per-node 8 --mem-per-cpu 2G --time 02:30:00 experiments/cluster/slurm.sbatch
-env $C STEPS="setup subjects" SUBJECTS="hypre:np8 hypre3:np8" \
-  sbatch -J stretto-s3-hypre-x4 -p long --nodes 4 --ntasks-per-node 2 --mem-per-cpu 2G --time 08:00:00 experiments/cluster/slurm.sbatch
-```
+| job | partition, nodes | what |
+|---|---|---|
+| build | normal, 1 xcni, 4 tasks of 8 CPUs, 1.5 h | `scalebuild`: the tracer and replay library at the checkout's commit, HYPRE 2.10.1, AMG (`third_party/fetch.sh amg`), NPB LU class A (`third_party/fetch.sh npb` with `mpich.sh`'s wrappers), NPB MG 2.4.1 and 3.3.1 class A at 16 to 256 ranks |
+| runs, per application | long, 2 whole xcni nodes, 4 h | `scaleruns`: 5 plain and 5 traced runs at 16, 32, 64, 128 and 256 ranks, np / 2 consecutive ranks per node, timed; the first traced run's trace kept |
+| analyse, per application | long, 1 xcnf node (1 TB), 500 GB, 1 day | `scaleanalyse`: each trace analysed in one process under `/usr/bin/time` (`--no-sp`, E11's measure), a sample of 10 alternatives drawn (`replay_sample.py --plan-only`) |
+| replays, per application | long, 2 xcni nodes, 12 h | `scalereplays`: the sample replayed with its horizon's pins and a control (`replay_sample.py --from-csv`), each run limited to ten times the plain runs' median, at least 120 s |
+| step 3 on four nodes | 4x8 NPB MG np32 (normal, 2.5 h); 4x2 HYPRE 2.10.1 and 3.2.0 np8 (long, 8 h) | the campaign's protocol, as job 1218020 |
+| collect | normal, 1 CPU, 30 min, after all others | `experiments/cluster/collect.sh`: `keep.sh` for every job, step 3's 1218019, 1218021 and 1218022 too, one commit, a push to `cluster-runs` |
 
-(the builds exist under `third_party/apps/`; `experiments/cluster/mpich.sh` must have run once.)
-Step 5, the scale series, is not started: it needs NPB LU (`third_party/fetch.sh npb`, built
-with the MPICH wrappers of `mpich.sh` first on PATH), AMG's source (`study/apps/AMG` is not in
-the repository), NPB MG class A and B builds (`CLASS=A NPS="16 32 64" experiments/npbmg/run.sh
-build`), and a multi-node variant of `experiments/scale/run.sh`, whose launcher is
-`mpirun.openmpi --oversubscribe` on one node; none of these has been written or tested here.
+The applications are E11's (HYPRE 2.10.1's ParaSails in `ij`, MPICH; AMG with 16^3 points per
+process and one OpenMP thread per rank, Open MPI; NPB LU class A, MPICH) and NPB MG's documented
+bug with its fix (2.4.1 and 3.3.1, class A, MPICH): 5 applications, 18 jobs and the collect
+job, within the QOS's 32 submitted. Two whole xcni nodes are the QOS's 256 CPUs, so the runs and
+replay jobs run one at a time. Up to 128 ranks each rank has a core of its own (64 per node), and
+the times are timing claims; at 256 ranks two ranks share a core (bound to hardware threads), and
+those rows measure the trace and the analysis only, as E11's oversubscribed rows. The analysis
+runs on another node than the runs, since one process analyses a trace: at 64 ranks LU took
+499 s and 23.7 GB, AMG 365 s and 9.6 GB (E11), and both grow faster than the trace.
+
+Results land per job in `build/cluster/<job>/`: `<app>-np<N>/runs.csv` (every run's time and
+outcome), `scale.csv` (E11's columns, with the runs job, the analysis job and node), and
+`samples/<app>-np<N>.csv` (replay_sample.py's rows); `collect.sh` copies them to
+`experiments/results/cluster/<job>/`. The two-node emulation runs the same chain at 4 and 8 ranks
+on class S (`experiments/cluster/emulate/run.sh test scale`).
 
 ## The two-node emulation
 

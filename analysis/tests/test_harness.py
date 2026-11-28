@@ -539,6 +539,12 @@ class ClusterJob(unittest.TestCase):
         self.assertEqual(env["STRETTO_MPICC_MPICH"], "apptainer exec --bind /scratch x.sif /usr/bin/mpicc.mpich")
         self.assertEqual(env["OMPI_MCA_rmaps_base_mapping_policy"], "node")
         self.assertEqual(self.job.mpi_env(job, "slot")["OMPI_MCA_rmaps_base_mapping_policy"], "slot")
+        # in blocks: np / nodes consecutive ranks on each node; more ranks than cores bind to hardware threads
+        block = self.job.mpi_env(dict(job, nodes=["n1", "n2"]), "block", 17, "hwthread")
+        self.assertEqual(block["OMPI_MCA_rmaps_base_mapping_policy"], "ppr:9:node")
+        self.assertEqual((block["OMPI_MCA_hwloc_base_binding_policy"], block["OMPI_MCA_hwloc_base_use_hwthreads_as_cpus"]),
+                         ("hwthread", "1"))
+        self.assertNotIn("OMPI_MCA_hwloc_base_use_hwthreads_as_cpus", env)
         # the harness's files on the shared file system, MPI's session directory node-local
         self.assertEqual((env["TMPDIR"], env["OMPI_MCA_orte_tmpdir_base"]), ("/shared/out/tmp", "/tmp"))
         self.assertEqual((env["OMPI_MCA_btl_tcp_if_include"], env["STRETTO_TCP_IF"], env["UCX_NET_DEVICES"]),

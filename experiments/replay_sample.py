@@ -15,7 +15,9 @@ without its pins (run_valid, control_valid) and, if not, why.
 column of its rows, on the same trace: no analysis runs, which on a trace of ten million
 records (Nekbone) saves the 33 GB it takes. The pins are computed for the whole sample before
 the first replay and the trace is then let go, so that judging a replay's own trace, as large,
-does not come on top of it.
+does not come on top of it. --plan-only writes the sample's alternatives and stops, so that the
+analysis runs where its memory is and the replays, --from-csv, on the program's nodes
+(experiments/cluster/scale.sh).
 
 The pool is every L1 alternative with a message: receive and probe alternatives and probe
 flips. --flips adds the flips without one, a probe returning false (probe-unflip) and a failed
@@ -34,7 +36,7 @@ control, both or none); --levels L1,L1+L samples the L1+L alternatives, lock-ord
 collectives ordered by a lock too.
 
 usage: replay_sample.py --out CSV [--sample N] [--seed K] [--timeout S] [--mpi openmpi|mpich]
-                        [--from-csv CSV] [--flips] [--threads] [--repeat K] [--only REGEX] [--cls C,...] [--grep REGEX]
+                        [--from-csv CSV] [--plan-only] [--flips] [--threads] [--repeat K] [--only REGEX] [--cls C,...] [--grep REGEX]
                         [--fresh-cwd DIR] [--env NAME=VALUE ...] <trace dir> <np> <exe> [args ...]
 The options come first: everything after <exe> is the program's own command line, which may
 start with a dash, and the replays run it from the current directory, as the traced run was.
@@ -138,6 +140,9 @@ def main() -> int:
     ap.add_argument("--tails", default=None, choices=("control", "both", "none"),
                     help="what follows the horizon: the trace's order in the control (default), in both, or in neither")
     ap.add_argument("--levels", default="L1", help="the levels whose alternatives are sampled (L1, or L1,L1+L)")
+    ap.add_argument("--plan-only", action="store_true",
+                    help="write the sample's alternatives (finding, cls, pin, site) and stop, for --from-csv later: the "
+                         "analysis on a machine with the memory for it, the replays on the program's nodes")
     ap.add_argument("--out", required=True)
     ap.add_argument("--keep-campaign", default=None,
                     help="with KEEP_TRACES set, keep the replays' traces under this campaign (stretto.keep; default: the table's)")
@@ -170,6 +175,11 @@ def main() -> int:
         sample = rng.sample(pool, min(args.sample, len(pool)))
         pool = len(pool)
         del rep
+    if args.plan_only:
+        write(args.out, [{"finding": f.title[:160], "cls": f.cls, "pin": f.pin, "site": f.site, "commit": code_commit()}
+                         for f in sample])
+        print(f"alternatives {pool}, sampled {len(sample)}; wrote the plan {args.out}")
+        return 0
     # every pin first; then the trace goes, before the replays' own traces are read
     planned = [(f, horizon_pins(t, f), required_matches(t, f), changed_pin(t, f) if f.cls == "1a" and f.level == "L1" else None)
                for f in sample]

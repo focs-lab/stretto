@@ -13,8 +13,12 @@
 #   bimpl    the eager limits across the nodes and on one (BIMPL_MPIS, default both libraries),
 #            under LAUNCHER=mpirun; each bisection step that hangs waits 10 s, so this is the
 #            longest step (about 5 minutes per send path and setting)
+#   scale    the scale series (experiments/cluster/scale.sh) at 4 and 8 ranks, NPB class S, two
+#            ranks' cores per node so that 8 ranks bind to hardware threads: its build, then per
+#            application of APPS (default all) the runs, analysis and replay jobs, as submit-scale.sh
+#            chains them; the image's MPICH stands in for mpich.sh's
 # Output: OUT (default build/cluster-emulate), under the repository.
-# usage: experiments/cluster/emulate/test.sh [build matrix srun mpirun bimpl]   (default: all of them)
+# usage: experiments/cluster/emulate/test.sh [build matrix srun mpirun bimpl scale]   (default: all but scale)
 set -euo pipefail
 R="$(cd "$(dirname "$0")/../../.." && pwd)"; cd "$R"
 OUT="${OUT:-$R/build/cluster-emulate}"
@@ -70,6 +74,20 @@ step_mpirun() {
 }
 step_bimpl() {
     submit bimpl LAUNCHER=mpirun RUNTIME=native MPIS="${BIMPL_MPIS:-openmpi mpich}" STEPS="setup bimpl"
+}
+step_scale() {
+    local pre="$OUT/mpich-prefix" w app
+    mkdir -p "$pre/bin"
+    for w in mpicc.mpich mpicxx.mpich mpifort.mpich mpichversion; do ln -sf "/usr/bin/$w" "$pre/bin/$w"; done
+    local c=(LAUNCHER=mpirun RUNTIME=native MPICH_PREFIX="$pre" NPS="4 8" CLASS=S CORES=2)
+    submit scale-build "${c[@]}" STEPS="setup scalebuild"
+    for app in ${APPS:-hypre amg lu mg-bug mg-fix}; do
+        submit "scale-$app" "${c[@]}" APP="$app" STEPS="setup scaleruns"
+        submit "scale-$app-analyse" "${c[@]}" APP="$app" STEPS="setup scaleanalyse" FROM="$OUT/scale-$app"
+        submit "scale-$app-replays" "${c[@]}" APP="$app" STEPS="setup scalereplays" FROM="$OUT/scale-$app" \
+            PLAN="$OUT/scale-$app-analyse" SAMPLE=4
+        cat "$OUT/scale-$app-analyse/scale.csv" 2> /dev/null | tail -n +2
+    done
 }
 for s in ${@:-build matrix srun mpirun bimpl}; do
     echo "== $s"
