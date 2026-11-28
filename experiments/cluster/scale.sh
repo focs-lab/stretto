@@ -3,7 +3,7 @@
 # experiments/cluster/job.sh, whose steps these are; one phase per job, chained by
 # experiments/cluster/submit-scale.sh:
 #   scalebuild    every application at every count, once
-#   scaleruns     on whole nodes: per process count, RUNS plain runs and RUNS traced runs of the
+#   scaleruns     on every thread of two nodes: per process count, RUNS plain runs and RUNS traced runs of the
 #                 application, timed (the tracer's overhead), in blocks of np / nodes ranks per
 #                 node; the first traced run's trace is collected to OUT, the others removed
 #   scaleanalyse  on one node with the memory for it: the analysis of each collected trace in

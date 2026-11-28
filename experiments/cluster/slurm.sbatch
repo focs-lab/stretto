@@ -12,8 +12,9 @@
 # #SBATCH lines are defaults, the command line overrides them. The defaults fit the SoC cluster
 # (docs/cluster.md, "The SoC cluster"): partition normal, whose limit is 3 h (a longer job goes to
 # -p long, up to 3 days), and one node family, xcni (-C xcnf for the other). Whole nodes are
-# asked for on the command line (--exclusive), for runs whose timing counts: two nodes of 128
-# threads take the user's whole QOS of 256, so a 4-node job shares its nodes.
+# asked for on the command line (--ntasks-per-node 128 and an explicit --mem; users may not ask
+# for --exclusive), for runs whose timing counts: two nodes of 128 threads take the user's
+# whole QOS of 256, so a 4-node job shares its nodes.
 #   MODULES  modules to load first, space-separated (for example "apptainer python/3.12", or a
 #            compiler and an MPI for RUNTIME=native)
 #SBATCH --job-name=stretto-cluster

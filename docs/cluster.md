@@ -134,7 +134,7 @@ used; jobs here are plain batch jobs submitted by hand.
 | OS | Ubuntu 24.04 (24.04.5 on xcnf, 24.04.4 on xcni), kernel 6.8.0, glibc 2.39; `ptrace_scope` 2, ASLR on | the image's distribution |
 | interconnect | Ethernet only: two 10 GbE ports up per node (192.168.48.0/21 and 192.168.56.0/21, both on both families), MTU 1500; no InfiniBand, RoCE or Omni-Path device | Open MPI `pml ob1`, `btl tcp`; MPICH over TCP; `NET` one of the two subnets, the same on every node of a job |
 | nodes | `normal` (3 h, default 15 min), `long` (3 days, default 5 h); families xcnc/xcnd (24 threads, 2x6x2, 63 GB, 1 GbE), xcne (80, 2x20x2), xcnf (AMD EPYC 7763, 128 threads, 1x64x2, one NUMA node, 1 TB), xcni (2x AMD EPYC 9355, 128 threads, 2x32x2, two NUMA nodes, 256 GB), xcnh (512); a family is chosen with `-C` | one family per job (`-C xcnf` or `-C xcni`), never a node list; xcni has the two sockets PaRSEC's virtual processes need |
-| jobs per user | QOS `normal`: 256 CPUs (hardware threads) per user over all running jobs; 16 running, 32 submitted | `--exclusive` fits 2 nodes of xcnf or xcni, not 4: 4-node jobs take at most 64 threads per node and share the nodes; one job at a time at that size |
+| jobs per user | QOS `normal`: 256 CPUs (hardware threads) per user over all running jobs; 16 running, 32 submitted | `--exclusive` is refused ("Exclusive node access is not permited", 28 Nov 2026); all 128 threads of 2 nodes, `--ntasks-per-node 128` with an explicit `--mem`, are the whole QOS, so no other job shares their processors; not 4 nodes: 4-node jobs take at most 64 threads per node and share the nodes; one job at a time at that size |
 | node-local scratch | `/tmp` (`TMPDIR=/tmp`), XFS on NVMe, 3.2 TB free on both families; wiped from time to time | `LOCAL=/tmp/...`, copied off within the job |
 | the shared home | NFS (`cfs`), 24 TB free of 192 TB; no `quota` command, no backup | builds and traces fit; results leave by git |
 
@@ -210,7 +210,7 @@ stays on the login node. `DRY=1` prints the `sbatch` commands instead.
 | job | partition, nodes | what |
 |---|---|---|
 | build | normal, 1 xcni, 4 tasks of 8 CPUs, 1.5 h | `scalebuild`: the tracer and replay library at the checkout's commit, HYPRE 2.10.1, AMG (`third_party/fetch.sh amg`), NPB LU class A (`third_party/fetch.sh npb` with `mpich.sh`'s wrappers), NPB MG 2.4.1 and 3.3.1 class A at 16 to 256 ranks |
-| runs, per application | long, 2 whole xcni nodes, 4 h | `scaleruns`: 5 plain and 5 traced runs at 16, 32, 64, 128 and 256 ranks, np / 2 consecutive ranks per node, timed; the first traced run's trace kept |
+| runs, per application | long, all 128 threads of 2 xcni nodes, 200 GB each, 4 h | `scaleruns`: 5 plain and 5 traced runs at 16, 32, 64, 128 and 256 ranks, np / 2 consecutive ranks per node, timed; the first traced run's trace kept |
 | analyse, per application | long, 1 xcnf node (1 TB), 500 GB, 1 day | `scaleanalyse`: each trace analysed in one process under `/usr/bin/time` (`--no-sp`, E11's measure), a sample of 10 alternatives drawn (`replay_sample.py --plan-only`) |
 | replays, per application | long, 2 xcni nodes, 12 h | `scalereplays`: the sample replayed with its horizon's pins and a control (`replay_sample.py --from-csv`), each run limited to ten times the plain runs' median, at least 120 s |
 | step 3 on four nodes | 4x8 NPB MG np32 (normal, 2.5 h); 4x2 HYPRE 2.10.1 and 3.2.0 np8 (long, 8 h) | the campaign's protocol, as job 1218020 |
@@ -219,8 +219,9 @@ stays on the login node. `DRY=1` prints the `sbatch` commands instead.
 The applications are E11's (HYPRE 2.10.1's ParaSails in `ij`, MPICH; AMG with 16^3 points per
 process and one OpenMP thread per rank, Open MPI; NPB LU class A, MPICH) and NPB MG's documented
 bug with its fix (2.4.1 and 3.3.1, class A, MPICH): 5 applications, 18 jobs and the collect
-job, within the QOS's 32 submitted. Two whole xcni nodes are the QOS's 256 CPUs, so the runs and
-replay jobs run one at a time. Up to 128 ranks each rank has a core of its own (64 per node), and
+job, within the QOS's 32 submitted. `--exclusive` is refused, but all the threads of two xcni
+nodes are the QOS's 256 CPUs, so no other job gets a processor on those nodes; the switch
+between them is shared with the cluster. The runs and replay jobs run one at a time. Up to 128 ranks each rank has a core of its own (64 per node), and
 the times are timing claims; at 256 ranks two ranks share a core (bound to hardware threads), and
 those rows measure the trace and the analysis only, as E11's oversubscribed rows. The analysis
 runs on another node than the runs, since one process analyses a trace: at 64 ranks LU took

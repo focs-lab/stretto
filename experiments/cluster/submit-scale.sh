@@ -3,7 +3,7 @@
 # the SoC cluster in the repository's checkout, and return: nothing of it stays on the login
 # node. The jobs, chained by dependencies:
 #   build                 every application at every count (normal partition, one node)
-#   per application:      runs (2 whole xcni nodes) -> analyse (one xcnf node, 1 TB) -> replays (2 nodes)
+#   per application:      runs (all threads of 2 xcni nodes) -> analyse (one xcnf node, 1 TB) -> replays (2 nodes)
 #   step 3 on four nodes  NPB MG at 32 ranks and HYPRE at 8, the campaign's protocol (docs/cluster.md, "Runs")
 #   collect               after all of them: experiments/cluster/collect.sh keeps every job's CSVs in
 #                         experiments/results/cluster/ and pushes them to the branch cluster-runs
@@ -43,7 +43,9 @@ sub() {   # sub <name> <environment...> -- <sbatch options...>: submit, print, r
 }
 # the jobs' shapes; every one is checked with sbatch --test-only before anything is submitted
 O_BUILD=(-p normal -N 1 --ntasks-per-node 4 -c 8 --mem 64G -t 01:30:00)   # modules.sh runs a 3-rank check
-O_RUNS=(-p long -N 2 --exclusive --mem 0 --ntasks-per-node 128 -t 04:00:00)  # whole nodes, all their memory
+# every hardware thread of two xcni nodes (the QOS's 256 CPUs, so no other job shares their
+# processors); --exclusive is not permitted for users, and DefMemPerCPU times 128 exceeds a node
+O_RUNS=(-p long -N 2 --ntasks-per-node 128 --mem 200G -t 04:00:00)
 O_ANALYSE=(-p long -C xcnf -N 1 --ntasks-per-node 1 -c 4 --mem 500G -t 1-00:00:00)
 O_REPLAYS=(-p long -N 2 --ntasks-per-node 128 --mem 200G -t 12:00:00)        # the trace is loaded again
 O_S3MG=(-N 4 --ntasks-per-node 8 --mem-per-cpu 2G -t 02:30:00)
