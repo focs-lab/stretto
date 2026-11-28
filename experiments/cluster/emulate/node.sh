@@ -2,7 +2,9 @@
 # Entry point of an emulated node: the account of the user who started the emulation (NODE_UID,
 # NODE_GID), munge with the emulation's key (/keys/munge.key), the Slurm configuration of the
 # nodes NODES (default "node1 node2", CPUS each, the first the controller), slurmctld on the
-# first node, slurmd on every node; then it waits.
+# first node, slurmd on every node; then it waits. The nodes carry the SoC cluster's features
+# (xcni, xcnf) and its partitions (normal, long) beside emu, so that slurm.sbatch's defaults
+# and experiments/cluster/submit-scale.sh's options are valid here.
 set -e
 NODES="${NODES:-node1 node2}"; CPUS="${CPUS:-8}"
 first="${NODES%% *}"
@@ -34,8 +36,10 @@ SlurmctldPidFile=/run/slurmctld.pid
 SlurmdPidFile=/run/slurmd.pid
 SlurmctldLogFile=/var/log/slurmctld.log
 SlurmdLogFile=/var/log/slurmd.log
-NodeName=$(echo "$NODES" | tr ' ' ',') CPUs=$CPUS State=UNKNOWN
+NodeName=$(echo "$NODES" | tr ' ' ',') CPUs=$CPUS Features=xcni,xcnf State=UNKNOWN
 PartitionName=emu Nodes=ALL Default=YES MaxTime=INFINITE State=UP OverSubscribe=NO
+PartitionName=normal Nodes=ALL MaxTime=INFINITE State=UP OverSubscribe=NO
+PartitionName=long Nodes=ALL MaxTime=INFINITE State=UP OverSubscribe=NO
 EOF
 # slurmd 23.11 puts its step daemons into a cgroup of their own, which systemd makes on a real
 # node; here the container's own cgroup tree (a private cgroup namespace, remounted writable)
