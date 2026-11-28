@@ -8,15 +8,19 @@
 #   MACHINE=<cluster> RUNTIME=native LAUNCHER=mpirun STEPS="build setup idioms" sbatch --nodes 2 experiments/cluster/slurm.sbatch
 #       (the cluster's MPI modules, loaded below from MODULES)
 # Ranks start through Slurm only: srun, or an mpirun that uses srun itself; never ssh. The
-# #SBATCH lines are defaults, the command line overrides them; account, partition and QOS are
-# the cluster's own (sbatch -A, -p, -q).
+# #SBATCH lines are defaults, the command line overrides them. The defaults fit the SoC cluster
+# (docs/cluster.md, "The SoC cluster"): partition normal, whose limit is 3 h (a longer job goes to
+# -p long, up to 3 days), and one node family, xcni (-C xcnf for the other). Whole nodes are
+# asked for on the command line (--exclusive), for runs whose timing counts: two nodes of 128
+# threads take the user's whole QOS of 256, so a 4-node job shares its nodes.
 #   MODULES  modules to load first, space-separated (for example "apptainer python/3.12", or a
 #            compiler and an MPI for RUNTIME=native)
 #SBATCH --job-name=stretto-cluster
 #SBATCH --nodes=2
 #SBATCH --ntasks-per-node=8
-#SBATCH --exclusive
-#SBATCH --time=04:00:00
+#SBATCH --partition=normal
+#SBATCH --constraint=xcni
+#SBATCH --time=02:00:00
 #SBATCH --output=build/cluster/slurm-%j.out
 set -euo pipefail
 cd "${SLURM_SUBMIT_DIR:-$PWD}"
